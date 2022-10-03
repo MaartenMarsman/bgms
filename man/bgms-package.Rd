@@ -1,6 +1,6 @@
-\name{BMRF-package}
-\alias{BMRF-package}
-\alias{BMRF}
+\name{bgms-package}
+\alias{bgms-package}
+\alias{bgms}
 \docType{package}
 \title{
   A short title line describing what the package does

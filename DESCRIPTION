@@ -1,4 +1,4 @@
-Package: Bmrf
+Package: bgms
 Type: Package
 Title: "Bayesian structure learning for binary and ordinal Markov Random Fields using EM and MCMC"
 Version: 1.0
