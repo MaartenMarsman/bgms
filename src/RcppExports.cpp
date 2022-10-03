@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // sample_omrf_gibbs
 IntegerMatrix sample_omrf_gibbs(int no_persons, int no_nodes, IntegerVector no_categories, NumericMatrix Interactions, NumericMatrix Thresholds, int no_iterations);
-RcppExport SEXP _Bmrf_sample_omrf_gibbs(SEXP no_personsSEXP, SEXP no_nodesSEXP, SEXP no_categoriesSEXP, SEXP InteractionsSEXP, SEXP ThresholdsSEXP, SEXP no_iterationsSEXP) {
+RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_personsSEXP, SEXP no_nodesSEXP, SEXP no_categoriesSEXP, SEXP InteractionsSEXP, SEXP ThresholdsSEXP, SEXP no_iterationsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -28,7 +28,7 @@ END_RCPP
 }
 // em_gamma
 NumericVector em_gamma(NumericMatrix interactions, NumericMatrix slab_var, double theta, double xi, int no_persons);
-RcppExport SEXP _Bmrf_em_gamma(SEXP interactionsSEXP, SEXP slab_varSEXP, SEXP thetaSEXP, SEXP xiSEXP, SEXP no_personsSEXP) {
+RcppExport SEXP _bgms_em_gamma(SEXP interactionsSEXP, SEXP slab_varSEXP, SEXP thetaSEXP, SEXP xiSEXP, SEXP no_personsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -43,7 +43,7 @@ END_RCPP
 }
 // em_interaction_var
 NumericVector em_interaction_var(NumericMatrix gamma, NumericMatrix slab_var, double theta, double xi, int no_persons);
-RcppExport SEXP _Bmrf_em_interaction_var(SEXP gammaSEXP, SEXP slab_varSEXP, SEXP thetaSEXP, SEXP xiSEXP, SEXP no_personsSEXP) {
+RcppExport SEXP _bgms_em_interaction_var(SEXP gammaSEXP, SEXP slab_varSEXP, SEXP thetaSEXP, SEXP xiSEXP, SEXP no_personsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -58,7 +58,7 @@ END_RCPP
 }
 // gibbs_samples
 List gibbs_samples(IntegerMatrix observations, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, IntegerMatrix Index, int no_iterations, IntegerMatrix n_cat_obs, double a, double b, bool display_progress);
-RcppExport SEXP _Bmrf_gibbs_samples(SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP no_iterationsSEXP, SEXP n_cat_obsSEXP, SEXP aSEXP, SEXP bSEXP, SEXP display_progressSEXP) {
+RcppExport SEXP _bgms_gibbs_samples(SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP no_iterationsSEXP, SEXP n_cat_obsSEXP, SEXP aSEXP, SEXP bSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -80,7 +80,7 @@ END_RCPP
 }
 // gibbs_eap
 List gibbs_eap(IntegerMatrix observations, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, IntegerMatrix Index, int no_iterations, IntegerMatrix n_cat_obs, double a, double b, bool display_progress);
-RcppExport SEXP _Bmrf_gibbs_eap(SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP no_iterationsSEXP, SEXP n_cat_obsSEXP, SEXP aSEXP, SEXP bSEXP, SEXP display_progressSEXP) {
+RcppExport SEXP _bgms_gibbs_eap(SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP no_iterationsSEXP, SEXP n_cat_obsSEXP, SEXP aSEXP, SEXP bSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -102,7 +102,7 @@ END_RCPP
 }
 // gradient_interactions
 NumericVector gradient_interactions(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, NumericMatrix interaction_var);
-RcppExport SEXP _Bmrf_gradient_interactions(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP) {
+RcppExport SEXP _bgms_gradient_interactions(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -117,7 +117,7 @@ END_RCPP
 }
 // gradient_interactions_cauchy
 NumericVector gradient_interactions_cauchy(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, double cauchy_scale);
-RcppExport SEXP _Bmrf_gradient_interactions_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP cauchy_scaleSEXP) {
+RcppExport SEXP _bgms_gradient_interactions_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP cauchy_scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -132,7 +132,7 @@ END_RCPP
 }
 // gradient_thresholds
 NumericVector gradient_thresholds(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, NumericMatrix threshold_var);
-RcppExport SEXP _Bmrf_gradient_thresholds(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP threshold_varSEXP) {
+RcppExport SEXP _bgms_gradient_thresholds(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP threshold_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -147,7 +147,7 @@ END_RCPP
 }
 // hessian_interactions
 NumericMatrix hessian_interactions(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, NumericMatrix interaction_var);
-RcppExport SEXP _Bmrf_hessian_interactions(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP) {
+RcppExport SEXP _bgms_hessian_interactions(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -162,7 +162,7 @@ END_RCPP
 }
 // hessian_interactions_cauchy
 NumericMatrix hessian_interactions_cauchy(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, double cauchy_scale);
-RcppExport SEXP _Bmrf_hessian_interactions_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP cauchy_scaleSEXP) {
+RcppExport SEXP _bgms_hessian_interactions_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP cauchy_scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -177,7 +177,7 @@ END_RCPP
 }
 // hessian_thresholds
 NumericMatrix hessian_thresholds(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, NumericMatrix threshold_var);
-RcppExport SEXP _Bmrf_hessian_thresholds(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP threshold_varSEXP) {
+RcppExport SEXP _bgms_hessian_thresholds(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP threshold_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -192,7 +192,7 @@ END_RCPP
 }
 // hessian_crossparameters
 NumericMatrix hessian_crossparameters(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories);
-RcppExport SEXP _Bmrf_hessian_crossparameters(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP) {
+RcppExport SEXP _bgms_hessian_crossparameters(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -206,7 +206,7 @@ END_RCPP
 }
 // joint_log_density
 double joint_log_density(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, NumericMatrix interaction_var, NumericMatrix threshold_var);
-RcppExport SEXP _Bmrf_joint_log_density(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP, SEXP threshold_varSEXP) {
+RcppExport SEXP _bgms_joint_log_density(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP interaction_varSEXP, SEXP threshold_varSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -222,7 +222,7 @@ END_RCPP
 }
 // joint_log_density_cauchy
 double joint_log_density_cauchy(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, NumericMatrix threshold_var, double cauchy_scale, IntegerVector no_categories);
-RcppExport SEXP _Bmrf_joint_log_density_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP threshold_varSEXP, SEXP cauchy_scaleSEXP, SEXP no_categoriesSEXP) {
+RcppExport SEXP _bgms_joint_log_density_cauchy(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP threshold_varSEXP, SEXP cauchy_scaleSEXP, SEXP no_categoriesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -238,7 +238,7 @@ END_RCPP
 }
 // emvs_joint_log_density
 double emvs_joint_log_density(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories, double xi, NumericMatrix slab_var, NumericMatrix threshold_var, double theta, bool hierarchical, double alpha, double beta);
-RcppExport SEXP _Bmrf_emvs_joint_log_density(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP xiSEXP, SEXP slab_varSEXP, SEXP threshold_varSEXP, SEXP thetaSEXP, SEXP hierarchicalSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
+RcppExport SEXP _bgms_emvs_joint_log_density(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP, SEXP xiSEXP, SEXP slab_varSEXP, SEXP threshold_varSEXP, SEXP thetaSEXP, SEXP hierarchicalSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -259,25 +259,25 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_Bmrf_sample_omrf_gibbs", (DL_FUNC) &_Bmrf_sample_omrf_gibbs, 6},
-    {"_Bmrf_em_gamma", (DL_FUNC) &_Bmrf_em_gamma, 5},
-    {"_Bmrf_em_interaction_var", (DL_FUNC) &_Bmrf_em_interaction_var, 5},
-    {"_Bmrf_gibbs_samples", (DL_FUNC) &_Bmrf_gibbs_samples, 12},
-    {"_Bmrf_gibbs_eap", (DL_FUNC) &_Bmrf_gibbs_eap, 12},
-    {"_Bmrf_gradient_interactions", (DL_FUNC) &_Bmrf_gradient_interactions, 5},
-    {"_Bmrf_gradient_interactions_cauchy", (DL_FUNC) &_Bmrf_gradient_interactions_cauchy, 5},
-    {"_Bmrf_gradient_thresholds", (DL_FUNC) &_Bmrf_gradient_thresholds, 5},
-    {"_Bmrf_hessian_interactions", (DL_FUNC) &_Bmrf_hessian_interactions, 5},
-    {"_Bmrf_hessian_interactions_cauchy", (DL_FUNC) &_Bmrf_hessian_interactions_cauchy, 5},
-    {"_Bmrf_hessian_thresholds", (DL_FUNC) &_Bmrf_hessian_thresholds, 5},
-    {"_Bmrf_hessian_crossparameters", (DL_FUNC) &_Bmrf_hessian_crossparameters, 4},
-    {"_Bmrf_joint_log_density", (DL_FUNC) &_Bmrf_joint_log_density, 6},
-    {"_Bmrf_joint_log_density_cauchy", (DL_FUNC) &_Bmrf_joint_log_density_cauchy, 6},
-    {"_Bmrf_emvs_joint_log_density", (DL_FUNC) &_Bmrf_emvs_joint_log_density, 11},
+    {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
+    {"_bgms_em_gamma", (DL_FUNC) &_bgms_em_gamma, 5},
+    {"_bgms_em_interaction_var", (DL_FUNC) &_bgms_em_interaction_var, 5},
+    {"_bgms_gibbs_samples", (DL_FUNC) &_bgms_gibbs_samples, 12},
+    {"_bgms_gibbs_eap", (DL_FUNC) &_bgms_gibbs_eap, 12},
+    {"_bgms_gradient_interactions", (DL_FUNC) &_bgms_gradient_interactions, 5},
+    {"_bgms_gradient_interactions_cauchy", (DL_FUNC) &_bgms_gradient_interactions_cauchy, 5},
+    {"_bgms_gradient_thresholds", (DL_FUNC) &_bgms_gradient_thresholds, 5},
+    {"_bgms_hessian_interactions", (DL_FUNC) &_bgms_hessian_interactions, 5},
+    {"_bgms_hessian_interactions_cauchy", (DL_FUNC) &_bgms_hessian_interactions_cauchy, 5},
+    {"_bgms_hessian_thresholds", (DL_FUNC) &_bgms_hessian_thresholds, 5},
+    {"_bgms_hessian_crossparameters", (DL_FUNC) &_bgms_hessian_crossparameters, 4},
+    {"_bgms_joint_log_density", (DL_FUNC) &_bgms_joint_log_density, 6},
+    {"_bgms_joint_log_density_cauchy", (DL_FUNC) &_bgms_joint_log_density_cauchy, 6},
+    {"_bgms_emvs_joint_log_density", (DL_FUNC) &_bgms_emvs_joint_log_density, 11},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_Bmrf(DllInfo *dll) {
+RcppExport void R_init_bgms(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
