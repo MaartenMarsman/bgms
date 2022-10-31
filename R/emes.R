@@ -70,10 +70,28 @@ emes = function(x,
   if(precision < 0 || precision > 1)
     stop("The precision parameter needs to be between 0 and 1.")
   
+  #Check if input is a matrix 
+  if(!is.matrix(x)) {
+    if(is.list(x) && length(x) > 1) {
+      stop("The input x is supposed to be a matrix.")
+    }
+    if(is.list(x) && length(x) == 1) {
+      if(is.data.frame(x)) {
+        x = as.matrix(x)
+      } else {
+        stop("The input x is supposed to be a matrix.")
+      }
+    }
+  }
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
+  
   no_nodes = ncol(x)
   no_interactions = no_nodes * (no_nodes - 1) / 2
   
-  # Data formatting
+  # Data reformatting
   no_categories = vector(length = no_nodes)
   for(node in 1:no_nodes) {
     unq_vls = sort(unique(x[,  node]))

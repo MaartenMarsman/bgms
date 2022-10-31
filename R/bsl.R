@@ -65,10 +65,44 @@ bsl = function(x,
                samples = FALSE,
                display_progress = FALSE) {
   
+  #Prior set-up for the interaction parameters -----------------------------------
+  if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
+    stop("For the interaction effects we currently only have implemented the 
+     Cauchy prior and the Unit Information prior. Please select one.")
+  if(interaction_prior == "Cauchy") {
+    if(cauchy_scale <= 0)
+      stop("The scale of the Cauchy prior needs to be positive.")
+  }  
+  
+  #Prior set-up for the threshold parameters -------------------------------------
+  if(shape1 < 0 | !is.finite(shape1))
+    stop("The shape parameters need to be non-negative numbers.")
+  if(shape2 < 0 | !is.finite(shape2))
+    stop("The shape parameters need to be non-negative numbers.")
+  
+  #Check if input is a matrix 
+  if(!is.matrix(x)) {
+    if(is.list(x) && length(x) > 1) {
+      stop("The input x is supposed to be a matrix.")
+    }
+    if(is.list(x) && length(x) == 1) {
+      if(is.data.frame(x)) {
+        x = as.matrix(x)
+      } else {
+        stop("The input x is supposed to be a matrix.")
+      }
+    }
+  }
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
+  
+  
   no_nodes = ncol(x)
   no_interactions = no_nodes * (no_nodes - 1) / 2
   
-  # Data formatting
+  # Data reformatting
   no_categories = vector(length = no_nodes)
   for(node in 1:no_nodes) {
     unq_vls = sort(unique(x[,  node]))
@@ -95,21 +129,6 @@ bsl = function(x,
                   "."))
   }
   no_thresholds = sum(no_categories)
-  
-  #Prior set-up for the interaction parameters -----------------------------------
-  if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
-    stop("For the interaction effects we currently only have implemented the 
-     Cauchy prior and the Unit Information prior. Please select one.")
-  if(interaction_prior == "Cauchy") {
-    if(cauchy_scale <= 0)
-      stop("The scale of the Cauchy prior needs to be positive.")
-  }  
-  
-  #Prior set-up for the threshold parameters -------------------------------------
-  if(shape1 < 0 | !is.finite(shape1))
-    stop("The shape parameters need to be non-negative numbers.")
-  if(shape2 < 0 | !is.finite(shape2))
-    stop("The shape parameters need to be non-negative numbers.")
   
   #Proposal set-up for the interaction parameters --------------------------------
   pps = try(mppe(x = x, 
