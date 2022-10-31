@@ -8,8 +8,6 @@
 #'   categories coded as non-negative integers (i.e., coded 
 #'   \code{0, 1, ..., no_categories}) for \code{no_persons} independent 
 #'   observations on \code{no_nodes} variables in the network or graph.
-#'
-#' @param no_categories The maximum category.
 #' 
 #' @param precision A number between zero and one. The prior precision that is
 #' desired for edge selection. Equal to one minus the desired type-1 error.
@@ -55,7 +53,6 @@
 #'   the modal estimate of the prior inclusion probability \code{theta} is also 
 #'   provided.
 emes = function(x, 
-                no_categories, 
                 precision = 0.975,
                 convergence_criterion = sqrt(.Machine$double.eps), 
                 theta = 0.5, 
@@ -73,11 +70,38 @@ emes = function(x,
   if(precision < 0 || precision > 1)
     stop("The precision parameter needs to be between 0 and 1.")
   
-  no_nodes <- ncol(x)
-  no_thresholds <- sum(no_categories)
-  no_interactions <- no_nodes * (no_nodes - 1) / 2
-  no_parameters <- no_thresholds + no_interactions
-  no_persons <- nrow(x)
+  no_nodes = ncol(x)
+  no_interactions = no_nodes * (no_nodes - 1) / 2
+  
+  # Data formatting
+  no_categories = vector(length = no_nodes)
+  for(node in 1:no_nodes) {
+    unq_vls = sort(unique(x[,  node]))
+    mx_vl = max(unq_vls)
+    # Check
+    if(mx_vl == nrow(x))
+      stop(paste0("Only unique values observed for variable ", 
+                  node, 
+                  ". Expect discrete data with >= 1 observations per unique value."))
+    if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
+      y = x[, node]
+      cntr = 0
+      for(value in unq_vls) {
+        x[y == value, node] = cntr
+        cntr = cntr + 1
+      }
+    }
+    no_categories[node] = max(x[,node])
+    if(no_categories[node] == 0)
+      stop(paste0("Only one value [", 
+                  unq_vls,  
+                  "] was observed for variable ", 
+                  node, 
+                  "."))
+  }
+  no_thresholds = sum(no_categories)
+  no_parameters = no_thresholds + no_interactions
+  no_persons = nrow(x)
   
   # Set spike and slab prior variances -----------------------------------------
   fit <- try(mple(x = x, no_categories = no_categories), 
