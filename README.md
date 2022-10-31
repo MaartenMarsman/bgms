@@ -1,5 +1,5 @@
 # bgms
-Bayesian analysis for a Markov Random Field model for ordinal variables. 
+The Bayesian analysis for a Markov Random Field model for ordinal variables. 
 
 The project comprises several methods for the Bayesian analysis of a Markov Random Field (MRF) model for ordinal variables.
 First, we combine an Expectation-Maximization variable selection approach with the continuous spike-and-slab prior set-up developed by Marsman, Huth, Waldorp, and Ntzoufras (2022; https://doi.org/10.1007/s11336-022-09848-8) for an MRF for binary variables. This approach aims to find a single (locally) optimal model for the data (e.g., Ro&#x010D;kov&#x00E1, & George; Journal of the American Statistical Association, 109(506):828-846, 2014). 
