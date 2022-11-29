@@ -13,12 +13,12 @@ em_interaction_var <- function(gamma, slab_var, theta, xi, no_persons) {
     .Call(`_bgms_em_interaction_var`, gamma, slab_var, theta, xi, no_persons)
 }
 
-gibbs_samples <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, a, b, display_progress = FALSE) {
-    .Call(`_bgms_gibbs_samples`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, a, b, display_progress)
+gibbs_samples <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress = FALSE) {
+    .Call(`_bgms_gibbs_samples`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress)
 }
 
-gibbs_eap <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, a, b, display_progress = FALSE) {
-    .Call(`_bgms_gibbs_eap`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, a, b, display_progress)
+gibbs_eap <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress = FALSE) {
+    .Call(`_bgms_gibbs_eap`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress)
 }
 
 gradient_interactions <- function(interactions, thresholds, observations, no_categories, interaction_var) {
@@ -29,8 +29,8 @@ gradient_interactions_cauchy <- function(interactions, thresholds, observations,
     .Call(`_bgms_gradient_interactions_cauchy`, interactions, thresholds, observations, no_categories, cauchy_scale)
 }
 
-gradient_thresholds <- function(interactions, thresholds, observations, no_categories, threshold_var) {
-    .Call(`_bgms_gradient_thresholds`, interactions, thresholds, observations, no_categories, threshold_var)
+gradient_thresholds <- function(interactions, thresholds, observations, no_categories, threshold_alpha = 1.0, threshold_beta = 1.0) {
+    .Call(`_bgms_gradient_thresholds`, interactions, thresholds, observations, no_categories, threshold_alpha, threshold_beta)
 }
 
 hessian_interactions <- function(interactions, thresholds, observations, no_categories, interaction_var) {
@@ -41,23 +41,35 @@ hessian_interactions_cauchy <- function(interactions, thresholds, observations, 
     .Call(`_bgms_hessian_interactions_cauchy`, interactions, thresholds, observations, no_categories, cauchy_scale)
 }
 
-hessian_thresholds <- function(interactions, thresholds, observations, no_categories, threshold_var) {
-    .Call(`_bgms_hessian_thresholds`, interactions, thresholds, observations, no_categories, threshold_var)
+hessian_thresholds <- function(interactions, thresholds, observations, no_categories, threshold_alpha = 1.0, threshold_beta = 1.0) {
+    .Call(`_bgms_hessian_thresholds`, interactions, thresholds, observations, no_categories, threshold_alpha, threshold_beta)
 }
 
 hessian_crossparameters <- function(interactions, thresholds, observations, no_categories) {
     .Call(`_bgms_hessian_crossparameters`, interactions, thresholds, observations, no_categories)
 }
 
-joint_log_density <- function(interactions, thresholds, observations, no_categories, interaction_var, threshold_var) {
-    .Call(`_bgms_joint_log_density`, interactions, thresholds, observations, no_categories, interaction_var, threshold_var)
+gradient_thresholds_pl <- function(interactions, thresholds, observations, no_categories) {
+    .Call(`_bgms_gradient_thresholds_pl`, interactions, thresholds, observations, no_categories)
 }
 
-joint_log_density_cauchy <- function(interactions, thresholds, observations, threshold_var, cauchy_scale, no_categories) {
-    .Call(`_bgms_joint_log_density_cauchy`, interactions, thresholds, observations, threshold_var, cauchy_scale, no_categories)
+hessian_thresholds_pl <- function(interactions, thresholds, observations, no_categories) {
+    .Call(`_bgms_hessian_thresholds_pl`, interactions, thresholds, observations, no_categories)
 }
 
-emvs_joint_log_density <- function(interactions, thresholds, observations, no_categories, xi, slab_var, threshold_var, theta = 0.5, hierarchical = FALSE, alpha = 1.0, beta = 1.0) {
-    .Call(`_bgms_emvs_joint_log_density`, interactions, thresholds, observations, no_categories, xi, slab_var, threshold_var, theta, hierarchical, alpha, beta)
+joint_log_density <- function(interactions, thresholds, observations, no_categories, interaction_var, threshold_alpha = 1.0, threshold_beta = 1.0) {
+    .Call(`_bgms_joint_log_density`, interactions, thresholds, observations, no_categories, interaction_var, threshold_alpha, threshold_beta)
+}
+
+joint_log_density_cauchy <- function(interactions, thresholds, observations, cauchy_scale, no_categories, threshold_alpha = 1.0, threshold_beta = 1.0) {
+    .Call(`_bgms_joint_log_density_cauchy`, interactions, thresholds, observations, cauchy_scale, no_categories, threshold_alpha, threshold_beta)
+}
+
+emvs_joint_log_density <- function(interactions, thresholds, observations, no_categories, xi, slab_var, theta = 0.5, hierarchical = FALSE, indicator_alpha = 1.0, indicator_beta = 1.0, threshold_alpha = 1.0, threshold_beta = 1.0) {
+    .Call(`_bgms_emvs_joint_log_density`, interactions, thresholds, observations, no_categories, xi, slab_var, theta, hierarchical, indicator_alpha, indicator_beta, threshold_alpha, threshold_beta)
+}
+
+log_pseudolikelihood <- function(interactions, thresholds, observations, no_categories) {
+    .Call(`_bgms_log_pseudolikelihood`, interactions, thresholds, observations, no_categories)
 }
 

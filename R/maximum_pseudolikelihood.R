@@ -43,9 +43,22 @@ mple = function(x,
                 maximum_iterations = 1e3, 
                 thresholds, 
                 interactions) {
+  #Check data input ------------------------------------------------------------
+  if(class(x)[1] != "matrix") {
+    stop("The input x is supposed to be a matrix.")
+  }
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
   
+  #Check NR input --------------------------------------------------------------
   if(convergence_criterion <= 0) 
     stop("Parameter ``convergence_criterion'' needs to be positive.")
+  if(maximum_iterations <= 0 || 
+     abs(maximum_iterations - round(maximum_iterations)) > 
+     sqrt(.Machine$double.eps)) 
+    stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
   
   no_nodes = ncol(x)
   no_thresholds = sum(no_categories)
@@ -65,17 +78,10 @@ mple = function(x,
   }
   
   # Newton-Raphson ------------------------------------------------------------
-  log_pseudolikelihood = 
-    joint_log_density(interactions, 
-                      thresholds, 
-                      observations = x,
-                      no_categories,
-                      interaction_var = matrix(Inf, 
-                                               nrow = no_nodes, 
-                                               ncol = no_nodes),
-                      threshold_var = matrix(Inf, 
-                                             nrow = no_nodes, 
-                                             ncol = max(no_categories)))
+  log_pl = log_pseudolikelihood(interactions, 
+                                thresholds, 
+                                observations = x,
+                                no_categories)
   
   hessian = matrix(data = NA, 
                    nrow = no_parameters,
@@ -85,17 +91,14 @@ mple = function(x,
                     ncol = no_parameters)
   
   for(iteration in 1:maximum_iterations) {  
-    old_log_pseudolikelihood = log_pseudolikelihood
+    old_log_pl = log_pl
     
     #Compute gradient vector (first order derivatives) ------------------------
     gradient[1:no_thresholds] = 
-      gradient_thresholds(interactions = interactions, 
-                          thresholds = thresholds, 
-                          observations = x, 
-                          no_categories,
-                          threshold_var = matrix(Inf, 
-                                                 nrow = no_nodes, 
-                                                 ncol = max(no_categories)))
+      gradient_thresholds_pl(interactions = interactions, 
+                             thresholds = thresholds, 
+                             observations = x, 
+                             no_categories)
     gradient[-c(1:no_thresholds)] =
       gradient_interactions(interactions = interactions, 
                             thresholds = thresholds, 
@@ -107,13 +110,11 @@ mple = function(x,
     
     # Compute Hessian matrix (second order partial derivatives) ---------------
     hessian[1:no_thresholds, 1:no_thresholds] = 
-      hessian_thresholds(interactions = interactions, 
-                         thresholds = thresholds, 
-                         observations = x, 
-                         no_categories, 
-                         threshold_var = matrix(Inf, 
-                                                nrow = no_nodes, 
-                                                ncol = max(no_categories)))
+      hessian_thresholds_pl(interactions = interactions, 
+                            thresholds = thresholds, 
+                            observations = x, 
+                            no_categories)
+    
     hessian[-(1:no_thresholds), -(1:no_thresholds)] = 
       hessian_interactions(interactions = interactions, 
                            thresholds = thresholds, 
@@ -152,24 +153,16 @@ mple = function(x,
     }
     
     # Check for convergence ---------------------------------------------------
-    log_pseudolikelihood = 
-      joint_log_density(interactions, 
-                        thresholds, 
-                        observations = x, 
-                        no_categories,
-                        interaction_var = matrix(Inf, 
-                                                 nrow = no_nodes, 
-                                                 ncol = no_nodes),
-                        threshold_var = matrix(Inf, 
-                                               nrow = no_nodes, 
-                                               ncol = max(no_categories)))
+    log_pl = log_pseudolikelihood(interactions, 
+                                  thresholds, 
+                                  observations = x,
+                                  no_categories)    
     
-    
-    if(abs(log_pseudolikelihood - old_log_pseudolikelihood) < convergence_criterion)
+    if(abs(log_pl - old_log_pl) < convergence_criterion)
       break
   }  
   
-  if(abs(log_pseudolikelihood - old_log_pseudolikelihood) >= convergence_criterion &&
+  if(abs(log_pl - old_log_pl) >= convergence_criterion &&
      iteration == maximum_iterations)
     warning(paste("The optimization procedure did not convergence in", 
                   maximum_iterations, "iterations.",

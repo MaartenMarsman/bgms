@@ -7,7 +7,8 @@ double joint_log_density(NumericMatrix interactions,
                          IntegerMatrix observations,
                          IntegerVector no_categories,
                          NumericMatrix interaction_var,
-                         NumericMatrix threshold_var) {
+                         double threshold_alpha = 1.0,
+                         double threshold_beta = 1.0) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   double rest_score = 0.0;
@@ -60,12 +61,10 @@ double joint_log_density(NumericMatrix interactions,
   //Contribution of the prior densities (thresholds) --------------------------
   for(int s = 0; s < no_nodes; s++) {
     for(int category = 0; category < no_categories[s]; category++) {
-      //If Var == Inf, density is pseudolikelihood ----------------------------
-      if(std::isfinite(threshold_var(s, category)))
-        density += R::dnorm(thresholds(s, category), 
-                            0.0, 
-                            std::sqrt(threshold_var(s, category)), 
-                            true);
+      density -= R::lbeta(threshold_alpha, threshold_beta);
+      density += threshold_alpha * thresholds(s, category);
+      density -= (threshold_alpha + threshold_beta) * 
+        std::log(1 + std::exp(thresholds(s, category)));
     }
   }
   return density;
@@ -75,9 +74,10 @@ double joint_log_density(NumericMatrix interactions,
 double joint_log_density_cauchy(NumericMatrix interactions,
                                 NumericMatrix thresholds,
                                 IntegerMatrix observations,
-                                NumericMatrix threshold_var,
                                 double cauchy_scale,
-                                IntegerVector no_categories) {
+                                IntegerVector no_categories,
+                                double threshold_alpha = 1.0,
+                                double threshold_beta = 1.0) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   double rest_score = 0.0;
@@ -129,12 +129,10 @@ double joint_log_density_cauchy(NumericMatrix interactions,
   //Contribution of the prior densities (thresholds) --------------------------
   for(int s = 0; s < no_nodes; s++) {
     for(int category = 0; category < no_categories[s]; category++) {
-      //If Var == Inf, density is pseudolikelihood ----------------------------
-      if(std::isfinite(threshold_var(s, category)))
-        density += R::dnorm(thresholds(s, category), 
-                            0.0, 
-                            std::sqrt(threshold_var(s, category)), 
-                            true);
+      density -= R::lbeta(threshold_alpha, threshold_beta);
+      density += threshold_alpha * thresholds(s, category);
+      density -= (threshold_alpha + threshold_beta) * 
+        std::log(1 + std::exp(thresholds(s, category)));
     }
   }
   return density;
@@ -148,11 +146,12 @@ double emvs_joint_log_density(NumericMatrix interactions,
                               IntegerVector no_categories,
                               double xi,
                               NumericMatrix slab_var,
-                              NumericMatrix threshold_var,
                               double theta = 0.5,
                               bool hierarchical = false,
-                              double alpha = 1.0,
-                              double beta = 1.0) {
+                              double indicator_alpha = 1.0,
+                              double indicator_beta = 1.0,
+                              double threshold_alpha = 1.0,
+                              double threshold_beta = 1.0) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   double rest_score = 0.0;
@@ -209,17 +208,60 @@ double emvs_joint_log_density(NumericMatrix interactions,
   //Contribution of the prior densities (thresholds) --------------------------
   for(int s = 0; s < no_nodes; s++) {
     for(int category = 0; category < no_categories[s]; category++) {
-      //If Var == Inf, density is pseudolikelihood ----------------------------
-      if(std::isfinite(threshold_var(s, category)))
-        density += R::dnorm(thresholds(s, category), 
-                            0.0, 
-                            std::sqrt(threshold_var(s, category)), 
-                            true);
+      density -= R::lbeta(threshold_alpha, threshold_beta);
+      density += threshold_alpha * thresholds(s, category);
+      density -= (threshold_alpha + threshold_beta) * 
+        std::log(1 + std::exp(thresholds(s, category)));
     }
   }
   
   if(hierarchical == true)
-    density += R::dbeta(theta, alpha, beta, true);
+    density += R::dbeta(theta, indicator_alpha, indicator_beta, true);
   
+  return density;
+}
+
+// [[Rcpp::export]]
+double log_pseudolikelihood(NumericMatrix interactions,
+                            NumericMatrix thresholds,
+                            IntegerMatrix observations,
+                            IntegerVector no_categories) {
+  int no_nodes = observations.ncol();
+  int no_persons = observations.nrow();
+  double rest_score = 0.0;
+  double bound =  0.0;
+  double density = 0.0;
+  double denominator = 0.0;
+  double exponent = 0.0;
+  int score = 0;
+  
+  //Contributions of the full-conditional of nodes (pseudolikelihoods) --------
+  for(int s = 0; s <  no_nodes; s++) {
+    //Numerator of full-conditional of node s (pseudolikelihood) --------------
+    for(int person = 0; person < no_persons; person++) {
+      rest_score = 0.0;
+      for(int node = 0; node < no_nodes; node++) {
+        rest_score += (no_categories[node] - observations(person, node)) *
+          interactions(node, s);  
+      }
+      density +=  (no_categories[s] - observations(person,s)) * 
+        rest_score;
+      bound = no_categories[s] * rest_score;
+      density -= bound;
+      denominator = std::exp(-bound);
+      for(int category = 0; category < no_categories[s]; category++) {
+        if(observations(person, s) == category) {
+          density += thresholds(s, category);
+        }
+        score = no_categories[s] - category;
+        exponent = thresholds(s, category) + 
+          score * rest_score - 
+          bound;
+        denominator += std::exp(exponent);
+      }
+      //Denominator of full-conditional of node s (pseudolikelihood) ----------
+      density -= log(denominator);
+    }
+  }
   return density;
 }

@@ -27,19 +27,16 @@
 #'  inclusion probability, a beta with \code{alpha = beta = 1}, stipulates a
 #'  uniform prior on network structure complexity.
 #'
-#' @param alpha,beta The hyperparameters of the beta prior distribution
-#'   stipulated on the prior inclusion probability \code{theta} if
-#'   \code{hierarchical = TRUE}. Default to \code{1}.
+#' @param indicator_alpha,indicator_beta The hyperparameters of the beta prior 
+#'  distribution stipulated on the prior inclusion probability \code{theta} if
+#'  \code{hierarchical = TRUE}. Default to \code{1}.
 #'   
 #' @param maximum_iterations The maximum number of EM iterations used. Defaults 
 #'   to \code{1e3}. A warning is issued if procedure has not converged in 
 #'   \code{maximum_iterations} iterations.
 #'
-#' @param threshold_prior_var The variance that is used in the normal prior 
-#'   density stipulated on the threshold parameters. Currently a normal
-#'   distribution is used for all threshold parameters, with a mean equal to
-#'   zero and a variance equal to \code{threshold_prior_var}. Defaults to
-#'   \code{1}.
+#' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime 
+#'  prior for the thresholds. Defaults to \code{1}.
 #' 
 #' @return A list containing the \code{no_nodes} by \code{no_nodes} matrices 
 #'  \code{interactions} and \code{gamma}, the \code{no_nodes} by 
@@ -57,31 +54,40 @@ emes = function(x,
                 convergence_criterion = sqrt(.Machine$double.eps), 
                 theta = 0.5, 
                 hierarchical = FALSE, 
-                alpha = 1, 
-                beta = 1, 
+                indicator_alpha = 1, 
+                indicator_beta = 1, 
                 maximum_iterations = 1e3,
-                threshold_prior_var = 1) {
-  if(convergence_criterion <= 0) 
-    stop("Parameter ``convergence_criterion'' needs to be positive.")
-  if(threshold_prior_var <= 0) 
-    stop("Parameter ``threshold_prior_var'' needs to be positive.")
-  if(theta < 0 || theta > 1) 
-    stop("Parameter ``theta''is a probability and needs to be between 0 and 1.")
+                threshold_alpha = 1,
+                threshold_beta = 1) {
+  
+  #Check prior set-up for the interaction parameters ---------------------------
   if(precision < 0 || precision > 1)
     stop("The precision parameter needs to be between 0 and 1.")
   
-  #Check if input is a matrix 
-  if(!is.matrix(x)) {
-    if(is.list(x) && length(x) > 1) {
-      stop("The input x is supposed to be a matrix.")
-    }
-    if(is.list(x) && length(x) == 1) {
-      if(is.data.frame(x)) {
-        x = as.matrix(x)
-      } else {
-        stop("The input x is supposed to be a matrix.")
-      }
-    }
+  #Check prior set-up for the indicator variables ------------------------------
+  if(theta < 0 || theta > 1) 
+    stop("Parameter ``theta''is a probability and needs to be between 0 and 1.")
+  if(indicator_alpha <= 0 | !is.finite(indicator_alpha))
+    stop("Parameter ``indicator_alpha'' needs to be positive.")
+  if(indicator_beta <= 0 | !is.finite(indicator_beta))
+    stop("Parameter ``indicator_beta'' needs to be positive.")
+  
+  #Check prior set-up for the threshold parameters -----------------------------
+  if(threshold_alpha <= 0 | !is.finite(threshold_alpha))
+    stop("Parameter ``threshold_alpha'' needs to be positive.")
+  if(threshold_beta <= 0 | !is.finite(threshold_beta))
+    stop("Parameter ``threshold_beta'' needs to be positive.")
+  
+  #Check EM input --------------------------------------------------------------
+  if(convergence_criterion <= 0) 
+    stop("Parameter ``convergence_criterion'' needs to be positive.")
+  if(maximum_iterations <= 0 || 
+     abs(maximum_iterations - round(maximum_iterations)) > sqrt(.Machine$double.eps)) 
+    stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
+  
+  #Check data input ------------------------------------------------------------
+  if(class(x)[1] != "matrix") {
+    stop("The input x is supposed to be a matrix.")
   }
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
@@ -150,21 +156,19 @@ emes = function(x,
   gradient <- matrix(data = NA,
                      nrow = 1,
                      ncol = no_parameters)
-  threshold_var <- matrix(data = threshold_prior_var, 
-                          nrow = no_nodes, 
-                          ncol = max(no_categories))
-  
+
   log_pseudoposterior <- emvs_joint_log_density(interactions = interactions,
                                                 thresholds = thresholds,
                                                 observations = x,
                                                 no_categories = no_categories,
                                                 xi = xi,
                                                 slab_var = slab_var,
-                                                threshold_var = threshold_var,
                                                 theta = theta,
                                                 hierarchical = hierarchical, 
-                                                alpha = alpha, 
-                                                beta = beta)
+                                                indicator_alpha = indicator_alpha, 
+                                                indicator_beta = indicator_beta,
+                                                threshold_alpha = threshold_alpha, 
+                                                threshold_beta = threshold_beta)
   
   #starting values
   thresholds = matrix(0, 
@@ -187,7 +191,8 @@ emes = function(x,
     # M-step - update prior inclusion probability -----------------------------
     if(hierarchical == TRUE) {
       tmp <- sum(gamma[lower.tri(gamma)])
-      theta <- (tmp + alpha - 1) / (alpha + beta - 2 + no_interactions)
+      theta <- (tmp + indicator_alpha - 1) / 
+        (indicator_alpha + indicator_beta - 2 + no_interactions)
     }
     
     # M-step - update model parameters ----------------------------------------
@@ -204,7 +209,8 @@ emes = function(x,
                           thresholds = thresholds, 
                           observations = x, 
                           no_categories = no_categories,
-                          threshold_var = threshold_var)
+                          threshold_alpha,
+                          threshold_beta)
     gradient[-c(1:no_thresholds)] <-
       gradient_interactions(interactions = interactions, 
                             thresholds = thresholds, 
@@ -218,7 +224,9 @@ emes = function(x,
                          thresholds = thresholds, 
                          observations = x,
                          no_categories = no_categories,
-                         threshold_var = threshold_var)
+                         threshold_alpha,
+                         threshold_beta)
+    
     hessian[-(1:no_thresholds), -(1:no_thresholds)] <- 
       hessian_interactions(interactions = interactions, 
                            thresholds = thresholds, 
@@ -262,11 +270,12 @@ emes = function(x,
                                                   no_categories = no_categories,
                                                   xi = xi,
                                                   slab_var = slab_var,
-                                                  threshold_var = threshold_var,
                                                   theta = theta,
                                                   hierarchical = hierarchical, 
-                                                  alpha = alpha, 
-                                                  beta = beta)
+                                                  indicator_alpha = indicator_alpha, 
+                                                  indicator_beta = indicator_beta,
+                                                  threshold_alpha = threshold_alpha, 
+                                                  threshold_beta = threshold_beta)
     
     if(abs(log_pseudoposterior - old_log_pseudoposterior) < 
        convergence_criterion)

@@ -31,7 +31,7 @@
 #' @param cauchy_scale The scale of the Cauchy prior for interactions. Defaults 
 #' to \code{2.5}. 
 #' 
-#' @param shape1,shape2 The shape parameters of the Beta-prime prior for the 
+#' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime prior for the 
 #' thresholds. Defaults to \code{1}.
 #' 
 #' @param samples Should the function collect and return all samples from the 
@@ -60,12 +60,12 @@ bsl = function(x,
                no_iterations = 1e5,
                interaction_prior = "Cauchy",
                cauchy_scale = 2.5,
-               shape1 = 1,
-               shape2 = 1,
+               threshold_alpha = 1,
+               threshold_beta = 1,
                samples = FALSE,
                display_progress = FALSE) {
   
-  #Prior set-up for the interaction parameters -----------------------------------
+  #Check prior set-up for the interaction parameters ---------------------------
   if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
     stop("For the interaction effects we currently only have implemented the 
      Cauchy prior and the Unit Information prior. Please select one.")
@@ -74,44 +74,34 @@ bsl = function(x,
       stop("The scale of the Cauchy prior needs to be positive.")
   }  
   
-  #Prior set-up for the threshold parameters -------------------------------------
-  if(shape1 < 0 | !is.finite(shape1))
-    stop("The shape parameters need to be non-negative numbers.")
-  if(shape2 < 0 | !is.finite(shape2))
-    stop("The shape parameters need to be non-negative numbers.")
+  #Check prior set-up for the threshold parameters -----------------------------
+  if(threshold_alpha <= 0  | !is.finite(threshold_alpha))
+    stop("Parameter ``threshold_alpha'' needs to be positive.")
+  if(threshold_beta <= 0  | !is.finite(threshold_beta))
+    stop("Parameter ``threshold_beta'' needs to be positive.")
   
-  #Check if input is a matrix 
-  if(!is.matrix(x)) {
-    if(is.list(x) && length(x) > 1) {
-      stop("The input x is supposed to be a matrix.")
-    }
-    if(is.list(x) && length(x) == 1) {
-      if(is.data.frame(x)) {
-        x = as.matrix(x)
-      } else {
-        stop("The input x is supposed to be a matrix.")
-      }
-    }
+  #Check data input ------------------------------------------------------------
+  if(class(x)[1] != "matrix") {
+    stop("The input x is supposed to be a matrix.")
   }
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
   
-  
   no_nodes = ncol(x)
   no_interactions = no_nodes * (no_nodes - 1) / 2
   
-  # Data reformatting
+  #Format the data input -------------------------------------------------------
   no_categories = vector(length = no_nodes)
   for(node in 1:no_nodes) {
     unq_vls = sort(unique(x[,  node]))
     mx_vl = max(unq_vls)
     # Check
     if(mx_vl == nrow(x))
-      stop(paste0("Only unique values observed for variable ", 
+      stop(paste0("Only unique category responses observed for variable ", 
                   node, 
-                  ". Expect discrete data with >= 1 observations per unique value."))
+                  ". Expect discrete data with >= 1 observations per category."))
     if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
       y = x[, node]
       cntr = 0
@@ -214,8 +204,8 @@ bsl = function(x,
                     Index = Index,
                     no_iterations = no_iterations,
                     n_cat_obs = n_cat_obs, 
-                    a = shape1,
-                    b = shape2,
+                    threshold_alpha = threshold_alpha,
+                    threshold_beta = threshold_beta,
                     display_progress = display_progress)
     
     eap_edges = out$eap.edges
@@ -255,8 +245,8 @@ bsl = function(x,
                         Index = Index,
                         no_iterations = no_iterations,
                         n_cat_obs = n_cat_obs, 
-                        a = shape1,
-                        b = shape2,
+                        threshold_alpha = threshold_alpha,
+                        threshold_beta = threshold_beta,
                         display_progress = display_progress)
     samples_int = out$samples.interactions
     samples_gamma = out$samples.gamma

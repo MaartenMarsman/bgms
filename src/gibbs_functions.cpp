@@ -12,19 +12,19 @@ NumericMatrix sample_thresholds(NumericMatrix interactions,
                                 IntegerMatrix observations,
                                 IntegerVector no_categories,
                                 IntegerMatrix n_cat_obs, 
-                                double a,
-                                double b) {
+                                double threshold_alpha,
+                                double threshold_beta) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   
   NumericVector g(no_persons);  
   NumericVector q(no_persons);  
   
-  double d = 1.0;
+  double c = 1.0;
   double log_prob = 0.0;  
   double rest_score;
-  double alpha;
-  double beta;
+  double a;
+  double b;
   double tmp;
   double proposed_state;
   double current_state;
@@ -33,16 +33,16 @@ NumericMatrix sample_thresholds(NumericMatrix interactions,
   for(int node = 0; node < no_nodes; node++) {
     for(int category = 0; category < no_categories[node]; category++) {
       current_state = thresholds(node, category);
-      //The pseudolikelihood is of the form exp(m) / (g + q * exp(m)) 
-      //The proposal is of the form [d * exp(m)] / (1 + d * exp(m))
-      //First, we compute g, q, and d
-      d = (a + b) / (1 + std::exp(current_state));
+      //The pseudolikelihood has the form exp(m) / (g + q * exp(m)) 
+      //The proposal has the form [c * exp(m)] ^ a / (1 + c * exp(m)) ^ (a + b)
+      //First, we compute g, q, and c
+      c = (threshold_alpha + threshold_beta) / (1 + std::exp(current_state));
       for(int person = 0; person < no_persons; person++) {
         g[person] = 1.0;
         q[person] = 1.0;
         rest_score = 0.0;
         for(int s = 0; s <  no_nodes; s++) {
-          rest_score += observations(person, s) * //(no_categories[s] - observations(person, s)) * 
+          rest_score += observations(person, s) *                               //(no_categories[s] - observations(person, s)) * 
             interactions(s, node);
         }
         for(int cat = 0; cat < no_categories[node]; cat++) {
@@ -51,33 +51,33 @@ NumericMatrix sample_thresholds(NumericMatrix interactions,
               (no_categories[node] - cat) * rest_score);  
           }
         } 
-        q[person] = std::exp((no_categories[node] - category) * rest_score);
-        d +=  q[person] / (g[person] + q[person] * std::exp(current_state));
+        q[person] = std::exp((no_categories[node] - category) * rest_score);    //Change to "category * rest_score
+        c +=  q[person] / (g[person] + q[person] * std::exp(current_state));
       }
-      d = d / ((no_persons + a + b)  - std::exp(current_state) * d);
+      c = c / ((no_persons + threshold_alpha + threshold_beta) - 
+        std::exp(current_state) * c);
       
       //Proposal is generalized beta-prime. 
-      alpha = n_cat_obs(category, node) + a;
-      beta = no_persons + b - n_cat_obs(category, node);
-      tmp = R::rbeta(alpha, beta);
-      proposed_state = std::log(tmp / (1  - tmp) / d);
+      a = n_cat_obs(category, node) + threshold_alpha;
+      b = no_persons + threshold_beta - n_cat_obs(category, node);
+      tmp = R::rbeta(a, b);
+      proposed_state = std::log(tmp / (1  - tmp) / c);
       
       //Compute log_acceptance probability for Metropolis.
       //First, we use g and q above to compute the ratio of pseudolikelihoods
-      log_prob = n_cat_obs(category, node) * (proposed_state - current_state);
+      log_prob = 0;
       for(int person = 0; person < no_persons; person++) {
-        log_prob -= std::log(g[person] + q[person] * std::exp(proposed_state));
         log_prob += std::log(g[person] + q[person] * std::exp(current_state));
+        log_prob -= std::log(g[person] + q[person] * std::exp(proposed_state));
       } 
       //Second, we add the ratio of prior probabilities
-      log_prob += a * proposed_state; 
-      log_prob -= (a + b) * std::log(1 + std::exp(proposed_state));
-      log_prob -= a * current_state; 
-      log_prob += (a + b) * std::log(1 + std::exp(current_state)); 
+      log_prob -= (threshold_alpha + threshold_beta) * 
+        std::log(1 + std::exp(proposed_state));
+      log_prob += (threshold_alpha + threshold_beta) * 
+        std::log(1 + std::exp(current_state)); 
       //Third, we add the ratio of proposals
-      log_prob += alpha * (current_state - proposed_state);
-      log_prob -= (alpha + beta) * std::log(1 + d * std::exp(current_state));
-      log_prob += (alpha + beta) * std::log(1 + d * std::exp(proposed_state));
+      log_prob -= (a + b) * std::log(1 + c * std::exp(current_state));
+      log_prob += (a + b) * std::log(1 + c * std::exp(proposed_state));
       
       U = std::log(R::runif(0, 1));      
       if(U < log_prob) {
@@ -112,19 +112,19 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
   int obs_score2 = 0;
   
   for(int person = 0; person < no_persons; person++) {
-    obs_score1 = observations(person, node1);//(no_categories[node1] - observations(person, node1));
-    obs_score2 = observations(person, node2);//(no_categories[node2] - observations(person, node2));
+    obs_score1 = observations(person, node1);                                   //(no_categories[node1] - observations(person, node1));
+    obs_score2 = observations(person, node2);                                   //(no_categories[node2] - observations(person, node2));
     
     //Node 1 log pseudolikelihood ratio
     rest_score = 0.0;
     for(int node = 0; node < no_nodes; node++) {
-      rest_score += observations(person, node) *//(no_categories[node] - observations(person, node)) *
+      rest_score += observations(person, node) *                                //(no_categories[node] - observations(person, node)) *
         interactions(node, node1);  
     }
     rest_score -= obs_score2 * interactions(node2, node1);
     
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * 
-      (proposed_state - current_state);
+    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 *                         
+      (proposed_state - current_state);                                         
     
     if(rest_score > 0) {
       bound = no_categories[node1] * rest_score;
@@ -135,7 +135,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     denominator_prop = std::exp(-bound);
     denominator_curr = std::exp(-bound);
     for(int category = 0; category < no_categories[node1]; category++) {
-      score = no_categories[node1] - category;
+      score = no_categories[node1] - category;                                  //Change to = category;
       exponent = thresholds(node1, category) + 
         score * rest_score - 
         bound;
@@ -150,13 +150,13 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     //Node 2 log pseudolikelihood ratio
     rest_score = 0.0;
     for(int node = 0; node < no_nodes; node++) {
-      rest_score += observations(person, node) *//(no_categories[node] - observations(person, node)) *
+      rest_score += observations(person, node) *                                //(no_categories[node] - observations(person, node)) *
         interactions(node, node2);  
     }
     rest_score -= obs_score1 * interactions(node1, node2);
     
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * 
-      (proposed_state - current_state);
+//    pseudolikelihood_ratio += obs_score1 * obs_score2 * 
+//      (proposed_state - current_state);                                         
     
     if(rest_score > 0) {
       bound = no_categories[node2] * rest_score;
@@ -167,7 +167,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     denominator_prop = std::exp(-bound);
     denominator_curr = std::exp(-bound);
     for(int category = 0; category < no_categories[node2]; category++) {
-      score = no_categories[node2] - category;
+      score = no_categories[node2] - category;                                  //Change to = category;
       exponent = thresholds(node2, category) + 
         score * rest_score - 
         bound;
@@ -215,12 +215,8 @@ NumericMatrix sample_interactions_cauchy_hastings(NumericMatrix interactions,
                                               proposed_state,
                                               current_state);
         log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
-        //        log_prob += R::dnorm(current_state, proposed_state,
-        //                             proposal_sd(node1, node2), true);
         log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
-        //        log_prob -= R::dnorm(proposed_state, current_state,
-        //                             proposal_sd(node1, node2), true);
-        
+
         U = R::runif(0, 1);
         if(std::log(U) < log_prob) {
           interactions(node1, node2) = proposed_state;
@@ -461,8 +457,8 @@ List gibbs_samples(IntegerMatrix observations,
                    IntegerMatrix Index,
                    int no_iterations,
                    IntegerMatrix n_cat_obs, 
-                   double a,
-                   double b,
+                   double threshold_alpha,
+                   double threshold_beta,
                    bool display_progress = false){
   
   int cntr;
@@ -556,8 +552,8 @@ List gibbs_samples(IntegerMatrix observations,
                                    observations,
                                    no_categories,
                                    n_cat_obs,
-                                   a,
-                                   b);
+                                   threshold_alpha,
+                                   threshold_beta);
     
     //Update estimators
     cntr = 0;
@@ -595,8 +591,8 @@ List gibbs_eap(IntegerMatrix observations,
                IntegerMatrix Index,
                int no_iterations,
                IntegerMatrix n_cat_obs, 
-               double a,
-               double b,
+               double threshold_alpha,
+               double threshold_beta,
                bool display_progress = false) {
   int no_nodes = observations.ncol();
   int no_interactions = Index.nrow();
@@ -685,8 +681,8 @@ List gibbs_eap(IntegerMatrix observations,
                                    observations,
                                    no_categories,
                                    n_cat_obs,
-                                   a,
-                                   b);
+                                   threshold_alpha,
+                                   threshold_beta);
     
     //Update estimators
     for(int node1 = 0; node1 < no_nodes - 1; node1++) {

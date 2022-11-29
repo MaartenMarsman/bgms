@@ -19,10 +19,8 @@
 #' @param cauchy_scale The scale of the Cauchy prior for interactions. Defaults 
 #' to \code{2.5}. 
 #' 
-#' @param threshold_variance The variance of a normal prior for the thresholds. 
-#' Independent normal prior distributions are used for the thresholds, which are 
-#' centered at zero, with a common variance. If \code{threshold_variance = Inf}, 
-#' the prior is proportional to one. Defaults to \code{1}.
+#' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime 
+#' prior for the thresholds. Default to \code{1}.
 #' 
 #' @param precision A number between zero and one. The prior precision that is
 #' desired for edge selection. Equal to one minus the desired type-1 error.
@@ -62,15 +60,45 @@ mppe = function(x,
                 no_categories, 
                 interaction_prior = "Cauchy",
                 cauchy_scale = 2.5,
-                threshold_variance = 1,
+                threshold_alpha = 1,
+                threshold_beta = 1,
                 convergence_criterion = sqrt(.Machine$double.eps),
                 maximum_iterations = 1e3, 
                 thresholds, 
                 interactions) {
+
+  #Check prior set-up for the interaction parameters ---------------------------
+  if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
+    stop("For the interaction effects we currently only have implemented the 
+     Cauchy prior and the Unit Information prior. Please select one.")
+  if(interaction_prior == "Cauchy") {
+    if(cauchy_scale <= 0)
+      stop("The scale of the Cauchy prior needs to be positive.")
+  }  
+
+  #Check prior set-up for the threshold parameters -----------------------------
+  if(threshold_alpha <= 0  | !is.finite(threshold_alpha))
+    stop("Parameter ``threshold_alpha'' needs to be positive.")
+  if(threshold_beta <= 0  | !is.finite(threshold_beta))
+    stop("Parameter ``threshold_beta'' needs to be positive.")
   
+  #Check data input ------------------------------------------------------------
+  if(class(x)[1] != "matrix") {
+    stop("The input x is supposed to be a matrix.")
+  }
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
+  
+  #Check NR input --------------------------------------------------------------
   if(convergence_criterion <= 0) 
     stop("Parameter ``convergence_criterion'' needs to be positive.")
-  
+  if(maximum_iterations <= 0 || 
+     abs(maximum_iterations - round(maximum_iterations)) > 
+     sqrt(.Machine$double.eps)) 
+    stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
+
   no_nodes = ncol(x)
   no_persons = nrow(x)
   no_thresholds = sum(no_categories)
@@ -87,15 +115,6 @@ mppe = function(x,
     interactions = matrix(0, 
                           nrow = no_nodes, 
                           ncol = no_nodes)
-  }
-  
-  #Prior set-up for the interaction parameters -----------------------------------
-  if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
-    stop("For the interaction effects we currently only have implemented the 
-       Cauchy prior and the Unit Information prior. Please select one.")
-  if(interaction_prior == "Cauchy") {
-    if(cauchy_scale <= 0)
-      stop("The scale of the Cauchy prior needs to be positive.")
   }
   
   if(interaction_prior == "UnitInfo") {
@@ -140,9 +159,8 @@ mppe = function(x,
                         observations = x,
                         no_categories, 
                         interaction_var = unit_info,
-                        threshold_var = matrix(threshold_variance, 
-                                               nrow = no_nodes, 
-                                               ncol = max(no_categories)))
+                        threshold_alpha,
+                        threshold_beta)
     
     hessian = matrix(data = NA, 
                      nrow = no_parameters,
@@ -159,10 +177,10 @@ mppe = function(x,
         gradient_thresholds(interactions = interactions, 
                             thresholds = thresholds, 
                             observations = x,
-                            no_categories, 
-                            threshold_var = matrix(threshold_variance, 
-                                                   nrow = no_nodes, 
-                                                   ncol = max(no_categories)))
+                            no_categories,
+                            threshold_alpha,
+                            threshold_beta)
+      
       gradient[-c(1:no_thresholds)] =
         gradient_interactions(interactions = interactions, 
                               thresholds = thresholds, 
@@ -175,10 +193,10 @@ mppe = function(x,
         hessian_thresholds(interactions = interactions, 
                            thresholds = thresholds, 
                            observations = x,
-                           no_categories, 
-                           threshold_var = matrix(threshold_variance, 
-                                                  nrow = no_nodes, 
-                                                  ncol = max(no_categories)))
+                           no_categories,
+                           threshold_alpha,
+                           threshold_beta)
+      
       hessian[-(1:no_thresholds), -(1:no_thresholds)] = 
         hessian_interactions(interactions = interactions, 
                              thresholds = thresholds, 
@@ -222,9 +240,8 @@ mppe = function(x,
                           observations = x,
                           no_categories, 
                           interaction_var = unit_info,
-                          threshold_var = matrix(threshold_variance, 
-                                                 nrow = no_nodes, 
-                                                 ncol = max(no_categories)))
+                          threshold_alpha,
+                          threshold_beta)
       
       
       if(abs(log_pseudolikelihood - old_log_pseudolikelihood) < 
@@ -238,9 +255,8 @@ mppe = function(x,
                                observations = x,
                                no_categories, 
                                cauchy_scale = cauchy_scale,
-                               threshold_var = matrix(threshold_variance, 
-                                                      nrow = no_nodes, 
-                                                      ncol = max(no_categories)))
+                               threshold_alpha,
+                               threshold_beta)
     
     hessian = matrix(data = NA, 
                      nrow = no_parameters,
@@ -257,10 +273,9 @@ mppe = function(x,
         gradient_thresholds(interactions = interactions, 
                             thresholds = thresholds, 
                             observations = x,
-                            no_categories, 
-                            threshold_var = matrix(threshold_variance, 
-                                                   nrow = no_nodes, 
-                                                   ncol = max(no_categories)))
+                            no_categories,
+                            threshold_alpha,
+                            threshold_beta)
       gradient[-c(1:no_thresholds)] =
         gradient_interactions_cauchy(interactions = interactions, 
                                      thresholds = thresholds, 
@@ -273,10 +288,10 @@ mppe = function(x,
         hessian_thresholds(interactions = interactions, 
                            thresholds = thresholds, 
                            observations = x,
-                           no_categories, 
-                           threshold_var = matrix(threshold_variance, 
-                                                  nrow = no_nodes, 
-                                                  ncol = max(no_categories)))
+                           no_categories,
+                           threshold_alpha,
+                           threshold_beta)
+      
       hessian[-(1:no_thresholds), -(1:no_thresholds)] = 
         hessian_interactions_cauchy(interactions = interactions, 
                                     thresholds = thresholds, 
@@ -320,9 +335,8 @@ mppe = function(x,
                                  observations = x,
                                  no_categories, 
                                  cauchy_scale = cauchy_scale,
-                                 threshold_var = matrix(threshold_variance, 
-                                                        nrow = no_nodes, 
-                                                        ncol = max(no_categories)))
+                                 threshold_alpha,
+                                 threshold_beta)
       
       
       if(abs(log_pseudolikelihood - old_log_pseudolikelihood) < 

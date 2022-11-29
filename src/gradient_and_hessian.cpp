@@ -225,7 +225,8 @@ NumericVector gradient_thresholds(NumericMatrix interactions,
                                   NumericMatrix thresholds,
                                   IntegerMatrix observations,
                                   IntegerVector no_categories,
-                                  NumericMatrix threshold_var) {
+                                  double threshold_alpha = 1.0,
+                                  double threshold_beta = 1.0) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   int no_parameters = 0;
@@ -248,9 +249,10 @@ NumericVector gradient_thresholds(NumericMatrix interactions,
     counter += 1;
     //Contribution of the prior distribution ----------------------------------
     for(int category = 0; category < no_categories[s]; category++) {
-      if(std::isfinite(threshold_var(s, category)))
-        gradient[counter + category] = 
-          -thresholds(s, category) / threshold_var(s, category);
+      gradient[counter + category] = threshold_alpha; 
+      gradient[counter + category] -= (threshold_alpha + threshold_beta) *
+        std::exp(thresholds(s, category)) / 
+        (1 + std::exp(thresholds(s, category)));
     }
     //Contribution of the full-conditional of node s (pseudolikelihood) -------
     bound_s = thresholds(s, 0);
@@ -790,13 +792,13 @@ NumericMatrix hessian_interactions_cauchy(NumericMatrix interactions,
   return hessian;  
 }
 
-
 // [[Rcpp::export]]
 NumericMatrix hessian_thresholds(NumericMatrix interactions,
                                  NumericMatrix thresholds,
                                  IntegerMatrix observations,
                                  IntegerVector no_categories,
-                                 NumericMatrix threshold_var) {
+                                 double threshold_alpha = 1.0,
+                                 double threshold_beta = 1.0) {
   int no_nodes = observations.ncol();                   
   int no_persons = observations.nrow();                 
   int no_parameters = 0;
@@ -879,11 +881,12 @@ NumericMatrix hessian_thresholds(NumericMatrix interactions,
         }
       }
     }
+    //Contribution of the prior distribution -----------------------------------
     for(int category = 0; category < no_categories[s]; category++) {
-      if(std::isfinite(threshold_var(s, category))) {
-        hessian(counter + category, counter + category) -= 
-          1 / threshold_var(s, category);  
-      }
+      hessian(counter + category, counter + category) -= 
+        (threshold_alpha + threshold_beta) * std::exp(thresholds(s, category)) /
+          ((1 + std::exp(thresholds(s, category))) * 
+            (1 + std::exp(thresholds(s, category))));
     }
     counter += no_categories[s] - 1;
   }
@@ -985,5 +988,166 @@ NumericMatrix hessian_crossparameters(NumericMatrix interactions,
     }
   }
   
+  return hessian;  
+}
+
+// [[Rcpp::export]]
+NumericVector gradient_thresholds_pl(NumericMatrix interactions,
+                                     NumericMatrix thresholds,
+                                     IntegerMatrix observations,
+                                     IntegerVector no_categories) {
+  int no_nodes = observations.ncol();
+  int no_persons = observations.nrow();
+  int no_parameters = 0;
+  for(int node = 0; node < no_nodes; node++)
+    no_parameters += no_categories[node];
+  
+  NumericVector gradient (no_parameters);
+  double bound = 0.0;
+  double bound_s = 0.0;
+  double denominator = 0.0;
+  double numerator = 0.0;
+  double rest_score = 0.0;
+  double exponent = 0.0;
+  int score = 0;
+  int counter = -1;
+  int observed_category = 0;
+  
+  //Gradient of thresholds parameters -----------------------------------------
+  for(int s = 0; s < no_nodes; s++) {
+    counter += 1;
+    for(int category = 0; category < no_categories[s]; category++) {
+      gradient[counter + category] = 0.0;
+    }
+    //Contribution of the full-conditional of node s (pseudolikelihood) -------
+    bound_s = thresholds(s, 0);
+    for(int category = 1; category < no_categories[s]; category++) {
+      if(thresholds(s, category) > bound_s) {
+        bound_s = thresholds(s, category);
+      }
+    }
+    for(int person = 0; person < no_persons; person++) {
+      observed_category = observations(person, s);
+      if(observed_category < no_categories[s]) {
+        gradient[counter + observed_category] += 1;//observed_category
+      }
+      rest_score = 0.0;
+      for(int node = 0; node < no_nodes; node++) {
+        rest_score += (no_categories[node] - observations(person, node)) * 
+          interactions(node, s);  
+      }
+      bound = bound_s + no_categories[s] * rest_score;
+      
+      denominator = std::exp(-bound);
+      for(int category = 0; category < no_categories[s]; category++) {
+        score = no_categories[s] - category;
+        exponent = thresholds(s, category) + 
+          score * rest_score - 
+          bound;
+        denominator += std::exp(exponent);
+      }
+      for(int category = 0; category < no_categories[s]; category++) {
+        score = no_categories[s] - category;
+        exponent = thresholds(s, category) +  
+          score * rest_score - 
+          bound;
+        numerator = std::exp(exponent); 
+        gradient[counter + category] -= numerator / denominator;  
+      }
+    }
+    counter += no_categories[s] - 1;
+  }
+  return gradient;
+}
+
+// [[Rcpp::export]]
+NumericMatrix hessian_thresholds_pl(NumericMatrix interactions,
+                                    NumericMatrix thresholds,
+                                    IntegerMatrix observations,
+                                    IntegerVector no_categories) {
+  int no_nodes = observations.ncol();                   
+  int no_persons = observations.nrow();                 
+  int no_parameters = 0;
+  for(int node = 0; node < no_nodes; node++)
+    no_parameters += no_categories[node];
+  
+  NumericVector node_bound (no_nodes);
+  NumericMatrix hessian (no_parameters, no_parameters);
+  int score = 0;
+  int counter = -1;
+  double rest_score = 0.0;
+  double bound = 0.0;
+  double bound_s = 0.0;
+  double denominator = 0.0;
+  double exponent = 0.0;
+  double numerator = 0.0;
+  double prob = 0.0;
+  
+  //Gradient of thresholds parameters -----------------------------------------
+  for(int s = 0; s < no_nodes; s++) {
+    counter += 1;
+    
+    //Contribution of the full-conditional of node s (pseudolikelihood) -------
+    bound_s = thresholds(s, 0);
+    for(int category = 1; category < no_categories[s]; category++) {
+      if(thresholds(s, category) > bound_s) {
+        bound_s = thresholds(s, category);
+      }
+    }
+    
+    for(int person = 0; person < no_persons; person++) {
+      bound = bound_s;
+      rest_score = 0.0;
+      for(int node = 0; node < no_nodes; node++) {
+        rest_score += (no_categories[node] - observations(person, node)) * 
+          interactions(node, s);  
+      }
+      if(rest_score > 0) 
+        bound += no_categories[s] * rest_score;
+      
+      denominator = std::exp(-bound);
+      for(int category = 0; category < no_categories[s]; category++) {
+        score = no_categories[s] - category;
+        exponent = thresholds(s, category) + 
+          score * rest_score - 
+          bound;
+        denominator += std::exp(exponent);
+      }
+      for(int category = 0; category < no_categories[s]; category++) {
+        score = no_categories[s] - category;
+        exponent = thresholds(s, category) +  
+          score * rest_score - 
+          bound;
+        numerator = std::exp(exponent); 
+        prob = numerator / denominator;
+        hessian(counter + category, counter + category) -= prob;  
+        hessian(counter + category, counter + category) += prob * prob;  
+      }
+      
+      for(int j = 0; j < no_categories[s] - 1; j++) {
+        for(int h = j + 1; h < no_categories[s]; h++) {
+          score = no_categories[s] - j;
+          exponent = thresholds(s, j) +  
+            score * rest_score - 
+            bound;
+          
+          numerator = std::exp(exponent);
+          
+          score = no_categories[s] - h;
+          exponent = thresholds(s, h) +  
+            score * rest_score - 
+            bound;
+          
+          numerator *= std::exp(exponent);
+          
+          hessian(counter + j, counter + h) += numerator / 
+            (denominator * denominator);  
+          hessian(counter + h, counter + j) += numerator / 
+            (denominator * denominator);  
+        }
+      }
+    }
+    counter += no_categories[s] - 1;
+  }
   return hessian;  
 }
