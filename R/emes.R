@@ -157,18 +157,19 @@ emes = function(x,
                      nrow = 1,
                      ncol = no_parameters)
 
-  log_pseudoposterior <- emvs_joint_log_density(interactions = interactions,
-                                                thresholds = thresholds,
-                                                observations = x,
-                                                no_categories = no_categories,
-                                                xi = xi,
-                                                slab_var = slab_var,
-                                                theta = theta,
-                                                hierarchical = hierarchical, 
-                                                indicator_alpha = indicator_alpha, 
-                                                indicator_beta = indicator_beta,
-                                                threshold_alpha = threshold_alpha, 
-                                                threshold_beta = threshold_beta)
+  log_pseudoposterior <- 
+    emvs_log_unnormalized_pseudoposterior(interactions = interactions,
+                                          thresholds = thresholds,
+                                          observations = x,
+                                          no_categories = no_categories,
+                                          xi = xi,
+                                          slab_var = slab_var,
+                                          theta = theta,
+                                          hierarchical = hierarchical, 
+                                          indicator_alpha = indicator_alpha, 
+                                          indicator_beta = indicator_beta,
+                                          threshold_alpha = threshold_alpha, 
+                                          threshold_beta = threshold_beta)
   
   #starting values
   thresholds = matrix(0, 
@@ -205,34 +206,36 @@ emes = function(x,
                                           no_persons = no_persons)
     
     gradient[1:no_thresholds] <- 
-      gradient_thresholds(interactions = interactions, 
-                          thresholds = thresholds, 
-                          observations = x, 
-                          no_categories = no_categories,
-                          threshold_alpha,
-                          threshold_beta)
+      gradient_thresholds_pseudoposterior(interactions = interactions, 
+                                          thresholds = thresholds, 
+                                          observations = x, 
+                                          no_categories = no_categories,
+                                          threshold_alpha,
+                                          threshold_beta)
+    
     gradient[-c(1:no_thresholds)] <-
-      gradient_interactions(interactions = interactions, 
-                            thresholds = thresholds, 
-                            observations = x, 
-                            no_categories = no_categories,
-                            interaction_var = interaction_var)
+      gradient_interactions_pseudoposterior_normal(interactions = interactions, 
+                                                   thresholds = thresholds, 
+                                                   observations = x, 
+                                                   no_categories = no_categories,
+                                                   interaction_var = interaction_var)
     
     # Compute Hessian matrix (second order partial derivatives) ---------------
     hessian[1:no_thresholds, 1:no_thresholds] <- 
-      hessian_thresholds(interactions = interactions, 
-                         thresholds = thresholds, 
-                         observations = x,
-                         no_categories = no_categories,
-                         threshold_alpha,
-                         threshold_beta)
+      hessian_thresholds_pseudoposterior(interactions = interactions, 
+                                         thresholds = thresholds, 
+                                         observations = x,
+                                         no_categories = no_categories,
+                                         threshold_alpha,
+                                         threshold_beta)
     
     hessian[-(1:no_thresholds), -(1:no_thresholds)] <- 
-      hessian_interactions(interactions = interactions, 
+      hessian_interactions_pseudoposterior_normal(interactions = interactions, 
                            thresholds = thresholds, 
                            observations = x, 
                            no_categories = no_categories,
                            interaction_var = interaction_var)
+
     hessian[-(1:no_thresholds), 1:no_thresholds] <- 
       hessian_crossparameters(interactions = interactions, 
                               thresholds = thresholds, 
@@ -264,18 +267,19 @@ emes = function(x,
     }
     
     # recompute log-pseudoposterior -------------------------------------------
-    log_pseudoposterior <- emvs_joint_log_density(interactions = interactions,
-                                                  thresholds = thresholds,
-                                                  observations = x,
-                                                  no_categories = no_categories,
-                                                  xi = xi,
-                                                  slab_var = slab_var,
-                                                  theta = theta,
-                                                  hierarchical = hierarchical, 
-                                                  indicator_alpha = indicator_alpha, 
-                                                  indicator_beta = indicator_beta,
-                                                  threshold_alpha = threshold_alpha, 
-                                                  threshold_beta = threshold_beta)
+    log_pseudoposterior <- 
+      emvs_log_unnormalized_pseudoposterior(interactions = interactions,
+                                            thresholds = thresholds,
+                                            observations = x,
+                                            no_categories = no_categories,
+                                            xi = xi,
+                                            slab_var = slab_var,
+                                            theta = theta,
+                                            hierarchical = hierarchical, 
+                                            indicator_alpha = indicator_alpha, 
+                                            indicator_beta = indicator_beta,
+                                            threshold_alpha = threshold_alpha, 
+                                            threshold_beta = threshold_beta)
     
     if(abs(log_pseudoposterior - old_log_pseudoposterior) < 
        convergence_criterion)
@@ -298,6 +302,11 @@ emes = function(x,
   rownames(thresholds) = paste0("node ", 1:no_nodes)
   
   if(!hierarchical)
-    return(list(interactions = interactions, thresholds = thresholds, gamma = gamma))
-  return(list(interactions = interactions, thresholds = thresholds, gamma = gamma, theta = theta))
+    return(list(interactions = interactions, 
+                thresholds = thresholds, 
+                gamma = gamma))
+  return(list(interactions = interactions, 
+              thresholds = thresholds, 
+              gamma = gamma, 
+              theta = theta))
 }

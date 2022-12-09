@@ -31,18 +31,17 @@ set_slab = function(x, no_categories, thresholds, interactions) {
   
   # Compute Hessian  -----------------------------------------------------------
   hessian[1:no_thresholds, 1:no_thresholds] = 
-    hessian_thresholds_pl(interactions = interactions, 
-                          thresholds = thresholds, 
-                          observations = x, 
-                          no_categories = no_categories)
+    hessian_thresholds_pseudolikelihood(interactions = interactions, 
+                                        thresholds = thresholds, 
+                                        observations = x, 
+                                        no_categories = no_categories)
+  
   hessian[-(1:no_thresholds), -(1:no_thresholds)] = 
-    hessian_interactions(interactions = interactions, 
-                         thresholds = thresholds, 
-                         observations = x, 
-                         no_categories = no_categories, 
-                         interaction_var = matrix(Inf, 
-                                                  nrow = no_nodes, 
-                                                  ncol = no_nodes))
+    hessian_interactions_pseudolikelihood(interactions = interactions, 
+                                          thresholds = thresholds, 
+                                          observations = x, 
+                                          no_categories = no_categories)
+  
   hessian[-(1:no_thresholds), 1:no_thresholds] = 
     hessian_crossparameters(interactions = interactions, 
                             thresholds = thresholds, 

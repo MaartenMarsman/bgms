@@ -42,24 +42,24 @@ NumericMatrix sample_thresholds(NumericMatrix interactions,
         q[person] = 1.0;
         rest_score = 0.0;
         for(int s = 0; s <  no_nodes; s++) {
-          rest_score += observations(person, s) *                               //(no_categories[s] - observations(person, s)) * 
+          rest_score += observations(person, s) *                              
             interactions(s, node);
         }
         for(int cat = 0; cat < no_categories[node]; cat++) {
           if(cat != category) {
             g[person] += std::exp(thresholds(node, cat) + 
-              (no_categories[node] - cat) * rest_score);  
+              (cat + 1) * rest_score);  
           }
         } 
-        q[person] = std::exp((no_categories[node] - category) * rest_score);    //Change to "category * rest_score
+        q[person] = std::exp((category + 1) * rest_score);    
         c +=  q[person] / (g[person] + q[person] * std::exp(current_state));
       }
       c = c / ((no_persons + threshold_alpha + threshold_beta) - 
         std::exp(current_state) * c);
       
       //Proposal is generalized beta-prime. 
-      a = n_cat_obs(category, node) + threshold_alpha;
-      b = no_persons + threshold_beta - n_cat_obs(category, node);
+      a = n_cat_obs(category + 1, node) + threshold_alpha;
+      b = no_persons + threshold_beta - n_cat_obs(category + 1, node);
       tmp = R::rbeta(a, b);
       proposed_state = std::log(tmp / (1  - tmp) / c);
       
@@ -112,14 +112,13 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
   int obs_score2 = 0;
   
   for(int person = 0; person < no_persons; person++) {
-    obs_score1 = observations(person, node1);                                   //(no_categories[node1] - observations(person, node1));
-    obs_score2 = observations(person, node2);                                   //(no_categories[node2] - observations(person, node2));
+    obs_score1 = observations(person, node1);                                   
+    obs_score2 = observations(person, node2);                                   
     
     //Node 1 log pseudolikelihood ratio
     rest_score = 0.0;
     for(int node = 0; node < no_nodes; node++) {
-      rest_score += observations(person, node) *                                //(no_categories[node] - observations(person, node)) *
-        interactions(node, node1);  
+      rest_score += observations(person, node) * interactions(node, node1);  
     }
     rest_score -= obs_score2 * interactions(node2, node1);
     
@@ -135,7 +134,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     denominator_prop = std::exp(-bound);
     denominator_curr = std::exp(-bound);
     for(int category = 0; category < no_categories[node1]; category++) {
-      score = no_categories[node1] - category;                                  //Change to = category;
+      score = category + 1;
       exponent = thresholds(node1, category) + 
         score * rest_score - 
         bound;
@@ -150,13 +149,9 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     //Node 2 log pseudolikelihood ratio
     rest_score = 0.0;
     for(int node = 0; node < no_nodes; node++) {
-      rest_score += observations(person, node) *                                //(no_categories[node] - observations(person, node)) *
-        interactions(node, node2);  
+      rest_score += observations(person, node) * interactions(node, node2);  
     }
     rest_score -= obs_score1 * interactions(node1, node2);
-    
-//    pseudolikelihood_ratio += obs_score1 * obs_score2 * 
-//      (proposed_state - current_state);                                         
     
     if(rest_score > 0) {
       bound = no_categories[node2] * rest_score;
@@ -167,7 +162,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     denominator_prop = std::exp(-bound);
     denominator_curr = std::exp(-bound);
     for(int category = 0; category < no_categories[node2]; category++) {
-      score = no_categories[node2] - category;                                  //Change to = category;
+      score = category + 1;
       exponent = thresholds(node2, category) + 
         score * rest_score - 
         bound;
@@ -228,7 +223,7 @@ NumericMatrix sample_interactions_cauchy_hastings(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample interaction parameters (unit information prior)
+// MH algorithm to sample interaction parameters (cauchy)
 // ----------------------------------------------------------------------------|
 List sample_model_interactions_cauchy_hastings(NumericMatrix interactions, 
                                                NumericMatrix thresholds,
@@ -308,7 +303,7 @@ List sample_model_interactions_cauchy_hastings(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample inclusion and interaction parameters (cauchy)
+// MH algorithm to sample inclusion and interaction parameters (unit info.)
 // ----------------------------------------------------------------------------|
 List sample_model_interactions_unitinfo_hastings(NumericMatrix interactions, 
                                                  NumericMatrix thresholds,

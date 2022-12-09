@@ -120,7 +120,7 @@ bsl = function(x,
   }
   no_thresholds = sum(no_categories)
   
-  #Proposal set-up for the interaction parameters --------------------------------
+  #Proposal set-up for the interaction parameters ------------------------------
   pps = try(mppe(x = x, 
                  no_categories = no_categories, 
                  interaction_prior =  interaction_prior), 
@@ -188,10 +188,6 @@ bsl = function(x,
       Index[cntr, 3] = node2
     }
   }
-  
-  # Data recoding for computational efficiency
-  for(node in 1:no_nodes)
-    x[, node] = no_categories[node] - x[, node]
   
   #The Metropolis within Gibbs sampler -----------------------------------------
   if(samples == FALSE) {

@@ -28,20 +28,19 @@ IntegerMatrix sample_omrf_gibbs(int no_persons,
       for(int person =  0; person < no_persons; person++) {
         rest_score = 0.0;
         for(int vertex = 0; vertex < no_nodes; vertex++) {
-          rest_score += (no_categories[vertex] - observations(person, vertex)) *//Change to observations(person, vertex) * 
+          rest_score += observations(person, vertex) *
             Interactions(vertex, node);
         }
         
-        cumsum = 0.0;
-        for(int category = 0; category < no_categories[node]; category++) {     //Change reference category
-          score = no_categories[node] - category;                               //Change to category
-          exponent = Thresholds(node, category) + score * rest_score;
+        cumsum = 1.0;
+        probabilities[0] = 1.0;
+        for(int category = 0; category < no_categories[node]; category++) {
+          exponent = Thresholds(node, category); 
+          exponent += (category + 1) * rest_score;
           cumsum += std::exp(exponent);
-          probabilities[category] = cumsum;
+          probabilities[category + 1] = cumsum;
         }
-        cumsum++;
-        probabilities[no_categories[node]] = cumsum;
-        
+
         u = R::runif(0, cumsum);
         
         score = 0;
