@@ -43,6 +43,14 @@
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 #' Defauls to \code{FALSE}.
 #' 
+#' @param moms_method In what way should we update the edge indicator-
+#'  interaction pairs with the metropolis algorithm. The add-delete scheme 
+#'  tries to update one pair, followed by an update of all interactions that are 
+#'  included at the time \code{"AddDelete"}. The Gibbs scheme tries to update 
+#'  every pair in turn \code{"Gibbs"}. Finally, we can follow up the Gibbs 
+#'  scheme with an update of all interactions that are included at the time 
+#'  \code{"GibbsFull"}. Defaults to \code{"GibbsFull"}. 
+#' 
 #' @return If \code{samples = FALSE} (the default), a list containing the 
 #' \code{p} by \code{p} matrices \code{gamma} and \code{interactions}, and the 
 #' \code{p} by \code{max(no_categories)} matrix \code{thresholds}. The matrix 
@@ -63,7 +71,8 @@ bsl = function(x,
                threshold_alpha = 1,
                threshold_beta = 1,
                samples = FALSE,
-               display_progress = FALSE) {
+               display_progress = FALSE,
+               moms_method = "GibbsFull") {
   
   #Check prior set-up for the interaction parameters ---------------------------
   if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
@@ -79,6 +88,11 @@ bsl = function(x,
     stop("Parameter ``threshold_alpha'' needs to be positive.")
   if(threshold_beta <= 0  | !is.finite(threshold_beta))
     stop("Parameter ``threshold_beta'' needs to be positive.")
+  
+  #Check set-up for the mixtures of mutually singular distributions metropolis -
+  if(!(moms_method %in% c("Gibbs", "GibbsFull", "AddDelete")))
+    stop("The metropolis method, i.e., ``moms_method'', should be set to either
+    ``Gibbs'', ``GibbsFull'', or ``AddDelete''.")
   
   #Check data input ------------------------------------------------------------
   if(class(x)[1] != "matrix") {
@@ -202,7 +216,8 @@ bsl = function(x,
                     n_cat_obs = n_cat_obs, 
                     threshold_alpha = threshold_alpha,
                     threshold_beta = threshold_beta,
-                    display_progress = display_progress)
+                    display_progress = display_progress,
+                    moms_method = moms_method)
     
     eap_edges = out$eap.edges
     eap_tresholds = out$eap.thresholds
@@ -243,7 +258,9 @@ bsl = function(x,
                         n_cat_obs = n_cat_obs, 
                         threshold_alpha = threshold_alpha,
                         threshold_beta = threshold_beta,
-                        display_progress = display_progress)
+                        display_progress = display_progress,
+                        moms_method = moms_method)
+    
     samples_int = out$samples.interactions
     samples_gamma = out$samples.gamma
     samples_tre = out$samples.thresholds

@@ -13,12 +13,12 @@ em_interaction_var <- function(gamma, slab_var, theta, xi, no_persons) {
     .Call(`_bgms_em_interaction_var`, gamma, slab_var, theta, xi, no_persons)
 }
 
-gibbs_samples <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress = FALSE) {
-    .Call(`_bgms_gibbs_samples`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress)
+gibbs_samples <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, moms_method, display_progress = FALSE) {
+    .Call(`_bgms_gibbs_samples`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, moms_method, display_progress)
 }
 
-gibbs_eap <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress = FALSE) {
-    .Call(`_bgms_gibbs_eap`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, display_progress)
+gibbs_eap <- function(observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, moms_method, display_progress = FALSE) {
+    .Call(`_bgms_gibbs_eap`, observations, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, no_iterations, n_cat_obs, threshold_alpha, threshold_beta, moms_method, display_progress)
 }
 
 gradient_thresholds_pseudolikelihood <- function(interactions, thresholds, observations, no_categories) {

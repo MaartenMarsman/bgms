@@ -5,15 +5,15 @@
 using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample threshold parameters
+// MH algorithm to sample from the full-conditional of the threshold parameters
 // ----------------------------------------------------------------------------|
-NumericMatrix sample_thresholds(NumericMatrix interactions, 
-                                NumericMatrix thresholds,
-                                IntegerMatrix observations,
-                                IntegerVector no_categories,
-                                IntegerMatrix n_cat_obs, 
-                                double threshold_alpha,
-                                double threshold_beta) {
+NumericMatrix metropolis_thresholds(NumericMatrix interactions, 
+                                    NumericMatrix thresholds,
+                                    IntegerMatrix observations,
+                                    IntegerVector no_categories,
+                                    IntegerMatrix n_cat_obs, 
+                                    double threshold_alpha,
+                                    double threshold_beta) {
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   
@@ -115,15 +115,15 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
     obs_score1 = observations(person, node1);                                   
     obs_score2 = observations(person, node2);                                   
     
-    //Node 1 log pseudolikelihood ratio
+    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 *                         
+      (proposed_state - current_state);                                         
+
+        //Node 1 log pseudolikelihood ratio
     rest_score = 0.0;
     for(int node = 0; node < no_nodes; node++) {
       rest_score += observations(person, node) * interactions(node, node1);  
     }
     rest_score -= obs_score2 * interactions(node2, node1);
-    
-    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 *                         
-      (proposed_state - current_state);                                         
     
     if(rest_score > 0) {
       bound = no_categories[node1] * rest_score;
@@ -178,15 +178,16 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample interaction parameters (cauchy prior)
+// MH algorithm to sample from the cull-conditional of the active interaction 
+//  parameters (using a cauchy prior)
 // ----------------------------------------------------------------------------|
-NumericMatrix sample_interactions_cauchy_hastings(NumericMatrix interactions, 
-                                                  NumericMatrix thresholds,
-                                                  IntegerMatrix gamma,
-                                                  IntegerMatrix observations,
-                                                  IntegerVector no_categories,
-                                                  NumericMatrix proposal_sd,
-                                                  double cauchy_scale) {
+NumericMatrix metropolis_interactions_cauchy(NumericMatrix interactions, 
+                                             NumericMatrix thresholds,
+                                             IntegerMatrix gamma,
+                                             IntegerMatrix observations,
+                                             IntegerVector no_categories,
+                                             NumericMatrix proposal_sd,
+                                             double cauchy_scale) {
   int no_nodes = observations.ncol();
   
   double proposed_state;
@@ -223,22 +224,76 @@ NumericMatrix sample_interactions_cauchy_hastings(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample interaction parameters (cauchy)
+// MH algorithm to sample from the cull-conditional of the active interaction 
+//  parameters (using a unit information prior)
 // ----------------------------------------------------------------------------|
-List sample_model_interactions_cauchy_hastings(NumericMatrix interactions, 
+NumericMatrix metropolis_interactions_unitinfo(NumericMatrix interactions, 
                                                NumericMatrix thresholds,
                                                IntegerMatrix gamma,
                                                IntegerMatrix observations,
                                                IntegerVector no_categories,
                                                NumericMatrix proposal_sd,
-                                               double cauchy_scale,
-                                               IntegerMatrix index) {
+                                               NumericMatrix unit_info) {
+  int no_nodes = observations.ncol();
+  
   double proposed_state;
   double current_state;
   double log_prob;
   double U;
   
-  int no_moves = index.nrow();
+  for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
+    for(int node2 = node1 + 1; node2 <  no_nodes; node2++)
+      if(gamma(node1, node2) == 1) {
+        current_state = interactions(node1, node2);
+        proposed_state = R::rnorm(current_state,
+                                  proposal_sd(node1, node2));
+        
+        log_prob = log_pseudolikelihood_ratio(interactions,
+                                              thresholds,
+                                              observations,
+                                              no_categories,
+                                              node1,
+                                              node2,
+                                              proposed_state,
+                                              current_state);
+        log_prob += R::dnorm(proposed_state, 
+                             0.0, 
+                             unit_info(node1, node2), 
+                             true);
+        log_prob -= R::dnorm(current_state, 
+                             0.0, 
+                             unit_info(node1, node2), 
+                             true);
+        
+        U = R::runif(0, 1);
+        if(std::log(U) < log_prob) {
+          interactions(node1, node2) = proposed_state;
+          interactions(node2, node1) = proposed_state;
+        }
+      }
+  }
+  return interactions;
+}
+
+// ----------------------------------------------------------------------------|
+// MH algorithm to sample from the cull-conditional of an edge + interaction 
+//  pair (using a cauchy prior)
+// ----------------------------------------------------------------------------|
+List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions, 
+                                             NumericMatrix thresholds,
+                                             IntegerMatrix gamma,
+                                             IntegerMatrix observations,
+                                             IntegerVector no_categories,
+                                             NumericMatrix proposal_sd,
+                                             double cauchy_scale,
+                                             IntegerMatrix index,
+                                             int no_moves) {
+  double proposed_state;
+  double current_state;
+  double log_prob;
+  double U;
+  
+//  int no_moves = index.nrow();
   int node1;
   int node2;
   
@@ -303,22 +358,24 @@ List sample_model_interactions_cauchy_hastings(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample inclusion and interaction parameters (unit info.)
+// MH algorithm to sample from the cull-conditional of an edge + interaction 
+//  pair (using a unit information prior)
 // ----------------------------------------------------------------------------|
-List sample_model_interactions_unitinfo_hastings(NumericMatrix interactions, 
-                                                 NumericMatrix thresholds,
-                                                 IntegerMatrix gamma,
-                                                 IntegerMatrix observations,
-                                                 IntegerVector no_categories,
-                                                 NumericMatrix proposal_sd,
-                                                 NumericMatrix unit_info,
-                                                 IntegerMatrix index) {
+List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions, 
+                                               NumericMatrix thresholds,
+                                               IntegerMatrix gamma,
+                                               IntegerMatrix observations,
+                                               IntegerVector no_categories,
+                                               NumericMatrix proposal_sd,
+                                               NumericMatrix unit_info,
+                                               IntegerMatrix index,
+                                               int no_moves) {
   double proposed_state;
   double current_state;
   double log_prob;
   double U;
   
-  int no_moves = index.nrow();
+//  int no_moves = index.nrow();
   int node1;
   int node2;
   
@@ -389,58 +446,7 @@ List sample_model_interactions_unitinfo_hastings(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample inclusion and interaction parameters (unit info.)
-// ----------------------------------------------------------------------------|
-NumericMatrix sample_interactions_unitinfo_hastings(NumericMatrix interactions, 
-                                                  NumericMatrix thresholds,
-                                                  IntegerMatrix gamma,
-                                                  IntegerMatrix observations,
-                                                  IntegerVector no_categories,
-                                                  NumericMatrix proposal_sd,
-                                                  NumericMatrix unit_info) {
-  int no_nodes = observations.ncol();
-  
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
-  
-  for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
-    for(int node2 = node1 + 1; node2 <  no_nodes; node2++)
-      if(gamma(node1, node2) == 1) {
-        current_state = interactions(node1, node2);
-        proposed_state = R::rnorm(current_state,
-                                  proposal_sd(node1, node2));
-        
-        log_prob = log_pseudolikelihood_ratio(interactions,
-                                              thresholds,
-                                              observations,
-                                              no_categories,
-                                              node1,
-                                              node2,
-                                              proposed_state,
-                                              current_state);
-        log_prob += R::dnorm(proposed_state, 
-                             0.0, 
-                             unit_info(node1, node2), 
-                             true);
-        log_prob -= R::dnorm(current_state, 
-                             0.0, 
-                             unit_info(node1, node2), 
-                             true);
-
-        U = R::runif(0, 1);
-        if(std::log(U) < log_prob) {
-          interactions(node1, node2) = proposed_state;
-          interactions(node2, node1) = proposed_state;
-        }
-      }
-  }
-  return interactions;
-}
-
-// ----------------------------------------------------------------------------|
-// Metropolis within Gibbs for ordinal MRF returning raw samples
+// The Gibbs sampler; returning raw samples
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_samples(IntegerMatrix observations,
@@ -454,6 +460,7 @@ List gibbs_samples(IntegerMatrix observations,
                    IntegerMatrix n_cat_obs, 
                    double threshold_alpha,
                    double threshold_beta,
+                   String moms_method,
                    bool display_progress = false){
   
   int cntr;
@@ -461,6 +468,10 @@ List gibbs_samples(IntegerMatrix observations,
   int no_interactions = Index.nrow();
   int no_thresholds = sum(no_categories);
   int max_no_categories = max(no_categories);
+  
+  int no_moves = no_interactions;
+  if(moms_method == "AddDelete") 
+    no_moves = 1;
   
   IntegerVector v = seq(0, no_interactions - 1);
   IntegerVector order(no_interactions);
@@ -487,68 +498,88 @@ List gibbs_samples(IntegerMatrix observations,
     p.increment();
     
     //Update interactions and model (between model move)
-    order = sample(v, 
-                   no_interactions, 
-                   false, 
-                   R_NilValue);
-    for(int cntr = 0; cntr < no_interactions; cntr++) {
-      index(cntr, 0) = Index(order[cntr], 0);
-      index(cntr, 1) = Index(order[cntr], 1);
-      index(cntr, 2) = Index(order[cntr], 2);
-    }
-    if(interaction_prior == "Cauchy") {
-      List out = sample_model_interactions_cauchy_hastings(interactions,
-                                                           thresholds,
-                                                           gamma,
-                                                           observations,
-                                                           no_categories,
-                                                           proposal_sd,
-                                                           cauchy_scale,
-                                                           index);
-      IntegerMatrix gamma = out["gamma"];
-      NumericMatrix interactions = out["interactions"];
-    }
-    if(interaction_prior ==  "UnitInfo") {
-      List out = sample_model_interactions_unitinfo_hastings(interactions,
-                                                             thresholds,
-                                                             gamma,
-                                                             observations,
-                                                             no_categories,
-                                                             proposal_sd,
-                                                             unit_info,
-                                                             index);
-      IntegerMatrix gamma = out["gamma"];
-      NumericMatrix interactions = out["interactions"];
+    if(moms_method == "AddDelete") {
+      order = sample(v, 
+                     1, 
+                     false, 
+                     R_NilValue);
+      
+      for(int cntr = 0; cntr < 1; cntr++) {
+        index(cntr, 0) = Index(order[cntr], 0);
+        index(cntr, 1) = Index(order[cntr], 1);
+        index(cntr, 2) = Index(order[cntr], 2);
+      }  
+    } else {
+      order = sample(v, 
+                     no_interactions, 
+                     false, 
+                     R_NilValue);
+      
+      for(int cntr = 0; cntr < no_interactions; cntr++) {
+        index(cntr, 0) = Index(order[cntr], 0);
+        index(cntr, 1) = Index(order[cntr], 1);
+        index(cntr, 2) = Index(order[cntr], 2);
+      }  
     }
     
-    //Update interactions (within model move)
     if(interaction_prior == "Cauchy") {
-      interactions = sample_interactions_cauchy_hastings(interactions,
+      List out = metropolis_edge_interaction_pair_cauchy(interactions,
                                                          thresholds,
                                                          gamma,
                                                          observations,
                                                          no_categories,
                                                          proposal_sd,
-                                                         cauchy_scale);
+                                                         cauchy_scale,
+                                                         index, 
+                                                         no_moves);
+      IntegerMatrix gamma = out["gamma"];
+      NumericMatrix interactions = out["interactions"];
     }
-    if(interaction_prior == "UnitInfo") {
-      interactions = sample_interactions_unitinfo_hastings(interactions,
+    if(interaction_prior ==  "UnitInfo") {
+      List out = metropolis_edge_interaction_pair_unitinfo(interactions,
                                                            thresholds,
                                                            gamma,
                                                            observations,
                                                            no_categories,
                                                            proposal_sd,
-                                                           unit_info);
+                                                           unit_info,
+                                                           index, 
+                                                           no_moves);
+      IntegerMatrix gamma = out["gamma"];
+      NumericMatrix interactions = out["interactions"];
     }
     
+    //Update interactions (within model move)
+    if(moms_method != "Gibbs") {
+      if(interaction_prior == "Cauchy") {
+        interactions = metropolis_interactions_cauchy(interactions,
+                                                      thresholds,
+                                                      gamma,
+                                                      observations,
+                                                      no_categories,
+                                                      proposal_sd,
+                                                      cauchy_scale);
+      }
+      if(interaction_prior == "UnitInfo") {
+        interactions = metropolis_interactions_unitinfo(interactions,
+                                                        thresholds,
+                                                        gamma,
+                                                        observations,
+                                                        no_categories,
+                                                        proposal_sd,
+                                                        unit_info);
+      }  
+    }
+    
+    
     //Update thresholds
-    thresholds = sample_thresholds(interactions,
-                                   thresholds,
-                                   observations,
-                                   no_categories,
-                                   n_cat_obs,
-                                   threshold_alpha,
-                                   threshold_beta);
+    thresholds = metropolis_thresholds(interactions,
+                                       thresholds,
+                                       observations,
+                                       no_categories,
+                                       n_cat_obs,
+                                       threshold_alpha,
+                                       threshold_beta);
     
     //Update estimators
     cntr = 0;
@@ -574,7 +605,7 @@ List gibbs_samples(IntegerMatrix observations,
 }
 
 // ----------------------------------------------------------------------------|
-// Metropolis within Gibbs for ordinal MRF returning eap estimates
+// The Gibbs sampler; returning eap estimates
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_eap(IntegerMatrix observations,
@@ -588,10 +619,15 @@ List gibbs_eap(IntegerMatrix observations,
                IntegerMatrix n_cat_obs, 
                double threshold_alpha,
                double threshold_beta,
+               String moms_method,
                bool display_progress = false) {
   int no_nodes = observations.ncol();
   int no_interactions = Index.nrow();
   int max_no_categories = max(no_categories);
+  
+  int no_moves = no_interactions;
+  if(moms_method == "AddDelete") 
+    no_moves = 1;
   
   IntegerVector v = seq(0, no_interactions - 1);
   IntegerVector order(no_interactions);
@@ -616,68 +652,87 @@ List gibbs_eap(IntegerMatrix observations,
     }
     
     //Update interactions and model (between model move)
-    order = sample(v, 
-                   no_interactions, 
-                   false, 
-                   R_NilValue);
-    for(int cntr = 0; cntr < no_interactions; cntr++) {
-      index(cntr, 0) = Index(order[cntr], 0);
-      index(cntr, 1) = Index(order[cntr], 1);
-      index(cntr, 2) = Index(order[cntr], 2);
-    }
-    if(interaction_prior == "Cauchy") {
-      List out = sample_model_interactions_cauchy_hastings(interactions,
-                                                           thresholds,
-                                                           gamma,
-                                                           observations,
-                                                           no_categories,
-                                                           proposal_sd,
-                                                           cauchy_scale,
-                                                           index);
-      IntegerMatrix gamma = out["gamma"];
-      NumericMatrix interactions = out["interactions"];
-    }
-    if(interaction_prior ==  "UnitInfo") {
-      List out = sample_model_interactions_unitinfo_hastings(interactions,
-                                                             thresholds,
-                                                             gamma,
-                                                             observations,
-                                                             no_categories,
-                                                             proposal_sd,
-                                                             unit_info,
-                                                             index);
-      IntegerMatrix gamma = out["gamma"];
-      NumericMatrix interactions = out["interactions"];
+    if(moms_method == "AddDelete") {
+      order = sample(v, 
+                     1, 
+                     false, 
+                     R_NilValue);
+      
+      for(int cntr = 0; cntr < 1; cntr++) {
+        index(cntr, 0) = Index(order[cntr], 0);
+        index(cntr, 1) = Index(order[cntr], 1);
+        index(cntr, 2) = Index(order[cntr], 2);
+      }  
+    } else {
+      order = sample(v, 
+                     no_interactions, 
+                     false, 
+                     R_NilValue);
+      
+      for(int cntr = 0; cntr < no_interactions; cntr++) {
+        index(cntr, 0) = Index(order[cntr], 0);
+        index(cntr, 1) = Index(order[cntr], 1);
+        index(cntr, 2) = Index(order[cntr], 2);
+      }  
     }
     
-    //Update interactions (within model move)
     if(interaction_prior == "Cauchy") {
-      interactions = sample_interactions_cauchy_hastings(interactions,
+      List out = metropolis_edge_interaction_pair_cauchy(interactions,
                                                          thresholds,
                                                          gamma,
                                                          observations,
                                                          no_categories,
                                                          proposal_sd,
-                                                         cauchy_scale);
+                                                         cauchy_scale,
+                                                         index,
+                                                         no_moves);
+      IntegerMatrix gamma = out["gamma"];
+      NumericMatrix interactions = out["interactions"];
     }
-    if(interaction_prior == "UnitInfo") {
-      interactions = sample_interactions_unitinfo_hastings(interactions,
+    if(interaction_prior ==  "UnitInfo") {
+      List out = metropolis_edge_interaction_pair_unitinfo(interactions,
                                                            thresholds,
                                                            gamma,
                                                            observations,
                                                            no_categories,
                                                            proposal_sd,
-                                                           unit_info);
+                                                           unit_info,
+                                                           index,
+                                                           no_moves);
+      IntegerMatrix gamma = out["gamma"];
+      NumericMatrix interactions = out["interactions"];
+    }
+    
+    //Update interactions (within model move)
+    if(moms_method != "Gibbs") {
+      if(interaction_prior == "Cauchy") {
+        interactions = metropolis_interactions_cauchy(interactions,
+                                                      thresholds,
+                                                      gamma,
+                                                      observations,
+                                                      no_categories,
+                                                      proposal_sd,
+                                                      cauchy_scale);
+      }
+      if(interaction_prior == "UnitInfo") {
+        interactions = metropolis_interactions_unitinfo(interactions,
+                                                        thresholds,
+                                                        gamma,
+                                                        observations,
+                                                        no_categories,
+                                                        proposal_sd,
+                                                        unit_info);
+      }      
     }
     
     //Update thresholds
-    thresholds = sample_thresholds(interactions,
-                                   thresholds,
-                                   observations,
-                                   no_categories,
-                                   n_cat_obs,
-                                   threshold_alpha,
-                                   threshold_beta);
+    thresholds = metropolis_thresholds(interactions,
+                                       thresholds,
+                                       observations,
+                                       no_categories,
+                                       n_cat_obs,
+                                       threshold_alpha,
+                                       threshold_beta);
     
     //Update estimators
     for(int node1 = 0; node1 < no_nodes - 1; node1++) {
