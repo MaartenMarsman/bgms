@@ -44,13 +44,22 @@ mple = function(x,
                 thresholds, 
                 interactions) {
   #Check data input ------------------------------------------------------------
-  if(class(x)[1] != "matrix") {
+  if(!inherits(x, what = "matrix"))
     stop("The input x is supposed to be a matrix.")
-  }
+  
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
+  
+  #Format the data input -------------------------------------------------------
+  data = reformat_data(x = x)
+  x = data$x
+  no_categories = data$no_categories
+  no_nodes = ncol(x)
+  no_interactions = no_nodes * (no_nodes - 1) / 2
+  no_thresholds = sum(no_categories)
+  no_parameters = no_thresholds + no_interactions
   
   #Check NR input --------------------------------------------------------------
   if(convergence_criterion <= 0) 
@@ -59,11 +68,6 @@ mple = function(x,
      abs(maximum_iterations - round(maximum_iterations)) > 
      sqrt(.Machine$double.eps)) 
     stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
-  
-  no_nodes = ncol(x)
-  no_thresholds = sum(no_categories)
-  no_interactions = no_nodes * (no_nodes - 1) / 2
-  no_parameters = no_thresholds + no_interactions
   
   # Starting values -----------------------------------------------------------
   if(!hasArg("thresholds")) {

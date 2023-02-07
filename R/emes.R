@@ -86,46 +86,23 @@ emes = function(x,
     stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
   
   #Check data input ------------------------------------------------------------
-  if(class(x)[1] != "matrix") {
+  if(!inherits(x, what = "matrix"))
     stop("The input x is supposed to be a matrix.")
-  }
+  
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
   
+  #Format the data input -------------------------------------------------------
+  data = reformat_data(x = x)
+  x = data$x
+  no_categories = data$no_categories
+  
   no_nodes = ncol(x)
   no_interactions = no_nodes * (no_nodes - 1) / 2
-  
-  # Data reformatting
-  no_categories = vector(length = no_nodes)
-  for(node in 1:no_nodes) {
-    unq_vls = sort(unique(x[,  node]))
-    mx_vl = max(unq_vls)
-    # Check
-    if(mx_vl == nrow(x))
-      stop(paste0("Only unique values observed for variable ", 
-                  node, 
-                  ". Expect discrete data with >= 1 observations per unique value."))
-    if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
-      y = x[, node]
-      cntr = 0
-      for(value in unq_vls) {
-        x[y == value, node] = cntr
-        cntr = cntr + 1
-      }
-    }
-    no_categories[node] = max(x[,node])
-    if(no_categories[node] == 0)
-      stop(paste0("Only one value [", 
-                  unq_vls,  
-                  "] was observed for variable ", 
-                  node, 
-                  "."))
-  }
   no_thresholds = sum(no_categories)
-  no_parameters = no_thresholds + no_interactions
-  no_persons = nrow(x)
+  no_parameters = no_interactions + no_thresholds
   
   # Set spike and slab prior variances -----------------------------------------
   fit <- try(mple(x = x, no_categories = no_categories), 

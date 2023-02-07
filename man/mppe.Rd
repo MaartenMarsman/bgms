@@ -10,7 +10,8 @@ mppe(
   no_categories,
   interaction_prior = "Cauchy",
   cauchy_scale = 2.5,
-  threshold_variance = 1,
+  threshold_alpha = 1,
+  threshold_beta = 1,
   convergence_criterion = sqrt(.Machine$double.eps),
   maximum_iterations = 1000,
   thresholds,
@@ -33,10 +34,8 @@ Currently, two prior densities are implemented: The Unit Information prior
 \item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults 
 to \code{2.5}.}
 
-\item{threshold_variance}{The variance of a normal prior for the thresholds. 
-Independent normal prior distributions are used for the thresholds, which are 
-centered at zero, with a common variance. If \code{threshold_variance = Inf}, 
-the prior is proportional to one. Defaults to \code{1}.}
+\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime 
+prior for the thresholds. Default to \code{1}.}
 
 \item{convergence_criterion}{The convergence criterion for the 
 pseudoposterior values in the EM algorithm. Defaults to 

@@ -83,13 +83,23 @@ mppe = function(x,
     stop("Parameter ``threshold_beta'' needs to be positive.")
   
   #Check data input ------------------------------------------------------------
-  if(class(x)[1] != "matrix") {
+  if(!inherits(x, what = "matrix"))
     stop("The input x is supposed to be a matrix.")
-  }
+  
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
+  
+  #Format the data input -------------------------------------------------------
+  data = reformat_data(x = x)
+  x = data$x
+  no_categories = data$no_categories
+  no_nodes = ncol(x)
+  no_persons = nrow(x)
+  no_thresholds = sum(no_categories)
+  no_interactions = no_nodes * (no_nodes - 1) / 2
+  no_parameters = no_thresholds + no_interactions
   
   #Check NR input --------------------------------------------------------------
   if(convergence_criterion <= 0) 
@@ -99,12 +109,6 @@ mppe = function(x,
      sqrt(.Machine$double.eps)) 
     stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
 
-  no_nodes = ncol(x)
-  no_persons = nrow(x)
-  no_thresholds = sum(no_categories)
-  no_interactions = no_nodes * (no_nodes - 1) / 2
-  no_parameters = no_thresholds + no_interactions
-  
   # Starting values -----------------------------------------------------------
   if(!hasArg("thresholds")) {
     thresholds = matrix(0, 
@@ -122,7 +126,7 @@ mppe = function(x,
     # Maximum pseudolikelihood -------------------------------------------------
     mpl = try(mple(x = x, no_categories = no_categories), 
               silent = TRUE)
-    if(class(mpl)[1] == "try-error")
+    if(inherits(mpl, what = "try-error"))
       stop("You have chosen the unit information prior. To set-up this prior, 
       the log-pseudolikelihood needs to be optimized. This failed for your data. 
       Please check your data for missing categories, or low category counts.

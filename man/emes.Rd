@@ -6,15 +6,15 @@
 \usage{
 emes(
   x,
-  no_categories,
   precision = 0.975,
   convergence_criterion = sqrt(.Machine$double.eps),
   theta = 0.5,
   hierarchical = FALSE,
-  alpha = 1,
-  beta = 1,
+  indicator_alpha = 1,
+  indicator_beta = 1,
   maximum_iterations = 1000,
-  threshold_prior_var = 1
+  threshold_alpha = 1,
+  threshold_beta = 1
 )
 }
 \arguments{
@@ -22,8 +22,6 @@ emes(
 categories coded as non-negative integers (i.e., coded 
 \code{0, 1, ..., no_categories}) for \code{no_persons} independent 
 observations on \code{no_nodes} variables in the network or graph.}
-
-\item{no_categories}{The maximum category.}
 
 \item{precision}{A number between zero and one. The prior precision that is
 desired for edge selection. Equal to one minus the desired type-1 error.
@@ -43,19 +41,16 @@ hyperparameters \code{alpha} and \code{beta}. A uniform prior on the
 inclusion probability, a beta with \code{alpha = beta = 1}, stipulates a
 uniform prior on network structure complexity.}
 
-\item{alpha, beta}{The hyperparameters of the beta prior distribution
-stipulated on the prior inclusion probability \code{theta} if
+\item{indicator_alpha, indicator_beta}{The hyperparameters of the beta prior 
+distribution stipulated on the prior inclusion probability \code{theta} if
 \code{hierarchical = TRUE}. Default to \code{1}.}
 
 \item{maximum_iterations}{The maximum number of EM iterations used. Defaults 
 to \code{1e3}. A warning is issued if procedure has not converged in 
 \code{maximum_iterations} iterations.}
 
-\item{threshold_prior_var}{The variance that is used in the normal prior 
-density stipulated on the threshold parameters. Currently a normal
-distribution is used for all threshold parameters, with a mean equal to
-zero and a variance equal to \code{threshold_prior_var}. Defaults to
-\code{1}.}
+\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime 
+prior for the thresholds. Defaults to \code{1}.}
 }
 \value{
 A list containing the \code{no_nodes} by \code{no_nodes} matrices 
