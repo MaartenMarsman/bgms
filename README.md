@@ -7,5 +7,5 @@ You can install the development version from GitHub with:
 
 install.packages('devtools')
 
-devtools::install_github('MaartenMarsman/bgms/tree/manuscript-version')
+devtools::install_github('MaartenMarsman/bgms/', ref = 'manuscript-version')
 
