@@ -103,6 +103,7 @@ emes = function(x,
   no_interactions = no_nodes * (no_nodes - 1) / 2
   no_thresholds = sum(no_categories)
   no_parameters = no_interactions + no_thresholds
+  no_persons = nrow(x)
   
   # Set spike and slab prior variances -----------------------------------------
   fit <- try(mple(x = x, no_categories = no_categories), 

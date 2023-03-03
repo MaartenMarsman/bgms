@@ -76,7 +76,7 @@ reformat_data = function(x) {
 #' node \code{r}. If \code{no_categories} is a vector, only the first
 #' \code{no_categories[r]} elements are used in row \code{r}.
 #'
-#' @param no_iterations The number of iterations used by the Gibbs sampler.
+#' @param iter The number of iterations used by the Gibbs sampler.
 #' The function provides the last state of the Gibbs sampler as output. By
 #' default set to \code{1e3}.
 #'
@@ -87,17 +87,17 @@ mrfSampler = function(no_states,
                       no_categories,
                       interactions,
                       thresholds,
-                      no_iterations = 1e3) {
-  #check no_states, no_nodes, no_iterations
+                      iter = 1e3) {
+  #check no_states, no_nodes, iter
   if(no_states <= 0 || 
      abs(no_states - round(no_states)) > .Machine$double.eps^.5)
     stop("``no_states'' needs be a positive integer.")
   if(no_nodes <= 0 || 
      abs(no_nodes - round(no_nodes)) > .Machine$double.eps^.5)
     stop("``no_nodes'' needs be a positive integer.")
-  if(no_iterations <= 0 || 
-     abs(no_iterations - round(no_iterations)) > .Machine$double.eps^.5)
-    stop("``no_iterations'' needs be a positive integer.")
+  if(iter <= 0 || 
+     abs(iter - round(iter)) > .Machine$double.eps^.5)
+    stop("``iter'' needs be a positive integer.")
   
   #check no_categories
   if(length(no_categories) == 1) {
@@ -139,7 +139,7 @@ mrfSampler = function(no_states,
                          no_categories = no_categories,
                          interactions = interactions,
                          thresholds = thresholds,
-                         no_iterations = no_iterations)
+                         iter = iter)
 
   return(x)
 }

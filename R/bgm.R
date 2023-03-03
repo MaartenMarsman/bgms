@@ -1,7 +1,7 @@
 #' Bayesian structure learning in Markov Random Fields of mixed binary and 
 #' ordinal variables using MCMC. 
 #'
-#' The function \code{bgms} explores the joint pseudoposterior distribution of 
+#' The function \code{bgm} explores the joint pseudoposterior distribution of 
 #' structures and parameters in a Markov Random Field for mixed binary and 
 #' ordinal variables. 
 #' 
@@ -22,7 +22,9 @@
 #' collapsed into other categories after recoding. See \code{reformat_data} for
 #' details.
 #' 
-#' @param no_iterations The number of iterations of the Gibbs sampler.
+#' @param iter The number of iterations of the Gibbs sampler. Defaults to 
+#' \code{1e4}. This usually gives a good idea. But for good estimates it is 
+#' recommended to run the procedure for \code{1e5} iterations. 
 #' 
 #' @param interaction_prior The prior distribution for the interaction effects. 
 #' Currently, two prior densities are implemented: The Unit Information prior
@@ -45,11 +47,12 @@
 #' \code{caching = TRUE} these terms are cached in an \code{n} by \code{p} 
 #' matrix of real numbers. This matrix is computed once and updated only when 
 #' its values change. This decreases the run time of the algorithm, but requires 
-#' more memory. If \code{caching = FALSE}, the procedure does not cache terms.  
+#' more memory. If \code{caching = FALSE}, the procedure does not cache terms. 
+#' Defaults to \code{TRUE}. 
 #'
 #' @param display_progress Should the function show a progress bar 
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-#' Defauls to \code{FALSE}.
+#' Defauls to \code{TRUE}.
 #' 
 #' @param burnin The number of burnin iterations. The output of the Gibbs 
 #' sampler is stored after \code{burnin} iterations.   
@@ -62,25 +65,25 @@
 #' are numeric matrices that contain the (model or structure-averaged) posterior 
 #' means (EAP estimates) of the pairwise associations, and category thresholds, 
 #' respectively. If \code{save = TRUE}, a list containing the 
-#' \code{no_iterations} by \code{p *  (p - 1) / 2} matrices \code{samples.gamma} 
-#' and \code{samples.interactions}, and the \code{no_iterations} by 
+#' \code{iter} by \code{p *  (p - 1) / 2} matrices \code{samples.gamma} 
+#' and \code{samples.interactions}, and the \code{iter} by 
 #' \code{sum(no_categories)} matrix \code{samples.thresholds}. These contain the 
 #' parameter states at every iteration of the Gibbs sampler. Column averages 
 #' offer the EAP estimates.
-bgms = function(x,
-                no_iterations = 1e5,
-                burnin = 1e3,
-                interaction_prior = c("UnitInfo", "Cauchy"),
-                cauchy_scale = 2.5,
-                threshold_alpha = 1,
-                threshold_beta = 1,
-                save = FALSE,
-                caching = TRUE,
-                display_progress = FALSE) {
+bgm = function(x,
+               iter = 1e4,
+               burnin = 1e3,
+               interaction_prior = c("UnitInfo", "Cauchy"),
+               cauchy_scale = 2.5,
+               threshold_alpha = 1,
+               threshold_beta = 1,
+               save = FALSE,
+               caching = TRUE,
+               display_progress = TRUE) {
   
   #Check Gibbs input -----------------------------------------------------------
-  if(abs(no_iterations - round(no_iterations)) > sqrt(.Machine$double.eps)) 
-    stop("Parameter ``no_iterations'' needs to be a positive integer.")
+  if(abs(iter - round(iter)) > sqrt(.Machine$double.eps)) 
+    stop("Parameter ``iter'' needs to be a positive integer.")
   if(abs(burnin - round(burnin)) > sqrt(.Machine$double.eps) || burnin < 0) 
     stop("Parameter ``burnin'' needs to be a non-negative integer.")
   
@@ -162,7 +165,7 @@ bgms = function(x,
   gamma = matrix(1,
                  nrow = no_nodes,
                  ncol = no_nodes)
-
+  
   #Starting values of interactions and thresholds (posterior mode)
   interactions = pps$interactions
   thresholds = pps$thresholds
@@ -202,7 +205,7 @@ bgms = function(x,
                       unit_info = unit_info,
                       proposal_sd = proposal_sd,
                       Index = Index,
-                      no_iterations = no_iterations,
+                      iter = iter,
                       burnin = burnin,
                       n_cat_obs = n_cat_obs, 
                       threshold_alpha = threshold_alpha,
@@ -254,9 +257,9 @@ bgms = function(x,
     }
     colnames(thresholds) = names
     
-    rownames(gamma) = paste0("Iter. ", 1:no_iterations)
-    rownames(interactions) = paste0("Iter. ", 1:no_iterations)
-    rownames(thresholds) = paste0("Iter. ", 1:no_iterations)
+    rownames(gamma) = paste0("Iter. ", 1:iter)
+    rownames(interactions) = paste0("Iter. ", 1:iter)
+    rownames(thresholds) = paste0("Iter. ", 1:iter)
     
     return(list(gamma = gamma, 
                 interactions = interactions,

@@ -1182,7 +1182,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
                    IntegerMatrix Index,
-                   int no_iterations,
+                   int iter,
                    int burnin,
                    IntegerMatrix n_cat_obs, 
                    double threshold_alpha,
@@ -1207,7 +1207,7 @@ List gibbs_sampler(IntegerMatrix observations,
   int ncol_thresholds = max_no_categories;
 
   if(save == true) {
-    nrow = no_iterations;
+    nrow = iter;
     ncol_edges= no_interactions;
     ncol_thresholds = no_thresholds;
   } 
@@ -1236,7 +1236,7 @@ List gibbs_sampler(IntegerMatrix observations,
   }
   
   //Progress bar
-  Progress p(no_iterations + burnin, display_progress);
+  Progress p(iter + burnin, display_progress);
   
   //The Gibbs sampler ----------------------------------------------------------
   //First, we do burn-in iterations---------------------------------------------
@@ -1313,7 +1313,7 @@ List gibbs_sampler(IntegerMatrix observations,
   }
   
   //The post burn-in iterations ------------------------------------------------
-  for(int iteration = 0; iteration < no_iterations; iteration++) {
+  for(int iteration = 0; iteration < iter; iteration++) {
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
