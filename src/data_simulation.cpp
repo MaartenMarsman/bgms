@@ -44,7 +44,7 @@ IntegerMatrix sample_omrf_gibbs(int no_states,
   }
   
   //The Gibbs sampler ----------------------------------------------------------
-  for(int iteration = 0; iteration < iter; iter++) {
+  for(int iteration = 0; iteration < iter; iteration++) {
     for(int node = 0; node < no_nodes; node++) {
       for(int person =  0; person < no_states; person++) {
         rest_score = 0.0;
