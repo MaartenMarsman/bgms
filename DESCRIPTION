@@ -1,11 +1,11 @@
 Package: bgms
 Type: Package
-Title: "Bayesian structure learning for binary and ordinal Markov Random Fields using EM and MCMC"
+Title: "Bayesian methods for analyzing Markov Random Fields for binary and ordinal variables."
 Version: 1.0
 Date: 2022-03-25
 Author: Maarten Marsman [aut, cre] (<https://orcid.org/0000-0001-5309-7502>)
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
-Description: "Statistical tools for Bayesian structure learning in Markov Random Fields (undirected graphical models) for mixed binary and ordinal data." 
+Description: "Statistical tools for the Bayesian analysis of the Markov Random Field for (mixed) binary and ordinal data." 
 License: GPL (>= 2)
 Imports: Rcpp (>= 1.0.7), RcppProgress
 LinkingTo: Rcpp, RcppProgress
