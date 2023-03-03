@@ -1,7 +1,7 @@
 Package: bgms
 Type: Package
 Title: "Bayesian methods for analyzing Markov Random Fields for binary and ordinal variables."
-Version: 1.0
+Version: 0.1.0
 Date: 2022-03-25
 Author: Maarten Marsman [aut, cre] (<https://orcid.org/0000-0001-5309-7502>)
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
