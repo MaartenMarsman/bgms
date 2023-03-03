@@ -10,7 +10,7 @@ mrfSampler(
   no_categories,
   interactions,
   thresholds,
-  no_iterations = 1000
+  iter = 1000
 )
 }
 \arguments{
@@ -30,7 +30,7 @@ category thresholds. The elements in row \code{r} indicate the thresholds of
 node \code{r}. If \code{no_categories} is a vector, only the first
 \code{no_categories[r]} elements are used in row \code{r}.}
 
-\item{no_iterations}{The number of iterations used by the Gibbs sampler.
+\item{iter}{The number of iterations used by the Gibbs sampler.
 The function provides the last state of the Gibbs sampler as output. By
 default set to \code{1e3}.}
 }

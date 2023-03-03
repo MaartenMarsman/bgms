@@ -7,7 +7,7 @@ ordinal variables using MCMC.}
 \usage{
 bgm(
   x,
-  no_iterations = 1e+05,
+  iter = 10000,
   burnin = 1000,
   interaction_prior = c("UnitInfo", "Cauchy"),
   cauchy_scale = 2.5,
@@ -15,7 +15,7 @@ bgm(
   threshold_beta = 1,
   save = FALSE,
   caching = TRUE,
-  display_progress = FALSE
+  display_progress = TRUE
 )
 }
 \arguments{
@@ -26,7 +26,9 @@ non-negative integers (i.e., \code{0, 1, ..., m}). Unobserved categories are
 collapsed into other categories after recoding. See \code{reformat_data} for
 details.}
 
-\item{no_iterations}{The number of iterations of the Gibbs sampler.}
+\item{iter}{The number of iterations of the Gibbs sampler. Defaults to 
+\code{1e4}. This usually gives a good idea. But for good estimates it is 
+recommended to run the procedure for \code{1e5} iterations.}
 
 \item{burnin}{The number of burnin iterations. The output of the Gibbs 
 sampler is stored after \code{burnin} iterations.}
@@ -52,11 +54,12 @@ yet their values do not necessarily change, or in a predictable way. If
 \code{caching = TRUE} these terms are cached in an \code{n} by \code{p} 
 matrix of real numbers. This matrix is computed once and updated only when 
 its values change. This decreases the run time of the algorithm, but requires 
-more memory. If \code{caching = FALSE}, the procedure does not cache terms.}
+more memory. If \code{caching = FALSE}, the procedure does not cache terms. 
+Defaults to \code{TRUE}.}
 
 \item{display_progress}{Should the function show a progress bar 
 (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-Defauls to \code{FALSE}.}
+Defauls to \code{TRUE}.}
 }
 \value{
 If \code{save = FALSE} (the default), a list containing the 
@@ -67,8 +70,8 @@ for individual edges. The matrices \code{interactions} and \code{thresholds}
 are numeric matrices that contain the (model or structure-averaged) posterior 
 means (EAP estimates) of the pairwise associations, and category thresholds, 
 respectively. If \code{save = TRUE}, a list containing the 
-\code{no_iterations} by \code{p *  (p - 1) / 2} matrices \code{samples.gamma} 
-and \code{samples.interactions}, and the \code{no_iterations} by 
+\code{iter} by \code{p *  (p - 1) / 2} matrices \code{samples.gamma} 
+and \code{samples.interactions}, and the \code{iter} by 
 \code{sum(no_categories)} matrix \code{samples.thresholds}. These contain the 
 parameter states at every iteration of the Gibbs sampler. Column averages 
 offer the EAP estimates.
