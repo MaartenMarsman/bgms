@@ -1,3 +1,5 @@
 useDynLib(bgms, .registration=TRUE)
 importFrom(Rcpp, evalCpp)
+importFrom(Rdpack, reprompt)
 exportPattern("^[[:alpha:]]+")
+

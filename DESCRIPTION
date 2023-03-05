@@ -1,12 +1,13 @@
 Package: bgms
 Type: Package
-Title: "Bayesian methods for analyzing Markov Random Fields for binary and ordinal variables."
+Title: Bayesian variable selection for networks of binary and/or ordinal variables
 Version: 0.1.0
 Date: 2022-03-25
 Author: Maarten Marsman [aut, cre] (<https://orcid.org/0000-0001-5309-7502>)
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
-Description: "Statistical tools for the Bayesian analysis of the Markov Random Field for (mixed) binary and ordinal data." 
+Description: Bayesian variable selection methods for analyzing the structure of a Markov Random Field model for a network of binary and/or ordinal variables. 
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.0.7), RcppProgress
+Imports: Rcpp (>= 1.0.7), RcppProgress, Rdpack 
+RdMacros: Rdpack
 LinkingTo: Rcpp, RcppProgress
 RoxygenNote: 7.2.3
