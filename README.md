@@ -1,14 +1,13 @@
 
 # bgms: Bayesian Analysis of Graphical Models
 
-<p style="text-align: justify">
-The `R` package **bgms** provides tools for a Bayesian analysis of
-graphical models describing networks of variables. The package uses
-Bayesian variable selection methods to model the underlying network
-structure. The methods are organized around two general approaches for
-Bayesian variable selection: (1) EM variable selection and (2) Gibbs
-variable selection. The key distinction is that the former uses a
-continuous spike and slab prior distribution on the pairwise
+The `R` package <strong>bgms</strong> provides tools for a Bayesian
+analysis of graphical models describing networks of variables. The
+package uses Bayesian variable selection methods to model the underlying
+network structure. The methods are organized around two general
+approaches for Bayesian variable selection: (1) EM variable selection
+and (2) Gibbs variable selection. The key distinction is that the former
+uses a continuous spike and slab prior distribution on the pairwise
 interactions (Marsman et al. 2022) that allows us to use EM variable
 selection (Ročková and George 2014). The Gibbs variable selection
 approach (George and McCulloch 1993), on the other hand, stipulates a
@@ -16,12 +15,14 @@ discrete spike and slab prior on the pairwise interactions, which allows
 us to set the interactions to exact zeroes. To account for the
 discontinuity at zero, we embed a Metropolis approach for mixtures of
 mutually singular distributions (Gottardo and Raftery 2008) in a Gibbs
-sampler.
-</p>
+sampler. The goal is to provide these tools for Markov Random Field
+(MRF) models for a wide range of variable types in the
+<strong>bgms</strong> package, but it currently provides tools for
+analyzing networks of binary and/or ordinal variables (Marsman and
+Haslbeck 2023).
 
 ## Why use Markov Random Fields?
 
-<p style="text-align: justify">
 Multivariate analysis using graphical models has received much attention
 in the recent psychological and psychometric literature Contreras et al.
 (2019). Most of these graphical models are Markov Random Field (MRF)
@@ -31,11 +32,9 @@ missing edge between two variables in the network implies that these
 variables are independent, given the remaining variables (Lauritzen
 2004). In other words, the remaining variables of the network fully
 account for the potential association between the unconnected variables.
-</p>
 
 ## Why use a Bayesian approach to analyze the MRF?
 
-<p style="text-align: justify">
 Testing the structure of the MRF requires us to determine the
 plausibility of the opposing hypotheses of conditional dependence and
 conditional independence. For example, how plausible are network
@@ -53,7 +52,6 @@ to quantify how much the data support both conditional dependence
 —<em>evidence of edge absence</em>. It also allows us to conclude that
 there is only limited support for either hypothesis (Dienes 2014) —an
 <em>absence of evidence</em>.
-</p>
 
 ## Installation
 
@@ -133,6 +131,14 @@ Mathematical Society.
 
 Lauritzen, S. L.. 2004. *Graphical Models*. Oxford: Oxford University
 Press.
+
+</div>
+
+<div id="ref-MarsmanHaslbeck_2023_OrdinalMRF" class="csl-entry">
+
+Marsman, M., and J. M. B. Haslbeck. 2023. “Bayesian Analysis of the
+Ordinal Markov Random Field.” *PsyArXiv*.
+<https://doi.org/10.31234/osf.io/ukwrf>.
 
 </div>
 
