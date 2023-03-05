@@ -33,6 +33,7 @@ we embed a Metropolis approach for mixtures of mutually singular distributions
 [@GottardoRaftery_2008] in a Gibbs sampler.</p>
 
 
+<<<<<<< HEAD
 ## Why use Markov Random Fields?
 <p style="text-align: justify">Multivariate analysis using graphical models has 
 received much attention in the recent psychological and psychometric literature 
@@ -44,6 +45,13 @@ between two variables in the network implies that these variables are
 independent, given the remaining variables [@Lauritzen2004]. In other words, the 
 remaining variables of the network fully account for the potential association 
 between the unconnected variables.</p>
+=======
+You can install the development version from GitHub with:
+
+install.packages('devtools')
+
+devtools::install_github('MaartenMarsman/bgms')
+>>>>>>> 3299179302147a0ab5deea91194e5e6afd98cf6c
 
 
 ## Why use a Bayesian approach to analyze the MRF?
