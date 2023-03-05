@@ -4,7 +4,7 @@
 \name{bgms-package}
 \alias{bgms}
 \alias{bgms-package}
-\title{bgms:  Bayesian Graphical Models}
+\title{bgms: Bayesian Analysis of Graphical Models}
 \description{
 The \code{R} package \strong{bgms} provides tools for Bayesian analysis of 
 graphical models describing networks of variables. The package uses Bayesian 

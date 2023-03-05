@@ -1,4 +1,4 @@
-#' bgms:  Bayesian Graphical Models
+#' bgms: Bayesian Analysis of Graphical Models
 #'
 #' @description 
 #' The \code{R} package \strong{bgms} provides tools for Bayesian analysis of 
