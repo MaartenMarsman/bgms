@@ -1,0 +1,78 @@
+---
+output: github_document
+bibliography: inst/REFERENCES.bib
+---
+  
+  ```{r, echo = FALSE, message=F}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  dev = "png",
+  dpi = 200,
+  fig.align = "center",
+  knitr::opts_chunk$set(comment = NA)
+)
+library(bgms)
+```
+
+# bgms: Bayesian Analysis of Graphical Models
+  
+<p style="text-align: justify">The `R` package **bgms** provides tools for a 
+Bayesian analysis of graphical models describing networks of variables. The 
+package uses Bayesian variable selection methods to model the underlying network 
+structure. The methods are organized around two general approaches for Bayesian 
+variable selection: (1) EM variable selection and (2) Gibbs variable selection. 
+The key distinction is that the former uses a continuous spike and slab prior 
+distribution on the pairwise interactions [@MarsmanEtAl_2022_objective] that 
+allows us to use EM variable selection [@RockovaGeorge_2014]. The Gibbs variable 
+selection approach [@GeorgeMcCulloch_1993], on the other hand, stipulates a 
+discrete spike and slab prior on the pairwise interactions, which allows us to 
+set the interactions to exact zeroes. To account for the discontinuity at zero, 
+we embed a Metropolis approach for mixtures of mutually singular distributions 
+[@GottardoRaftery_2008] in a Gibbs sampler.</p>
+
+
+## Why use Markov Random Fields?
+<p style="text-align: justify">Multivariate analysis using graphical models has 
+received much attention in the recent psychological and psychometric literature 
+[@RobinaughEtAl_2020, @MarsmanRhemtulla_2022_SIintro, @Steinley_2021_SIintro, 
+@ContrerasEtAl_2019]. Most of these graphical models are Markov Random Field 
+(MRF) models, whose graph structure reflects the conditional associations 
+between variables [@KindermannSnell1980]. In these models, a missing edge 
+between two variables in the network implies that these variables are 
+independent, given the remaining variables [@Lauritzen2004]. In other words, the 
+remaining variables of the network fully account for the potential association 
+between the unconnected variables.</p>
+
+## Why use a Bayesian approach to analyze the MRF?
+<p style="text-align: justify">Testing the structure of the MRF requires us to 
+determine the plausibility of the opposing hypotheses of conditional dependence 
+and conditional independence. For example, how plausible are network structures 
+that include the edge between variables 3 and 9 compared to network structures 
+that exclude this edge? Frequentist approaches are limited in this respect, 
+because they can only reject the conditional independence hypothesis, but not 
+support it [@WagenmakersEtAl_2018_BIP1, @Wagenmakers_2007]. This creates the 
+problem that, if an edge is excluded, we do not know whether this is because the 
+edge is absent in the population, or because we lack the power to reject the 
+null hypothesis of independence.  To avoid this problem, we will use a Bayesian 
+approach using Bayes factors [@KassRaftery_1995]. The inclusion Bayes factor 
+[@HuthEtAl_2023] allows us to quantify how much the data support both 
+conditional dependence ---<em>evidence of edge presence</em>--- or conditional 
+independence ---<em>evidence of edge absence</em>. It also allows us to conclude 
+that there is only limited support for either hypothesis [@Dienes_2014] ---an 
+<em>absence of evidence</em>.</p>
+
+
+## Installation
+
+The current developmental version can be installed with	
+```{r gh-installation, eval = FALSE}	
+if (!requireNamespace("remotes")) {	
+  install.packages("remotes")	
+}	
+remotes::install_github("MaartenMarsman/bgms")
+```
+
+
+## References
