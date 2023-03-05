@@ -3,7 +3,7 @@ output: github_document
 bibliography: inst/REFERENCES.bib
 ---
   
-  ```{r, echo = FALSE, message=F}
+```{r, echo = FALSE, message=F}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -57,7 +57,7 @@ problem that, if an edge is excluded, we do not know whether this is because the
 edge is absent in the population, or because we lack the power to reject the 
 null hypothesis of independence.  To avoid this problem, we will use a Bayesian 
 approach using Bayes factors [@KassRaftery_1995]. The inclusion Bayes factor 
-[@HuthEtAl_2023] allows us to quantify how much the data support both 
+[@HuthEtAl_2023_intro] allows us to quantify how much the data support both 
 conditional dependence ---<em>evidence of edge presence</em>--- or conditional 
 independence ---<em>evidence of edge absence</em>. It also allows us to conclude 
 that there is only limited support for either hypothesis [@Dienes_2014] ---an 

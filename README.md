@@ -47,7 +47,7 @@ creates the problem that, if an edge is excluded, we do not know whether
 this is because the edge is absent in the population, or because we lack
 the power to reject the null hypothesis of independence. To avoid this
 problem, we will use a Bayesian approach using Bayes factors (Kass and
-Raftery 1995). The inclusion Bayes factor (**HuthEtAl_2023?**) allows us
+Raftery 1995). The inclusion Bayes factor (Huth et al. 2023) allows us
 to quantify how much the data support both conditional dependence
 —<em>evidence of edge presence</em>— or conditional independence
 —<em>evidence of edge absence</em>. It also allows us to conclude that
@@ -101,6 +101,15 @@ Gottardo, R., and A. E. Raftery. 2008. “Markov Chain Monte Carlo with
 Mixtures of Mutually Singular Distributions.” *Journal of Computational
 and Graphical Statistics* 17 (4): 949–75.
 <https://doi.org/10.1198/106186008X386102>.
+
+</div>
+
+<div id="ref-HuthEtAl_2023_intro" class="csl-entry">
+
+Huth, K., J. de Ron, A. E. Goudriaan, K. Luigjes, R. Mohammadi, R. J.
+van Holst, E.-J. Wagenmakers, and M. Marsman. 2023. “Bayesian Analysis
+of Cross-Sectional Networks: A Tutorial in R and JASP.” *PsyArXiv*.
+<https://doi.org/10.31234/osf.io/ub5tc>.
 
 </div>
 
