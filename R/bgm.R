@@ -70,6 +70,84 @@
 #' \code{sum(no_categories)} matrix \code{samples.thresholds}. These contain the 
 #' parameter states at every iteration of the Gibbs sampler. Column averages 
 #' offer the EAP estimates.
+#' 
+#' @examples 
+#' \dontrun{
+#'  ##Analyse the Wenchuan dataset
+#'    
+#'  # Here, we use 1e4 iterations, for an actual analysis please use at least 
+#'  # 1e5 iterations.
+#'  fit = bgm(x = Wenchuan)
+#'
+#'   
+#'  #------------------------------------------------------------------------------|
+#'  # INCLUSION - EDGE WEIGHT PLOT
+#'  #------------------------------------------------------------------------------|
+#'   
+#'  par(mar = c(6, 5, 1, 1))
+#'  plot(x = fit$interactions[lower.tri(fit$interactions)], 
+#'       y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
+#'       xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
+#'  abline(h = 0, lty = 2, col = "gray")
+#'  abline(h = 1, lty = 2, col = "gray")
+#'  abline(h = .5, lty = 2, col = "gray")
+#'  mtext("Posterior Inclusion Probability", side = 1, line = 3, cex = 1.7)
+#'  mtext("Posterior Mode Edge Weight", side = 2, line = 3, cex = 1.7)
+#'  axis(1)
+#'  axis(2, las = 1)
+#'   
+#'   
+#'  #------------------------------------------------------------------------------|
+#'  # EVIDENCE - EDGE WEIGHT PLOT
+#'  #------------------------------------------------------------------------------|
+#'  
+#'  #The bgms package currently assumes that the prior odds are 1:
+#'  prior.odds = 1
+#'  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
+#'  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
+#'  log.bayesfactor = log(posterior.odds / prior.odds)
+#'  log.bayesfactor[log.bayesfactor > 5] = 5
+#' 
+#'  par(mar = c(5, 5, 1, 1) + 0.1)
+#'  plot(fit$interactions[lower.tri(fit$interactions)], log.bayesfactor, pch = 21, bg = "#bfbfbf", 
+#'       cex = 1.3, axes = FALSE, xlab = "", ylab = "", ylim = c(-5, 5.5),
+#'       xlim = c(-0.5, 1.5))
+#'  axis(1)
+#'  axis(2, las = 1)
+#'  abline(h = log(1/10), lwd = 2, col = "#bfbfbf")
+#'  abline(h = log(10), lwd = 2, col = "#bfbfbf")
+#' 
+#'  text(x = 1, y = log(1 / 10), labels = "Evidence for Exclusion", pos = 1,
+#'       cex = 1.7)
+#'  text(x = 1, y = log(10), labels = "Evidence for Inclusion", pos = 3, cex = 1.7)
+#'  text(x = 1, y = 0, labels = "Absence of Evidence", cex = 1.7)
+#'  mtext("Log-Inclusion Bayes Factor", side = 2, line = 3, cex = 1.5, las = 0)
+#'  mtext("Posterior Mean Interactions ", side = 1, line = 3.7, cex = 1.5, las = 0)
+#'  
+#'  
+#'  #------------------------------------------------------------------------------|
+#'  # THE LOCAL MEDIAN PROBABILITY NETWORK
+#'  #------------------------------------------------------------------------------|
+#'   
+#'  tmp = fit$interactions[lower.tri(fit$interactions)]
+#'  tmp[posterior.inclusion < 0.5] = 0
+#'   
+#'  median.prob.model = matrix(0, nrow = ncol(Wenchuan), ncol = ncol(Wenchuan))
+#'  median.prob.model[lower.tri(median.prob.model)] = tmp
+#'  median.prob.model = median.prob.model + t(median.prob.model)
+#'  
+#'  rownames(median.prob.model) = colnames(Wenchuan)
+#'  colnames(median.prob.model) = colnames(Wenchuan)
+#'   
+#'  library(qgraph)
+#'  qgraph(median.prob.model, 
+#'         theme = "TeamFortress", 
+#'         maximum = .5,
+#'         fade = FALSE,
+#'         color = c("#f0ae0e"), vsize = 10, repulsion = .9, 
+#'         label.cex = 1.1, label.scale = "FALSE", 
+#'         labels = colnames(Wenchuan))
+#'  }
 bgm = function(x,
                iter = 1e4,
                burnin = 1e3,
@@ -132,14 +210,13 @@ bgm = function(x,
               silent = TRUE)
   }
   if(inherits(pps, what = "try-error"))
-    stop("We use normal approximations to the posterior as proposal distribution 
-  in a Metropolis within Gibbs approach. The normal approximation is based on 
-  the curvature around the mode, estimated from optimizing the full
-  pseudoposterior. For your data the pseudoposterior could not be optimized. 
-  Please check your data for missing categories, or low category counts. Please 
-  contact the package author if the data checks out and the data do not explain 
-  why optimization failed.")
-  
+    stop(paste0(
+      "We use a Metropolis within Gibbs algorithm to learn the structure of the MRF.\n", 
+      "The proposal distribution used in the Metropolis algorithm is a normal distribution\n",
+      "that takes as its variance a function of the second derivatives of the MRF evaluated\n", 
+      "at the posterior mode. Unfortunately, we could not find this mode for your data.\n",
+      "Perhaps there were low category counts?"))
+
   if(interaction_prior == "UnitInfo") {
     unit_info = sqrt(pps$unit_info)
   } else {

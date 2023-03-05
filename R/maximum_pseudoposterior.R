@@ -127,11 +127,9 @@ mppe = function(x,
     mpl = try(mple(x = x, no_categories = no_categories), 
               silent = TRUE)
     if(inherits(mpl, what = "try-error"))
-      stop("You have chosen the unit information prior. To set-up this prior, 
-      the log-pseudolikelihood needs to be optimized. This failed for your data. 
-      Please check your data for missing categories, or low category counts.
-      Please contact the package author if the data checks out and the data do 
-      not explain why optimization failed.")
+      stop(paste0("You have chosen the unit information prior. To set-up this prior,\n", 
+                  "the log-pseudolikelihood needs to be optimized. This failed for \n",
+                  "your data. Please switch to a different prior distribution."))
     
     # Asymptotic covariance ----------------------------------------------------
     hessian =  hessian_interactions_pseudolikelihood(interactions = mpl$interactions, 

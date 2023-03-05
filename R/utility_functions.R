@@ -1,4 +1,30 @@
 reformat_data = function(x) {
+  # Check for missing values ---------------------------------------------------
+  missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
+  if(sum(missing_values) == nrow(x))
+    stop(paste0("All rows in x contain at least one missing response.\n", 
+                "The bgm package currently cannot handle missing responses."))
+  if(sum(missing_values) > 1)
+    warning(paste0("There were ", 
+                   sum(missing_values),
+                   " rows with missing observations in the input matrix x.\n", 
+                   "Since bgms cannot handle missing responses, these rows were \n",
+                   "excluded from the analysis."),
+            call. = FALSE)
+  if(sum(missing_values) == 1)
+    warning(paste0("There was one row with missing observations in the input matrix x.\n", 
+                   "Since bgms cannot handle missing responses, this row was excluded \n",
+                   "from the analysis."),
+            call. = FALSE)
+  x = x[!missing_values, ]
+  
+  if(ncol(x) < 2 || is.null(ncol(x)))
+    stop(paste0("After removing missing observations from the input matrix x,\n",
+                "there were less than two columns left in x."))
+  if(nrow(x) < 2 || is.null(nrow(x)))
+    stop(paste0("After removing missing observations from the input matrix x,\n",
+                "there were less than two rows left in x."))
+    
   no_nodes = ncol(x)
   no_categories = vector(length = no_nodes)
   for(node in 1:no_nodes) {
