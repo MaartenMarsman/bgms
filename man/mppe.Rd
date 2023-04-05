@@ -2,7 +2,7 @@
 % Please edit documentation in R/maximum_pseudoposterior.R
 \name{mppe}
 \alias{mppe}
-\title{Optimization of the Pseudoposterior for a Markov Random Field model for 
+\title{Optimization of the Pseudoposterior for a Markov Random Field model for
 ordinal variables.}
 \usage{
 mppe(
@@ -19,61 +19,57 @@ mppe(
 )
 }
 \arguments{
-\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the 
-categories coded as non-negative integers (i.e., coded 
-\code{0, 1, ..., no_categories}) for \code{no_persons} independent 
+\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the
+categories coded as non-negative integers (i.e., coded
+\code{0, 1, ..., no_categories}) for \code{no_persons} independent
 observations on \code{no_nodes} variables in the network or graph.}
 
 \item{no_categories}{The maximum category.}
 
-\item{interaction_prior}{The prior distribution for the interaction effects. 
+\item{interaction_prior}{The prior distribution for the interaction effects.
 Currently, two prior densities are implemented: The Unit Information prior
-(\code{interaction_prior = "UnitInfo"}) and the Cauchy prior 
+(\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
 (\code{interaction_prior = "Cauchy"}). Defaults to \code{"Cauchy"}.}
 
-\item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults 
+\item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults
 to \code{2.5}.}
 
-\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime 
+\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
 prior for the thresholds. Default to \code{1}.}
 
-\item{convergence_criterion}{The convergence criterion for the 
-pseudoposterior values in the EM algorithm. Defaults to 
+\item{convergence_criterion}{The convergence criterion for the
+pseudoposterior values in the EM algorithm. Defaults to
 \code{sqrt(.Machine$double.eps)}.}
 
-\item{maximum_iterations}{The maximum number of EM iterations used. Defaults 
-to \code{1e3}. A warning is issued if procedure has not converged in 
+\item{maximum_iterations}{The maximum number of EM iterations used. Defaults
+to \code{1e3}. A warning is issued if procedure has not converged in
 \code{maximum_iterations} iterations.}
 
-\item{thresholds}{A \code{no_nodes} by \code{no_categories} matrix 
-\code{thresholds}. Used as starting values in the Newton-Raphson procedure. 
+\item{thresholds}{A \code{no_nodes} by \code{no_categories} matrix
+\code{thresholds}. Used as starting values in the Newton-Raphson procedure.
 Optional.}
 
-\item{interactions}{A \code{no_nodes} by \code{no_nodes} matrices 
-\code{interactions}. Used as starting values in the Newton-Raphson procedure. 
+\item{interactions}{A \code{no_nodes} by \code{no_nodes} matrices
+\code{interactions}. Used as starting values in the Newton-Raphson procedure.
 Optional.}
-
-\item{precision}{A number between zero and one. The prior precision that is
-desired for edge selection. Equal to one minus the desired type-1 error.
-Defaults to \code{.975}.}
 }
 \value{
-A list containing the \code{no_nodes} by \code{no_nodes} matrices 
-\code{interactions}, the \code{no_nodes} by \code{no_categories} matrix 
-\code{thresholds}, the \code{hessian} matrix as computed in the final 
-iteration of the optimization procedure, and, in case 
-\code{interaction_prior = "UnitInfo"}, the \code{no_nodes} by \code{no_nodes} 
-matrix \code{unit_info}. The matrix \code{interactions} is a numeric matrix 
-that contains the maximum pseudoposterior estimates of the pairwise 
-associations. The matrix \code{thresholds} contains the maximum 
-pseudoposterior estimates of the category thresholds parameters. The 
-\code{hessian} matrix has dimensions equal to the number of thresholds + 
+A list containing the \code{no_nodes} by \code{no_nodes} matrices
+\code{interactions}, the \code{no_nodes} by \code{no_categories} matrix
+\code{thresholds}, the \code{hessian} matrix as computed in the final
+iteration of the optimization procedure, and, in case
+\code{interaction_prior = "UnitInfo"}, the \code{no_nodes} by \code{no_nodes}
+matrix \code{unit_info}. The matrix \code{interactions} is a numeric matrix
+that contains the maximum pseudoposterior estimates of the pairwise
+associations. The matrix \code{thresholds} contains the maximum
+pseudoposterior estimates of the category thresholds parameters. The
+\code{hessian} matrix has dimensions equal to the number of thresholds +
 associations. The topleft square contains the thresholds, the bottomright
 square the associations (of the form \code{(1,2), (1, 3), ..., (2, 1), ...}).
-The \code{unit_information} matrix contains the variances of the unit 
+The \code{unit_information} matrix contains the variances of the unit
 information prior for the association effects.
 }
 \description{
-The function \code{mppe} estimates the parameters for the ordinal MRF 
+The function \code{mppe} estimates the parameters for the ordinal MRF
 by optimizing the pseudoposterior with Newton-Raphson.
 }

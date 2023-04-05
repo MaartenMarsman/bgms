@@ -140,6 +140,7 @@
 #'         label.cex = 1.1, label.scale = "FALSE",
 #'         labels = colnames(Wenchuan))
 #'  }
+#' @export
 bgm = function(x,
                iter = 1e4,
                burnin = 1e3,
@@ -333,3 +334,4 @@ bgm = function(x,
                 thresholds = thresholds))
   }
 }
+

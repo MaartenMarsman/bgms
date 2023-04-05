@@ -45,12 +45,12 @@ after which it proceeds by simulating states for each node from a logistic
 model using the other node states as predictor variables.
 }
 \examples{
-# Generate responses from a network of five binary and ordinal variables. 
-no_nodes = 5 
+# Generate responses from a network of five binary and ordinal variables.
+no_nodes = 5
 no_categories = sample(1:5, size = no_nodes, replace = TRUE)
 
 Interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
-Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] = 
+Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
 Thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))

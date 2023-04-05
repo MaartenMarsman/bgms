@@ -7,10 +7,11 @@ Author: Maarten Marsman [aut, cre] (<https://orcid.org/0000-0001-5309-7502>)
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
 Description: Bayesian variable selection methods for analyzing the structure of a Markov Random Field model for a network of binary and/or ordinal variables. 
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.0.7), RcppProgress, Rdpack 
+Imports: Rcpp (>= 1.0.7), Rdpack, methods
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppProgress
 RoxygenNote: 7.2.3
 Depends: 
     R (>= 2.10)
 LazyData: true
+Encoding:UTF-8
