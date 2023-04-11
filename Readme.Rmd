@@ -32,13 +32,13 @@ set the interactions to exact zeroes. To account for the discontinuity at zero,
 we embed a Metropolis approach for mixtures of mutually singular distributions 
 [@GottardoRaftery_2008] in a Gibbs sampler. The goal is to provide these tools 
 for Markov Random Field (MRF) models for a wide range of variable types in the 
-<strong>bgms</strong> package, but it currently provides tools for analyzing 
+<strong>bgms</strong> package, and it currently provides them for analyzing 
 networks of binary and/or ordinal variables [@MarsmanHaslbeck_2023_OrdinalMRF].
 
 ## Why use Markov Random Fields?
 Multivariate analysis using graphical models has 
 received much attention in the recent psychological and psychometric literature 
-[@RobinaughEtAl_2020, @MarsmanRhemtulla_2022_SIintro, @Steinley_2021_SIintro, 
+[@RobinaughEtAl_2020;@MarsmanRhemtulla_2022_SIintro;@Steinley_2021_SIintro; 
 @ContrerasEtAl_2019]. Most of these graphical models are Markov Random Field 
 (MRF) models, whose graph structure reflects the conditional associations 
 between variables [@KindermannSnell1980]. In these models, a missing edge 
@@ -54,7 +54,7 @@ For example, how plausible are network structures that include the edge between
 variables 3 and 9 compared to network structures that exclude this edge? 
 Frequentist approaches are limited in this respect, because they can only reject 
 the conditional independence hypothesis, but not support it 
-[@WagenmakersEtAl_2018_BIP1, @Wagenmakers_2007]. This creates the problem that, 
+[@WagenmakersEtAl_2018_BIP1;@Wagenmakers_2007]. This creates the problem that, 
 if an edge is excluded, we do not know whether this is because the edge is 
 absent in the population, or because we lack the power to reject the null 
 hypothesis of independence.  To avoid this problem, we will use a Bayesian 

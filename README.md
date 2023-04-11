@@ -17,15 +17,16 @@ discontinuity at zero, we embed a Metropolis approach for mixtures of
 mutually singular distributions (Gottardo and Raftery 2008) in a Gibbs
 sampler. The goal is to provide these tools for Markov Random Field
 (MRF) models for a wide range of variable types in the
-<strong>bgms</strong> package, but it currently provides tools for
+<strong>bgms</strong> package, and it currently provides them for
 analyzing networks of binary and/or ordinal variables (Marsman and
 Haslbeck 2023).
 
 ## Why use Markov Random Fields?
 
 Multivariate analysis using graphical models has received much attention
-in the recent psychological and psychometric literature Contreras et al.
-(2019). Most of these graphical models are Markov Random Field (MRF)
+in the recent psychological and psychometric literature (Robinaugh et
+al. 2020; Marsman and Rhemtulla 2022; Steinley 2021; Contreras et al.
+2019). Most of these graphical models are Markov Random Field (MRF)
 models, whose graph structure reflects the conditional associations
 between variables (Kindermann and Snell 1980). In these models, a
 missing edge between two variables in the network implies that these
@@ -41,17 +42,18 @@ conditional independence. For example, how plausible are network
 structures that include the edge between variables 3 and 9 compared to
 network structures that exclude this edge? Frequentist approaches are
 limited in this respect, because they can only reject the conditional
-independence hypothesis, but not support it Wagenmakers (2007). This
-creates the problem that, if an edge is excluded, we do not know whether
-this is because the edge is absent in the population, or because we lack
-the power to reject the null hypothesis of independence. To avoid this
-problem, we will use a Bayesian approach using Bayes factors (Kass and
-Raftery 1995). The inclusion Bayes factor (Huth et al. 2023) allows us
-to quantify how much the data support both conditional dependence
-—<em>evidence of edge presence</em>— or conditional independence
-—<em>evidence of edge absence</em>. It also allows us to conclude that
-there is only limited support for either hypothesis (Dienes 2014) —an
-<em>absence of evidence</em>.
+independence hypothesis, but not support it (Wagenmakers et al. 2018;
+Wagenmakers 2007). This creates the problem that, if an edge is
+excluded, we do not know whether this is because the edge is absent in
+the population, or because we lack the power to reject the null
+hypothesis of independence. To avoid this problem, we will use a
+Bayesian approach using Bayes factors (Kass and Raftery 1995). The
+inclusion Bayes factor (Huth et al. 2023) allows us to quantify how much
+the data support both conditional dependence —<em>evidence of edge
+presence</em>— or conditional independence —<em>evidence of edge
+absence</em>. It also allows us to conclude that there is only limited
+support for either hypothesis (Dienes 2014) —an <em>absence of
+evidence</em>.
 
 ## Installation
 
