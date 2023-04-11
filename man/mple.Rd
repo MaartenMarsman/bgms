@@ -2,7 +2,7 @@
 % Please edit documentation in R/maximum_pseudolikelihood.R
 \name{mple}
 \alias{mple}
-\title{Maximum Pseudolikelihood estimation for a Markov Random Field model for 
+\title{Maximum Pseudolikelihood estimation for a Markov Random Field model for
 ordinal variables.}
 \usage{
 mple(
@@ -15,42 +15,38 @@ mple(
 )
 }
 \arguments{
-\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the 
-categories coded as non-negative integers (i.e., coded 
-\code{0, 1, ..., no_categories}) for \code{no_persons} independent 
+\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the
+categories coded as non-negative integers (i.e., coded
+\code{0, 1, ..., no_categories}) for \code{no_persons} independent
 observations on \code{no_nodes} variables in the network or graph.}
 
 \item{no_categories}{The maximum category.}
 
-\item{convergence_criterion}{The convergence criterion for the 
-pseudoposterior values in the EM algorithm. Defaults to 
+\item{convergence_criterion}{The convergence criterion for the
+pseudoposterior values in the EM algorithm. Defaults to
 \code{sqrt(.Machine$double.eps)}.}
 
-\item{maximum_iterations}{The maximum number of EM iterations used. Defaults 
-to \code{1e3}. A warning is issued if procedure has not converged in 
+\item{maximum_iterations}{The maximum number of EM iterations used. Defaults
+to \code{1e3}. A warning is issued if procedure has not converged in
 \code{maximum_iterations} iterations.}
 
-\item{thresholds}{A \code{no_nodes} by \code{no_categories} matrix 
-\code{thresholds}. Used as starting values in the Newton-Raphson procedure. 
+\item{thresholds}{A \code{no_nodes} by \code{no_categories} matrix
+\code{thresholds}. Used as starting values in the Newton-Raphson procedure.
 Optional.}
 
-\item{interactions}{A \code{no_nodes} by \code{no_nodes} matrices 
-\code{interactions}. Used as starting values in the Newton-Raphson procedure. 
+\item{interactions}{A \code{no_nodes} by \code{no_nodes} matrices
+\code{interactions}. Used as starting values in the Newton-Raphson procedure.
 Optional.}
-
-\item{precision}{A number between zero and one. The prior precision that is
-desired for edge selection. Equal to one minus the desired type-1 error.
-Defaults to \code{.975}.}
 }
 \value{
-A list containing the \code{no_nodes} by \code{no_nodes} matrices 
-\code{interactions} and the \code{no_nodes} by 
-\code{no_categories} matrix \code{thresholds}. The matrix \code{interactions} 
-is a numeric matrix which contains the maximum pseudolikelihood estimates of 
-the pairwise association parameters. The matrix \code{thresholds} contains 
+A list containing the \code{no_nodes} by \code{no_nodes} matrices
+\code{interactions} and the \code{no_nodes} by
+\code{no_categories} matrix \code{thresholds}. The matrix \code{interactions}
+is a numeric matrix which contains the maximum pseudolikelihood estimates of
+the pairwise association parameters. The matrix \code{thresholds} contains
 the maximum pseudolikelihood estimates of the category thresholds parameters.
 }
 \description{
-The function \code{mple} estimates the parameters for the ordinal MRF 
+The function \code{mple} estimates the parameters for the ordinal MRF
 by optimizing the joint pseudolikelihood with Newton-Raphson.
 }
