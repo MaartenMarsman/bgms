@@ -383,7 +383,6 @@ List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
                                                     int no_interactions,
                                                     int no_persons,
                                                     NumericMatrix rest_matrix) {
-  //NumericMatrix theta // no_nodes x no_nodes
   double proposed_state;
   double current_state;
   double log_prob;

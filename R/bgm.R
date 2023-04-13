@@ -15,53 +15,57 @@
 #' A uniform prior is used for edge inclusion variables (i.e., the prior
 #' probability that the edge is included is 0.5).
 #'
-#' @param x An \code{n} by \code{p} matrix containing the binary and ordinal
-#' variables for \code{n} independent observations on \code{p} variables in the
-#' network or graph. If not done already, \code{bgms} recodes the variables as
-#' non-negative integers (i.e., \code{0, 1, ..., m}). Unobserved categories are
-#' collapsed into other categories after recoding. See \code{reformat_data} for
-#' details.
+#' @param x A matrix with \code{n} rows and \code{p} columns, containing binary
+#' and ordinal variables for \code{n} independent observations and \code{p}
+#' variables in the network. Variables are recoded as non-negative integers
+#' \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+#' collapsed into other categories after recoding. See
+#' \code{reformat_data} for details.
 #'
 #' @param iter The number of iterations of the Gibbs sampler. Defaults to
-#' \code{1e4}. This usually gives a good idea. But for good estimates it is
-#' recommended to run the procedure for \code{1e5} iterations.
-#'
+#' \code{1e4}. For better estimates, it is recommended to run the procedure for
+#' at least \code{1e5} iterations.
+#' @param burnin The number of burnin iterations. The output of the Gibbs
+#' sampler is stored after burnin iterations.
 #' @param interaction_prior The prior distribution for the interaction effects.
 #' Currently, two prior densities are implemented: The Unit Information prior
 #' (\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
 #' (\code{interaction_prior = "Cauchy"}). Defaults to \code{"UnitInfo"}.
-#'
 #' @param cauchy_scale The scale of the Cauchy prior for interactions. Defaults
 #' to \code{2.5}.
-#'
 #' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime
 #' prior for the thresholds. Defaults to \code{1}.
-#'
-#' @param save Should the function collect and return all samples from the
-#' Gibbs sampler (\code{save = TRUE})? Or should it only return the
-#' (model-averaged) posterior means (\code{save = FALSE})? Defaults to
-#' \code{FALSE}.
-#'
+#' @param save Should the function collect and return all samples from the Gibbs
+#' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
+#' posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.
 #' @param display_progress Should the function show a progress bar
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-#' Defauls to \code{TRUE}.
+#' Defaults to \code{TRUE}.
 #'
-#' @param burnin The number of burnin iterations. The output of the Gibbs
-#' sampler is stored after \code{burnin} iterations.
+#' @return If \code{save = FALSE} (the default), the result is a list containing
+#' the following matrices:
+#' \itemize{
+#' \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
+#' containing posterior inclusion probabilities of individual edges.
+#' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
+#' containing model-averaged posterior means of the pairwise associations.
+#' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
+#' columns, containing model-averaged category thresholds.
+#' }
 #'
-#' @return If \code{save = FALSE} (the default), a list containing the
-#' \code{p} by \code{p} matrices \code{gamma} and \code{interactions}, and the
-#' \code{p} by \code{max(no_categories)} matrix \code{thresholds}. The matrix
-#' \code{gamma} is a numeric matrix that contains the inclusion probabilities
-#' for individual edges. The matrices \code{interactions} and \code{thresholds}
-#' are numeric matrices that contain the (model or structure-averaged) posterior
-#' means (EAP estimates) of the pairwise associations, and category thresholds,
-#' respectively. If \code{save = TRUE}, a list containing the
-#' \code{iter} by \code{p *  (p - 1) / 2} matrices \code{samples.gamma}
-#' and \code{samples.interactions}, and the \code{iter} by
-#' \code{sum(no_categories)} matrix \code{samples.thresholds}. These contain the
-#' parameter states at every iteration of the Gibbs sampler. Column averages
-#' offer the EAP estimates.
+#' If \code{save = TRUE}, the result is a list containing:
+#' \itemize{
+#' \item \code{samples.gamma}: A matrix with \code{iter} rows and
+#' \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
+#' every iteration of the Gibbs sampler.
+#' \item \code{samples.interactions}: A matrix with \code{iter} rows and
+#' \code{p * (p - 1) / 2} columns, containing parameter states from every
+#' iteration of the Gibbs sampler for the pairwise associations.
+#' \item \code{samples.thresholds}: A matrix with \code{iter} rows and
+#' \code{sum(m)} columns, containing parameter states from every iteration of
+#' the Gibbs sampler for the category thresholds.
+#' }
+#' Column averages of these matrices provide the model-averaged posterior means.
 #'
 #' @examples
 #' \dontrun{

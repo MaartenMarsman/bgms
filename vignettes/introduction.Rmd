@@ -1,0 +1,364 @@
+---
+title: "Introducing bgms"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introducing bgms}
+  %\VignetteEngine{knitr::rmarkdown}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
+---
+<style>
+body {
+text-align: justify}
+</style>
+
+## Introduction
+
+This example demonstrates how to use bgms for Bayesian analysis of binary or ordinal data with a special network model called a Markov Random Field (MRF) model. To learn more about the MRF model, check out @MarsmanHaslbeck_2023_ordinal, and to learn more about the Bayesian analysis of network models, check out @HuthEtAl_2023. A paper on the `bgms` software is coming soon.
+
+We'll examine real data on PTSD symptoms from 362 Chinese adults who survived the Wenchuan earthquake but tragically lost a child [@McNallyEtAl_2015]. The data comes from a 17-question survey where participants rated how much each symptom bothered them in the past month on a scale from "not at all" to "extremely."
+
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+```{r setup}
+library(bgms)
+```
+
+
+# Example 1 -- EM
+
+In this initial example, we'll demonstrate how to quickly estimate a network using the bgm.em function. This method is similar to traditional network estimation approaches that seek a single optimal structure while minimizing model complexity. Unlike the complete Bayesian analysis of networks we'll explore later, this method employs the EM algorithm to find an optimal structure [@MarsmanEtAl_2022_rbinnet]. The goal is to reduce the edge weights of missing connections to a value near zero, without shrinking the edge weights of existing connections.
+
+
+## Usage 
+
+```{r usage, eval=FALSE}
+bgm.em(
+  x,
+  precision = 0.975,
+  convergence_criterion = sqrt(.Machine$double.eps),
+  theta = 0.5,
+  hierarchical = FALSE,
+  indicator_alpha = 1,
+  indicator_beta = 1,
+  maximum_iterations = 1000,
+  threshold_alpha = 1,
+  threshold_beta = 1
+)
+```
+
+
+## Arguments 
+
+- `x`: A matrix with `n` rows and `p` columns, containing binary and ordinal variables for `n` independent observations and `p` variables in the network. Variables are recoded as non-negative integers (0, 1, ..., m) if not done already. Unobserved categories are collapsed into other categories after recoding. See `reformat_data` for details.
+- `precision`: A value between 0 and 1 representing the desired precision for edge selection, equal to one minus the desired type-1 error rate. Default is 0.975.
+- `convergence_criterion`: The criterion for the pseudoposterior values' convergence in the EM algorithm. Default is `sqrt(.Machine$double.eps)`.
+- `theta`: The prior inclusion probability. A value of 0.5, combined with hierarchical = FALSE, specifies a uniform prior on the network structures' space.
+- `hierarchical`: If TRUE, a beta prior distribution with hyperparameters alpha and beta is imposed on the prior inclusion probability theta. A uniform prior on inclusion probability, using a beta with `alpha = beta = 1`, specifies a uniform prior on network structure complexity.
+- `indicator_alpha`, `indicator_beta`: Hyperparameters for the beta prior distribution on the prior inclusion probability theta when `hierarchical = TRUE`. Default is 1.
+- `maximum_iterations`: Maximum number of EM iterations used. Default is 1e3. A warning appears if the procedure hasn't converged within the maximum number of iterations.
+- `threshold_alpha`, `threshold_beta`: Shape parameters for the Beta-prime prior on thresholds. Default is 1.
+
+## Output 
+
+The output is a list containing:
+
+- `interactions`: A matrix with `p` rows and `p` columns, containing the pairwise association estimates in the off-diagonal elements.
+- `gamma`: A matrix with `p` rows and `p` columns, containing the expected values of edge inclusion variables (local posterior probabilities of edge inclusion).
+- `thresholds`: A matrix with `p` rows and `max(m)` columns, containing the category thresholds for each node.
+- `theta` (if `hierarchical == TRUE`): A numeric value representing the modal estimate of the prior inclusion probability.
+
+In summary, the list includes matrices for interactions, gamma, and thresholds, along with the prior inclusion probability theta when `hierarchical = TRUE`.
+
+
+## Analysis
+
+```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+fit <- bgm.em(x = Wenchuan)
+```
+
+
+Now let's show the estimated edge weights and their inclusion probabilities in a plot. 
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+par(mar = c(6, 5, 1, 1))
+plot(x = fit$interactions[lower.tri(fit$interactions)], 
+    y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
+    xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "#bfbfbf", cex = 1.3)
+abline(h = 0, lty = 2, col = "#bfbfbf")
+abline(h = 1, lty = 2, col = "#bfbfbf")
+abline(h = .5, lty = 2, col = "#bfbfbf")
+mtext("Posterior mode edge weight", side = 1, line = 3, cex = 1.7)
+mtext("(Local) posterior inclusion probability", side = 2, line = 3, cex = 1.7)
+axis(1) 
+axis(2, las = 1)
+```
+
+In the plot above, we observe that edge values close to zero are associated with low inclusion probabilities, while non-zero edge values have probabilities close to one. It is crucial to understand that these estimates are not actual posterior inclusion probabilities. 
+
+The goal of the EM algorithm is to identify the most likely network model, and to achieve this, it pushes the estimated inclusion probabilities towards extreme values (either 0 or 1). As a result, the estimated probabilities don't represent the probability that the observed data come from a network with the edge in question (a posterior inclusion probability). Instead, they indicate the probability that the edge should be included in the most likely model.
+
+When using EM edge selection, a median probability model is a network model that includes edges with a probability of 0.5 or higher. This approach selects the most likely network structure as the EM algorithm pushes inclusion probabilities towards extreme values. However, this could lead to a local optimum, implying that other, more optimal network structures may exist. Therefore, we refer to this as the local median probability model.
+
+Here is some code to extract and plot the local median probability network:
+
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+library(qgraph) #For plotting the estimated network
+  
+posterior.inclusion <- fit$gamma[lower.tri(fit$gamma)]
+tmp <- fit$interactions[lower.tri(fit$interactions)]
+tmp[posterior.inclusion < 0.5] = 0
+  
+median.prob.model <- matrix(0, nrow = ncol(Wenchuan), ncol = ncol(Wenchuan))
+median.prob.model[lower.tri(median.prob.model)] <- tmp
+median.prob.model <- median.prob.model + t(median.prob.model)
+  
+rownames(median.prob.model) <- colnames(Wenchuan)
+colnames(median.prob.model) <- colnames(Wenchuan)
+  
+qgraph(median.prob.model, 
+      theme = "TeamFortress", 
+      maximum = .5,
+      fade = FALSE,
+      color = c("#f0ae0e"), vsize = 10, repulsion = .9, 
+      label.cex = 1.1, label.scale = "FALSE", 
+      labels = colnames(Wenchuan))
+```
+
+This method offers a quick and computationally efficient way to start exploring our data. It estimates a single network structure that seems to best fit the data we have. However, it doesn't show how uncertain this estimate is or whether other plausible structures could also fit the data. In contrast, Bayesian model averaging (BMA) considers all possible network structures and their probabilities.
+
+BMA combines information from multiple network structures to create a more robust and accurate representation of variable relationships. By weighting each network's contribution based on its posterior probability, BMA addresses model uncertainty, resulting in more nuanced and stable outcomes compared to the median probability model using EM variable selection.
+
+
+# Example 2 -- BMA
+
+A comprehensive Bayesian analysis of the data considers both the network structure and its corresponding parameters. As numerous structures could underlie our network, we employ simulation-based methods to investigate the posterior distribution of network structures and parameters [@MarsmanHaslbeck_2023_ordinal]. The `bgm` function performs this task, iteratively simulating values from the posterior distribution of network structures and parameters. Though this method takes more time compared to the previously discussed EM approach, it offers deeper insights.
+
+
+## Usage 
+
+```{r usage2, eval=FALSE}
+bgm(
+  x,
+  iter = 10000,
+  burnin = 1000,
+  interaction_prior = c("UnitInfo", "Cauchy"),
+  cauchy_scale = 2.5,
+  threshold_alpha = 1,
+  threshold_beta = 1,
+  save = FALSE,
+  display_progress = TRUE
+)
+```
+
+
+## Arguments 
+
+- `x`: A matrix with `n` rows and `p` columns, containing binary and ordinal variables for `n` independent observations and `p` variables in the network. Variables are recoded as non-negative integers (0, 1, ..., m) if not done already. Unobserved categories are collapsed into other categories after recoding. See `reformat_data` for details.
+
+- `iter`: The number of iterations of the Gibbs sampler. Defaults to `1e4`. For better estimates, it is recommended to run the procedure for at least `1e5` iterations.
+
+- `burnin`: The number of burnin iterations. The output of the Gibbs sampler is stored after burnin iterations.
+
+- `interaction_prior`: The prior distribution for the interaction effects. Currently, two prior densities are implemented: The Unit Information prior (`interaction_prior = "UnitInfo"`) and the Cauchy prior (`interaction_prior = "Cauchy"`). Defaults to `"UnitInfo"`.
+
+- `cauchy_scale`: The scale of the Cauchy prior for interactions. Defaults to `2.5`.
+
+- `threshold_alpha, threshold_beta`: The shape parameters of the Beta-prime prior for the thresholds. Defaults to `1`.
+
+- `save`: Should the function collect and return all samples from the Gibbs sampler (`save = TRUE`)? Or should it only return the (model-averaged) posterior means (`save = FALSE`)? Defaults to FALSE.
+
+- `display_progress`: Should the function show a progress bar (`display_progress = TRUE`)? Or not (`display_progress = FALSE`)? Defaults to TRUE.
+
+## Output 
+
+If `save = FALSE` (the default), the result is a list containing the following matrices:
+
+- `gamma`: A matrix with `p` rows and `p` columns, containing posterior inclusion probabilities of individual edges.
+- `interactions`: A matrix with `p` rows and `p` columns, containing model-averaged posterior means of the pairwise associations.
+- `thresholds`: A matrix with `p` rows and `max(m)` columns, containing model-averaged category thresholds.
+
+If `save = TRUE`, the result is a list containing:
+
+- `samples.gamma`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing the edge inclusion indicators from every iteration of the Gibbs sampler.
+- `samples.interactions`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing parameter states from every iteration of the Gibbs sampler for the pairwise associations.
+- `samples.thresholds`: A matrix with `iter` rows and `sum(m)` columns, containing parameter states from every iteration of the Gibbs sampler for the category thresholds.
+
+Column averages of these matrices provide the model-averaged posterior means.
+
+
+## Analysis
+
+```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+fit <-  bgm(x = Wenchuan)
+```
+
+To save time, we ran the algorithm using the default number of iterations, which is 10,000. However, this may not be enough to fully explore the posterior distribution of the network structures and parameters. To obtain reliable and accurate estimates, we recommend increasing the number of iterations to 100,000 or more. 
+
+Let's reproduce the plot from the previous example.
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+par(mar = c(6, 5, 1, 1))
+plot(x = fit$interactions[lower.tri(fit$interactions)], 
+     y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
+     xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
+abline(h = 0, lty = 2, col = "gray")
+abline(h = 1, lty = 2, col = "gray")
+abline(h = .5, lty = 2, col = "gray")
+mtext("Posterior inclusion probability", side = 1, line = 3, cex = 1.7)
+mtext("Posterior mean edge weight", side = 2, line = 3, cex = 1.7)
+axis(1)
+axis(2, las = 1)
+```
+
+This plot looks similar to Example 1 because edge values near zero have low inclusion probabilities, and edge values far from zero have high inclusion probabilities. However, it differs in two ways:
+
+1. The relationship between inclusion probability and edge weights takes a different shape for edge weights close to zero.
+2. There is more variety in the inclusion probabilities in Example 2 than in Example 1.
+
+These differences happen because of how edge weights are handled. Both `bgm.em` and `bgm` use a diffuse prior density on edge weights for included edges, but they handle absent edges differently.
+
+`bgm.em` uses a continuous density tightly wrapped around zero (with a very small variance or scale value). This causes the edge weights for absent edges to be close to zero, but not exactly zero.
+
+On the other hand, `bgm` sets the edge weights to exactly zero if an edge is excluded. This accounts for the difference between the curved relationship between inclusion probability and estimated edge weight around zero in Example 1 and the V-shaped relationship in Example 2.
+
+The greater variety in inclusion probabilities in Example 2 results from the `bgm` function not using an EM algorithm to find the most likely model, which would push inclusion probabilities towards the extremes. Instead, it employs a simulation method that averages over all plausible network structures to estimate the posterior inclusion probability, which represents the probability that a network containing the edge in question generated the observed data.
+
+### Median probability network
+
+Using the posterior inclusion probabilities, we can also identify the median probability network. In this network, we include all edges with a posterior inclusion probability greater than `0.5`. We can reuse the code from earlier to create the median probability model.
+
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+library(qgraph) #For plotting the estimated network
+  
+posterior.inclusion <- fit$gamma[lower.tri(fit$gamma)]
+tmp <- fit$interactions[lower.tri(fit$interactions)]
+tmp[posterior.inclusion < 0.5] = 0
+  
+median.prob.model <- matrix(0, nrow = ncol(Wenchuan), ncol = ncol(Wenchuan))
+median.prob.model[lower.tri(median.prob.model)] <- tmp
+median.prob.model <- median.prob.model + t(median.prob.model)
+  
+rownames(median.prob.model) <- colnames(Wenchuan)
+colnames(median.prob.model) <- colnames(Wenchuan)
+  
+qgraph(median.prob.model, 
+       theme = "TeamFortress", 
+       maximum = .5,
+       fade = FALSE,
+       color = c("#f0ae0e"), vsize = 10, repulsion = .9, 
+       label.cex = 1.1, label.scale = "FALSE", 
+       labels = colnames(Wenchuan))
+```
+
+It's worth noting that this model has more connections than the local median probability model estimated with EM. Although the structure estimated with EM was the most plausible, there were other network structures that could also be deemed plausible for the given data. As a result, their connections are included in the median probability model.
+
+### Inclusion Bayes factors 
+
+One of the benefits of using a fully Bayesian approach is that it allows us to calculate the inclusion Bayes factor [@MarsmanHaslbeck_2023_ordinal, @HuthEtAl_2023]. The inclusion Bayes factor represents the relative evidence for including or excluding a connection between a pair of nodes in the network. An inclusion Bayes factor of 10 suggests that the observed data is ten times more likely to have come from a network that includes the relationship. Conversely, an inclusion Bayes factor of 1/10 implies that the observed data is ten times more likely to have come from a network that excludes the relationship. It's important to note that inclusion Bayes factors can also reveal limited support for either hypothesis.
+
+In the current version of `bgms`, it is assumed that the prior inclusion probabilities are equal to `0.5`. To calculate the inclusion Bayes factors, we can simply convert the estimated posterior inclusion probabilities. For easier visualization, it is common to use the natural logarithm of the Bayes factor when plotting.
+
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+# Calculate the inclusion BFs
+prior.odds = 1
+posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
+posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
+log.bayesfactor = log(posterior.odds / prior.odds)
+#The next line is used to truncate the extreme values of the Bayes factor in the plot
+log.bayesfactor[log.bayesfactor > 5] = 5
+```
+
+Lets plot the relation between the estimated edge weights and the inclusion Bayes factor.
+
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+par(mar = c(5, 5, 1, 1) + 0.1)
+plot(fit$interactions[lower.tri(fit$interactions)], log.bayesfactor, pch = 21, bg = "#bfbfbf", 
+    cex = 1.3, axes = FALSE, xlab = "", ylab = "", ylim = c(-5, 5.5),
+    xlim = c(-0.5, 1.5))
+axis(1)
+axis(2, las = 1)
+abline(h = log(1/10), lwd = 2, col = "#bfbfbf")
+abline(h = log(10), lwd = 2, col = "#bfbfbf")
+
+text(x = 1, y = log(1 / 10), labels = "Evidence for exclusion", pos = 1,
+    cex = 1.7)
+text(x = 1, y = log(10), labels = "Evidence for inclusion", pos = 3, cex = 1.7)
+text(x = 1, y = 0, labels = "Weak evidence", cex = 1.7)
+mtext("Log-inclusion Bayes factor", side = 2, line = 3, cex = 1.5, las = 0)
+mtext("Posterior mean edge weights ", side = 1, line = 3.7, cex = 1.5, las = 0)
+```
+
+In this example, we use a cut-off value of `10` for the inclusion Bayes factors. Values greater than `10` suggest evidence for edge inclusion, values less than `1/10` indicate evidence for edge exclusion, and values between `1/10` and `10` are considered to represent weak evidence.
+
+
+## Analysis with raw output
+
+For most purposes, the default output from `bgm` is sufficient, providing us with the posterior means of edge indicators and parameters. However, in some cases, we may want to use the raw samples from the joint posterior distribution. This could be to estimate the posterior distribution of a specific parameter, assess how many network structures fit the given data, or create Bayes factors for hypotheses involving multiple edges. We can obtain the raw samples by setting `save = TRUE`.
+
+```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+fit <-  bgm(x = Wenchuan, save = TRUE)
+```
+
+### Posterior density of edge weight
+
+We can employ the following code to use the posterior samples for plotting the posterior density of a single edge:
+
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+den = density(fit$interactions[,1], bw = "SJ")
+i = which.min(abs(den$x - mean(fit$interactions[,1])))[1]
+x = den$x[i]
+f = den$y[i]
+par(cex.main = 1.5, mar = c(5, 6, 1, 1) + 0.1, mgp = c(3.5, 1, 0), cex.lab = 1.5, font.lab = 2, cex.axis = 1.3, bty = "n", las = 1)
+plot(den, axes = FALSE, xlab="", ylab="", main = "", frame.plot = FALSE)
+axis(1)
+axis(2)
+par(las = 0)
+mtext(text = "Edge weight", side = 1, line = 2.5, cex = 1.5)
+mtext(text = "Posterior density", side = 2, line = 2.5, cex = 1.5)
+# Add a point to indicate the posterior mean
+points(x, f, pch = 21, bg = "grey", cex = 1.7)
+```
+
+The posterior distribution of the edge weight is averaged across all structures, which can lead to greater dispersion compared to estimating it for a specific model. This is because it takes into account the uncertainty of the network structures and the parameter estimates associated with these structures. 
+
+Note that the estimate is not very smooth. This is because we only used 10,000 samples to estimate the posterior distribution. 
+
+## The posterior distribution of structures
+
+We can also use the raw samples to count the number of unique structures `bgm` encountered in 10,000 iterations. 
+
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+G = 2 * fit$gamma - 1
+S = unique(G)
+nrow(S)
+```
+
+There are clearly many different network structures that could fit the data. Let's estimate their posterior probabilities.
+
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+Ps = vector(length = nrow(S))
+for(r in 1:nrow(S)) {
+  s = S[r, ]
+  tmp = G %*% s
+  Ps[r] = sum(tmp == ncol(G))
+}
+Ps = Ps / nrow(G) * 100
+max(Ps)
+```
+
+The most plausible model accounts for less than `1` percent of the posterior probability. In conclusion, we have significant uncertainty about the network structure that generated the data.
+
+In the analysis by @MarsmanHaslbeck_2023_ordinal, it is demonstrated that even when there is uncertainty about the network structure that generated the data, inclusion Bayes factors are highly robust. They can help identify substructures of the network in which we have strong confidence. However, to perform these analyses, we need to run `bgm` for many more iterations. In their analysis, @MarsmanHaslbeck_2023_ordinal used 1,000,000 iterations. For further details, interested readers can refer to their analysis script [here](https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466).    
+
+## References 
+
+
+
+
