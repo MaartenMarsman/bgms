@@ -18,52 +18,52 @@ bgm.em(
 )
 }
 \arguments{
-\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the
-categories coded as non-negative integers (i.e., coded
-\code{0, 1, ..., no_categories}) for \code{no_persons} independent
-observations on \code{no_nodes} variables in the network or graph.}
+\item{x}{A matrix with \code{n} rows and \code{p} columns, containing binary
+and ordinal variables for \code{n} independent observations and \code{p}
+variables in the network. Variables are recoded as non-negative integers
+\code{(0, 1, ..., m)} if not done already. Unobserved categories are
+collapsed into other categories after recoding. See \code{reformat_data} for
+details.}
 
-\item{precision}{A number between zero and one. The prior precision that is
-desired for edge selection. Equal to one minus the desired type-1 error.
-Defaults to \code{.975}.}
+\item{precision}{A value between 0 and 1 representing the desired precision
+for edge selection, equal to one minus the desired type-1 error rate. Default
+is 0.975.}
 
-\item{convergence_criterion}{The convergence criterion for the
-pseudoposterior values in the EM algorithm. Defaults to
-\code{sqrt(.Machine$double.eps)}.}
+\item{convergence_criterion}{The criterion for the pseudoposterior values'
+convergence in the EM algorithm. Default is \code{sqrt(.Machine$double.eps)}.}
 
-\item{theta}{The prior inclusion probability. The value \code{theta = 0.5},
-in combination with \code{hierarchical = FALSE} stipulates a uniform prior
-on the space of network structures.}
+\item{theta}{The prior inclusion probability. A value of \code{0.5}, combined
+with \code{hierarchical = FALSE}, specifies a uniform prior on the network
+structures' space.}
 
-\item{hierarchical}{Logical. If TRUE, a beta prior distribution is
-imposed on the prior inclusion probability \code{theta} with
-hyperparameters \code{alpha} and \code{beta}. A uniform prior on the
-inclusion probability, a beta with \code{alpha = beta = 1}, stipulates a
-uniform prior on network structure complexity.}
+\item{hierarchical}{If TRUE, a beta prior distribution with hyperparameters
+\code{indicator_alpha, indicator_beta} is imposed on the prior inclusion
+probability \code{theta}. A uniform prior on inclusion probability, using a
+beta with \code{indicator_alpha = indicator_beta = 1}, specifies a uniform
+prior on network structure complexity.}
 
-\item{indicator_alpha, indicator_beta}{The hyperparameters of the beta prior
-distribution stipulated on the prior inclusion probability \code{theta} if
-\code{hierarchical = TRUE}. Default to \code{1}.}
+\item{indicator_alpha, indicator_beta}{Hyperparameters for the beta prior
+distribution on the prior inclusion probability theta when
+\code{hierarchical = TRUE}. Default is 1.}
 
-\item{maximum_iterations}{The maximum number of EM iterations used. Defaults
-to \code{1e3}. A warning is issued if procedure has not converged in
-\code{maximum_iterations} iterations.}
+\item{maximum_iterations}{Maximum number of EM iterations used. Default is
+1e3. A warning appears if the procedure hasn't converged within the maximum
+number of iterations.}
 
-\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
-prior for the thresholds. Defaults to \code{1}.}
-}
-\value{
-A list containing the \code{no_nodes} by \code{no_nodes} matrices
- \code{interactions} and \code{gamma}, the \code{no_nodes} by
- \code{no_categories} matrix \code{thresholds}, and, if
- \code{hierarchical == TRUE}, a numeric valued \code{theta}. The matrix
- \code{interactions} is a numeric matrix with pairwise
-  association estimates on the off-diagonal elements. The matrix \code{gamma}
-  contains the expected values of edge inclusion variables (i.e., the local
-  posterior probability of edge inclusion. The matrix \code{thresholds}
-  contains the category thresholds per node. If \code{hierarchical = TRUE},
-  the modal estimate of the prior inclusion probability \code{theta} is also
-  provided.
+\item{threshold_alpha, threshold_beta}{Shape parameters for the Beta-prime
+prior on thresholds. Default is 1.
+
+\itemize{
+\item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
+containing the pairwise association estimates in the off-diagonal elements.
+\item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
+containing the expected values of edge inclusion variables (local posterior
+probabilities of edge inclusion).
+\item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
+columns, containing the category thresholds for each node.
+\item \code{theta} (if \code{hierarchical == TRUE}): A numeric value
+representing the modal estimate of the prior inclusion probability.
+}}
 }
 \description{
 The function \code{bgm.em} selects promising edges for the ordinal
