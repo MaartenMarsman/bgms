@@ -17,5 +17,9 @@ LazyData: true
 Encoding: UTF-8
 Suggests: 
     knitr,
-    rmarkdown
+    qgraph,
+    rmarkdown,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
+Config/Needs/website: tidyverse/tidytemplate
