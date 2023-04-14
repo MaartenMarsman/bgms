@@ -14,6 +14,8 @@ Authors@R: c(
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
 Description: Bayesian variable selection methods for analyzing the structure of a Markov Random Field model for a network of binary and/or ordinal variables. 
 License: GPL (>= 2)
+URL: https://maartenmarsman.github.io/bgms/
+BugReports: https://github.com/MaartenMarsman/bgms/issues
 Imports: Rcpp (>= 1.0.7), Rdpack, methods
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppProgress
