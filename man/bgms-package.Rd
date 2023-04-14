@@ -65,4 +65,14 @@ the MRF:
 \references{
 \insertAllCited{}
 }
+\author{
+\strong{Maintainer}: Maarten Marsman \email{m.marsman@uva.nl} (\href{https://orcid.org/0000-0001-5309-7502}{ORCID})
+
+Other contributors:
+\itemize{
+  \item Nikola Sekulovski (\href{https://orcid.org/0000-0001-7032-1684}{ORCID}) [contributor]
+  \item Don van den Bergh (\href{https://orcid.org/0000-0002-9838-7308}{ORCID}) [contributor]
+}
+
+}
 \keyword{internal}

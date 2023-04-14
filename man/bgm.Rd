@@ -113,8 +113,8 @@ probability that the edge is included is 0.5).
  abline(h = 0, lty = 2, col = "gray")
  abline(h = 1, lty = 2, col = "gray")
  abline(h = .5, lty = 2, col = "gray")
- mtext("Posterior Inclusion Probability", side = 1, line = 3, cex = 1.7)
- mtext("Posterior Mode Edge Weight", side = 2, line = 3, cex = 1.7)
+ mtext("Posterior Mode Edge Weight", side = 1, line = 3, cex = 1.7)
+ mtext("Posterior Inclusion Probability", side = 2, line = 3, cex = 1.7)
  axis(1)
  axis(2, las = 1)
 

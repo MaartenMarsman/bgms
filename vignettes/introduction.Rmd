@@ -23,7 +23,8 @@ We'll examine real data on PTSD symptoms from 362 Chinese adults who survived th
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  eval = identical(Sys.getenv("BUILD_VIGNETTE"), "true")
 )
 ```
 
