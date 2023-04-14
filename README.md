@@ -1,3 +1,6 @@
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/MaartenMarsman/bgms/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MaartenMarsman/bgms/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
 
 # bgms: Bayesian Analysis of Graphical Models
 
