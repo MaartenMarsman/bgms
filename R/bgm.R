@@ -41,6 +41,16 @@
 #' @param display_progress Should the function show a progress bar
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 #' Defaults to \code{TRUE}.
+#' @param edge_prior The prior distribution for the network's edges or structure.
+#' Currently, three prior distributions are implemented: The Bernoulli model
+#' \code{edge_prior = "Bernoulli"}, the beta-binomial model
+#' \code{edge_prior = "Beta-Binomial"}, and the stochastic block model
+#' \code{edge_prior = "mfm-SBM"}. Defaults to \code{edge_prior = "Bernoulli"}.
+#' @param theta. The prior edge inclusion probability for the Bernoulli model.
+#' Defaults to \code{theta = 0.5}
+#' @param dirichlet_gamma The shape parameter of the Dirichlet prior density on
+#' the multinomial parameters of node allocations in the stochastic block model.
+#' Defaults to \code{1}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list containing
 #' the following matrices:
@@ -153,7 +163,10 @@ bgm = function(x,
                threshold_alpha = 1,
                threshold_beta = 1,
                save = FALSE,
-               display_progress = TRUE) {
+               display_progress = TRUE,
+               edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
+               theta = 0.5,
+               dirichlet_gamma = 1) {
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
@@ -268,29 +281,58 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  out = gibbs_sampler(observations = x,
-                      gamma = gamma,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      no_categories  = no_categories,
-                      interaction_prior = interaction_prior,
-                      cauchy_scale = cauchy_scale,
-                      unit_info = unit_info,
-                      proposal_sd = proposal_sd,
-                      Index = Index,
-                      iter = iter,
-                      burnin = burnin,
-                      n_cat_obs = n_cat_obs,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      save = save,
-                      display_progress = display_progress)
+  # Bernoulli or Beta-Binomial prior
+  if(edge_prior != "mfm-SBM") {
+    out = gibbs_sampler_no_sbm(observations = x,
+                               gamma = gamma,
+                               interactions = interactions,
+                               thresholds = thresholds,
+                               no_categories  = no_categories,
+                               interaction_prior = interaction_prior,
+                               cauchy_scale = cauchy_scale,
+                               unit_info = unit_info,
+                               proposal_sd = proposal_sd,
+                               Index = Index,
+                               iter = iter,
+                               burnin = burnin,
+                               n_cat_obs = n_cat_obs,
+                               threshold_alpha = threshold_alpha,
+                               threshold_beta = threshold_beta,
+                               save = save,
+                               display_progress = display_progress,
+                               edge_prior = edge_prior,
+                               theta = theta,
+                               beta_alpha = 1,
+                               beta_beta = 1)
+  } else {
+    out = gibbs_sampler_sbm(observations = x,
+                            gamma = gamma,
+                            interactions = interactions,
+                            thresholds = thresholds,
+                            no_categories  = no_categories,
+                            interaction_prior = interaction_prior,
+                            cauchy_scale = cauchy_scale,
+                            unit_info = unit_info,
+                            proposal_sd = proposal_sd,
+                            Index = Index,
+                            iter = iter,
+                            burnin = burnin,
+                            n_cat_obs = n_cat_obs,
+                            threshold_alpha = threshold_alpha,
+                            threshold_beta = threshold_beta,
+                            save = save,
+                            display_progress = display_progress,
+                            dirichlet_gamma = dirichlet_gamma,
+                            beta_alpha = 1,
+                            beta_beta = 1)
+  }
 
   #Preparing the output --------------------------------------------------------
   if(save == FALSE) {
     gamma = out$gamma
     interactions = out$interactions
     tresholds = out$thresholds
+    allocations = out$allocations
 
     colnames(interactions) = paste0("node ", 1:no_nodes)
     rownames(interactions) = paste0("node ", 1:no_nodes)
@@ -301,11 +343,14 @@ bgm = function(x,
 
     return(list(gamma = gamma,
                 interactions = interactions,
-                thresholds = tresholds))
+                thresholds = tresholds,
+                allocations = allocations))
   } else {
     gamma = out$gamma
     interactions = out$interactions
     thresholds = out$thresholds
+    allocations = out$allocations
+
 
     names1 = names2 = character(length = no_nodes * (no_nodes - 1) / 2)
     cntr = 0
@@ -335,7 +380,8 @@ bgm = function(x,
 
     return(list(gamma = gamma,
                 interactions = interactions,
-                thresholds = thresholds))
+                thresholds = thresholds,
+                allocations = allocations))
   }
 }
 

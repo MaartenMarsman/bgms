@@ -14,7 +14,10 @@ bgm(
   threshold_alpha = 1,
   threshold_beta = 1,
   save = FALSE,
-  display_progress = TRUE
+  display_progress = TRUE,
+  edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
+  theta = 0.5,
+  dirichlet_gamma = 1
 )
 }
 \arguments{
@@ -50,6 +53,19 @@ posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
 \item{display_progress}{Should the function show a progress bar
 (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 Defaults to \code{TRUE}.}
+
+\item{edge_prior}{The prior distribution for the network's edges or structure.
+Currently, three prior distributions are implemented: The Bernoulli model
+\code{edge_prior = "Bernoulli"}, the beta-binomial model
+\code{edge_prior = "Beta-Binomial"}, and the stochastic block model
+\code{edge_prior = "mfm-SBM"}. Defaults to \code{edge_prior = "Bernoulli"}.}
+
+\item{dirichlet_gamma}{The shape parameter of the Dirichlet prior density on
+the multinomial parameters of node allocations in the stochastic block model.
+Defaults to \code{1}.}
+
+\item{theta.}{The prior edge inclusion probability for the Bernoulli model.
+Defaults to \code{theta = 0.5}}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list containing
