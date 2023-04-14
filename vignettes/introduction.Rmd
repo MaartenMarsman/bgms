@@ -81,13 +81,13 @@ In summary, the list includes matrices for interactions, gamma, and thresholds, 
 
 ## Analysis
 
-```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+```{r message=FALSE, warning=FALSE, cache=TRUE}
 fit <- bgm.em(x = Wenchuan)
 ```
 
 
 Now let's show the estimated edge weights and their inclusion probabilities in a plot. 
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 par(mar = c(6, 5, 1, 1))
 plot(x = fit$interactions[lower.tri(fit$interactions)], 
     y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
@@ -109,7 +109,7 @@ When using EM edge selection, a median probability model is a network model that
 
 Here is some code to extract and plot the local median probability network:
 
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 library(qgraph) #For plotting the estimated network
   
 posterior.inclusion <- fit$gamma[lower.tri(fit$gamma)]
@@ -196,14 +196,14 @@ Column averages of these matrices provide the model-averaged posterior means.
 
 ## Analysis
 
-```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+```{r message=FALSE, warning=FALSE, cache=TRUE}
 fit <-  bgm(x = Wenchuan)
 ```
 
 To save time, we ran the algorithm using the default number of iterations, which is 10,000. However, this may not be enough to fully explore the posterior distribution of the network structures and parameters. To obtain reliable and accurate estimates, we recommend increasing the number of iterations to 100,000 or more. 
 
 Let's reproduce the plot from the previous example.
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 par(mar = c(6, 5, 1, 1))
 plot(x = fit$interactions[lower.tri(fit$interactions)], 
      y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
@@ -234,7 +234,7 @@ The greater variety in inclusion probabilities in Example 2 results from the `bg
 
 Using the posterior inclusion probabilities, we can also identify the median probability network. In this network, we include all edges with a posterior inclusion probability greater than `0.5`. We can reuse the code from earlier to create the median probability model.
 
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 library(qgraph) #For plotting the estimated network
   
 posterior.inclusion <- fit$gamma[lower.tri(fit$gamma)]
@@ -265,7 +265,7 @@ One of the benefits of using a fully Bayesian approach is that it allows us to c
 
 In the current version of `bgms`, it is assumed that the prior inclusion probabilities are equal to `0.5`. To calculate the inclusion Bayes factors, we can simply convert the estimated posterior inclusion probabilities. For easier visualization, it is common to use the natural logarithm of the Bayes factor when plotting.
 
-```{r message=FALSE, warning=FALSE, eval=FALSE}
+```{r message=FALSE, warning=FALSE}
 # Calculate the inclusion BFs
 prior.odds = 1
 posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
@@ -277,7 +277,7 @@ log.bayesfactor[log.bayesfactor > 5] = 5
 
 Lets plot the relation between the estimated edge weights and the inclusion Bayes factor.
 
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 par(mar = c(5, 5, 1, 1) + 0.1)
 plot(fit$interactions[lower.tri(fit$interactions)], log.bayesfactor, pch = 21, bg = "#bfbfbf", 
     cex = 1.3, axes = FALSE, xlab = "", ylab = "", ylim = c(-5, 5.5),
@@ -302,7 +302,7 @@ In this example, we use a cut-off value of `10` for the inclusion Bayes factors.
 
 For most purposes, the default output from `bgm` is sufficient, providing us with the posterior means of edge indicators and parameters. However, in some cases, we may want to use the raw samples from the joint posterior distribution. This could be to estimate the posterior distribution of a specific parameter, assess how many network structures fit the given data, or create Bayes factors for hypotheses involving multiple edges. We can obtain the raw samples by setting `save = TRUE`.
 
-```{r message=FALSE, warning=FALSE, cache=TRUE, eval=FALSE}
+```{r message=FALSE, warning=FALSE, cache=TRUE}
 fit <-  bgm(x = Wenchuan, save = TRUE)
 ```
 
@@ -310,7 +310,7 @@ fit <-  bgm(x = Wenchuan, save = TRUE)
 
 We can employ the following code to use the posterior samples for plotting the posterior density of a single edge:
 
-```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7, eval=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 den = density(fit$interactions[,1], bw = "SJ")
 i = which.min(abs(den$x - mean(fit$interactions[,1])))[1]
 x = den$x[i]
@@ -334,7 +334,7 @@ Note that the estimate is not very smooth. This is because we only used 10,000 s
 
 We can also use the raw samples to count the number of unique structures `bgm` encountered in 10,000 iterations. 
 
-```{r message=FALSE, warning=FALSE, eval=FALSE}
+```{r message=FALSE, warning=FALSE}
 G = 2 * fit$gamma - 1
 S = unique(G)
 nrow(S)
@@ -342,7 +342,7 @@ nrow(S)
 
 There are clearly many different network structures that could fit the data. Let's estimate their posterior probabilities.
 
-```{r message=FALSE, warning=FALSE, eval=FALSE}
+```{r message=FALSE, warning=FALSE}
 Ps = vector(length = nrow(S))
 for(r in 1:nrow(S)) {
   s = S[r, ]
