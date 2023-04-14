@@ -1,4 +1,5 @@
 url: https://vandenman.github.io/bgms/
 template:
+  package: tidytemplate
   bootstrap: 5
 
