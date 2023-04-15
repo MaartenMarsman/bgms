@@ -65,6 +65,14 @@ the MRF:
 \references{
 \insertAllCited{}
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://maartenmarsman.github.io/bgms/}
+  \item Report bugs at \url{https://github.com/MaartenMarsman/bgms/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Maarten Marsman \email{m.marsman@uva.nl} (\href{https://orcid.org/0000-0001-5309-7502}{ORCID})
 
