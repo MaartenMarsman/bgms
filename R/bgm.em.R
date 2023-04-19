@@ -32,7 +32,7 @@
 #' @param threshold_alpha,threshold_beta Shape parameters for the Beta-prime
 #' prior on thresholds. Default is 1.
 #'
-# @return A list containing:
+#' @return A list containing:
 #' \itemize{
 #' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 #' containing the pairwise association estimates in the off-diagonal elements.
@@ -46,7 +46,7 @@
 #' }
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'  #Store user par() settings
 #'  op <- par(mfrow = c(2, 1))
 #'

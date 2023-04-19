@@ -149,7 +149,7 @@
 #'
 #'  #Restore user par() settings
 #'  par(op)
-#'  }
+#' }
 #' @export
 bgm = function(x,
                iter = 1e4,

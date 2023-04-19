@@ -51,8 +51,10 @@ distribution on the prior inclusion probability theta when
 number of iterations.}
 
 \item{threshold_alpha, threshold_beta}{Shape parameters for the Beta-prime
-prior on thresholds. Default is 1.
-
+prior on thresholds. Default is 1.}
+}
+\value{
+A list containing:
 \itemize{
 \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 containing the pairwise association estimates in the off-diagonal elements.
@@ -63,7 +65,7 @@ probabilities of edge inclusion).
 columns, containing the category thresholds for each node.
 \item \code{theta} (if \code{hierarchical == TRUE}): A numeric value
 representing the modal estimate of the prior inclusion probability.
-}}
+}
 }
 \description{
 The function \code{bgm.em} selects promising edges for the ordinal
@@ -71,7 +73,10 @@ MRF using the joint pseudolikelihood and a continuous spike and slab prior
 distribution stipulated on the MRF's interaction or association parameters.
 }
 \examples{
-\dontrun{
+\donttest{
+ #Store user par() settings
+ op <- par(mfrow = c(2, 1))
+
  ##Analyse the Wenchuan dataset
  fit = bgm.em(x = Wenchuan)
 
@@ -117,5 +122,8 @@ distribution stipulated on the MRF's interaction or association parameters.
         color = c("#f0ae0e"), vsize = 10, repulsion = .9,
         label.cex = 1.1, label.scale = "FALSE",
         labels = colnames(Wenchuan))
+
+ #Restore user par() settings
+ par(op)
 }
 }

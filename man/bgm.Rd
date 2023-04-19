@@ -95,6 +95,9 @@ probability that the edge is included is 0.5).
 }
 \examples{
 \dontrun{
+ #Store user par() settings
+ op <- par(mfrow = c(2, 1))
+
  ##Analyse the Wenchuan dataset
 
  # Here, we use 1e4 iterations, for an actual analysis please use at least
@@ -169,5 +172,8 @@ probability that the edge is included is 0.5).
         color = c("#f0ae0e"), vsize = 10, repulsion = .9,
         label.cex = 1.1, label.scale = "FALSE",
         labels = colnames(Wenchuan))
- }
+
+ #Restore user par() settings
+ par(op)
+}
 }
