@@ -1,11 +1,11 @@
 citHeader("To cite bgms in publications use:")
 
-citEntry(
-  entry = "Article",
+bibentry(
+  bibtype = "article",
   title    = "Bayesian Analysis of the Ordinal Markov Random Field",
   author   = "Marsman, M. and Haslbeck, J. M. B.",
   journal  = "PsyArXiv",
   year     = "2023",
-  url      = "psyarxiv.com/ukwrf",
+  url      = "https://psyarxiv.com/ukwrf",
   textVersion = "Marsman, M., & Haslbeck, J. M. B. (2023, March 3). Bayesian Analysis of the Ordinal Markov Random Field. https://doi.org/10.31234/osf.io/ukwrf"
 )
