@@ -165,6 +165,9 @@ probability that the edge is included is 0.5).</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span> <span class="co">#Store user par() settings</span></span></span>
+<span class="r-in"><span> <span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="co">##Analyse the Wenchuan dataset</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="co"># Here, we use 1e4 iterations, for an actual analysis please use at least</span></span></span>
@@ -190,7 +193,6 @@ probability that the edge is included is 0.5).</p>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/mtext.html" class="external-link">mtext</a></span><span class="op">(</span><span class="st">"Posterior Inclusion Probability"</span>, side <span class="op">=</span> <span class="fl">2</span>, line <span class="op">=</span> <span class="fl">3</span>, cex <span class="op">=</span> <span class="fl">1.7</span><span class="op">)</span></span></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/axis.html" class="external-link">axis</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/axis.html" class="external-link">axis</a></span><span class="op">(</span><span class="fl">2</span>, las <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="bgm-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="co">#------------------------------------------------------------------------------|</span></span></span>
@@ -236,7 +238,7 @@ probability that the edge is included is 0.5).</p>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">median.prob.model</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Wenchuan</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="bgm-2.png" alt="" width="700" height="433"></span>
+<span class="r-plt img"><img src="bgm-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">median.prob.model</span>,</span></span>
 <span class="r-in"><span>        theme <span class="op">=</span> <span class="st">"TeamFortress"</span>,</span></span>
 <span class="r-in"><span>        maximum <span class="op">=</span> <span class="fl">.5</span>,</span></span>
@@ -244,8 +246,11 @@ probability that the edge is included is 0.5).</p>
 <span class="r-in"><span>        color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#f0ae0e"</span><span class="op">)</span>, vsize <span class="op">=</span> <span class="fl">10</span>, repulsion <span class="op">=</span> <span class="fl">.9</span>,</span></span>
 <span class="r-in"><span>        label.cex <span class="op">=</span> <span class="fl">1.1</span>, label.scale <span class="op">=</span> <span class="st">"FALSE"</span>,</span></span>
 <span class="r-in"><span>        labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Wenchuan</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="bgm-3.png" alt="" width="700" height="433"></span>
-<span class="r-in"><span> <span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span> <span class="co">#Restore user par() settings</span></span></span>
+<span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="bgm-2.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
