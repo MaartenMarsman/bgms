@@ -81,7 +81,7 @@ mrfSampler = function(no_states,
   if(!isSymmetric(interactions))
     stop("The matrix ``interactions'' needs to be symmetric.")
   if(nrow(interactions) != no_nodes)
-    stop("The matrix ``interactions'' needs to be have ``no_nodes'' rows and
+    stop("The matrix ``interactions'' needs to have ``no_nodes'' rows and
          columns.")
 
   #check thresholds
