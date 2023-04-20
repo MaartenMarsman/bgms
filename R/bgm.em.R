@@ -48,7 +48,7 @@
 #' @examples
 #' \donttest{
 #'  #Store user par() settings
-#'  op <- par(mfrow = c(2, 1))
+#'  op <- par(no.readonly = TRUE)
 #'
 #'  ##Analyse the Wenchuan dataset
 #'  fit = bgm.em(x = Wenchuan)

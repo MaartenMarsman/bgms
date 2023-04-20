@@ -68,9 +68,9 @@
 #' Column averages of these matrices provide the model-averaged posterior means.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'  #Store user par() settings
-#'  op <- par(mfrow = c(2, 1))
+#'  op <- par(no.readonly = TRUE)
 #'
 #'  ##Analyse the Wenchuan dataset
 #'
