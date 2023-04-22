@@ -62,6 +62,12 @@ evidence</em>.
 
 ## Installation
 
+You can install the latest version from CRAN using:
+
+``` r
+install.packages("bgms")
+```
+
 The current developmental version can be installed with
 
 ``` r
