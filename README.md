@@ -1,7 +1,7 @@
 <!-- badges: start -->
 [![CRAN Version](http://www.r-pkg.org/badges/version/bgms)](https://cran.r-project.org/package=bgms)
-[![Downloads Average](https://cranlogs.r-pkg.org/badges/bgms)](https://cran.r-project.org/package=bgms)
-[![Downloads Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
+[![Average](https://cranlogs.r-pkg.org/badges/bgms)](https://cran.r-project.org/package=bgms)
+[![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
 <!-- badges: end -->
 
 # bgms: Bayesian Analysis of Graphical Models
