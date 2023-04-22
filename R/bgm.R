@@ -201,13 +201,11 @@ bgm = function(x,
   #Proposal set-up for the interaction parameters ------------------------------
   if(interaction_prior == "Cauchy") {
     pps = try(mppe(x = x,
-                   no_categories = no_categories,
                    interaction_prior = interaction_prior,
                    cauchy_scale = cauchy_scale),
               silent = TRUE)
   } else {
     pps = try(mppe(x = x,
-                   no_categories = no_categories,
                    interaction_prior = interaction_prior),
               silent = TRUE)
   }

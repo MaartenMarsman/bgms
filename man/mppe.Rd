@@ -2,12 +2,10 @@
 % Please edit documentation in R/maximum_pseudoposterior.R
 \name{mppe}
 \alias{mppe}
-\title{Optimization of the Pseudoposterior for a Markov Random Field model for
-ordinal variables.}
+\title{Optimize Pseudoposterior for an Ordinal Markov Random Field Model}
 \usage{
 mppe(
   x,
-  no_categories,
   interaction_prior = "Cauchy",
   cauchy_scale = 2.5,
   threshold_alpha = 1,
@@ -19,12 +17,12 @@ mppe(
 )
 }
 \arguments{
-\item{x}{An \code{no_persons} by \code{no_nodes} matrix containing the
-categories coded as non-negative integers (i.e., coded
-\code{0, 1, ..., no_categories}) for \code{no_persons} independent
-observations on \code{no_nodes} variables in the network or graph.}
-
-\item{no_categories}{The maximum category.}
+\item{x}{A matrix with \code{n} rows and \code{p} columns, containing binary
+and ordinal variables for \code{n} independent observations and \code{p}
+variables in the network. Variables are recoded as non-negative integers
+\code{(0, 1, ..., m)} if not done already. Unobserved categories are
+collapsed into other categories after recoding. See \code{reformat_data} for
+details.}
 
 \item{interaction_prior}{The prior distribution for the interaction effects.
 Currently, two prior densities are implemented: The Unit Information prior
@@ -42,34 +40,37 @@ pseudoposterior values in the EM algorithm. Defaults to
 \code{sqrt(.Machine$double.eps)}.}
 
 \item{maximum_iterations}{The maximum number of EM iterations used. Defaults
-to \code{1e3}. A warning is issued if procedure has not converged in
+to \code{1e3}. A warning is issued if the procedure has not converged in
 \code{maximum_iterations} iterations.}
 
-\item{thresholds}{A \code{no_nodes} by \code{no_categories} matrix
-\code{thresholds}. Used as starting values in the Newton-Raphson procedure.
-Optional.}
+\item{thresholds}{A matrix with \code{p} rows and \code{max(m)} columns,
+containing the category thresholds for each node. Used as starting values in
+the Newton-Raphson procedure. Optional.}
 
-\item{interactions}{A \code{no_nodes} by \code{no_nodes} matrices
-\code{interactions}. Used as starting values in the Newton-Raphson procedure.
-Optional.}
+\item{interactions}{A matrix with \code{p} rows and \code{p} columns,
+containing the pairwise association estimates in the off-diagonal elements.
+Used as starting values in the Newton-Raphson procedure. Optional.}
 }
 \value{
-A list containing the \code{no_nodes} by \code{no_nodes} matrices
-\code{interactions}, the \code{no_nodes} by \code{no_categories} matrix
-\code{thresholds}, the \code{hessian} matrix as computed in the final
-iteration of the optimization procedure, and, in case
-\code{interaction_prior = "UnitInfo"}, the \code{no_nodes} by \code{no_nodes}
-matrix \code{unit_info}. The matrix \code{interactions} is a numeric matrix
-that contains the maximum pseudoposterior estimates of the pairwise
-associations. The matrix \code{thresholds} contains the maximum
-pseudoposterior estimates of the category thresholds parameters. The
-\code{hessian} matrix has dimensions equal to the number of thresholds +
-associations. The topleft square contains the thresholds, the bottomright
-square the associations (of the form \code{(1,2), (1, 3), ..., (2, 1), ...}).
-The \code{unit_information} matrix contains the variances of the unit
-information prior for the association effects.
+A list containing:
+\itemize{
+\item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
+containing the maximum pseudoposterior estimates of the pairwise
+associations in the off-diagonal elements.
+\item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
+columns, containing the maximum pseudoposterior estimates of the category
+thresholds for each node.
+\item \code{hessian}: A square matrix with \code{sum(m) + p(p-1)/2} rows and
+columns, evaluated at the maximum pseudoposterior estimates. The top-left
+square contains the thresholds, the bottom-right square the associations (of
+the form \code{(1,2), (1, 3), ..., (2, 1), ...}).
+}
+In the case that \code{interaction_prior = "UnitInfo"}, the list also
+contains the \code{p} by \code{p} matrix \code{unit_info}, which contains the
+asymptotic variances that are used to set the unit information prior for the
+association effects in the \code{bgms} function.
 }
 \description{
 The function \code{mppe} estimates the parameters for the ordinal MRF
-by optimizing the pseudoposterior with Newton-Raphson.
+by optimizing the pseudoposterior with the Newton-Raphson method.
 }

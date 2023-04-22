@@ -1,45 +1,42 @@
-#' Maximum Pseudolikelihood estimation for a Markov Random Field model for
-#' ordinal variables.
+#' Maximum Pseudolikelihood Estimation for an Ordinal Markov Random Field Model
 #'
 #' The function \code{mple} estimates the parameters for the ordinal MRF
-#' by optimizing the joint pseudolikelihood with Newton-Raphson.
+#' by optimizing the joint pseudolikelihood with the Newton-Raphson method.
 #'
-#' @param x An \code{no_persons} by \code{no_nodes} matrix containing the
-#' categories coded as non-negative integers (i.e., coded
-#' \code{0, 1, ..., no_categories}) for \code{no_persons} independent
-#' observations on \code{no_nodes} variables in the network or graph.
-#'
-#' @param no_categories The maximum category.
-#'
-# @param precision A number between zero and one. The prior precision that is
-# desired for edge selection. Equal to one minus the desired type-1 error.
-# Defaults to \code{.975}.
+#' @param x A matrix with \code{n} rows and \code{p} columns, containing binary
+#' and ordinal variables for \code{n} independent observations and \code{p}
+#' variables in the network. Variables are recoded as non-negative integers
+#' \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+#' collapsed into other categories after recoding. See \code{reformat_data} for
+#' details.
 #'
 #' @param convergence_criterion The convergence criterion for the
 #' pseudoposterior values in the EM algorithm. Defaults to
 #' \code{sqrt(.Machine$double.eps)}.
 #'
 #' @param maximum_iterations The maximum number of EM iterations used. Defaults
-#' to \code{1e3}. A warning is issued if procedure has not converged in
+#' to \code{1e3}. A warning is issued if the procedure has not converged in
 #' \code{maximum_iterations} iterations.
 #'
-#' @param thresholds A \code{no_nodes} by \code{no_categories} matrix
-#' \code{thresholds}. Used as starting values in the Newton-Raphson procedure.
-#' Optional.
+#' @param thresholds A matrix with \code{p} rows and \code{max(m)} columns,
+#' containing the category thresholds for each node. Used as starting values in
+#' the Newton-Raphson procedure. Optional.
 #'
-#' @param interactions A \code{no_nodes} by \code{no_nodes} matrices
-#' \code{interactions}. Used as starting values in the Newton-Raphson procedure.
-#' Optional.
+#' @param interactions A matrix with \code{p} rows and \code{p} columns,
+#' containing the pairwise association estimates in the off-diagonal elements.
+#' Used as starting values in the Newton-Raphson procedure. Optional.
 #'
-#' @return A list containing the \code{no_nodes} by \code{no_nodes} matrices
-#' \code{interactions} and the \code{no_nodes} by
-#' \code{no_categories} matrix \code{thresholds}. The matrix \code{interactions}
-#' is a numeric matrix which contains the maximum pseudolikelihood estimates of
-#' the pairwise association parameters. The matrix \code{thresholds} contains
-#' the maximum pseudolikelihood estimates of the category thresholds parameters.
+#' @return A list containing:
+#' \itemize{
+#' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
+#' containing the maximum pseudolikelihood estimates of the pairwise
+#' associations in the off-diagonal elements.
+#' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
+#' columns, containing the maximum pseudolikelihood estimates of the category
+#' thresholds for each node.
+#' }
 #' @export
 mple = function(x,
-                no_categories,
                 convergence_criterion = sqrt(.Machine$double.eps),
                 maximum_iterations = 1e3,
                 thresholds,

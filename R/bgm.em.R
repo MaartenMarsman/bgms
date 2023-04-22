@@ -157,8 +157,7 @@ bgm.em = function(x,
   no_persons = nrow(x)
 
   # Set spike and slab prior variances -----------------------------------------
-  fit <- try(mple(x = x, no_categories = no_categories),
-             silent = TRUE)
+  fit <- try(mple(x = x), silent = TRUE)
   if(inherits(fit, "try-error")) {
     stop(paste0(
       "We use a continuous spike and slab prior for the pairwise interactions.\n",

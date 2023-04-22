@@ -82,8 +82,7 @@ set_slab = function(x, no_categories, thresholds, interactions) {
 
   # Determine asymptotic covariance matrix (inverse hessian) ------------------
   if(!hasArg("thresholds") || !hasArg("interactions")) {
-    fit = try(mple(x = x, no_categories = no_categories),
-              silent = TRUE)
+    fit = try(mple(x = x), silent = TRUE)
     if(inherits(fit, "try-error")) {
       thresholds = fit$thresholds
       interactions = fit$interactions
