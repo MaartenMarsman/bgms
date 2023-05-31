@@ -17,7 +17,9 @@ bgm(
   display_progress = TRUE,
   edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
   theta = 0.5,
-  dirichlet_gamma = 1
+  dirichlet_gamma = 1,
+  sbm_confirmatory = FALSE,
+  cluster_allocation = rep(0, ncol(x))
 )
 }
 \arguments{

@@ -675,3 +675,266 @@ List gibbs_sampler_sbm(IntegerMatrix observations,
                       Named("thresholds") = out_thresholds,
                       Named("allocations") = out_allocations);
 }
+
+
+// ----------------------------------------------------------------------------|
+// The Gibbs sampler with SBM and fixed cluster allocations
+// ----------------------------------------------------------------------------|
+// [[Rcpp::export]]
+List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations,
+                                    IntegerMatrix gamma,
+                                    NumericMatrix interactions,
+                                    NumericMatrix thresholds,
+                                    IntegerVector no_categories,
+                                    String interaction_prior,
+                                    double cauchy_scale,
+                                    NumericMatrix unit_info,
+                                    NumericMatrix proposal_sd,
+                                    IntegerMatrix Index,
+                                    int iter,
+                                    int burnin,
+                                    IntegerMatrix n_cat_obs,
+                                    double threshold_alpha,
+                                    double threshold_beta,
+                                    double beta_alpha,
+                                    double beta_beta,
+                                    IntegerVector cluster_allocation,
+                                    bool save = false,
+                                    bool display_progress = false){
+  int cntr;
+  int no_nodes = observations.ncol();
+  int no_persons = observations.nrow();
+  int no_interactions = Index.nrow();
+  int no_thresholds = sum(no_categories);
+  int max_no_categories = max(no_categories);
+
+  // Used to randomly update edge-association pairs
+  IntegerVector v = seq(0, no_interactions - 1);
+  IntegerVector order(no_interactions);
+  IntegerMatrix index(no_interactions, 3);
+
+  //Size of output depends on ``save''
+  int nrow = no_nodes;
+  int ncol_edges = no_nodes;
+  int ncol_thresholds = max_no_categories;
+
+  if(save == true) {
+    nrow = iter;
+    ncol_edges= no_interactions;
+    ncol_thresholds = no_thresholds;
+  }
+
+  NumericMatrix out_gamma(nrow, ncol_edges);
+  NumericMatrix out_interactions(nrow, ncol_edges);
+  NumericMatrix out_thresholds(nrow, ncol_thresholds);
+
+  //Precompute the matrix of rest scores
+  NumericMatrix rest_matrix(no_persons, no_nodes);
+  for(int node1 = 0; node1 < no_nodes; node1++) {
+    for(int person = 0; person < no_persons; person++) {
+      for(int node2 = 0; node2 < no_nodes; node2++) {
+        rest_matrix(person, node1) +=
+          observations(person, node2) * interactions(node2, node1);
+      }
+    }
+  }
+
+  //Variable declaration edge prior
+  NumericMatrix inclusion(no_nodes, no_nodes);
+  NumericMatrix cluster_prob = block_probs_mfm_sbm(cluster_allocation,
+                                                   gamma,
+                                                   no_nodes,
+                                                   beta_alpha,
+                                                   beta_beta);
+
+  for(int i = 0; i < no_nodes - 1; i++) {
+    for(int j = i + 1; j < no_nodes; j++) {
+      inclusion(i, j) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+      inclusion(j, i) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+    }
+  }
+  NumericMatrix out_allocations(iter, no_nodes);
+
+  //Progress bar
+  Progress p(iter + burnin, display_progress);
+
+  //The Gibbs sampler ----------------------------------------------------------
+  //First, we do burn-in iterations---------------------------------------------
+  for(int iteration = 0; iteration < burnin; iteration++) {
+    if (Progress::check_abort()) {
+      return List::create(Named("gamma") = out_gamma,
+                          Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
+    }
+    p.increment();
+
+    //Update interactions and model (between model move) -----------------------
+    //Use a random order to update the edge - interaction pairs ----------------
+    order = sample(v,
+                   no_interactions,
+                   false,
+                   R_NilValue);
+
+    for(int cntr = 0; cntr < no_interactions; cntr++) {
+      index(cntr, 0) = Index(order[cntr], 0);
+      index(cntr, 1) = Index(order[cntr], 1);
+      index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+    List out = gibbs_step_graphical_model(observations,
+                                          no_categories,
+                                          interaction_prior,
+                                          cauchy_scale,
+                                          unit_info,
+                                          proposal_sd,
+                                          index,
+                                          n_cat_obs,
+                                          threshold_alpha,
+                                          threshold_beta,
+                                          no_persons,
+                                          no_nodes,
+                                          no_interactions,
+                                          no_thresholds,
+                                          max_no_categories,
+                                          gamma,
+                                          interactions,
+                                          thresholds,
+                                          rest_matrix,
+                                          inclusion);
+
+    IntegerMatrix gamma = out["gamma"];
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+
+    cluster_prob = block_probs_mfm_sbm(cluster_allocation,
+                                       gamma,
+                                       no_nodes,
+                                       beta_alpha,
+                                       beta_beta);
+
+    for(int i = 0; i < no_nodes - 1; i++) {
+      for(int j = i + 1; j < no_nodes; j++) {
+        inclusion(i, j) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+        inclusion(j, i) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+      }
+    }
+  }
+  //The post burn-in iterations ------------------------------------------------
+  for(int iteration = 0; iteration < iter; iteration++) {
+    if (Progress::check_abort()) {
+      return List::create(Named("gamma") = out_gamma,
+                          Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
+    }
+    p.increment();
+
+    //Update interactions and model (between model move) -----------------------
+    //Use a random order to update the edge - interaction pairs ----------------
+    order = sample(v,
+                   no_interactions,
+                   false,
+                   R_NilValue);
+
+    for(int cntr = 0; cntr < no_interactions; cntr++) {
+      index(cntr, 0) = Index(order[cntr], 0);
+      index(cntr, 1) = Index(order[cntr], 1);
+      index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+
+    List out = gibbs_step_graphical_model(observations,
+                                          no_categories,
+                                          interaction_prior,
+                                          cauchy_scale,
+                                          unit_info,
+                                          proposal_sd,
+                                          index,
+                                          n_cat_obs,
+                                          threshold_alpha,
+                                          threshold_beta,
+                                          no_persons,
+                                          no_nodes,
+                                          no_interactions,
+                                          no_thresholds,
+                                          max_no_categories,
+                                          gamma,
+                                          interactions,
+                                          thresholds,
+                                          rest_matrix,
+                                          inclusion);
+
+    IntegerMatrix gamma = out["gamma"];
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+
+    cluster_prob = block_probs_mfm_sbm(cluster_allocation,
+                                       gamma,
+                                       no_nodes,
+                                       beta_alpha,
+                                       beta_beta);
+
+    for(int i = 0; i < no_nodes - 1; i++) {
+      for(int j = i + 1; j < no_nodes; j++) {
+        inclusion(i, j) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+        inclusion(j, i) = cluster_prob(cluster_allocation[i], cluster_allocation[j]);
+      }
+    }
+
+    //Output -------------------------------------------------------------------
+    if(save == TRUE) {
+      //Save raw samples -------------------------------------------------------
+      cntr = 0;
+      for(int node1 = 0; node1 < no_nodes - 1; node1++) {
+        for(int node2 = node1 + 1; node2 < no_nodes;node2++) {
+          out_gamma(iteration, cntr) = gamma(node1, node2);
+          out_interactions(iteration, cntr) = interactions(node1, node2);
+          cntr++;
+        }
+      }
+      cntr = 0;
+      for(int node = 0; node < no_nodes; node++) {
+        for(int category = 0; category < no_categories[node]; category++) {
+          out_thresholds(iteration, cntr) = thresholds(node, category);
+          cntr++;
+        }
+      }
+    } else {
+      //Compute running averages -----------------------------------------------
+      for(int node1 = 0; node1 < no_nodes - 1; node1++) {
+        for(int node2 = node1 + 1; node2 < no_nodes; node2++) {
+          out_gamma(node1, node2) *= iteration;
+          out_gamma(node1, node2) += gamma(node1, node2);
+          out_gamma(node1, node2) /= iteration + 1;
+          out_gamma(node2, node1) = out_gamma(node1, node2);
+
+          out_interactions(node1, node2) *= iteration;
+          out_interactions(node1, node2) += interactions(node1, node2);
+          out_interactions(node1, node2) /= iteration + 1;
+          out_interactions(node2, node1) = out_interactions(node1, node2);
+        }
+
+        for(int category = 0; category < no_categories[node1]; category++) {
+          out_thresholds(node1, category) *= iteration;
+          out_thresholds(node1, category) += thresholds(node1, category);
+          out_thresholds(node1, category) /= iteration + 1;
+        }
+      }
+      for(int category = 0; category < no_categories[no_nodes - 1]; category++) {
+        out_thresholds(no_nodes - 1, category) *= iteration;
+        out_thresholds(no_nodes - 1, category) +=
+          thresholds(no_nodes - 1, category);
+        out_thresholds(no_nodes - 1, category) /= iteration + 1;
+      }
+    }
+    for(int i = 0; i < no_nodes; i++) {
+      out_allocations(iteration, i) = cluster_allocation[i] + 1;
+    }
+  }
+
+  return List::create(Named("gamma") = out_gamma,
+                      Named("interactions") = out_interactions,
+                      Named("thresholds") = out_thresholds,
+                      Named("allocations") = out_allocations);
+}

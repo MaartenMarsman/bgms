@@ -166,7 +166,9 @@ bgm = function(x,
                display_progress = TRUE,
                edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
                theta = 0.5,
-               dirichlet_gamma = 1) {
+               dirichlet_gamma = 1,
+               sbm_confirmatory = FALSE,
+               cluster_allocation = rep(0, ncol(x))) {
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
@@ -305,26 +307,49 @@ bgm = function(x,
                                beta_alpha = 1,
                                beta_beta = 1)
   } else {
-    out = gibbs_sampler_sbm(observations = x,
-                            gamma = gamma,
-                            interactions = interactions,
-                            thresholds = thresholds,
-                            no_categories  = no_categories,
-                            interaction_prior = interaction_prior,
-                            cauchy_scale = cauchy_scale,
-                            unit_info = unit_info,
-                            proposal_sd = proposal_sd,
-                            Index = Index,
-                            iter = iter,
-                            burnin = burnin,
-                            n_cat_obs = n_cat_obs,
-                            threshold_alpha = threshold_alpha,
-                            threshold_beta = threshold_beta,
-                            save = save,
-                            display_progress = display_progress,
-                            dirichlet_gamma = dirichlet_gamma,
-                            beta_alpha = 1,
-                            beta_beta = 1)
+    if(sbm_confirmatory == TRUE) {
+      out = gibbs_sampler_confirmatory_sbm(observations = x,
+                                           gamma = gamma,
+                                           interactions = interactions,
+                                           thresholds = thresholds,
+                                           no_categories  = no_categories,
+                                           interaction_prior = interaction_prior,
+                                           cauchy_scale = cauchy_scale,
+                                           unit_info = unit_info,
+                                           proposal_sd = proposal_sd,
+                                           Index = Index,
+                                           iter = iter,
+                                           burnin = burnin,
+                                           n_cat_obs = n_cat_obs,
+                                           threshold_alpha = threshold_alpha,
+                                           threshold_beta = threshold_beta,
+                                           save = save,
+                                           display_progress = display_progress,
+                                           beta_alpha = 1,
+                                           beta_beta = 1,
+                                           cluster_allocation = cluster_allocation)
+    } else {
+      out = gibbs_sampler_sbm(observations = x,
+                              gamma = gamma,
+                              interactions = interactions,
+                              thresholds = thresholds,
+                              no_categories  = no_categories,
+                              interaction_prior = interaction_prior,
+                              cauchy_scale = cauchy_scale,
+                              unit_info = unit_info,
+                              proposal_sd = proposal_sd,
+                              Index = Index,
+                              iter = iter,
+                              burnin = burnin,
+                              n_cat_obs = n_cat_obs,
+                              threshold_alpha = threshold_alpha,
+                              threshold_beta = threshold_beta,
+                              save = save,
+                              display_progress = display_progress,
+                              dirichlet_gamma = dirichlet_gamma,
+                              beta_alpha = 1,
+                              beta_beta = 1)
+    }
   }
 
   #Preparing the output --------------------------------------------------------

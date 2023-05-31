@@ -117,6 +117,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gibbs_sampler_confirmatory_sbm
+List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, double beta_alpha, double beta_beta, IntegerVector cluster_allocation, bool save, bool display_progress);
+RcppExport SEXP _bgms_gibbs_sampler_confirmatory_sbm(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP beta_alphaSEXP, SEXP beta_betaSEXP, SEXP cluster_allocationSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type interactions(interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type no_categories(no_categoriesSEXP);
+    Rcpp::traits::input_parameter< String >::type interaction_prior(interaction_priorSEXP);
+    Rcpp::traits::input_parameter< double >::type cauchy_scale(cauchy_scaleSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type unit_info(unit_infoSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type proposal_sd(proposal_sdSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type Index(IndexSEXP);
+    Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs(n_cat_obsSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold_alpha(threshold_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_alpha(beta_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta_beta(beta_betaSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type cluster_allocation(cluster_allocationSEXP);
+    Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_confirmatory_sbm(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocation, save, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
 // gradient_thresholds_pseudolikelihood
 NumericVector gradient_thresholds_pseudolikelihood(NumericMatrix interactions, NumericMatrix thresholds, IntegerMatrix observations, IntegerVector no_categories);
 RcppExport SEXP _bgms_gradient_thresholds_pseudolikelihood(SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP observationsSEXP, SEXP no_categoriesSEXP) {
@@ -356,6 +386,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_em_interaction_var", (DL_FUNC) &_bgms_em_interaction_var, 5},
     {"_bgms_gibbs_sampler_no_sbm", (DL_FUNC) &_bgms_gibbs_sampler_no_sbm, 21},
     {"_bgms_gibbs_sampler_sbm", (DL_FUNC) &_bgms_gibbs_sampler_sbm, 20},
+    {"_bgms_gibbs_sampler_confirmatory_sbm", (DL_FUNC) &_bgms_gibbs_sampler_confirmatory_sbm, 20},
     {"_bgms_gradient_thresholds_pseudolikelihood", (DL_FUNC) &_bgms_gradient_thresholds_pseudolikelihood, 4},
     {"_bgms_gradient_thresholds_pseudoposterior", (DL_FUNC) &_bgms_gradient_thresholds_pseudoposterior, 6},
     {"_bgms_gradient_interactions_pseudolikelihood", (DL_FUNC) &_bgms_gradient_interactions_pseudolikelihood, 4},
