@@ -57,8 +57,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler_no_sbm
-List gibbs_sampler_no_sbm(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, String edge_prior, NumericMatrix proposal_sd, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, double beta_alpha, double beta_beta, double theta, bool save, bool display_progress);
-RcppExport SEXP _bgms_gibbs_sampler_no_sbm(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP edge_priorSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP beta_alphaSEXP, SEXP beta_betaSEXP, SEXP thetaSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
+List gibbs_sampler_no_sbm(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, String edge_prior, NumericMatrix proposal_sd, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, double beta_alpha, double beta_beta, NumericMatrix inclusion, bool save, bool display_progress);
+RcppExport SEXP _bgms_gibbs_sampler_no_sbm(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP edge_priorSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP beta_alphaSEXP, SEXP beta_betaSEXP, SEXP inclusionSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -80,10 +80,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
     Rcpp::traits::input_parameter< double >::type beta_alpha(beta_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta_beta(beta_betaSEXP);
-    Rcpp::traits::input_parameter< double >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type inclusion(inclusionSEXP);
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_no_sbm(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, edge_prior, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, theta, save, display_progress));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_no_sbm(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, edge_prior, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, inclusion, save, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -118,8 +118,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler_confirmatory_sbm
-List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, double beta_alpha, double beta_beta, IntegerVector cluster_allocation, bool save, bool display_progress);
-RcppExport SEXP _bgms_gibbs_sampler_confirmatory_sbm(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP beta_alphaSEXP, SEXP beta_betaSEXP, SEXP cluster_allocationSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
+List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, double beta_alpha, double beta_beta, IntegerVector cluster_allocations, bool save, bool display_progress);
+RcppExport SEXP _bgms_gibbs_sampler_confirmatory_sbm(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP beta_alphaSEXP, SEXP beta_betaSEXP, SEXP cluster_allocationsSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -140,10 +140,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
     Rcpp::traits::input_parameter< double >::type beta_alpha(beta_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta_beta(beta_betaSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type cluster_allocation(cluster_allocationSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type cluster_allocations(cluster_allocationsSEXP);
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_confirmatory_sbm(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocation, save, display_progress));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_confirmatory_sbm(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocations, save, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }

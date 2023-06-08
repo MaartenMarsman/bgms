@@ -27,6 +27,12 @@
 #' at least \code{1e5} iterations.
 #' @param burnin The number of burnin iterations. The output of the Gibbs
 #' sampler is stored after burnin iterations.
+#' @param save Should the function collect and return all samples from the Gibbs
+#' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
+#' posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.
+#' @param display_progress Should the function show a progress bar
+#' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
+#' Defaults to \code{TRUE}.
 #' @param interaction_prior The prior distribution for the interaction effects.
 #' Currently, two prior densities are implemented: The Unit Information prior
 #' (\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
@@ -35,22 +41,35 @@
 #' to \code{2.5}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime
 #' prior for the thresholds. Defaults to \code{1}.
-#' @param save Should the function collect and return all samples from the Gibbs
-#' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
-#' posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.
-#' @param display_progress Should the function show a progress bar
-#' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-#' Defaults to \code{TRUE}.
 #' @param edge_prior The prior distribution for the network's edges or structure.
 #' Currently, three prior distributions are implemented: The Bernoulli model
-#' \code{edge_prior = "Bernoulli"}, the beta-binomial model
-#' \code{edge_prior = "Beta-Binomial"}, and the stochastic block model
-#' \code{edge_prior = "mfm-SBM"}. Defaults to \code{edge_prior = "Bernoulli"}.
-#' @param theta. The prior edge inclusion probability for the Bernoulli model.
-#' Defaults to \code{theta = 0.5}
-#' @param dirichlet_gamma The shape parameter of the Dirichlet prior density on
-#' the multinomial parameters of node allocations in the stochastic block model.
-#' Defaults to \code{1}.
+#' \code{edge_prior = "Bernoulli"}, the Beta-Binomial model
+#' \code{edge_prior = "Beta-Binomial"}, and the Stochastic Block model
+#' \code{edge_prior = "SBM"}. A mixture of finite mixtures variant of the
+#' Stochastic Block model is implemented. Defaults to
+#' \code{edge_prior = "Bernoulli"}.
+#' @param bernoulli_theta The prior edge inclusion probability for the
+#' Bernoulli model. Can be a single probability or a matrix of \code{p} rows and
+#' \code{p} columns that specified an inclusion probability for each edge paor.
+#' Defaults to \code{theta = 0.5}.
+#' @param beta_binomial_alpha,beta_binomial_beta The two shape parameters of the
+#' Beta prior stipulated on the Binomial inclusion probability. Need to be
+#' positive. Default to \code{beta_binomial_alpha = 1} and
+#' \code{beta_binomial_beta = 1}.
+#' @param sbm_alpha,sbm_beta The two shape parameters of the Beta prior
+#' stipulated on the block parameters. Need to be positive. Default to
+#' \code{sbm_alpha = 1} and \code{sbm_beta = 1}.
+#' @param sbm_gamma The shape parameter of the Dirichlet prior stipulated on the
+#' multinomial parameters of the node allocations in the Stochastic Block model.
+#' Defaults to \code{sbm_gamma = 1}.
+#' @param sbm_confirmatory Logical. If \code{sbm_confirmatory = TRUE}, it is
+#' assumed that the clusters to which the nodes belong to are known. The known
+#' allocations are specified using \code{sbm_allocations}. If
+#' \code{sbm_confirmatory = FALSE}, the allocations are estimated.
+#' @param sbm_allocations A vector of length \code{p} containing the clusters to
+#' which the \code{p} nodes belong. Assumes consecutive positive integers.
+#' Defaults to \code{sbm_allocations = rep(1, ncol(x))}, i.e., all nodes belong
+#' to cluster \code{1}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list containing
 #' the following matrices:
@@ -158,17 +177,21 @@
 bgm = function(x,
                iter = 1e4,
                burnin = 1e3,
+               save = FALSE,
+               display_progress = TRUE,
                interaction_prior = c("UnitInfo", "Cauchy"),
                cauchy_scale = 2.5,
                threshold_alpha = 1,
                threshold_beta = 1,
-               save = FALSE,
-               display_progress = TRUE,
-               edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
-               theta = 0.5,
-               dirichlet_gamma = 1,
+               edge_prior = c("Bernoulli", "Beta-Binomial", "SBM"),
+               bernoulli_theta = 0.5,
+               beta_binomial_alpha = 1,
+               beta_binomial_beta = 1,
+               sbm_alpha = 1,
+               sbm_beta = 1,
+               sbm_gamma = 1,
                sbm_confirmatory = FALSE,
-               cluster_allocation = rep(0, ncol(x))) {
+               sbm_allocations = rep(1, ncol(x))) {
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
@@ -188,6 +211,80 @@ bgm = function(x,
     stop("Parameter ``threshold_alpha'' needs to be positive.")
   if(threshold_beta <= 0  | !is.finite(threshold_beta))
     stop("Parameter ``threshold_beta'' needs to be positive.")
+
+  #Check prior set-up for the edge parameters ----------------------------------
+  edge_prior = match.arg(edge_prior)
+  if(edge_prior == "Bernoulli") {
+
+    if(inherits(bernoulli_theta, what = "matrix")) {
+
+      if(!isSymmetric(bernoulli_theta))
+        stop("Please ensure that ``bernoulli_theta'' is a symmetric matrix.")
+      if(any(is.na(bernoulli_theta[lower.tri(bernoulli_theta)])))
+        stop("There are missing values in the ``bernoulli_theta'' matrix where numeric values between zero and one are expected.")
+      if(any(bernoulli_theta[lower.tri(bernoulli_theta)] < 0) ||
+         any(bernoulli_theta[lower.tri(bernoulli_theta)] > 1))
+        stop("Please ensure that the values in the ``bernoulli_theta'' matrix lie between zero and one.")
+
+      if(nrow(bernoulli_theta) != ncol(x))
+        stop("Please ensure that the number of rows of ``bernoulli_theta'' is equal to the number of nodes (ncol(x)).")
+      if(ncol(bernoulli_theta) != ncol(x))
+        stop("Please ensure that the number of columns of ``bernoulli_theta'' is equal to the number of nodes (ncol(x)).")
+
+      inclusion = bernoulli_theta
+
+    } else {
+
+      if(is.na(bernoulli_theta))
+        stop("The ``bernoulli_theta'' value is missing.")
+      if(bernoulli_theta < 0 || bernoulli_theta > 1)
+        stop("Parameter ``bernoulli_theta'' needs to lie between zero and one.")
+
+      inclusion = matrix(data = bernoulli_theta,
+                         nrow = ncol(x),
+                         ncol = ncol(x))
+
+    }
+
+  } else if (edge_prior == "Beta-Binomial") {
+
+    if(beta_binomial_alpha <= 0  | !is.finite(beta_binomial_alpha))
+      stop("Parameter ``beta_binomial_alpha'' needs to be positive.")
+    if(beta_binomial_beta <= 0  | !is.finite(beta_binomial_beta))
+      stop("Parameter ``beta_binomial_beta'' needs to be positive.")
+
+    inclusion = matrix(data = 0.5,
+                       nrow = ncol(x),
+                       ncol = ncol(x))
+
+  } else if (edge_prior == "SBM") {
+
+    if(sbm_alpha <= 0  | !is.finite(sbm_alpha))
+      stop("Parameter ``sbm_alpha'' needs to be positive.")
+    if(sbm_beta <= 0  | !is.finite(sbm_beta))
+      stop("Parameter ``sbm_beta'' needs to be positive.")
+    if(sbm_gamma <= 0  | !is.finite(sbm_gamma))
+      stop("Parameter ``sbm_gamma'' needs to be positive.")
+
+    if(sbm_confirmatory == TRUE) {
+      if(length(unique(sbm_allocations)) == 1)
+        stop("The vector ``sbm_allocations'' assigns all nodes to a single cluster.\n Please use the ``Beta-Binomial'' option instead.")
+      if(length(sbm_allocations) != ncol(x))
+        stop("The length of ``sbm_allocations'' needs to be equal to the number of nodes (ncol(x)).")
+      if(any(is.na(sbm_allocations)))
+        stop("There are missing values in ``sbm_allocations''.")
+
+      allocations = sbm_allocations
+      cluster = unique(sbm_allocations)
+      for(c in 1:length(cluster))
+        allocations [which(sbm_allocations == cluster[c])] = c - 1
+
+    }
+
+  } else {
+    stop("The ``edge_prior'' should be one of ``Bernoulli'', ``Beta-Binomial'', or ``SBM''.")
+  }
+
 
   #Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix"))
@@ -284,7 +381,7 @@ bgm = function(x,
 
   #The Metropolis within Gibbs sampler -----------------------------------------
   # Bernoulli or Beta-Binomial prior
-  if(edge_prior != "mfm-SBM") {
+  if(edge_prior != "SBM") {
     out = gibbs_sampler_no_sbm(observations = x,
                                gamma = gamma,
                                interactions = interactions,
@@ -303,9 +400,9 @@ bgm = function(x,
                                save = save,
                                display_progress = display_progress,
                                edge_prior = edge_prior,
-                               theta = theta,
-                               beta_alpha = 1,
-                               beta_beta = 1)
+                               inclusion = inclusion,
+                               beta_alpha = beta_binomial_alpha,
+                               beta_beta = beta_binomial_beta)
   } else {
     if(sbm_confirmatory == TRUE) {
       out = gibbs_sampler_confirmatory_sbm(observations = x,
@@ -325,9 +422,9 @@ bgm = function(x,
                                            threshold_beta = threshold_beta,
                                            save = save,
                                            display_progress = display_progress,
-                                           beta_alpha = 1,
-                                           beta_beta = 1,
-                                           cluster_allocation = cluster_allocation)
+                                           beta_alpha = sbm_alpha,
+                                           beta_beta = sbm_beta,
+                                           cluster_allocations = allocations)
     } else {
       out = gibbs_sampler_sbm(observations = x,
                               gamma = gamma,
@@ -346,9 +443,9 @@ bgm = function(x,
                               threshold_beta = threshold_beta,
                               save = save,
                               display_progress = display_progress,
-                              dirichlet_gamma = dirichlet_gamma,
-                              beta_alpha = 1,
-                              beta_beta = 1)
+                              dirichlet_gamma = sbm_gamma,
+                              beta_alpha = sbm_alpha,
+                              beta_beta = sbm_beta)
     }
   }
 
@@ -356,26 +453,46 @@ bgm = function(x,
   if(save == FALSE) {
     gamma = out$gamma
     interactions = out$interactions
-    tresholds = out$thresholds
-    allocations = out$allocations
+    thresholds = out$thresholds
+
+    complexity = matrix(out$complexity, ncol = 1)
+    row.names(complexity) = paste(1:nrow(complexity)-1, "edges")
 
     colnames(interactions) = paste0("node ", 1:no_nodes)
     rownames(interactions) = paste0("node ", 1:no_nodes)
     colnames(gamma) = paste0("node ", 1:no_nodes)
     rownames(gamma) = paste0("node ", 1:no_nodes)
-    colnames(tresholds) = paste0("category ", 1:max(no_categories))
-    rownames(tresholds) = paste0("node ", 1:no_nodes)
+    colnames(thresholds) = paste0("category ", 1:max(no_categories))
+    rownames(thresholds) = paste0("node ", 1:no_nodes)
 
-    return(list(gamma = gamma,
-                interactions = interactions,
-                thresholds = tresholds,
-                allocations = allocations))
+    if(edge_prior != "SBM") {
+
+      return(list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  complexity = complexity))
+
+    } else {
+      allocations = out$allocations
+      if(sbm_confirmatory == TRUE)
+        allocations = matrix(allocations, nrow = 1)
+      colnames(allocations) = paste("node", 1:ncol(allocations))
+
+      return(list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  allocations = allocations,
+                  complexity = complexity))
+
+    }
+
   } else {
     gamma = out$gamma
     interactions = out$interactions
     thresholds = out$thresholds
-    allocations = out$allocations
 
+    complexity = matrix(out$complexity, ncol = 1)
+    row.names(complexity) = paste(1:nrow(complexity)-1, "edges")
 
     names1 = names2 = character(length = no_nodes * (no_nodes - 1) / 2)
     cntr = 0
@@ -403,10 +520,25 @@ bgm = function(x,
     rownames(interactions) = paste0("Iter. ", 1:iter)
     rownames(thresholds) = paste0("Iter. ", 1:iter)
 
-    return(list(gamma = gamma,
-                interactions = interactions,
-                thresholds = thresholds,
-                allocations = allocations))
+    if(edge_prior != "SBM") {
+
+      return(list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  complexity = complexity))
+
+    } else {
+      allocations = out$allocations
+      if(sbm_confirmatory == FALSE)
+        allocations = matrix(allocations, nrow = 1)
+      colnames(allocations) = paste("node", 1:ncol(allocations))
+
+      return(list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  allocations = allocations,
+                  complexity = complexity))
+
+    }
   }
 }
-

@@ -9,17 +9,21 @@ bgm(
   x,
   iter = 10000,
   burnin = 1000,
+  save = FALSE,
+  display_progress = TRUE,
   interaction_prior = c("UnitInfo", "Cauchy"),
   cauchy_scale = 2.5,
   threshold_alpha = 1,
   threshold_beta = 1,
-  save = FALSE,
-  display_progress = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Binomial", "mfm-SBM"),
-  theta = 0.5,
-  dirichlet_gamma = 1,
+  edge_prior = c("Bernoulli", "Beta-Binomial", "SBM"),
+  bernoulli_theta = 0.5,
+  beta_binomial_alpha = 1,
+  beta_binomial_beta = 1,
+  sbm_alpha = 1,
+  sbm_beta = 1,
+  sbm_gamma = 1,
   sbm_confirmatory = FALSE,
-  cluster_allocation = rep(0, ncol(x))
+  sbm_allocations = rep(1, ncol(x))
 )
 }
 \arguments{
@@ -37,6 +41,14 @@ at least \code{1e5} iterations.}
 \item{burnin}{The number of burnin iterations. The output of the Gibbs
 sampler is stored after burnin iterations.}
 
+\item{save}{Should the function collect and return all samples from the Gibbs
+sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
+posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
+
+\item{display_progress}{Should the function show a progress bar
+(\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
+Defaults to \code{TRUE}.}
+
 \item{interaction_prior}{The prior distribution for the interaction effects.
 Currently, two prior densities are implemented: The Unit Information prior
 (\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
@@ -48,26 +60,41 @@ to \code{2.5}.}
 \item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
 prior for the thresholds. Defaults to \code{1}.}
 
-\item{save}{Should the function collect and return all samples from the Gibbs
-sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
-posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
-
-\item{display_progress}{Should the function show a progress bar
-(\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-Defaults to \code{TRUE}.}
-
 \item{edge_prior}{The prior distribution for the network's edges or structure.
 Currently, three prior distributions are implemented: The Bernoulli model
-\code{edge_prior = "Bernoulli"}, the beta-binomial model
-\code{edge_prior = "Beta-Binomial"}, and the stochastic block model
-\code{edge_prior = "mfm-SBM"}. Defaults to \code{edge_prior = "Bernoulli"}.}
+\code{edge_prior = "Bernoulli"}, the Beta-Binomial model
+\code{edge_prior = "Beta-Binomial"}, and the Stochastic Block model
+\code{edge_prior = "SBM"}. A mixture of finite mixtures variant of the
+Stochastic Block model is implemented. Defaults to
+\code{edge_prior = "Bernoulli"}.}
 
-\item{dirichlet_gamma}{The shape parameter of the Dirichlet prior density on
-the multinomial parameters of node allocations in the stochastic block model.
-Defaults to \code{1}.}
+\item{bernoulli_theta}{The prior edge inclusion probability for the
+Bernoulli model. Can be a single probability or a matrix of \code{p} rows and
+\code{p} columns that specified an inclusion probability for each edge paor.
+Defaults to \code{theta = 0.5}.}
 
-\item{theta.}{The prior edge inclusion probability for the Bernoulli model.
-Defaults to \code{theta = 0.5}}
+\item{beta_binomial_alpha, beta_binomial_beta}{The two shape parameters of the
+Beta prior stipulated on the Binomial inclusion probability. Need to be
+positive. Default to \code{beta_binomial_alpha = 1} and
+\code{beta_binomial_beta = 1}.}
+
+\item{sbm_alpha, sbm_beta}{The two shape parameters of the Beta prior
+stipulated on the block parameters. Need to be positive. Default to
+\code{sbm_alpha = 1} and \code{sbm_beta = 1}.}
+
+\item{sbm_gamma}{The shape parameter of the Dirichlet prior stipulated on the
+multinomial parameters of the node allocations in the Stochastic Block model.
+Defaults to \code{sbm_gamma = 1}.}
+
+\item{sbm_confirmatory}{Logical. If \code{sbm_confirmatory = TRUE}, it is
+assumed that the clusters to which the nodes belong to are known. The known
+allocations are specified using \code{sbm_allocations}. If
+\code{sbm_confirmatory = FALSE}, the allocations are estimated.}
+
+\item{sbm_allocations}{A vector of length \code{p} containing the clusters to
+which the \code{p} nodes belong. Assumes consecutive positive integers.
+Defaults to \code{sbm_allocations = rep(1, ncol(x))}, i.e., all nodes belong
+to cluster \code{1}.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list containing
