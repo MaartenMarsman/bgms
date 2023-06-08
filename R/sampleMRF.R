@@ -85,8 +85,43 @@ mrfSampler = function(no_states,
          columns.")
 
   #check thresholds
+  if(!inherits(thresholds, what = "matrix")) {
+    if(max(no_categories) == 1) {
+      if(length(thresholds) == no_nodes) {
+        thresholds = matrix(thresholds, ncol = 1)
+      } else {
+        stop(paste0("The matrix ``thresholds'' has ",
+                    length(thresholds),
+                    " elements, but requires",
+                    no_nodes,
+                    "."))
+      }
+    } else {
+      stop("``Thresholds'' needs to be a matrix.")
+    }
+  }
+
   if(nrow(thresholds) != no_nodes)
     stop("The matrix ``thresholds'' needs to be have ``no_nodes'' rows.")
+
+  for(node in 1:no_nodes) {
+    if(any(is.na(thresholds[node, 1:no_categories[node]]))) {
+      stop(paste0("The matrix ``thresholds'' contains NA(s) for node ",
+                  node,
+                  " in categorie(s)",
+                  which(is.na(thresholds[node, 1:no_categories[node]])),
+                  ", where a numeric value is needed."))
+    }
+    if(ncol(thresholds) > no_categories[node]) {
+      if(any(!is.na(thresholds[node, (no_categories[node]+1):ncol(thresholds)]))){
+        warning(paste0("The matrix ``thresholds'' contains numeric values for node ",
+                       node,
+                       " for categories(s) (i.e., columns) exceding the maximum of ",
+                       no_categories[node],
+                       ". These values will be ignored."))
+      }
+    }
+  }
 
   for(node in 1:no_nodes) {
     for(category in 1:no_categories[node]) {

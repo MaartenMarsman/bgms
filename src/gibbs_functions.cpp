@@ -373,16 +373,16 @@ List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions,
 //  pair (using a unit information prior)
 // ----------------------------------------------------------------------------|
 List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
-                                                    NumericMatrix thresholds,
-                                                    IntegerMatrix gamma,
-                                                    IntegerMatrix observations,
-                                                    IntegerVector no_categories,
-                                                    NumericMatrix proposal_sd,
-                                                    NumericMatrix unit_info,
-                                                    IntegerMatrix index,
-                                                    int no_interactions,
-                                                    int no_persons,
-                                                    NumericMatrix rest_matrix) {
+                                               NumericMatrix thresholds,
+                                               IntegerMatrix gamma,
+                                               IntegerMatrix observations,
+                                               IntegerVector no_categories,
+                                               NumericMatrix proposal_sd,
+                                               NumericMatrix unit_info,
+                                               IntegerMatrix index,
+                                               int no_interactions,
+                                               int no_persons,
+                                               NumericMatrix rest_matrix) {
   double proposed_state;
   double current_state;
   double log_prob;
