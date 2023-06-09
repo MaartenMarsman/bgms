@@ -187,7 +187,8 @@ List gibbs_sampler_no_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity);
     }
     p.increment();
 
@@ -254,7 +255,8 @@ List gibbs_sampler_no_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity);
     }
     p.increment();
 
@@ -330,7 +332,6 @@ List gibbs_sampler_no_sbm(IntegerMatrix observations,
         }
       }
       out_complexity(complexity)++;
-
 
       cntr = 0;
       for(int node = 0; node < no_nodes; node++) {
@@ -485,7 +486,8 @@ List gibbs_sampler_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity);
     }
     p.increment();
 
@@ -557,7 +559,9 @@ List gibbs_sampler_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity,
+                          Named("allocations") = out_allocations);
     }
     p.increment();
 
@@ -780,7 +784,9 @@ List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity,
+                          Named("allocations") = cluster_allocations);
     }
     p.increment();
 
@@ -841,7 +847,9 @@ List gibbs_sampler_confirmatory_sbm(IntegerMatrix observations,
     if (Progress::check_abort()) {
       return List::create(Named("gamma") = out_gamma,
                           Named("interactions") = out_interactions,
-                          Named("thresholds") = out_thresholds);
+                          Named("thresholds") = out_thresholds,
+                          Named("complexity") = out_complexity,
+                          Named("allocations") = cluster_allocations);
     }
     p.increment();
 
