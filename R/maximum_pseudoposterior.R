@@ -3,13 +3,12 @@
 #' The function \code{mppe} estimates the parameters for the ordinal MRF
 #' by optimizing the pseudoposterior with the Newton-Raphson method.
 #'
-#' @param x A matrix with \code{n} rows and \code{p} columns, containing binary
-#' and ordinal variables for \code{n} independent observations and \code{p}
-#' variables in the network. Variables are recoded as non-negative integers
-#' \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+#' @param x A dataframe or matrix with \code{n} rows and \code{p} columns,
+#' containing binary and ordinal variables for \code{n} independent observations
+#' and \code{p} variables in the network. Variables are recoded as non-negative
+#' integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
 #' collapsed into other categories after recoding. See \code{reformat_data} for
 #' details.
-#'
 #' @param interaction_prior The prior distribution for the interaction effects.
 #' Currently, two prior densities are implemented: The Unit Information prior
 #' (\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
@@ -57,7 +56,7 @@
 #'
 #' @export
 mppe = function(x,
-                interaction_prior = "Cauchy",
+                interaction_prior = c("Cauchy", "UnitInfo"),
                 cauchy_scale = 2.5,
                 threshold_alpha = 1,
                 threshold_beta = 1,
@@ -66,10 +65,22 @@ mppe = function(x,
                 thresholds,
                 interactions) {
 
+  #Check data input ------------------------------------------------------------
+  if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
+    stop("The input x needs to be a matrix or dataframe.")
+  if(inherits(x, what = "data.frame"))
+    x = data.matrix(x)
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
+
   #Check prior set-up for the interaction parameters ---------------------------
-  if(interaction_prior != "Cauchy" & interaction_prior != "UnitInfo")
-    stop("For the interaction effects we currently only have implemented the
-     Cauchy prior and the Unit Information prior. Please select one.")
+  interaction_prior = match.arg(interaction_prior)
+  if(interaction_prior == "Cauchy") {
+    if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
+      stop("The scale of the Cauchy prior needs to be positive.")
+  }
   if(interaction_prior == "Cauchy") {
     if(cauchy_scale <= 0)
       stop("The scale of the Cauchy prior needs to be positive.")
@@ -80,15 +91,6 @@ mppe = function(x,
     stop("Parameter ``threshold_alpha'' needs to be positive.")
   if(threshold_beta <= 0  | !is.finite(threshold_beta))
     stop("Parameter ``threshold_beta'' needs to be positive.")
-
-  #Check data input ------------------------------------------------------------
-  if(!inherits(x, what = "matrix"))
-    stop("The input x is supposed to be a matrix.")
-
-  if(ncol(x) < 2)
-    stop("The matrix x should have more than one variable (columns).")
-  if(nrow(x) < 2)
-    stop("The matrix x should have more than one observation (rows).")
 
   #Format the data input -------------------------------------------------------
   data = reformat_data(x = x)

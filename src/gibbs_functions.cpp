@@ -299,7 +299,8 @@ List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions,
                                              IntegerMatrix index,
                                              int no_interactions,
                                              int no_persons,
-                                             NumericMatrix rest_matrix) {
+                                             NumericMatrix rest_matrix,
+                                             NumericMatrix theta) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -337,12 +338,14 @@ List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions,
                            current_state,
                            proposal_sd(node1, node2),
                            true);
+      log_prob += log(theta(node1, node2) / (1 - theta(node1, node2)));
     } else {
       log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale,  true);
       log_prob += R::dnorm(current_state,
                            proposed_state,
                            proposal_sd(node1, node2),
                            true);
+      log_prob -= log(theta(node1, node2) / (1 - theta(node1, node2)));
     }
 
     U = R::unif_rand();
@@ -382,7 +385,8 @@ List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
                                                IntegerMatrix index,
                                                int no_interactions,
                                                int no_persons,
-                                               NumericMatrix rest_matrix) {
+                                               NumericMatrix rest_matrix,
+                                               NumericMatrix theta) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -423,6 +427,7 @@ List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
                            current_state,
                            proposal_sd(node1, node2),
                            true);
+      log_prob += log(theta(node1, node2) / (1 - theta(node1, node2)));
     } else {
       log_prob += R::dnorm(current_state,
                            proposed_state,
@@ -432,6 +437,7 @@ List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
                            0.0,
                            unit_info(node1, node2),
                            true);
+      log_prob -= log(theta(node1, node2) / (1 - theta(node1, node2)));
     }
 
     U = R::unif_rand();
@@ -478,7 +484,8 @@ List gibbs_step_gm(IntegerMatrix observations,
                    IntegerMatrix gamma,
                    NumericMatrix interactions,
                    NumericMatrix thresholds,
-                   NumericMatrix rest_matrix) {
+                   NumericMatrix rest_matrix,
+                   NumericMatrix theta) {
 
   if(interaction_prior == "Cauchy") {
     List out = metropolis_edge_interaction_pair_cauchy(interactions,
@@ -491,7 +498,8 @@ List gibbs_step_gm(IntegerMatrix observations,
                                                        index,
                                                        no_interactions,
                                                        no_persons,
-                                                       rest_matrix);
+                                                       rest_matrix,
+                                                       theta);
     IntegerMatrix gamma = out["gamma"];
     NumericMatrix interactions = out["interactions"];
     NumericMatrix rest_matrix = out["rest_matrix"];
@@ -506,7 +514,8 @@ List gibbs_step_gm(IntegerMatrix observations,
                                                          index,
                                                          no_interactions,
                                                          no_persons,
-                                                         rest_matrix);
+                                                         rest_matrix,
+                                                         theta);
     IntegerMatrix gamma = out["gamma"];
     NumericMatrix interactions = out["interactions"];
     NumericMatrix rest_matrix = out["rest_matrix"];
@@ -574,6 +583,10 @@ List gibbs_sampler(IntegerMatrix observations,
                    double cauchy_scale,
                    NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
+                   String edge_prior,
+                   NumericMatrix theta,
+                   double beta_bernoulli_alpha,
+                   double beta_bernoulli_beta,
                    IntegerMatrix Index,
                    int iter,
                    int burnin,
@@ -663,7 +676,27 @@ List gibbs_sampler(IntegerMatrix observations,
                              gamma,
                              interactions,
                              thresholds,
-                             rest_matrix);
+                             rest_matrix,
+                             theta);
+
+    if(edge_prior == "Beta-Bernoulli") {
+      int sumG = 0;
+      for(int i = 0; i < no_nodes - 1; i++) {
+        for(int j = i + 1; j < no_nodes; j++) {
+          sumG += gamma(i, j);
+        }
+      }
+      double probability = R::rbeta(beta_bernoulli_alpha + sumG,
+                                    beta_bernoulli_beta + no_interactions - sumG);
+
+      for(int i = 0; i < no_nodes - 1; i++) {
+        for(int j = i + 1; j < no_nodes; j++) {
+          theta(i, j) = probability;
+          theta(j, i) = probability;
+        }
+      }
+    }
+
     IntegerMatrix gamma = out["gamma"];
     NumericMatrix interactions = out["interactions"];
     NumericMatrix thresholds = out["thresholds"];
@@ -712,7 +745,26 @@ List gibbs_sampler(IntegerMatrix observations,
                                gamma,
                                interactions,
                                thresholds,
-                               rest_matrix);
+                               rest_matrix,
+                               theta);
+
+    if(edge_prior == "Beta-Bernoulli") {
+      int sumG = 0;
+      for(int i = 0; i < no_nodes - 1; i++) {
+        for(int j = i + 1; j < no_nodes; j++) {
+          sumG += gamma(i, j);
+        }
+      }
+      double probability = R::rbeta(beta_bernoulli_alpha + sumG,
+                                    beta_bernoulli_beta + no_interactions - sumG);
+
+      for(int i = 0; i < no_nodes - 1; i++) {
+        for(int j = i + 1; j < no_nodes; j++) {
+          theta(i, j) = probability;
+          theta(j, i) = probability;
+        }
+      }
+    }
 
     IntegerMatrix gamma = out["gamma"];
     NumericMatrix interactions = out["interactions"];

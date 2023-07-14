@@ -9,8 +9,12 @@ bgm(
   x,
   iter = 10000,
   burnin = 1000,
-  interaction_prior = c("UnitInfo", "Cauchy"),
+  interaction_prior = c("Cauchy", "UnitInfo"),
   cauchy_scale = 2.5,
+  edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+  inclusion_probability = 0.5,
+  beta_bernoulli_alpha = 1,
+  beta_bernoulli_beta = 1,
   threshold_alpha = 1,
   threshold_beta = 1,
   save = FALSE,
@@ -18,12 +22,12 @@ bgm(
 )
 }
 \arguments{
-\item{x}{A matrix with \code{n} rows and \code{p} columns, containing binary
-and ordinal variables for \code{n} independent observations and \code{p}
-variables in the network. Variables are recoded as non-negative integers
-\code{(0, 1, ..., m)} if not done already. Unobserved categories are
-collapsed into other categories after recoding. See
-\code{reformat_data} for details.}
+\item{x}{A dataframe or matrix with \code{n} rows and \code{p} columns,
+containing binary and ordinal variables for \code{n} independent observations
+and \code{p} variables in the network. Variables are recoded as non-negative
+integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+collapsed into other categories after recoding. See \code{reformat_data} for
+details.}
 
 \item{iter}{The number of iterations of the Gibbs sampler. Defaults to
 \code{1e4}. For better estimates, it is recommended to run the procedure for
@@ -35,10 +39,34 @@ sampler is stored after burnin iterations.}
 \item{interaction_prior}{The prior distribution for the interaction effects.
 Currently, two prior densities are implemented: The Unit Information prior
 (\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
-(\code{interaction_prior = "Cauchy"}). Defaults to \code{"UnitInfo"}.}
+(\code{interaction_prior = "Cauchy"}). Defaults to \code{"Cauchy"}.}
 
 \item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults
 to \code{2.5}.}
+
+\item{edge_prior}{The prior distribution for the network's edges or structure.
+Currently, two prior distributions are implemented: The Bernoulli model
+\code{edge_prior = "Bernoulli"} assumes that the probability that an edge
+between two variables is included is equal to \code{inclusion_probability},
+and independent of other edges or variables. If
+\code{inclusion_probability = 0.5}, this implies that each network structure
+receives an equal prior weight. The Beta-Bernoulli model
+\code{edge_prior = "Beta-Binomial"} assumes a Beta prior distribution for the
+unknown inclusion probability with shape parameters
+\code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}. If
+\code{beta_bernoulli_alpha = 1} and \code{beta_bernoulli_beta = 1}, this
+implies that the group of networks with the same complexity (number of edges)
+receive the same prior weight. Defaults to \code{edge_prior = "Bernoulli"}.}
+
+\item{inclusion_probability}{The prior edge inclusion probability for the
+Bernoulli model. Can be a single probability or a matrix of \code{p} rows and
+\code{p} columns that specified an inclusion probability for each edge pair.
+Defaults to \code{inclusion_probability = 0.5}.}
+
+\item{beta_bernoulli_alpha, beta_bernoulli_beta}{The two shape parameters of
+the Beta prior stipulated on the Bernoulli inclusion probability. Need to be
+positive. Default to \code{beta_bernoulli_alpha = 1} and
+\code{beta_bernoulli_beta = 1}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
 prior for the thresholds. Defaults to \code{1}.}

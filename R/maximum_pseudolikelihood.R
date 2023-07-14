@@ -3,10 +3,10 @@
 #' The function \code{mple} estimates the parameters for the ordinal MRF
 #' by optimizing the joint pseudolikelihood with the Newton-Raphson method.
 #'
-#' @param x A matrix with \code{n} rows and \code{p} columns, containing binary
-#' and ordinal variables for \code{n} independent observations and \code{p}
-#' variables in the network. Variables are recoded as non-negative integers
-#' \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+#' @param x A dataframe or matrix with \code{n} rows and \code{p} columns,
+#' containing binary and ordinal variables for \code{n} independent observations
+#' and \code{p} variables in the network. Variables are recoded as non-negative
+#' integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
 #' collapsed into other categories after recoding. See \code{reformat_data} for
 #' details.
 #'
@@ -41,10 +41,12 @@ mple = function(x,
                 maximum_iterations = 1e3,
                 thresholds,
                 interactions) {
-  #Check data input ------------------------------------------------------------
-  if(!inherits(x, what = "matrix"))
-    stop("The input x is supposed to be a matrix.")
 
+  #Check data input ------------------------------------------------------------
+  if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
+    stop("The input x needs to be a matrix or dataframe.")
+  if(inherits(x, what = "data.frame"))
+    x = data.matrix(x)
   if(ncol(x) < 2)
     stop("The matrix x should have more than one variable (columns).")
   if(nrow(x) < 2)

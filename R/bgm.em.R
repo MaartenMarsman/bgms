@@ -4,10 +4,10 @@
 #' MRF using the joint pseudolikelihood and a continuous spike and slab prior
 #' distribution stipulated on the MRF's interaction or association parameters.
 #'
-#' @param x A matrix with \code{n} rows and \code{p} columns, containing binary
-#' and ordinal variables for \code{n} independent observations and \code{p}
-#' variables in the network. Variables are recoded as non-negative integers
-#' \code{(0, 1, ..., m)} if not done already. Unobserved categories are
+#' @param x A dataframe or matrix with \code{n} rows and \code{p} columns,
+#' containing binary and ordinal variables for \code{n} independent observations
+#' and \code{p} variables in the network. Variables are recoded as non-negative
+#' integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
 #' collapsed into other categories after recoding. See \code{reformat_data} for
 #' details.
 #' @param precision A value between 0 and 1 representing the desired precision
@@ -111,6 +111,16 @@ bgm.em = function(x,
                   threshold_alpha = 1,
                   threshold_beta = 1) {
 
+  #Check data input ------------------------------------------------------------
+  if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
+    stop("The input x needs to be a matrix or dataframe.")
+  if(inherits(x, what = "data.frame"))
+    x = data.matrix(x)
+  if(ncol(x) < 2)
+    stop("The matrix x should have more than one variable (columns).")
+  if(nrow(x) < 2)
+    stop("The matrix x should have more than one observation (rows).")
+
   #Check prior set-up for the interaction parameters ---------------------------
   if(precision < 0 || precision > 1)
     stop("The precision parameter needs to be between 0 and 1.")
@@ -135,15 +145,6 @@ bgm.em = function(x,
   if(maximum_iterations <= 0 ||
      abs(maximum_iterations - round(maximum_iterations)) > sqrt(.Machine$double.eps))
     stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
-
-  #Check data input ------------------------------------------------------------
-  if(!inherits(x, what = "matrix"))
-    stop("The input x is supposed to be a matrix.")
-
-  if(ncol(x) < 2)
-    stop("The matrix x should have more than one variable (columns).")
-  if(nrow(x) < 2)
-    stop("The matrix x should have more than one observation (rows).")
 
   #Format the data input -------------------------------------------------------
   data = reformat_data(x = x)

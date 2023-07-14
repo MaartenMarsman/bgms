@@ -6,7 +6,7 @@
 \usage{
 mppe(
   x,
-  interaction_prior = "Cauchy",
+  interaction_prior = c("Cauchy", "UnitInfo"),
   cauchy_scale = 2.5,
   threshold_alpha = 1,
   threshold_beta = 1,
@@ -17,10 +17,10 @@ mppe(
 )
 }
 \arguments{
-\item{x}{A matrix with \code{n} rows and \code{p} columns, containing binary
-and ordinal variables for \code{n} independent observations and \code{p}
-variables in the network. Variables are recoded as non-negative integers
-\code{(0, 1, ..., m)} if not done already. Unobserved categories are
+\item{x}{A dataframe or matrix with \code{n} rows and \code{p} columns,
+containing binary and ordinal variables for \code{n} independent observations
+and \code{p} variables in the network. Variables are recoded as non-negative
+integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
 collapsed into other categories after recoding. See \code{reformat_data} for
 details.}
 
