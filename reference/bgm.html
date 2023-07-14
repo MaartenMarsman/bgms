@@ -16,7 +16,7 @@ ordinal variables."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/aj
     
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,8 +67,12 @@ ordinal variables.</p>
 <span>  <span class="va">x</span>,</span>
 <span>  iter <span class="op">=</span> <span class="fl">10000</span>,</span>
 <span>  burnin <span class="op">=</span> <span class="fl">1000</span>,</span>
-<span>  interaction_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"UnitInfo"</span>, <span class="st">"Cauchy"</span><span class="op">)</span>,</span>
+<span>  interaction_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cauchy"</span>, <span class="st">"UnitInfo"</span><span class="op">)</span>,</span>
 <span>  cauchy_scale <span class="op">=</span> <span class="fl">2.5</span>,</span>
+<span>  edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span><span class="op">)</span>,</span>
+<span>  inclusion_probability <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  beta_bernoulli_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  beta_bernoulli_beta <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  threshold_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  threshold_beta <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -79,12 +83,12 @@ ordinal variables.</p>
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
     <dl><dt>x</dt>
-<dd><p>A matrix with <code>n</code> rows and <code>p</code> columns, containing binary
-and ordinal variables for <code>n</code> independent observations and <code>p</code>
-variables in the network. Variables are recoded as non-negative integers
-<code>(0, 1, ..., m)</code> if not done already. Unobserved categories are
-collapsed into other categories after recoding. See
-<code>reformat_data</code> for details.</p></dd>
+<dd><p>A dataframe or matrix with <code>n</code> rows and <code>p</code> columns,
+containing binary and ordinal variables for <code>n</code> independent observations
+and <code>p</code> variables in the network. Variables are recoded as non-negative
+integers <code>(0, 1, ..., m)</code> if not done already. Unobserved categories are
+collapsed into other categories after recoding. See <code>reformat_data</code> for
+details.</p></dd>
 
 
 <dt>iter</dt>
@@ -102,12 +106,42 @@ sampler is stored after burnin iterations.</p></dd>
 <dd><p>The prior distribution for the interaction effects.
 Currently, two prior densities are implemented: The Unit Information prior
 (<code>interaction_prior = "UnitInfo"</code>) and the Cauchy prior
-(<code>interaction_prior = "Cauchy"</code>). Defaults to <code>"UnitInfo"</code>.</p></dd>
+(<code>interaction_prior = "Cauchy"</code>). Defaults to <code>"Cauchy"</code>.</p></dd>
 
 
 <dt>cauchy_scale</dt>
 <dd><p>The scale of the Cauchy prior for interactions. Defaults
 to <code>2.5</code>.</p></dd>
+
+
+<dt>edge_prior</dt>
+<dd><p>The prior distribution for the network's edges or structure.
+Currently, two prior distributions are implemented: The Bernoulli model
+<code>edge_prior = "Bernoulli"</code> assumes that the probability that an edge
+between two variables is included is equal to <code>inclusion_probability</code>,
+and independent of other edges or variables. If
+<code>inclusion_probability = 0.5</code>, this implies that each network structure
+receives an equal prior weight. The Beta-Bernoulli model
+<code>edge_prior = "Beta-Binomial"</code> assumes a Beta prior distribution for the
+unknown inclusion probability with shape parameters
+<code>beta_bernoulli_alpha</code> and <code>beta_bernoulli_beta</code>. If
+<code>beta_bernoulli_alpha = 1</code> and <code>beta_bernoulli_beta = 1</code>, this
+implies that the group of networks with the same complexity (number of edges)
+receive the same prior weight. Defaults to <code>edge_prior = "Bernoulli"</code>.</p></dd>
+
+
+<dt>inclusion_probability</dt>
+<dd><p>The prior edge inclusion probability for the
+Bernoulli model. Can be a single probability or a matrix of <code>p</code> rows and
+<code>p</code> columns that specified an inclusion probability for each edge pair.
+Defaults to <code>inclusion_probability = 0.5</code>.</p></dd>
+
+
+<dt>beta_bernoulli_alpha, beta_bernoulli_beta</dt>
+<dd><p>The two shape parameters of
+the Beta prior stipulated on the Bernoulli inclusion probability. Need to be
+positive. Default to <code>beta_bernoulli_alpha = 1</code> and
+<code>beta_bernoulli_beta = 1</code>.</p></dd>
 
 
 <dt>threshold_alpha, threshold_beta</dt>
