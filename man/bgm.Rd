@@ -17,6 +17,7 @@ bgm(
   beta_bernoulli_beta = 1,
   threshold_alpha = 1,
   threshold_beta = 1,
+  adaptive = FALSE,
   save = FALSE,
   display_progress = TRUE
 )
@@ -70,6 +71,15 @@ positive. Default to \code{beta_bernoulli_alpha = 1} and
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
 prior for the thresholds. Defaults to \code{1}.}
+
+\item{adaptive}{Should we run an adaptive Metropolis algorithm for
+within-model updates of the interaction parameters? If
+\code{adaptive = TRUE}, we adjust the proposal variance to match the
+acceptance probability of the random walk Metropolis algorithm to be close to
+the optimum of \code{.234} using a Robbins-Monro type algorithm. If
+\code{adaptive = TRUE}, we set the proposal variance to the inverse of the
+observed Fisher information matrix (the second derivative at the posterior
+mode).}
 
 \item{save}{Should the function collect and return all samples from the Gibbs
 sampler (\code{save = TRUE})? Or should it only return the (model-averaged)

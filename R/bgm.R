@@ -55,6 +55,14 @@
 #' \code{beta_bernoulli_beta = 1}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime
 #' prior for the thresholds. Defaults to \code{1}.
+#' @param adaptive Should we run an adaptive Metropolis algorithm for
+#' within-model updates of the interaction parameters? If
+#' \code{adaptive = TRUE}, we adjust the proposal variance to match the
+#' acceptance probability of the random walk Metropolis algorithm to be close to
+#' the optimum of \code{.234} using a Robbins-Monro type algorithm. If
+#' \code{adaptive = TRUE}, we set the proposal variance to the inverse of the
+#' observed Fisher information matrix (the second derivative at the posterior
+#' mode).
 #' @param save Should the function collect and return all samples from the Gibbs
 #' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
 #' posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.
@@ -182,6 +190,7 @@ bgm = function(x,
                beta_bernoulli_beta = 1,
                threshold_alpha = 1,
                threshold_beta = 1,
+               adaptive = FALSE,
                save = FALSE,
                display_progress = TRUE) {
 
@@ -271,42 +280,53 @@ bgm = function(x,
   no_thresholds = sum(no_categories)
 
   #Proposal set-up for the interaction parameters ------------------------------
-  if(interaction_prior == "Cauchy") {
+  if(interaction_prior == "UnitInfo") {
+    pps = try(mppe(x = x,
+                   interaction_prior = interaction_prior),
+              silent = TRUE)
+    if(inherits(pps, what = "try-error"))
+      stop(paste0(
+        "For the Unit Information prior we need to estimate the posterior mode.\n",
+        "Unfortunately, we could not find this mode for your data. Please try the\n",
+        "Cauchy prior option."))
+    unit_info = sqrt(pps$unit_info)
+  } else {
     pps = try(mppe(x = x,
                    interaction_prior = interaction_prior,
                    cauchy_scale = cauchy_scale),
               silent = TRUE)
-  } else {
-    pps = try(mppe(x = x,
-                   interaction_prior = interaction_prior),
-              silent = TRUE)
-  }
-  if(inherits(pps, what = "try-error"))
-    stop(paste0(
-      "We use a Metropolis within Gibbs algorithm to learn the structure of the MRF.\n",
-      "The proposal distribution used in the Metropolis algorithm is a normal distribution\n",
-      "that takes as its variance a function of the second derivatives of the MRF evaluated\n",
-      "at the posterior mode. Unfortunately, we could not find this mode for your data.\n",
-      "Perhaps there were low category counts?"))
-
-  if(interaction_prior == "UnitInfo") {
-    unit_info = sqrt(pps$unit_info)
-  } else {
+    if(inherits(pps, what = "try-error")) {
+      if(adaptive == FALSE) {
+        stop(paste0(
+          "By default, the MCMC procedure underlying the bgm function uses a \n",
+          "Metropolis algorithm with a fixed proposal distribution. We attempt to \n",
+          "fit this proposal distribution to the target posterior distribution by \n",
+          "locating the posterior mode and using information about the curvature \n",
+          "around that mode to set the variance of the proposal distributions. \n",
+          "Unfortunately, we were unable to locate the posterior mode for your data.\n",
+          "Please try again with ``adaptive = TRUE''."))
+      } else {
+        warning(paste0(
+          "We tried starting the procedure from the posterior mode but could not locate it."))
+      }
+    }
     unit_info = matrix(data = NA, nrow = 1, ncol = 1)
   }
 
   #Set up the variance of the (normal) proposal distribution
-  hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
-
-  proposal_sd = matrix(0,
+  proposal_sd = matrix(1,
                        nrow = no_nodes,
                        ncol = no_nodes)
-  cntr = 0
-  for(node1 in 1:(no_nodes - 1)) {
-    for(node2 in (node1 + 1):no_nodes) {
-      cntr = cntr + 1
-      proposal_sd[node1, node2] = sqrt(-1 / hessian[cntr, cntr])
-      proposal_sd[node2, node1] = proposal_sd[node1, node2]
+  if(adaptive == FALSE) {
+    hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
+
+    cntr = 0
+    for(node1 in 1:(no_nodes - 1)) {
+      for(node2 in (node1 + 1):no_nodes) {
+        cntr = cntr + 1
+        proposal_sd[node1, node2] = sqrt(-1 / hessian[cntr, cntr])
+        proposal_sd[node2, node1] = proposal_sd[node1, node2]
+      }
     }
   }
 
@@ -316,8 +336,13 @@ bgm = function(x,
                  ncol = no_nodes)
 
   #Starting values of interactions and thresholds (posterior mode)
-  interactions = pps$interactions
-  thresholds = pps$thresholds
+  if(!inherits(pps, what = "try-error")) {
+    interactions = pps$interactions
+    thresholds = pps$thresholds
+  } else {
+    interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
+    threshods = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+  }
 
   #Precomputing number of observations per category for each node.
   n_cat_obs = matrix(0,
@@ -363,6 +388,7 @@ bgm = function(x,
                       n_cat_obs = n_cat_obs,
                       threshold_alpha = threshold_alpha,
                       threshold_beta = threshold_beta,
+                      adaptive = adaptive,
                       save = save,
                       display_progress = display_progress)
 
