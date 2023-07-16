@@ -180,7 +180,7 @@ List metropolis_interactions_cauchy(NumericMatrix interactions,
   double U;
 
   for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
-    for(int node2 = node1 + 1; node2 <  no_nodes; node2++)
+    for(int node2 = node1 + 1; node2 <  no_nodes; node2++) {
       if(gamma(node1, node2) == 1) {
         current_state = interactions(node1, node2);
         proposed_state = R::rnorm(current_state, proposal_sd(node1, node2));
@@ -213,6 +213,7 @@ List metropolis_interactions_cauchy(NumericMatrix interactions,
           }
         }
       }
+    }
   }
   return List::create(Named("interactions") = interactions,
                       Named("rest_matrix") = rest_matrix);
@@ -240,7 +241,7 @@ List metropolis_interactions_unitinfo(NumericMatrix interactions,
   double U;
 
   for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
-    for(int node2 = node1 + 1; node2 <  no_nodes; node2++)
+    for(int node2 = node1 + 1; node2 <  no_nodes; node2++) {
       if(gamma(node1, node2) == 1) {
         current_state = interactions(node1, node2);
         proposed_state = R::rnorm(current_state, proposal_sd(node1, node2));
@@ -280,6 +281,7 @@ List metropolis_interactions_unitinfo(NumericMatrix interactions,
           }
         }
       }
+    }
   }
   return List::create(Named("interactions") = interactions,
                       Named("rest_matrix") = rest_matrix);
@@ -679,6 +681,12 @@ List gibbs_sampler(IntegerMatrix observations,
                              rest_matrix,
                              theta);
 
+    IntegerMatrix gamma = out["gamma"];
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+
+    //Update the prior inclusion parameter -------------------------------------
     if(edge_prior == "Beta-Bernoulli") {
       int sumG = 0;
       for(int i = 0; i < no_nodes - 1; i++) {
@@ -696,12 +704,6 @@ List gibbs_sampler(IntegerMatrix observations,
         }
       }
     }
-
-    IntegerMatrix gamma = out["gamma"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-
   }
 
   //The post burn-in iterations ------------------------------------------------
@@ -748,6 +750,12 @@ List gibbs_sampler(IntegerMatrix observations,
                                rest_matrix,
                                theta);
 
+    IntegerMatrix gamma = out["gamma"];
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+
+    //Update the prior inclusion parameter -------------------------------------
     if(edge_prior == "Beta-Bernoulli") {
       int sumG = 0;
       for(int i = 0; i < no_nodes - 1; i++) {
@@ -765,11 +773,6 @@ List gibbs_sampler(IntegerMatrix observations,
         }
       }
     }
-
-    IntegerMatrix gamma = out["gamma"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
 
     //Output -------------------------------------------------------------------
     if(save == TRUE) {
