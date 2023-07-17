@@ -5,6 +5,93 @@
 using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
+// Impute missing data from full-conditional
+// ----------------------------------------------------------------------------|
+List impute_missing_data(NumericMatrix interactions,
+                         NumericMatrix thresholds,
+                         IntegerMatrix observations,
+                         IntegerMatrix n_cat_obs,
+                         IntegerVector no_categories,
+                         NumericMatrix rest_matrix,
+                         IntegerMatrix missing_index) {
+
+  int no_nodes = observations.ncol();
+  int no_missings = missing_index.nrow();
+  int max_no_categories = 0;
+  for(int node = 0; node < no_nodes; node++) {
+    if(no_categories[node] > max_no_categories) {
+      max_no_categories = no_categories[node];
+    }
+  }
+  NumericVector probabilities(max_no_categories + 1);
+  double exponent = 0.0;
+  double rest_score = 0.0;
+  double cumsum = 0.0;
+  double u = 0.0;
+  int score = 0;
+
+  for(int missing = 0; missing < no_missings; missing++) {
+    //Which observation to impute?
+    int person = missing_index(missing, 0) - 1;
+    int node = missing_index(missing, 1) - 1;
+
+    //Generate new observation
+    rest_score = rest_matrix(person, node);
+
+    cumsum = 1.0;
+    probabilities[0] = 1.0;
+    for(int category = 0; category < no_categories[node]; category++) {
+      exponent = thresholds(node, category);
+      exponent += (category + 1) * rest_score;
+      cumsum += std::exp(exponent);
+      probabilities[category + 1] = cumsum;
+    }
+
+    u = cumsum * R::unif_rand();
+
+    score = 0;
+    while (u > probabilities[score]) {
+      score++;
+    }
+    int new_observation = score;
+
+    //Update observations
+    int old_observation = observations(person, node);
+    if(old_observation != new_observation) {
+      observations(person, node) = new_observation;
+     n_cat_obs(old_observation, node)--;
+     n_cat_obs(new_observation, node)++;
+     for(int vertex = 0; vertex < no_nodes; vertex++) {
+       rest_matrix(person, vertex) -= old_observation * interactions(vertex, node);
+       rest_matrix(person, vertex) += new_observation * interactions(vertex, node);
+     }
+    }
+  }
+
+  // int no_persons = rest_matrix.nrow();
+  // NumericMatrix new_rest_matrix(no_persons, no_nodes);
+  // for(int node1 = 0; node1 < no_nodes; node1++) {
+  //   for(int person = 0; person < no_persons; person++) {
+  //     for(int node2 = 0; node2 < no_nodes; node2++) {
+  //       new_rest_matrix(person, node1) +=
+  //         observations(person, node2) * interactions(node2, node1);
+  //     }
+  //   }
+  // }
+  //
+  // IntegerMatrix new_n_cat_obs(max_no_categories + 1, no_nodes);
+  // for(int node = 0; node < no_nodes; node++) {
+  //   for(int person = 0; person < no_persons; person++) {
+  //     new_n_cat_obs(observations(person, node), node)++;
+  //   }
+  // }
+
+  return List::create(Named("observations") = observations,
+                      Named("n_cat_obs") = n_cat_obs,
+                      Named("rest_matrix") = rest_matrix);
+}
+
+// ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the threshold parameters
 // ----------------------------------------------------------------------------|
 NumericMatrix metropolis_thresholds(NumericMatrix interactions,
@@ -661,6 +748,8 @@ List gibbs_sampler(IntegerMatrix observations,
                    IntegerMatrix n_cat_obs,
                    double threshold_alpha,
                    double threshold_beta,
+                   bool there_is_missing_data,
+                   IntegerMatrix missing_index,
                    bool adaptive = false,
                    bool save = false,
                    bool display_progress = false) {
@@ -730,6 +819,20 @@ List gibbs_sampler(IntegerMatrix observations,
       index(cntr, 0) = Index(order[cntr], 0);
       index(cntr, 1) = Index(order[cntr], 1);
       index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+    if(there_is_missing_data == true) {
+      List out = impute_missing_data(interactions,
+                                     thresholds,
+                                     observations,
+                                     n_cat_obs,
+                                     no_categories,
+                                     rest_matrix,
+                                     missing_index);
+
+      IntegerMatrix observations = out["observations"];
+      IntegerMatrix n_cat_obs = out["n_cat_obs"];
+      NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
     List out = gibbs_step_gm(observations,
@@ -805,6 +908,20 @@ List gibbs_sampler(IntegerMatrix observations,
       index(cntr, 0) = Index(order[cntr], 0);
       index(cntr, 1) = Index(order[cntr], 1);
       index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+    if(there_is_missing_data == true) {
+      List out = impute_missing_data(interactions,
+                                     thresholds,
+                                     observations,
+                                     n_cat_obs,
+                                     no_categories,
+                                     rest_matrix,
+                                     missing_index);
+
+      IntegerMatrix observations = out["observations"];
+      IntegerMatrix n_cat_obs = out["n_cat_obs"];
+      NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
     List out = gibbs_step_gm(observations,

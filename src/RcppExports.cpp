@@ -57,8 +57,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler
-List gibbs_sampler(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, String edge_prior, NumericMatrix theta, double beta_bernoulli_alpha, double beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, bool adaptive, bool save, bool display_progress);
-RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP adaptiveSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
+List gibbs_sampler(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, String edge_prior, NumericMatrix theta, double beta_bernoulli_alpha, double beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, bool there_is_missing_data, IntegerMatrix missing_index, bool adaptive, bool save, bool display_progress);
+RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP there_is_missing_dataSEXP, SEXP missing_indexSEXP, SEXP adaptiveSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -81,10 +81,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs(n_cat_obsSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_alpha(threshold_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
+    Rcpp::traits::input_parameter< bool >::type there_is_missing_data(there_is_missing_dataSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type missing_index(missing_indexSEXP);
     Rcpp::traits::input_parameter< bool >::type adaptive(adaptiveSEXP);
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, adaptive, save, display_progress));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, there_is_missing_data, missing_index, adaptive, save, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -325,7 +327,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_em_gamma", (DL_FUNC) &_bgms_em_gamma, 5},
     {"_bgms_em_interaction_var", (DL_FUNC) &_bgms_em_interaction_var, 5},
-    {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 22},
+    {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 24},
     {"_bgms_gradient_thresholds_pseudolikelihood", (DL_FUNC) &_bgms_gradient_thresholds_pseudolikelihood, 4},
     {"_bgms_gradient_thresholds_pseudoposterior", (DL_FUNC) &_bgms_gradient_thresholds_pseudoposterior, 6},
     {"_bgms_gradient_interactions_pseudolikelihood", (DL_FUNC) &_bgms_gradient_interactions_pseudolikelihood, 4},

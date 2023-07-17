@@ -271,16 +271,40 @@ bgm = function(x,
     stop("Parameter ``threshold_beta'' needs to be positive.")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data(x = x)
+  data = reformat_data_bgm(x = x)
   x = data$x
   no_categories = data$no_categories
+  missing_index = data$missing_index
+  there_is_missing_data = data$there_is_missing_data
+
+  if(there_is_missing_data == TRUE) {
+    if(adaptive == FALSE & interaction_prior == "Cauchy")
+      warning(paste0(
+        "There were missing responses. We must switch to an adaptive MH\n",
+        "algorithm to update the interaction parameters."))
+    if(adaptive == FALSE & interaction_prior != "Cauchy")
+      warning(paste0(
+        "There were missing responses. We must switch to a Cauchy prior for the\n",
+        "interaction parameters and use an adaptive MH algorithm to update them."))
+    if(adaptive == TRUE & interaction_prior != "Cauchy")
+      warning(paste0(
+        "There were missing responses. We must switch to a Cauchy prior for the\n",
+        "interaction parameters."))
+
+    adaptive = TRUE
+    interaction_prior = "Cauchy"
+
+    if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
+      stop("The scale of the Cauchy prior needs to be positive.")
+
+  }
 
   no_nodes = ncol(x)
   no_interactions = no_nodes * (no_nodes - 1) / 2
   no_thresholds = sum(no_categories)
 
   #Proposal set-up for the interaction parameters ------------------------------
-  if(interaction_prior == "UnitInfo") {
+  if(interaction_prior == "UnitInfo" && !there_is_missing_data) {
     pps = try(mppe(x = x,
                    interaction_prior = interaction_prior),
               silent = TRUE)
@@ -291,23 +315,25 @@ bgm = function(x,
         "Cauchy prior option."))
     unit_info = sqrt(pps$unit_info)
   } else {
-    pps = try(mppe(x = x,
-                   interaction_prior = interaction_prior,
-                   cauchy_scale = cauchy_scale),
-              silent = TRUE)
-    if(inherits(pps, what = "try-error")) {
-      if(adaptive == FALSE) {
-        stop(paste0(
-          "By default, the MCMC procedure underlying the bgm function uses a \n",
-          "Metropolis algorithm with a fixed proposal distribution. We attempt to \n",
-          "fit this proposal distribution to the target posterior distribution by \n",
-          "locating the posterior mode and using information about the curvature \n",
-          "around that mode to set the variance of the proposal distributions. \n",
-          "Unfortunately, we were unable to locate the posterior mode for your data.\n",
-          "Please try again with ``adaptive = TRUE''."))
-      } else {
-        warning(paste0(
-          "We tried starting the procedure from the posterior mode but could not locate it."))
+    if(!there_is_missing_data) {
+      pps = try(mppe(x = x,
+                     interaction_prior = interaction_prior,
+                     cauchy_scale = cauchy_scale),
+                silent = TRUE)
+      if(inherits(pps, what = "try-error")) {
+        if(adaptive == FALSE) {
+          stop(paste0(
+            "By default, the MCMC procedure underlying the bgm function uses a \n",
+            "Metropolis algorithm with a fixed proposal distribution. We attempt to \n",
+            "fit this proposal distribution to the target posterior distribution by \n",
+            "locating the posterior mode and using information about the curvature \n",
+            "around that mode to set the variance of the proposal distributions. \n",
+            "Unfortunately, we were unable to locate the posterior mode for your data.\n",
+            "Please try again with ``adaptive = TRUE''."))
+        } else {
+          warning(paste0(
+            "We tried starting the procedure from the posterior mode but could not locate it."))
+        }
       }
     }
     unit_info = matrix(data = NA, nrow = 1, ncol = 1)
@@ -317,7 +343,7 @@ bgm = function(x,
   proposal_sd = matrix(1,
                        nrow = no_nodes,
                        ncol = no_nodes)
-  if(adaptive == FALSE) {
+  if(adaptive == FALSE && !there_is_missing_data) {
     hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
 
     cntr = 0
@@ -336,12 +362,12 @@ bgm = function(x,
                  ncol = no_nodes)
 
   #Starting values of interactions and thresholds (posterior mode)
-  if(!inherits(pps, what = "try-error")) {
+  if(!there_is_missing_data && !inherits(pps, what = "try-error")) {
     interactions = pps$interactions
     thresholds = pps$thresholds
   } else {
     interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
-    threshods = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+    thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
   }
 
   #Precomputing number of observations per category for each node.
@@ -388,6 +414,8 @@ bgm = function(x,
                       n_cat_obs = n_cat_obs,
                       threshold_alpha = threshold_alpha,
                       threshold_beta = threshold_beta,
+                      there_is_missing_data,
+                      missing_index,
                       adaptive = adaptive,
                       save = save,
                       display_progress = display_progress)
