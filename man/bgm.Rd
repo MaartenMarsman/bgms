@@ -18,68 +18,83 @@ bgm(
   threshold_alpha = 1,
   threshold_beta = 1,
   adaptive = FALSE,
+  na.action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
 )
 }
 \arguments{
-\item{x}{A dataframe or matrix with \code{n} rows and \code{p} columns,
+\item{x}{A data frame or matrix with \code{n} rows and \code{p} columns
 containing binary and ordinal variables for \code{n} independent observations
 and \code{p} variables in the network. Variables are recoded as non-negative
-integers \code{(0, 1, ..., m)} if not done already. Unobserved categories are
-collapsed into other categories after recoding. See \code{reformat_data} for
-details.}
+integers \code{(0, 1, ..., m)} if not already done. Unobserved categories are
+collapsed into other categories after recoding (i.e., if category 1 is
+unobserved, the data will be recoded from (0, 2) to (0, 1)).}
 
-\item{iter}{The number of iterations of the Gibbs sampler. Defaults to
-\code{1e4}. For better estimates, it is recommended to run the procedure for
-at least \code{1e5} iterations.}
+\item{iter}{The number of iterations of the Gibbs sampler. The default of
+\code{1e4} is for illustrative purposes. For stable estimates, it is
+recommended to run the Gibbs sampler for at least \code{1e5} iterations.}
 
-\item{burnin}{The number of burnin iterations. The output of the Gibbs
-sampler is stored after burnin iterations.}
+\item{burnin}{The number of iterations of the Gibbs sampler before its output
+is saved. Since it may take some time for the Gibbs sampler to converge to
+the posterior distribution, it is recommended not to set this number too low.}
 
-\item{interaction_prior}{The prior distribution for the interaction effects.
-Currently, two prior densities are implemented: The Unit Information prior
-(\code{interaction_prior = "UnitInfo"}) and the Cauchy prior
-(\code{interaction_prior = "Cauchy"}). Defaults to \code{"Cauchy"}.}
+\item{interaction_prior}{The type of prior distribution that is used for the
+interaction effects. Currently, two prior densities are implemented: The
+Cauchy prior (\code{interaction_prior = "Cauchy"}) and the Unit Information
+prior (\code{interaction_prior = "UnitInfo"}).}
 
 \item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults
 to \code{2.5}.}
 
-\item{edge_prior}{The prior distribution for the network's edges or structure.
-Currently, two prior distributions are implemented: The Bernoulli model
-\code{edge_prior = "Bernoulli"} assumes that the probability that an edge
-between two variables is included is equal to \code{inclusion_probability},
-and independent of other edges or variables. If
-\code{inclusion_probability = 0.5}, this implies that each network structure
-receives an equal prior weight. The Beta-Bernoulli model
-\code{edge_prior = "Beta-Binomial"} assumes a Beta prior distribution for the
-unknown inclusion probability with shape parameters
-\code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}. If
-\code{beta_bernoulli_alpha = 1} and \code{beta_bernoulli_beta = 1}, this
-implies that the group of networks with the same complexity (number of edges)
-receive the same prior weight. Defaults to \code{edge_prior = "Bernoulli"}.}
+\item{edge_prior}{The prior distribution for the edges or structure of the
+network. Two prior distributions are currently implemented: The Bernoulli
+model \code{edge_prior = "Bernoulli"} assumes that the probability that an
+edge between two variables is included is equal to
+\code{inclusion_probability} and independent of other edges or variables.
+When \code{inclusion_probability = 0.5}, this implies that each network
+structure receives the same prior weight. The Beta-Bernoulli model
+\code{edge_prior = "Beta-Bernoulli"} assumes a beta prior for the unknown
+inclusion probability with shape parameters \code{beta_bernoulli_alpha} and
+\code{beta_bernoulli_beta}. If \code{beta_bernoulli_alpha = 1} and
+\code{beta_bernoulli_beta = 1}, this means that networks with the same
+complexity (number of edges) receive the same prior weight. Defaults to
+\code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
-Bernoulli model. Can be a single probability or a matrix of \code{p} rows and
-\code{p} columns that specified an inclusion probability for each edge pair.
+bernoulli model. Can be a single probability, or a matrix of \code{p} rows
+and \code{p} columns specifying an inclusion probability for each edge pair.
 Defaults to \code{inclusion_probability = 0.5}.}
 
 \item{beta_bernoulli_alpha, beta_bernoulli_beta}{The two shape parameters of
-the Beta prior stipulated on the Bernoulli inclusion probability. Need to be
-positive. Default to \code{beta_bernoulli_alpha = 1} and
+the Beta prior density for the Bernoulli inclusion probability. Must be
+positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}.}
 
-\item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
-prior for the thresholds. Defaults to \code{1}.}
+\item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
+prior density for the threshold parameters. Must be positive values. If the
+two values are equal, the prior density is symmetric about zero. If
+\code{threshold_beta} is greater than \code{threshold_alpha}, the
+distribution is skewed to the left, and if \code{threshold_beta} is less than
+\code{threshold_alpha}, it is skewed to the right.}
 
-\item{adaptive}{Should we run an adaptive Metropolis algorithm for
-within-model updates of the interaction parameters? If
-\code{adaptive = TRUE}, we adjust the proposal variance to match the
-acceptance probability of the random walk Metropolis algorithm to be close to
-the optimum of \code{.234} using a Robbins-Monro type algorithm. If
-\code{adaptive = TRUE}, we set the proposal variance to the inverse of the
-observed Fisher information matrix (the second derivative at the posterior
-mode).}
+\item{adaptive}{Should the function use an adaptive Metropolis algorithm to
+update interaction parameters within the model? If \code{adaptive = TRUE},
+bgm adjusts the proposal variance to match the acceptance probability of the
+random walk Metropolis algorithm to be close to the optimum of \code{.234}
+using a Robbins-Monro type algorithm. If \code{adaptive = FALSE}, it sets the
+proposal variance to the inverse of the observed Fisher information matrix
+(the second derivative at the posterior mode). Defaults to \code{FALSE}.}
+
+\item{na.action}{How do you want the function to handle missing data? If
+\code{na.action = "listwise"}, listwise deletion is used. If
+\code{na.action = "impute"}, missing data are imputed iteratively during the
+MCMC procedure. Since imputation of missing data can have a negative impact
+on the convergence speed of the MCMC procedure, it is recommended to run the
+MCMC for more iterations. Also, since the numerical routines that search for
+the mode of the posterior do not have an imputation option, the bgm will
+automatically switch to \code{interaction_prior = "Cauchy"} and
+\code{adaptive = TRUE}.}
 
 \item{save}{Should the function collect and return all samples from the Gibbs
 sampler (\code{save = TRUE})? Or should it only return the (model-averaged)

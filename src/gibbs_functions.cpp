@@ -24,16 +24,13 @@ List impute_missing_data(NumericMatrix interactions,
     }
   }
   NumericVector probabilities(max_no_categories + 1);
-  double exponent = 0.0;
-  double rest_score = 0.0;
-  double cumsum = 0.0;
-  double u = 0.0;
-  int score = 0;
+  double exponent, rest_score, cumsum, u;
+  int score, person, node, new_observation, old_observation;
 
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute?
-    int person = missing_index(missing, 0) - 1;
-    int node = missing_index(missing, 1) - 1;
+    person = missing_index(missing, 0) - 1;
+    node = missing_index(missing, 1) - 1;
 
     //Generate new observation
     rest_score = rest_matrix(person, node);
@@ -48,43 +45,24 @@ List impute_missing_data(NumericMatrix interactions,
     }
 
     u = cumsum * R::unif_rand();
-
     score = 0;
     while (u > probabilities[score]) {
       score++;
     }
-    int new_observation = score;
+    new_observation = score;
 
     //Update observations
-    int old_observation = observations(person, node);
+    old_observation = observations(person, node);
     if(old_observation != new_observation) {
       observations(person, node) = new_observation;
-     n_cat_obs(old_observation, node)--;
-     n_cat_obs(new_observation, node)++;
-     for(int vertex = 0; vertex < no_nodes; vertex++) {
-       rest_matrix(person, vertex) -= old_observation * interactions(vertex, node);
-       rest_matrix(person, vertex) += new_observation * interactions(vertex, node);
-     }
+      n_cat_obs(old_observation, node)--;
+      n_cat_obs(new_observation, node)++;
+      for(int vertex = 0; vertex < no_nodes; vertex++) {
+        rest_matrix(person, vertex) -= old_observation * interactions(vertex, node);
+        rest_matrix(person, vertex) += new_observation * interactions(vertex, node);
+      }
     }
   }
-
-  // int no_persons = rest_matrix.nrow();
-  // NumericMatrix new_rest_matrix(no_persons, no_nodes);
-  // for(int node1 = 0; node1 < no_nodes; node1++) {
-  //   for(int person = 0; person < no_persons; person++) {
-  //     for(int node2 = 0; node2 < no_nodes; node2++) {
-  //       new_rest_matrix(person, node1) +=
-  //         observations(person, node2) * interactions(node2, node1);
-  //     }
-  //   }
-  // }
-  //
-  // IntegerMatrix new_n_cat_obs(max_no_categories + 1, no_nodes);
-  // for(int node = 0; node < no_nodes; node++) {
-  //   for(int person = 0; person < no_persons; person++) {
-  //     new_n_cat_obs(observations(person, node), node)++;
-  //   }
-  // }
 
   return List::create(Named("observations") = observations,
                       Named("n_cat_obs") = n_cat_obs,
@@ -307,8 +285,13 @@ List metropolis_interactions_cauchy(NumericMatrix interactions,
         }
 
         if(adaptive == true) {
+          if(log_prob > 0) {
+            log_prob = 1;
+          } else {
+            log_prob = std::exp(log_prob);
+          }
           proposal_sd(node1, node2) = proposal_sd(node1, node2) +
-            (std::exp(log_prob) - target_ar) * std::exp(-log(t) * phi);
+            (log_prob - target_ar) * std::exp(-log(t) * phi);
           if(proposal_sd(node1, node2) < epsilon_lo) {
             proposal_sd(node1, node2) = epsilon_lo;
           } else if (proposal_sd(node1, node2) > epsilon_hi) {
@@ -323,7 +306,6 @@ List metropolis_interactions_cauchy(NumericMatrix interactions,
                       Named("rest_matrix") = rest_matrix,
                       Named("proposal_sd") = proposal_sd);
 }
-
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the cull-conditional of the active interaction
@@ -393,8 +375,13 @@ List metropolis_interactions_unitinfo(NumericMatrix interactions,
         }
 
         if(adaptive == true) {
+          if(log_prob > 0) {
+            log_prob = 1;
+          } else {
+            log_prob = std::exp(log_prob);
+          }
           proposal_sd(node1, node2) = proposal_sd(node1, node2) +
-            (std::exp(log_prob) - target_ar) * std::exp(-log(t) * phi);
+            (log_prob - target_ar) * std::exp(-log(t) * phi);
           if(proposal_sd(node1, node2) < epsilon_lo) {
             proposal_sd(node1, node2) = epsilon_lo;
           } else if (proposal_sd(node1, node2) > epsilon_hi) {
@@ -748,7 +735,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    IntegerMatrix n_cat_obs,
                    double threshold_alpha,
                    double threshold_beta,
-                   bool there_is_missing_data,
+                   bool na_impute,
                    IntegerMatrix missing_index,
                    bool adaptive = false,
                    bool save = false,
@@ -821,7 +808,7 @@ List gibbs_sampler(IntegerMatrix observations,
       index(cntr, 2) = Index(order[cntr], 2);
     }
 
-    if(there_is_missing_data == true) {
+    if(na_impute == true) {
       List out = impute_missing_data(interactions,
                                      thresholds,
                                      observations,
@@ -910,7 +897,7 @@ List gibbs_sampler(IntegerMatrix observations,
       index(cntr, 2) = Index(order[cntr], 2);
     }
 
-    if(there_is_missing_data == true) {
+    if(na_impute == true) {
       List out = impute_missing_data(interactions,
                                      thresholds,
                                      observations,
