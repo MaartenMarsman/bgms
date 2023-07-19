@@ -59,7 +59,8 @@
 #' two values are equal, the prior density is symmetric about zero. If
 #' \code{threshold_beta} is greater than \code{threshold_alpha}, the
 #' distribution is skewed to the left, and if \code{threshold_beta} is less than
-#' \code{threshold_alpha}, it is skewed to the right.
+#' \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
+#' lead to more diffuse prior distributions.
 #' @param adaptive Should the function use an adaptive Metropolis algorithm to
 #' update interaction parameters within the model? If \code{adaptive = TRUE},
 #' bgm adjusts the proposal variance to match the acceptance probability of the
