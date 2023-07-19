@@ -1,7 +1,7 @@
 Package: bgms
 Type: Package
 Title: Bayesian Variable Selection for Networks of Binary and/or Ordinal Variables
-Version: 0.2.0
+Version: 0.1.1
 Date: 2023-04-14
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
