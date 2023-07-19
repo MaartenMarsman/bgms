@@ -855,12 +855,6 @@ List gibbs_sampler(IntegerMatrix observations,
     NumericMatrix rest_matrix = out["rest_matrix"];
     NumericMatrix proposal_sd = out["proposal_sd"];
 
-    IntegerMatrix gamma = out["gamma"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-
-    //Update the prior inclusion parameter -------------------------------------
     if(edge_prior == "Beta-Bernoulli") {
       int sumG = 0;
       for(int i = 0; i < no_nodes - 1; i++) {
@@ -878,6 +872,7 @@ List gibbs_sampler(IntegerMatrix observations,
         }
       }
     }
+
   }
 
   //The post burn-in iterations ------------------------------------------------
@@ -949,12 +944,6 @@ List gibbs_sampler(IntegerMatrix observations,
     NumericMatrix rest_matrix = out["rest_matrix"];
     NumericMatrix proposal_sd = out["proposal_sd"];
 
-    IntegerMatrix gamma = out["gamma"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-
-    //Update the prior inclusion parameter -------------------------------------
     if(edge_prior == "Beta-Bernoulli") {
       int sumG = 0;
       for(int i = 0; i < no_nodes - 1; i++) {
