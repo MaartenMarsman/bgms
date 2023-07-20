@@ -47,7 +47,7 @@
 #' complexity (number of edges) receive the same prior weight. Defaults to
 #' \code{edge_prior = "Bernoulli"}.
 #' @param inclusion_probability The prior edge inclusion probability for the
-#' bernoulli model. Can be a single probability, or a matrix of \code{p} rows
+#' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
 #' and \code{p} columns specifying an inclusion probability for each edge pair.
 #' Defaults to \code{inclusion_probability = 0.5}.
 #' @param beta_bernoulli_alpha,beta_bernoulli_beta The two shape parameters of
@@ -74,8 +74,8 @@
 #' MCMC procedure. Since imputation of missing data can have a negative impact
 #' on the convergence speed of the MCMC procedure, it is recommended to run the
 #' MCMC for more iterations. Also, since the numerical routines that search for
-#' the mode of the posterior do not have an imputation option, the bgm will
-#' automatically switch to \code{interaction_prior = "Cauchy"} and
+#' the mode of the posterior do not have an imputation option, the bgm function
+#' will automatically switch to \code{interaction_prior = "Cauchy"} and
 #' \code{adaptive = TRUE}.
 #' @param save Should the function collect and return all samples from the Gibbs
 #' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
@@ -296,27 +296,14 @@ bgm = function(x,
   na.impute = data$na.impute
 
   if(na.impute == TRUE) {
-    if(adaptive == FALSE & interaction_prior == "Cauchy")
-      warning(paste0(
-        "There were missing responses and na.action was set to ``impute''. The \n",
-        "bgm function must switch to an adaptive MH algorithm to update the \n",
-        "interaction parameters."))
-    if(adaptive == FALSE & interaction_prior != "Cauchy")
-      warning(paste0(
-        "There were missing responses and na.action was set to ``impute''. The \n",
-        "bgm function must switch to an adaptive MH algorithm to update the \n",
-        "interaction parameters, and switch the interaction_prior to ``Cauchy''."))
-    if(adaptive == TRUE & interaction_prior != "Cauchy")
+    if(interaction_prior != "Cauchy")
       warning(paste0(
         "There were missing responses and na.action was set to ``impute''. The \n",
         "bgm function must switch the interaction_prior to ``Cauchy''."))
-
     adaptive = TRUE
     interaction_prior = "Cauchy"
-
     if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
       stop("The scale of the Cauchy prior needs to be positive.")
-
   }
 
   no_nodes = ncol(x)
