@@ -297,8 +297,14 @@ insights.</p>
 <span>  burnin <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>  interaction_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"UnitInfo"</span>, <span class="st">"Cauchy"</span><span class="op">)</span>,</span>
 <span>  cauchy_scale <span class="op">=</span> <span class="fl">2.5</span>,</span>
+<span>  edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span><span class="op">)</span>,</span>
+<span>  inclusion_probability <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  beta_bernoulli_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  beta_bernoulli_beta <span class="op">=</span> <span class="fl">1</span>,  </span>
 <span>  threshold_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  threshold_beta <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  adaptive <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  na.action <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"listwise"</span>, <span class="st">"impute"</span><span class="op">)</span>,</span>
 <span>  save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  display_progress <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -311,24 +317,76 @@ insights.</p>
 <code>p</code> columns, containing binary and ordinal variables for
 <code>n</code> independent observations and <code>p</code> variables in
 the network. Variables are recoded as non-negative integers (0, 1, …, m)
-if not done already. Unobserved categories are collapsed into other
-categories after recoding. See <code>reformat_data</code> for
-details.</p></li>
+if not already done. Unobserved categories are collapsed into other
+categories after recoding (i.e., if category 1 is unobserved, the data
+will be recoded from (0, 2) to (0, 1)).</p></li>
 <li><p><code>iter</code>: The number of iterations of the Gibbs sampler.
-Defaults to <code>1e4</code>. For better estimates, it is recommended to
-run the procedure for at least <code>1e5</code> iterations.</p></li>
-<li><p><code>burnin</code>: The number of burnin iterations. The output
-of the Gibbs sampler is stored after burnin iterations.</p></li>
+The default of <code>1e4</code> is for illustrative purposes. For stable
+estimates, it is recommended to run the Gibbs sampler for at least
+<code>1e5</code> iterations.</p></li>
+<li><p><code>burnin</code>: The number of iterations of the Gibbs
+sampler before its output is saved. Since it may take some time for the
+Gibbs sampler to converge to the posterior distribution, it is
+recommended not to set this number too low.</p></li>
 <li><p><code>interaction_prior</code>: The prior distribution for the
 interaction effects. Currently, two prior densities are implemented: The
-Unit Information prior (<code>interaction_prior = "UnitInfo"</code>) and
-the Cauchy prior (<code>interaction_prior = "Cauchy"</code>). Defaults
-to <code>"UnitInfo"</code>.</p></li>
+Cauchy prior (<code>interaction_prior = "Cauchy"</code>) and the Unit
+Information prior (<code>interaction_prior = "UnitInfo"</code>).
+Defaults to <code>"Cauchy"</code>.</p></li>
 <li><p><code>cauchy_scale</code>: The scale of the Cauchy prior for
 interactions. Defaults to <code>2.5</code>.</p></li>
+<li><p><code>edge_prior</code>: The prior distribution for the edges or
+structure of the network. Two prior distributions are currently
+implemented: The Bernoulli model <code>edge_prior = "Bernoulli"</code>
+assumes that the probability that an edge between two variables is
+included is equal to <code>inclusion_probability</code> and independent
+of other edges or variables. When
+<code>inclusion_probability = 0.5</code>, this implies that each network
+structure receives the same prior weight. The Beta-Bernoulli model
+<code>edge_prior = "Beta-Bernoulli"</code> assumes a beta prior for the
+unknown inclusion probability with shape parameters
+<code>beta_bernoulli_alpha</code> and <code>beta_bernoulli_beta</code>.
+If <code>beta_bernoulli_alpha = 1</code> and
+<code>beta_bernoulli_beta = 1</code>, this means that networks with the
+same complexity (number of edges) receive the same prior weight.
+Defaults to `edge_prior = “Bernoulli”’.</p></li>
+<li><p><code>inclusion_probability</code>: The prior edge inclusion
+probability for the Bernoulli model. Can be a single probability, or a
+matrix of <code>p</code> rows and <code>p</code> columns specifying an
+inclusion probability for each edge pair.Defaults to
+<code>inclusion_probability = 0.5</code>.</p></li>
+<li><p><code>beta_bernoulli_alpha, beta_bernoulli_beta</code>: The two
+shape parameters of the Beta prior density for the Bernoulli inclusion
+probability. Must be positive numbers. Defaults to
+<code>beta_bernoulli_alpha = 1</code> and
+<code>beta_bernoulli_beta = 1</code>.</p></li>
 <li><p><code>threshold_alpha, threshold_beta</code>: The shape
-parameters of the Beta-prime prior for the thresholds. Defaults to
-<code>1</code>.</p></li>
+parameters of the beta-prime prior density for the threshold parameters.
+Must be positive values. If the two values are equal, the prior density
+is symmetric about zero. If <code>threshold_beta</code> is greater than
+<code>threshold_alpha</code>, the distribution is skewed to the left,
+and if <code>threshold_beta</code> is less than
+<code>threshold_alpha</code>, it is skewed to the right. Smaller values
+tend to lead to more diffuse prior distributions.</p></li>
+<li><p><code>adaptive</code>: Should the function use an adaptive
+Metropolis algorithm to update interaction parameters within the model?
+If <code>adaptive = TRUE</code>, bgm adjusts the proposal variance to
+match the acceptance probability of the random walk Metropolis algorithm
+to be close to the optimum of <code>.234</code> using a Robbins-Monro
+type algorithm. If <code>adaptive = FALSE</code>, it sets the proposal
+variance to the inverse of the observed Fisher information matrix (the
+second derivative at the posterior mode). Defaults to
+<code>FALSE</code>.</p></li>
+<li><p><code>na.action</code>: How do you want the function to handle
+missing data? If <code>na.action = "listwise"</code>, listwise deletion
+is used. If <code>na.action = "impute"</code>, missing data are imputed
+iteratively during the MCMC procedure. Since imputation of missing data
+can have a negative impact on the convergence speed of the MCMC
+procedure, it is recommended to run the MCMC for more iterations. Also,
+since the numerical routines that search for the mode of the posterior
+do not have an imputation option, the bgm function will automatically
+switch to <code>interaction_prior = "Cauchy"</code> and
+<code>adaptive = TRUE</code>.</p></li>
 <li><p><code>save</code>: Should the function collect and return all
 samples from the Gibbs sampler (<code>save = TRUE</code>)? Or should it
 only return the (model-averaged) posterior means
@@ -568,7 +626,7 @@ structures <code>bgm</code> encountered in 10,000 iterations.</p>
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">S</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 8396</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 8285</span></span></code></pre></div>
 <p>There are clearly many different network structures that could fit
 the data. Let’s estimate their posterior probabilities.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
@@ -580,7 +638,7 @@ the data. Let’s estimate their posterior probabilities.</p>
 <span><span class="op">}</span></span>
 <span><span class="va">Ps</span> <span class="op">=</span> <span class="va">Ps</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">Ps</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.14</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.19</span></span></code></pre></div>
 <p>The most plausible model accounts for less than <code>1</code>
 percent of the posterior probability. In conclusion, we have significant
 uncertainty about the network structure that generated the data.</p>
