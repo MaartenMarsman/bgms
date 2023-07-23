@@ -62,7 +62,7 @@ complexity (number of edges) receive the same prior weight. Defaults to
 \code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
-bernoulli model. Can be a single probability, or a matrix of \code{p} rows
+Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
 and \code{p} columns specifying an inclusion probability for each edge pair.
 Defaults to \code{inclusion_probability = 0.5}.}
 
@@ -93,8 +93,8 @@ proposal variance to the inverse of the observed Fisher information matrix
 MCMC procedure. Since imputation of missing data can have a negative impact
 on the convergence speed of the MCMC procedure, it is recommended to run the
 MCMC for more iterations. Also, since the numerical routines that search for
-the mode of the posterior do not have an imputation option, the bgm will
-automatically switch to \code{interaction_prior = "Cauchy"} and
+the mode of the posterior do not have an imputation option, the bgm function
+will automatically switch to \code{interaction_prior = "Cauchy"} and
 \code{adaptive = TRUE}.}
 
 \item{save}{Should the function collect and return all samples from the Gibbs
