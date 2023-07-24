@@ -230,7 +230,6 @@ double log_pseudolikelihood_ratio_cross_lagged(NumericMatrix crsec_interactions,
       //Node 1 log pseudolikelihood ratio
       rest_score = 0.0;
       for(int node = 0; node < no_nodes; node++) {
-        //This assumes that crsec_interactions(i, i) = 0.0
         rest_score += crsec_interactions(node1, node) *
           observations(person, node + start[t]);
         rest_score += crlag_interactions(node1, node) *
@@ -360,7 +359,7 @@ List metropolis_cross_lagged_interactions(NumericMatrix crsec_interactions,
                                           int no_timepoints,
                                           double phi,
                                           double target_ar,
-                                          int t,
+                                          int tt,
                                           double epsilon_lo,
                                           double epsilon_hi) {
   double proposed_state;
@@ -372,7 +371,8 @@ List metropolis_cross_lagged_interactions(NumericMatrix crsec_interactions,
     for(int node2 = 0; node2 <  no_nodes; node2++) {
       if(delta(node1, node2) == 1) {
         current_state = crlag_interactions(node1, node2);
-        proposed_state = R::rnorm(current_state, crlag_proposal_sd(node1, node2));
+        proposed_state = R::rnorm(current_state,
+                                  crlag_proposal_sd(node1, node2));
 
         log_prob = log_pseudolikelihood_ratio_cross_lagged(crsec_interactions,
                                                            crlag_interactions,
@@ -392,10 +392,8 @@ List metropolis_cross_lagged_interactions(NumericMatrix crsec_interactions,
         log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
 
         U = R::unif_rand();
-        if(std::log(U) < log_prob) {
+        if(std::log(U) < log_prob)
           crlag_interactions(node1, node2) = proposed_state;
-          crlag_interactions(node2, node1) = proposed_state;
-        }
 
         if(log_prob > 0) {
           log_prob = 1;
@@ -403,7 +401,7 @@ List metropolis_cross_lagged_interactions(NumericMatrix crsec_interactions,
           log_prob = std::exp(log_prob);
         }
         crlag_proposal_sd(node1, node2) = crlag_proposal_sd(node1, node2) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
+          (log_prob - target_ar) * std::exp(-log(tt) * phi);
         if(crlag_proposal_sd(node1, node2) < epsilon_lo) {
           crlag_proposal_sd(node1, node2) = epsilon_lo;
         } else if (crlag_proposal_sd(node1, node2) > epsilon_hi) {
@@ -579,16 +577,12 @@ List metropolis_cross_lagged_edge_interaction_pair(NumericMatrix crsec_interacti
     U = R::unif_rand();
     if(std::log(U) < log_prob) {
       delta(node1, node2) = 1 - delta(node1, node2);
-      delta(node2, node1) = 1 - delta(node2, node1);
-
       crlag_interactions(node1, node2) = proposed_state;
-      crlag_interactions(node2, node1) = proposed_state;
     }
   }
   return List::create(Named("crlag_interactions") = crlag_interactions,
                       Named("delta") = delta);
 }
-
 
 // ----------------------------------------------------------------------------|
 // Gibbs step for graphical model parameters
@@ -658,28 +652,28 @@ List gibbs_step_cross_lagged_mrf(IntegerMatrix observations,
   NumericMatrix THETA = out["crsec_interactions"];
   gamma = G;
   crsec_interactions = THETA;
-  //
+
   // //Block III: Cross-Lagged
-  // out = metropolis_cross_lagged_edge_interaction_pair(crsec_interactions,
-  //                                                     crlag_interactions,
-  //                                                     thresholds,
-  //                                                     delta,
-  //                                                     observations,
-  //                                                     no_categories,
-  //                                                     start,
-  //                                                     crlag_proposal_sd,
-  //                                                     cauchy_scale,
-  //                                                     crlag_index,
-  //                                                     no_crlag_interactions,
-  //                                                     no_persons,
-  //                                                     no_nodes,
-  //                                                     no_timepoints,
-  //                                                     crlag_theta);
-  // IntegerMatrix D = out["delta"];
-  // NumericMatrix PHI = out["crlag_interactions"];
-  // delta = D;
-  // crlag_interactions = PHI;
-  //
+  out = metropolis_cross_lagged_edge_interaction_pair(crsec_interactions,
+                                                      crlag_interactions,
+                                                      thresholds,
+                                                      delta,
+                                                      observations,
+                                                      no_categories,
+                                                      start,
+                                                      crlag_proposal_sd,
+                                                      cauchy_scale,
+                                                      crlag_index,
+                                                      no_crlag_interactions,
+                                                      no_persons,
+                                                      no_nodes,
+                                                      no_timepoints,
+                                                      crlag_theta);
+  IntegerMatrix D = out["delta"];
+  NumericMatrix PHI = out["crlag_interactions"];
+  delta = D;
+  crlag_interactions = PHI;
+
   //Update cross-sectional interactions (within model move)
   out = metropolis_cross_sectional_interactions(crsec_interactions,
                                                 crlag_interactions,
@@ -1091,12 +1085,10 @@ List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations,
           out_delta(node1, node2) *= iteration;
           out_delta(node1, node2) += delta(node1, node2);
           out_delta(node1, node2) /= iteration + 1;
-          out_delta(node2, node1) = out_delta(node1, node2);
 
           out_crlag_interactions(node1, node2) *= iteration;
           out_crlag_interactions(node1, node2) += crlag_interactions(node1, node2);
           out_crlag_interactions(node1, node2) /= iteration + 1;
-          out_crlag_interactions(node2, node1) = out_crlag_interactions(node1, node2);
         }
       }
 
