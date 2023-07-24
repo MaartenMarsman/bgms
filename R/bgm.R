@@ -367,8 +367,18 @@ bgm = function(x,
     interactions = pps$interactions
     thresholds = pps$thresholds
   } else {
-    interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
-    thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+    tmp = try(-solve(cov(x, use = "pairwise.complete.obs")), silent = TRUE)
+    if(!inherits(tmp, what = "try-error") & !any(is.na(tmp[lower.tri(tmp)]))) {
+      interactions = tmp
+      diag(interactions) = 0
+      thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+    } else {
+      interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
+      interactions[lower.tri(interactions)] =
+        rnorm(n = no_nodes * (no_nodes - 1) / 2)
+      interactions = interactions + t(interactions)
+      thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+    }
   }
 
   #Precomputing number of observations per category for each node.
