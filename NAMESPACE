@@ -2,9 +2,11 @@
 
 export(bgm)
 export(bgm.em)
+export(bgm.panel)
 export(mple)
 export(mppe)
 export(mrfSampler)
+export(panelmrfSampler)
 importFrom(Rcpp,evalCpp)
 importFrom(Rdpack,reprompt)
 importFrom(methods,hasArg)

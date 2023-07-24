@@ -5,6 +5,10 @@ sample_omrf_gibbs <- function(no_states, no_nodes, no_categories, interactions, 
     .Call(`_bgms_sample_omrf_gibbs`, no_states, no_nodes, no_categories, interactions, thresholds, iter)
 }
 
+sample_o_clp_mrf_gibbs <- function(no_states, no_nodes, no_timepoints, no_categories, cross_sectional_interactions, cross_lagged_interactions, thresholds, null_interactions, null_thresholds, iter) {
+    .Call(`_bgms_sample_o_clp_mrf_gibbs`, no_states, no_nodes, no_timepoints, no_categories, cross_sectional_interactions, cross_lagged_interactions, thresholds, null_interactions, null_thresholds, iter)
+}
+
 em_gamma <- function(interactions, slab_var, theta, xi, no_persons) {
     .Call(`_bgms_em_gamma`, interactions, slab_var, theta, xi, no_persons)
 }
@@ -15,6 +19,10 @@ em_interaction_var <- function(gamma, slab_var, theta, xi, no_persons) {
 
 gibbs_sampler <- function(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, na_impute, missing_index, adaptive = FALSE, save = FALSE, display_progress = FALSE) {
     .Call(`_bgms_gibbs_sampler`, observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, na_impute, missing_index, adaptive, save, display_progress)
+}
+
+gibbs_sampler_cross_lagged_mrf <- function(observations, no_persons, no_nodes, no_timepoints, gamma, delta, crsec_interactions, crlag_interactions, thresholds, no_categories, start, cauchy_scale, crsec_proposal_sd, crlag_proposal_sd, crsec_edge_prior, crlag_edge_prior, crsec_theta, crlag_theta, crsec_beta_bernoulli_alpha, crsec_beta_bernoulli_beta, crlag_beta_bernoulli_alpha, crlag_beta_bernoulli_beta, crsec_Index, crlag_Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, save = FALSE, display_progress = FALSE) {
+    .Call(`_bgms_gibbs_sampler_cross_lagged_mrf`, observations, no_persons, no_nodes, no_timepoints, gamma, delta, crsec_interactions, crlag_interactions, thresholds, no_categories, start, cauchy_scale, crsec_proposal_sd, crlag_proposal_sd, crsec_edge_prior, crlag_edge_prior, crsec_theta, crlag_theta, crsec_beta_bernoulli_alpha, crsec_beta_bernoulli_beta, crlag_beta_bernoulli_alpha, crlag_beta_bernoulli_beta, crsec_Index, crlag_Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, save, display_progress)
 }
 
 gradient_thresholds_pseudolikelihood <- function(interactions, thresholds, observations, no_categories) {

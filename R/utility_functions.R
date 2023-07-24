@@ -156,6 +156,87 @@ reformat_data_bgm = function(x, na.action) {
               na.impute = na.impute))
 }
 
+reformat_data_bgm_panel = function(x,
+                                   no_nodes,
+                                   no_timepoints,
+                                   na.action = "listwise") {
+  if(na.action == "listwise") {
+    # Check for missing values ---------------------------------------------------
+    missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
+    if(sum(missing_values) == nrow(x))
+      stop(paste0("All rows in x contain at least one missing response."))
+    if(sum(missing_values) > 1)
+      warning(paste0("There were ",
+                     sum(missing_values),
+                     " rows with missing observations in the input matrix x.\n",
+                     "These rows were excluded from the analysis."),
+              call. = FALSE)
+    if(sum(missing_values) == 1)
+      warning(paste0("There was one row with missing observations in the input matrix x.\n",
+                     "This row was excluded from the analysis."),
+              call. = FALSE)
+    x = x[!missing_values, ]
+
+    if(nrow(x) < 2 || is.null(nrow(x)))
+      stop(paste0("After removing missing observations from the input matrix x,\n",
+                  "there were less than two rows left in x."))
+
+    missing_index = matrix(NA, nrow = 1, ncol = 1)
+    na.impute = FALSE
+  } else {
+    #...
+  }
+
+  no_categories = rep(0, no_nodes)
+  no_persons = nrow(x)
+  long_format.x = vector(length = no_persons * (1 + no_timepoints))
+
+  start_person = 1 + (0:no_timepoints) * no_persons
+  stop_person = (1:(no_timepoints+1)) * no_persons
+  offset_node = (0:no_timepoints) * no_nodes
+  for(node in 1:no_nodes) {
+    for(t in 0:no_timepoints) {
+      long_format.x[start_person[t+1]:stop_person[t+1]] =
+        x[,  node + offset_node[t+1]]
+    }
+    unq_vls = sort(unique(long_format.x))
+    mx_vl = max(unq_vls)
+
+    # Check if observed responses are not all unique ---------------------------
+    if(mx_vl == nrow(x))
+      stop(paste0("Only unique responses observed for variable ",
+                  node,
+                  ". We expect >= 1 observations per category."))
+    if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
+      y = long_format.x
+      cntr = 0
+      for(value in unq_vls) {
+        long_format.x[y == value] = cntr
+        cntr = cntr + 1
+      }
+    }
+    no_categories[node] = max(long_format.x)
+
+    # Check to see if not all responses are in one category --------------------
+    if(no_categories[node] == 0)
+      stop(paste0("Only one value [",
+                  unq_vls,
+                  "] was observed for variable ",
+                  node,
+                  "."))
+    for(t in 0:no_timepoints) {
+      x[,  node + offset_node[t+1]] =
+        long_format.x[start_person[t+1]:stop_person[t+1]]
+    }
+
+  }
+
+  return(list(x = x,
+              no_categories = no_categories,
+              missing_index = missing_index,
+              na.impute = na.impute))
+}
+
 xi_delta_matching = function(xi, delta, n) {
   n * log(n / xi) / (n / xi - 1) - delta ^ 2
 }

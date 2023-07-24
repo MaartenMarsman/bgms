@@ -26,6 +26,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_o_clp_mrf_gibbs
+IntegerMatrix sample_o_clp_mrf_gibbs(int no_states, int no_nodes, int no_timepoints, IntegerVector no_categories, NumericMatrix cross_sectional_interactions, NumericMatrix cross_lagged_interactions, NumericMatrix thresholds, NumericMatrix null_interactions, NumericMatrix null_thresholds, int iter);
+RcppExport SEXP _bgms_sample_o_clp_mrf_gibbs(SEXP no_statesSEXP, SEXP no_nodesSEXP, SEXP no_timepointsSEXP, SEXP no_categoriesSEXP, SEXP cross_sectional_interactionsSEXP, SEXP cross_lagged_interactionsSEXP, SEXP thresholdsSEXP, SEXP null_interactionsSEXP, SEXP null_thresholdsSEXP, SEXP iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type no_states(no_statesSEXP);
+    Rcpp::traits::input_parameter< int >::type no_nodes(no_nodesSEXP);
+    Rcpp::traits::input_parameter< int >::type no_timepoints(no_timepointsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type no_categories(no_categoriesSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type cross_sectional_interactions(cross_sectional_interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type cross_lagged_interactions(cross_lagged_interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type null_interactions(null_interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type null_thresholds(null_thresholdsSEXP);
+    Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_o_clp_mrf_gibbs(no_states, no_nodes, no_timepoints, no_categories, cross_sectional_interactions, cross_lagged_interactions, thresholds, null_interactions, null_thresholds, iter));
+    return rcpp_result_gen;
+END_RCPP
+}
 // em_gamma
 NumericVector em_gamma(NumericMatrix interactions, NumericMatrix slab_var, double theta, double xi, int no_persons);
 RcppExport SEXP _bgms_em_gamma(SEXP interactionsSEXP, SEXP slab_varSEXP, SEXP thetaSEXP, SEXP xiSEXP, SEXP no_personsSEXP) {
@@ -87,6 +107,47 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
     rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, na_impute, missing_index, adaptive, save, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gibbs_sampler_cross_lagged_mrf
+List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations, int no_persons, int no_nodes, int no_timepoints, IntegerMatrix gamma, IntegerMatrix delta, NumericMatrix crsec_interactions, NumericMatrix crlag_interactions, NumericMatrix thresholds, IntegerVector no_categories, IntegerVector start, double cauchy_scale, NumericMatrix crsec_proposal_sd, NumericMatrix crlag_proposal_sd, String crsec_edge_prior, String crlag_edge_prior, NumericMatrix crsec_theta, NumericMatrix crlag_theta, double crsec_beta_bernoulli_alpha, double crsec_beta_bernoulli_beta, double crlag_beta_bernoulli_alpha, double crlag_beta_bernoulli_beta, IntegerMatrix crsec_Index, IntegerMatrix crlag_Index, int iter, int burnin, IntegerMatrix n_cat_obs, double threshold_alpha, double threshold_beta, bool save, bool display_progress);
+RcppExport SEXP _bgms_gibbs_sampler_cross_lagged_mrf(SEXP observationsSEXP, SEXP no_personsSEXP, SEXP no_nodesSEXP, SEXP no_timepointsSEXP, SEXP gammaSEXP, SEXP deltaSEXP, SEXP crsec_interactionsSEXP, SEXP crlag_interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP startSEXP, SEXP cauchy_scaleSEXP, SEXP crsec_proposal_sdSEXP, SEXP crlag_proposal_sdSEXP, SEXP crsec_edge_priorSEXP, SEXP crlag_edge_priorSEXP, SEXP crsec_thetaSEXP, SEXP crlag_thetaSEXP, SEXP crsec_beta_bernoulli_alphaSEXP, SEXP crsec_beta_bernoulli_betaSEXP, SEXP crlag_beta_bernoulli_alphaSEXP, SEXP crlag_beta_bernoulli_betaSEXP, SEXP crsec_IndexSEXP, SEXP crlag_IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< int >::type no_persons(no_personsSEXP);
+    Rcpp::traits::input_parameter< int >::type no_nodes(no_nodesSEXP);
+    Rcpp::traits::input_parameter< int >::type no_timepoints(no_timepointsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crsec_interactions(crsec_interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crlag_interactions(crlag_interactionsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type no_categories(no_categoriesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type start(startSEXP);
+    Rcpp::traits::input_parameter< double >::type cauchy_scale(cauchy_scaleSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crsec_proposal_sd(crsec_proposal_sdSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crlag_proposal_sd(crlag_proposal_sdSEXP);
+    Rcpp::traits::input_parameter< String >::type crsec_edge_prior(crsec_edge_priorSEXP);
+    Rcpp::traits::input_parameter< String >::type crlag_edge_prior(crlag_edge_priorSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crsec_theta(crsec_thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type crlag_theta(crlag_thetaSEXP);
+    Rcpp::traits::input_parameter< double >::type crsec_beta_bernoulli_alpha(crsec_beta_bernoulli_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type crsec_beta_bernoulli_beta(crsec_beta_bernoulli_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type crlag_beta_bernoulli_alpha(crlag_beta_bernoulli_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type crlag_beta_bernoulli_beta(crlag_beta_bernoulli_betaSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type crsec_Index(crsec_IndexSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type crlag_Index(crlag_IndexSEXP);
+    Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs(n_cat_obsSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold_alpha(threshold_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
+    Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler_cross_lagged_mrf(observations, no_persons, no_nodes, no_timepoints, gamma, delta, crsec_interactions, crlag_interactions, thresholds, no_categories, start, cauchy_scale, crsec_proposal_sd, crlag_proposal_sd, crsec_edge_prior, crlag_edge_prior, crsec_theta, crlag_theta, crsec_beta_bernoulli_alpha, crsec_beta_bernoulli_beta, crlag_beta_bernoulli_alpha, crlag_beta_bernoulli_beta, crsec_Index, crlag_Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, save, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -325,9 +386,11 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
+    {"_bgms_sample_o_clp_mrf_gibbs", (DL_FUNC) &_bgms_sample_o_clp_mrf_gibbs, 10},
     {"_bgms_em_gamma", (DL_FUNC) &_bgms_em_gamma, 5},
     {"_bgms_em_interaction_var", (DL_FUNC) &_bgms_em_interaction_var, 5},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 24},
+    {"_bgms_gibbs_sampler_cross_lagged_mrf", (DL_FUNC) &_bgms_gibbs_sampler_cross_lagged_mrf, 31},
     {"_bgms_gradient_thresholds_pseudolikelihood", (DL_FUNC) &_bgms_gradient_thresholds_pseudolikelihood, 4},
     {"_bgms_gradient_thresholds_pseudoposterior", (DL_FUNC) &_bgms_gradient_thresholds_pseudoposterior, 6},
     {"_bgms_gradient_interactions_pseudolikelihood", (DL_FUNC) &_bgms_gradient_interactions_pseudolikelihood, 4},
