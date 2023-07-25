@@ -2,7 +2,7 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-IntegerMatrix sample_omrf_gibbs(int no_states,
+IntegerMatrix sample_mrf_gibbs(int no_states,
                                 int no_nodes,
                                 IntegerVector no_categories,
                                 NumericMatrix interactions,
@@ -78,7 +78,7 @@ IntegerMatrix sample_omrf_gibbs(int no_states,
 }
 
 // [[Rcpp::export]]
-IntegerMatrix sample_o_clp_mrf_gibbs(int no_states,
+IntegerMatrix sample_panel_mrf_gibbs(int no_states,
                                       int no_nodes,
                                       int no_timepoints,
                                       IntegerVector no_categories,

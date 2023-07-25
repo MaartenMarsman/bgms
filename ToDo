@@ -1,0 +1,8 @@
+* When a large design is implemented (timepoints>=100) panelmrfsampler sometimes crashes.
+** Probably the exponents in the probabilities run away. **Implement a bound.
+* Implement na.action
+** Create function to compute and simulate from full-conditional: For simulate + impute
+* Implement design with fixed thresholds (stationarity assumption)
+* Name output columns
+* Implement a restmatrix approach to improve speed
+

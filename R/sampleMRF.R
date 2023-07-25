@@ -131,12 +131,12 @@ mrfSampler = function(no_states,
     }
   }
 
-  x <- sample_omrf_gibbs(no_states = no_states,
-                         no_nodes = no_nodes,
-                         no_categories = no_categories,
-                         interactions = interactions,
-                         thresholds = thresholds,
-                         iter = iter)
+  x <- sample_mrf_gibbs(no_states = no_states,
+                        no_nodes = no_nodes,
+                        no_categories = no_categories,
+                        interactions = interactions,
+                        thresholds = thresholds,
+                        iter = iter)
 
   return(x)
 }

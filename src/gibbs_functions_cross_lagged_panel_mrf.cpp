@@ -41,7 +41,6 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
           q[person] = 1.0;
           rest_score = 0.0;
           for(int node2 = 0; node2 < no_nodes; node2++) {
-            //This assumes that crsec_interactions(i, i) = 0.0
             rest_score += observations(person, node2 + start[t]) *
               crsec_interactions(node, node2);
             rest_score += observations(person, node2 + start[t-1]) *
@@ -86,9 +85,8 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
         log_prob += (a + b) * std::log(1 + c * exp_proposed);
 
         U = std::log(R::unif_rand());
-        if(U < log_prob) {
+        if(U < log_prob)
           thresholds(node + start[t-1], category) = proposed_state;
-        }
       }
     }
   }
@@ -162,7 +160,6 @@ double log_pseudolikelihood_ratio_cross_sectional(NumericMatrix crsec_interactio
       //Node 2 log pseudolikelihood ratio
       rest_score = 0.0;
       for(int node = 0; node < no_nodes; node++) {
-        //This assumes that crsec_interactions(i, i) = 0.0
         rest_score += crsec_interactions(node2, node) *
           observations(person, node + start[t]);
         rest_score += crlag_interactions(node2, node) *
@@ -718,7 +715,7 @@ List gibbs_step_cross_lagged_mrf(IntegerMatrix observations,
   NumericMatrix PHIs = out["crlag_interactions"];
   crlag_interactions = PHIs;
   NumericMatrix NUl = out["crlag_proposal_sd"];
-   crlag_proposal_sd = NUl;
+  crlag_proposal_sd = NUl;
 
   return List::create(Named("gamma") = gamma,
                       Named("delta") = delta,
@@ -875,7 +872,6 @@ List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations,
                                            iteration + 1,
                                            epsilon_lo,
                                            epsilon_hi);
-
 
     IntegerMatrix gamma = out["gamma"];
     IntegerMatrix delta = out["delta"];

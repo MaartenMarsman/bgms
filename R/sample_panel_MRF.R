@@ -239,7 +239,7 @@ panelmrfSampler = function(no_states,
   }
 
 
-  x = sample_o_clp_mrf_gibbs(no_states = no_states,
+  x = sample_panel_mrf_gibbs(no_states = no_states,
                              no_nodes = no_nodes,
                              no_timepoints = no_timepoints,
                              no_categories = no_categories,
