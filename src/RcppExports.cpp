@@ -10,9 +10,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// sample_omrf_gibbs
-IntegerMatrix sample_omrf_gibbs(int no_states, int no_nodes, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter);
-RcppExport SEXP _bgms_sample_omrf_gibbs(SEXP no_statesSEXP, SEXP no_nodesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP) {
+// sample_mrf_gibbs
+IntegerMatrix sample_mrf_gibbs(int no_states, int no_nodes, IntegerVector no_categories, NumericMatrix interactions, NumericMatrix thresholds, int iter);
+RcppExport SEXP _bgms_sample_mrf_gibbs(SEXP no_statesSEXP, SEXP no_nodesSEXP, SEXP no_categoriesSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP iterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,13 +22,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericMatrix >::type interactions(interactionsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type thresholds(thresholdsSEXP);
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_omrf_gibbs(no_states, no_nodes, no_categories, interactions, thresholds, iter));
+    rcpp_result_gen = Rcpp::wrap(sample_mrf_gibbs(no_states, no_nodes, no_categories, interactions, thresholds, iter));
     return rcpp_result_gen;
 END_RCPP
 }
-// sample_o_clp_mrf_gibbs
-IntegerMatrix sample_o_clp_mrf_gibbs(int no_states, int no_nodes, int no_timepoints, IntegerVector no_categories, NumericMatrix cross_sectional_interactions, NumericMatrix cross_lagged_interactions, NumericMatrix thresholds, NumericMatrix null_interactions, NumericMatrix null_thresholds, int iter);
-RcppExport SEXP _bgms_sample_o_clp_mrf_gibbs(SEXP no_statesSEXP, SEXP no_nodesSEXP, SEXP no_timepointsSEXP, SEXP no_categoriesSEXP, SEXP cross_sectional_interactionsSEXP, SEXP cross_lagged_interactionsSEXP, SEXP thresholdsSEXP, SEXP null_interactionsSEXP, SEXP null_thresholdsSEXP, SEXP iterSEXP) {
+// sample_panel_mrf_gibbs
+IntegerMatrix sample_panel_mrf_gibbs(int no_states, int no_nodes, int no_timepoints, IntegerVector no_categories, NumericMatrix cross_sectional_interactions, NumericMatrix cross_lagged_interactions, NumericMatrix thresholds, NumericMatrix null_interactions, NumericMatrix null_thresholds, int iter);
+RcppExport SEXP _bgms_sample_panel_mrf_gibbs(SEXP no_statesSEXP, SEXP no_nodesSEXP, SEXP no_timepointsSEXP, SEXP no_categoriesSEXP, SEXP cross_sectional_interactionsSEXP, SEXP cross_lagged_interactionsSEXP, SEXP thresholdsSEXP, SEXP null_interactionsSEXP, SEXP null_thresholdsSEXP, SEXP iterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -42,7 +42,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericMatrix >::type null_interactions(null_interactionsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type null_thresholds(null_thresholdsSEXP);
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_o_clp_mrf_gibbs(no_states, no_nodes, no_timepoints, no_categories, cross_sectional_interactions, cross_lagged_interactions, thresholds, null_interactions, null_thresholds, iter));
+    rcpp_result_gen = Rcpp::wrap(sample_panel_mrf_gibbs(no_states, no_nodes, no_timepoints, no_categories, cross_sectional_interactions, cross_lagged_interactions, thresholds, null_interactions, null_thresholds, iter));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -385,8 +385,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
-    {"_bgms_sample_o_clp_mrf_gibbs", (DL_FUNC) &_bgms_sample_o_clp_mrf_gibbs, 10},
+    {"_bgms_sample_mrf_gibbs", (DL_FUNC) &_bgms_sample_mrf_gibbs, 6},
+    {"_bgms_sample_panel_mrf_gibbs", (DL_FUNC) &_bgms_sample_panel_mrf_gibbs, 10},
     {"_bgms_em_gamma", (DL_FUNC) &_bgms_em_gamma, 5},
     {"_bgms_em_interaction_var", (DL_FUNC) &_bgms_em_interaction_var, 5},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 24},
