@@ -112,10 +112,8 @@ IntegerMatrix sample_panel_mrf_gibbs(int no_states,
                                      int iter) {
 
   IntegerVector start(no_timepoints + 1);
-  IntegerVector stop(no_timepoints + 1);
   for(int t = 0; t <= no_timepoints; t++) {
     start[t] = t * no_nodes;
-    stop[t] = (t + 1) * no_nodes - 1;
   }
 
   IntegerMatrix observations(no_states, no_nodes * (no_timepoints + 1));
@@ -221,7 +219,7 @@ IntegerMatrix sample_panel_mrf_gibbs(int no_states,
 
           // Cross-lagged elements ---------------------------------------------
           rest_score += cross_lagged_interactions(node, node2) *
-            observations(person, start[t-1] + node2);
+            observations(person, start[t - 1] + node2);
         }
 
         //Compute a bound to keep exponents from overflowing -------------------

@@ -33,7 +33,7 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
   for(int t = 1; t <= no_timepoints; t++) {
     for(int node = 0; node < no_nodes; node++) {
       for(int category = 0; category < no_categories[node]; category++) {
-        current_state = thresholds(node + start[t-1], category);
+        current_state = thresholds(node + start[t - 1], category);
         exp_current = std::exp(current_state);
         c = (threshold_alpha + threshold_beta) / (1 + exp_current);
         for(int person = 0; person < no_persons; person++) {
@@ -43,12 +43,12 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
           for(int node2 = 0; node2 < no_nodes; node2++) {
             rest_score += observations(person, node2 + start[t]) *
               crsec_interactions(node, node2);
-            rest_score += observations(person, node2 + start[t-1]) *
+            rest_score += observations(person, node2 + start[t - 1]) *
               crlag_interactions(node, node2);
           }
           for(int cat = 0; cat < no_categories[node]; cat++) {
             if(cat != category) {
-              g[person] += std::exp(thresholds(node + start[t-1], cat) +
+              g[person] += std::exp(thresholds(node + start[t - 1], cat) +
                 (cat + 1) * rest_score);
             }
           }
@@ -59,11 +59,11 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
           exp_current * c);
 
         //Proposal is generalized beta-prime.
-        a = n_cat_obs(category + 1, node + start[t-1]) +
+        a = n_cat_obs(category + 1, node + start[t - 1]) +
           threshold_alpha;
         b = no_persons +
           threshold_beta -
-          n_cat_obs(category + 1, node + start[t-1]);
+          n_cat_obs(category + 1, node + start[t - 1]);
         tmp = R::rbeta(a, b);
         proposed_state = std::log(tmp / (1 - tmp) / c);
         exp_proposed = exp(proposed_state);
@@ -86,7 +86,7 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
 
         U = std::log(R::unif_rand());
         if(U < log_prob)
-          thresholds(node + start[t-1], category) = proposed_state;
+          thresholds(node + start[t - 1], category) = proposed_state;
       }
     }
   }
@@ -131,7 +131,7 @@ double log_pseudolikelihood_ratio_cross_sectional(NumericMatrix crsec_interactio
         rest_score += crsec_interactions(node1, node) *
           observations(person, node + start[t]);
         rest_score += crlag_interactions(node1, node) *
-          observations(person, node + start[t-1]);
+          observations(person, node + start[t - 1]);
       }
       rest_score -= obs_score2 *
         crsec_interactions(node1, node2);
@@ -146,7 +146,7 @@ double log_pseudolikelihood_ratio_cross_sectional(NumericMatrix crsec_interactio
       denominator_curr = std::exp(-bound);
       for(int category = 0; category < no_categories[node1]; category++) {
         score = category + 1;
-        exponent = thresholds(node1 + start[t-1], category) +
+        exponent = thresholds(node1 + start[t - 1], category) +
           score * rest_score -
           bound;
         denominator_prop +=
@@ -163,7 +163,7 @@ double log_pseudolikelihood_ratio_cross_sectional(NumericMatrix crsec_interactio
         rest_score += crsec_interactions(node2, node) *
           observations(person, node + start[t]);
         rest_score += crlag_interactions(node2, node) *
-          observations(person, node + start[t-1]);
+          observations(person, node + start[t - 1]);
       }
       rest_score -= obs_score1 *
         crsec_interactions(node1, node2);
@@ -178,7 +178,7 @@ double log_pseudolikelihood_ratio_cross_sectional(NumericMatrix crsec_interactio
       denominator_curr = std::exp(-bound);
       for(int category = 0; category < no_categories[node2]; category++) {
         score = category + 1;
-        exponent = thresholds(node2 + start[t-1], category) +
+        exponent = thresholds(node2 + start[t - 1], category) +
           score * rest_score -
           bound;
         denominator_prop +=
@@ -220,7 +220,7 @@ double log_pseudolikelihood_ratio_cross_lagged(NumericMatrix crsec_interactions,
   for(int t = 1; t <= no_timepoints; t++) {
     for(int person = 0; person < no_persons; person++) {
       obs_score1 = observations(person, node1 + start[t]);
-      obs_score2 = observations(person, node2 + start[t-1]);
+      obs_score2 = observations(person, node2 + start[t - 1]);
 
       pseudolikelihood_ratio += obs_score1 * obs_score2 * diff_state;
 
@@ -230,7 +230,7 @@ double log_pseudolikelihood_ratio_cross_lagged(NumericMatrix crsec_interactions,
         rest_score += crsec_interactions(node1, node) *
           observations(person, node + start[t]);
         rest_score += crlag_interactions(node1, node) *
-          observations(person, node + start[t-1]);
+          observations(person, node + start[t - 1]);
       }
       rest_score -= obs_score2 *
         crlag_interactions(node1, node2);
@@ -245,7 +245,7 @@ double log_pseudolikelihood_ratio_cross_lagged(NumericMatrix crsec_interactions,
       denominator_curr = std::exp(-bound);
       for(int category = 0; category < no_categories[node1]; category++) {
         score = category + 1;
-        exponent = thresholds(node1 + start[t-1], category) +
+        exponent = thresholds(node1 + start[t - 1], category) +
           score * rest_score -
           bound;
         denominator_prop +=

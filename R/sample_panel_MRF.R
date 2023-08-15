@@ -177,9 +177,9 @@ panelmrfSampler = function(no_states,
     stop("The matrix ``null_thresholds'' must have ``no_nodes'' rows.")
 
   for(t in 1:no_timepoints) {
-    start = (t - 1) * no_nodes + 1
+    start = (t - 1) * no_nodes
     for(node in 1:no_nodes) {
-      if(any(is.na(thresholds[node + start - 1, 1:no_categories[node]]))) {
+      if(any(is.na(thresholds[node + start, 1:no_categories[node]]))) {
         stop(paste0("The matrix ``thresholds'' contains NA(s) for node ",
                     node,
                     "at time",
@@ -189,7 +189,7 @@ panelmrfSampler = function(no_states,
                     ", where a numeric value is needed."))
       }
       if(ncol(thresholds) > no_categories[node]) {
-        if(any(!is.na(thresholds[node + start - 1, (no_categories[node]+1):ncol(thresholds)]))){
+        if(any(!is.na(thresholds[node + start, (no_categories[node]+1):ncol(thresholds)]))){
           warning(paste0("The matrix ``thresholds'' contains numeric values for node ",
                          node,
                          "at time",
@@ -203,7 +203,7 @@ panelmrfSampler = function(no_states,
 
     for(node in 1:no_nodes) {
       for(category in 1:no_categories[node]) {
-        if(!is.finite(thresholds[node + start - 1, category]))
+        if(!is.finite(thresholds[node + start, category]))
           stop(paste("The threshold parameter for node", node, "and category",
                      category, "at t =", t, "is NA or not finite."))
       }

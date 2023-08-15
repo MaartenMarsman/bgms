@@ -316,7 +316,7 @@ bgm.panel = function(x,
     for(node in 1:no_nodes) {
       for(category in 0:no_categories[node]) {
         n_cat_obs[category + 1, node + start[t]] =
-          sum(x[, node + start[t+1]] == category)
+          sum(x[, node + start[t + 1]] == category)
       }
     }
   }
