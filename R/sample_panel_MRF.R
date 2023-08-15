@@ -92,50 +92,50 @@ panelmrfSampler = function(no_states,
   #check no_states, no_nodes, iter
   if(no_states <= 0 ||
      abs(no_states - round(no_states)) > .Machine$double.eps^.5)
-    stop("``no_states'' needs be a positive integer.")
+    stop("``no_states'' must be a positive integer.")
   if(no_nodes <= 0 ||
      abs(no_nodes - round(no_nodes)) > .Machine$double.eps^.5)
-    stop("``no_nodes'' needs be a positive integer.")
+    stop("``no_nodes'' must be a positive integer.")
   if(iter <= 0 ||
      abs(iter - round(iter)) > .Machine$double.eps^.5)
     stop("``iter'' must be a positive integer.")
-  if(no_timepoints < 1)
+  if(no_timepoints <= 0 ||
+     abs(no_timepoints - round(no_timepoints)) > .Machine$double.eps^.5)
     stop("``no_timepoints'' must be a positive integer.")
 
   #check no_categories
   if(length(no_categories) == 1) {
     if(no_categories <= 0 ||
        abs(no_categories - round(no_categories)) > .Machine$double.eps^.5)
-      stop("``no_categories'' needs be a (vector of) positive integer(s).")
-    no_categories = rep(no_categories, no_nodes * no_timepoints)
+      stop("``no_categories'' must be a (vector of) positive integer(s).")
+    no_categories = rep(no_categories, no_nodes)
   } else {
     for(node in 1:no_nodes) {
       if(no_categories[node] <= 0 ||
          abs(no_categories[node] - round(no_categories[node])) >
          .Machine$double.eps^.5)
-        stop(paste("For node", node, "``no_categories'' was not a positive
-                   integer."))
+        stop(paste("For node", node, "``no_categories'' must be a positive integer."))
     }
   }
 
   #check interactions
   if(!isSymmetric(cross_sectional_interactions))
-    stop("The matrix ``cross_sectional_interactions'' needs to be symmetric.")
+    stop("The matrix ``cross_sectional_interactions'' must be symmetric.")
   diag(cross_sectional_interactions) = 0
 
   if(!isSymmetric(null_interactions))
-    stop("The matrix ``null_interactions'' needs to be symmetric.")
+    stop("The matrix ``null_interactions'' must be symmetric.")
   diag(null_interactions) = 0
 
   if(nrow(cross_sectional_interactions) != no_nodes)
-    stop("The matrix ``cross_sectional_interactions'' needs to have ``no_nodes'' rows and columns.")
+    stop("The matrix ``cross_sectional_interactions'' must have ``no_nodes'' rows and columns.")
 
   if(nrow(cross_lagged_interactions) != no_nodes ||
      ncol(cross_lagged_interactions) != no_nodes)
-    stop("The matrix ``cross_lagged_interactions'' needs to have ``no_nodes'' rows and columns.")
+    stop("The matrix ``cross_lagged_interactions'' must have ``no_nodes'' rows and columns.")
 
   if(nrow(null_interactions) != no_nodes)
-    stop("The matrix ``null_interactions'' needs to have ``no_nodes'' rows and columns.")
+    stop("The matrix ``null_interactions'' must have ``no_nodes'' rows and columns.")
 
   #check thresholds
   if(!inherits(thresholds, what = "matrix")) {
@@ -150,7 +150,7 @@ panelmrfSampler = function(no_states,
                     "."))
       }
     } else {
-      stop("Argument ``thresholds'' needs to be a matrix.")
+      stop("Argument ``thresholds'' must be a matrix.")
     }
   }
 
@@ -166,45 +166,44 @@ panelmrfSampler = function(no_states,
                     "."))
       }
     } else {
-      stop("Argument ``null_thresholds'' needs to be a matrix.")
+      stop("Argument ``null_thresholds'' must be a matrix.")
     }
   }
 
   if(nrow(thresholds) != no_nodes * no_timepoints)
-    stop("The matrix ``thresholds'' needs to have ``no_nodes * no_timepoints'' rows.")
+    stop("The matrix ``thresholds'' must have ``no_nodes * no_timepoints'' rows.")
 
   if(nrow(null_thresholds) != no_nodes)
-    stop("The matrix ``null_thresholds'' needs to have ``no_nodes'' rows.")
+    stop("The matrix ``null_thresholds'' must have ``no_nodes'' rows.")
 
   for(t in 1:no_timepoints) {
     start = (t - 1) * no_nodes + 1
-    stop = t * no_nodes
-    for(node in start:stop) {
-      if(any(is.na(thresholds[node, 1:no_categories[node-start+1]]))) {
+    for(node in 1:no_nodes) {
+      if(any(is.na(thresholds[node + start - 1, 1:no_categories[node]]))) {
         stop(paste0("The matrix ``thresholds'' contains NA(s) for node ",
-                    node-start+1,
+                    node,
                     "at time",
                     t,
                     " in categorie(s)",
-                    which(is.na(thresholds[node, 1:no_categories[node-start+1]])),
+                    which(is.na(thresholds[node, 1:no_categories[node]])),
                     ", where a numeric value is needed."))
       }
-      if(ncol(thresholds) > no_categories[node-start+1]) {
-        if(any(!is.na(thresholds[node, (no_categories[node-start+1]+1):ncol(thresholds)]))){
+      if(ncol(thresholds) > no_categories[node]) {
+        if(any(!is.na(thresholds[node + start - 1, (no_categories[node]+1):ncol(thresholds)]))){
           warning(paste0("The matrix ``thresholds'' contains numeric values for node ",
                          node,
                          "at time",
                          t,
                          " for categories(s) (i.e., columns) exceding the maximum of ",
-                         no_categories[node-start+1],
+                         no_categories[node],
                          ". These values will be ignored."))
         }
       }
     }
 
-    for(node in start:stop) {
-      for(category in 1:no_categories[node-start+1]) {
-        if(!is.finite(thresholds[node, category]))
+    for(node in 1:no_nodes) {
+      for(category in 1:no_categories[node]) {
+        if(!is.finite(thresholds[node + start - 1, category]))
           stop(paste("The threshold parameter for node", node, "and category",
                      category, "at t =", t, "is NA or not finite."))
       }
