@@ -1,6 +1,4 @@
-* Check:
-** sampleMRF old vs new
-** indexing for gibbs sampling
+* Check new version of sampleMRF vs new version
 * Implement na.action
 ** Create function to compute and simulate from full-conditional: For simulate + impute
 * Implement design with fixed thresholds (stationarity assumption)
