@@ -53,7 +53,7 @@ mple = function(x,
     stop("The matrix x should have more than one observation (rows).")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data(x = x)
+  data = reformat_data(x = x, fn.name = "mple")
   x = data$x
   no_categories = data$no_categories
   no_nodes = ncol(x)

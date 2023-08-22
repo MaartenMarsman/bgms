@@ -3,22 +3,22 @@
 #' @importFrom methods hasArg
 #' @importFrom stats qnorm uniroot
 
-reformat_data = function(x) {
+reformat_data = function(x, fn.name = "") {
   # Check for missing values ---------------------------------------------------
   missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
   if(sum(missing_values) == nrow(x))
     stop(paste0("All rows in x contain at least one missing response.\n",
-                "The bgm package currently cannot handle missing responses."))
+                "The ", fn.name," function in the bgm package currently cannot handle missing responses."))
   if(sum(missing_values) > 1)
     warning(paste0("There were ",
                    sum(missing_values),
                    " rows with missing observations in the input matrix x.\n",
-                   "Since bgms cannot handle missing responses, these rows were \n",
+                   "Since the ", fn.name," function in the bgm package cannot handle missing responses, these rows were \n",
                    "excluded from the analysis."),
             call. = FALSE)
   if(sum(missing_values) == 1)
     warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                   "Since bgms cannot handle missing responses, this row was excluded \n",
+                   "Since the ", fn.name," function in the bgm package cannot handle missing responses, this row was excluded \n",
                    "from the analysis."),
             call. = FALSE)
   x = x[!missing_values, ]

@@ -147,7 +147,7 @@ bgm.em = function(x,
     stop("Parameter ``maximum_iterations'' needs to be a positive integer.")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data(x = x)
+  data = reformat_data(x = x, fn.name = "bgm.em")
   x = data$x
   no_categories = data$no_categories
 

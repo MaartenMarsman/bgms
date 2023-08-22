@@ -93,7 +93,7 @@ mppe = function(x,
     stop("Parameter ``threshold_beta'' needs to be positive.")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data(x = x)
+  data = reformat_data(x = x, fn.name = "mppe")
   x = data$x
   no_categories = data$no_categories
   no_nodes = ncol(x)
