@@ -13,7 +13,7 @@ body {
 text-align: justify}
 </style>
 
-## Introduction
+# Introduction
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -38,18 +38,18 @@ x = na.omit(Wenchuan)
 nrow(x)
 ```
 
-Here we see that there are 22 missing observations in 18 of the 362 rows. In total, less than one percent of the data is missing. However, when we use listwise deletion, we omit almost 5% of the data. Obviously, this will affect the results of the analysis and, in particular, the uncertainty of our estimated parameters. Let's find out. 
-
-First, we analyze how much the results differ between the two `na.action` options. To do this, we fit the model with `na.action = "listwise"` and with `na.action = "impute"`.
+Here we see that there are 22 missing observations in 18 of the 362 rows. In total, less than one percent of the data is missing. However, when we use listwise deletion, we omit almost 5% of the data. 
 
 ## Analysis
+Here we analyze how much the results differ between the two `na.action` options. To do this, we fit the model with `na.action = "listwise"` and with `na.action = "impute"`.
+
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 fit.listwise = bgm(x = Wenchuan, na.action = "listwise")
 fit.impute = bgm(x = Wenchuan, na.action = "impute")
 ```
-Let's look at how the estimated thresholds, interaction parameters, and inclusion probabilities compare between the `na.action` options. To do this, we make a small panel plot comparing the posterior medians in each setting.
+Let's look at how the estimated thresholds, interaction parameters, and inclusion probabilities compare between the `na.action` options. To do this, we make a small panel plot comparing the posterior means in each setting. First, we compute the means.
 
-```{r message = FALSE, warning = FALSE, fig.width = 5, fig.height = 7}
+```{r message = FALSE, warning = FALSE, fig.width = 4, fig.height = 12}
 par(mfrow = c(3, 1), mar = c(6, 5, 1, 1))
 plot(fit.listwise$thresholds, fit.impute$thresholds, xlab = "", ylab = "", axes = FALSE)
 abline(0,1)
@@ -60,7 +60,6 @@ mtext("Thresholds | Impute", side = 2, line = 3, cex = .9)
 
 plot(fit.listwise$interactions, fit.impute$interactions, xlab = "", ylab = "", axes = FALSE)
 abline(0,1)
-
 axis(1)
 axis(2, las = 1)
 mtext("Interactions | Listwise", side = 1, line = 3)
@@ -75,7 +74,7 @@ mtext("PIP | Listwise", side = 1, line = 3)
 mtext("PIP | Impute", side = 2, line = 3)
 ```
 
-In the plot above, the two `na.action` options do not appear to affect the estimation of the threshold parameters for this example. However, these options did affect the estimation of the interaction effects; some interactions were estimated to be nonzero in the case of `na.action = "listwise"` that were estimated to be zero in the case of `na.action = "impute"`. For these few effects, the inclusion probabilities changed from a relatively large value for the `na.action = "listwise"` case to a relatively small value for the `na.action = "impute"` case. We also see that, except for the extreme cases near one or zero, the inclusion probabilities vary greatly between the two options. Increasing the number of iterations of the underlying MCMC procedure could not account for this increased variability. 
+In the plot above, the two `na.action` options do not seem to affect the estimation of the threshold parameters too much for this example. There are some differences, but they are relatively small. We see some larger differences between the estimated interactions. For example, some interactions were estimated to be nonzero with `na.action = "listwise"` that were estimated to be zero with `na.action = "impute"`. The largest differences are observed for the posterior inclusion probabilities, whose estimates vary greatly between the two options.
 
 # Example 2 -- Simulated data with 22 missings
 
@@ -197,112 +196,6 @@ mtext("PIP | Listwise", side = 1, line = 3, cex = .9)
 mtext("PIP | Impute", side = 2, line = 3, cex = .9)
 ```
 
-Interestingly, there appears to be more variability in the estimated posterior inclusion probabilities for the `na.action = "listwise"` case than for the `na.action = "impute"` case. Although there is still large variability for the imputation case, this variability appears to be mostly due to the sampling variability of the underlying MCMC procedure and should eventually disappear with increasing number of iterations.
-
-# Example 3 -- Simulated data with 5% missing
-
-One problem with comparing the listwise deletion and imputation options is that the former has to exclude almost 5% (about 308 entries) of the data. One might wonder what effect this has on the quality of the imputation. To check this, we revisit the above analysis for the imputation approach with 5% missing data.
-
-```{r message = FALSE, warning = FALSE}
-z = x
-for(mis in 1:308) {
-  stop = FALSE
-  while(stop == FALSE) {
-    i = sample(1:nrow(x), 1)
-    j = sample(1:ncol(x), 1)
-
-    if(!is.na(z[i, j])) {
-      stop = TRUE
-      z[i,j] = NA
-    }
-  }
-}
-```
-
-We now estimate the model using missing data imputation for the new dataset.
-
-```{r message = FALSE, warning = FALSE}
-newfit.impute.z = bgm(x = z, na.action = "impute")
-```
-
-Let's first look at how the thresholds are estimated.
-
-```{r message = FALSE, warning = FALSE, fig.width = 5, fig.height = 7}
-par(mfrow = c(3, 1), mar = c(6, 5, 1, 1))
-plot(newfit.obs$thresholds, newfit.listwise$thresholds, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Thresholds | Complete", side = 1, line = 3, cex = .9)
-mtext("Thresholds | Listwise", side = 2, line = 3, cex = .9)
-
-plot(newfit.obs$thresholds, newfit.impute.z$thresholds, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Thresholds | Complete", side = 1, line = 3, cex = .9)
-mtext("Thresholds | Impute", side = 2, line = 3, cex = .9)
-
-plot(newfit.listwise$thresholds, newfit.impute.z$thresholds, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Thresholds | Listwise", side = 1, line = 3, cex = .9)
-mtext("Thresholds | Impute", side = 2, line = 3, cex = .9)
-```
-
-In the plot above, similar to the previous examples, we see that the two `na.action` options do not appear to affect the estimation of the threshold parameters. Next, we look at the estimated interaction effects.
-
-```{r message = FALSE, warning = FALSE, fig.width = 5, fig.height = 7}
-par(mfrow = c(3, 1), mar = c(6, 5, 1, 1))
-plot(newfit.obs$interactions, newfit.listwise$interactions, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Interactions | Complete", side = 1, line = 3, cex = .9)
-mtext("Interactions | Listwise", side = 2, line = 3, cex = .9)
-
-plot(newfit.obs$interactions, newfit.impute.z$interactions, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Interactions | Complete", side = 1, line = 3, cex = .9)
-mtext("Interactions | Impute", side = 2, line = 3, cex = .9)
-
-plot(newfit.listwise$interactions, newfit.impute.z$interactions, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("Interactions | Listwise", side = 1, line = 3, cex = .9)
-mtext("Interactions | Impute", side = 2, line = 3, cex = .9)
-```
-
-In the plot above, similar to what we saw for the Wenchuan data example, we see that some of the interaction effects are now shrunk to zero in the model estimated using imputation. We expect this to have an impact on the estimated posterior inclusion probabilities as well.
-
-```{r message = FALSE, warning = FALSE, fig.width = 5, fig.height = 7}
-par(mfrow = c(3, 1), mar = c(6, 5, 1, 1))
-plot(newfit.obs$gamma, newfit.listwise$gamma, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("PIP | Complete", side = 1, line = 3, cex = .9)
-mtext("PIP | Listwise", side = 2, line = 3, cex = .9)
-
-plot(newfit.obs$gamma, newfit.impute.z$gamma, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("PIP | Complete", side = 1, line = 3, cex = .9)
-mtext("PIP | Impute", side = 2, line = 3, cex = .9)
-
-plot(newfit.listwise$gamma, newfit.impute.z$gamma, xlab = "", ylab = "", axes = FALSE)
-abline(0,1)
-axis(1)
-axis(2, las = 1)
-mtext("PIP | Listwise", side = 1, line = 3, cex = .9)
-mtext("PIP | Impute", side = 2, line = 3, cex = .9)
-```
-
-In the plot above, we can see that the imputation strategy is now more conservative than before, estimating lower inclusion probabilities for some of the network relations. Otherwise, the results are comparable to the listwise deletion case, as one would expect since both used roughly the same amount of data.
+There appears to be a bit more variability in the estimated posterior inclusion probabilities for the `na.action = "listwise"` case than for the `na.action = "impute"` case. Although there is still large variability for the imputation case, this variability appears to be mostly due to the sampling variability of the underlying MCMC procedure and largely disappears as the number of iterations increases.
 
 ## References

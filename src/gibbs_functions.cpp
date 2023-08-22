@@ -29,8 +29,8 @@ List impute_missing_data(NumericMatrix interactions,
 
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute?
-    person = missing_index(missing, 0) - 1;
-    node = missing_index(missing, 1) - 1;
+    person = missing_index(missing, 0) - 1; //R to C++ indexing
+    node = missing_index(missing, 1) - 1; //R to C++ indexing
 
     //Generate new observation
     rest_score = rest_matrix(person, node);
@@ -49,6 +49,7 @@ List impute_missing_data(NumericMatrix interactions,
     while (u > probabilities[score]) {
       score++;
     }
+
     new_observation = score;
 
     //Update observations
@@ -58,6 +59,7 @@ List impute_missing_data(NumericMatrix interactions,
       n_cat_obs(old_observation, node)--;
       n_cat_obs(new_observation, node)++;
       for(int vertex = 0; vertex < no_nodes; vertex++) {
+        //interactions(i, i) = 0
         rest_matrix(person, vertex) -= old_observation * interactions(vertex, node);
         rest_matrix(person, vertex) += new_observation * interactions(vertex, node);
       }
