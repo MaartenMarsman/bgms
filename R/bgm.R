@@ -84,8 +84,8 @@
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 #' Defaults to \code{TRUE}.
 #'
-#' @return If \code{save = FALSE} (the default), the result is a list containing
-#' the following matrices:
+#' @return If \code{save = FALSE} (the default), the result is a list of class
+#' ``bgms'' containing the following matrices:
 #' \itemize{
 #' \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
 #' containing posterior inclusion probabilities of individual edges.
@@ -95,19 +95,22 @@
 #' columns, containing model-averaged category thresholds.
 #' }
 #'
-#' If \code{save = TRUE}, the result is a list containing:
+#' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 #' \itemize{
-#' \item \code{samples.gamma}: A matrix with \code{iter} rows and
+#' \item \code{gamma}: A matrix with \code{iter} rows and
 #' \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
 #' every iteration of the Gibbs sampler.
-#' \item \code{samples.interactions}: A matrix with \code{iter} rows and
+#' \item \code{interactions}: A matrix with \code{iter} rows and
 #' \code{p * (p - 1) / 2} columns, containing parameter states from every
 #' iteration of the Gibbs sampler for the pairwise associations.
-#' \item \code{samples.thresholds}: A matrix with \code{iter} rows and
+#' \item \code{thresholds}: A matrix with \code{iter} rows and
 #' \code{sum(m)} columns, containing parameter states from every iteration of
 #' the Gibbs sampler for the category thresholds.
 #' }
 #' Column averages of these matrices provide the model-averaged posterior means.
+#'
+#' In addition to the analysis results, the bgm output lists some of the
+#' arguments of its call. This is useful for post-processing the results.
 #'
 #' @examples
 #' \donttest{
@@ -434,9 +437,16 @@ bgm = function(x,
     colnames(tresholds) = paste0("category ", 1:max(no_categories))
     rownames(tresholds) = paste0("node ", 1:no_nodes)
 
-    return(list(gamma = gamma,
-                interactions = interactions,
-                thresholds = tresholds))
+    output = list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  edge_prior,
+                  inclusion_probability,
+                  beta_bernoulli_alpha,
+                  beta_bernoulli_beta,
+                  save)
+    class(output) = "bgms"
+    return(output)
   } else {
     gamma = out$gamma
     interactions = out$interactions
@@ -468,9 +478,16 @@ bgm = function(x,
     rownames(interactions) = paste0("Iter. ", 1:iter)
     rownames(thresholds) = paste0("Iter. ", 1:iter)
 
-    return(list(gamma = gamma,
-                interactions = interactions,
-                thresholds = thresholds))
+    output = list(gamma = gamma,
+                  interactions = interactions,
+                  thresholds = thresholds,
+                  edge_prior,
+                  inclusion_probability,
+                  beta_bernoulli_alpha,
+                  beta_bernoulli_beta,
+                  save)
+    class(output) = "bgms"
+    return(output)
   }
 }
 

@@ -62,7 +62,7 @@ complexity (number of edges) receive the same prior weight. Defaults to
 \code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
-bernoulli model. Can be a single probability, or a matrix of \code{p} rows
+Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
 and \code{p} columns specifying an inclusion probability for each edge pair.
 Defaults to \code{inclusion_probability = 0.5}.}
 
@@ -93,8 +93,8 @@ proposal variance to the inverse of the observed Fisher information matrix
 MCMC procedure. Since imputation of missing data can have a negative impact
 on the convergence speed of the MCMC procedure, it is recommended to run the
 MCMC for more iterations. Also, since the numerical routines that search for
-the mode of the posterior do not have an imputation option, the bgm will
-automatically switch to \code{interaction_prior = "Cauchy"} and
+the mode of the posterior do not have an imputation option, the bgm function
+will automatically switch to \code{interaction_prior = "Cauchy"} and
 \code{adaptive = TRUE}.}
 
 \item{save}{Should the function collect and return all samples from the Gibbs
@@ -106,8 +106,8 @@ posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
 Defaults to \code{TRUE}.}
 }
 \value{
-If \code{save = FALSE} (the default), the result is a list containing
-the following matrices:
+If \code{save = FALSE} (the default), the result is a list of class
+``bgms'' containing the following matrices:
 \itemize{
 \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
 containing posterior inclusion probabilities of individual edges.
@@ -117,19 +117,22 @@ containing model-averaged posterior means of the pairwise associations.
 columns, containing model-averaged category thresholds.
 }
 
-If \code{save = TRUE}, the result is a list containing:
+If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 \itemize{
-\item \code{samples.gamma}: A matrix with \code{iter} rows and
+\item \code{gamma}: A matrix with \code{iter} rows and
 \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
 every iteration of the Gibbs sampler.
-\item \code{samples.interactions}: A matrix with \code{iter} rows and
+\item \code{interactions}: A matrix with \code{iter} rows and
 \code{p * (p - 1) / 2} columns, containing parameter states from every
 iteration of the Gibbs sampler for the pairwise associations.
-\item \code{samples.thresholds}: A matrix with \code{iter} rows and
+\item \code{thresholds}: A matrix with \code{iter} rows and
 \code{sum(m)} columns, containing parameter states from every iteration of
 the Gibbs sampler for the category thresholds.
 }
 Column averages of these matrices provide the model-averaged posterior means.
+
+In addition to the analysis results, the bgm output lists some of the
+arguments of its call. This is useful for post-processing the results.
 }
 \description{
 The function \code{bgm} explores the joint pseudoposterior distribution of
