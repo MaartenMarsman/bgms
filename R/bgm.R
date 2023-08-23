@@ -440,11 +440,11 @@ bgm = function(x,
     output = list(gamma = gamma,
                   interactions = interactions,
                   thresholds = thresholds,
-                  edge_prior,
-                  inclusion_probability,
-                  beta_bernoulli_alpha,
-                  beta_bernoulli_beta,
-                  save)
+                  edge_prior = edge_prior,
+                  inclusion_probability = inclusion_probability,
+                  beta_bernoulli_alpha = beta_bernoulli_alpha,
+                  beta_bernoulli_beta = beta_bernoulli_beta,
+                  save = save)
     class(output) = "bgms"
     return(output)
   } else {
@@ -481,11 +481,11 @@ bgm = function(x,
     output = list(gamma = gamma,
                   interactions = interactions,
                   thresholds = thresholds,
-                  edge_prior,
-                  inclusion_probability,
-                  beta_bernoulli_alpha,
-                  beta_bernoulli_beta,
-                  save)
+                  edge_prior = edge_prior,
+                  inclusion_probability = inclusion_probability,
+                  beta_bernoulli_alpha = beta_bernoulli_alpha,
+                  beta_bernoulli_beta = beta_bernoulli_beta,
+                  save = save)
     class(output) = "bgms"
     return(output)
   }
