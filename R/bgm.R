@@ -430,12 +430,24 @@ bgm = function(x,
     interactions = out$interactions
     tresholds = out$thresholds
 
-    colnames(interactions) = paste0("node ", 1:no_nodes)
-    rownames(interactions) = paste0("node ", 1:no_nodes)
-    colnames(gamma) = paste0("node ", 1:no_nodes)
-    rownames(gamma) = paste0("node ", 1:no_nodes)
+    if(is.null(colnames(x))){
+      data_columnnames = paste0("node ", 1:no_nodes)
+      colnames(interactions) = data_columnnames
+      rownames(interactions) = data_columnnames
+      colnames(gamma) = data_columnnames
+      rownames(gamma) = data_columnnames
+      rownames(tresholds) = data_columnnames
+    } else {
+      data_columnnames <- colnames(x)
+      colnames(interactions) = data_columnnames
+      rownames(interactions) = data_columnnames
+      colnames(gamma) = data_columnnames
+      rownames(gamma) = data_columnnames
+      rownames(tresholds) = data_columnnames
+    }
+
     colnames(tresholds) = paste0("category ", 1:max(no_categories))
-    rownames(tresholds) = paste0("node ", 1:no_nodes)
+
 
     output = list(gamma = gamma,
                   interactions = interactions,
@@ -444,7 +456,9 @@ bgm = function(x,
                   inclusion_probability = inclusion_probability,
                   beta_bernoulli_alpha = beta_bernoulli_alpha,
                   beta_bernoulli_beta = beta_bernoulli_beta,
-                  save = save)
+                  save = save,
+                  colnames = data_columnnames
+                  )
     class(output) = "bgms"
     return(output)
   } else {
@@ -452,17 +466,18 @@ bgm = function(x,
     interactions = out$interactions
     thresholds = out$thresholds
 
-    names1 = names2 = character(length = no_nodes * (no_nodes - 1) / 2)
-    cntr = 0
-    for(node in 1:(no_nodes - 1)) {
-      for(node_2 in (node + 1):no_nodes) {
-        cntr = cntr + 1
-        names1[cntr] = paste0("sigma(",node, ", ",node_2,")")
-        names2[cntr] = paste0("gamma(",node, ", ",node_2,")")
-      }
+    if(is.null(colnames(x))){
+      data_columnnames <- 1:ncol(x)
+    } else {
+      data_columnnames <- colnames(x)
     }
-    colnames(gamma) = names2
-    colnames(interactions) = names1
+    p <- ncol(x)
+    names_bycol <- matrix(rep(data_columnnames, each = p), ncol = p)
+    names_byrow <- matrix(rep(data_columnnames, each = p), ncol = p, byrow = T)
+    names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
+    names_vec <- names_comb[upper.tri(names_comb)]
+
+    colnames(gamma) = colnames(interactions) = names_vec
 
     names = character(length = sum(no_categories))
     cntr = 0
@@ -485,7 +500,8 @@ bgm = function(x,
                   inclusion_probability = inclusion_probability,
                   beta_bernoulli_alpha = beta_bernoulli_alpha,
                   beta_bernoulli_beta = beta_bernoulli_beta,
-                  save = save)
+                  save = save,
+                  colnames = data_columnnames)
     class(output) = "bgms"
     return(output)
   }
