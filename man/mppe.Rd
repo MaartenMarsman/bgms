@@ -8,8 +8,8 @@ mppe(
   x,
   interaction_prior = c("Cauchy", "UnitInfo"),
   cauchy_scale = 2.5,
-  threshold_alpha = 1,
-  threshold_beta = 1,
+  threshold_alpha = 0.5,
+  threshold_beta = 0.5,
   convergence_criterion = sqrt(.Machine$double.eps),
   maximum_iterations = 1000,
   thresholds,
@@ -33,7 +33,7 @@ Currently, two prior densities are implemented: The Unit Information prior
 to \code{2.5}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the Beta-prime
-prior for the thresholds. Default to \code{1}.}
+prior for the thresholds. Default to \code{0.5}.}
 
 \item{convergence_criterion}{The convergence criterion for the
 pseudoposterior values in the EM algorithm. Defaults to

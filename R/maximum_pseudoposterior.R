@@ -18,7 +18,7 @@
 #' to \code{2.5}.
 #'
 #' @param threshold_alpha,threshold_beta The shape parameters of the Beta-prime
-#' prior for the thresholds. Default to \code{1}.
+#' prior for the thresholds. Default to \code{0.5}.
 #'
 #' @param convergence_criterion The convergence criterion for the
 #' pseudoposterior values in the EM algorithm. Defaults to

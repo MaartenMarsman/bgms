@@ -108,8 +108,8 @@ reformat_data_bgm = function(x, na.action) {
             cntr = cntr + 1
             missing_index[cntr, 1] = mis[i]
             missing_index[cntr, 2] = node
-            x[mis[i], node] = median(x[, node], #start value for imputation
-                                     na.rm = TRUE)
+            x[mis[i], node] = stats::median(x[, node], #start value for imputation
+                                            na.rm = TRUE)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
         }

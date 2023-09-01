@@ -13,8 +13,8 @@ bgm.em(
   indicator_alpha = 1,
   indicator_beta = 1,
   maximum_iterations = 1000,
-  threshold_alpha = 1,
-  threshold_beta = 1
+  threshold_alpha = 0.5,
+  threshold_beta = 0.5
 )
 }
 \arguments{
