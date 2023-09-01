@@ -168,10 +168,19 @@ mple = function(x,
                   sep = " "),
             call. = FALSE)
 
-  colnames(interactions) = paste0("node ", 1:no_nodes)
-  rownames(interactions) = paste0("node ", 1:no_nodes)
+  #Preparing the output --------------------------------------------------------
+  if(is.null(colnames(x))){
+    data_columnnames = paste0("node ", 1:no_nodes)
+    colnames(interactions) = data_columnnames
+    rownames(interactions) = data_columnnames
+    rownames(thresholds) = data_columnnames
+  } else {
+    data_columnnames <- colnames(x)
+    colnames(interactions) = data_columnnames
+    rownames(interactions) = data_columnnames
+    rownames(thresholds) = data_columnnames
+  }
   colnames(thresholds) = paste0("category ", 1:max(no_categories))
-  rownames(thresholds) = paste0("node ", 1:no_nodes)
 
   return(list(interactions = interactions, thresholds = thresholds))
 }

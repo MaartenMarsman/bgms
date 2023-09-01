@@ -349,10 +349,20 @@ mppe = function(x,
                   sep = " "),
             call. = FALSE)
 
-  colnames(interactions) = paste0("node ", 1:no_nodes)
-  rownames(interactions) = paste0("node ", 1:no_nodes)
+
+  #Preparing the output --------------------------------------------------------
+  if(is.null(colnames(x))){
+    data_columnnames = paste0("node ", 1:no_nodes)
+    colnames(interactions) = data_columnnames
+    rownames(interactions) = data_columnnames
+    rownames(thresholds) = data_columnnames
+  } else {
+    data_columnnames <- colnames(x)
+    colnames(interactions) = data_columnnames
+    rownames(interactions) = data_columnnames
+    rownames(thresholds) = data_columnnames
+  }
   colnames(thresholds) = paste0("category ", 1:max(no_categories))
-  rownames(thresholds) = paste0("node ", 1:no_nodes)
 
   names = character(length = no_nodes * (no_nodes - 1) / 2 +
                       sum(no_categories))
@@ -360,21 +370,21 @@ mppe = function(x,
   for(node in 1:no_nodes) {
     for(category in 1:no_categories[node]) {
       cntr = cntr + 1
-      names[cntr] = paste0("threshold(", node, ", ",category,")")
+      names[cntr] = paste0("threshold(", data_columnnames[node], ", ",category,")")
     }
   }
   for(node in 1:(no_nodes - 1)) {
     for(node_2 in (node + 1):no_nodes) {
       cntr = cntr + 1
-      names[cntr] = paste0("sigma(", node, ", ",node_2,")")
+      names[cntr] = paste0("sigma(", data_columnnames[node], ", ",data_columnnames[node_2],")")
     }
   }
   rownames(hessian) = names
   colnames(hessian) = names
 
   if(interaction_prior == "UnitInfo"){
-    colnames(unit_info) = paste0("node ", 1:no_nodes)
-    rownames(unit_info) = paste0("node ", 1:no_nodes)
+    colnames(unit_info) = data_columnnames
+    rownames(unit_info) = data_columnnames
     return(list(interactions = interactions,
                 thresholds = thresholds,
                 hessian = hessian,
