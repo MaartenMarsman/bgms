@@ -64,8 +64,8 @@ by optimizing the pseudoposterior with the Newton-Raphson method.</p>
 <span>  <span class="va">x</span>,</span>
 <span>  interaction_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cauchy"</span>, <span class="st">"UnitInfo"</span><span class="op">)</span>,</span>
 <span>  cauchy_scale <span class="op">=</span> <span class="fl">2.5</span>,</span>
-<span>  threshold_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  threshold_beta <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  threshold_alpha <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>  threshold_beta <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  convergence_criterion <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">.Machine</span><span class="op">$</span><span class="va">double.eps</span><span class="op">)</span>,</span>
 <span>  maximum_iterations <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>  <span class="va">thresholds</span>,</span>
@@ -98,7 +98,7 @@ to <code>2.5</code>.</p></dd>
 
 <dt>threshold_alpha, threshold_beta</dt>
 <dd><p>The shape parameters of the Beta-prime
-prior for the thresholds. Default to <code>1</code>.</p></dd>
+prior for the thresholds. Default to <code>0.5</code>.</p></dd>
 
 
 <dt>convergence_criterion</dt>
