@@ -626,7 +626,7 @@ structures <code>bgm</code> encountered in 10,000 iterations.</p>
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">S</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 8421</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 8360</span></span></code></pre></div>
 <p>There are clearly many different network structures that could fit
 the data. Let’s estimate their posterior probabilities.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
@@ -638,7 +638,7 @@ the data. Let’s estimate their posterior probabilities.</p>
 <span><span class="op">}</span></span>
 <span><span class="va">Ps</span> <span class="op">=</span> <span class="va">Ps</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">Ps</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.17</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.15</span></span></code></pre></div>
 <p>The most plausible model accounts for less than <code>1</code>
 percent of the posterior probability. In conclusion, we have significant
 uncertainty about the network structure that generated the data.</p>
