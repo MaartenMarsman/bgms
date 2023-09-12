@@ -19,9 +19,9 @@
 #' already done. Unobserved categories are collapsed into other categories after
 #' recoding (i.e., if category 1 is unobserved, the data will be recoded from
 #' (0, 2) to (0, 1)).
-#' @param no_nodes The number of nodes per timepoint.
-#' @param no_timepoints The number of timepoints. Must be a positive number.
-#' Does not include time t = 0.
+#' @param no_nodes The number of nodes per time point \code{t}.
+#' @param no_timepoints The number of time points \code{t}. An integer equal to
+#' or greater than two.
 #' @param iter The number of iterations of the Gibbs sampler. The default of
 #' \code{1e4} is for illustrative purposes. For stable estimates, it is
 #' recommended to run the Gibbs sampler for at least \code{1e5} iterations.
@@ -37,6 +37,10 @@
 #' distribution is skewed to the left, and if \code{threshold_beta} is less than
 #' \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
 #' lead to more diffuse prior distributions.
+#' @param threshold_model The modeling options for the threshold parameters. Two
+#' options are currently implemented: \code{threshold_model = "constant"}
+#' assumes that the threshold parameters are constant across time points, while
+#' \code{threshold_model = "free"} assumes that they are free to vary.
 #' @param cross_sectional_edge_prior,cross_lagged_edge_prior The prior
 #' distribution for the cross_lagged edges of the panel network. Currently, two
 #' prior distributions are implemented: The Bernoulli model
@@ -127,6 +131,7 @@ bgm.panel = function(x,
                      cross_lagged_beta_bernoulli_beta = 1,
                      threshold_alpha = 1,
                      threshold_beta = 1,
+                     threshold_model = c("free", "constant"),
                      save = FALSE,
                      display_progress = TRUE) {
 
@@ -143,12 +148,12 @@ bgm.panel = function(x,
   #Check design input
   if(no_nodes < 2 || is.null(no_nodes))
     stop("The design needs at least two variables.")
-  if(no_timepoints <= 0 || is.null(no_timepoints))
-    stop("The design needs at least one timepoint.")
-  if(ncol(x) != no_nodes * (no_timepoints + 1))
+  if(no_timepoints <= 1 || is.null(no_timepoints))
+    stop("The design requires at least two time points.")
+  if(ncol(x) != no_nodes * no_timepoints)
     stop(paste0("The number of variables in x does not match the design input. \n",
                 "It is expected that x has no_nodes * (1 + no_timepoints) = ",
-                no_nodes * (no_timepoints + 1), " columns. Instead it has ",
+                no_nodes * no_timepoints, " columns. Instead it has ",
                 ncol(x), " columns."))
 
   #Check Gibbs input -----------------------------------------------------------
@@ -268,12 +273,14 @@ bgm.panel = function(x,
     stop("Parameter ``threshold_alpha'' needs to be positive.")
   if(threshold_beta <= 0  | !is.finite(threshold_beta))
     stop("Parameter ``threshold_beta'' needs to be positive.")
+  #Check model set-up for the threshold parameters -----------------------------
+  threshold_model = match.arg(threshold_model)
 
   #Format the data input -------------------------------------------------------
   ### FOR NOW "na.action = LISWISE"
   data = reformat_data_bgm_panel(x = x,
                                  no_nodes,
-                                 no_timepoints,
+                                 no_timepoints - 1,  #fix later
                                  na.action = "listwise")
   x = data$x
   no_persons = nrow(x)
@@ -283,7 +290,7 @@ bgm.panel = function(x,
 
   no_cross_sectional_interactions = no_nodes * (no_nodes - 1) / 2
   no_cross_lagged_interactions = no_nodes * no_nodes
-  no_thresholds = sum(no_categories) * no_timepoints
+  no_thresholds = sum(no_categories) * (no_timepoints - 1) #check
 
   #Set up the variance of the (normal) proposal distribution
   crsec_proposal_sd = matrix(1,
@@ -304,19 +311,33 @@ bgm.panel = function(x,
   crsec_interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
   crlag_interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
   thresholds = matrix(0,
-                      nrow = no_nodes * no_timepoints,
+                      nrow = no_nodes * (no_timepoints - 1),
                       ncol = max(no_categories))
 
   #Precomputing number of observations per category for each node.
-  n_cat_obs = matrix(0,
-                     nrow = max(no_categories) + 1,
-                     ncol = no_nodes * no_timepoints)
-  start = (0:no_timepoints) * no_nodes
-  for(t in 1:no_timepoints) {
-    for(node in 1:no_nodes) {
-      for(category in 0:no_categories[node]) {
-        n_cat_obs[category + 1, node + start[t]] =
-          sum(x[, node + start[t + 1]] == category)
+  start = (0:(no_timepoints - 1)) * no_nodes
+  if(threshold_model == "free") {
+    n_cat_obs = matrix(0,
+                       nrow = max(no_categories) + 1,
+                       ncol = no_nodes * (no_timepoints-1))
+    for(t in 1:(no_timepoints - 1)) {
+      for(node in 1:no_nodes) {
+        for(category in 0:no_categories[node]) {
+          n_cat_obs[category + 1, node + start[t]] =
+            sum(x[, node + start[t + 1]] == category)
+        }
+      }
+    }
+  } else {
+    n_cat_obs = matrix(0,
+                       nrow = max(no_categories) + 1,
+                       ncol = no_nodes)
+    for(t in 1:(no_timepoints - 1)) {
+      for(node in 1:no_nodes) {
+        for(category in 0:no_categories[node]) {
+          n_cat_obs[category + 1, node] = n_cat_obs[category + 1, node] +
+            sum(x[, node + start[t + 1]] == category)
+        }
       }
     }
   }
@@ -352,7 +373,7 @@ bgm.panel = function(x,
   out = gibbs_sampler_cross_lagged_mrf(observations = x,
                                        no_persons = no_persons,
                                        no_nodes = no_nodes,
-                                       no_timepoints = no_timepoints,
+                                       no_timepoints = no_timepoints-1,
                                        gamma = gamma,
                                        delta = delta,
                                        crsec_interactions = crsec_interactions,
@@ -378,6 +399,7 @@ bgm.panel = function(x,
                                        n_cat_obs = n_cat_obs,
                                        threshold_alpha = threshold_alpha,
                                        threshold_beta = threshold_beta,
+                                       threshold_model = threshold_model,
                                        save = save,
                                        display_progress = display_progress)
 

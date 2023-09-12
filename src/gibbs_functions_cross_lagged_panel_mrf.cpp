@@ -5,21 +5,22 @@
 using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the threshold parameters
-// in a ordinal cross-lagged panel mrf
+// MH algorithm for sampling from the full conditional of the threshold
+// parameters in an ordinal cross-lagged panel MRF, assuming they vary freely
+// across time points.
 // ----------------------------------------------------------------------------|
-NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_interactions,
-                                                           NumericMatrix crlag_interactions,
-                                                           NumericMatrix thresholds,
-                                                           IntegerMatrix observations,
-                                                           IntegerVector no_categories,
-                                                           IntegerVector start,
-                                                           IntegerMatrix n_cat_obs,
-                                                           int no_persons,
-                                                           int no_nodes,
-                                                           int no_timepoints,
-                                                           double threshold_alpha,
-                                                           double threshold_beta) {
+NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf_free(NumericMatrix crsec_interactions,
+                                                                NumericMatrix crlag_interactions,
+                                                                NumericMatrix thresholds,
+                                                                IntegerMatrix observations,
+                                                                IntegerVector no_categories,
+                                                                IntegerVector start,
+                                                                IntegerMatrix n_cat_obs,
+                                                                int no_persons,
+                                                                int no_nodes,
+                                                                int no_timepoints,
+                                                                double threshold_alpha,
+                                                                double threshold_beta) {
   NumericVector g(no_persons);
   NumericVector q(no_persons);
 
@@ -91,6 +92,107 @@ NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf(NumericMatrix crsec_i
     }
   }
 
+  return thresholds;
+}
+
+// ----------------------------------------------------------------------------|
+// MH algorithm for sampling from the full conditional of the threshold
+// parameters in an ordinal cross-lagged panel MRF, assuming they are constant
+// across time points.
+// ----------------------------------------------------------------------------|
+NumericMatrix metropolis_thresholds_cross_lagged_panel_mrf_constant(NumericMatrix crsec_interactions,
+                                                                    NumericMatrix crlag_interactions,
+                                                                    NumericMatrix thresholds,
+                                                                    IntegerMatrix observations,
+                                                                    IntegerVector no_categories,
+                                                                    IntegerVector start,
+                                                                    IntegerMatrix n_cat_obs,
+                                                                    int no_persons,
+                                                                    int no_nodes,
+                                                                    int no_timepoints,
+                                                                    double threshold_alpha,
+                                                                    double threshold_beta) {
+  NumericMatrix g(no_persons, no_timepoints);
+  NumericMatrix q(no_persons, no_timepoints);
+
+  double log_prob, rest_score;
+  double a, b, d;
+  double tmp;
+  double current_state, proposed_state;
+  double U;
+  double exp_current, exp_proposed;
+
+  for(int node = 0; node < no_nodes; node++) {
+    for(int category = 0; category < no_categories[node]; category++) {
+      current_state = thresholds(node, category);
+      exp_current = std::exp(current_state);
+      d = (threshold_alpha + threshold_beta) / (1 + exp_current);
+      for(int t = 0; t < no_timepoints; t++) {
+        for(int person = 0; person < no_persons; person++) {
+          g(person, t) = 1.0;
+          q(person, t) = 1.0;
+          rest_score = 0.0;
+          for(int node2 = 0; node2 < no_nodes; node2++) {
+            rest_score += observations(person, node2 + start[t + 1]) *
+              crsec_interactions(node, node2);
+            rest_score += observations(person, node2 + start[t]) *
+              crlag_interactions(node, node2);
+          }
+          for(int cat = 0; cat < no_categories[node]; cat++) {
+            if(cat != category) {
+              g(person, t) += std::exp(thresholds(node, cat) +
+                (cat + 1) * rest_score);
+            }
+          }
+          q(person, t) = std::exp((category + 1) * rest_score);
+          d +=  q(person, t) / (g(person, t) + q(person, t) * exp_current);
+        }
+      }
+
+      //Proposal is generalized beta-prime.
+      a = n_cat_obs(category + 1, node) + threshold_alpha;
+      b = no_persons * no_timepoints +
+        threshold_beta -
+        n_cat_obs(category + 1, node);
+
+      d = d / (a + b - exp_current * d);
+
+      tmp = R::rbeta(a, b);
+      proposed_state = std::log(tmp / (1 - tmp) / d);
+      exp_proposed = exp(proposed_state);
+
+      //Compute log_acceptance probability for Metropolis.
+      //First, we use g and q above to compute the ratio of pseudolikelihoods
+      log_prob = 0;
+      for(int t = 0; t < no_timepoints; t++) {
+        for(int person = 0; person < no_persons; person++) {
+          log_prob += std::log(g(person, t) + q(person, t) * exp_current);
+          log_prob -= std::log(g(person, t) + q(person, t) * exp_proposed);
+        }
+      }
+
+      //Second, we add the ratio of prior probabilities
+      log_prob -= (threshold_alpha + threshold_beta) *
+        std::log(1 + exp_proposed);
+      log_prob += (threshold_alpha + threshold_beta) *
+        std::log(1 + exp_current);
+      //Third, we add the ratio of proposals
+      log_prob -= (a + b) * std::log(1 + d * exp_current);
+      log_prob += (a + b) * std::log(1 + d * exp_proposed);
+
+      U = std::log(R::unif_rand());
+      if(U < log_prob) {
+        //To keep the different sampling functions consistent with the available
+        //options for the threshold parameters, we store the threshold
+        //parameters in a matrix with number of nodes * number of time points
+        //rows and number of categories columns. This is a bit redundant, but it
+        //simplifies the other functions.
+        for(int t = 0; t < no_timepoints; t++) {
+          thresholds(node + start[t], category) = proposed_state;
+        }
+      }
+    }
+  }
   return thresholds;
 }
 
@@ -595,6 +697,7 @@ List gibbs_step_cross_lagged_mrf(IntegerMatrix observations,
                                  IntegerMatrix n_cat_obs,
                                  double threshold_alpha,
                                  double threshold_beta,
+                                 String threshold_model,
                                  int no_persons,
                                  int no_nodes,
                                  int no_timepoints,
@@ -616,18 +719,33 @@ List gibbs_step_cross_lagged_mrf(IntegerMatrix observations,
                                  double epsilon_hi) {
 
   //Block I: Thresholds
-  thresholds = metropolis_thresholds_cross_lagged_panel_mrf(crsec_interactions,
-                                                            crlag_interactions,
-                                                            thresholds,
-                                                            observations,
-                                                            no_categories,
-                                                            start,
-                                                            n_cat_obs,
-                                                            no_persons,
-                                                            no_nodes,
-                                                            no_timepoints,
-                                                            threshold_alpha,
-                                                            threshold_beta);
+  if(threshold_model == "constant") {
+    thresholds = metropolis_thresholds_cross_lagged_panel_mrf_constant(crsec_interactions,
+                                                              crlag_interactions,
+                                                              thresholds,
+                                                              observations,
+                                                              no_categories,
+                                                              start,
+                                                              n_cat_obs,
+                                                              no_persons,
+                                                              no_nodes,
+                                                              no_timepoints,
+                                                              threshold_alpha,
+                                                              threshold_beta);
+  } else {
+    thresholds = metropolis_thresholds_cross_lagged_panel_mrf_free(crsec_interactions,
+                                                              crlag_interactions,
+                                                              thresholds,
+                                                              observations,
+                                                              no_categories,
+                                                              start,
+                                                              n_cat_obs,
+                                                              no_persons,
+                                                              no_nodes,
+                                                              no_timepoints,
+                                                              threshold_alpha,
+                                                              threshold_beta);
+  }
 
   // //Block II: Cross-Sectional
   List out = metropolis_cross_sectional_edge_interaction_pair(crsec_interactions,
@@ -759,6 +877,7 @@ List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations,
                                     IntegerMatrix n_cat_obs,
                                     double threshold_alpha,
                                     double threshold_beta,
+                                    String threshold_model,
                                     bool save = false,
                                     bool display_progress = false) {
   int cntr;
@@ -853,6 +972,7 @@ List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations,
                                            n_cat_obs,
                                            threshold_alpha,
                                            threshold_beta,
+                                           threshold_model,
                                            no_persons,
                                            no_nodes,
                                            no_timepoints,
@@ -966,6 +1086,7 @@ List gibbs_sampler_cross_lagged_mrf(IntegerMatrix observations,
                                            n_cat_obs,
                                            threshold_alpha,
                                            threshold_beta,
+                                           threshold_model,
                                            no_persons,
                                            no_nodes,
                                            no_timepoints,

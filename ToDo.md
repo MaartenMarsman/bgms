@@ -1,17 +1,19 @@
 # sampleMRF
 We should check the new version of sampleMRF
 
+# reformat_data
+When threshold_model = "free", we should collapse the missing category per time 
+point. We should also really check if we wish to collapse.
+
 # bgm.panel.r
 ## Implement na.action
 We should create a function to compute and simulate from the full-conditional
 
 ## Implement threshold_model = "constant" (stationarity assumption)
-We have a first implementation of the c++ code, but we need to adjust the input
-from R in bgm.panel.r. We also still need to check for the consistency with the
-reformat_data function.
+Check the results.
 
 ## Count first time point as one, not zero.
-I have made the change in the analysis input, but I need to adjust some
+We have made the change in the analysis input, but we need to adjust some
 additional functionalities in bgm.panel.r, and reformat_data. It would also be a
 good idea to check for the consistency with the sampleMRF function.
 

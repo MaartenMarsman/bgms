@@ -22,6 +22,7 @@ bgm.panel(
   cross_lagged_beta_bernoulli_beta = 1,
   threshold_alpha = 1,
   threshold_beta = 1,
+  threshold_model = c("free", "constant"),
   save = FALSE,
   display_progress = TRUE
 )
@@ -35,10 +36,10 @@ already done. Unobserved categories are collapsed into other categories after
 recoding (i.e., if category 1 is unobserved, the data will be recoded from
 (0, 2) to (0, 1)).}
 
-\item{no_nodes}{The number of nodes per timepoint.}
+\item{no_nodes}{The number of nodes per time point \code{t}.}
 
-\item{no_timepoints}{The number of timepoints. Must be a positive number.
-Does not include time t = 0.}
+\item{no_timepoints}{The number of time points \code{t}. An integer equal to
+or greater than two.}
 
 \item{iter}{The number of iterations of the Gibbs sampler. The default of
 \code{1e4} is for illustrative purposes. For stable estimates, it is
@@ -87,6 +88,11 @@ two values are equal, the prior density is symmetric about zero. If
 distribution is skewed to the left, and if \code{threshold_beta} is less than
 \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
 lead to more diffuse prior distributions.}
+
+\item{threshold_model}{The modeling options for the threshold parameters. Two
+options are currently implemented: \code{threshold_model = "constant"}
+assumes that the threshold parameters are constant across time points, while
+\code{threshold_model = "free"} assumes that they are free to vary.}
 
 \item{save}{Should the function collect and return all samples from the Gibbs
 sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
