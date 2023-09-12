@@ -1,6 +1,0 @@
-* Check new version of sampleMRF vs new version
-* Implement na.action
-** Create function to compute and simulate from full-conditional: For simulate + impute
-* Implement design with fixed thresholds (stationarity assumption)
-* Name output columns
-* Implement a restmatrix approach to improve speed

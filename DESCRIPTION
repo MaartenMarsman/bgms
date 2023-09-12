@@ -1,18 +1,20 @@
 Package: bgms
 Type: Package
 Title: Bayesian Variable Selection for Networks of Binary and/or Ordinal Variables
-Version: 0.1.1
-Date: 2023-04-14
+Version: 0.2.0
+Date: 2023-09-12
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-5309-7502")),
+    person("Karoline", "Huth", role = "ctb",
+           comment = c(ORCID = "0000-0002-0662-1591")),
     person("Nikola", "Sekulovski", role = "ctb",
            comment = c(ORCID = "0000-0001-7032-1684")),
     person("Don", "van den Bergh", role = "ctb",
     comment = c(ORCID = "0000-0002-9838-7308"))
   )
 Maintainer: Maarten Marsman <m.marsman@uva.nl>
-Description: Bayesian variable selection methods for analyzing the structure of a Markov Random Field model for a network of binary and/or ordinal variables. Details of the implemented methods can be found in: Marsman and Haslbeck (2023) <doi:10.31234/osf.io/ukwrf>.
+Description: Bayesian variable selection methods for analyzing the parameters and structure of a Markov random field model for a network of binary and/or ordinal variables in cross-sectional and panel designs. Details of the implemented methods can be found in: Marsman and Haslbeck (2023) <doi:10.31234/osf.io/ukwrf>.
 License: GPL (>= 2)
 URL: https://maartenmarsman.github.io/bgms/
 BugReports: https://github.com/MaartenMarsman/bgms/issues
