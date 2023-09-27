@@ -145,7 +145,7 @@
 #'  # EVIDENCE - EDGE WEIGHT PLOT
 #'  #------------------------------------------------------------------------------|
 #'
-#'  #The bgms package currently assumes that the prior odds are 1:
+#'  #For the default choice of the structure prior, the prior odds equal one:
 #'  prior.odds = 1
 #'  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
 #'  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
