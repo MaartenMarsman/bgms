@@ -351,11 +351,16 @@ bgm = function(x,
   if(adaptive == FALSE && !na.impute) {
     hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
     cntr = 0
-    for(node1 in 1:(no_nodes - 1)) {
-      for(node2 in (node1 + 1):no_nodes) {
-        cntr = cntr + 1
-        proposal_sd[node1, node2] = sqrt(-1 / hessian[cntr, cntr])
-        proposal_sd[node2, node1] = proposal_sd[node1, node2]
+    if(no_nodes == 2) {
+      proposal_sd[1, 2] = sqrt(-1 / hessian[cntr])
+      proposal_sd[2, 1] = proposal_sd[1, 2]
+    } else {
+      for(node1 in 1:(no_nodes - 1)) {
+        for(node2 in (node1 + 1):no_nodes) {
+          cntr = cntr + 1
+          proposal_sd[node1, node2] = sqrt(-1 / hessian[cntr, cntr])
+          proposal_sd[node2, node1] = proposal_sd[node1, node2]
+        }
       }
     }
   }

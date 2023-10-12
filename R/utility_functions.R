@@ -212,14 +212,19 @@ set_slab = function(x, no_categories, thresholds, interactions) {
                                           -(1:no_thresholds)]
 
   # Specify spike and slab matrices -------------------------------------------
-  cntr = 0
-  for(node in 1:(no_nodes - 1)) {
-    for(node_2 in (node + 1):no_nodes) {
-      cntr = cntr + 1
-      slab_var[node, node_2] = slab_var[node_2, node] =
-        no_persons * asymptotic_covariance[cntr, cntr]
+  if(no_nodes > 2) {
+    cntr = 0
+    for(node in 1:(no_nodes - 1)) {
+      for(node_2 in (node + 1):no_nodes) {
+        cntr = cntr + 1
+        slab_var[node, node_2] = slab_var[node_2, node] =
+          no_persons * asymptotic_covariance[cntr, cntr]
+      }
     }
+  } else {
+    slab_var[1, 2] = slab_var[2, 1] = no_persons * asymptotic_covariance[1]
   }
+
   return(slab_var)
 }
 
