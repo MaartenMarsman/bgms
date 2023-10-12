@@ -248,7 +248,7 @@ bgm = function(x,
         stop("The inclusion probability cannot exceed the value one.")
       theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
     } else {
-      if(!inherits(inclusion_probability, what = "matrix") ||
+      if(!inherits(inclusion_probability, what = "matrix") &&
          !inherits(inclusion_probability, what = "data.frame"))
         stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
 
@@ -265,10 +265,12 @@ bgm = function(x,
       if(any(is.na(theta[lower.tri(theta)])) ||
          any(is.null(theta[lower.tri(theta)])))
         stop("One or more elements of the elements in inclusion probability matrix are not specified.")
-      if(any(theta <= 0))
-        stop("The inclusion probability matrix contains negative values, the values need to be positive.")
-      if(theta >= 1)
-        stop("The inclusion probability matrix contains values greater than one; inclusion probabilities cannot exceed the value one.")
+      if(any(theta[lower.tri(theta)] <= 0))
+        stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
+                    "inclusion probabilities need to be positive."))
+      if(any(theta[lower.tri(theta)] >= 1))
+        stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
+                    "inclusion probabilities cannot exceed or equal the value one."))
     }
   }
   if(edge_prior == "Beta-Bernoulli") {
