@@ -6,6 +6,6 @@ bibentry(
   author   = "Marsman, M. and Haslbeck, J. M. B.",
   journal  = "PsyArXiv",
   year     = "2023",
-  url      = "https://psyarxiv.com/ukwrf",
+  url      = "https://osf.io/preprints/psyarxiv/ukwrf",
   textVersion = "Marsman, M., & Haslbeck, J. M. B. (2023, March 3). Bayesian Analysis of the Ordinal Markov Random Field. https://doi.org/10.31234/osf.io/ukwrf"
 )
