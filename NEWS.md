@@ -1,3 +1,7 @@
+# bgms 0.1.3
+
+This is a minor release adding fixing some minor bugs.
+
 # bgms 0.1.2
 
 This is a minor release adding fixing some minor bugs.
