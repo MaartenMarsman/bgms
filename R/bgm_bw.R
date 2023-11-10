@@ -174,24 +174,22 @@
 #'         labels = colnames(Wenchuan))
 #'  }
 #' @export
-bgm = function(x,
-               iter = 1e4,
-               burnin = 1e3,
-               save = FALSE,
-               display_progress = TRUE,
-               interaction_prior = c("UnitInfo", "Cauchy"),
-               cauchy_scale = 2.5,
-               threshold_alpha = 1,
-               threshold_beta = 1,
-               edge_prior = c("Bernoulli", "Beta-Binomial", "SBM"),
-               bernoulli_theta = 0.5,
-               beta_binomial_alpha = 1,
-               beta_binomial_beta = 1,
-               sbm_alpha = 1,
-               sbm_beta = 1,
-               sbm_gamma = 1,
-               sbm_confirmatory = FALSE,
-               sbm_allocations = rep(1, ncol(x))) {
+bgm_bw = function(x,
+                  iter = 1e4,
+                  burnin = 1e3,
+                  save = FALSE,
+                  display_progress = TRUE,
+                  interaction_prior = c("UnitInfo", "Cauchy"),
+                  cauchy_scale = 2.5,
+                  threshold_alpha = 1,
+                  threshold_beta = 1,
+                  bernoulli_theta = 0.5,
+                  beta_binomial_alpha = 1,
+                  beta_binomial_beta = 1,
+                  sbm_alpha = 1,
+                  sbm_beta = 1,
+                  constrained_bw = TRUE,
+                  sbm_allocations = rep(1, ncol(x))) {
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
@@ -213,78 +211,21 @@ bgm = function(x,
     stop("Parameter ``threshold_beta'' needs to be positive.")
 
   #Check prior set-up for the edge parameters ----------------------------------
-  edge_prior = match.arg(edge_prior)
-  if(edge_prior == "Bernoulli") {
+  edge_prior = "SBM"
+  sbm_alpha = 1
+  sbm_beta = 1
+  sbm_gamma = 1
+  if(length(unique(sbm_allocations)) == 1)
+    stop("The vector ``sbm_allocations'' assigns all nodes to a single cluster.\n Please use the bgm function using the``Beta-Binomial'' option instead.")
+  if(length(sbm_allocations) != ncol(x))
+    stop("The length of ``sbm_allocations'' needs to be equal to the number of nodes (ncol(x)).")
+  if(any(is.na(sbm_allocations)))
+    stop("There are missing values in ``sbm_allocations''.")
 
-    if(inherits(bernoulli_theta, what = "matrix")) {
-
-      if(!isSymmetric(bernoulli_theta))
-        stop("Please ensure that ``bernoulli_theta'' is a symmetric matrix.")
-      if(any(is.na(bernoulli_theta[lower.tri(bernoulli_theta)])))
-        stop("There are missing values in the ``bernoulli_theta'' matrix where numeric values between zero and one are expected.")
-      if(any(bernoulli_theta[lower.tri(bernoulli_theta)] < 0) ||
-         any(bernoulli_theta[lower.tri(bernoulli_theta)] > 1))
-        stop("Please ensure that the values in the ``bernoulli_theta'' matrix lie between zero and one.")
-
-      if(nrow(bernoulli_theta) != ncol(x))
-        stop("Please ensure that the number of rows of ``bernoulli_theta'' is equal to the number of nodes (ncol(x)).")
-      if(ncol(bernoulli_theta) != ncol(x))
-        stop("Please ensure that the number of columns of ``bernoulli_theta'' is equal to the number of nodes (ncol(x)).")
-
-      inclusion = bernoulli_theta
-
-    } else {
-
-      if(is.na(bernoulli_theta))
-        stop("The ``bernoulli_theta'' value is missing.")
-      if(bernoulli_theta < 0 || bernoulli_theta > 1)
-        stop("Parameter ``bernoulli_theta'' needs to lie between zero and one.")
-
-      inclusion = matrix(data = bernoulli_theta,
-                         nrow = ncol(x),
-                         ncol = ncol(x))
-
-    }
-
-  } else if (edge_prior == "Beta-Binomial") {
-
-    if(beta_binomial_alpha <= 0  | !is.finite(beta_binomial_alpha))
-      stop("Parameter ``beta_binomial_alpha'' needs to be positive.")
-    if(beta_binomial_beta <= 0  | !is.finite(beta_binomial_beta))
-      stop("Parameter ``beta_binomial_beta'' needs to be positive.")
-
-    inclusion = matrix(data = 0.5,
-                       nrow = ncol(x),
-                       ncol = ncol(x))
-
-  } else if (edge_prior == "SBM") {
-
-    if(sbm_alpha <= 0  | !is.finite(sbm_alpha))
-      stop("Parameter ``sbm_alpha'' needs to be positive.")
-    if(sbm_beta <= 0  | !is.finite(sbm_beta))
-      stop("Parameter ``sbm_beta'' needs to be positive.")
-    if(sbm_gamma <= 0  | !is.finite(sbm_gamma))
-      stop("Parameter ``sbm_gamma'' needs to be positive.")
-
-    if(sbm_confirmatory == TRUE) {
-      if(length(unique(sbm_allocations)) == 1)
-        stop("The vector ``sbm_allocations'' assigns all nodes to a single cluster.\n Please use the ``Beta-Binomial'' option instead.")
-      if(length(sbm_allocations) != ncol(x))
-        stop("The length of ``sbm_allocations'' needs to be equal to the number of nodes (ncol(x)).")
-      if(any(is.na(sbm_allocations)))
-        stop("There are missing values in ``sbm_allocations''.")
-
-      allocations = sbm_allocations
-      cluster = unique(sbm_allocations)
-      for(c in 1:length(cluster))
-        allocations [which(sbm_allocations == cluster[c])] = c - 1
-
-    }
-
-  } else {
-    stop("The ``edge_prior'' should be one of ``Bernoulli'', ``Beta-Binomial'', or ``SBM''.")
-  }
-
+  allocations = sbm_allocations
+  cluster = unique(sbm_allocations)
+  for(c in 1:length(cluster))
+    allocations [which(sbm_allocations == cluster[c])] = c - 1
 
   #Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix"))
@@ -380,75 +321,27 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  # Bernoulli or Beta-Binomial prior
-  if(edge_prior != "SBM") {
-    out = gibbs_sampler_no_sbm(observations = x,
-                               gamma = gamma,
-                               interactions = interactions,
-                               thresholds = thresholds,
-                               no_categories  = no_categories,
-                               interaction_prior = interaction_prior,
-                               cauchy_scale = cauchy_scale,
-                               unit_info = unit_info,
-                               proposal_sd = proposal_sd,
-                               Index = Index,
-                               iter = iter,
-                               burnin = burnin,
-                               n_cat_obs = n_cat_obs,
-                               threshold_alpha = threshold_alpha,
-                               threshold_beta = threshold_beta,
-                               save = save,
-                               display_progress = display_progress,
-                               edge_prior = edge_prior,
-                               inclusion = inclusion,
-                               beta_alpha = beta_binomial_alpha,
-                               beta_beta = beta_binomial_beta)
-  } else {
-    if(sbm_confirmatory == TRUE) {
-      out = gibbs_sampler_confirmatory_sbm(observations = x,
-                                           gamma = gamma,
-                                           interactions = interactions,
-                                           thresholds = thresholds,
-                                           no_categories  = no_categories,
-                                           interaction_prior = interaction_prior,
-                                           cauchy_scale = cauchy_scale,
-                                           unit_info = unit_info,
-                                           proposal_sd = proposal_sd,
-                                           Index = Index,
-                                           iter = iter,
-                                           burnin = burnin,
-                                           n_cat_obs = n_cat_obs,
-                                           threshold_alpha = threshold_alpha,
-                                           threshold_beta = threshold_beta,
-                                           beta_alpha = sbm_alpha,
-                                           beta_beta = sbm_beta,
-                                           save = save,
-                                           display_progress = display_progress,
-                                           cluster_allocations = allocations)
-    } else {
-      out = gibbs_sampler_sbm(observations = x,
-                              gamma = gamma,
-                              interactions = interactions,
-                              thresholds = thresholds,
-                              no_categories  = no_categories,
-                              interaction_prior = interaction_prior,
-                              cauchy_scale = cauchy_scale,
-                              unit_info = unit_info,
-                              proposal_sd = proposal_sd,
-                              Index = Index,
-                              iter = iter,
-                              burnin = burnin,
-                              n_cat_obs = n_cat_obs,
-                              threshold_alpha = threshold_alpha,
-                              threshold_beta = threshold_beta,
-                              dirichlet_gamma = sbm_gamma,
-                              beta_alpha = sbm_alpha,
-                              beta_beta = sbm_beta,
-                              save = save,
-                              display_progress = display_progress)
-    }
-  }
-
+  out = gibbs_sampler_confirmatory_sbm_bw(observations = x,
+                                          gamma = gamma,
+                                          interactions = interactions,
+                                          thresholds = thresholds,
+                                          no_categories  = no_categories,
+                                          interaction_prior = interaction_prior,
+                                          cauchy_scale = cauchy_scale,
+                                          unit_info = unit_info,
+                                          proposal_sd = proposal_sd,
+                                          Index = Index,
+                                          iter = iter,
+                                          burnin = burnin,
+                                          n_cat_obs = n_cat_obs,
+                                          threshold_alpha = threshold_alpha,
+                                          threshold_beta = threshold_beta,
+                                          beta_alpha = sbm_alpha,
+                                          beta_beta = sbm_beta,
+                                          cluster_allocations = allocations,
+                                          save = save,
+                                          display_progress = display_progress,
+                                          constrained_bw = constrained_bw)
   #Preparing the output --------------------------------------------------------
   if(save == FALSE) {
     gamma = out$gamma
@@ -465,27 +358,13 @@ bgm = function(x,
     colnames(thresholds) = paste0("category ", 1:max(no_categories))
     rownames(thresholds) = paste0("node ", 1:no_nodes)
 
-    if(edge_prior != "SBM") {
+    allocations = out$allocations
 
-      return(list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  complexity = complexity))
-
-    } else {
-      allocations = out$allocations
-      if(sbm_confirmatory == TRUE)
-        allocations = matrix(allocations, nrow = 1)
-      colnames(allocations) = paste("node", 1:ncol(allocations))
-
-      return(list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  allocations = allocations,
-                  complexity = complexity))
-
-    }
-
+    return(list(gamma = gamma,
+                interactions = interactions,
+                thresholds = thresholds,
+                allocations = allocations,
+                complexity = complexity))
   } else {
     gamma = out$gamma
     interactions = out$interactions
@@ -520,25 +399,12 @@ bgm = function(x,
     rownames(interactions) = paste0("Iter. ", 1:iter)
     rownames(thresholds) = paste0("Iter. ", 1:iter)
 
-    if(edge_prior != "SBM") {
+    allocations = out$allocations
 
-      return(list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  complexity = complexity))
-
-    } else {
-      allocations = out$allocations
-      if(sbm_confirmatory == FALSE)
-        allocations = matrix(allocations, nrow = 1)
-      colnames(allocations) = paste("node", 1:ncol(allocations))
-
-      return(list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  allocations = allocations,
-                  complexity = complexity))
-
-    }
+    return(list(gamma = gamma,
+                interactions = interactions,
+                thresholds = thresholds,
+                allocations = allocations,
+                complexity = complexity))
   }
 }

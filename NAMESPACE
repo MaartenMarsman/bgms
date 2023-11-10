@@ -2,6 +2,7 @@
 
 export(bgm)
 export(bgm.em)
+export(bgm_bw)
 export(mple)
 export(mppe)
 export(mrfSampler)

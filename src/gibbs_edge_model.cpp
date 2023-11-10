@@ -305,3 +305,104 @@ NumericMatrix block_probs_mfm_sbm(IntegerVector cluster_assign,
   }
   return block_probs;
 }
+
+// ----------------------------------------------------------------------------|
+// Sample a truncated Beta based on Damien, P., & Walker, S.G. (2001). Sampling
+//  Tuncated Normal, Beta, and Gamma Densities. Journal of Computational and
+//  Graphical Statistics, 10(2), 206-215.
+// ----------------------------------------------------------------------------|
+double truncated_beta(double L, // Lower truncation
+                      double U, // Upper truncation
+                      double X,
+                      double alpha,
+                      double beta) {
+
+  double LL, UU, tmp;
+  double Y = R::unif_rand() * std::pow(1 - X, beta - 1);
+
+  if(beta > 1) {
+    LL = L;
+    UU = U;
+    tmp = pow(Y, 1 / (beta - 1));
+    if(UU > 1 - tmp)
+      UU = 1 - tmp;
+  }
+  if (beta < 1) {
+    LL = L;
+    tmp = pow(Y, 1 / (beta - 1));
+    if(LL < 1- tmp)
+      LL = 1 - tmp;
+    UU = U;
+  }
+  if (beta == 1) {
+    LL = L;
+    UU = U;
+  }
+
+  double Z = R::unif_rand();
+
+  if(alpha == 1) {
+    X = Z * (UU - LL) + LL;
+  } else {
+    double lower = pow(LL, alpha) / (alpha - 1);
+    double upper = pow(UU, alpha) / (alpha - 1);
+    tmp = (Z * (upper - lower) + lower) * (alpha - 1);
+    X = pow(tmp, 1 / alpha);
+  }
+
+  return X;
+}
+
+// ----------------------------------------------------------------------------|
+// Sample the block parameters for the MFM - SBM (between and within probs)
+// ----------------------------------------------------------------------------|
+NumericVector block_probs_mfm_sbm_bw(NumericVector block_probs,
+                                     IntegerVector cluster_assign,
+                                     IntegerMatrix gamma,
+                                     int no_nodes,
+                                     double beta_alpha,
+                                     double beta_beta,
+                                     bool constrained_bw) {
+
+  IntegerVector cluster_size = table_cpp(cluster_assign);
+  int no_clusters = cluster_size.size();
+
+  int sumG_w = 0, sumG_b = 0;
+  int size_w = 0, size_b = 0;
+
+  for(int r = 0; r < no_clusters; r++) {
+    for(int s = r; s < no_clusters; s++) {
+      if(r == s) {
+        update_sumG(sumG_w, cluster_assign, gamma, r, r, no_nodes);
+        size_w = cluster_size[r] * (cluster_size[r] - 1) / 2;
+      } else {
+        update_sumG(sumG_b, cluster_assign, gamma, r, s, no_nodes);
+        update_sumG(sumG_b, cluster_assign, gamma, s, r, no_nodes);
+        size_b = cluster_size[s] * cluster_size[r];
+      }
+    }
+  }
+
+  if(constrained_bw == true) {
+    double thetaw = block_probs(0);
+    double thetab = block_probs(1);
+
+    thetaw = truncated_beta(thetab, // Lower truncation
+                            1.0, // Upper truncation
+                            thetaw,
+                            beta_alpha + sumG_w,
+                            beta_beta + size_w - sumG_w);
+    thetab = truncated_beta(0.0, // Lower truncation
+                            thetaw, // Upper truncation
+                            thetab,
+                            beta_alpha + sumG_b,
+                            beta_beta + size_b - sumG_b);
+    block_probs(0) = thetaw;
+    block_probs(1) = thetab;
+  } else {
+    block_probs(0) = R::rbeta(sumG_w + beta_alpha, size_w - sumG_w + beta_beta);
+    block_probs(1) = R::rbeta(sumG_b + beta_alpha, size_b - sumG_b + beta_beta);
+  }
+
+  return block_probs;
+}

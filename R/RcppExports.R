@@ -25,6 +25,10 @@ gibbs_sampler_confirmatory_sbm <- function(observations, gamma, interactions, th
     .Call(`_bgms_gibbs_sampler_confirmatory_sbm`, observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocations, save, display_progress)
 }
 
+gibbs_sampler_confirmatory_sbm_bw <- function(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocations, save = FALSE, display_progress = FALSE, constrained_bw = FALSE) {
+    .Call(`_bgms_gibbs_sampler_confirmatory_sbm_bw`, observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, beta_alpha, beta_beta, cluster_allocations, save, display_progress, constrained_bw)
+}
+
 gradient_thresholds_pseudolikelihood <- function(interactions, thresholds, observations, no_categories) {
     .Call(`_bgms_gradient_thresholds_pseudolikelihood`, interactions, thresholds, observations, no_categories)
 }
