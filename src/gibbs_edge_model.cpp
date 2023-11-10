@@ -364,21 +364,20 @@ NumericVector block_probs_mfm_sbm_bw(NumericVector block_probs,
                                      double beta_beta,
                                      bool constrained_bw) {
 
-  IntegerVector cluster_size = table_cpp(cluster_assign);
-  int no_clusters = cluster_size.size();
+  //IntegerVector cluster_size = table_cpp(cluster_assign);
+  //int no_clusters = cluster_size.size();
 
   int sumG_w = 0, sumG_b = 0;
   int size_w = 0, size_b = 0;
 
-  for(int r = 0; r < no_clusters; r++) {
-    for(int s = r; s < no_clusters; s++) {
-      if(r == s) {
-        update_sumG(sumG_w, cluster_assign, gamma, r, r, no_nodes);
-        size_w = cluster_size[r] * (cluster_size[r] - 1) / 2;
+  for(int i = 0; i < no_nodes - 1; i++) {
+    for(int j = i + 1; j < no_nodes; j++) {
+      if(cluster_assign[i] == cluster_assign[j]) {
+        size_w++;
+        sumG_w += gamma(i,j);
       } else {
-        update_sumG(sumG_b, cluster_assign, gamma, r, s, no_nodes);
-        update_sumG(sumG_b, cluster_assign, gamma, s, r, no_nodes);
-        size_b = cluster_size[s] * cluster_size[r];
+        size_b++;
+        sumG_b += gamma(i,j);
       }
     }
   }
