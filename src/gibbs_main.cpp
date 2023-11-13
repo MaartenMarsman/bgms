@@ -996,7 +996,8 @@ List gibbs_sampler_confirmatory_sbm_bw(IntegerMatrix observations,
                                        bool display_progress = false,
                                        bool constrained_bw = false){
   int cntr;
-  int complexity;
+  int complexityw;
+  int complexityb;
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
   int no_interactions = Index.nrow();
@@ -1012,17 +1013,19 @@ List gibbs_sampler_confirmatory_sbm_bw(IntegerMatrix observations,
   int nrow = no_nodes;
   int ncol_edges = no_nodes;
   int ncol_thresholds = max_no_categories;
+  int nrow_complexity = 1 + no_interactions;
 
   if(save == true) {
     nrow = iter;
     ncol_edges= no_interactions;
     ncol_thresholds = no_thresholds;
+    nrow_complexity = iter;
   }
 
   NumericMatrix out_gamma(nrow, ncol_edges);
   NumericMatrix out_interactions(nrow, ncol_edges);
   NumericMatrix out_thresholds(nrow, ncol_thresholds);
-  IntegerVector out_complexity(no_interactions + 1);
+  IntegerMatrix out_complexity(nrow_complexity, 2);
 
   //Precompute the matrix of rest scores
   NumericMatrix rest_matrix(no_persons, no_nodes);
@@ -1207,16 +1210,23 @@ List gibbs_sampler_confirmatory_sbm_bw(IntegerMatrix observations,
     if(save == TRUE) {
       //Save raw samples -------------------------------------------------------
       cntr = 0;
-      complexity = 0;
+      complexityw = 0;
+      complexityb = 0;
+
       for(int node1 = 0; node1 < no_nodes - 1; node1++) {
         for(int node2 = node1 + 1; node2 < no_nodes;node2++) {
           out_gamma(iteration, cntr) = gamma(node1, node2);
           out_interactions(iteration, cntr) = interactions(node1, node2);
-          complexity += gamma(node1, node2);
+          if(cluster_allocations[node1] == cluster_allocations[node2]) {
+            complexityw += gamma(node1, node2);
+          } else {
+            complexityb += gamma(node1, node2);
+          }
           cntr++;
         }
       }
-      out_complexity(complexity)++;
+      out_complexity(iteration, 0) = complexityw;
+      out_complexity(iteration, 1) = complexityb;
 
       cntr = 0;
       for(int node = 0; node < no_nodes; node++) {
@@ -1227,10 +1237,15 @@ List gibbs_sampler_confirmatory_sbm_bw(IntegerMatrix observations,
       }
     } else {
       //Compute running averages -----------------------------------------------
-      complexity = 0;
+      complexityw = 0;
+      complexityb = 0;
       for(int node1 = 0; node1 < no_nodes - 1; node1++) {
         for(int node2 = node1 + 1; node2 < no_nodes; node2++) {
-          complexity += gamma(node1, node2);
+          if(cluster_allocations[node1] == cluster_allocations[node2]) {
+            complexityw += gamma(node1, node2);
+          } else {
+            complexityb += gamma(node1, node2);
+          }
 
           out_gamma(node1, node2) *= iteration;
           out_gamma(node1, node2) += gamma(node1, node2);
@@ -1249,7 +1264,8 @@ List gibbs_sampler_confirmatory_sbm_bw(IntegerMatrix observations,
           out_thresholds(node1, category) /= iteration + 1;
         }
       }
-      out_complexity(complexity)++;
+      out_complexity(complexityw, 0)++;
+      out_complexity(complexityb, 1)++;
 
       for(int category = 0; category < no_categories[no_nodes - 1]; category++) {
         out_thresholds(no_nodes - 1, category) *= iteration;

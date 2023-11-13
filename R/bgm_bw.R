@@ -370,7 +370,7 @@ bgm_bw = function(x,
     interactions = out$interactions
     thresholds = out$thresholds
 
-    complexity = matrix(out$complexity, ncol = 1)
+    complexity = matrix(out$complexity, ncol = 2)
     row.names(complexity) = paste(1:nrow(complexity)-1, "edges")
 
     names1 = names2 = character(length = no_nodes * (no_nodes - 1) / 2)
