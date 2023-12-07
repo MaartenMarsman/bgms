@@ -12,8 +12,9 @@
 #' distribution as invariant. Current options for the slab distribution are the
 #' unit-information prior or a Cauchy with an optional scaling parameter. A
 #' Beta-prime distribution is used for the exponent of the category parameters.
-#' A uniform prior is used for edge inclusion variables (i.e., the prior
-#' probability that the edge is included is 0.5).
+#' Two prior distributions are implemented for edge inclusion variables (i.e.,
+#' the prior probability that an edge is included); the Bernoulli prior and the
+#' Beta-Bernoulli prior.
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #' containing binary and ordinal variables for \code{n} independent observations
@@ -225,8 +226,12 @@ bgm = function(x,
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
     stop("Parameter ``iter'' needs to be a positive integer.")
+  if(iter <= 0)
+    stop("Parameter ``iter'' needs to be a positive integer.")
   if(abs(burnin - round(burnin)) > sqrt(.Machine$double.eps) || burnin < 0)
     stop("Parameter ``burnin'' needs to be a non-negative integer.")
+  if(burnin <= 0)
+    stop("Parameter ``burnin'' needs to be a positive integer.")
 
   #Check prior set-up for the interaction parameters ---------------------------
   interaction_prior = match.arg(interaction_prior)
