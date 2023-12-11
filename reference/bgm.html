@@ -229,8 +229,9 @@ Gibbs sampling to create a Markov chain that has the joint posterior
 distribution as invariant. Current options for the slab distribution are the
 unit-information prior or a Cauchy with an optional scaling parameter. A
 Beta-prime distribution is used for the exponent of the category parameters.
-A uniform prior is used for edge inclusion variables (i.e., the prior
-probability that the edge is included is 0.5).</p>
+Two prior distributions are implemented for edge inclusion variables (i.e.,
+the prior probability that an edge is included); the Bernoulli prior and the
+Beta-Bernoulli prior.</p>
     </div>
 
     <div class="section level2">
@@ -271,7 +272,7 @@ probability that the edge is included is 0.5).</p>
 <span class="r-in"><span> <span class="co"># EVIDENCE - EDGE WEIGHT PLOT</span></span></span>
 <span class="r-in"><span> <span class="co">#------------------------------------------------------------------------------|</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span> <span class="co">#The bgms package currently assumes that the prior odds are 1:</span></span></span>
+<span class="r-in"><span> <span class="co">#For the default choice of the structure prior, the prior odds equal one:</span></span></span>
 <span class="r-in"><span> <span class="va">prior.odds</span> <span class="op">=</span> <span class="fl">1</span></span></span>
 <span class="r-in"><span> <span class="va">posterior.inclusion</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">)</span><span class="op">]</span></span></span>
 <span class="r-in"><span> <span class="va">posterior.odds</span> <span class="op">=</span> <span class="va">posterior.inclusion</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">posterior.inclusion</span><span class="op">)</span></span></span>
