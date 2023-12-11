@@ -78,6 +78,7 @@ Useful links:
 
 Other contributors:
 \itemize{
+  \item Karoline Huth (\href{https://orcid.org/0000-0002-0662-1591}{ORCID}) [contributor]
   \item Nikola Sekulovski (\href{https://orcid.org/0000-0001-7032-1684}{ORCID}) [contributor]
   \item Don van den Bergh (\href{https://orcid.org/0000-0002-9838-7308}{ORCID}) [contributor]
 }

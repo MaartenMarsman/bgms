@@ -147,8 +147,9 @@ Gibbs sampling to create a Markov chain that has the joint posterior
 distribution as invariant. Current options for the slab distribution are the
 unit-information prior or a Cauchy with an optional scaling parameter. A
 Beta-prime distribution is used for the exponent of the category parameters.
-A uniform prior is used for edge inclusion variables (i.e., the prior
-probability that the edge is included is 0.5).
+Two prior distributions are implemented for edge inclusion variables (i.e.,
+the prior probability that an edge is included); the Bernoulli prior and the
+Beta-Bernoulli prior.
 }
 \examples{
 \donttest{
@@ -183,7 +184,7 @@ probability that the edge is included is 0.5).
  # EVIDENCE - EDGE WEIGHT PLOT
  #------------------------------------------------------------------------------|
 
- #The bgms package currently assumes that the prior odds are 1:
+ #For the default choice of the structure prior, the prior odds equal one:
  prior.odds = 1
  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)

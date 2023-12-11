@@ -1016,3 +1016,514 @@ List gibbs_sampler(IntegerMatrix observations,
                       Named("interactions") = out_interactions,
                       Named("thresholds") = out_thresholds);
 }
+
+
+
+
+
+
+// ----------------------------------------------------------------------------|
+// MH algorithm to sample from the cull-conditional of the active interaction
+//  parameters (using a cauchy prior)
+// ----------------------------------------------------------------------------|
+List est_metropolis_interactions_cauchy(NumericMatrix interactions,
+                                        NumericMatrix thresholds,
+                                        IntegerMatrix observations,
+                                        IntegerVector no_categories,
+                                        NumericMatrix proposal_sd,
+                                        double cauchy_scale,
+                                        int no_persons,
+                                        int no_nodes,
+                                        NumericMatrix rest_matrix,
+                                        bool adaptive,
+                                        double phi,
+                                        double target_ar,
+                                        int t,
+                                        double epsilon_lo,
+                                        double epsilon_hi) {
+  double proposed_state;
+  double current_state;
+  double log_prob;
+  double U;
+
+  for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
+    for(int node2 = node1 + 1; node2 <  no_nodes; node2++) {
+      current_state = interactions(node1, node2);
+      proposed_state = R::rnorm(current_state, proposal_sd(node1, node2));
+
+      log_prob = log_pseudolikelihood_ratio(interactions,
+                                            thresholds,
+                                            observations,
+                                            no_categories,
+                                            no_persons,
+                                            node1,
+                                            node2,
+                                            proposed_state,
+                                            current_state,
+                                            rest_matrix);
+      log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
+      log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
+
+      U = R::unif_rand();
+      if(std::log(U) < log_prob) {
+        double state_diff = proposed_state - current_state;
+        interactions(node1, node2) = proposed_state;
+        interactions(node2, node1) = proposed_state;
+
+        //Update the matrix of rest scores
+        for(int person = 0; person < no_persons; person++) {
+          rest_matrix(person, node1) += observations(person, node2) *
+            state_diff;
+          rest_matrix(person, node2) += observations(person, node1) *
+            state_diff;
+        }
+      }
+
+      if(adaptive == true) {
+        if(log_prob > 0) {
+          log_prob = 1;
+        } else {
+          log_prob = std::exp(log_prob);
+        }
+        proposal_sd(node1, node2) = proposal_sd(node1, node2) +
+          (log_prob - target_ar) * std::exp(-log(t) * phi);
+        if(proposal_sd(node1, node2) < epsilon_lo) {
+          proposal_sd(node1, node2) = epsilon_lo;
+        } else if (proposal_sd(node1, node2) > epsilon_hi) {
+          proposal_sd(node1, node2) = epsilon_hi;
+        }
+      }
+
+    }
+  }
+
+  return List::create(Named("interactions") = interactions,
+                      Named("rest_matrix") = rest_matrix,
+                      Named("proposal_sd") = proposal_sd);
+}
+
+// ----------------------------------------------------------------------------|
+// MH algorithm to sample from the cull-conditional of the active interaction
+//  parameters (using a unit information prior)
+// ----------------------------------------------------------------------------|
+List est_metropolis_interactions_unitinfo(NumericMatrix interactions,
+                                          NumericMatrix thresholds,
+                                          IntegerMatrix observations,
+                                          IntegerVector no_categories,
+                                          NumericMatrix proposal_sd,
+                                          NumericMatrix unit_info,
+                                          int no_persons,
+                                          int no_nodes,
+                                          NumericMatrix rest_matrix,
+                                          bool adaptive,
+                                          double phi,
+                                          double target_ar,
+                                          int t,
+                                          double epsilon_lo,
+                                          double epsilon_hi) {
+  //NumericMatrix theta // no_nodes x no_nodes
+  double proposed_state;
+  double current_state;
+  double log_prob;
+  double U;
+
+  for(int node1 = 0; node1 <  no_nodes - 1; node1++) {
+    for(int node2 = node1 + 1; node2 <  no_nodes; node2++) {
+      current_state = interactions(node1, node2);
+      proposed_state = R::rnorm(current_state, proposal_sd(node1, node2));
+
+      log_prob = log_pseudolikelihood_ratio(interactions,
+                                            thresholds,
+                                            observations,
+                                            no_categories,
+                                            no_persons,
+                                            node1,
+                                            node2,
+                                            proposed_state,
+                                            current_state,
+                                            rest_matrix);
+
+      log_prob += R::dnorm(proposed_state,
+                           0.0,
+                           unit_info(node1, node2),
+                           true);
+      log_prob -= R::dnorm(current_state,
+                           0.0,
+                           unit_info(node1, node2),
+                           true);
+
+      U = R::unif_rand();
+      if(std::log(U) < log_prob) {
+        double state_diff = proposed_state - current_state;
+        interactions(node1, node2) = proposed_state;
+        interactions(node2, node1) = proposed_state;
+
+        //Update the matrix of rest scores
+        for(int person = 0; person < no_persons; person++) {
+          rest_matrix(person, node1) += observations(person, node2) *
+            state_diff;
+          rest_matrix(person, node2) += observations(person, node1) *
+            state_diff;
+        }
+      }
+
+      if(adaptive == true) {
+        if(log_prob > 0) {
+          log_prob = 1;
+        } else {
+          log_prob = std::exp(log_prob);
+        }
+        proposal_sd(node1, node2) = proposal_sd(node1, node2) +
+          (log_prob - target_ar) * std::exp(-log(t) * phi);
+        if(proposal_sd(node1, node2) < epsilon_lo) {
+          proposal_sd(node1, node2) = epsilon_lo;
+        } else if (proposal_sd(node1, node2) > epsilon_hi) {
+          proposal_sd(node1, node2) = epsilon_hi;
+        }
+      }
+
+    }
+  }
+  return List::create(Named("interactions") = interactions,
+                      Named("rest_matrix") = rest_matrix,
+                      Named("proposal_sd") = proposal_sd);
+}
+
+
+
+// ----------------------------------------------------------------------------|
+// Gibbs step for graphical model parameters
+// ----------------------------------------------------------------------------|
+List est_gibbs_step_gm(IntegerMatrix observations,
+                       IntegerVector no_categories,
+                       String interaction_prior,
+                       double cauchy_scale,
+                       NumericMatrix unit_info,
+                       NumericMatrix proposal_sd,
+                       IntegerMatrix index,
+                       IntegerMatrix n_cat_obs,
+                       double threshold_alpha,
+                       double threshold_beta,
+                       int no_persons,
+                       int no_nodes,
+                       int no_interactions,
+                       int no_thresholds,
+                       int max_no_categories,
+                       NumericMatrix interactions,
+                       NumericMatrix thresholds,
+                       NumericMatrix rest_matrix,
+                       bool adaptive,
+                       double phi,
+                       double target_ar,
+                       int t,
+                       double epsilon_lo,
+                       double epsilon_hi) {
+
+  //Update interactions (within model move)
+  if(interaction_prior == "Cauchy") {
+    List out = est_metropolis_interactions_cauchy(interactions,
+                                                  thresholds,
+                                                  observations,
+                                                  no_categories,
+                                                  proposal_sd,
+                                                  cauchy_scale,
+                                                  no_persons,
+                                                  no_nodes,
+                                                  rest_matrix,
+                                                  adaptive,
+                                                  phi,
+                                                  target_ar,
+                                                  t,
+                                                  epsilon_lo,
+                                                  epsilon_hi);
+
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+    NumericMatrix proposal_sd = out["proposal_sd"];
+  }
+  if(interaction_prior == "UnitInfo") {
+    List out = est_metropolis_interactions_unitinfo(interactions,
+                                                    thresholds,
+                                                    observations,
+                                                    no_categories,
+                                                    proposal_sd,
+                                                    unit_info,
+                                                    no_persons,
+                                                    no_nodes,
+                                                    rest_matrix,
+                                                    adaptive,
+                                                    phi,
+                                                    target_ar,
+                                                    t,
+                                                    epsilon_lo,
+                                                    epsilon_hi);
+
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+    NumericMatrix proposal_sd = out["proposal_sd"];
+  }
+
+  //Update thresholds
+  thresholds = metropolis_thresholds(interactions,
+                                     thresholds,
+                                     observations,
+                                     no_categories,
+                                     n_cat_obs,
+                                     no_persons,
+                                     no_nodes,
+                                     threshold_alpha,
+                                     threshold_beta,
+                                     rest_matrix);
+
+  return List::create(Named("interactions") = interactions,
+                      Named("thresholds") = thresholds,
+                      Named("rest_matrix") = rest_matrix,
+                      Named("proposal_sd") = proposal_sd);
+}
+
+
+// ----------------------------------------------------------------------------|
+// The Gibbs sampler
+// ----------------------------------------------------------------------------|
+// [[Rcpp::export]]
+List est_gibbs_sampler(IntegerMatrix observations,
+                       NumericMatrix interactions,
+                       NumericMatrix thresholds,
+                       IntegerVector no_categories,
+                       String interaction_prior,
+                       double cauchy_scale,
+                       NumericMatrix unit_info,
+                       NumericMatrix proposal_sd,
+                       IntegerMatrix Index,
+                       int iter,
+                       int burnin,
+                       IntegerMatrix n_cat_obs,
+                       double threshold_alpha,
+                       double threshold_beta,
+                       bool na_impute,
+                       IntegerMatrix missing_index,
+                       bool adaptive = false,
+                       bool save = false,
+                       bool display_progress = false) {
+  int cntr;
+  int no_nodes = observations.ncol();
+  int no_persons = observations.nrow();
+  int no_interactions = Index.nrow();
+  int no_thresholds = sum(no_categories);
+  int max_no_categories = max(no_categories);
+
+  IntegerVector v = seq(0, no_interactions - 1);
+  IntegerVector order(no_interactions);
+  IntegerMatrix index(no_interactions, 3);
+
+  //Parameters of adaptive proposals -------------------------------------------
+  double phi = .75;
+  double target_ar = 0.234;
+  double epsilon_lo = 1 / no_persons;
+  double epsilon_hi = 2.0;
+
+  //The resizing based on ``save'' could probably be prettier ------------------
+  int nrow = no_nodes;
+  int ncol_edges = no_nodes;
+  int ncol_thresholds = max_no_categories;
+
+  if(save == true) {
+    nrow = iter;
+    ncol_edges= no_interactions;
+    ncol_thresholds = no_thresholds;
+  }
+
+  NumericMatrix out_interactions(nrow, ncol_edges);
+  NumericMatrix out_thresholds(nrow, ncol_thresholds);
+
+  NumericMatrix rest_matrix(no_persons, no_nodes);
+  for(int node1 = 0; node1 < no_nodes; node1++) {
+    for(int person = 0; person < no_persons; person++) {
+      for(int node2 = 0; node2 < no_nodes; node2++) {
+        rest_matrix(person, node1) +=
+          observations(person, node2) * interactions(node2, node1);
+      }
+    }
+  }
+
+  //Progress bar
+  Progress p(iter + burnin, display_progress);
+
+  //The Gibbs sampler ----------------------------------------------------------
+  //First, we do burn-in iterations---------------------------------------------
+  for(int iteration = 0; iteration < burnin; iteration++) {
+    if (Progress::check_abort()) {
+      return List::create(Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
+    }
+    p.increment();
+
+    //Update interactions and model (between model move) -----------------------
+    //Use a random order to update the edge - interaction pairs ----------------
+    order = sample(v,
+                   no_interactions,
+                   false,
+                   R_NilValue);
+
+    for(int cntr = 0; cntr < no_interactions; cntr++) {
+      index(cntr, 0) = Index(order[cntr], 0);
+      index(cntr, 1) = Index(order[cntr], 1);
+      index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+    if(na_impute == true) {
+      List out = impute_missing_data(interactions,
+                                     thresholds,
+                                     observations,
+                                     n_cat_obs,
+                                     no_categories,
+                                     rest_matrix,
+                                     missing_index);
+
+      IntegerMatrix observations = out["observations"];
+      IntegerMatrix n_cat_obs = out["n_cat_obs"];
+      NumericMatrix rest_matrix = out["rest_matrix"];
+    }
+
+    List out = est_gibbs_step_gm(observations,
+                                 no_categories,
+                                 interaction_prior,
+                                 cauchy_scale,
+                                 unit_info,
+                                 proposal_sd,
+                                 index,
+                                 n_cat_obs,
+                                 threshold_alpha,
+                                 threshold_beta,
+                                 no_persons,
+                                 no_nodes,
+                                 no_interactions,
+                                 no_thresholds,
+                                 max_no_categories,
+                                 interactions,
+                                 thresholds,
+                                 rest_matrix,
+                                 adaptive,
+                                 phi,
+                                 target_ar,
+                                 iteration + 1,
+                                 epsilon_lo,
+                                 epsilon_hi);
+
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+    NumericMatrix proposal_sd = out["proposal_sd"];
+
+  }
+
+  //The post burn-in iterations ------------------------------------------------
+  for(int iteration = 0; iteration < iter; iteration++) {
+    if (Progress::check_abort()) {
+      return List::create(Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
+    }
+    p.increment();
+
+    //Update interactions and model (between model move) -----------------------
+    //Use a random order to update the edge - interaction pairs ----------------
+    order = sample(v,
+                   no_interactions,
+                   false,
+                   R_NilValue);
+
+    for(int cntr = 0; cntr < no_interactions; cntr++) {
+      index(cntr, 0) = Index(order[cntr], 0);
+      index(cntr, 1) = Index(order[cntr], 1);
+      index(cntr, 2) = Index(order[cntr], 2);
+    }
+
+    if(na_impute == true) {
+      List out = impute_missing_data(interactions,
+                                     thresholds,
+                                     observations,
+                                     n_cat_obs,
+                                     no_categories,
+                                     rest_matrix,
+                                     missing_index);
+
+      IntegerMatrix observations = out["observations"];
+      IntegerMatrix n_cat_obs = out["n_cat_obs"];
+      NumericMatrix rest_matrix = out["rest_matrix"];
+    }
+
+    List out = est_gibbs_step_gm(observations,
+                                 no_categories,
+                                 interaction_prior,
+                                 cauchy_scale,
+                                 unit_info,
+                                 proposal_sd,
+                                 index,
+                                 n_cat_obs,
+                                 threshold_alpha,
+                                 threshold_beta,
+                                 no_persons,
+                                 no_nodes,
+                                 no_interactions,
+                                 no_thresholds,
+                                 max_no_categories,
+                                 interactions,
+                                 thresholds,
+                                 rest_matrix,
+                                 adaptive,
+                                 phi,
+                                 target_ar,
+                                 iteration + 1,
+                                 epsilon_lo,
+                                 epsilon_hi);
+
+    NumericMatrix interactions = out["interactions"];
+    NumericMatrix thresholds = out["thresholds"];
+    NumericMatrix rest_matrix = out["rest_matrix"];
+    NumericMatrix proposal_sd = out["proposal_sd"];
+
+    //Output -------------------------------------------------------------------
+    if(save == TRUE) {
+      //Save raw samples -------------------------------------------------------
+      cntr = 0;
+      for(int node1 = 0; node1 < no_nodes - 1; node1++) {
+        for(int node2 = node1 + 1; node2 < no_nodes;node2++) {
+          out_interactions(iteration, cntr) = interactions(node1, node2);
+          cntr++;
+        }
+      }
+      cntr = 0;
+      for(int node = 0; node < no_nodes; node++) {
+        for(int category = 0; category < no_categories[node]; category++) {
+          out_thresholds(iteration, cntr) = thresholds(node, category);
+          cntr++;
+        }
+      }
+    } else {
+      //Compute running averages -----------------------------------------------
+      for(int node1 = 0; node1 < no_nodes - 1; node1++) {
+        for(int node2 = node1 + 1; node2 < no_nodes; node2++) {
+          out_interactions(node1, node2) *= iteration;
+          out_interactions(node1, node2) += interactions(node1, node2);
+          out_interactions(node1, node2) /= iteration + 1;
+          out_interactions(node2, node1) = out_interactions(node1, node2);
+        }
+
+        for(int category = 0; category < no_categories[node1]; category++) {
+          out_thresholds(node1, category) *= iteration;
+          out_thresholds(node1, category) += thresholds(node1, category);
+          out_thresholds(node1, category) /= iteration + 1;
+        }
+      }
+      for(int category = 0; category < no_categories[no_nodes - 1]; category++) {
+        out_thresholds(no_nodes - 1, category) *= iteration;
+        out_thresholds(no_nodes - 1, category) +=
+          thresholds(no_nodes - 1, category);
+        out_thresholds(no_nodes - 1, category) /= iteration + 1;
+      }
+    }
+  }
+
+  return List::create(Named("interactions") = out_interactions,
+                      Named("thresholds") = out_thresholds);
+}

@@ -1,20 +1,17 @@
-#' Bayesian structure learning in Markov Random Fields of mixed binary and
-#' ordinal variables using MCMC.
+#' Bayesian estimation of a Markov Random Field of mixed binary and ordinal
+#' variables using MCMC.
 #'
-#' The function \code{bgm} explores the joint pseudoposterior distribution of
-#' structures and parameters in a Markov Random Field for mixed binary and
-#' ordinal variables.
+#' The function \code{est_bgm} explores the joint posterior distribution
+#' of the parameters of a Markov Random Field for mixed binary and ordinal
+#' variables. It uses a combination of Metropolis-Hastings and Gibbs sampling to
+#' create a Markov chain that has the posterior distribution as its invariant
+#' distribution. The function uses a pseudolikelihood approach to circumvent
+#' having to compute the intractable normalizing constant of the Markov Random
+#' Field.
 #'
-#' A discrete spike and slab prior distribution is stipulated on the pairwise
-#' interactions. By formulating it as a mixture of mutually singular
-#' distributions, the function can use a combination of Metropolis-Hastings and
-#' Gibbs sampling to create a Markov chain that has the joint posterior
-#' distribution as invariant. Current options for the slab distribution are the
-#' unit-information prior or a Cauchy with an optional scaling parameter. A
-#' Beta-prime distribution is used for the exponent of the category parameters.
-#' Two prior distributions are implemented for edge inclusion variables (i.e.,
-#' the prior probability that an edge is included); the Bernoulli prior and the
-#' Beta-Bernoulli prior.
+#' The prior distribution for the interactions is a Cauchy or Unit-Info type
+#' prior. A Beta-prime distribution is used for the exponent of the category
+#' parameters.
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #' containing binary and ordinal variables for \code{n} independent observations
@@ -34,27 +31,6 @@
 #' prior (\code{interaction_prior = "UnitInfo"}).
 #' @param cauchy_scale The scale of the Cauchy prior for interactions. Defaults
 #' to \code{2.5}.
-#' @param edge_prior The prior distribution for the edges or structure of the
-#' network. Two prior distributions are currently implemented: The Bernoulli
-#' model \code{edge_prior = "Bernoulli"} assumes that the probability that an
-#' edge between two variables is included is equal to
-#' \code{inclusion_probability} and independent of other edges or variables.
-#' When \code{inclusion_probability = 0.5}, this implies that each network
-#' structure receives the same prior weight. The Beta-Bernoulli model
-#' \code{edge_prior = "Beta-Bernoulli"} assumes a beta prior for the unknown
-#' inclusion probability with shape parameters \code{beta_bernoulli_alpha} and
-#' \code{beta_bernoulli_beta}. If \code{beta_bernoulli_alpha = 1} and
-#' \code{beta_bernoulli_beta = 1}, this means that networks with the same
-#' complexity (number of edges) receive the same prior weight. Defaults to
-#' \code{edge_prior = "Bernoulli"}.
-#' @param inclusion_probability The prior edge inclusion probability for the
-#' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
-#' and \code{p} columns specifying an inclusion probability for each edge pair.
-#' Defaults to \code{inclusion_probability = 0.5}.
-#' @param beta_bernoulli_alpha,beta_bernoulli_beta The two shape parameters of
-#' the Beta prior density for the Bernoulli inclusion probability. Must be
-#' positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
-#' \code{beta_bernoulli_beta = 1}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
 #' prior density for the threshold parameters. Must be positive values. If the
 #' two values are equal, the prior density is symmetric about zero. If
@@ -88,8 +64,6 @@
 #' @return If \code{save = FALSE} (the default), the result is a list of class
 #' ``bgms'' containing the following matrices:
 #' \itemize{
-#' \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
-#' containing posterior inclusion probabilities of individual edges.
 #' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 #' containing model-averaged posterior means of the pairwise associations.
 #' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
@@ -98,9 +72,6 @@
 #'
 #' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 #' \itemize{
-#' \item \code{gamma}: A matrix with \code{iter} rows and
-#' \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
-#' every iteration of the Gibbs sampler.
 #' \item \code{interactions}: A matrix with \code{iter} rows and
 #' \code{p * (p - 1) / 2} columns, containing parameter states from every
 #' iteration of the Gibbs sampler for the pairwise associations.
@@ -113,99 +84,12 @@
 #' In addition to the analysis results, the bgm output lists some of the
 #' arguments of its call. This is useful for post-processing the results.
 #'
-#' @examples
-#' \donttest{
-#'  #Store user par() settings
-#'  op <- par(no.readonly = TRUE)
-#'
-#'  ##Analyse the Wenchuan dataset
-#'
-#'  # Here, we use 1e4 iterations, for an actual analysis please use at least
-#'  # 1e5 iterations.
-#'  fit = bgm(x = Wenchuan)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # INCLUSION - EDGE WEIGHT PLOT
-#'  #------------------------------------------------------------------------------|
-#'
-#'  par(mar = c(6, 5, 1, 1))
-#'  plot(x = fit$interactions[lower.tri(fit$interactions)],
-#'       y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1),
-#'       xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
-#'  abline(h = 0, lty = 2, col = "gray")
-#'  abline(h = 1, lty = 2, col = "gray")
-#'  abline(h = .5, lty = 2, col = "gray")
-#'  mtext("Posterior Mode Edge Weight", side = 1, line = 3, cex = 1.7)
-#'  mtext("Posterior Inclusion Probability", side = 2, line = 3, cex = 1.7)
-#'  axis(1)
-#'  axis(2, las = 1)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # EVIDENCE - EDGE WEIGHT PLOT
-#'  #------------------------------------------------------------------------------|
-#'
-#'  #For the default choice of the structure prior, the prior odds equal one:
-#'  prior.odds = 1
-#'  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
-#'  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
-#'  log.bayesfactor = log(posterior.odds / prior.odds)
-#'  log.bayesfactor[log.bayesfactor > 5] = 5
-#'
-#'  par(mar = c(5, 5, 1, 1) + 0.1)
-#'  plot(fit$interactions[lower.tri(fit$interactions)], log.bayesfactor, pch = 21, bg = "#bfbfbf",
-#'       cex = 1.3, axes = FALSE, xlab = "", ylab = "", ylim = c(-5, 5.5),
-#'       xlim = c(-0.5, 1.5))
-#'  axis(1)
-#'  axis(2, las = 1)
-#'  abline(h = log(1/10), lwd = 2, col = "#bfbfbf")
-#'  abline(h = log(10), lwd = 2, col = "#bfbfbf")
-#'
-#'  text(x = 1, y = log(1 / 10), labels = "Evidence for Exclusion", pos = 1,
-#'       cex = 1.7)
-#'  text(x = 1, y = log(10), labels = "Evidence for Inclusion", pos = 3, cex = 1.7)
-#'  text(x = 1, y = 0, labels = "Absence of Evidence", cex = 1.7)
-#'  mtext("Log-Inclusion Bayes Factor", side = 2, line = 3, cex = 1.5, las = 0)
-#'  mtext("Posterior Mean Interactions ", side = 1, line = 3.7, cex = 1.5, las = 0)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # THE LOCAL MEDIAN PROBABILITY NETWORK
-#'  #------------------------------------------------------------------------------|
-#'
-#'  tmp = fit$interactions[lower.tri(fit$interactions)]
-#'  tmp[posterior.inclusion < 0.5] = 0
-#'
-#'  median.prob.model = matrix(0, nrow = ncol(Wenchuan), ncol = ncol(Wenchuan))
-#'  median.prob.model[lower.tri(median.prob.model)] = tmp
-#'  median.prob.model = median.prob.model + t(median.prob.model)
-#'
-#'  rownames(median.prob.model) = colnames(Wenchuan)
-#'  colnames(median.prob.model) = colnames(Wenchuan)
-#'
-#'  library(qgraph)
-#'  qgraph(median.prob.model,
-#'         theme = "TeamFortress",
-#'         maximum = .5,
-#'         fade = FALSE,
-#'         color = c("#f0ae0e"), vsize = 10, repulsion = .9,
-#'         label.cex = 1.1, label.scale = "FALSE",
-#'         labels = colnames(Wenchuan))
-#'
-#'  #Restore user par() settings
-#'  par(op)
-#' }
 #' @export
-bgm = function(x,
+est_bgm = function(x,
                iter = 1e4,
                burnin = 1e3,
                interaction_prior = c("Cauchy", "UnitInfo"),
                cauchy_scale = 2.5,
-               edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-               inclusion_probability = 0.5,
-               beta_bernoulli_alpha = 1,
-               beta_bernoulli_beta = 1,
                threshold_alpha = 0.5,
                threshold_beta = 0.5,
                adaptive = FALSE,
@@ -238,55 +122,6 @@ bgm = function(x,
   if(interaction_prior == "Cauchy") {
     if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
       stop("The scale of the Cauchy prior needs to be positive.")
-  }
-
-  #Check prior set-up for the edge indicators ----------------------------------
-  edge_prior = match.arg(edge_prior)
-  if(edge_prior == "Bernoulli") {
-    if(length(inclusion_probability) == 1) {
-      theta = inclusion_probability[1]
-      if(is.na(theta) || is.null(theta))
-        stop("There is no value specified for the inclusion probability.")
-      if(theta <= 0)
-        stop("The inclusion probability needs to be positive.")
-      if(theta >= 1)
-        stop("The inclusion probability cannot exceed the value one.")
-      theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
-    } else {
-      if(!inherits(inclusion_probability, what = "matrix") &&
-         !inherits(inclusion_probability, what = "data.frame"))
-        stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
-
-      if(inherits(inclusion_probability, what = "data.frame")) {
-        theta = data.matrix(inclusion_probability)
-      } else {
-        theta = inclusion_probability
-      }
-      if(!isSymmetric(theta))
-        stop("The inclusion probability matrix needs to be symmetric.")
-      if(ncol(theta) != ncol(x))
-        stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
-
-      if(any(is.na(theta[lower.tri(theta)])) ||
-         any(is.null(theta[lower.tri(theta)])))
-        stop("One or more elements of the elements in inclusion probability matrix are not specified.")
-      if(any(theta[lower.tri(theta)] <= 0))
-        stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
-                    "inclusion probabilities need to be positive."))
-      if(any(theta[lower.tri(theta)] >= 1))
-        stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
-                    "inclusion probabilities cannot exceed or equal the value one."))
-    }
-  }
-  if(edge_prior == "Beta-Bernoulli") {
-    theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-    if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0)
-      stop("The scale parameters of the beta distribution need to be positive.")
-    if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta))
-      stop("The scale parameters of the beta distribution need to be finite.")
-    if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-       is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
-      stop("Values for both scale parameters of the beta distribution need to be specified.")
   }
 
   #Check prior set-up for the threshold parameters -----------------------------
@@ -372,11 +207,6 @@ bgm = function(x,
     }
   }
 
-  # Starting value of model matrix:
-  gamma = matrix(1,
-                 nrow = no_nodes,
-                 ncol = no_nodes)
-
   #Starting values of interactions and thresholds (posterior mode)
   if(!na.impute && !inherits(pps, what = "try-error")) {
     interactions = pps$interactions
@@ -411,34 +241,28 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  out = gibbs_sampler(observations = x,
-                      gamma = gamma,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      no_categories  = no_categories,
-                      interaction_prior = interaction_prior,
-                      cauchy_scale = cauchy_scale,
-                      unit_info = unit_info,
-                      proposal_sd = proposal_sd,
-                      edge_prior = edge_prior,
-                      theta = theta,
-                      beta_bernoulli_alpha = beta_bernoulli_alpha,
-                      beta_bernoulli_beta = beta_bernoulli_beta,
-                      Index = Index,
-                      iter = iter,
-                      burnin = burnin,
-                      n_cat_obs = n_cat_obs,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      na.impute,
-                      missing_index,
-                      adaptive = adaptive,
-                      save = save,
-                      display_progress = display_progress)
+  out = est_gibbs_sampler(observations = x,
+                          interactions = interactions,
+                          thresholds = thresholds,
+                          no_categories  = no_categories,
+                          interaction_prior = interaction_prior,
+                          cauchy_scale = cauchy_scale,
+                          unit_info = unit_info,
+                          proposal_sd = proposal_sd,
+                          Index = Index,
+                          iter = iter,
+                          burnin = burnin,
+                          n_cat_obs = n_cat_obs,
+                          threshold_alpha = threshold_alpha,
+                          threshold_beta = threshold_beta,
+                          na.impute,
+                          missing_index,
+                          adaptive = adaptive,
+                          save = save,
+                          display_progress = display_progress)
 
   #Preparing the output --------------------------------------------------------
   if(save == FALSE) {
-    gamma = out$gamma
     interactions = out$interactions
     tresholds = out$thresholds
 
@@ -446,33 +270,23 @@ bgm = function(x,
       data_columnnames = paste0("node ", 1:no_nodes)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      colnames(gamma) = data_columnnames
-      rownames(gamma) = data_columnnames
       rownames(thresholds) = data_columnnames
     } else {
       data_columnnames <- colnames(x)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      colnames(gamma) = data_columnnames
-      rownames(gamma) = data_columnnames
       rownames(thresholds) = data_columnnames
     }
 
     colnames(tresholds) = paste0("category ", 1:max(no_categories))
 
-    output = list(gamma = gamma,
-                  interactions = interactions,
+    output = list(interactions = interactions,
                   thresholds = thresholds,
-                  edge_prior = edge_prior,
-                  inclusion_probability = inclusion_probability,
-                  beta_bernoulli_alpha = beta_bernoulli_alpha,
-                  beta_bernoulli_beta = beta_bernoulli_beta,
                   save = save,
                   colnames = data_columnnames)
     class(output) = "bgms"
     return(output)
   } else {
-    gamma = out$gamma
     interactions = out$interactions
     thresholds = out$thresholds
 
@@ -487,7 +301,7 @@ bgm = function(x,
     names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
     names_vec <- names_comb[lower.tri(names_comb)]
 
-    colnames(gamma) = colnames(interactions) = names_vec
+    colnames(interactions) = names_vec
 
     names = character(length = sum(no_categories))
     cntr = 0
@@ -499,21 +313,14 @@ bgm = function(x,
     }
     colnames(thresholds) = names
 
-    rownames(gamma) = paste0("Iter. ", 1:iter)
     rownames(interactions) = paste0("Iter. ", 1:iter)
     rownames(thresholds) = paste0("Iter. ", 1:iter)
 
-    output = list(gamma = gamma,
-                  interactions = interactions,
+    output = list(interactions = interactions,
                   thresholds = thresholds,
-                  edge_prior = edge_prior,
-                  inclusion_probability = inclusion_probability,
-                  beta_bernoulli_alpha = beta_bernoulli_alpha,
-                  beta_bernoulli_beta = beta_bernoulli_beta,
                   save = save,
                   colnames = data_columnnames)
     class(output) = "bgms"
     return(output)
   }
 }
-
