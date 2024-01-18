@@ -329,7 +329,6 @@ List metropolis_interactions_unitinfo(NumericMatrix interactions,
                                       int t,
                                       double epsilon_lo,
                                       double epsilon_hi) {
-  //NumericMatrix theta // no_nodes x no_nodes
   double proposed_state;
   double current_state;
   double log_prob;
@@ -583,7 +582,7 @@ List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
 
 
 // ----------------------------------------------------------------------------|
-// Gibbs step for graphical model parameters
+// A Gibbs step for graphical model parameters for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List gibbs_step_gm(IntegerMatrix observations,
                    IntegerVector no_categories,
@@ -715,7 +714,7 @@ List gibbs_step_gm(IntegerMatrix observations,
 
 
 // ----------------------------------------------------------------------------|
-// The Gibbs sampler
+// The Gibbs sampler for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_sampler(IntegerMatrix observations,
@@ -1018,29 +1017,25 @@ List gibbs_sampler(IntegerMatrix observations,
 }
 
 
-
-
-
-
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the active interaction
-//  parameters (using a cauchy prior)
+// MH algorithm to sample from the cull-conditional of the interaction
+//  parameters (using a cauchy prior) for parameter estimation
 // ----------------------------------------------------------------------------|
-List est_metropolis_interactions_cauchy(NumericMatrix interactions,
-                                        NumericMatrix thresholds,
-                                        IntegerMatrix observations,
-                                        IntegerVector no_categories,
-                                        NumericMatrix proposal_sd,
-                                        double cauchy_scale,
-                                        int no_persons,
-                                        int no_nodes,
-                                        NumericMatrix rest_matrix,
-                                        bool adaptive,
-                                        double phi,
-                                        double target_ar,
-                                        int t,
-                                        double epsilon_lo,
-                                        double epsilon_hi) {
+List metropolis_interactions_cauchy_estimation(NumericMatrix interactions,
+                                               NumericMatrix thresholds,
+                                               IntegerMatrix observations,
+                                               IntegerVector no_categories,
+                                               NumericMatrix proposal_sd,
+                                               double cauchy_scale,
+                                               int no_persons,
+                                               int no_nodes,
+                                               NumericMatrix rest_matrix,
+                                               bool adaptive,
+                                               double phi,
+                                               double target_ar,
+                                               int t,
+                                               double epsilon_lo,
+                                               double epsilon_hi) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -1103,24 +1098,24 @@ List est_metropolis_interactions_cauchy(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the active interaction
-//  parameters (using a unit information prior)
+// MH algorithm to sample from the cull-conditional of the interaction
+//  parameters (using a unit information prior) for parameter estimation
 // ----------------------------------------------------------------------------|
-List est_metropolis_interactions_unitinfo(NumericMatrix interactions,
-                                          NumericMatrix thresholds,
-                                          IntegerMatrix observations,
-                                          IntegerVector no_categories,
-                                          NumericMatrix proposal_sd,
-                                          NumericMatrix unit_info,
-                                          int no_persons,
-                                          int no_nodes,
-                                          NumericMatrix rest_matrix,
-                                          bool adaptive,
-                                          double phi,
-                                          double target_ar,
-                                          int t,
-                                          double epsilon_lo,
-                                          double epsilon_hi) {
+List metropolis_interactions_unitinfo_estimation(NumericMatrix interactions,
+                                                 NumericMatrix thresholds,
+                                                 IntegerMatrix observations,
+                                                 IntegerVector no_categories,
+                                                 NumericMatrix proposal_sd,
+                                                 NumericMatrix unit_info,
+                                                 int no_persons,
+                                                 int no_nodes,
+                                                 NumericMatrix rest_matrix,
+                                                 bool adaptive,
+                                                 double phi,
+                                                 double target_ar,
+                                                 int t,
+                                                 double epsilon_lo,
+                                                 double epsilon_hi) {
   //NumericMatrix theta // no_nodes x no_nodes
   double proposed_state;
   double current_state;
@@ -1189,74 +1184,72 @@ List est_metropolis_interactions_unitinfo(NumericMatrix interactions,
                       Named("proposal_sd") = proposal_sd);
 }
 
-
-
 // ----------------------------------------------------------------------------|
-// Gibbs step for graphical model parameters
+// Gibbs step for graphical model parameters for parameter estimation
 // ----------------------------------------------------------------------------|
-List est_gibbs_step_gm(IntegerMatrix observations,
-                       IntegerVector no_categories,
-                       String interaction_prior,
-                       double cauchy_scale,
-                       NumericMatrix unit_info,
-                       NumericMatrix proposal_sd,
-                       IntegerMatrix index,
-                       IntegerMatrix n_cat_obs,
-                       double threshold_alpha,
-                       double threshold_beta,
-                       int no_persons,
-                       int no_nodes,
-                       int no_interactions,
-                       int no_thresholds,
-                       int max_no_categories,
-                       NumericMatrix interactions,
-                       NumericMatrix thresholds,
-                       NumericMatrix rest_matrix,
-                       bool adaptive,
-                       double phi,
-                       double target_ar,
-                       int t,
-                       double epsilon_lo,
-                       double epsilon_hi) {
+List gibbs_step_gm_estimation(IntegerMatrix observations,
+                              IntegerVector no_categories,
+                              String interaction_prior,
+                              double cauchy_scale,
+                              NumericMatrix unit_info,
+                              NumericMatrix proposal_sd,
+                              IntegerMatrix index,
+                              IntegerMatrix n_cat_obs,
+                              double threshold_alpha,
+                              double threshold_beta,
+                              int no_persons,
+                              int no_nodes,
+                              int no_interactions,
+                              int no_thresholds,
+                              int max_no_categories,
+                              NumericMatrix interactions,
+                              NumericMatrix thresholds,
+                              NumericMatrix rest_matrix,
+                              bool adaptive,
+                              double phi,
+                              double target_ar,
+                              int t,
+                              double epsilon_lo,
+                              double epsilon_hi) {
 
   //Update interactions (within model move)
   if(interaction_prior == "Cauchy") {
-    List out = est_metropolis_interactions_cauchy(interactions,
-                                                  thresholds,
-                                                  observations,
-                                                  no_categories,
-                                                  proposal_sd,
-                                                  cauchy_scale,
-                                                  no_persons,
-                                                  no_nodes,
-                                                  rest_matrix,
-                                                  adaptive,
-                                                  phi,
-                                                  target_ar,
-                                                  t,
-                                                  epsilon_lo,
-                                                  epsilon_hi);
+    List out = metropolis_interactions_cauchy_estimation(interactions,
+                                                         thresholds,
+                                                         observations,
+                                                         no_categories,
+                                                         proposal_sd,
+                                                         cauchy_scale,
+                                                         no_persons,
+                                                         no_nodes,
+                                                         rest_matrix,
+                                                         adaptive,
+                                                         phi,
+                                                         target_ar,
+                                                         t,
+                                                         epsilon_lo,
+                                                         epsilon_hi);
 
     NumericMatrix interactions = out["interactions"];
     NumericMatrix rest_matrix = out["rest_matrix"];
     NumericMatrix proposal_sd = out["proposal_sd"];
   }
   if(interaction_prior == "UnitInfo") {
-    List out = est_metropolis_interactions_unitinfo(interactions,
-                                                    thresholds,
-                                                    observations,
-                                                    no_categories,
-                                                    proposal_sd,
-                                                    unit_info,
-                                                    no_persons,
-                                                    no_nodes,
-                                                    rest_matrix,
-                                                    adaptive,
-                                                    phi,
-                                                    target_ar,
-                                                    t,
-                                                    epsilon_lo,
-                                                    epsilon_hi);
+    List out = metropolis_interactions_unitinfo_estimation(interactions,
+                                                           thresholds,
+                                                           observations,
+                                                           no_categories,
+                                                           proposal_sd,
+                                                           unit_info,
+                                                           no_persons,
+                                                           no_nodes,
+                                                           rest_matrix,
+                                                           adaptive,
+                                                           phi,
+                                                           target_ar,
+                                                           t,
+                                                           epsilon_lo,
+                                                           epsilon_hi);
 
     NumericMatrix interactions = out["interactions"];
     NumericMatrix rest_matrix = out["rest_matrix"];
@@ -1283,28 +1276,28 @@ List est_gibbs_step_gm(IntegerMatrix observations,
 
 
 // ----------------------------------------------------------------------------|
-// The Gibbs sampler
+// The Gibbs sampler for parameter estimation
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
-List est_gibbs_sampler(IntegerMatrix observations,
-                       NumericMatrix interactions,
-                       NumericMatrix thresholds,
-                       IntegerVector no_categories,
-                       String interaction_prior,
-                       double cauchy_scale,
-                       NumericMatrix unit_info,
-                       NumericMatrix proposal_sd,
-                       IntegerMatrix Index,
-                       int iter,
-                       int burnin,
-                       IntegerMatrix n_cat_obs,
-                       double threshold_alpha,
-                       double threshold_beta,
-                       bool na_impute,
-                       IntegerMatrix missing_index,
-                       bool adaptive = false,
-                       bool save = false,
-                       bool display_progress = false) {
+List gibbs_sampler_estimation(IntegerMatrix observations,
+                              NumericMatrix interactions,
+                              NumericMatrix thresholds,
+                              IntegerVector no_categories,
+                              String interaction_prior,
+                              double cauchy_scale,
+                              NumericMatrix unit_info,
+                              NumericMatrix proposal_sd,
+                              IntegerMatrix Index,
+                              int iter,
+                              int burnin,
+                              IntegerMatrix n_cat_obs,
+                              double threshold_alpha,
+                              double threshold_beta,
+                              bool na_impute,
+                              IntegerMatrix missing_index,
+                              bool adaptive = false,
+                              bool save = false,
+                              bool display_progress = false) {
   int cntr;
   int no_nodes = observations.ncol();
   int no_persons = observations.nrow();
@@ -1385,30 +1378,30 @@ List est_gibbs_sampler(IntegerMatrix observations,
       NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
-    List out = est_gibbs_step_gm(observations,
-                                 no_categories,
-                                 interaction_prior,
-                                 cauchy_scale,
-                                 unit_info,
-                                 proposal_sd,
-                                 index,
-                                 n_cat_obs,
-                                 threshold_alpha,
-                                 threshold_beta,
-                                 no_persons,
-                                 no_nodes,
-                                 no_interactions,
-                                 no_thresholds,
-                                 max_no_categories,
-                                 interactions,
-                                 thresholds,
-                                 rest_matrix,
-                                 adaptive,
-                                 phi,
-                                 target_ar,
-                                 iteration + 1,
-                                 epsilon_lo,
-                                 epsilon_hi);
+    List out = gibbs_step_gm_estimation(observations,
+                                        no_categories,
+                                        interaction_prior,
+                                        cauchy_scale,
+                                        unit_info,
+                                        proposal_sd,
+                                        index,
+                                        n_cat_obs,
+                                        threshold_alpha,
+                                        threshold_beta,
+                                        no_persons,
+                                        no_nodes,
+                                        no_interactions,
+                                        no_thresholds,
+                                        max_no_categories,
+                                        interactions,
+                                        thresholds,
+                                        rest_matrix,
+                                        adaptive,
+                                        phi,
+                                        target_ar,
+                                        iteration + 1,
+                                        epsilon_lo,
+                                        epsilon_hi);
 
     NumericMatrix interactions = out["interactions"];
     NumericMatrix thresholds = out["thresholds"];
@@ -1452,30 +1445,30 @@ List est_gibbs_sampler(IntegerMatrix observations,
       NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
-    List out = est_gibbs_step_gm(observations,
-                                 no_categories,
-                                 interaction_prior,
-                                 cauchy_scale,
-                                 unit_info,
-                                 proposal_sd,
-                                 index,
-                                 n_cat_obs,
-                                 threshold_alpha,
-                                 threshold_beta,
-                                 no_persons,
-                                 no_nodes,
-                                 no_interactions,
-                                 no_thresholds,
-                                 max_no_categories,
-                                 interactions,
-                                 thresholds,
-                                 rest_matrix,
-                                 adaptive,
-                                 phi,
-                                 target_ar,
-                                 iteration + 1,
-                                 epsilon_lo,
-                                 epsilon_hi);
+    List out = gibbs_step_gm_estimation(observations,
+                                        no_categories,
+                                        interaction_prior,
+                                        cauchy_scale,
+                                        unit_info,
+                                        proposal_sd,
+                                        index,
+                                        n_cat_obs,
+                                        threshold_alpha,
+                                        threshold_beta,
+                                        no_persons,
+                                        no_nodes,
+                                        no_interactions,
+                                        no_thresholds,
+                                        max_no_categories,
+                                        interactions,
+                                        thresholds,
+                                        rest_matrix,
+                                        adaptive,
+                                        phi,
+                                        target_ar,
+                                        iteration + 1,
+                                        epsilon_lo,
+                                        epsilon_hi);
 
     NumericMatrix interactions = out["interactions"];
     NumericMatrix thresholds = out["thresholds"];

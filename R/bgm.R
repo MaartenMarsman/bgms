@@ -1,20 +1,22 @@
-#' Bayesian structure learning in Markov Random Fields of mixed binary and
-#' ordinal variables using MCMC.
+#' Bayesian edge selection or Bayesian estimation for Markov Random Fields of
+#' mixed binary and ordinal variables using MCMC.
 #'
 #' The function \code{bgm} explores the joint pseudoposterior distribution of
-#' structures and parameters in a Markov Random Field for mixed binary and
-#' ordinal variables.
+#' parameters and possibly edge indicators for a Markov Random Field model for
+#' mixed binary and ordinal variables.
 #'
-#' A discrete spike and slab prior distribution is stipulated on the pairwise
-#' interactions. By formulating it as a mixture of mutually singular
-#' distributions, the function can use a combination of Metropolis-Hastings and
-#' Gibbs sampling to create a Markov chain that has the joint posterior
-#' distribution as invariant. Current options for the slab distribution are the
-#' unit-information prior or a Cauchy with an optional scaling parameter. A
+#' For Bayesian edge selection, a discrete spike and slab prior distribution is
+#' stipulated on the pairwise interactions. By formulating it as a mixture of
+#' mutually singular distributions, the function can use a combination of
+#' Metropolis-Hastings and Gibbs sampling to create a Markov chain that has the
+#' joint posterior distribution as invariant. Current options for the slab
+#' distribution are the unit-information prior or a Cauchy with an optional
+#' scaling parameter. These slab distributions are also used as the prior
+#' distribution for the interaction parameters for Bayesian estimation. A
 #' Beta-prime distribution is used for the exponent of the category parameters.
-#' Two prior distributions are implemented for edge inclusion variables (i.e.,
-#' the prior probability that an edge is included); the Bernoulli prior and the
-#' Beta-Bernoulli prior.
+#' For Bayesian edge selection, two prior distributions are implemented for the
+#' edge inclusion variables (i.e., the prior probability that an edge is
+#' included); the Bernoulli prior and the Beta-Bernoulli prior.
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #' containing binary and ordinal variables for \code{n} independent observations
@@ -34,6 +36,16 @@
 #' prior (\code{interaction_prior = "UnitInfo"}).
 #' @param cauchy_scale The scale of the Cauchy prior for interactions. Defaults
 #' to \code{2.5}.
+#' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
+#' prior density for the threshold parameters. Must be positive values. If the
+#' two values are equal, the prior density is symmetric about zero. If
+#' \code{threshold_beta} is greater than \code{threshold_alpha}, the
+#' distribution is skewed to the left, and if \code{threshold_beta} is less than
+#' \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
+#' lead to more diffuse prior distributions.
+#' @param edge_selection Should the function perform Bayesian edge selection on
+#' the edges of the MRF in addition to estimating its parameters, or should it
+#' only estimate the parameters. Defaults to \code{edge_selection = TRUE}.
 #' @param edge_prior The prior distribution for the edges or structure of the
 #' network. Two prior distributions are currently implemented: The Bernoulli
 #' model \code{edge_prior = "Bernoulli"} assumes that the probability that an
@@ -55,13 +67,6 @@
 #' the Beta prior density for the Bernoulli inclusion probability. Must be
 #' positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 #' \code{beta_bernoulli_beta = 1}.
-#' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
-#' prior density for the threshold parameters. Must be positive values. If the
-#' two values are equal, the prior density is symmetric about zero. If
-#' \code{threshold_beta} is greater than \code{threshold_alpha}, the
-#' distribution is skewed to the left, and if \code{threshold_beta} is less than
-#' \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
-#' lead to more diffuse prior distributions.
 #' @param adaptive Should the function use an adaptive Metropolis algorithm to
 #' update interaction parameters within the model? If \code{adaptive = TRUE},
 #' bgm adjusts the proposal variance to match the acceptance probability of the
@@ -202,12 +207,13 @@ bgm = function(x,
                burnin = 1e3,
                interaction_prior = c("Cauchy", "UnitInfo"),
                cauchy_scale = 2.5,
+               threshold_alpha = 0.5,
+               threshold_beta = 0.5,
+               edge_selection = TRUE,
                edge_prior = c("Bernoulli", "Beta-Bernoulli"),
                inclusion_probability = 0.5,
                beta_bernoulli_alpha = 1,
                beta_bernoulli_beta = 1,
-               threshold_alpha = 0.5,
-               threshold_beta = 0.5,
                adaptive = FALSE,
                na.action = c("listwise", "impute"),
                save = FALSE,
@@ -240,60 +246,65 @@ bgm = function(x,
       stop("The scale of the Cauchy prior needs to be positive.")
   }
 
-  #Check prior set-up for the edge indicators ----------------------------------
-  edge_prior = match.arg(edge_prior)
-  if(edge_prior == "Bernoulli") {
-    if(length(inclusion_probability) == 1) {
-      theta = inclusion_probability[1]
-      if(is.na(theta) || is.null(theta))
-        stop("There is no value specified for the inclusion probability.")
-      if(theta <= 0)
-        stop("The inclusion probability needs to be positive.")
-      if(theta >= 1)
-        stop("The inclusion probability cannot exceed the value one.")
-      theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
-    } else {
-      if(!inherits(inclusion_probability, what = "matrix") &&
-         !inherits(inclusion_probability, what = "data.frame"))
-        stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
-
-      if(inherits(inclusion_probability, what = "data.frame")) {
-        theta = data.matrix(inclusion_probability)
-      } else {
-        theta = inclusion_probability
-      }
-      if(!isSymmetric(theta))
-        stop("The inclusion probability matrix needs to be symmetric.")
-      if(ncol(theta) != ncol(x))
-        stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
-
-      if(any(is.na(theta[lower.tri(theta)])) ||
-         any(is.null(theta[lower.tri(theta)])))
-        stop("One or more elements of the elements in inclusion probability matrix are not specified.")
-      if(any(theta[lower.tri(theta)] <= 0))
-        stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
-                    "inclusion probabilities need to be positive."))
-      if(any(theta[lower.tri(theta)] >= 1))
-        stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
-                    "inclusion probabilities cannot exceed or equal the value one."))
-    }
-  }
-  if(edge_prior == "Beta-Bernoulli") {
-    theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-    if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0)
-      stop("The scale parameters of the beta distribution need to be positive.")
-    if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta))
-      stop("The scale parameters of the beta distribution need to be finite.")
-    if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
-       is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
-      stop("Values for both scale parameters of the beta distribution need to be specified.")
-  }
-
   #Check prior set-up for the threshold parameters -----------------------------
   if(threshold_alpha <= 0  | !is.finite(threshold_alpha))
     stop("Parameter ``threshold_alpha'' needs to be positive.")
   if(threshold_beta <= 0  | !is.finite(threshold_beta))
     stop("Parameter ``threshold_beta'' needs to be positive.")
+
+  #Check set-up for the Bayesian model -----------------------------------------
+  if(!inherits(edge_selection, what = "logical"))
+    stop("The parameter ``edge_selection'' needs to have type ``logical.''")
+  if(edge_selection == TRUE) {
+    #Check prior set-up for the edge indicators --------------------------------
+    edge_prior = match.arg(edge_prior)
+    if(edge_prior == "Bernoulli") {
+      if(length(inclusion_probability) == 1) {
+        theta = inclusion_probability[1]
+        if(is.na(theta) || is.null(theta))
+          stop("There is no value specified for the inclusion probability.")
+        if(theta <= 0)
+          stop("The inclusion probability needs to be positive.")
+        if(theta >= 1)
+          stop("The inclusion probability cannot exceed the value one.")
+        theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
+      } else {
+        if(!inherits(inclusion_probability, what = "matrix") &&
+           !inherits(inclusion_probability, what = "data.frame"))
+          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+
+        if(inherits(inclusion_probability, what = "data.frame")) {
+          theta = data.matrix(inclusion_probability)
+        } else {
+          theta = inclusion_probability
+        }
+        if(!isSymmetric(theta))
+          stop("The inclusion probability matrix needs to be symmetric.")
+        if(ncol(theta) != ncol(x))
+          stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+
+        if(any(is.na(theta[lower.tri(theta)])) ||
+           any(is.null(theta[lower.tri(theta)])))
+          stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+        if(any(theta[lower.tri(theta)] <= 0))
+          stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
+                      "inclusion probabilities need to be positive."))
+        if(any(theta[lower.tri(theta)] >= 1))
+          stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
+                      "inclusion probabilities cannot exceed or equal the value one."))
+      }
+    }
+    if(edge_prior == "Beta-Bernoulli") {
+      theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
+      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0)
+        stop("The scale parameters of the beta distribution need to be positive.")
+      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta))
+        stop("The scale parameters of the beta distribution need to be finite.")
+      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+         is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
+        stop("Values for both scale parameters of the beta distribution need to be specified.")
+    }
+  }
 
   #Check na.action -------------------------------------------------------------
   na.action = match.arg(na.action)
@@ -373,9 +384,11 @@ bgm = function(x,
   }
 
   # Starting value of model matrix:
-  gamma = matrix(1,
-                 nrow = no_nodes,
-                 ncol = no_nodes)
+  if(edge_selection == TRUE) {
+    gamma = matrix(1,
+                   nrow = no_nodes,
+                   ncol = no_nodes)
+  }
 
   #Starting values of interactions and thresholds (posterior mode)
   if(!na.impute && !inherits(pps, what = "try-error")) {
@@ -411,34 +424,76 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  out = gibbs_sampler(observations = x,
-                      gamma = gamma,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      no_categories  = no_categories,
-                      interaction_prior = interaction_prior,
-                      cauchy_scale = cauchy_scale,
-                      unit_info = unit_info,
-                      proposal_sd = proposal_sd,
-                      edge_prior = edge_prior,
-                      theta = theta,
-                      beta_bernoulli_alpha = beta_bernoulli_alpha,
-                      beta_bernoulli_beta = beta_bernoulli_beta,
-                      Index = Index,
-                      iter = iter,
-                      burnin = burnin,
-                      n_cat_obs = n_cat_obs,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      na.impute,
-                      missing_index,
-                      adaptive = adaptive,
-                      save = save,
-                      display_progress = display_progress)
+  if(edge_selection == TRUE) {
+    out = gibbs_sampler(observations = x,
+                        gamma = gamma,
+                        interactions = interactions,
+                        thresholds = thresholds,
+                        no_categories  = no_categories,
+                        interaction_prior = interaction_prior,
+                        cauchy_scale = cauchy_scale,
+                        unit_info = unit_info,
+                        proposal_sd = proposal_sd,
+                        edge_prior = edge_prior,
+                        theta = theta,
+                        beta_bernoulli_alpha = beta_bernoulli_alpha,
+                        beta_bernoulli_beta = beta_bernoulli_beta,
+                        Index = Index,
+                        iter = iter,
+                        burnin = burnin,
+                        n_cat_obs = n_cat_obs,
+                        threshold_alpha = threshold_alpha,
+                        threshold_beta = threshold_beta,
+                        na.impute,
+                        missing_index,
+                        adaptive = adaptive,
+                        save = save,
+                        display_progress = display_progress)
+  } else {
+    out = gibbs_sampler_estimation(observations = x,
+                                   interactions = interactions,
+                                   thresholds = thresholds,
+                                   no_categories  = no_categories,
+                                   interaction_prior = interaction_prior,
+                                   cauchy_scale = cauchy_scale,
+                                   unit_info = unit_info,
+                                   proposal_sd = proposal_sd,
+                                   Index = Index,
+                                   iter = iter,
+                                   burnin = burnin,
+                                   n_cat_obs = n_cat_obs,
+                                   threshold_alpha = threshold_alpha,
+                                   threshold_beta = threshold_beta,
+                                   na.impute,
+                                   missing_index,
+                                   adaptive = adaptive,
+                                   save = save,
+                                   display_progress = display_progress)
+  }
+
 
   #Preparing the output --------------------------------------------------------
+  bgm_arguments = list(
+    iter = iter,
+    burnin = burnin,
+    interaction_prior = interaction_prior,
+    cauchy_scale = cauchy_scale,
+    threshold_alpha = threshold_alpha,
+    threshold_beta = threshold_beta,
+    edge_selection = edge_selection,
+    edge_prior = edge_prior,
+    inclusion_probability = inclusion_probability,
+    beta_bernoulli_alpha = beta_bernoulli_alpha ,
+    beta_bernoulli_beta =  beta_bernoulli_beta,
+    adaptive = adaptive,
+    na.action = na.action,
+    save = save
+  )
+
   if(save == FALSE) {
-    gamma = out$gamma
+    if(edge_selection == TRUE) {
+      gamma = out$gamma
+    }
     interactions = out$interactions
     tresholds = out$thresholds
 
@@ -446,33 +501,43 @@ bgm = function(x,
       data_columnnames = paste0("node ", 1:no_nodes)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      colnames(gamma) = data_columnnames
-      rownames(gamma) = data_columnnames
+      if(edge_selection == TRUE) {
+        colnames(gamma) = data_columnnames
+        rownames(gamma) = data_columnnames
+      }
       rownames(thresholds) = data_columnnames
     } else {
       data_columnnames <- colnames(x)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      colnames(gamma) = data_columnnames
-      rownames(gamma) = data_columnnames
+      if(edge_selection == TRUE) {
+        colnames(gamma) = data_columnnames
+        rownames(gamma) = data_columnnames
+      }
       rownames(thresholds) = data_columnnames
     }
 
     colnames(tresholds) = paste0("category ", 1:max(no_categories))
 
-    output = list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  edge_prior = edge_prior,
-                  inclusion_probability = inclusion_probability,
-                  beta_bernoulli_alpha = beta_bernoulli_alpha,
-                  beta_bernoulli_beta = beta_bernoulli_beta,
-                  save = save,
-                  colnames = data_columnnames)
+    if(edge_selection == TRUE) {
+      output = list(gamma = gamma,
+                    interactions = interactions,
+                    thresholds = thresholds,
+                    bgm_arguments = bgm_arguments,
+                    colnames = data_columnnames)
+    } else {
+      output = list(interactions = interactions,
+                    thresholds = thresholds,
+                    bgm_arguments = bgm_arguments,
+                    colnames = data_columnnames)
+    }
+
     class(output) = "bgms"
     return(output)
   } else {
-    gamma = out$gamma
+    if(edge_selection == TRUE) {
+      gamma = out$gamma
+    }
     interactions = out$interactions
     thresholds = out$thresholds
 
@@ -487,8 +552,9 @@ bgm = function(x,
     names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
     names_vec <- names_comb[lower.tri(names_comb)]
 
-    colnames(gamma) = colnames(interactions) = names_vec
-
+    if(edge_selection == TRUE) {
+      colnames(gamma) = colnames(interactions) = names_vec
+    }
     names = character(length = sum(no_categories))
     cntr = 0
     for(node in 1:no_nodes) {
@@ -499,19 +565,24 @@ bgm = function(x,
     }
     colnames(thresholds) = names
 
-    rownames(gamma) = paste0("Iter. ", 1:iter)
+    if(edge_selection == TRUE) {
+      rownames(gamma) = paste0("Iter. ", 1:iter)
+    }
     rownames(interactions) = paste0("Iter. ", 1:iter)
     rownames(thresholds) = paste0("Iter. ", 1:iter)
 
-    output = list(gamma = gamma,
-                  interactions = interactions,
-                  thresholds = thresholds,
-                  edge_prior = edge_prior,
-                  inclusion_probability = inclusion_probability,
-                  beta_bernoulli_alpha = beta_bernoulli_alpha,
-                  beta_bernoulli_beta = beta_bernoulli_beta,
-                  save = save,
-                  colnames = data_columnnames)
+    if(edge_selection == TRUE) {
+      output = list(gamma = gamma,
+                    interactions = interactions,
+                    thresholds = thresholds,
+                    bgm_arguments = bgm_arguments,
+                    colnames = data_columnnames)
+    } else {
+      output = list(interactions = interactions,
+                    thresholds = thresholds,
+                    bgm_arguments = bgm_arguments,
+                    colnames = data_columnnames)
+    }
     class(output) = "bgms"
     return(output)
   }

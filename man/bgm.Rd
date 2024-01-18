@@ -2,8 +2,8 @@
 % Please edit documentation in R/bgm.R
 \name{bgm}
 \alias{bgm}
-\title{Bayesian structure learning in Markov Random Fields of mixed binary and
-ordinal variables using MCMC.}
+\title{Bayesian edge selection or Bayesian estimation for Markov Random Fields of
+mixed binary and ordinal variables using MCMC.}
 \usage{
 bgm(
   x,
@@ -11,12 +11,13 @@ bgm(
   burnin = 1000,
   interaction_prior = c("Cauchy", "UnitInfo"),
   cauchy_scale = 2.5,
+  threshold_alpha = 0.5,
+  threshold_beta = 0.5,
+  edge_selection = TRUE,
   edge_prior = c("Bernoulli", "Beta-Bernoulli"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
-  threshold_alpha = 0.5,
-  threshold_beta = 0.5,
   adaptive = FALSE,
   na.action = c("listwise", "impute"),
   save = FALSE,
@@ -47,6 +48,18 @@ prior (\code{interaction_prior = "UnitInfo"}).}
 \item{cauchy_scale}{The scale of the Cauchy prior for interactions. Defaults
 to \code{2.5}.}
 
+\item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
+prior density for the threshold parameters. Must be positive values. If the
+two values are equal, the prior density is symmetric about zero. If
+\code{threshold_beta} is greater than \code{threshold_alpha}, the
+distribution is skewed to the left, and if \code{threshold_beta} is less than
+\code{threshold_alpha}, it is skewed to the right. Smaller values tend to
+lead to more diffuse prior distributions.}
+
+\item{edge_selection}{Should the function perform Bayesian edge selection on
+the edges of the MRF in addition to estimating its parameters, or should it
+only estimate the parameters. Defaults to \code{edge_selection = TRUE}.}
+
 \item{edge_prior}{The prior distribution for the edges or structure of the
 network. Two prior distributions are currently implemented: The Bernoulli
 model \code{edge_prior = "Bernoulli"} assumes that the probability that an
@@ -70,14 +83,6 @@ Defaults to \code{inclusion_probability = 0.5}.}
 the Beta prior density for the Bernoulli inclusion probability. Must be
 positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}.}
-
-\item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
-prior density for the threshold parameters. Must be positive values. If the
-two values are equal, the prior density is symmetric about zero. If
-\code{threshold_beta} is greater than \code{threshold_alpha}, the
-distribution is skewed to the left, and if \code{threshold_beta} is less than
-\code{threshold_alpha}, it is skewed to the right. Smaller values tend to
-lead to more diffuse prior distributions.}
 
 \item{adaptive}{Should the function use an adaptive Metropolis algorithm to
 update interaction parameters within the model? If \code{adaptive = TRUE},
@@ -136,20 +141,22 @@ arguments of its call. This is useful for post-processing the results.
 }
 \description{
 The function \code{bgm} explores the joint pseudoposterior distribution of
-structures and parameters in a Markov Random Field for mixed binary and
-ordinal variables.
+parameters and possibly edge indicators for a Markov Random Field model for
+mixed binary and ordinal variables.
 }
 \details{
-A discrete spike and slab prior distribution is stipulated on the pairwise
-interactions. By formulating it as a mixture of mutually singular
-distributions, the function can use a combination of Metropolis-Hastings and
-Gibbs sampling to create a Markov chain that has the joint posterior
-distribution as invariant. Current options for the slab distribution are the
-unit-information prior or a Cauchy with an optional scaling parameter. A
+For Bayesian edge selection, a discrete spike and slab prior distribution is
+stipulated on the pairwise interactions. By formulating it as a mixture of
+mutually singular distributions, the function can use a combination of
+Metropolis-Hastings and Gibbs sampling to create a Markov chain that has the
+joint posterior distribution as invariant. Current options for the slab
+distribution are the unit-information prior or a Cauchy with an optional
+scaling parameter. These slab distributions are also used as the prior
+distribution for the interaction parameters for Bayesian estimation. A
 Beta-prime distribution is used for the exponent of the category parameters.
-Two prior distributions are implemented for edge inclusion variables (i.e.,
-the prior probability that an edge is included); the Bernoulli prior and the
-Beta-Bernoulli prior.
+For Bayesian edge selection, two prior distributions are implemented for the
+edge inclusion variables (i.e., the prior probability that an edge is
+included); the Bernoulli prior and the Beta-Bernoulli prior.
 }
 \examples{
 \donttest{
