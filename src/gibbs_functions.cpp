@@ -228,8 +228,8 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the active interaction
-//  parameters (using a cauchy prior)
+// MH algorithm to sample from the full-conditional of the active interaction
+//  parameters (using a cauchy prior) for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List metropolis_interactions_cauchy(NumericMatrix interactions,
                                     NumericMatrix thresholds,
@@ -310,8 +310,8 @@ List metropolis_interactions_cauchy(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the active interaction
-//  parameters (using a unit information prior)
+// MH algorithm to sample from the full-conditional of the active interaction
+//  parameters (using a unit information prior) for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List metropolis_interactions_unitinfo(NumericMatrix interactions,
                                       NumericMatrix thresholds,
@@ -398,8 +398,8 @@ List metropolis_interactions_unitinfo(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of an edge + interaction
-//  pair (using a cauchy prior)
+// MH algorithm to sample from the full-conditional of an edge + interaction
+//  pair (using a cauchy prior) for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions,
                                              NumericMatrix thresholds,
@@ -487,8 +487,8 @@ List metropolis_edge_interaction_pair_cauchy(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of an edge + interaction
-//  pair (using a unit information prior)
+// MH algorithm to sample from the full-conditional of an edge + interaction
+//  pair (using a unit information prior) for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List metropolis_edge_interaction_pair_unitinfo(NumericMatrix interactions,
                                                NumericMatrix thresholds,
@@ -1018,8 +1018,8 @@ List gibbs_sampler(IntegerMatrix observations,
 
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the interaction
-//  parameters (using a cauchy prior) for parameter estimation
+// MH algorithm to sample from the full-conditional of the interaction
+//  parameters (using a cauchy prior) for Bayesian estimation
 // ----------------------------------------------------------------------------|
 List metropolis_interactions_cauchy_estimation(NumericMatrix interactions,
                                                NumericMatrix thresholds,
@@ -1098,8 +1098,8 @@ List metropolis_interactions_cauchy_estimation(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the cull-conditional of the interaction
-//  parameters (using a unit information prior) for parameter estimation
+// MH algorithm to sample from the full-conditional of the interaction
+//  parameters (using a unit information prior) for Bayesian estimation
 // ----------------------------------------------------------------------------|
 List metropolis_interactions_unitinfo_estimation(NumericMatrix interactions,
                                                  NumericMatrix thresholds,
@@ -1185,7 +1185,7 @@ List metropolis_interactions_unitinfo_estimation(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// Gibbs step for graphical model parameters for parameter estimation
+// A Gibbs step for graphical model parameters for Bayesian estimation
 // ----------------------------------------------------------------------------|
 List gibbs_step_gm_estimation(IntegerMatrix observations,
                               IntegerVector no_categories,
@@ -1276,7 +1276,7 @@ List gibbs_step_gm_estimation(IntegerMatrix observations,
 
 
 // ----------------------------------------------------------------------------|
-// The Gibbs sampler for parameter estimation
+// The Gibbs sampler for Bayesian estimation
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_sampler_estimation(IntegerMatrix observations,
