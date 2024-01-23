@@ -566,10 +566,10 @@ bgm = function(x,
     colnames(thresholds) = names
 
     if(edge_selection == TRUE) {
-      rownames(gamma) = paste0("Iter. ", 1:iter)
+      dimnames(gamma) = list(Iter. = 1:iter, colnames(gamma))
     }
-    rownames(interactions) = paste0("Iter. ", 1:iter)
-    rownames(thresholds) = paste0("Iter. ", 1:iter)
+    dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
+    dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
 
     if(edge_selection == TRUE) {
       output = list(gamma = gamma,
