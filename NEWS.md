@@ -1,6 +1,7 @@
 # bgms 0.1.3
 
-This is a minor release adding fixing some minor bugs.
+* Added the "edge_selection" option to the *bgm* function to allow Bayesian estimation without edge selection.
+* Reduced file size when saving raw MCMC samples by changing row names.
 
 # bgms 0.1.2
 
