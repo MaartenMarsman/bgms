@@ -5,6 +5,10 @@ sample_omrf_gibbs <- function(no_states, no_nodes, no_categories, interactions, 
     .Call(`_bgms_sample_omrf_gibbs`, no_states, no_nodes, no_categories, interactions, thresholds, iter)
 }
 
+sample_bcomrf_gibbs <- function(no_states, no_nodes, no_categories, interactions, thresholds, blume_capel, reference, iter) {
+    .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_nodes, no_categories, interactions, thresholds, blume_capel, reference, iter)
+}
+
 em_gamma <- function(interactions, slab_var, theta, xi, no_persons) {
     .Call(`_bgms_em_gamma`, interactions, slab_var, theta, xi, no_persons)
 }

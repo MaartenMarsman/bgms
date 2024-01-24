@@ -10,6 +10,8 @@ mrfSampler(
   no_categories,
   interactions,
   thresholds,
+  blume_capel = rep(FALSE, no_nodes),
+  reference_category,
   iter = 1000
 )
 }
@@ -26,9 +28,25 @@ of the base category: \code{no_categories = 1} generates binary states.}
 pairwise interactions. Only its off-diagonal elements are used.}
 
 \item{thresholds}{A \code{no_nodes} by \code{max(no_categories)} matrix of
-category thresholds. The elements in row \code{r} indicate the thresholds of
-node \code{r}. If \code{no_categories} is a vector, only the first
-\code{no_categories[r]} elements are used in row \code{r}.}
+category thresholds. The elements in row \code{i} indicate the thresholds of
+node \code{i}. If \code{no_categories} is a vector, only the first
+\code{no_categories[i]} elements are used in row \code{i}. If the Blume-Capel
+model is used for the category thresholds for node \code{i}, then row
+\code{i} requires two values (details below); the first is
+\eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
+the second is \eqn{\beta}{\beta}, the quadratic contribution.}
+
+\item{blume_capel}{Either a single logical value or a logical vector of
+length \code{no_nodes} that indicates for node \code{i} whether it is modeled
+with Blume-Capel (\code{blume_capel[i] = TRUE}) or if it is left free
+(\code{blume_capel[i] = FALSE}). The Blume-Capel model is only available for
+nodes with more than two categories (\code{no_categories > 1}). Defaults to
+\code{blume_capel = rep(FALSE, no_nodes)}.}
+
+\item{reference_category}{An integer vector of length \code{no_nodes} specifying the
+reference_category category that is used for the Blume-Capel model (details below).
+Can be any integer value between \code{0} and \code{no_categories} (or
+\code{no_categories[i]}).}
 
 \item{iter}{The number of iterations used by the Gibbs sampler.
 The function provides the last state of the Gibbs sampler as output. By
@@ -43,6 +61,28 @@ This function samples states from the ordinal MRF using a Gibbs sampler. The
 Gibbs sampler is initiated with random values from the response options,
 after which it proceeds by simulating states for each node from a logistic
 model using the other node states as predictor variables.
+}
+\details{
+There are two modeling options for the category thresholds. The default
+option assumes that the category thresholds are free, except that the first
+threshold is set to zero for identification. The user then only needs to
+specify the thresholds for the remaining response categories. This option is
+useful for any type of ordinal variable and gives the user the most freedom
+in specifying their model.
+
+The Blume-Capel option is specifically designed for ordinal variables that
+have a special type of reference_category category, such as the neutral category in a
+Likert scale. The Blume-Capel model specifies the following quadratic model
+for the threshold parameters:
+\deqn{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}}
+where \eqn{\mu_{\text{c}}}{\mu_{\text{c}}} is the threshold for category c
+(which now includes zero), \eqn{\alpha}{\alpha} offers a linear trend
+across categories (increasing threshold values if
+\eqn{\alpha > 0}{\alpha > 0} and decreasing threshold values if
+\eqn{\alpha <0}{\alpha <0}), if \eqn{\beta < 0}{\beta < 0}, it offers an
+increasing penalty for responding in a category further away from the
+reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a preference_category
+for responding in the reference_category category.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
