@@ -193,7 +193,7 @@ mrfSampler = function(no_states,
                     node,
                     ". This model has two parameters that need to be placed in columns 1 and 2, row ",
                     node,
-                    ", of the ``thresholds’’ input matrix. Currently, there are NA(s) in these entries, where a numeric value is needed."))
+                    ", of the ``thresholds'' input matrix. Currently, there are NA(s) in these entries, where a numeric value is needed."))
       }
       if(ncol(thresholds) > 2) {
         if(any(!is.na(thresholds[node, 3:ncol(thresholds)]))){
@@ -201,7 +201,7 @@ mrfSampler = function(no_states,
                          node,
                          ". This model has two parameters that need to be placed in columns 1 and 2, row ",
                          node,
-                         ", of the ``thresholds’’ input matrix. However, there are numeric values in higher categories. These values will be ignored."))
+                         ", of the ``thresholds'' input matrix. However, there are numeric values in higher categories. These values will be ignored."))
         }
       }
     }
