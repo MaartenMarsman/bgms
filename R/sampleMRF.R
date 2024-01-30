@@ -91,26 +91,26 @@ mrfSampler = function(no_states,
                       iter = 1e3) {
   # Check no_states, no_nodes, iter --------------------------------------------
   if(no_states <= 0 ||
-     abs(no_states - round(no_states)) > .Machine$double.eps^.5)
+     abs(no_states - round(no_states)) > .Machine$double.eps)
     stop("``no_states'' needs be a positive integer.")
   if(no_nodes <= 0 ||
-     abs(no_nodes - round(no_nodes)) > .Machine$double.eps^.5)
+     abs(no_nodes - round(no_nodes)) > .Machine$double.eps)
     stop("``no_nodes'' needs be a positive integer.")
   if(iter <= 0 ||
-     abs(iter - round(iter)) > .Machine$double.eps^.5)
+     abs(iter - round(iter)) > .Machine$double.eps)
     stop("``iter'' needs be a positive integer.")
 
   # Check no_categories --------------------------------------------------------
   if(length(no_categories) == 1) {
     if(no_categories <= 0 ||
-       abs(no_categories - round(no_categories)) > .Machine$double.eps^.5)
+       abs(no_categories - round(no_categories)) > .Machine$double.eps)
       stop("``no_categories'' needs be a (vector of) positive integer(s).")
     no_categories = rep(no_categories, no_nodes)
   } else {
     for(node in 1:no_nodes) {
       if(no_categories[node] <= 0 ||
          abs(no_categories[node] - round(no_categories[node])) >
-         .Machine$double.eps^.5)
+         .Machine$double.eps)
         stop(paste("For node", node, "``no_categories'' was not a positive
                    integer."))
     }

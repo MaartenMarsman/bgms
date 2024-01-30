@@ -62,7 +62,7 @@ reformat_data = function(x, fn.name = "") {
   return(list(x = x, no_categories = no_categories))
 }
 
-reformat_data_bgm = function(x, na.action) {
+reformat_data_bgm = function(x, na.action, blume_capel, reference) {
   if(na.action == "listwise") {
     # Check for missing values ---------------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
@@ -131,15 +131,60 @@ reformat_data_bgm = function(x, na.action) {
       stop(paste0("Only unique responses observed for variable ",
                   node,
                   ". We expect >= 1 observations per category."))
-    if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
-      y = x[, node]
-      cntr = 0
-      for(value in unq_vls) {
-        x[y == value, node] = cntr
-        cntr = cntr + 1
+
+    # Recode data --------------------------------------------------------------
+    if(blume_capel[node] == FALSE) {
+      if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
+        y = x[, node]
+        cntr = 0
+        for(value in unq_vls) {
+          x[y == value, node] = cntr
+          cntr = cntr + 1
+        }
+      }
+    } else {
+      # Check if observations are integer or can be easily recoded as such  -----
+      if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
+        int_unq_vls = unique(as.integer(unq_vls))
+        if(any(is.na(int_unq_vls))) {
+          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The\\
+          category scores of the observations for node ", node, " were not integer. An attempt to\\
+          recode them to integer failed because it resulted in NA's. Please inspect the documentation\\
+          for ``as.integer(),'' which bgm uses for recoding category scores."))
+        }
+        if(length(int_unq_vls) != length(unq_vls)) {
+          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The\\
+          category scores of the observations for node ", node, " were not integer. An attempt to\\
+          recode them to integer failed because for two or more non-integer observation\\
+          scores, rounding their values resulted in the same re-coded integer score."))
+        }
+
+        x[, node] = as.integer(x[, node])
+      }
+      # Check if observations start at zero and recode otherwise ---------------
+      if(min(x[, node]) != 0) {
+        reference[node] = reference[node] - min(x[, node])
+        x[, node] = x[, node] - min(x[, node])
+
+        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and\\
+                       that the lowest observed category score is zero. The lowest score for node ", node,
+                       "was not zero and was recoded to zero for the analysis. Note that bgm also\\
+                       recoded the corresponding reference category score."))
       }
     }
+
+    # Warn that maximum category value is large --------------------------------
     no_categories[node] = max(x[,node])
+    if(no_categories[node] > 10) {
+      warning(paste0("In the (pseudo) likelihood of ordinal variables, the normalization constant is\\
+      a sum over all possible values of the ordinal variable. The bgm function recodes\\
+      these data as integers ranging from zero (first category) to a maximum value\\
+      (last category). For node ", node, " the last category score is equal to ", no_categories[node], " which\\
+      may cause the analysis to take some time to run.  For the Blume-Capel model, the\\
+      bgm function does not collapse the categories with no observations between zero\\
+      and the last category. This may explain the large discrepancy between the first\\
+      and last category scores."))
+    }
 
     # Check to see if not all responses are in one category --------------------
     if(no_categories[node] == 0)
@@ -150,10 +195,19 @@ reformat_data_bgm = function(x, na.action) {
                   "."))
   }
 
-  return(list(x = x,
-              no_categories = no_categories,
-              missing_index = missing_index,
-              na.impute = na.impute))
+  if(any(blume_capel == TRUE)) {
+    return(list(x = x,
+                no_categories = no_categories,
+                reference = reference,
+                missing_index = missing_index,
+                na.impute = na.impute))
+
+  } else {
+    return(list(x = x,
+                no_categories = no_categories,
+                missing_index = missing_index,
+                na.impute = na.impute))
+  }
 }
 
 xi_delta_matching = function(xi, delta, n) {

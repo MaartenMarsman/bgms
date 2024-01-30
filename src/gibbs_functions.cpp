@@ -13,7 +13,9 @@ List impute_missing_data(NumericMatrix interactions,
                          IntegerMatrix n_cat_obs,
                          IntegerVector no_categories,
                          NumericMatrix rest_matrix,
-                         IntegerMatrix missing_index) {
+                         IntegerMatrix missing_index,
+                         StringVector variable_type,
+                         IntegerVector ordinal_BC_RefCat) {
 
   int no_nodes = observations.ncol();
   int no_missings = missing_index.nrow();
@@ -28,20 +30,44 @@ List impute_missing_data(NumericMatrix interactions,
   int score, person, node, new_observation, old_observation;
 
   for(int missing = 0; missing < no_missings; missing++) {
-    //Which observation to impute?
+    //Which observation to impute? ---------------------------------------------
     person = missing_index(missing, 0) - 1; //R to C++ indexing
     node = missing_index(missing, 1) - 1; //R to C++ indexing
 
-    //Generate new observation
+    //Generate new observation -------------------------------------------------
     rest_score = rest_matrix(person, node);
 
-    cumsum = 1.0;
-    probabilities[0] = 1.0;
-    for(int category = 0; category < no_categories[node]; category++) {
-      exponent = thresholds(node, category);
-      exponent += (category + 1) * rest_score;
-      cumsum += std::exp(exponent);
-      probabilities[category + 1] = cumsum;
+    //Two distinct (ordinal) variable types ------------------------------------
+    if(variable_type[node] == "ordinal") {
+
+      //Regular binary or ordinal MRF variable ---------------------------------
+      cumsum = 1.0;
+      probabilities[0] = 1.0;
+      for(int category = 0; category < no_categories[node]; category++) {
+        exponent = thresholds(node, category);
+        exponent += (category + 1) * rest_score;
+        cumsum += std::exp(exponent);
+        probabilities[category + 1] = cumsum;
+      }
+
+    } else if (variable_type[node] == "ordinal_BC"){
+
+      //Blume-Capel ordinal MRF variable ---------------------------------------
+      exponent = thresholds(node, 1) *
+        ordinal_BC_RefCat[node] *
+        ordinal_BC_RefCat[node];
+      cumsum = std::exp(exponent);
+      probabilities[0] = cumsum;
+      for(int category = 0; category < no_categories[node]; category++) {
+        exponent = thresholds(node, 0) * (category + 1);
+        exponent += thresholds(node, 1) *
+          (category + 1 - ordinal_BC_RefCat[node]) *
+          (category + 1 - ordinal_BC_RefCat[node]);
+        exponent += (category + 1) * rest_score;
+        cumsum += std::exp(exponent);
+        probabilities[category + 1] = cumsum;
+      }
+
     }
 
     u = cumsum * R::unif_rand();
@@ -50,9 +76,8 @@ List impute_missing_data(NumericMatrix interactions,
       score++;
     }
 
-    new_observation = score;
-
     //Update observations
+    new_observation = score;
     old_observation = observations(person, node);
     if(old_observation != new_observation) {
       observations(person, node) = new_observation;
@@ -67,23 +92,25 @@ List impute_missing_data(NumericMatrix interactions,
   }
 
   return List::create(Named("observations") = observations,
-                      Named("n_cat_obs") = n_cat_obs,
-                      Named("rest_matrix") = rest_matrix);
+                        Named("n_cat_obs") = n_cat_obs,
+                        Named("rest_matrix") = rest_matrix);
 }
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the threshold parameters
+//   for a regular binary or ordinal variable
 // ----------------------------------------------------------------------------|
-NumericMatrix metropolis_thresholds(NumericMatrix interactions,
-                                    NumericMatrix thresholds,
-                                    IntegerMatrix observations,
-                                    IntegerVector no_categories,
-                                    IntegerMatrix n_cat_obs,
-                                    int no_persons,
-                                    int no_nodes,
-                                    double threshold_alpha,
-                                    double threshold_beta,
-                                    NumericMatrix rest_matrix) {
+void metropolis_thresholds_regular(NumericMatrix interactions,
+                                   NumericMatrix thresholds,
+                                   IntegerMatrix observations,
+                                   IntegerVector no_categories,
+                                   IntegerMatrix n_cat_obs,
+                                   int no_persons,
+                                   int node,
+                                   double threshold_alpha,
+                                   double threshold_beta,
+                                   NumericMatrix rest_matrix) {
+
   NumericVector g(no_persons);
   NumericVector q(no_persons);
 
@@ -94,58 +121,215 @@ NumericMatrix metropolis_thresholds(NumericMatrix interactions,
   double U;
   double exp_current, exp_proposed;
 
-  for(int node = 0; node < no_nodes; node++) {
-    for(int category = 0; category < no_categories[node]; category++) {
-      current_state = thresholds(node, category);
-      exp_current = std::exp(current_state);
-      c = (threshold_alpha + threshold_beta) / (1 + exp_current);
-      for(int person = 0; person < no_persons; person++) {
-        g[person] = 1.0;
-        q[person] = 1.0;
-        rest_score = rest_matrix(person, node);
-        for(int cat = 0; cat < no_categories[node]; cat++) {
-          if(cat != category) {
-            g[person] += std::exp(thresholds(node, cat) +
-              (cat + 1) * rest_score);
-          }
+  for(int category = 0; category < no_categories[node]; category++) {
+    current_state = thresholds(node, category);
+    exp_current = std::exp(current_state);
+    c = (threshold_alpha + threshold_beta) / (1 + exp_current);
+    for(int person = 0; person < no_persons; person++) {
+      g[person] = 1.0;
+      q[person] = 1.0;
+      rest_score = rest_matrix(person, node);
+      for(int cat = 0; cat < no_categories[node]; cat++) {
+        if(cat != category) {
+          g[person] += std::exp(thresholds(node, cat) +
+            (cat + 1) * rest_score);
         }
-        q[person] = std::exp((category + 1) * rest_score);
-        c +=  q[person] / (g[person] + q[person] * exp_current);
       }
-      c = c / ((no_persons + threshold_alpha + threshold_beta) -
-        exp_current * c);
+      q[person] = std::exp((category + 1) * rest_score);
+      c +=  q[person] / (g[person] + q[person] * exp_current);
+    }
+    c = c / ((no_persons + threshold_alpha + threshold_beta) -
+      exp_current * c);
 
-      //Proposal is generalized beta-prime.
-      a = n_cat_obs(category + 1, node) + threshold_alpha;
-      b = no_persons + threshold_beta - n_cat_obs(category + 1, node);
-      tmp = R::rbeta(a, b);
-      proposed_state = std::log(tmp / (1  - tmp) / c);
-      exp_proposed = exp(proposed_state);
+    //Proposal is generalized beta-prime.
+    a = n_cat_obs(category + 1, node) + threshold_alpha;
+    b = no_persons + threshold_beta - n_cat_obs(category + 1, node);
+    tmp = R::rbeta(a, b);
+    proposed_state = std::log(tmp / (1  - tmp) / c);
+    exp_proposed = exp(proposed_state);
 
-      //Compute log_acceptance probability for Metropolis.
-      //First, we use g and q above to compute the ratio of pseudolikelihoods
-      log_prob = 0;
-      for(int person = 0; person < no_persons; person++) {
-        log_prob += std::log(g[person] + q[person] * exp_current);
-        log_prob -= std::log(g[person] + q[person] * exp_proposed);
-      }
-      //Second, we add the ratio of prior probabilities
-      log_prob -= (threshold_alpha + threshold_beta) *
-        std::log(1 + exp_proposed);
-      log_prob += (threshold_alpha + threshold_beta) *
-        std::log(1 + exp_current);
-      //Third, we add the ratio of proposals
-      log_prob -= (a + b) * std::log(1 + c * exp_current);
-      log_prob += (a + b) * std::log(1 + c * exp_proposed);
+    //Compute log_acceptance probability for Metropolis.
+    //First, we use g and q above to compute the ratio of pseudolikelihoods
+    log_prob = 0;
+    for(int person = 0; person < no_persons; person++) {
+      log_prob += std::log(g[person] + q[person] * exp_current);
+      log_prob -= std::log(g[person] + q[person] * exp_proposed);
+    }
+    //Second, we add the ratio of prior probabilities
+    log_prob -= (threshold_alpha + threshold_beta) *
+      std::log(1 + exp_proposed);
+    log_prob += (threshold_alpha + threshold_beta) *
+      std::log(1 + exp_current);
+    //Third, we add the ratio of proposals
+    log_prob -= (a + b) * std::log(1 + c * exp_current);
+    log_prob += (a + b) * std::log(1 + c * exp_proposed);
 
-      U = std::log(R::unif_rand());
-      if(U < log_prob) {
-        thresholds(node, category) = proposed_state;
-      }
+    U = std::log(R::unif_rand());
+    if(U < log_prob) {
+      thresholds(node, category) = proposed_state;
     }
   }
-  return thresholds;
 }
+
+// ----------------------------------------------------------------------------|
+// MH algorithm to sample from the full-conditional of the threshold parameters
+//   for a Blume-Capel ordinal variable
+// ----------------------------------------------------------------------------|
+void metropolis_thresholds_blumecapel(NumericMatrix interactions,
+                                      NumericMatrix thresholds,
+                                      IntegerMatrix observations,
+                                      IntegerVector no_categories,
+                                      int no_persons,
+                                      int node,
+                                      IntegerVector ordinal_BC_RefCat,
+                                      double threshold_alpha,
+                                      double threshold_beta,
+                                      NumericMatrix rest_matrix) {
+
+  NumericVector g(no_categories[node] + 1);
+  double log_prob;
+  double a, b, d;
+  double tmp;
+  double current_state, proposed_state;
+  double U;
+  double exp_current, exp_proposed;
+  double numerator, denominator;
+  int t = 0;
+
+  //Update Blume-Capel alpha parameter -----------------------------------------
+  current_state = thresholds(node, 0);
+  exp_current = std::exp(current_state);
+
+  for(int category = 0; category == no_categories[node]; category++) {
+    g[category] = std::exp(thresholds(node, 1) *
+      (category - ordinal_BC_RefCat[node]) *
+      (category - ordinal_BC_RefCat[node]));
+  }
+
+  d = (threshold_alpha + threshold_beta) / (1 + exp_current);
+  for(int person = 0; person < no_persons; person++) {
+    t += observations(person, node);
+    numerator = 0.0;
+    denominator = g[0];
+    for(int category = 0; category < no_categories[node]; category++) {
+      tmp = rest_matrix(person, node) *
+        (category + 1);
+      numerator += (category + 1) * std::exp(tmp + current_state *
+        category) * g[category + 1];
+      denominator += std::exp(tmp + current_state *
+        (category + 1)) * g[category + 1];
+    }
+    d += numerator / denominator;
+  }
+  d /= (threshold_alpha +
+    threshold_beta +
+    no_persons * no_categories[node] -
+    exp_current * d);
+
+  //Proposal is generalized beta-prime.
+  a = t + threshold_alpha;
+  b = no_persons * no_categories[node] + threshold_beta - t;
+  tmp = R::rbeta(a, b);
+  proposed_state = std::log(tmp / (1  - tmp) / d);
+  exp_proposed = exp(proposed_state);
+
+  //Compute log_acceptance probability for Metropolis.
+  log_prob = 0;
+  for(int person = 0; person < no_persons; person++) {
+    numerator = g[0];
+    denominator = g[0];
+    for(int category = 0; category < no_categories[node]; category++) {
+      tmp = rest_matrix(person, node) *
+        (category + 1);
+      numerator += std::exp(tmp + current_state *
+        (category + 1)) * g[category + 1];
+      denominator += std::exp(tmp + proposed_state *
+        (category + 1)) * g[category + 1];
+    }
+    log_prob += std::log(numerator);
+    log_prob -= std::log(denominator);
+  }
+  //Second, we add the ratio of prior probabilities
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + exp_proposed);
+  log_prob += (threshold_alpha + threshold_beta) *
+    std::log(1 + exp_current);
+  //Third, we add the ratio of proposals
+  log_prob -= (a + b) * std::log(1 + d * exp_current);
+  log_prob += (a + b) * std::log(1 + d * exp_proposed);
+
+  U = std::log(R::unif_rand());
+  if(U < log_prob) {
+    thresholds(node, 0) = proposed_state;
+  }
+
+  //Update Blume-Capel beta parameter ------------------------------------------
+  current_state = thresholds(node, 1);
+  exp_current = std::exp(current_state);
+
+  for(int category = 0; category == no_categories[node]; category++) {
+    g[category] = (category - ordinal_BC_RefCat[node]) *
+      (category - ordinal_BC_RefCat[node]);
+  }
+
+  t = 0;
+  d = (threshold_alpha + threshold_beta) / (1 + exp_current);
+  for(int person = 0; person < no_persons; person++) {
+    t += (observations(person, node) - ordinal_BC_RefCat[node]) *
+      (observations(person, node) - ordinal_BC_RefCat[node]);
+    numerator = g[0] * std::exp(current_state * (g[0] - 1));
+    denominator = std::exp(current_state * g[0]);
+    for(int category = 0; category < no_categories[node]; category++) {
+      tmp = (thresholds(node, 0) + rest_matrix(person, node)) *
+        (category + 1);
+      numerator += g[category + 1] * std::exp(tmp + current_state *
+      (g[category + 1] - 1));
+      denominator += std::exp(tmp + current_state *
+        g[category + 1]);
+    }
+    d += numerator / denominator;
+  }
+  d /= (threshold_alpha +
+    threshold_beta +
+    no_persons * max(g) -
+    exp_current * d);
+
+  //Proposal is generalized beta-prime.
+  a = t + threshold_alpha;
+  b = no_persons * max(g) + threshold_beta - t;
+  tmp = R::rbeta(a, b);
+  proposed_state = std::log(tmp / (1  - tmp) / d);
+  exp_proposed = exp(proposed_state);
+
+  //Compute log_acceptance probability for Metropolis.
+  log_prob = 0;
+  for(int person = 0; person < no_persons; person++) {
+    numerator = std::exp(current_state * g[0]);
+    denominator = std::exp(proposed_state * g[0]);
+    for(int category = 0; category < no_categories[node]; category++) {
+      tmp = (thresholds(node, 0) + rest_matrix(person, node)) * (category + 1);
+      numerator += std::exp(tmp + current_state * g[category + 1]);
+      denominator += std::exp(tmp + proposed_state * g[category + 1]);
+    }
+    log_prob += std::log(numerator);
+    log_prob -= std::log(denominator);
+  }
+
+  //Second, we add the ratio of prior probabilities
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + exp_proposed);
+  log_prob += (threshold_alpha + threshold_beta) *
+    std::log(1 + exp_current);
+  //Third, we add the ratio of proposals
+  log_prob -= (a + b) * std::log(1 + d * exp_current);
+  log_prob += (a + b) * std::log(1 + d * exp_proposed);
+
+  U = std::log(R::unif_rand());
+  if(U < log_prob) {
+    thresholds(node, 1) = proposed_state;
+  }
+}
+
 
 
 // ----------------------------------------------------------------------------|
@@ -694,16 +878,19 @@ List gibbs_step_gm(IntegerMatrix observations,
   }
 
   //Update thresholds
-  thresholds = metropolis_thresholds(interactions,
-                                     thresholds,
-                                     observations,
-                                     no_categories,
-                                     n_cat_obs,
-                                     no_persons,
-                                     no_nodes,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     rest_matrix);
+  for(int node = 0; node < no_nodes; node++) {
+    metropolis_thresholds_regular(interactions,
+                                  thresholds,
+                                  observations,
+                                  no_categories,
+                                  n_cat_obs,
+                                  no_persons,
+                                  node,
+                                  threshold_alpha,
+                                  threshold_beta,
+                                  rest_matrix);
+  }
+
 
   return List::create(Named("gamma") = gamma,
                       Named("interactions") = interactions,
@@ -816,7 +1003,9 @@ List gibbs_sampler(IntegerMatrix observations,
                                      n_cat_obs,
                                      no_categories,
                                      rest_matrix,
-                                     missing_index);
+                                     missing_index,
+                                     variable_type,
+                                     ordinal_BC_RefCat);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
@@ -905,7 +1094,9 @@ List gibbs_sampler(IntegerMatrix observations,
                                      n_cat_obs,
                                      no_categories,
                                      rest_matrix,
-                                     missing_index);
+                                     missing_index,
+                                     variable_type,
+                                     ordinal_BC_RefCat);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
@@ -1257,16 +1448,18 @@ List gibbs_step_gm_estimation(IntegerMatrix observations,
   }
 
   //Update thresholds
-  thresholds = metropolis_thresholds(interactions,
-                                     thresholds,
-                                     observations,
-                                     no_categories,
-                                     n_cat_obs,
-                                     no_persons,
-                                     no_nodes,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     rest_matrix);
+  for(int node = 0; node < no_nodes; node++) {
+    metropolis_thresholds_regular(interactions,
+                                  thresholds,
+                                  observations,
+                                  no_categories,
+                                  n_cat_obs,
+                                  no_persons,
+                                  node,
+                                  threshold_alpha,
+                                  threshold_beta,
+                                  rest_matrix);
+  }
 
   return List::create(Named("interactions") = interactions,
                       Named("thresholds") = thresholds,
@@ -1371,7 +1564,9 @@ List gibbs_sampler_estimation(IntegerMatrix observations,
                                      n_cat_obs,
                                      no_categories,
                                      rest_matrix,
-                                     missing_index);
+                                     missing_index,
+                                     variable_type,
+                                     ordinal_BC_RefCat);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
@@ -1438,7 +1633,9 @@ List gibbs_sampler_estimation(IntegerMatrix observations,
                                      n_cat_obs,
                                      no_categories,
                                      rest_matrix,
-                                     missing_index);
+                                     missing_index,
+                                     variable_type,
+                                     ordinal_BC_RefCat);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];

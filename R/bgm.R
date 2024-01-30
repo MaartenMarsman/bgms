@@ -5,6 +5,12 @@
 #' parameters and possibly edge indicators for a Markov Random Field model for
 #' mixed binary and ordinal variables.
 #'
+#' Currently, bgm supports two types of ordinal variables. The regular, default,
+#' ordinal variable type has no restrictions on its distribution. On the other
+#' hand, the Blume-Capel assumes that categories are rated or answered with
+#' respect to a reference category (e.g. a neutral category in a Likert scale
+#' response).
+#'
 #' For Bayesian edge selection, a discrete spike and slab prior distribution is
 #' stipulated on the pairwise interactions. By formulating it as a mixture of
 #' mutually singular distributions, the function can use a combination of
@@ -20,10 +26,24 @@
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #' containing binary and ordinal variables for \code{n} independent observations
-#' and \code{p} variables in the network. Variables are recoded as non-negative
-#' integers \code{(0, 1, ..., m)} if not already done. Unobserved categories are
-#' collapsed into other categories after recoding (i.e., if category 1 is
-#' unobserved, the data will be recoded from (0, 2) to (0, 1)).
+#' and \code{p} variables in the network. Regular binary and ordinal variables
+#' are recoded as non-negative integers \code{(0, 1, ..., m)} if not already
+#' done. Unobserved categories are collapsed into other categories after
+#' recoding (i.e., if category 1 is unobserved, the data are recoded from
+#' (0, 2) to (0, 1)). Blume-Capel ordinal variables are also coded as
+#' non-negative integers if not already done. However, since distance to the
+#' reference category plays an important role in this model, unobserved
+#' categories are not collapsed after recoding.
+#' @param variable_type What kind of variables are there in \code{x}? Can be a
+#' vector of length n \code{p} specifying the type for each variable in \code{x},
+#' or a single string specifying the variable type of all \code{p} variables at
+#' once. Currently, bgm supports ``ordinal'' (which can also be binary) and
+#' ``blume-capel''. Defaults to \code{variable_type = "ordinal"}.
+#' @param reference_category The reference category in the Blume-Capel model.
+#' Should be an integer within the range of integer scores observed for the
+#' variable. It is recoded when the raw data is recoded. Can be a vector of
+#' length \code{p} or a single number. Only required if there is at least one
+#' variable of type ``blume-capel''.
 #' @param iter The number of iterations of the Gibbs sampler. The default of
 #' \code{1e4} is for illustrative purposes. For stable estimates, it is
 #' recommended to run the Gibbs sampler for at least \code{1e5} iterations.
@@ -203,6 +223,8 @@
 #' }
 #' @export
 bgm = function(x,
+               variable_type = c("ordinal", "blume-capel"),
+               reference_category,
                iter = 1e4,
                burnin = 1e3,
                interaction_prior = c("Cauchy", "UnitInfo"),
@@ -229,12 +251,61 @@ bgm = function(x,
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
 
+  #Check model input (variable type) -------------------------------------------
+  if(length(variable_type) == 1) {
+    variable_type = match.arg(variable_type,
+                              choices = c("ordinal", "blume-capel"))
+    variable_type = rep(variable_type, ncol(x))
+  } else {
+    if(length(variable_type) != ncol(x))
+      stop("The variable type vector ``variable_type'' should be either a single character\\
+            string or a vector of length(p).")
+    variable_type = match.arg(arg = variable_type,
+                              choices = c("ordinal", "blume-capel"),
+                              several.ok = TRUE)
+  }
+
+  #Check model input (Blume Capel) ---------------------------------------------
+  if(any(variable_type == "blume-capel")) {
+    #Situation I: Reference category is vector of length different than p.
+    if(length(reference_category) != ncol(x) & length(reference_category) != 1)
+      stop("The argument ``reference_category for the Blume-Capel model needs to be a\\
+             single integer or a vector of integers of length p." )
+
+    #Situation II: Reference category is a vector of length p.
+    if(length(reference_category) == ncol(x)) {
+      #Check if integer
+      blume_capel_variables = which(variable_type == "blume-capel")
+      integer_check = reference_category[blume_capel_variables] -
+        round(reference_category[blume_capel_variables])
+      if(any(integer_check > .Machine$double.eps)) {
+        non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
+        if(length(non_integers) > 1) {
+          stop(paste0("The entries in ``reference_category'' for variables ", paste0(non_integers, collapse = ", "), " need to be integer."))
+        } else {
+          stop(paste0("The entry in ``reference_category'' for variable ", non_integers, " needs to be an integer."))
+        }
+      }
+    }
+
+    #Situation III: Reference category is a single value.
+    if(length(reference_category) == 1) {
+      #Check if integer.
+      integer_check = reference_category - round(reference_category)
+      if(integer_check > .Machine$double.eps)
+        stop("Reference category needs to an integer value or a vector of integers of length p.")
+      reference_category = rep.int(reference_category, times = ncol(x))
+    }
+  } else {
+    reference_category = rep.int(0, times = ncol(x))
+  }
+
   #Check Gibbs input -----------------------------------------------------------
-  if(abs(iter - round(iter)) > sqrt(.Machine$double.eps))
+  if(abs(iter - round(iter)) > .Machine$double.eps)
     stop("Parameter ``iter'' needs to be a positive integer.")
   if(iter <= 0)
     stop("Parameter ``iter'' needs to be a positive integer.")
-  if(abs(burnin - round(burnin)) > sqrt(.Machine$double.eps) || burnin < 0)
+  if(abs(burnin - round(burnin)) > .Machine$double.eps || burnin < 0)
     stop("Parameter ``burnin'' needs to be a non-negative integer.")
   if(burnin <= 0)
     stop("Parameter ``burnin'' needs to be a positive integer.")
@@ -310,17 +381,20 @@ bgm = function(x,
   na.action = match.arg(na.action)
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data_bgm(x = x, na.action)
+  data = reformat_data_bgm(x = x,
+                           na.action = na.action,
+                           variable_type = variable_type,
+                           reference_category = reference_category)
   x = data$x
   no_categories = data$no_categories
   missing_index = data$missing_index
   na.impute = data$na.impute
+  reference_category = data$reference_category
 
   if(na.impute == TRUE) {
     if(interaction_prior != "Cauchy")
-      warning(paste0(
-        "There were missing responses and na.action was set to ``impute''. The \n",
-        "bgm function must switch the interaction_prior to ``Cauchy''."))
+      warning(paste0("There were missing responses and na.action was set to ``impute''. The \n",
+                     "bgm function must switch the interaction_prior to ``Cauchy''."))
     adaptive = TRUE
     interaction_prior = "Cauchy"
     if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
