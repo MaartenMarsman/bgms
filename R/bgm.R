@@ -267,7 +267,7 @@
 #' }
 #' @export
 bgm = function(x,
-               variable_type = c("ordinal", "blume-capel"),
+               variable_type = "ordinal",
                reference_category,
                iter = 1e4,
                burnin = 1e3,
@@ -316,6 +316,7 @@ bgm = function(x,
   edge_prior = model$edge_prior
   inclusion_probability = model$inclusion_probability
   adaptive = model$adaptive
+  theta = model$theta
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > .Machine$double.eps)
@@ -344,8 +345,8 @@ bgm = function(x,
   if(na.impute == TRUE) {
     if(interaction_prior != "Cauchy")
       warning(paste0(
-"There were missing responses and na.action was set to ``impute''. The bgm\n",
-"function must switch the interaction_prior to ``Cauchy''."))
+        "There were missing responses and na.action was set to ``impute''. The bgm \n",
+        "function must switch the interaction_prior to ``Cauchy''."))
     adaptive = TRUE
     interaction_prior = "Cauchy"
     if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
@@ -363,9 +364,9 @@ bgm = function(x,
               silent = TRUE)
     if(inherits(pps, what = "try-error"))
       stop(paste0(
-"For the Unit Information prior we need to estimate the posterior mode.\n",
-"Unfortunately, bgm could not find this mode for your data. Please try the\n",
-"Cauchy prior option."))
+        "For the Unit Information prior we need to estimate the posterior mode. \n",
+        "Unfortunately, bgm could not find this mode for your data. Please try the \n",
+        "Cauchy prior option."))
     unit_info = sqrt(pps$unit_info)
   } else {
     if(!na.impute) {
@@ -375,13 +376,13 @@ bgm = function(x,
                 silent = TRUE)
       if(inherits(pps, what = "try-error") & adaptive == FALSE) {
         stop(paste0(
-"By default, the MCMC procedure underlying the bgm function uses a Metropolis \n",
-"algorithm with a fixed proposal distribution. The bgm function attempts to fit \n",
-"this proposal distribution to the target posterior distribution by locating the \n",
-"posterior mode and using information about the curvature around that model to \n",
-"set the variance of the proposal distributions. Unfortunately, bgm was unable \n",
-"to locate the posterior mode for your data. Please try again with ``adaptive = \n",
-"TRUE''."))
+          "By default, the MCMC procedure underlying the bgm function uses a Metropolis \n",
+          "algorithm with a fixed proposal distribution. The bgm function attempts to fit \n",
+          "this proposal distribution to the target posterior distribution by locating the \n",
+          "posterior mode and using information about the curvature around that model to \n",
+          "set the variance of the proposal distributions. Unfortunately, bgm was unable \n",
+          "to locate the posterior mode for your data. Please try again with ``adaptive = \n",
+          "TRUE''."))
       }
     }
     unit_info = matrix(data = NA, nrow = 1, ncol = 1)
@@ -449,52 +450,33 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  if(edge_selection == TRUE) {
-    out = gibbs_sampler(observations = x,
-                        gamma = gamma,
-                        interactions = interactions,
-                        thresholds = thresholds,
-                        no_categories  = no_categories,
-                        interaction_prior = interaction_prior,
-                        cauchy_scale = cauchy_scale,
-                        unit_info = unit_info,
-                        proposal_sd = proposal_sd,
-                        edge_prior = edge_prior,
-                        theta = theta,
-                        beta_bernoulli_alpha = beta_bernoulli_alpha,
-                        beta_bernoulli_beta = beta_bernoulli_beta,
-                        Index = Index,
-                        iter = iter,
-                        burnin = burnin,
-                        n_cat_obs = n_cat_obs,
-                        threshold_alpha = threshold_alpha,
-                        threshold_beta = threshold_beta,
-                        na.impute,
-                        missing_index,
-                        adaptive = adaptive,
-                        save = save,
-                        display_progress = display_progress)
-  } else {
-    out = gibbs_sampler_estimation(observations = x,
-                                   interactions = interactions,
-                                   thresholds = thresholds,
-                                   no_categories  = no_categories,
-                                   interaction_prior = interaction_prior,
-                                   cauchy_scale = cauchy_scale,
-                                   unit_info = unit_info,
-                                   proposal_sd = proposal_sd,
-                                   Index = Index,
-                                   iter = iter,
-                                   burnin = burnin,
-                                   n_cat_obs = n_cat_obs,
-                                   threshold_alpha = threshold_alpha,
-                                   threshold_beta = threshold_beta,
-                                   na.impute,
-                                   missing_index,
-                                   adaptive = adaptive,
-                                   save = save,
-                                   display_progress = display_progress)
-  }
+  out = gibbs_sampler(observations = x,
+                      gamma = gamma,
+                      interactions = interactions,
+                      thresholds = thresholds,
+                      no_categories  = no_categories,
+                      interaction_prior = interaction_prior,
+                      cauchy_scale = cauchy_scale,
+                      unit_info = unit_info,
+                      proposal_sd = proposal_sd,
+                      edge_prior = edge_prior,
+                      theta = theta,
+                      beta_bernoulli_alpha = beta_bernoulli_alpha,
+                      beta_bernoulli_beta = beta_bernoulli_beta,
+                      Index = Index,
+                      iter = iter,
+                      burnin = burnin,
+                      n_cat_obs = n_cat_obs,
+                      threshold_alpha = threshold_alpha,
+                      threshold_beta = threshold_beta,
+                      na_impute = na.impute,
+                      missing_index = missing_index,
+                      variable_type = variable_type,
+                      reference_category = reference_category,
+                      adaptive = adaptive,
+                      save = save,
+                      display_progress = display_progress,
+                      edge_selection = edge_selection)
 
 
   #Preparing the output --------------------------------------------------------

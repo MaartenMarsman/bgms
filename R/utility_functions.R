@@ -220,7 +220,7 @@ reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
 }
 
 check_bgm_model = function(x,
-                           variable_type = c("ordinal", "blume-capel"),
+                           variable_type,
                            reference_category,
                            interaction_prior = c("Cauchy", "UnitInfo"),
                            cauchy_scale = 2.5,
@@ -235,15 +235,16 @@ check_bgm_model = function(x,
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
-    variable_type = match.arg(variable_type)
+    variable_type = match.arg(arg = variable_type,
+                              choices = c("ordinal", "blume-capel"))
     variable_type = rep(variable_type, ncol(x))
   } else {
-    if(length(variable_type) != ncol(x))
-      stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
-            "string or a vector of character strings of length p."))
     variable_type = match.arg(arg = variable_type,
                               choices = c("ordinal", "blume-capel"),
                               several.ok = TRUE)
+    if(length(variable_type) != ncol(x))
+      stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
+            "string or a vector of character strings of length p."))
   }
 
   #Check Blume-Capel variable input --------------------------------------------
@@ -371,7 +372,8 @@ check_bgm_model = function(x,
               edge_selection = edge_selection,
               edge_prior = edge_prior,
               inclusion_probability = inclusion_probability,
-              adaptive = adaptive))
+              adaptive = adaptive,
+              theta = theta))
 }
 
 xi_delta_matching = function(xi, delta, n) {

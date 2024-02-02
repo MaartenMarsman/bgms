@@ -15,7 +15,7 @@ List impute_missing_data(NumericMatrix interactions,
                          NumericMatrix rest_matrix,
                          IntegerMatrix missing_index,
                          StringVector variable_type,
-                         IntegerVector ordinal_BC_RefCat) {
+                         IntegerVector reference_category) {
 
   int no_nodes = observations.ncol();
   int no_missings = missing_index.nrow();
@@ -50,19 +50,19 @@ List impute_missing_data(NumericMatrix interactions,
         probabilities[category + 1] = cumsum;
       }
 
-    } else if (variable_type[node] == "ordinal_BC"){
+    } else if (variable_type[node] == "blume-capel"){
 
       //Blume-Capel ordinal MRF variable ---------------------------------------
       exponent = thresholds(node, 1) *
-        ordinal_BC_RefCat[node] *
-        ordinal_BC_RefCat[node];
+        reference_category[node] *
+        reference_category[node];
       cumsum = std::exp(exponent);
       probabilities[0] = cumsum;
       for(int category = 0; category < no_categories[node]; category++) {
         exponent = thresholds(node, 0) * (category + 1);
         exponent += thresholds(node, 1) *
-          (category + 1 - ordinal_BC_RefCat[node]) *
-          (category + 1 - ordinal_BC_RefCat[node]);
+          (category + 1 - reference_category[node]) *
+          (category + 1 - reference_category[node]);
         exponent += (category + 1) * rest_score;
         cumsum += std::exp(exponent);
         probabilities[category + 1] = cumsum;
@@ -180,7 +180,7 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
                                       IntegerVector no_categories,
                                       int no_persons,
                                       int node,
-                                      IntegerVector ordinal_BC_RefCat,
+                                      IntegerVector reference_category,
                                       double threshold_alpha,
                                       double threshold_beta,
                                       NumericMatrix rest_matrix) {
@@ -201,8 +201,8 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
 
   for(int category = 0; category == no_categories[node]; category++) {
     g[category] = std::exp(thresholds(node, 1) *
-      (category - ordinal_BC_RefCat[node]) *
-      (category - ordinal_BC_RefCat[node]));
+      (category - reference_category[node]) *
+      (category - reference_category[node]));
   }
 
   d = (threshold_alpha + threshold_beta) / (1 + exp_current);
@@ -267,15 +267,15 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
   exp_current = std::exp(current_state);
 
   for(int category = 0; category == no_categories[node]; category++) {
-    g[category] = (category - ordinal_BC_RefCat[node]) *
-      (category - ordinal_BC_RefCat[node]);
+    g[category] = (category - reference_category[node]) *
+      (category - reference_category[node]);
   }
 
   t = 0;
   d = (threshold_alpha + threshold_beta) / (1 + exp_current);
   for(int person = 0; person < no_persons; person++) {
-    t += (observations(person, node) - ordinal_BC_RefCat[node]) *
-      (observations(person, node) - ordinal_BC_RefCat[node]);
+    t += (observations(person, node) - reference_category[node]) *
+      (observations(person, node) - reference_category[node]);
     numerator = g[0] * std::exp(current_state * (g[0] - 1));
     denominator = std::exp(current_state * g[0]);
     for(int category = 0; category < no_categories[node]; category++) {
@@ -343,7 +343,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
                                   double current_state,
                                   NumericMatrix rest_matrix,
                                   StringVector variable_type,
-                                  IntegerVector ordinal_BC_RefCat) {
+                                  IntegerVector reference_category) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_prop, denominator_curr, exponent;
@@ -382,10 +382,10 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         denominator_curr +=
           std::exp(exponent + score * obs_score2 * current_state);
       }
-    } else if (variable_type[node1] == "ordinal_BC"){
+    } else if (variable_type[node1] == "blume-capel"){
       exponent = thresholds(node1, 1) *
-        (ordinal_BC_RefCat[node1]) *
-        (ordinal_BC_RefCat[node1]);
+        (reference_category[node1]) *
+        (reference_category[node1]);
       denominator_prop = std::exp(exponent - bound);
       denominator_curr = std::exp(exponent - bound);
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -393,8 +393,8 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         score = category + 1;
         exponent = thresholds(node1, 0) * score;
         exponent += thresholds(node1, 1) *
-          (score - ordinal_BC_RefCat[node1]) *
-          (score - ordinal_BC_RefCat[node1]);
+          (score - reference_category[node1]) *
+          (score - reference_category[node1]);
         exponent+=  score * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + score * obs_score2 * proposed_state);
@@ -430,10 +430,10 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         denominator_curr +=
           std::exp(exponent + score * obs_score1 * current_state);
       }
-    } else if (variable_type[node2] == "ordinal_BC"){
+    } else if (variable_type[node2] == "blume-capel"){
       exponent = thresholds(node2, 1) *
-        (ordinal_BC_RefCat[node2]) *
-        (ordinal_BC_RefCat[node2]);
+        (reference_category[node2]) *
+        (reference_category[node2]);
       denominator_prop = std::exp(exponent - bound);
       denominator_curr = std::exp(exponent - bound);
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -441,8 +441,8 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         score = category + 1;
         exponent = thresholds(node2, 0) * score;
         exponent += thresholds(node2, 1) *
-          (score - ordinal_BC_RefCat[node2]) *
-          (score - ordinal_BC_RefCat[node2]);
+          (score - reference_category[node2]) *
+          (score - reference_category[node2]);
         exponent+=  score * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + score * obs_score1 * proposed_state);
@@ -478,7 +478,7 @@ void metropolis_interactions(NumericMatrix interactions,
                              double epsilon_lo,
                              double epsilon_hi,
                              StringVector variable_type,
-                             IntegerVector ordinal_BC_RefCat,
+                             IntegerVector reference_category,
                              String interaction_prior) {
   double proposed_state;
   double current_state;
@@ -502,7 +502,7 @@ void metropolis_interactions(NumericMatrix interactions,
                                               current_state,
                                               rest_matrix,
                                               variable_type,
-                                              ordinal_BC_RefCat);
+                                              reference_category);
         if(interaction_prior == "Cauchy") {
           log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
           log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
@@ -572,7 +572,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                       NumericMatrix theta,
                                       bool adaptive,
                                       StringVector variable_type,
-                                      IntegerVector ordinal_BC_RefCat,
+                                      IntegerVector reference_category,
                                       String interaction_prior) {
   double proposed_state;
   double current_state;
@@ -605,7 +605,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                           current_state,
                                           rest_matrix,
                                           variable_type,
-                                          ordinal_BC_RefCat);
+                                          reference_category);
 
     if(gamma(node1, node2) == 0) {
       if(interaction_prior == "Cauchy") {
@@ -691,7 +691,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                    double epsilon_lo,
                    double epsilon_hi,
                    StringVector variable_type,
-                   IntegerVector ordinal_BC_RefCat,
+                   IntegerVector reference_category,
                    bool edge_selection) {
 
   if(edge_selection == true) {
@@ -711,7 +711,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                                      theta,
                                      adaptive,
                                      variable_type,
-                                     ordinal_BC_RefCat,
+                                     reference_category,
                                      interaction_prior);
   }
 
@@ -734,7 +734,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                           epsilon_lo,
                           epsilon_hi,
                           variable_type,
-                          ordinal_BC_RefCat,
+                          reference_category,
                           interaction_prior);
 
   //Update threshold parameters
@@ -751,14 +751,14 @@ List gibbs_step_gm(IntegerMatrix observations,
                                     threshold_beta,
                                     rest_matrix);
     }
-    if (variable_type[node] == "ordinal_BC") {
+    if (variable_type[node] == "blume-capel") {
       metropolis_thresholds_blumecapel(interactions,
                                        thresholds,
                                        observations,
                                        no_categories,
                                        no_persons,
                                        node,
-                                       ordinal_BC_RefCat,
+                                       reference_category,
                                        threshold_alpha,
                                        threshold_beta,
                                        rest_matrix);
@@ -799,7 +799,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    bool na_impute,
                    IntegerMatrix missing_index,
                    StringVector variable_type,
-                   IntegerVector ordinal_BC_RefCat,
+                   IntegerVector reference_category,
                    bool adaptive = false,
                    bool save = false,
                    bool display_progress = false,
@@ -893,7 +893,7 @@ List gibbs_sampler(IntegerMatrix observations,
                                      rest_matrix,
                                      missing_index,
                                      variable_type,
-                                     ordinal_BC_RefCat);
+                                     reference_category);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
@@ -927,7 +927,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              epsilon_lo,
                              epsilon_hi,
                              variable_type,
-                             ordinal_BC_RefCat,
+                             reference_category,
                              edge_selection);
 
     IntegerMatrix gamma = out["gamma"];
@@ -992,7 +992,7 @@ List gibbs_sampler(IntegerMatrix observations,
                                      rest_matrix,
                                      missing_index,
                                      variable_type,
-                                     ordinal_BC_RefCat);
+                                     reference_category);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
@@ -1026,7 +1026,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              epsilon_lo,
                              epsilon_hi,
                              variable_type,
-                             ordinal_BC_RefCat,
+                             reference_category,
                              edge_selection);
 
     IntegerMatrix gamma = out["gamma"];
@@ -1074,7 +1074,7 @@ List gibbs_sampler(IntegerMatrix observations,
             cntr++;
           }
         }
-        if(variable_type[node] == "ordinal_BC") {
+        if(variable_type[node] == "blume-capel") {
           out_thresholds(iteration, cntr) = thresholds(node, 0);
           cntr++;
           out_thresholds(iteration, cntr) = thresholds(node, 1);
@@ -1105,7 +1105,7 @@ List gibbs_sampler(IntegerMatrix observations,
             out_thresholds(node1, category) /= iteration + 1;
           }
         }
-        if(variable_type[node1] == "ordinal_BC") {
+        if(variable_type[node1] == "blume-capel") {
           out_thresholds(node1, 0) *= iteration;
           out_thresholds(node1, 0) += thresholds(node1, 0);
           out_thresholds(node1, 0) /= iteration + 1;
@@ -1121,7 +1121,7 @@ List gibbs_sampler(IntegerMatrix observations,
           out_thresholds(no_nodes - 1, category) /= iteration + 1;
         }
       }
-      if(variable_type[no_nodes - 1] == "ordinal_BC") {
+      if(variable_type[no_nodes - 1] == "blume-capel") {
         out_thresholds(no_nodes - 1, 0) *= iteration;
         out_thresholds(no_nodes - 1, 0) += thresholds(no_nodes - 1, 0);
         out_thresholds(no_nodes - 1, 0) /= iteration + 1;
