@@ -210,6 +210,161 @@ reformat_data_bgm = function(x, na.action, blume_capel, reference) {
   }
 }
 
+check_bgm_model = function(x,
+                           variable_type = c("ordinal", "blume-capel"),
+                           reference_category,
+                           interaction_prior = c("Cauchy", "UnitInfo"),
+                           cauchy_scale = 2.5,
+                           threshold_alpha = 0.5,
+                           threshold_beta = 0.5,
+                           edge_selection = TRUE,
+                           edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+                           inclusion_probability = 0.5,
+                           beta_bernoulli_alpha = 1,
+                           beta_bernoulli_beta = 1,
+                           adaptive = FALSE) {
+
+  #Check variable type input ---------------------------------------------------
+  if(length(variable_type) == 1) {
+    variable_type = match.arg(variable_type)
+    variable_type = rep(variable_type, ncol(x))
+  } else {
+    if(length(variable_type) != ncol(x))
+      stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
+            "string or a vector of character strings of length p."))
+    variable_type = match.arg(arg = variable_type,
+                              choices = c("ordinal", "blume-capel"),
+                              several.ok = TRUE)
+  }
+
+  #Check Blume-Capel variable input --------------------------------------------
+  if(any(variable_type == "blume-capel")) {
+    interaction_prior = match.arg(interaction_prior)
+    if(interaction_prior == "UnitInfo") {
+      warning(paste0("The model contains Blume-Capel variables and so the bgm function must switch \n",
+                     "the interaction_prior to ``Cauchy''."))
+      interaction_prior = "Cauchy"
+    }
+    adaptive = TRUE
+
+    if(length(reference_category) != ncol(x) && length(reference_category) != 1)
+      stop(paste0("The argument ``reference_category for the Blume-Capel model needs to be a \n",
+             "single integer or a vector of integers of length p."))
+
+    if(length(reference_category) == ncol(x)) {
+      #Check if the input is integer -------------------------------------------
+      blume_capel_variables = which(variable_type == "blume-capel")
+
+      integer_check = try(as.integer(reference_category[blume_capel_variables]),
+                          silent = TRUE)
+      if(any(is.na(integer_check)))
+        stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
+             "missing values or values that could not be forced into an integer value."))
+      integer_check = reference_category[blume_capel_variables] -
+        round(reference_category[blume_capel_variables])
+      if(any(integer_check > .Machine$double.eps)) {
+        non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
+        if(length(non_integers) > 1) {
+          stop(paste0("The entries in ``reference_category'' for variables ",
+                      paste0(non_integers, collapse = ", "), " need to be integer."))
+        } else {
+          stop(paste0("The entry in ``reference_category'' for variable ",
+                      non_integers, " needs to be an integer."))
+        }
+      }
+    }
+
+    if(length(reference_category) == 1) {
+      #Check if the input is integer -------------------------------------------
+      integer_check = try(as.integer(reference_category), silent = TRUE)
+      if(is.na(integer_check))
+        stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
+             "a missing value or a value that could not be forced into an integer value."))
+      integer_check = reference_category - round(reference_category)
+      if(integer_check > .Machine$double.eps)
+        stop("Reference category needs to an integer value or a vector of integers of length p.")
+      reference_category = rep.int(reference_category, times = ncol(x))
+    }
+  } else {
+    reference_category = rep.int(0, times = ncol(x))
+  }
+
+  #Check prior set-up for the interaction parameters ---------------------------
+  interaction_prior = match.arg(interaction_prior)
+  if(interaction_prior == "Cauchy") {
+    if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
+      stop("The scale of the Cauchy prior needs to be positive.")
+  }
+
+  #Check prior set-up for the threshold parameters -----------------------------
+  if(threshold_alpha <= 0 | !is.finite(threshold_alpha))
+    stop("Parameter ``threshold_alpha'' needs to be positive.")
+  if(threshold_beta <= 0 | !is.finite(threshold_beta))
+    stop("Parameter ``threshold_beta'' needs to be positive.")
+
+  #Check set-up for the Bayesian edge selection model --------------------------
+  if(!inherits(edge_selection, what = "logical"))
+    stop("The parameter ``edge_selection'' needs to have type ``logical.''")
+  if(edge_selection == TRUE) {
+    #Check prior set-up for the edge indicators --------------------------------
+    edge_prior = match.arg(edge_prior)
+    if(edge_prior == "Bernoulli") {
+      if(length(inclusion_probability) == 1) {
+        theta = inclusion_probability[1]
+        if(is.na(theta) || is.null(theta))
+          stop("There is no value specified for the inclusion probability.")
+        if(theta <= 0)
+          stop("The inclusion probability needs to be positive.")
+        if(theta >= 1)
+          stop("The inclusion probability cannot exceed the value one.")
+        theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
+      } else {
+        if(!inherits(inclusion_probability, what = "matrix") &&
+           !inherits(inclusion_probability, what = "data.frame"))
+          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+
+        if(inherits(inclusion_probability, what = "data.frame")) {
+          theta = data.matrix(inclusion_probability)
+        } else {
+          theta = inclusion_probability
+        }
+        if(!isSymmetric(theta))
+          stop("The inclusion probability matrix needs to be symmetric.")
+        if(ncol(theta) != ncol(x))
+          stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+
+        if(any(is.na(theta[lower.tri(theta)])) ||
+           any(is.null(theta[lower.tri(theta)])))
+          stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+        if(any(theta[lower.tri(theta)] <= 0))
+          stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
+                      "inclusion probabilities need to be positive."))
+        if(any(theta[lower.tri(theta)] >= 1))
+          stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
+                      "inclusion probabilities cannot exceed or equal the value one."))
+      }
+    }
+    if(edge_prior == "Beta-Bernoulli") {
+      theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
+      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0)
+        stop("The scale parameters of the beta distribution need to be positive.")
+      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta))
+        stop("The scale parameters of the beta distribution need to be finite.")
+      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+         is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
+        stop("Values for both scale parameters of the beta distribution need to be specified.")
+    }
+  }
+
+  return(list(variable_type = variable_type,
+              reference_category = reference_category,
+              interaction_prior = interaction_prior,
+              edge_selection = edge_selection,
+              edge_prior = edge_prior,
+              inclusion_probability = inclusion_probability,
+              adaptive = adaptive))
+}
+
 xi_delta_matching = function(xi, delta, n) {
   n * log(n / xi) / (n / xi - 1) - delta ^ 2
 }
