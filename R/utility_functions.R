@@ -62,7 +62,7 @@ reformat_data = function(x, fn.name = "") {
   return(list(x = x, no_categories = no_categories))
 }
 
-reformat_data_bgm = function(x, na.action, blume_capel, reference) {
+reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
   if(na.action == "listwise") {
     # Check for missing values ---------------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
@@ -133,7 +133,7 @@ reformat_data_bgm = function(x, na.action, blume_capel, reference) {
                   ". We expect >= 1 observations per category."))
 
     # Recode data --------------------------------------------------------------
-    if(blume_capel[node] == FALSE) {
+    if(variable_type[node] == "ordinal") {#Regular ordinal variable
       if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
         y = x[, node]
         cntr = 0
@@ -142,48 +142,57 @@ reformat_data_bgm = function(x, na.action, blume_capel, reference) {
           cntr = cntr + 1
         }
       }
-    } else {
-      # Check if observations are integer or can be easily recoded as such  -----
+    } else {#Blume-Capel ordinal variable
+      # Check if observations are integer or can be recoded --------------------
       if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
         int_unq_vls = unique(as.integer(unq_vls))
         if(any(is.na(int_unq_vls))) {
-          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The\\
-          category scores of the observations for node ", node, " were not integer. An attempt to\\
-          recode them to integer failed because it resulted in NA's. Please inspect the documentation\\
-          for ``as.integer(),'' which bgm uses for recoding category scores."))
-        }
-        if(length(int_unq_vls) != length(unq_vls)) {
-          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The\\
-          category scores of the observations for node ", node, " were not integer. An attempt to\\
-          recode them to integer failed because for two or more non-integer observation\\
-          scores, rounding their values resulted in the same re-coded integer score."))
+          stop(paste0(
+            "The Blume-Capel model assumes that its observations are coded as integers, but \n",
+            "the category scores for node ", node, " were not integer. An attempt to recode \n",
+            "them to integer failed. Please inspect the documentation for the base R \n",
+            "function ``as.integer(),'' which bgm uses for recoding category scores."))
         }
 
+        if(length(int_unq_vls) != length(unq_vls)) {
+          stop(paste0(
+            "The Blume-Capel model assumes that its observations are coded as integers. The \n",
+            "category scores of the observations for node ", node, " were not integers. An \n",
+            "attempt to recode these observations as integers failed because, after rounding, \n",
+            "a single integer value was used for several observed score categories."))
+        }
         x[, node] = as.integer(x[, node])
+
+        if(reference_category[node] < 0 | reference_category[node] > max(x[, node]))
+          stop(paste0(
+            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
+            "range of observations."))
       }
+
       # Check if observations start at zero and recode otherwise ---------------
       if(min(x[, node]) != 0) {
-        reference[node] = reference[node] - min(x[, node])
+        reference_category[node] = reference_category[node] - min(x[, node])
         x[, node] = x[, node] - min(x[, node])
 
-        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and\\
-                       that the lowest observed category score is zero. The lowest score for node ", node,
-                       "was not zero and was recoded to zero for the analysis. Note that bgm also\\
-                       recoded the corresponding reference category score."))
+        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                       "that the lowest observed category score is zero. The lowest score for node \n",
+                       node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
+                       "the corresponding reference category score to ", reference_category[node], "."))
       }
     }
 
     # Warn that maximum category value is large --------------------------------
     no_categories[node] = max(x[,node])
-    if(no_categories[node] > 10) {
-      warning(paste0("In the (pseudo) likelihood of ordinal variables, the normalization constant is\\
-      a sum over all possible values of the ordinal variable. The bgm function recodes\\
-      these data as integers ranging from zero (first category) to a maximum value\\
-      (last category). For node ", node, " the last category score is equal to ", no_categories[node], " which\\
-      may cause the analysis to take some time to run.  For the Blume-Capel model, the\\
-      bgm function does not collapse the categories with no observations between zero\\
-      and the last category. This may explain the large discrepancy between the first\\
-      and last category scores."))
+    if(variable_type[node] == "blume-capel" & no_categories[node] > 10) {
+      warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                     "is a sum over all possible values of the ordinal variable. The range of \n",
+                     "observed values, possibly after recoding to integers, is assumed to be the \n",
+                     "number of possible response categories.  For node ", node,", this range was \n",
+                     "equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                     "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                     "collapse the categories that have no observations between zero and the last \n",
+                     "category. This may explain the large discrepancy between the first and last \n",
+                     "category values."))
     }
 
     # Check to see if not all responses are in one category --------------------
@@ -195,10 +204,10 @@ reformat_data_bgm = function(x, na.action, blume_capel, reference) {
                   "."))
   }
 
-  if(any(blume_capel == TRUE)) {
+  if(any(variable_type == "blume-capel")) {
     return(list(x = x,
                 no_categories = no_categories,
-                reference = reference,
+                reference_category = reference_category,
                 missing_index = missing_index,
                 na.impute = na.impute))
 

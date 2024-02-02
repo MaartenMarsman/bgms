@@ -71,9 +71,9 @@ useful for any type of ordinal variable and gives the user the most freedom
 in specifying their model.
 
 The Blume-Capel option is specifically designed for ordinal variables that
-have a special type of reference_category category, such as the neutral category in a
-Likert scale. The Blume-Capel model specifies the following quadratic model
-for the threshold parameters:
+have a special type of reference_category category, such as the neutral
+category in a Likert scale. The Blume-Capel model specifies the following
+quadratic model for the threshold parameters:
 \deqn{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}}
 where \eqn{\mu_{\text{c}}}{\mu_{\text{c}}} is the threshold for category c
 (which now includes zero), \eqn{\alpha}{\alpha} offers a linear trend
@@ -81,8 +81,8 @@ across categories (increasing threshold values if
 \eqn{\alpha > 0}{\alpha > 0} and decreasing threshold values if
 \eqn{\alpha <0}{\alpha <0}), if \eqn{\beta < 0}{\beta < 0}, it offers an
 increasing penalty for responding in a category further away from the
-reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a preference_category
-for responding in the reference_category category.
+reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
+preference for responding in the reference_category category.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
