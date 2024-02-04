@@ -183,151 +183,152 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
                                       IntegerVector reference_category,
                                       double threshold_alpha,
                                       double threshold_beta,
-                                      NumericMatrix rest_matrix) {
+                                      NumericMatrix rest_matrix,
+                                      NumericMatrix proposal_sd_blumecapel,
+                                      double phi,
+                                      double target_ar,
+                                      int t,
+                                      double epsilon_lo,
+                                      double epsilon_hi) {
 
-  NumericVector g(no_categories[node] + 1);
-  double log_prob;
-  double a, b, d;
-  double tmp;
-  double current_state, proposed_state;
-  double U;
-  double exp_current, exp_proposed;
+  double log_prob, U;
+  double current_state, proposed_state, difference;
   double numerator, denominator;
-  int t = 0;
+  NumericVector fixed_numerator(no_categories[node] + 1);
+  NumericVector fixed_denominator(no_categories[node] + 1);
+  double bound, exponent, rest_score;
 
-  //Update Blume-Capel alpha parameter -----------------------------------------
+  //----------------------------------------------------------------------------
+  //Adaptive Metropolis for the linear Blume-Capel parameter
+  //----------------------------------------------------------------------------
   current_state = thresholds(node, 0);
-  exp_current = std::exp(current_state);
+  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(node, 0));
 
-  for(int category = 0; category == no_categories[node]; category++) {
-    g[category] = std::exp(thresholds(node, 1) *
-      (category - reference_category[node]) *
-      (category - reference_category[node]));
-  }
+  //Precompute terms for the log acceptance probability ------------------------
+  difference = proposed_state - current_state;
 
-  d = (threshold_alpha + threshold_beta) / (1 + exp_current);
+  //Compute the log acceptance probability -------------------------------------
+  log_prob = threshold_alpha * difference;
+
   for(int person = 0; person < no_persons; person++) {
-    t += observations(person, node);
+    rest_score = rest_matrix(person, node);
+    if(rest_score > 0) {
+      bound = no_categories[node] * rest_score;
+    } else {
+      bound = 0.0;
+    }
     numerator = 0.0;
-    denominator = g[0];
-    for(int category = 0; category < no_categories[node]; category++) {
-      tmp = rest_matrix(person, node) *
-        (category + 1);
-      numerator += (category + 1) * std::exp(tmp + current_state *
-        category) * g[category + 1];
-      denominator += std::exp(tmp + current_state *
-        (category + 1)) * g[category + 1];
+    denominator = 0.0;
+    for(int category = 0; category < no_categories[node] + 1; category ++) {
+      exponent = thresholds(node, 1) *
+        (category - reference_category[node]) *
+        (category - reference_category[node]);
+      exponent += category * rest_score;
+      exponent -= bound;
+      numerator += std::exp(current_state * category + exponent);
+      denominator += std::exp(proposed_state * category + exponent);
     }
-    d += numerator / denominator;
-  }
-  d /= (threshold_alpha +
-    threshold_beta +
-    no_persons * no_categories[node] -
-    exp_current * d);
 
-  //Proposal is generalized beta-prime.
-  a = t + threshold_alpha;
-  b = no_persons * no_categories[node] + threshold_beta - t;
-  tmp = R::rbeta(a, b);
-  proposed_state = std::log(tmp / (1  - tmp) / d);
-  exp_proposed = exp(proposed_state);
-
-  //Compute log_acceptance probability for Metropolis.
-  log_prob = 0;
-  for(int person = 0; person < no_persons; person++) {
-    numerator = g[0];
-    denominator = g[0];
-    for(int category = 0; category < no_categories[node]; category++) {
-      tmp = rest_matrix(person, node) *
-        (category + 1);
-      numerator += std::exp(tmp + current_state *
-        (category + 1)) * g[category + 1];
-      denominator += std::exp(tmp + proposed_state *
-        (category + 1)) * g[category + 1];
-    }
+    log_prob += observations(person, node) * difference;
     log_prob += std::log(numerator);
     log_prob -= std::log(denominator);
-  }
-  //Second, we add the ratio of prior probabilities
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + exp_proposed);
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + exp_current);
-  //Third, we add the ratio of proposals
-  log_prob -= (a + b) * std::log(1 + d * exp_current);
-  log_prob += (a + b) * std::log(1 + d * exp_proposed);
 
-  U = std::log(R::unif_rand());
-  if(U < log_prob) {
+  }
+
+  log_prob += (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(current_state));
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(proposed_state));
+
+  U = R::unif_rand();
+  if(std::log(U) < log_prob) {
     thresholds(node, 0) = proposed_state;
   }
 
-  //Update Blume-Capel beta parameter ------------------------------------------
+  //Robbins-Monro update of the proposal variance ------------------------------
+  if(log_prob > 0) {
+    log_prob = 1;
+  } else {
+    log_prob = std::exp(log_prob);
+  }
+
+  proposal_sd_blumecapel(node, 0) = proposal_sd_blumecapel(node, 0) +
+    (log_prob - target_ar) * std::exp(-log(t) * phi);
+  if(proposal_sd_blumecapel(node, 0) < epsilon_lo) {
+    proposal_sd_blumecapel(node, 0) = epsilon_lo;
+  } else if (proposal_sd_blumecapel(node, 0) > epsilon_hi) {
+    proposal_sd_blumecapel(node, 0) = epsilon_hi;
+  }
+
+  //----------------------------------------------------------------------------
+  //Adaptive Metropolis for the quadratic Blume-Capel parameter
+  //----------------------------------------------------------------------------
   current_state = thresholds(node, 1);
-  exp_current = std::exp(current_state);
+  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(node, 1));
 
-  for(int category = 0; category == no_categories[node]; category++) {
-    g[category] = (category - reference_category[node]) *
-      (category - reference_category[node]);
-  }
+  //Precompute terms for the log acceptance probability ------------------------
+  difference = proposed_state - current_state;
 
-  t = 0;
-  d = (threshold_alpha + threshold_beta) / (1 + exp_current);
+  //Compute the log acceptance probability -------------------------------------
+  log_prob = threshold_alpha * difference;
+
   for(int person = 0; person < no_persons; person++) {
-    t += (observations(person, node) - reference_category[node]) *
+    rest_score = rest_matrix(person, node);
+    if(rest_score > 0) {
+      bound = no_categories[node] * rest_score;
+    } else {
+      bound = 0.0;
+    }
+
+    numerator = 0.0;
+    denominator = 0.0;
+
+    for(int category = 0; category < no_categories[node] + 1; category ++) {
+      exponent = thresholds(node, 0) * category;
+      exponent += category * rest_score;
+      exponent -= bound;
+
+      numerator += std::exp(current_state *
+        (category - reference_category[node]) *
+        (category - reference_category[node]) +
+        exponent);
+      denominator += std::exp(proposed_state *
+        (category - reference_category[node]) *
+        (category - reference_category[node]) +
+        exponent);
+    }
+    log_prob +=  difference *
+      (observations(person, node) - reference_category[node]) *
       (observations(person, node) - reference_category[node]);
-    numerator = g[0] * std::exp(current_state * (g[0] - 1));
-    denominator = std::exp(current_state * g[0]);
-    for(int category = 0; category < no_categories[node]; category++) {
-      tmp = (thresholds(node, 0) + rest_matrix(person, node)) *
-        (category + 1);
-      numerator += g[category + 1] * std::exp(tmp + current_state *
-      (g[category + 1] - 1));
-      denominator += std::exp(tmp + current_state *
-        g[category + 1]);
-    }
-    d += numerator / denominator;
-  }
-  d /= (threshold_alpha +
-    threshold_beta +
-    no_persons * max(g) -
-    exp_current * d);
-
-  //Proposal is generalized beta-prime.
-  a = t + threshold_alpha;
-  b = no_persons * max(g) + threshold_beta - t;
-  tmp = R::rbeta(a, b);
-  proposed_state = std::log(tmp / (1  - tmp) / d);
-  exp_proposed = exp(proposed_state);
-
-  //Compute log_acceptance probability for Metropolis.
-  log_prob = 0;
-  for(int person = 0; person < no_persons; person++) {
-    numerator = std::exp(current_state * g[0]);
-    denominator = std::exp(proposed_state * g[0]);
-    for(int category = 0; category < no_categories[node]; category++) {
-      tmp = (thresholds(node, 0) + rest_matrix(person, node)) * (category + 1);
-      numerator += std::exp(tmp + current_state * g[category + 1]);
-      denominator += std::exp(tmp + proposed_state * g[category + 1]);
-    }
     log_prob += std::log(numerator);
     log_prob -= std::log(denominator);
   }
-
-  //Second, we add the ratio of prior probabilities
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + exp_proposed);
   log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + exp_current);
-  //Third, we add the ratio of proposals
-  log_prob -= (a + b) * std::log(1 + d * exp_current);
-  log_prob += (a + b) * std::log(1 + d * exp_proposed);
+    std::log(1 + std::exp(current_state));
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(proposed_state));
 
-  U = std::log(R::unif_rand());
-  if(U < log_prob) {
+  U = R::unif_rand();
+  if(std::log(U) < log_prob) {
     thresholds(node, 1) = proposed_state;
   }
+
+  //Robbins-Monro update of the proposal variance ------------------------------
+  if(log_prob > 0) {
+    log_prob = 1;
+  } else {
+    log_prob = std::exp(log_prob);
+  }
+
+  proposal_sd_blumecapel(node, 1) = proposal_sd_blumecapel(node, 1) +
+    (log_prob - target_ar) * std::exp(-log(t) * phi);
+  if(proposal_sd_blumecapel(node, 1) < epsilon_lo) {
+    proposal_sd_blumecapel(node, 1) = epsilon_lo;
+  } else if (proposal_sd_blumecapel(node, 1) > epsilon_hi) {
+    proposal_sd_blumecapel(node, 1) = epsilon_hi;
+  }
 }
+
 
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
@@ -382,24 +383,20 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         denominator_curr +=
           std::exp(exponent + score * obs_score2 * current_state);
       }
-    } else if (variable_type[node1] == "blume-capel"){
-      exponent = thresholds(node1, 1) *
-        (reference_category[node1]) *
-        (reference_category[node1]);
-      denominator_prop = std::exp(exponent - bound);
-      denominator_curr = std::exp(exponent - bound);
+    } else {
+      denominator_prop = 0.0;
+      denominator_curr = 0.0;
       //Blume-Capel ordinal MRF variable ---------------------------------------
-      for(int category = 0; category < no_categories[node1]; category++) {
-        score = category + 1;
-        exponent = thresholds(node1, 0) * score;
+      for(int category = 0; category < no_categories[node1] + 1; category++) {
+        exponent = thresholds(node1, 0) * category;
         exponent += thresholds(node1, 1) *
-          (score - reference_category[node1]) *
-          (score - reference_category[node1]);
-        exponent+=  score * rest_score - bound;
+          (category - reference_category[node1]) *
+          (category - reference_category[node1]);
+        exponent+= category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
+          std::exp(exponent + category * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
+          std::exp(exponent + category * obs_score2 * current_state);
       }
     }
     pseudolikelihood_ratio -= std::log(denominator_prop);
@@ -430,24 +427,20 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
         denominator_curr +=
           std::exp(exponent + score * obs_score1 * current_state);
       }
-    } else if (variable_type[node2] == "blume-capel"){
-      exponent = thresholds(node2, 1) *
-        (reference_category[node2]) *
-        (reference_category[node2]);
-      denominator_prop = std::exp(exponent - bound);
-      denominator_curr = std::exp(exponent - bound);
+    } else {
+      denominator_prop = 0.0;
+      denominator_curr = 0.0;
       //Blume-Capel ordinal MRF variable ---------------------------------------
-      for(int category = 0; category < no_categories[node2]; category++) {
-        score = category + 1;
-        exponent = thresholds(node2, 0) * score;
+      for(int category = 0; category < no_categories[node2] + 1; category++) {
+        exponent = thresholds(node2, 0) * category;
         exponent += thresholds(node2, 1) *
-          (score - reference_category[node2]) *
-          (score - reference_category[node2]);
-        exponent+=  score * rest_score - bound;
+          (category - reference_category[node2]) *
+          (category - reference_category[node2]);
+        exponent+=  category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score1 * proposed_state);
+          std::exp(exponent + category * obs_score1 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score1 * current_state);
+          std::exp(exponent + category * obs_score1 * current_state);
       }
     }
     pseudolikelihood_ratio -= std::log(denominator_prop);
@@ -517,7 +510,6 @@ void metropolis_interactions(NumericMatrix interactions,
                                unit_info(node1, node2),
                                true);
         }
-
 
         U = R::unif_rand();
         if(std::log(U) < log_prob) {
@@ -670,6 +662,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                    double cauchy_scale,
                    NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
+                   NumericMatrix proposal_sd_blumecapel,
                    IntegerMatrix index,
                    IntegerMatrix n_cat_obs,
                    double threshold_alpha,
@@ -761,7 +754,13 @@ List gibbs_step_gm(IntegerMatrix observations,
                                        reference_category,
                                        threshold_alpha,
                                        threshold_beta,
-                                       rest_matrix);
+                                       rest_matrix,
+                                       proposal_sd_blumecapel,
+                                       phi,
+                                       target_ar,
+                                       t,
+                                       epsilon_lo,
+                                       epsilon_hi);
     }
   }
 
@@ -786,6 +785,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    double cauchy_scale,
                    NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
+                   NumericMatrix proposal_sd_blumecapel,
                    String edge_prior,
                    NumericMatrix theta,
                    double beta_bernoulli_alpha,
@@ -906,6 +906,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              cauchy_scale,
                              unit_info,
                              proposal_sd,
+                             proposal_sd_blumecapel,
                              index,
                              n_cat_obs,
                              threshold_alpha,
@@ -1005,6 +1006,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              cauchy_scale,
                              unit_info,
                              proposal_sd,
+                             proposal_sd_blumecapel,
                              index,
                              n_cat_obs,
                              threshold_alpha,

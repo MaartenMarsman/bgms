@@ -392,6 +392,9 @@ bgm = function(x,
   proposal_sd = matrix(1,
                        nrow = no_nodes,
                        ncol = no_nodes)
+  proposal_sd_blumecapel = matrix(1,
+                                 nrow = no_nodes,
+                                 ncol = 2)
   if(adaptive == FALSE && !na.impute) {
     hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
     cntr = 0
@@ -418,8 +421,10 @@ bgm = function(x,
 
   #Starting values of interactions and thresholds (posterior mode) -------------
   if(!na.impute && !inherits(pps, what = "try-error")) {
-    interactions = pps$interactions
-    thresholds = pps$thresholds
+    interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
+    thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+#    interactions = pps$interactions
+#    thresholds = pps$thresholds
   } else {
     interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
     thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
@@ -459,6 +464,7 @@ bgm = function(x,
                       cauchy_scale = cauchy_scale,
                       unit_info = unit_info,
                       proposal_sd = proposal_sd,
+                      proposal_sd_blumecapel = proposal_sd_blumecapel,
                       edge_prior = edge_prior,
                       theta = theta,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,

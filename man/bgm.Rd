@@ -7,7 +7,7 @@ mixed binary and ordinal variables using MCMC.}
 \usage{
 bgm(
   x,
-  variable_type = c("ordinal", "blume-capel"),
+  variable_type = "ordinal",
   reference_category,
   iter = 10000,
   burnin = 1000,

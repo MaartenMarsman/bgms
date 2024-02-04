@@ -204,19 +204,11 @@ reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
                   "."))
   }
 
-  if(any(variable_type == "blume-capel")) {
-    return(list(x = x,
-                no_categories = no_categories,
-                reference_category = reference_category,
-                missing_index = missing_index,
-                na.impute = na.impute))
-
-  } else {
-    return(list(x = x,
-                no_categories = no_categories,
-                missing_index = missing_index,
-                na.impute = na.impute))
-  }
+  return(list(x = x,
+              no_categories = no_categories,
+              reference_category = reference_category,
+              missing_index = missing_index,
+              na.impute = na.impute))
 }
 
 check_bgm_model = function(x,
@@ -244,7 +236,7 @@ check_bgm_model = function(x,
                               several.ok = TRUE)
     if(length(variable_type) != ncol(x))
       stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
-            "string or a vector of character strings of length p."))
+                  "string or a vector of character strings of length p."))
   }
 
   #Check Blume-Capel variable input --------------------------------------------
@@ -259,7 +251,7 @@ check_bgm_model = function(x,
 
     if(length(reference_category) != ncol(x) && length(reference_category) != 1)
       stop(paste0("The argument ``reference_category for the Blume-Capel model needs to be a \n",
-             "single integer or a vector of integers of length p."))
+                  "single integer or a vector of integers of length p."))
 
     if(length(reference_category) == ncol(x)) {
       #Check if the input is integer -------------------------------------------
@@ -269,7 +261,7 @@ check_bgm_model = function(x,
                           silent = TRUE)
       if(any(is.na(integer_check)))
         stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
-             "missing values or values that could not be forced into an integer value."))
+                    "missing values or values that could not be forced into an integer value."))
       integer_check = reference_category[blume_capel_variables] -
         round(reference_category[blume_capel_variables])
       if(any(integer_check > .Machine$double.eps)) {
@@ -289,7 +281,7 @@ check_bgm_model = function(x,
       integer_check = try(as.integer(reference_category), silent = TRUE)
       if(is.na(integer_check))
         stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
-             "a missing value or a value that could not be forced into an integer value."))
+                    "a missing value or a value that could not be forced into an integer value."))
       integer_check = reference_category - round(reference_category)
       if(integer_check > .Machine$double.eps)
         stop("Reference category needs to an integer value or a vector of integers of length p.")

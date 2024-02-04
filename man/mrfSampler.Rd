@@ -6,11 +6,11 @@
 \usage{
 mrfSampler(
   no_states,
-  no_nodes,
+  no_variables,
   no_categories,
   interactions,
   thresholds,
-  blume_capel = rep(FALSE, no_nodes),
+  variable_type = "ordinal",
   reference_category,
   iter = 1000
 )
@@ -18,32 +18,32 @@ mrfSampler(
 \arguments{
 \item{no_states}{The number of states of the ordinal MRF to be generated.}
 
-\item{no_nodes}{The number of nodes in the ordinal MRF.}
+\item{no_variables}{The number of variables in the ordinal MRF.}
 
 \item{no_categories}{Either a positive integer or a vector of positive
-integers of length \code{no_nodes}. The number of response categories on top
+integers of length \code{no_variables}. The number of response categories on top
 of the base category: \code{no_categories = 1} generates binary states.}
 
-\item{interactions}{A symmetric \code{no_nodes} by \code{no_nodes} matrix of
+\item{interactions}{A symmetric \code{no_variables} by \code{no_variables} matrix of
 pairwise interactions. Only its off-diagonal elements are used.}
 
-\item{thresholds}{A \code{no_nodes} by \code{max(no_categories)} matrix of
+\item{thresholds}{A \code{no_variables} by \code{max(no_categories)} matrix of
 category thresholds. The elements in row \code{i} indicate the thresholds of
-node \code{i}. If \code{no_categories} is a vector, only the first
+variable \code{i}. If \code{no_categories} is a vector, only the first
 \code{no_categories[i]} elements are used in row \code{i}. If the Blume-Capel
-model is used for the category thresholds for node \code{i}, then row
+model is used for the category thresholds for variable \code{i}, then row
 \code{i} requires two values (details below); the first is
 \eqn{\alpha}{\alpha}, the linear contribution of the Blume-Capel model and
 the second is \eqn{\beta}{\beta}, the quadratic contribution.}
 
-\item{blume_capel}{Either a single logical value or a logical vector of
-length \code{no_nodes} that indicates for node \code{i} whether it is modeled
-with Blume-Capel (\code{blume_capel[i] = TRUE}) or if it is left free
-(\code{blume_capel[i] = FALSE}). The Blume-Capel model is only available for
-nodes with more than two categories (\code{no_categories > 1}). Defaults to
-\code{blume_capel = rep(FALSE, no_nodes)}.}
+\item{variable_type}{What kind of variables are simulated? Can be a single
+character string specifying the variable type of all \code{p} variables at
+once or a vector of character strings of length \code{p} specifying the type
+for each variable separately. Currently, bgm supports ``ordinal'' and
+``blume-capel''. Binary variables are automatically treated as ``ordinal’’.
+Defaults to \code{variable_type = "ordinal"}.}
 
-\item{reference_category}{An integer vector of length \code{no_nodes} specifying the
+\item{reference_category}{An integer vector of length \code{no_variables} specifying the
 reference_category category that is used for the Blume-Capel model (details below).
 Can be any integer value between \code{0} and \code{no_categories} (or
 \code{no_categories[i]}).}
@@ -53,14 +53,14 @@ The function provides the last state of the Gibbs sampler as output. By
 default set to \code{1e3}.}
 }
 \value{
-A \code{no_states} by \code{no_nodes} matrix of simulated states of
+A \code{no_states} by \code{no_variables} matrix of simulated states of
 the ordinal MRF.
 }
 \description{
 This function samples states from the ordinal MRF using a Gibbs sampler. The
 Gibbs sampler is initiated with random values from the response options,
-after which it proceeds by simulating states for each node from a logistic
-model using the other node states as predictor variables.
+after which it proceeds by simulating states for each variable from a logistic
+model using the other variable states as predictor variables.
 }
 \details{
 There are two modeling options for the category thresholds. The default
@@ -86,16 +86,16 @@ preference for responding in the reference_category category.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
-no_nodes = 5
-no_categories = sample(1:5, size = no_nodes, replace = TRUE)
+no_variables = 5
+no_categories = sample(1:5, size = no_variables, replace = TRUE)
 
-Interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
+Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
 Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
   Interactions[5, 2] = Interactions[5, 4] = .25
 Interactions = Interactions + t(Interactions)
-Thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
 x = mrfSampler(no_states = 1e3,
-               no_nodes = no_nodes,
+               no_variables = no_variables,
                no_categories = no_categories,
                interactions = Interactions,
                thresholds = Thresholds)
