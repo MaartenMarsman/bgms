@@ -314,7 +314,6 @@ bgm = function(x,
   reference_category = model$reference_category
   interaction_prior = model$interaction_prior
   edge_prior = model$edge_prior
-  inclusion_probability = model$inclusion_probability
   adaptive = model$adaptive
   theta = model$theta
 
@@ -369,20 +368,19 @@ bgm = function(x,
         "Cauchy prior option."))
     unit_info = sqrt(pps$unit_info)
   } else {
-    if(!na.impute) {
+    if(!na.impute && !any(variable_type == "blume-capel")) {
       pps = try(mppe(x = x,
                      interaction_prior = interaction_prior,
                      cauchy_scale = cauchy_scale),
                 silent = TRUE)
       if(inherits(pps, what = "try-error") & adaptive == FALSE) {
-        stop(paste0(
-          "By default, the MCMC procedure underlying the bgm function uses a Metropolis \n",
-          "algorithm with a fixed proposal distribution. The bgm function attempts to fit \n",
-          "this proposal distribution to the target posterior distribution by locating the \n",
-          "posterior mode and using information about the curvature around that model to \n",
-          "set the variance of the proposal distributions. Unfortunately, bgm was unable \n",
-          "to locate the posterior mode for your data. Please try again with ``adaptive = \n",
-          "TRUE''."))
+        stop(paste0("By default, the MCMC procedure underlying the bgm function uses a Metropolis \n",
+                    "algorithm with a fixed proposal distribution. The bgm function attempts to fit \n",
+                    "this proposal distribution to the target posterior distribution by locating the \n",
+                    "posterior mode and using information about the curvature around that model to \n",
+                    "set the variance of the proposal distributions. Unfortunately, bgm was unable \n",
+                    "to locate the posterior mode for your data. Please try again with ``adaptive = \n",
+                    "TRUE''."))
       }
     }
     unit_info = matrix(data = NA, nrow = 1, ncol = 1)
@@ -413,18 +411,15 @@ bgm = function(x,
   }
 
   # Starting value of model matrix ---------------------------------------------
-  if(edge_selection == TRUE) {
-    gamma = matrix(1,
-                   nrow = no_nodes,
-                   ncol = no_nodes)
-  }
+  gamma = matrix(1,
+                 nrow = no_nodes,
+                 ncol = no_nodes)
+
 
   #Starting values of interactions and thresholds (posterior mode) -------------
-  if(!na.impute && !inherits(pps, what = "try-error")) {
-    interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
-    thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
-#    interactions = pps$interactions
-#    thresholds = pps$thresholds
+  if(!na.impute && !any(variable_type == "blume-capel") && !inherits(pps, what = "try-error")) {
+    interactions = pps$interactions
+    thresholds = pps$thresholds
   } else {
     interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
     thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))

@@ -155,11 +155,10 @@ reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
         }
 
         if(length(int_unq_vls) != length(unq_vls)) {
-          stop(paste0(
-            "The Blume-Capel model assumes that its observations are coded as integers. The \n",
-            "category scores of the observations for node ", node, " were not integers. An \n",
-            "attempt to recode these observations as integers failed because, after rounding, \n",
-            "a single integer value was used for several observed score categories."))
+          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
+                      "category scores of the observations for node ", node, " were not integers. An \n",
+                      "attempt to recode these observations as integers failed because, after rounding, \n",
+                      "a single integer value was used for several observed score categories."))
         }
         x[, node] = as.integer(x[, node])
 
@@ -170,7 +169,7 @@ reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
       }
 
       # Check if observations start at zero and recode otherwise ---------------
-      if(min(x[, node]) != 0) {
+      if(min(x[, node]) < 0) {
         reference_category[node] = reference_category[node] - min(x[, node])
         x[, node] = x[, node] - min(x[, node])
 
@@ -356,6 +355,8 @@ check_bgm_model = function(x,
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
         stop("Values for both scale parameters of the beta distribution need to be specified.")
     }
+  } else {
+    theta = matrix(0.5, nrow = 1, ncol = 1)
   }
 
   return(list(variable_type = variable_type,
@@ -363,7 +364,6 @@ check_bgm_model = function(x,
               interaction_prior = interaction_prior,
               edge_selection = edge_selection,
               edge_prior = edge_prior,
-              inclusion_probability = inclusion_probability,
               adaptive = adaptive,
               theta = theta))
 }
