@@ -194,9 +194,9 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
   double log_prob, U;
   double current_state, proposed_state, difference;
   double numerator, denominator;
-  NumericVector fixed_numerator(no_categories[node] + 1);
-  NumericVector fixed_denominator(no_categories[node] + 1);
-  double bound, exponent, rest_score;
+  double lbound, bound, exponent, rest_score;
+  NumericVector constant_numerator (no_categories[node] + 1);
+  NumericVector constant_denominator (no_categories[node] + 1);
 
   //----------------------------------------------------------------------------
   //Adaptive Metropolis for the linear Blume-Capel parameter
@@ -207,32 +207,46 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
   //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
+  for(int category = 0; category < no_categories[node] + 1; category ++) {
+    exponent = thresholds(node, 1) *
+      (category - reference_category[node]) *
+      (category - reference_category[node]);
+    constant_numerator[category] = current_state * category + exponent;
+    constant_denominator[category] = proposed_state * category + exponent;
+  }
+  double tmp_n = max(constant_numerator);
+  double tmp_d = max(constant_denominator);
+  if(tmp_n > 0) {
+    if(tmp_n > tmp_d) {
+      lbound = tmp_n;
+    } else {
+      lbound = tmp_d;
+    }
+  } else {
+    lbound = 0.0;
+  }
+
   //Compute the log acceptance probability -------------------------------------
   log_prob = threshold_alpha * difference;
 
   for(int person = 0; person < no_persons; person++) {
     rest_score = rest_matrix(person, node);
     if(rest_score > 0) {
-      bound = no_categories[node] * rest_score;
+      bound = no_categories[node] * rest_score + lbound;
     } else {
-      bound = 0.0;
+      bound = lbound;
     }
-    numerator = 0.0;
-    denominator = 0.0;
-    for(int category = 0; category < no_categories[node] + 1; category ++) {
-      exponent = thresholds(node, 1) *
-        (category - reference_category[node]) *
-        (category - reference_category[node]);
-      exponent += category * rest_score;
-      exponent -= bound;
-      numerator += std::exp(current_state * category + exponent);
-      denominator += std::exp(proposed_state * category + exponent);
+    numerator = std::exp(constant_numerator[0] - bound);
+    denominator = std::exp(constant_denominator[0] - bound);
+    for(int category = 0; category < no_categories[node]; category ++) {
+      exponent = (category + 1) * rest_score - bound;
+      numerator += std::exp(constant_numerator[category + 1] + exponent);
+      denominator += std::exp(constant_denominator[category + 1] + exponent);
     }
 
     log_prob += observations(person, node) * difference;
     log_prob += std::log(numerator);
     log_prob -= std::log(denominator);
-
   }
 
   log_prob += (threshold_alpha + threshold_beta) *
@@ -269,34 +283,47 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
   //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
+  for(int category = 0; category < no_categories[node] + 1; category ++) {
+    exponent = thresholds(node, 0) * category;
+    int score = (category - reference_category[node]) *
+      (category - reference_category[node]);
+
+    constant_numerator[category] = current_state * score + exponent;
+    constant_denominator[category] = proposed_state * score + exponent;
+  }
+
+  tmp_n = max(constant_numerator);
+  tmp_d = max(constant_denominator);
+  if(tmp_n > 0) {
+    if(tmp_n > tmp_d) {
+      lbound = tmp_n;
+    } else {
+      lbound = tmp_d;
+    }
+  } else {
+    lbound = 0.0;
+  }
+
   //Compute the log acceptance probability -------------------------------------
   log_prob = threshold_alpha * difference;
 
   for(int person = 0; person < no_persons; person++) {
     rest_score = rest_matrix(person, node);
     if(rest_score > 0) {
-      bound = no_categories[node] * rest_score;
+      bound = no_categories[node] * rest_score + lbound;
     } else {
-      bound = 0.0;
+      bound = lbound;
     }
 
-    numerator = 0.0;
-    denominator = 0.0;
+    numerator = std::exp(constant_numerator[0] - bound);
+    denominator = std::exp(constant_denominator[0] - bound);
 
-    for(int category = 0; category < no_categories[node] + 1; category ++) {
-      exponent = thresholds(node, 0) * category;
-      exponent += category * rest_score;
-      exponent -= bound;
-
-      numerator += std::exp(current_state *
-        (category - reference_category[node]) *
-        (category - reference_category[node]) +
-        exponent);
-      denominator += std::exp(proposed_state *
-        (category - reference_category[node]) *
-        (category - reference_category[node]) +
-        exponent);
+    for(int category = 0; category < no_categories[node]; category ++) {
+      exponent = (category + 1) * rest_score - bound;
+      numerator += std::exp(constant_numerator[category + 1] + exponent);
+      denominator += std::exp(constant_denominator[category + 1] + exponent);
     }
+
     log_prob +=  difference *
       (observations(person, node) - reference_category[node]) *
       (observations(person, node) - reference_category[node]);
