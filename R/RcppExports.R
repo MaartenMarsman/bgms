@@ -17,8 +17,8 @@ em_interaction_var <- function(gamma, slab_var, theta, xi, no_persons) {
     .Call(`_bgms_em_interaction_var`, gamma, slab_var, theta, xi, no_persons)
 }
 
-gibbs_sampler <- function(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, na_impute, missing_index, variable_type, reference_category, adaptive = FALSE, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
-    .Call(`_bgms_gibbs_sampler`, observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, threshold_alpha, threshold_beta, na_impute, missing_index, variable_type, reference_category, adaptive, save, display_progress, edge_selection)
+gibbs_sampler <- function(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_statistics_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_type, reference_category, adaptive = FALSE, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
+    .Call(`_bgms_gibbs_sampler`, observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_statistics_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_type, reference_category, adaptive, save, display_progress, edge_selection)
 }
 
 gradient_thresholds_pseudolikelihood <- function(interactions, thresholds, observations, no_categories) {

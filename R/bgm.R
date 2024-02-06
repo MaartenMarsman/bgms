@@ -343,17 +343,16 @@ bgm = function(x,
 
   if(na.impute == TRUE) {
     if(interaction_prior != "Cauchy")
-      warning(paste0(
-        "There were missing responses and na.action was set to ``impute''. The bgm \n",
-        "function must switch the interaction_prior to ``Cauchy''."))
+      warning(paste0("There were missing responses and na.action was set to ``impute''. The bgm \n",
+                     "function must switch the interaction_prior to ``Cauchy''."))
     adaptive = TRUE
     interaction_prior = "Cauchy"
     if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
       stop("The scale of the Cauchy prior needs to be positive.")
   }
 
-  no_nodes = ncol(x)
-  no_interactions = no_nodes * (no_nodes - 1) / 2
+  no_variables = ncol(x)
+  no_interactions = no_variables * (no_variables - 1) / 2
   no_thresholds = sum(no_categories)
 
   #Proposal set-up for the interaction parameters ------------------------------
@@ -388,23 +387,23 @@ bgm = function(x,
 
   #Specify the variance of the (normal) proposal distribution ------------------
   proposal_sd = matrix(1,
-                       nrow = no_nodes,
-                       ncol = no_nodes)
+                       nrow = no_variables,
+                       ncol = no_variables)
   proposal_sd_blumecapel = matrix(1,
-                                 nrow = no_nodes,
+                                 nrow = no_variables,
                                  ncol = 2)
   if(adaptive == FALSE && !na.impute) {
     hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
     cntr = 0
-    if(no_nodes == 2) {
+    if(no_variables == 2) {
       proposal_sd[1, 2] = sqrt(-1 / hessian[cntr])
       proposal_sd[2, 1] = proposal_sd[1, 2]
     } else {
-      for(node1 in 1:(no_nodes - 1)) {
-        for(node2 in (node1 + 1):no_nodes) {
+      for(variable1 in 1:(no_variables - 1)) {
+        for(variable2 in (variable1 + 1):no_variables) {
           cntr = cntr + 1
-          proposal_sd[node1, node2] = sqrt(-1 / hessian[cntr, cntr])
-          proposal_sd[node2, node1] = proposal_sd[node1, node2]
+          proposal_sd[variable1, variable2] = sqrt(-1 / hessian[cntr, cntr])
+          proposal_sd[variable2, variable1] = proposal_sd[variable1, variable2]
         }
       }
     }
@@ -412,8 +411,8 @@ bgm = function(x,
 
   # Starting value of model matrix ---------------------------------------------
   gamma = matrix(1,
-                 nrow = no_nodes,
-                 ncol = no_nodes)
+                 nrow = no_variables,
+                 ncol = no_variables)
 
 
   #Starting values of interactions and thresholds (posterior mode) -------------
@@ -421,31 +420,41 @@ bgm = function(x,
     interactions = pps$interactions
     thresholds = pps$thresholds
   } else {
-    interactions = matrix(0, nrow = no_nodes, ncol = no_nodes)
-    thresholds = matrix(0, nrow = no_nodes, ncol = max(no_categories))
+    interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+    thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
   }
 
-  #Precompute the number of observations per category for each node ------------
+  #Precompute the number of observations per category for each variable --------
   n_cat_obs = matrix(0,
                      nrow = max(no_categories) + 1,
-                     ncol = no_nodes)
-  for(node in 1:no_nodes) {
-    for(category in 0:no_categories[node]) {
-      n_cat_obs[category + 1, node] = sum(x[, node] == category)
+                     ncol = no_variables)
+  for(variable in 1:no_variables) {
+    for(category in 0:no_categories[variable]) {
+      n_cat_obs[category + 1, variable] = sum(x[, variable] == category)
+    }
+  }
+
+  #Precompute the sufficient statistics for the two Blume-Capel parameters -----
+  sufficient_statistics_blume_capel = matrix(0, nrow = 2, ncol = no_variables)
+  if(any(variable_type == "blume-capel")) {
+    bc_vars = which(variable_type == "blume-capel")
+    for(i in bc_vars) {
+      sufficient_statistics_blume_capel[1, i] = sum(x[, i])
+      sufficient_statistics_blume_capel[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
     }
   }
 
   # Index vector used to sample interactions in a random order -----------------
   Index = matrix(0,
-                 nrow = no_nodes * (no_nodes - 1) / 2,
+                 nrow = no_variables * (no_variables - 1) / 2,
                  ncol = 3)
   cntr = 0
-  for(node1 in 1:(no_nodes - 1)) {
-    for(node2 in (node1 + 1):no_nodes) {
+  for(variable1 in 1:(no_variables - 1)) {
+    for(variable2 in (variable1 + 1):no_variables) {
       cntr =  cntr + 1
       Index[cntr, 1] = cntr
-      Index[cntr, 2] = node1
-      Index[cntr, 3] = node2
+      Index[cntr, 2] = variable1
+      Index[cntr, 3] = variable2
     }
   }
 
@@ -468,6 +477,7 @@ bgm = function(x,
                       iter = iter,
                       burnin = burnin,
                       n_cat_obs = n_cat_obs,
+                      sufficient_statistics_blume_capel = sufficient_statistics_blume_capel,
                       threshold_alpha = threshold_alpha,
                       threshold_beta = threshold_beta,
                       na_impute = na.impute,
@@ -506,7 +516,7 @@ bgm = function(x,
     tresholds = out$thresholds
 
     if(is.null(colnames(x))){
-      data_columnnames = paste0("node ", 1:no_nodes)
+      data_columnnames = paste0("variable ", 1:no_variables)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
       if(edge_selection == TRUE) {
@@ -565,10 +575,10 @@ bgm = function(x,
     }
     names = character(length = sum(no_categories))
     cntr = 0
-    for(node in 1:no_nodes) {
-      for(category in 1:no_categories[node]) {
+    for(variable in 1:no_variables) {
+      for(category in 1:no_categories[variable]) {
         cntr = cntr + 1
-        names[cntr] = paste0("threshold(",node, ", ",category,")")
+        names[cntr] = paste0("threshold(",variable, ", ",category,")")
       }
     }
     colnames(thresholds) = names
