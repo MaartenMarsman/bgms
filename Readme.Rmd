@@ -18,53 +18,13 @@ library(bgms)
 
 # bgms: Bayesian Analysis of Graphical Models
   
-The `R` package <strong>bgms</strong> provides tools for a Bayesian analysis of 
-graphical models describing networks of variables. The package uses Bayesian 
-variable selection methods to model the underlying network structure. The 
-methods are organized around two general approaches for Bayesian variable 
-selection: (1) EM variable selection and (2) Gibbs variable selection. The key 
-distinction is that the former uses a continuous spike and slab prior 
-distribution on the pairwise interactions [@MarsmanEtAl_2022_objective] that 
-allows us to use EM variable selection [@RockovaGeorge_2014]. The Gibbs variable 
-selection approach [@GeorgeMcCulloch_1993], on the other hand, stipulates a 
-discrete spike and slab prior on the pairwise interactions, which allows us to 
-set the interactions to exact zeroes. To account for the discontinuity at zero, 
-we embed a Metropolis approach for mixtures of mutually singular distributions 
-[@GottardoRaftery_2008] in a Gibbs sampler. The goal is to provide these tools 
-for Markov Random Field (MRF) models for a wide range of variable types in the 
-<strong>bgms</strong> package, and it currently provides them for analyzing 
-networks of binary and/or ordinal variables [@MarsmanHaslbeck_2023_OrdinalMRF].
+The `R` package <strong>bgms</strong> provides tools for Bayesian analysis of graphical models describing networks of variables. The package uses Markov chain Monte Carlo methods combined with a pseudolikelihood approach to estimate the posterior distribution of model parameters. Gibbs variable selection [@GeorgeMcCulloch_1993] is used to model the underlying network structure of the graphical model. By imposing a discrete spike and slab prior on the pairwise interactions, it is possible to shrink the interactions to exactly zero. The Gibbs sampler embeds a Metropolis approach for mixtures of mutually singular distributions [@GottardoRaftery_2008] to account for the discontinuity at zero. The goal is to provide these tools for Markov Random Field (MRF) models for a wide range of variable types in the <strong>bgms</strong> package, and it currently provides them for analyzing networks of binary and/or ordinal variables [@MarsmanHaslbeck_2023_OrdinalMRF].
 
 ## Why use Markov Random Fields?
-Multivariate analysis using graphical models has 
-received much attention in the recent psychological and psychometric literature 
-[@RobinaughEtAl_2020;@MarsmanRhemtulla_2022_SIintro;@Steinley_2021_SIintro; 
-@ContrerasEtAl_2019]. Most of these graphical models are Markov Random Field 
-(MRF) models, whose graph structure reflects the conditional associations 
-between variables [@KindermannSnell1980]. In these models, a missing edge 
-between two variables in the network implies that these variables are 
-independent, given the remaining variables [@Lauritzen2004]. In other words, the 
-remaining variables of the network fully account for the potential association 
-between the unconnected variables.
+Multivariate analysis using graphical models has received much attention in the recent psychological and psychometric literature [@RobinaughEtAl_2020; @MarsmanRhemtulla_2022_SIintro; @ContrerasEtAl_2019]. Most of these graphical models are Markov Random Field (MRF) models, whose graph structure reflects the conditional associations between variables [@KindermannSnell1980]. In these models, a missing edge between two variables in the network implies that these variables are independent, given the remaining variables [@Lauritzen2004]. In other words, the remaining variables of the network fully account for the potential association between the unconnected variables.
 
 ## Why use a Bayesian approach to analyze the MRF?
-Testing the structure of the MRF requires us to determine the plausibility of 
-the opposing hypotheses of conditional dependence and conditional independence. 
-For example, how plausible are network structures that include the edge between 
-variables 3 and 9 compared to network structures that exclude this edge? 
-Frequentist approaches are limited in this respect, because they can only reject 
-the conditional independence hypothesis, but not support it 
-[@WagenmakersEtAl_2018_BIP1;@Wagenmakers_2007]. This creates the problem that, 
-if an edge is excluded, we do not know whether this is because the edge is 
-absent in the population, or because we lack the power to reject the null 
-hypothesis of independence.  To avoid this problem, we will use a Bayesian 
-approach using Bayes factors [@KassRaftery_1995]. The inclusion Bayes factor 
-[@HuthEtAl_2023_intro] allows us to quantify how much the data support both 
-conditional dependence ---<em>evidence of edge presence</em>--- or conditional 
-independence ---<em>evidence of edge absence</em>. It also allows us to conclude 
-that there is only limited support for either hypothesis [@Dienes_2014] ---an 
-<em>absence of evidence</em>.
-
+Testing the structure of the MRF requires us to determine the plausibility of the opposing hypotheses of conditional dependence and conditional independence. That is, how plausible is it that the observed data come from a network with a structure that includes the edge between two variables compared to a network structure that excludes that edge? Frequentist approaches are limited in this regard because they can only reject the conditional independence hypothesis, not support it [@WagenmakersEtAl_2018_BIP1;@Wagenmakers_2007]. This leads to the problem that if an edge is excluded, we do not know whether this is because the edge is absent in the population or because we lack the power to reject the null hypothesis of independence. To avoid this problem, we will use a Bayesian approach using Bayes factors [@KassRaftery_1995]). The inclusion Bayes factor [@HuthEtAl_2023_intro;@SekulovskiEtAl_2023] allows us to quantify how much the data support both conditional dependence -<em>evidence of edge presence</em>- or conditional independence -<em>evidence of edge absence</em>. It also allows us to conclude that there is limited support for either hypothesis [@Dienes_2014]-an <em>absence of evidence</em>.
 
 ## Installation
 

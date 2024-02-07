@@ -190,8 +190,8 @@ void metropolis_thresholds_regular(NumericMatrix interactions,
 }
 
 // ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the threshold parameters
-//   for a Blume-Capel ordinal variable
+// Adaptive Metropolis algorithm to sample from the full-conditional of the
+//   threshold parameters for a Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
 void metropolis_thresholds_blumecapel(NumericMatrix interactions,
                                       NumericMatrix thresholds,
@@ -502,19 +502,16 @@ void metropolis_interactions(NumericMatrix interactions,
                              IntegerVector no_categories,
                              NumericMatrix proposal_sd,
                              double cauchy_scale,
-                             NumericMatrix unit_info,
                              int no_persons,
                              int no_variables,
                              NumericMatrix rest_matrix,
-                             bool adaptive,
                              double phi,
                              double target_ar,
                              int t,
                              double epsilon_lo,
                              double epsilon_hi,
                              LogicalVector variable_bool,
-                             IntegerVector reference_category,
-                             String interaction_prior) {
+                             IntegerVector reference_category) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -538,20 +535,8 @@ void metropolis_interactions(NumericMatrix interactions,
                                               rest_matrix,
                                               variable_bool,
                                               reference_category);
-        if(interaction_prior == "Cauchy") {
-          log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
-          log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
-        }
-        if(interaction_prior == "UnitInfo") {
-          log_prob += R::dnorm(proposed_state,
-                               0.0,
-                               unit_info(variable1, variable2),
-                               true);
-          log_prob -= R::dnorm(current_state,
-                               0.0,
-                               unit_info(variable1, variable2),
-                               true);
-        }
+        log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
+        log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
 
         U = R::unif_rand();
         if(std::log(U) < log_prob) {
@@ -568,19 +553,17 @@ void metropolis_interactions(NumericMatrix interactions,
           }
         }
 
-        if(adaptive == true) {
-          if(log_prob > 0) {
-            log_prob = 1;
-          } else {
-            log_prob = std::exp(log_prob);
-          }
-          proposal_sd(variable1, variable2) = proposal_sd(variable1, variable2) +
-            (log_prob - target_ar) * std::exp(-log(t) * phi);
-          if(proposal_sd(variable1, variable2) < epsilon_lo) {
-            proposal_sd(variable1, variable2) = epsilon_lo;
-          } else if (proposal_sd(variable1, variable2) > epsilon_hi) {
-            proposal_sd(variable1, variable2) = epsilon_hi;
-          }
+        if(log_prob > 0) {
+          log_prob = 1;
+        } else {
+          log_prob = std::exp(log_prob);
+        }
+        proposal_sd(variable1, variable2) = proposal_sd(variable1, variable2) +
+          (log_prob - target_ar) * std::exp(-log(t) * phi);
+        if(proposal_sd(variable1, variable2) < epsilon_lo) {
+          proposal_sd(variable1, variable2) = epsilon_lo;
+        } else if (proposal_sd(variable1, variable2) > epsilon_hi) {
+          proposal_sd(variable1, variable2) = epsilon_hi;
         }
       }
     }
@@ -598,16 +581,13 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                       IntegerVector no_categories,
                                       NumericMatrix proposal_sd,
                                       double cauchy_scale,
-                                      NumericMatrix unit_info,
                                       IntegerMatrix index,
                                       int no_interactions,
                                       int no_persons,
                                       NumericMatrix rest_matrix,
                                       NumericMatrix theta,
-                                      bool adaptive,
                                       LogicalVector variable_bool,
-                                      IntegerVector reference_category,
-                                      String interaction_prior) {
+                                      IntegerVector reference_category) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -642,15 +622,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                           reference_category);
 
     if(gamma(variable1, variable2) == 0) {
-      if(interaction_prior == "Cauchy") {
-        log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
-      }
-      if(interaction_prior == "UnitInfo") {
-        log_prob += R::dnorm(proposed_state,
-                             0.0,
-                             unit_info(variable1, variable2),
-                             true);
-      }
+      log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
       log_prob -= R::dnorm(proposed_state,
                            current_state,
                            proposal_sd(variable1, variable2),
@@ -658,15 +630,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 
       log_prob += log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
     } else {
-      if(interaction_prior == "Cauchy") {
-        log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
-      }
-      if(interaction_prior == "UnitInfo") {
-        log_prob -= R::dnorm(current_state,
-                             0.0,
-                             unit_info(variable1, variable2),
-                             true);
-      }
+      log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
       log_prob += R::dnorm(current_state,
                            proposed_state,
                            proposal_sd(variable1, variable2),
@@ -701,9 +665,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 // ----------------------------------------------------------------------------|
 List gibbs_step_gm(IntegerMatrix observations,
                    IntegerVector no_categories,
-                   String interaction_prior,
                    double cauchy_scale,
-                   NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
                    NumericMatrix proposal_sd_blumecapel,
                    IntegerMatrix index,
@@ -721,7 +683,6 @@ List gibbs_step_gm(IntegerMatrix observations,
                    NumericMatrix thresholds,
                    NumericMatrix rest_matrix,
                    NumericMatrix theta,
-                   bool adaptive,
                    double phi,
                    double target_ar,
                    int t,
@@ -740,16 +701,13 @@ List gibbs_step_gm(IntegerMatrix observations,
                                      no_categories,
                                      proposal_sd,
                                      cauchy_scale,
-                                     unit_info,
                                      index,
                                      no_interactions,
                                      no_persons,
                                      rest_matrix,
                                      theta,
-                                     adaptive,
                                      variable_bool,
-                                     reference_category,
-                                     interaction_prior);
+                                     reference_category);
   }
 
   //Within model move (update interaction parameters)
@@ -760,19 +718,16 @@ List gibbs_step_gm(IntegerMatrix observations,
                           no_categories,
                           proposal_sd,
                           cauchy_scale,
-                          unit_info,
                           no_persons,
                           no_variables,
                           rest_matrix,
-                          adaptive,
                           phi,
                           target_ar,
                           t,
                           epsilon_lo,
                           epsilon_hi,
                           variable_bool,
-                          reference_category,
-                          interaction_prior);
+                          reference_category);
 
   //Update threshold parameters
   for(int variable = 0; variable < no_variables; variable++) {
@@ -825,9 +780,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    NumericMatrix interactions,
                    NumericMatrix thresholds,
                    IntegerVector no_categories,
-                   String interaction_prior,
                    double cauchy_scale,
-                   NumericMatrix unit_info,
                    NumericMatrix proposal_sd,
                    NumericMatrix proposal_sd_blumecapel,
                    String edge_prior,
@@ -845,7 +798,6 @@ List gibbs_sampler(IntegerMatrix observations,
                    IntegerMatrix missing_index,
                    LogicalVector variable_bool,
                    IntegerVector reference_category,
-                   bool adaptive = false,
                    bool save = false,
                    bool display_progress = false,
                    bool edge_selection = true) {
@@ -949,9 +901,7 @@ List gibbs_sampler(IntegerMatrix observations,
 
     List out = gibbs_step_gm(observations,
                              no_categories,
-                             interaction_prior,
                              cauchy_scale,
-                             unit_info,
                              proposal_sd,
                              proposal_sd_blumecapel,
                              index,
@@ -969,7 +919,6 @@ List gibbs_sampler(IntegerMatrix observations,
                              thresholds,
                              rest_matrix,
                              theta,
-                             adaptive,
                              phi,
                              target_ar,
                              iteration + 1,
@@ -1052,9 +1001,7 @@ List gibbs_sampler(IntegerMatrix observations,
 
     List out = gibbs_step_gm(observations,
                              no_categories,
-                             interaction_prior,
                              cauchy_scale,
-                             unit_info,
                              proposal_sd,
                              proposal_sd_blumecapel,
                              index,
@@ -1072,7 +1019,6 @@ List gibbs_sampler(IntegerMatrix observations,
                              thresholds,
                              rest_matrix,
                              theta,
-                             adaptive,
                              phi,
                              target_ar,
                              iteration + 1,

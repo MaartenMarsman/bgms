@@ -37,9 +37,7 @@
 #' distributions, the function can use a combination of Metropolis-Hastings and
 #' Gibbs sampling to create a Markov chain that has the joint posterior
 #' distribution as an invariant. The current option for the slab distribution is
-#' a Cauchy with an optional scaling parameter. If there are no missing data and
-#' no Blume-Capel variables, there is also an option to use a unit-information
-#' prior for the slab distribution instead. The slab distribution is also used
+#' a Cauchy with an optional scaling parameter. The slab distribution is also used
 #' as the prior for the interaction parameters for Bayesian estimation. A
 #' beta-prime distribution is used for the exponent of the category parameters.
 #' For Bayesian edge selection, two prior distributions are implemented for the
@@ -77,13 +75,6 @@
 #' @param burnin The number of iterations of the Gibbs sampler before saving its
 #' output. Since it may take some time for the Gibbs sampler to converge to
 #' the posterior distribution, it is recommended not to set this number too low.
-#' @param interaction_prior The prior distribution to use for the pairwise
-#' interaction parameters. If \code{edge_selection = TRUE} this prior is the
-#' slab distribution. The current option for this prior is a Cauchy distribution
-#' (\code{interaction_prior = "Cauchy"}). If there are no missing data and no
-#' Blume-Capel variables, there is also an option to use a unit information
-#' prior instead (\code{interaction_prior = "UnitInfo"}). The default is
-#' (\code{interaction_prior = "Cauchy"}).
 #' @param cauchy_scale The scale of the Cauchy distribution that is used as a
 #' prior for the pairwise interaction parameters. Defaults to \code{2.5}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
@@ -121,20 +112,6 @@
 #' the Beta prior density for the Bernoulli inclusion probability. Must be
 #' positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 #' \code{beta_bernoulli_beta = 1}.
-#' @param adaptive A random walk Metropolis algorithm is used to sample from the
-#' fully conditional posterior distributions of the pairwise interaction
-#' parameters. This requires a variance to be specified for the prior
-#' distribution. If there are no missing values and no ``blume-capel'' variables,
-#' there is an option to set this variance equal to the curvature around the
-#' posterior mode. This is the default of the bgm function, but requires the
-#' second derivative of the pseudoposterior at its mode, which bgm cannot
-#' determine in the case of missing data, and is not implemented for
-#' ``blume-capel'' variables. In other cases, bgm switches to an adaptive
-#' Metropolis algorithm, which adjusts the proposal variance to the acceptance
-#' probability of the random walk Metropolis algorithm to be close to the
-#' optimum of \code{.234} using a Robbins-Monro-type algorithm. The user can
-#' also select the adaptive Metropolis algorithm by default
-#' (\code{adaptive = TRUE}).
 #' @param na.action How do you want the function to handle missing data? If
 #' \code{na.action = "listwise"}, listwise deletion is used. If
 #' \code{na.action = "impute"}, missing data are imputed iteratively during the
@@ -271,7 +248,6 @@ bgm = function(x,
                reference_category,
                iter = 1e4,
                burnin = 1e3,
-               interaction_prior = c("Cauchy", "UnitInfo"),
                cauchy_scale = 2.5,
                threshold_alpha = 0.5,
                threshold_beta = 0.5,
@@ -280,7 +256,6 @@ bgm = function(x,
                inclusion_probability = 0.5,
                beta_bernoulli_alpha = 1,
                beta_bernoulli_beta = 1,
-               adaptive = FALSE,
                na.action = c("listwise", "impute"),
                save = FALSE,
                display_progress = TRUE) {
@@ -299,7 +274,6 @@ bgm = function(x,
   model = check_bgm_model(x = x,
                           variable_type = variable_type,
                           reference_category = reference_category,
-                          interaction_prior = interaction_prior,
                           cauchy_scale = cauchy_scale,
                           threshold_alpha = threshold_alpha,
                           threshold_beta = threshold_beta,
@@ -307,8 +281,7 @@ bgm = function(x,
                           edge_prior = edge_prior,
                           inclusion_probability = inclusion_probability,
                           beta_bernoulli_alpha = beta_bernoulli_alpha,
-                          beta_bernoulli_beta = beta_bernoulli_beta,
-                          adaptive = adaptive)
+                          beta_bernoulli_beta = beta_bernoulli_beta)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
@@ -318,9 +291,7 @@ bgm = function(x,
   # ----------------------------------------------------------------------------
 
   reference_category = model$reference_category
-  interaction_prior = model$interaction_prior
   edge_prior = model$edge_prior
-  adaptive = model$adaptive
   theta = model$theta
 
   #Check Gibbs input -----------------------------------------------------------
@@ -347,50 +318,9 @@ bgm = function(x,
   na.impute = data$na.impute
   reference_category = data$reference_category
 
-  if(na.impute == TRUE) {
-    if(interaction_prior != "Cauchy")
-      warning(paste0("There were missing responses and na.action was set to ``impute''. The bgm \n",
-                     "function must switch the interaction_prior to ``Cauchy''."))
-    adaptive = TRUE
-    interaction_prior = "Cauchy"
-    if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
-      stop("The scale of the Cauchy prior needs to be positive.")
-  }
-
   no_variables = ncol(x)
   no_interactions = no_variables * (no_variables - 1) / 2
   no_thresholds = sum(no_categories)
-
-  #Proposal set-up for the interaction parameters ------------------------------
-  if(interaction_prior == "UnitInfo") {
-    pps = try(mppe(x = x,
-                   interaction_prior = interaction_prior),
-              silent = TRUE)
-    if(inherits(pps, what = "try-error"))
-      stop(paste0(
-        "For the Unit Information prior we need to estimate the posterior mode. \n",
-        "Unfortunately, bgm could not find this mode for your data. Please try the \n",
-        "Cauchy prior option."))
-    unit_info = sqrt(pps$unit_info)
-  } else {
-    if(!na.impute && !any(!variable_bool)) {
-      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-      pps = try(mppe(x = x,
-                     interaction_prior = interaction_prior,
-                     cauchy_scale = cauchy_scale),
-                silent = TRUE)
-      if(inherits(pps, what = "try-error") & adaptive == FALSE) {
-        stop(paste0("By default, the MCMC procedure underlying the bgm function uses a Metropolis \n",
-                    "algorithm with a fixed proposal distribution. The bgm function attempts to fit \n",
-                    "this proposal distribution to the target posterior distribution by locating the \n",
-                    "posterior mode and using information about the curvature around that model to \n",
-                    "set the variance of the proposal distributions. Unfortunately, bgm was unable \n",
-                    "to locate the posterior mode for your data. Please try again with ``adaptive = \n",
-                    "TRUE''."))
-      }
-    }
-    unit_info = matrix(data = NA, nrow = 1, ncol = 1)
-  }
 
   #Specify the variance of the (normal) proposal distribution ------------------
   proposal_sd = matrix(1,
@@ -399,22 +329,6 @@ bgm = function(x,
   proposal_sd_blumecapel = matrix(1,
                                  nrow = no_variables,
                                  ncol = 2)
-  if(adaptive == FALSE && !na.impute) {
-    hessian = pps$hessian[-c(1:no_thresholds), -c(1:no_thresholds)]
-    cntr = 0
-    if(no_variables == 2) {
-      proposal_sd[1, 2] = sqrt(-1 / hessian[cntr])
-      proposal_sd[2, 1] = proposal_sd[1, 2]
-    } else {
-      for(variable1 in 1:(no_variables - 1)) {
-        for(variable2 in (variable1 + 1):no_variables) {
-          cntr = cntr + 1
-          proposal_sd[variable1, variable2] = sqrt(-1 / hessian[cntr, cntr])
-          proposal_sd[variable2, variable1] = proposal_sd[variable1, variable2]
-        }
-      }
-    }
-  }
 
   # Starting value of model matrix ---------------------------------------------
   gamma = matrix(1,
@@ -423,14 +337,8 @@ bgm = function(x,
 
 
   #Starting values of interactions and thresholds (posterior mode) -------------
-  if(!na.impute && !any(!variable_bool) && !inherits(pps, what = "try-error")) {
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-    interactions = pps$interactions
-    thresholds = pps$thresholds
-  } else {
-    interactions = matrix(0, nrow = no_variables, ncol = no_variables)
-    thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
-  }
+  interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+  thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
 
   #Precompute the number of observations per category for each variable --------
   n_cat_obs = matrix(0,
@@ -473,9 +381,7 @@ bgm = function(x,
                       interactions = interactions,
                       thresholds = thresholds,
                       no_categories  = no_categories,
-                      interaction_prior = interaction_prior,
                       cauchy_scale = cauchy_scale,
-                      unit_info = unit_info,
                       proposal_sd = proposal_sd,
                       proposal_sd_blumecapel = proposal_sd_blumecapel,
                       edge_prior = edge_prior,
@@ -493,7 +399,6 @@ bgm = function(x,
                       missing_index = missing_index,
                       variable_bool = variable_bool,
                       reference_category = reference_category,
-                      adaptive = adaptive,
                       save = save,
                       display_progress = display_progress,
                       edge_selection = edge_selection)
@@ -504,7 +409,6 @@ bgm = function(x,
     variable_type = variable_type,
     iter = iter,
     burnin = burnin,
-    interaction_prior = interaction_prior,
     cauchy_scale = cauchy_scale,
     threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
@@ -513,7 +417,6 @@ bgm = function(x,
     inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
-    adaptive = adaptive,
     na.action = na.action,
     save = save
   )

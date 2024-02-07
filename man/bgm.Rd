@@ -11,7 +11,6 @@ bgm(
   reference_category,
   iter = 10000,
   burnin = 1000,
-  interaction_prior = c("Cauchy", "UnitInfo"),
   cauchy_scale = 2.5,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
@@ -20,7 +19,6 @@ bgm(
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
-  adaptive = FALSE,
   na.action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
@@ -62,14 +60,6 @@ recommended to run the Gibbs sampler for at least \code{1e5} iterations.}
 \item{burnin}{The number of iterations of the Gibbs sampler before saving its
 output. Since it may take some time for the Gibbs sampler to converge to
 the posterior distribution, it is recommended not to set this number too low.}
-
-\item{interaction_prior}{The prior distribution to use for the pairwise
-interaction parameters. If \code{edge_selection = TRUE} this prior is the
-slab distribution. The current option for this prior is a Cauchy distribution
-(\code{interaction_prior = "Cauchy"}). If there are no missing data and no
-Blume-Capel variables, there is also an option to use a unit information
-prior instead (\code{interaction_prior = "UnitInfo"}). The default is
-(\code{interaction_prior = "Cauchy"}).}
 
 \item{cauchy_scale}{The scale of the Cauchy distribution that is used as a
 prior for the pairwise interaction parameters. Defaults to \code{2.5}.}
@@ -113,21 +103,6 @@ The default is \code{inclusion_probability = 0.5}.}
 the Beta prior density for the Bernoulli inclusion probability. Must be
 positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}.}
-
-\item{adaptive}{A random walk Metropolis algorithm is used to sample from the
-fully conditional posterior distributions of the pairwise interaction
-parameters. This requires a variance to be specified for the prior
-distribution. If there are no missing values and no ``blume-capel'' variables,
-there is an option to set this variance equal to the curvature around the
-posterior mode. This is the default of the bgm function, but requires the
-second derivative of the pseudoposterior at its mode, which bgm cannot
-determine in the case of missing data, and is not implemented for
-``blume-capel'' variables. In other cases, bgm switches to an adaptive
-Metropolis algorithm, which adjusts the proposal variance to the acceptance
-probability of the random walk Metropolis algorithm to be close to the
-optimum of \code{.234} using a Robbins-Monro-type algorithm. The user can
-also select the adaptive Metropolis algorithm by default
-(\code{adaptive = TRUE}).}
 
 \item{na.action}{How do you want the function to handle missing data? If
 \code{na.action = "listwise"}, listwise deletion is used. If
@@ -217,9 +192,7 @@ interactions. By formulating it as a mixture of mutually singular
 distributions, the function can use a combination of Metropolis-Hastings and
 Gibbs sampling to create a Markov chain that has the joint posterior
 distribution as an invariant. The current option for the slab distribution is
-a Cauchy with an optional scaling parameter. If there are no missing data and
-no Blume-Capel variables, there is also an option to use a unit-information
-prior for the slab distribution instead. The slab distribution is also used
+a Cauchy with an optional scaling parameter. The slab distribution is also used
 as the prior for the interaction parameters for Bayesian estimation. A
 beta-prime distribution is used for the exponent of the category parameters.
 For Bayesian edge selection, two prior distributions are implemented for the

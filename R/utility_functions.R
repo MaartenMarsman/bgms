@@ -65,7 +65,6 @@ reformat_data = function(x, fn.name = "") {
 check_bgm_model = function(x,
                            variable_type,
                            reference_category,
-                           interaction_prior = c("Cauchy", "UnitInfo"),
                            cauchy_scale = 2.5,
                            threshold_alpha = 0.5,
                            threshold_beta = 0.5,
@@ -73,8 +72,7 @@ check_bgm_model = function(x,
                            edge_prior = c("Bernoulli", "Beta-Bernoulli"),
                            inclusion_probability = 0.5,
                            beta_bernoulli_alpha = 1,
-                           beta_bernoulli_beta = 1,
-                           adaptive = FALSE) {
+                           beta_bernoulli_beta = 1) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -96,14 +94,6 @@ check_bgm_model = function(x,
   #Check Blume-Capel variable input --------------------------------------------
   if(any(!variable_bool)) {
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-    interaction_prior = match.arg(interaction_prior)
-    if(interaction_prior == "UnitInfo") {
-      warning(paste0("The model contains Blume-Capel variables and so the bgm function must switch \n",
-                     "the interaction_prior to ``Cauchy''."))
-      interaction_prior = "Cauchy"
-    }
-    adaptive = TRUE
 
     if(length(reference_category) != ncol(x) && length(reference_category) != 1)
       stop(paste0("The argument ``reference_category for the Blume-Capel model needs to be a \n",
@@ -151,11 +141,8 @@ check_bgm_model = function(x,
   }
 
   #Check prior set-up for the interaction parameters ---------------------------
-  interaction_prior = match.arg(interaction_prior)
-  if(interaction_prior == "Cauchy") {
-    if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
+  if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
       stop("The scale of the Cauchy prior needs to be positive.")
-  }
 
   #Check prior set-up for the threshold parameters -----------------------------
   if(threshold_alpha <= 0 | !is.finite(threshold_alpha))
@@ -221,10 +208,8 @@ check_bgm_model = function(x,
 
   return(list(variable_bool = variable_bool,
               reference_category = reference_category,
-              interaction_prior = interaction_prior,
               edge_selection = edge_selection,
               edge_prior = edge_prior,
-              adaptive = adaptive,
               theta = theta))
 }
 
