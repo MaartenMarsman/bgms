@@ -75,8 +75,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler
-List gibbs_sampler(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, NumericMatrix proposal_sd_blumecapel, String edge_prior, NumericMatrix theta, double beta_bernoulli_alpha, double beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, IntegerMatrix sufficient_statistics_blume_capel, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index, StringVector variable_type, IntegerVector reference_category, bool adaptive, bool save, bool display_progress, bool edge_selection);
-RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_statistics_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_typeSEXP, SEXP reference_categorySEXP, SEXP adaptiveSEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
+List gibbs_sampler(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, IntegerVector no_categories, String interaction_prior, double cauchy_scale, NumericMatrix unit_info, NumericMatrix proposal_sd, NumericMatrix proposal_sd_blumecapel, String edge_prior, NumericMatrix theta, double beta_bernoulli_alpha, double beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, IntegerMatrix sufficient_blume_capel, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index, LogicalVector variable_bool, IntegerVector reference_category, bool adaptive, bool save, bool display_progress, bool edge_selection);
+RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_priorSEXP, SEXP cauchy_scaleSEXP, SEXP unit_infoSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP adaptiveSEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -98,18 +98,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
     Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs(n_cat_obsSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type sufficient_statistics_blume_capel(sufficient_statistics_blume_capelSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type sufficient_blume_capel(sufficient_blume_capelSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_alpha(threshold_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
     Rcpp::traits::input_parameter< bool >::type na_impute(na_imputeSEXP);
     Rcpp::traits::input_parameter< IntegerMatrix >::type missing_index(missing_indexSEXP);
-    Rcpp::traits::input_parameter< StringVector >::type variable_type(variable_typeSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type variable_bool(variable_boolSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type reference_category(reference_categorySEXP);
     Rcpp::traits::input_parameter< bool >::type adaptive(adaptiveSEXP);
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_statistics_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_type, reference_category, adaptive, save, display_progress, edge_selection));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, gamma, interactions, thresholds, no_categories, interaction_prior, cauchy_scale, unit_info, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, adaptive, save, display_progress, edge_selection));
     return rcpp_result_gen;
 END_RCPP
 }

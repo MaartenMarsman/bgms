@@ -62,154 +62,6 @@ reformat_data = function(x, fn.name = "") {
   return(list(x = x, no_categories = no_categories))
 }
 
-reformat_data_bgm = function(x, na.action, variable_type, reference_category) {
-  if(na.action == "listwise") {
-    # Check for missing values ---------------------------------------------------
-    missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
-    if(sum(missing_values) == nrow(x))
-      stop(paste0("All rows in x contain at least one missing response.\n",
-                  "You could try option ``na.action = impute''."))
-    if(sum(missing_values) > 1)
-      warning(paste0("There were ",
-                     sum(missing_values),
-                     " rows with missing observations in the input matrix x.\n",
-                     "Since ``na.action = listwise'' these rows were excluded \n",
-                     "from the analysis."),
-              call. = FALSE)
-    if(sum(missing_values) == 1)
-      warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                     "Since ``na.action = listwise'' this row was excluded from \n",
-                     "the analysis."),
-              call. = FALSE)
-    x = x[!missing_values, ]
-
-    if(ncol(x) < 2 || is.null(ncol(x)))
-      stop(paste0("After removing missing observations from the input matrix x,\n",
-                  "there were less than two columns left in x."))
-    if(nrow(x) < 2 || is.null(nrow(x)))
-      stop(paste0("After removing missing observations from the input matrix x,\n",
-                  "there were less than two rows left in x."))
-
-    missing_index = matrix(NA, nrow = 1, ncol = 1)
-    na.impute = FALSE
-  } else {
-    # Check for missing values -------------------------------------------------
-    no_missings = sum(is.na(x))
-    no_persons = nrow(x)
-    no_nodes = ncol(x)
-    if(no_missings > 0) {
-      missing_index = matrix(0, nrow = no_missings, ncol = 2)
-      na.impute = TRUE
-      cntr = 0
-      for(node in 1:no_nodes) {
-        mis = which(is.na(x[, node]))
-        if(length(mis) > 0) {
-          for(i in 1:length(mis)) {
-            cntr = cntr + 1
-            missing_index[cntr, 1] = mis[i]
-            missing_index[cntr, 2] = node
-            x[mis[i], node] = stats::median(x[, node], #start value for imputation
-                                            na.rm = TRUE)
-            #This is non-zero if no zeroes are observed (we then collapse over zero below)
-          }
-        }
-      }
-    } else {
-      missing_index = matrix(NA, nrow = 1, ncol = 1)
-      na.impute = FALSE
-    }
-  }
-
-  no_nodes = ncol(x)
-  no_categories = vector(length = no_nodes)
-  for(node in 1:no_nodes) {
-    unq_vls = sort(unique(x[,  node]))
-    mx_vl = max(unq_vls)
-
-    # Check if observed responses are not all unique ---------------------------
-    if(mx_vl == nrow(x))
-      stop(paste0("Only unique responses observed for variable ",
-                  node,
-                  ". We expect >= 1 observations per category."))
-
-    # Recode data --------------------------------------------------------------
-    if(variable_type[node] == "ordinal") {#Regular ordinal variable
-      if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
-        y = x[, node]
-        cntr = 0
-        for(value in unq_vls) {
-          x[y == value, node] = cntr
-          cntr = cntr + 1
-        }
-      }
-    } else {#Blume-Capel ordinal variable
-      # Check if observations are integer or can be recoded --------------------
-      if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
-        int_unq_vls = unique(as.integer(unq_vls))
-        if(any(is.na(int_unq_vls))) {
-          stop(paste0(
-            "The Blume-Capel model assumes that its observations are coded as integers, but \n",
-            "the category scores for node ", node, " were not integer. An attempt to recode \n",
-            "them to integer failed. Please inspect the documentation for the base R \n",
-            "function ``as.integer(),'' which bgm uses for recoding category scores."))
-        }
-
-        if(length(int_unq_vls) != length(unq_vls)) {
-          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
-                      "category scores of the observations for node ", node, " were not integers. An \n",
-                      "attempt to recode these observations as integers failed because, after rounding, \n",
-                      "a single integer value was used for several observed score categories."))
-        }
-        x[, node] = as.integer(x[, node])
-
-        if(reference_category[node] < 0 | reference_category[node] > max(x[, node]))
-          stop(paste0(
-            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
-            "range of observations."))
-      }
-
-      # Check if observations start at zero and recode otherwise ---------------
-      if(min(x[, node]) < 0) {
-        reference_category[node] = reference_category[node] - min(x[, node])
-        x[, node] = x[, node] - min(x[, node])
-
-        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
-                       "that the lowest observed category score is zero. The lowest score for node \n",
-                       node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
-                       "the corresponding reference category score to ", reference_category[node], "."))
-      }
-    }
-
-    # Warn that maximum category value is large --------------------------------
-    no_categories[node] = max(x[,node])
-    if(variable_type[node] == "blume-capel" & no_categories[node] > 10) {
-      warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
-                     "is a sum over all possible values of the ordinal variable. The range of \n",
-                     "observed values, possibly after recoding to integers, is assumed to be the \n",
-                     "number of possible response categories.  For node ", node,", this range was \n",
-                     "equal to ", no_categories[node], "which may cause the analysis to take some \n",
-                     "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
-                     "collapse the categories that have no observations between zero and the last \n",
-                     "category. This may explain the large discrepancy between the first and last \n",
-                     "category values."))
-    }
-
-    # Check to see if not all responses are in one category --------------------
-    if(no_categories[node] == 0)
-      stop(paste0("Only one value [",
-                  unq_vls,
-                  "] was observed for variable ",
-                  node,
-                  "."))
-  }
-
-  return(list(x = x,
-              no_categories = no_categories,
-              reference_category = reference_category,
-              missing_index = missing_index,
-              na.impute = na.impute))
-}
-
 check_bgm_model = function(x,
                            variable_type,
                            reference_category,
@@ -228,18 +80,23 @@ check_bgm_model = function(x,
   if(length(variable_type) == 1) {
     variable_type = match.arg(arg = variable_type,
                               choices = c("ordinal", "blume-capel"))
-    variable_type = rep(variable_type, ncol(x))
+    variable_bool = (variable_type == "ordinal")
+    variable_bool = rep(variable_bool, ncol(x))
   } else {
     variable_type = match.arg(arg = variable_type,
                               choices = c("ordinal", "blume-capel"),
                               several.ok = TRUE)
-    if(length(variable_type) != ncol(x))
+    variable_bool = (variable_type == "ordinal")
+
+    if(length(variable_bool) != ncol(x))
       stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
                   "string or a vector of character strings of length p."))
   }
 
   #Check Blume-Capel variable input --------------------------------------------
-  if(any(variable_type == "blume-capel")) {
+  if(any(!variable_bool)) {
+    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+
     interaction_prior = match.arg(interaction_prior)
     if(interaction_prior == "UnitInfo") {
       warning(paste0("The model contains Blume-Capel variables and so the bgm function must switch \n",
@@ -254,15 +111,18 @@ check_bgm_model = function(x,
 
     if(length(reference_category) == ncol(x)) {
       #Check if the input is integer -------------------------------------------
-      blume_capel_variables = which(variable_type == "blume-capel")
+      blume_capel_variables = which(!variable_bool)
+      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
 
       integer_check = try(as.integer(reference_category[blume_capel_variables]),
                           silent = TRUE)
       if(any(is.na(integer_check)))
         stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
                     "missing values or values that could not be forced into an integer value."))
+
       integer_check = reference_category[blume_capel_variables] -
         round(reference_category[blume_capel_variables])
+
       if(any(integer_check > .Machine$double.eps)) {
         non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
         if(length(non_integers) > 1) {
@@ -359,13 +219,164 @@ check_bgm_model = function(x,
     theta = matrix(0.5, nrow = 1, ncol = 1)
   }
 
-  return(list(variable_type = variable_type,
+  return(list(variable_bool = variable_bool,
               reference_category = reference_category,
               interaction_prior = interaction_prior,
               edge_selection = edge_selection,
               edge_prior = edge_prior,
               adaptive = adaptive,
               theta = theta))
+}
+
+
+reformat_data_bgm = function(x, na.action, variable_bool, reference_category) {
+  if(na.action == "listwise") {
+    # Check for missing values ---------------------------------------------------
+    missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
+    if(sum(missing_values) == nrow(x))
+      stop(paste0("All rows in x contain at least one missing response.\n",
+                  "You could try option ``na.action = impute''."))
+    if(sum(missing_values) > 1)
+      warning(paste0("There were ",
+                     sum(missing_values),
+                     " rows with missing observations in the input matrix x.\n",
+                     "Since ``na.action = listwise'' these rows were excluded \n",
+                     "from the analysis."),
+              call. = FALSE)
+    if(sum(missing_values) == 1)
+      warning(paste0("There was one row with missing observations in the input matrix x.\n",
+                     "Since ``na.action = listwise'' this row was excluded from \n",
+                     "the analysis."),
+              call. = FALSE)
+    x = x[!missing_values, ]
+
+    if(ncol(x) < 2 || is.null(ncol(x)))
+      stop(paste0("After removing missing observations from the input matrix x,\n",
+                  "there were less than two columns left in x."))
+    if(nrow(x) < 2 || is.null(nrow(x)))
+      stop(paste0("After removing missing observations from the input matrix x,\n",
+                  "there were less than two rows left in x."))
+
+    missing_index = matrix(NA, nrow = 1, ncol = 1)
+    na.impute = FALSE
+  } else {
+    # Check for missing values -------------------------------------------------
+    no_missings = sum(is.na(x))
+    no_persons = nrow(x)
+    no_nodes = ncol(x)
+    if(no_missings > 0) {
+      missing_index = matrix(0, nrow = no_missings, ncol = 2)
+      na.impute = TRUE
+      cntr = 0
+      for(node in 1:no_nodes) {
+        mis = which(is.na(x[, node]))
+        if(length(mis) > 0) {
+          for(i in 1:length(mis)) {
+            cntr = cntr + 1
+            missing_index[cntr, 1] = mis[i]
+            missing_index[cntr, 2] = node
+            x[mis[i], node] = stats::median(x[, node], #start value for imputation
+                                            na.rm = TRUE)
+            #This is non-zero if no zeroes are observed (we then collapse over zero below)
+          }
+        }
+      }
+    } else {
+      missing_index = matrix(NA, nrow = 1, ncol = 1)
+      na.impute = FALSE
+    }
+  }
+
+  no_nodes = ncol(x)
+  no_categories = vector(length = no_nodes)
+  for(node in 1:no_nodes) {
+    unq_vls = sort(unique(x[,  node]))
+    mx_vl = max(unq_vls)
+
+    # Check if observed responses are not all unique ---------------------------
+    if(mx_vl == nrow(x))
+      stop(paste0("Only unique responses observed for variable ",
+                  node,
+                  ". We expect >= 1 observations per category."))
+
+    # Recode data --------------------------------------------------------------
+    if(variable_bool[node]) {#Regular ordinal variable
+      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+      if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
+        y = x[, node]
+        cntr = 0
+        for(value in unq_vls) {
+          x[y == value, node] = cntr
+          cntr = cntr + 1
+        }
+      }
+    } else {#Blume-Capel ordinal variable
+      # Check if observations are integer or can be recoded --------------------
+      if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
+        int_unq_vls = unique(as.integer(unq_vls))
+        if(any(is.na(int_unq_vls))) {
+          stop(paste0(
+            "The Blume-Capel model assumes that its observations are coded as integers, but \n",
+            "the category scores for node ", node, " were not integer. An attempt to recode \n",
+            "them to integer failed. Please inspect the documentation for the base R \n",
+            "function ``as.integer(),'' which bgm uses for recoding category scores."))
+        }
+
+        if(length(int_unq_vls) != length(unq_vls)) {
+          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
+                      "category scores of the observations for node ", node, " were not integers. An \n",
+                      "attempt to recode these observations as integers failed because, after rounding, \n",
+                      "a single integer value was used for several observed score categories."))
+        }
+        x[, node] = as.integer(x[, node])
+
+        if(reference_category[node] < 0 | reference_category[node] > max(x[, node]))
+          stop(paste0(
+            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
+            "range of observations."))
+      }
+
+      # Check if observations start at zero and recode otherwise ---------------
+      if(min(x[, node]) < 0) {
+        reference_category[node] = reference_category[node] - min(x[, node])
+        x[, node] = x[, node] - min(x[, node])
+
+        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                       "that the lowest observed category score is zero. The lowest score for node \n",
+                       node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
+                       "the corresponding reference category score to ", reference_category[node], "."))
+      }
+    }
+
+    # Warn that maximum category value is large --------------------------------
+    no_categories[node] = max(x[,node])
+    if(!variable_bool[node] & no_categories[node] > 10) {
+      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+      warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                     "is a sum over all possible values of the ordinal variable. The range of \n",
+                     "observed values, possibly after recoding to integers, is assumed to be the \n",
+                     "number of possible response categories.  For node ", node,", this range was \n",
+                     "equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                     "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                     "collapse the categories that have no observations between zero and the last \n",
+                     "category. This may explain the large discrepancy between the first and last \n",
+                     "category values."))
+    }
+
+    # Check to see if not all responses are in one category --------------------
+    if(no_categories[node] == 0)
+      stop(paste0("Only one value [",
+                  unq_vls,
+                  "] was observed for variable ",
+                  node,
+                  "."))
+  }
+
+  return(list(x = x,
+              no_categories = no_categories,
+              reference_category = reference_category,
+              missing_index = missing_index,
+              na.impute = na.impute))
 }
 
 xi_delta_matching = function(xi, delta, n) {

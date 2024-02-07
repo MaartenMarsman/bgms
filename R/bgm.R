@@ -310,7 +310,13 @@ bgm = function(x,
                           beta_bernoulli_beta = beta_bernoulli_beta,
                           adaptive = adaptive)
 
-  variable_type = model$variable_type
+  # ----------------------------------------------------------------------------
+  # The vector variable_type is now coded as boolean.
+  # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+  # ----------------------------------------------------------------------------
+  variable_bool = model$variable_bool
+  # ----------------------------------------------------------------------------
+
   reference_category = model$reference_category
   interaction_prior = model$interaction_prior
   edge_prior = model$edge_prior
@@ -333,7 +339,7 @@ bgm = function(x,
   #Format the data input -------------------------------------------------------
   data = reformat_data_bgm(x = x,
                            na.action = na.action,
-                           variable_type = variable_type,
+                           variable_bool = variable_bool,
                            reference_category = reference_category)
   x = data$x
   no_categories = data$no_categories
@@ -367,7 +373,8 @@ bgm = function(x,
         "Cauchy prior option."))
     unit_info = sqrt(pps$unit_info)
   } else {
-    if(!na.impute && !any(variable_type == "blume-capel")) {
+    if(!na.impute && !any(!variable_bool)) {
+      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
       pps = try(mppe(x = x,
                      interaction_prior = interaction_prior,
                      cauchy_scale = cauchy_scale),
@@ -416,7 +423,8 @@ bgm = function(x,
 
 
   #Starting values of interactions and thresholds (posterior mode) -------------
-  if(!na.impute && !any(variable_type == "blume-capel") && !inherits(pps, what = "try-error")) {
+  if(!na.impute && !any(!variable_bool) && !inherits(pps, what = "try-error")) {
+    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
     interactions = pps$interactions
     thresholds = pps$thresholds
   } else {
@@ -435,12 +443,13 @@ bgm = function(x,
   }
 
   #Precompute the sufficient statistics for the two Blume-Capel parameters -----
-  sufficient_statistics_blume_capel = matrix(0, nrow = 2, ncol = no_variables)
-  if(any(variable_type == "blume-capel")) {
-    bc_vars = which(variable_type == "blume-capel")
+  sufficient_blume_capel = matrix(0, nrow = 2, ncol = no_variables)
+  if(any(!variable_bool)) {
+    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+    bc_vars = which(!variable_bool)
     for(i in bc_vars) {
-      sufficient_statistics_blume_capel[1, i] = sum(x[, i])
-      sufficient_statistics_blume_capel[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
+      sufficient_blume_capel[1, i] = sum(x[, i])
+      sufficient_blume_capel[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
     }
   }
 
@@ -477,12 +486,12 @@ bgm = function(x,
                       iter = iter,
                       burnin = burnin,
                       n_cat_obs = n_cat_obs,
-                      sufficient_statistics_blume_capel = sufficient_statistics_blume_capel,
+                      sufficient_blume_capel = sufficient_blume_capel,
                       threshold_alpha = threshold_alpha,
                       threshold_beta = threshold_beta,
                       na_impute = na.impute,
                       missing_index = missing_index,
-                      variable_type = variable_type,
+                      variable_bool = variable_bool,
                       reference_category = reference_category,
                       adaptive = adaptive,
                       save = save,
@@ -492,6 +501,7 @@ bgm = function(x,
 
   #Preparing the output --------------------------------------------------------
   bgm_arguments = list(
+    variable_type = variable_type,
     iter = iter,
     burnin = burnin,
     interaction_prior = interaction_prior,

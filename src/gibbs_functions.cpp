@@ -11,11 +11,11 @@ List impute_missing_data(NumericMatrix interactions,
                          NumericMatrix thresholds,
                          IntegerMatrix observations,
                          IntegerMatrix n_cat_obs,
-                         IntegerMatrix sufficient_statistics_blume_capel,
+                         IntegerMatrix sufficient_blume_capel,
                          IntegerVector no_categories,
                          NumericMatrix rest_matrix,
                          IntegerMatrix missing_index,
-                         StringVector variable_type,
+                         LogicalVector variable_bool,
                          IntegerVector reference_category) {
 
   int no_variables = observations.ncol();
@@ -39,7 +39,7 @@ List impute_missing_data(NumericMatrix interactions,
     rest_score = rest_matrix(person, variable);
 
     //Two distinct (ordinal) variable types ------------------------------------
-    if(variable_type[variable] == "ordinal") {
+    if(variable_bool[variable] == true) {
 
       //Regular binary or ordinal MRF variable ---------------------------------
       cumsum = 1.0;
@@ -51,7 +51,7 @@ List impute_missing_data(NumericMatrix interactions,
         probabilities[category + 1] = cumsum;
       }
 
-    } else if (variable_type[variable] == "blume-capel"){
+    } else {
 
       //Blume-Capel ordinal MRF variable ---------------------------------------
       exponent = thresholds(variable, 1) *
@@ -81,31 +81,36 @@ List impute_missing_data(NumericMatrix interactions,
     old_observation = observations(person, variable);
     if(old_observation != new_observation) {
       observations(person, variable) = new_observation;
-      if(variable_type[variable] == "ordinal") {
+      if(variable_bool[variable] == true) {
+        //Regular binary or ordinal MRF variable -------------------------------
         n_cat_obs(old_observation, variable)--;
         n_cat_obs(new_observation, variable)++;
-      } else {//Blume-Capel
-        sufficient_statistics_blume_capel(0, variable) -= old_observation;
-        sufficient_statistics_blume_capel(0, variable) += new_observation;
-        sufficient_statistics_blume_capel(1, variable) -=
+      } else {
+        //Regular binary or ordinal MRF variable -------------------------------
+        sufficient_blume_capel(0, variable) -= old_observation;
+        sufficient_blume_capel(0, variable) += new_observation;
+        sufficient_blume_capel(1, variable) -=
           (old_observation - reference_category[variable]) *
           (old_observation - reference_category[variable]);
-        sufficient_statistics_blume_capel(1, variable) +=
+        sufficient_blume_capel(1, variable) +=
           (new_observation - reference_category[variable]) *
           (new_observation - reference_category[variable]);
       }
 
       for(int vertex = 0; vertex < no_variables; vertex++) {
         //interactions(i, i) = 0
-        rest_matrix(person, vertex) -= old_observation * interactions(vertex, variable);
-        rest_matrix(person, vertex) += new_observation * interactions(vertex, variable);
+        rest_matrix(person, vertex) -= old_observation *
+          interactions(vertex, variable);
+        rest_matrix(person, vertex) += new_observation *
+          interactions(vertex, variable);
       }
     }
   }
 
   return List::create(Named("observations") = observations,
                       Named("n_cat_obs") = n_cat_obs,
-                      Named("sufficient_statistics_blume_capel") = sufficient_statistics_blume_capel,
+                      Named("sufficient_blume_capel") =
+                        sufficient_blume_capel,
                       Named("rest_matrix") = rest_matrix);
 }
 
@@ -192,7 +197,7 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
                                       NumericMatrix thresholds,
                                       IntegerMatrix observations,
                                       IntegerVector no_categories,
-                                      IntegerMatrix sufficient_statistics_blume_capel,
+                                      IntegerMatrix sufficient_blume_capel,
                                       int no_persons,
                                       int variable,
                                       IntegerVector reference_category,
@@ -243,7 +248,7 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
 
   //Compute the log acceptance probability -------------------------------------
   log_prob = threshold_alpha * difference;
-  log_prob += sufficient_statistics_blume_capel(0, variable) * difference;
+  log_prob += sufficient_blume_capel(0, variable) * difference;
 
   for(int person = 0; person < no_persons; person++) {
     rest_score = rest_matrix(person, variable);
@@ -259,7 +264,6 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
       numerator += std::exp(constant_numerator[category + 1] + exponent);
       denominator += std::exp(constant_denominator[category + 1] + exponent);
     }
-
     log_prob += std::log(numerator);
     log_prob -= std::log(denominator);
   }
@@ -321,7 +325,7 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
 
   //Compute the log acceptance probability -------------------------------------
   log_prob = threshold_alpha * difference;
-  log_prob += sufficient_statistics_blume_capel(1, variable) * difference;
+  log_prob += sufficient_blume_capel(1, variable) * difference;
 
   for(int person = 0; person < no_persons; person++) {
     rest_score = rest_matrix(person, variable);
@@ -383,7 +387,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
                                   double proposed_state,
                                   double current_state,
                                   NumericMatrix rest_matrix,
-                                  StringVector variable_type,
+                                  LogicalVector variable_bool,
                                   IntegerVector reference_category) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
@@ -408,8 +412,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
       bound = 0.0;
     }
 
-    //Two distinct (ordinal) variable types ------------------------------------
-    if(variable_type[variable1] == "ordinal") {
+    if(variable_bool[variable1] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
       denominator_prop = std::exp(-bound);
       denominator_curr = std::exp(-bound);
@@ -424,9 +427,9 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
           std::exp(exponent + score * obs_score2 * current_state);
       }
     } else {
+      //Blume-Capel ordinal MRF variable ---------------------------------------
       denominator_prop = 0.0;
       denominator_curr = 0.0;
-      //Blume-Capel ordinal MRF variable ---------------------------------------
       for(int category = 0; category < no_categories[variable1] + 1; category++) {
         exponent = thresholds(variable1, 0) * category;
         exponent += thresholds(variable1, 1) *
@@ -452,8 +455,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
       bound = 0.0;
     }
 
-    //Two distinct (ordinal) variable types ------------------------------------
-    if(variable_type[variable2] == "ordinal") {
+    if(variable_bool[variable2] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
       denominator_prop = std::exp(-bound);
       denominator_curr = std::exp(-bound);
@@ -468,9 +470,9 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
           std::exp(exponent + score * obs_score1 * current_state);
       }
     } else {
+      //Blume-Capel ordinal MRF variable ---------------------------------------
       denominator_prop = 0.0;
       denominator_curr = 0.0;
-      //Blume-Capel ordinal MRF variable ---------------------------------------
       for(int category = 0; category < no_categories[variable2] + 1; category++) {
         exponent = thresholds(variable2, 0) * category;
         exponent += thresholds(variable2, 1) *
@@ -510,7 +512,7 @@ void metropolis_interactions(NumericMatrix interactions,
                              int t,
                              double epsilon_lo,
                              double epsilon_hi,
-                             StringVector variable_type,
+                             LogicalVector variable_bool,
                              IntegerVector reference_category,
                              String interaction_prior) {
   double proposed_state;
@@ -534,7 +536,7 @@ void metropolis_interactions(NumericMatrix interactions,
                                               proposed_state,
                                               current_state,
                                               rest_matrix,
-                                              variable_type,
+                                              variable_bool,
                                               reference_category);
         if(interaction_prior == "Cauchy") {
           log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
@@ -603,7 +605,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                       NumericMatrix rest_matrix,
                                       NumericMatrix theta,
                                       bool adaptive,
-                                      StringVector variable_type,
+                                      LogicalVector variable_bool,
                                       IntegerVector reference_category,
                                       String interaction_prior) {
   double proposed_state;
@@ -636,7 +638,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                           proposed_state,
                                           current_state,
                                           rest_matrix,
-                                          variable_type,
+                                          variable_bool,
                                           reference_category);
 
     if(gamma(variable1, variable2) == 0) {
@@ -682,7 +684,8 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
       interactions(variable2, variable1) = proposed_state;
 
       double state_diff = proposed_state - current_state;
-      //Update the matrix of rest scores
+
+      //Update the matrix of rest scores ---------------------------------------
       for(int person = 0; person < no_persons; person++) {
         rest_matrix(person, variable1) += observations(person, variable2) *
           state_diff;
@@ -705,7 +708,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                    NumericMatrix proposal_sd_blumecapel,
                    IntegerMatrix index,
                    IntegerMatrix n_cat_obs,
-                   IntegerMatrix sufficient_statistics_blume_capel,
+                   IntegerMatrix sufficient_blume_capel,
                    double threshold_alpha,
                    double threshold_beta,
                    int no_persons,
@@ -724,7 +727,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                    int t,
                    double epsilon_lo,
                    double epsilon_hi,
-                   StringVector variable_type,
+                   LogicalVector variable_bool,
                    IntegerVector reference_category,
                    bool edge_selection) {
 
@@ -744,7 +747,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                                      rest_matrix,
                                      theta,
                                      adaptive,
-                                     variable_type,
+                                     variable_bool,
                                      reference_category,
                                      interaction_prior);
   }
@@ -767,13 +770,13 @@ List gibbs_step_gm(IntegerMatrix observations,
                           t,
                           epsilon_lo,
                           epsilon_hi,
-                          variable_type,
+                          variable_bool,
                           reference_category,
                           interaction_prior);
 
   //Update threshold parameters
   for(int variable = 0; variable < no_variables; variable++) {
-    if(variable_type[variable] == "ordinal") {
+    if(variable_bool[variable] == true) {
       metropolis_thresholds_regular(interactions,
                                     thresholds,
                                     observations,
@@ -784,13 +787,12 @@ List gibbs_step_gm(IntegerMatrix observations,
                                     threshold_alpha,
                                     threshold_beta,
                                     rest_matrix);
-    }
-    if (variable_type[variable] == "blume-capel") {
+    } else {
       metropolis_thresholds_blumecapel(interactions,
                                        thresholds,
                                        observations,
                                        no_categories,
-                                       sufficient_statistics_blume_capel,
+                                       sufficient_blume_capel,
                                        no_persons,
                                        variable,
                                        reference_category,
@@ -836,12 +838,12 @@ List gibbs_sampler(IntegerMatrix observations,
                    int iter,
                    int burnin,
                    IntegerMatrix n_cat_obs,
-                   IntegerMatrix sufficient_statistics_blume_capel,
+                   IntegerMatrix sufficient_blume_capel,
                    double threshold_alpha,
                    double threshold_beta,
                    bool na_impute,
                    IntegerMatrix missing_index,
-                   StringVector variable_type,
+                   LogicalVector variable_bool,
                    IntegerVector reference_category,
                    bool adaptive = false,
                    bool save = false,
@@ -932,16 +934,16 @@ List gibbs_sampler(IntegerMatrix observations,
                                      thresholds,
                                      observations,
                                      n_cat_obs,
-                                     sufficient_statistics_blume_capel,
+                                     sufficient_blume_capel,
                                      no_categories,
                                      rest_matrix,
                                      missing_index,
-                                     variable_type,
+                                     variable_bool,
                                      reference_category);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
-      IntegerMatrix sufficient_statistics_blume_capel = out["sufficient_statistics_blume_capel"];
+      IntegerMatrix sufficient_blume_capel = out["sufficient_blume_capel"];
       NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
@@ -954,7 +956,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              proposal_sd_blumecapel,
                              index,
                              n_cat_obs,
-                             sufficient_statistics_blume_capel,
+                             sufficient_blume_capel,
                              threshold_alpha,
                              threshold_beta,
                              no_persons,
@@ -973,7 +975,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              iteration + 1,
                              epsilon_lo,
                              epsilon_hi,
-                             variable_type,
+                             variable_bool,
                              reference_category,
                              edge_selection);
 
@@ -1035,16 +1037,16 @@ List gibbs_sampler(IntegerMatrix observations,
                                      thresholds,
                                      observations,
                                      n_cat_obs,
-                                     sufficient_statistics_blume_capel,
+                                     sufficient_blume_capel,
                                      no_categories,
                                      rest_matrix,
                                      missing_index,
-                                     variable_type,
+                                     variable_bool,
                                      reference_category);
 
       IntegerMatrix observations = out["observations"];
       IntegerMatrix n_cat_obs = out["n_cat_obs"];
-      IntegerMatrix sufficient_statistics_blume_capel = out["sufficient_statistics_blume_capel"];
+      IntegerMatrix sufficient_blume_capel = out["sufficient_blume_capel"];
       NumericMatrix rest_matrix = out["rest_matrix"];
     }
 
@@ -1057,7 +1059,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              proposal_sd_blumecapel,
                              index,
                              n_cat_obs,
-                             sufficient_statistics_blume_capel,
+                             sufficient_blume_capel,
                              threshold_alpha,
                              threshold_beta,
                              no_persons,
@@ -1076,7 +1078,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              iteration + 1,
                              epsilon_lo,
                              epsilon_hi,
-                             variable_type,
+                             variable_bool,
                              reference_category,
                              edge_selection);
 
@@ -1119,13 +1121,12 @@ List gibbs_sampler(IntegerMatrix observations,
       }
       cntr = 0;
       for(int variable = 0; variable < no_variables; variable++) {
-        if(variable_type[variable] == "ordinal") {
+        if(variable_bool[variable] == true) {
           for(int category = 0; category < no_categories[variable]; category++) {
             out_thresholds(iteration, cntr) = thresholds(variable, category);
             cntr++;
           }
-        }
-        if(variable_type[variable] == "blume-capel") {
+        } else {
           out_thresholds(iteration, cntr) = thresholds(variable, 0);
           cntr++;
           out_thresholds(iteration, cntr) = thresholds(variable, 1);
@@ -1149,14 +1150,13 @@ List gibbs_sampler(IntegerMatrix observations,
           out_interactions(variable2, variable1) = out_interactions(variable1, variable2);
         }
 
-        if(variable_type[variable1] == "ordinal") {
+        if(variable_bool[variable1] == true) {
           for(int category = 0; category < no_categories[variable1]; category++) {
             out_thresholds(variable1, category) *= iteration;
             out_thresholds(variable1, category) += thresholds(variable1, category);
             out_thresholds(variable1, category) /= iteration + 1;
           }
-        }
-        if(variable_type[variable1] == "blume-capel") {
+        } else {
           out_thresholds(variable1, 0) *= iteration;
           out_thresholds(variable1, 0) += thresholds(variable1, 0);
           out_thresholds(variable1, 0) /= iteration + 1;
@@ -1165,14 +1165,13 @@ List gibbs_sampler(IntegerMatrix observations,
           out_thresholds(variable1, 1) /= iteration + 1;
         }
       }
-      if(variable_type[no_variables - 1] == "ordinal") {
+      if(variable_bool[no_variables - 1] == true) {
         for(int category = 0; category < no_categories[no_variables - 1]; category++) {
           out_thresholds(no_variables - 1, category) *= iteration;
           out_thresholds(no_variables - 1, category) += thresholds(no_variables - 1, category);
           out_thresholds(no_variables - 1, category) /= iteration + 1;
         }
-      }
-      if(variable_type[no_variables - 1] == "blume-capel") {
+      } else {
         out_thresholds(no_variables - 1, 0) *= iteration;
         out_thresholds(no_variables - 1, 0) += thresholds(no_variables - 1, 0);
         out_thresholds(no_variables - 1, 0) /= iteration + 1;
