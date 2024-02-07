@@ -28,7 +28,7 @@
 #' inclusion Bayes factor tests for conditional independence or dependence of a
 #' pair of variables in the network by comparing the predictive adequacy of
 #' models that include the edge between these variables and models that exclude
-#' the edge. \insertCite{HuthEtAl_2023_intro, SekulovskiEtAl_2023}{bgms}.
+#' the edge. \insertCite{HuthEtAl_2023_intro,SekulovskiEtAl_2023}{bgms}.
 #'
 #' The \strong{bgms} package offers several tools for analyzing the structure of
 #' the MRF:
