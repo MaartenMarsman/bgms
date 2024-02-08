@@ -9,7 +9,7 @@ sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interact
     .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, variable_type, reference_category, iter)
 }
 
-gibbs_sampler <- function(observations, gamma, interactions, thresholds, no_categories, cauchy_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
-    .Call(`_bgms_gibbs_sampler`, observations, gamma, interactions, thresholds, no_categories, cauchy_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection)
+gibbs_sampler <- function(observations, gamma, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
+    .Call(`_bgms_gibbs_sampler`, observations, gamma, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection)
 }
 

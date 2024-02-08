@@ -46,7 +46,7 @@ bgm(x,
     reference_category,
     iter = 1e4,
     burnin = 1e3,
-    cauchy_scale = 2.5,
+    interaction_scale = 2.5,
     threshold_alpha = 0.5,
     threshold_beta = 0.5,
     edge_selection = TRUE,
@@ -75,10 +75,7 @@ Gibbs sampler for at least `1e5` iterations.
 
 - `burnin`: The number of iterations of the Gibbs sampler before its output is saved. Since it may take some time for the Gibbs sampler to converge to the posterior distribution, it is recommended not to set this number too low.
 
-- `interaction_prior`: The prior distribution for the interaction effects. Currently, two prior densities are implemented: The Cauchy prior (`interaction_prior = "Cauchy"`) and the Unit Information prior (`interaction_prior = "UnitInfo"`). Defaults to `"Cauchy"`.
-
-- `cauchy_scale`: The scale of the Cauchy distribution that is used as prior for
-the pairwise interaction parameters. Defaults to `2.5`.
+- `interaction_scale`: The scale of the Cauchy distribution that is used as prior for the pairwise interaction parameters. Defaults to `2.5`.
 
 - `threshold_alpha, threshold_beta`: The shape parameters of the beta-prime prior density for the threshold parameters. Must be positive values. If the two values are equal, the prior density is symmetric about zero. If `threshold_beta` is greater than `threshold_alpha`, the distribution is skewed to the left, and if `threshold_beta` is less than `threshold_alpha`, it is skewed to the right. Smaller values tend to lead to more diffuse prior distributions.
 

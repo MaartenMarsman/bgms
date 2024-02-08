@@ -65,7 +65,7 @@ reformat_data = function(x, fn.name = "") {
 check_bgm_model = function(x,
                            variable_type,
                            reference_category,
-                           cauchy_scale = 2.5,
+                           interaction_scale = 2.5,
                            threshold_alpha = 0.5,
                            threshold_beta = 0.5,
                            edge_selection = TRUE,
@@ -141,7 +141,7 @@ check_bgm_model = function(x,
   }
 
   #Check prior set-up for the interaction parameters ---------------------------
-  if(cauchy_scale <= 0 || is.na(cauchy_scale) || is.infinite(cauchy_scale))
+  if(interaction_scale <= 0 || is.na(interaction_scale) || is.infinite(interaction_scale))
       stop("The scale of the Cauchy prior needs to be positive.")
 
   #Check prior set-up for the threshold parameters -----------------------------

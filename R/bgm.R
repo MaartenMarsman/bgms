@@ -75,7 +75,7 @@
 #' @param burnin The number of iterations of the Gibbs sampler before saving its
 #' output. Since it may take some time for the Gibbs sampler to converge to
 #' the posterior distribution, it is recommended not to set this number too low.
-#' @param cauchy_scale The scale of the Cauchy distribution that is used as a
+#' @param interaction_scale The scale of the Cauchy distribution that is used as a
 #' prior for the pairwise interaction parameters. Defaults to \code{2.5}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
 #' prior density for the threshold parameters. Must be positive values. If the
@@ -248,7 +248,7 @@ bgm = function(x,
                reference_category,
                iter = 1e4,
                burnin = 1e3,
-               cauchy_scale = 2.5,
+               interaction_scale = 2.5,
                threshold_alpha = 0.5,
                threshold_beta = 0.5,
                edge_selection = TRUE,
@@ -274,7 +274,7 @@ bgm = function(x,
   model = check_bgm_model(x = x,
                           variable_type = variable_type,
                           reference_category = reference_category,
-                          cauchy_scale = cauchy_scale,
+                          interaction_scale = interaction_scale,
                           threshold_alpha = threshold_alpha,
                           threshold_beta = threshold_beta,
                           edge_selection = edge_selection,
@@ -381,7 +381,7 @@ bgm = function(x,
                       interactions = interactions,
                       thresholds = thresholds,
                       no_categories  = no_categories,
-                      cauchy_scale = cauchy_scale,
+                      interaction_scale = interaction_scale,
                       proposal_sd = proposal_sd,
                       proposal_sd_blumecapel = proposal_sd_blumecapel,
                       edge_prior = edge_prior,
@@ -409,7 +409,7 @@ bgm = function(x,
     variable_type = variable_type,
     iter = iter,
     burnin = burnin,
-    cauchy_scale = cauchy_scale,
+    interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
     edge_selection = edge_selection,

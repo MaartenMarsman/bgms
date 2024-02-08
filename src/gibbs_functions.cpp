@@ -501,7 +501,7 @@ void metropolis_interactions(NumericMatrix interactions,
                              IntegerMatrix observations,
                              IntegerVector no_categories,
                              NumericMatrix proposal_sd,
-                             double cauchy_scale,
+                             double interaction_scale,
                              int no_persons,
                              int no_variables,
                              NumericMatrix rest_matrix,
@@ -535,8 +535,8 @@ void metropolis_interactions(NumericMatrix interactions,
                                               rest_matrix,
                                               variable_bool,
                                               reference_category);
-        log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
-        log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
+        log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
+        log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
         U = R::unif_rand();
         if(std::log(U) < log_prob) {
@@ -580,7 +580,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                       IntegerMatrix observations,
                                       IntegerVector no_categories,
                                       NumericMatrix proposal_sd,
-                                      double cauchy_scale,
+                                      double interaction_scale,
                                       IntegerMatrix index,
                                       int no_interactions,
                                       int no_persons,
@@ -622,7 +622,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                           reference_category);
 
     if(gamma(variable1, variable2) == 0) {
-      log_prob += R::dcauchy(proposed_state, 0.0, cauchy_scale, true);
+      log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
       log_prob -= R::dnorm(proposed_state,
                            current_state,
                            proposal_sd(variable1, variable2),
@@ -630,7 +630,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 
       log_prob += log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
     } else {
-      log_prob -= R::dcauchy(current_state, 0.0, cauchy_scale, true);
+      log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
       log_prob += R::dnorm(current_state,
                            proposed_state,
                            proposal_sd(variable1, variable2),
@@ -665,7 +665,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 // ----------------------------------------------------------------------------|
 List gibbs_step_gm(IntegerMatrix observations,
                    IntegerVector no_categories,
-                   double cauchy_scale,
+                   double interaction_scale,
                    NumericMatrix proposal_sd,
                    NumericMatrix proposal_sd_blumecapel,
                    IntegerMatrix index,
@@ -700,7 +700,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                                      observations,
                                      no_categories,
                                      proposal_sd,
-                                     cauchy_scale,
+                                     interaction_scale,
                                      index,
                                      no_interactions,
                                      no_persons,
@@ -717,7 +717,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                           observations,
                           no_categories,
                           proposal_sd,
-                          cauchy_scale,
+                          interaction_scale,
                           no_persons,
                           no_variables,
                           rest_matrix,
@@ -780,7 +780,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    NumericMatrix interactions,
                    NumericMatrix thresholds,
                    IntegerVector no_categories,
-                   double cauchy_scale,
+                   double interaction_scale,
                    NumericMatrix proposal_sd,
                    NumericMatrix proposal_sd_blumecapel,
                    String edge_prior,
@@ -901,7 +901,7 @@ List gibbs_sampler(IntegerMatrix observations,
 
     List out = gibbs_step_gm(observations,
                              no_categories,
-                             cauchy_scale,
+                             interaction_scale,
                              proposal_sd,
                              proposal_sd_blumecapel,
                              index,
@@ -1001,7 +1001,7 @@ List gibbs_sampler(IntegerMatrix observations,
 
     List out = gibbs_step_gm(observations,
                              no_categories,
-                             cauchy_scale,
+                             interaction_scale,
                              proposal_sd,
                              proposal_sd_blumecapel,
                              index,
