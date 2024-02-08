@@ -3,92 +3,58 @@
 #' @importFrom methods hasArg
 #' @importFrom stats qnorm uniroot
 
-reformat_data = function(x, fn.name = "") {
-  # Check for missing values ---------------------------------------------------
-  missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
-  if(sum(missing_values) == nrow(x))
-    stop(paste0("All rows in x contain at least one missing response.\n",
-                "The ", fn.name," function in the bgm package currently cannot handle missing responses."))
-  if(sum(missing_values) > 1)
-    warning(paste0("There were ",
-                   sum(missing_values),
-                   " rows with missing observations in the input matrix x.\n",
-                   "Since the ", fn.name," function in the bgm package cannot handle missing responses, these rows were \n",
-                   "excluded from the analysis."),
-            call. = FALSE)
-  if(sum(missing_values) == 1)
-    warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                   "Since the ", fn.name," function in the bgm package cannot handle missing responses, this row was excluded \n",
-                   "from the analysis."),
-            call. = FALSE)
-  x = x[!missing_values, ]
-
-  if(ncol(x) < 2 || is.null(ncol(x)))
-    stop(paste0("After removing missing observations from the input matrix x,\n",
-                "there were less than two columns left in x."))
-  if(nrow(x) < 2 || is.null(nrow(x)))
-    stop(paste0("After removing missing observations from the input matrix x,\n",
-                "there were less than two rows left in x."))
-
-  no_nodes = ncol(x)
-  no_categories = vector(length = no_nodes)
-  for(node in 1:no_nodes) {
-    unq_vls = sort(unique(x[,  node]))
-    mx_vl = max(unq_vls)
-
-    # Check if observed responses are not all unique ---------------------------
-    if(mx_vl == nrow(x))
-      stop(paste0("Only unique responses observed for variable ",
-                  node,
-                  ". We expect >= 1 observations per category."))
-    if(length(unq_vls) != mx_vl + 1 || any(unq_vls != 0:mx_vl)) {
-      y = x[, node]
-      cntr = 0
-      for(value in unq_vls) {
-        x[y == value, node] = cntr
-        cntr = cntr + 1
-      }
-    }
-    no_categories[node] = max(x[,node])
-
-    # Check to see if not all responses are in one category --------------------
-    if(no_categories[node] == 0)
-      stop(paste0("Only one value [",
-                  unq_vls,
-                  "] was observed for variable ",
-                  node,
-                  "."))
-  }
-  return(list(x = x, no_categories = no_categories))
-}
-
-check_bgm_model = function(x,
-                           variable_type,
-                           reference_category,
-                           interaction_scale = 2.5,
-                           threshold_alpha = 0.5,
-                           threshold_beta = 0.5,
-                           edge_selection = TRUE,
-                           edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-                           inclusion_probability = 0.5,
-                           beta_bernoulli_alpha = 1,
-                           beta_bernoulli_beta = 1) {
+check_model = function(x,
+                       variable_type,
+                       reference_category,
+                       interaction_scale = 2.5,
+                       threshold_alpha = 0.5,
+                       threshold_beta = 0.5,
+                       edge_selection = TRUE,
+                       edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+                       inclusion_probability = 0.5,
+                       beta_bernoulli_alpha = 1,
+                       beta_bernoulli_beta = 1) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
-    variable_type = match.arg(arg = variable_type,
-                              choices = c("ordinal", "blume-capel"))
+    variable_input = variable_type
+    variable_type = try(match.arg(arg = variable_type,
+                                  choices = c("ordinal", "blume-capel")),
+                        silent = TRUE)
+    if(inherits(variable_type, what = "try-error"))
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+                  "but not of type ",
+                  variable_input, "."))
     variable_bool = (variable_type == "ordinal")
     variable_bool = rep(variable_bool, ncol(x))
   } else {
-    variable_type = match.arg(arg = variable_type,
-                              choices = c("ordinal", "blume-capel"),
-                              several.ok = TRUE)
-    variable_bool = (variable_type == "ordinal")
-
-    if(length(variable_bool) != ncol(x))
-      stop(paste0("The variable type vector ``variable_type'' should be either a single character\n",
+    if(length(variable_type) != ncol(x))
+      stop(paste0("The variable type vector variable_type should be either a single character\n",
                   "string or a vector of character strings of length p."))
+
+    variable_input = unique(variable_type)
+    variable_type = try(match.arg(arg = variable_type,
+                                  choices = c("ordinal", "blume-capel"),
+                                  several.ok = TRUE), silent = TRUE)
+
+    if(inherits(variable_type, what = "try-error"))
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+                  "but not of type ",
+                  paste0(variable_input, collapse = ", "), "."))
+
+    no_types = sapply(variable_input, function(type) {
+      tmp = try(match.arg(arg = type,
+                          choices = c("ordinal", "blume-capel")),
+                silent = TRUE)
+      inherits(tmp, what = "try-error")
+    })
+
+    if(length(variable_type) != ncol(x))
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+                  "but not of type ",
+                  paste0(variable_input[no_types], collapse = ", "), "."))
+
+    variable_bool = (variable_type == "ordinal")
   }
 
   #Check Blume-Capel variable input --------------------------------------------
@@ -96,63 +62,74 @@ check_bgm_model = function(x,
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
 
     if(length(reference_category) != ncol(x) && length(reference_category) != 1)
-      stop(paste0("The argument ``reference_category for the Blume-Capel model needs to be a \n",
+      stop(paste0("The argument reference_category for the Blume-Capel model needs to be a \n",
                   "single integer or a vector of integers of length p."))
-
-    if(length(reference_category) == ncol(x)) {
-      #Check if the input is integer -------------------------------------------
-      blume_capel_variables = which(!variable_bool)
-      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-
-      integer_check = try(as.integer(reference_category[blume_capel_variables]),
-                          silent = TRUE)
-      if(any(is.na(integer_check)))
-        stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
-                    "missing values or values that could not be forced into an integer value."))
-
-      integer_check = reference_category[blume_capel_variables] -
-        round(reference_category[blume_capel_variables])
-
-      if(any(integer_check > .Machine$double.eps)) {
-        non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
-        if(length(non_integers) > 1) {
-          stop(paste0("The entries in ``reference_category'' for variables ",
-                      paste0(non_integers, collapse = ", "), " need to be integer."))
-        } else {
-          stop(paste0("The entry in ``reference_category'' for variable ",
-                      non_integers, " needs to be an integer."))
-        }
-      }
-    }
 
     if(length(reference_category) == 1) {
       #Check if the input is integer -------------------------------------------
       integer_check = try(as.integer(reference_category), silent = TRUE)
       if(is.na(integer_check))
-        stop(paste0("The ``reference_category'' argument for the Blume-Capel model contains either \n",
+        stop(paste0("The reference_category argument for the Blume-Capel model contains either \n",
                     "a missing value or a value that could not be forced into an integer value."))
       integer_check = reference_category - round(reference_category)
       if(integer_check > .Machine$double.eps)
         stop("Reference category needs to an integer value or a vector of integers of length p.")
       reference_category = rep.int(reference_category, times = ncol(x))
     }
+
+    #Check if the input is integer -------------------------------------------
+    blume_capel_variables = which(!variable_bool)
+    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+
+    integer_check = try(as.integer(reference_category[blume_capel_variables]),
+                        silent = TRUE)
+    if(any(is.na(integer_check)))
+      stop(paste0("The reference_category argument for the Blume-Capel model contains either \n",
+                  "missing values or values that could not be forced into an integer value."))
+
+    integer_check = reference_category[blume_capel_variables] -
+      round(reference_category[blume_capel_variables])
+
+    if(any(integer_check > .Machine$double.eps)) {
+      non_integers = blume_capel_variables[integer_check > .Machine$double.eps]
+      if(length(non_integers) > 1) {
+        stop(paste0("The entries in reference_category for variables ",
+                    paste0(non_integers, collapse = ", "), " need to be integer."))
+      } else {
+        stop(paste0("The entry in reference_category for variable ",
+                    non_integers, " needs to be an integer."))
+      }
+    }
+
+    variable_lower = apply(x, 2, min, na.rm = TRUE)
+    variable_upper = apply(x, 2, max, na.rm = TRUE)
+
+    if(any(reference_category < variable_lower) | any(reference_category > variable_upper)) {
+      out_of_range = which(reference_category < variable_lower | reference_category > variable_upper)
+      stop(paste0("The Blume-Capel model assumes that the reference category is within the range \n",
+                 "of the observed category scores. This was not the case for variable(s) \n",
+                 paste0(out_of_range, collapse =", "),
+                 "."))
+    }
+
   } else {
     reference_category = rep.int(0, times = ncol(x))
   }
 
   #Check prior set-up for the interaction parameters ---------------------------
   if(interaction_scale <= 0 || is.na(interaction_scale) || is.infinite(interaction_scale))
-      stop("The scale of the Cauchy prior needs to be positive.")
+    stop("The scale of the Cauchy prior needs to be positive.")
 
   #Check prior set-up for the threshold parameters -----------------------------
   if(threshold_alpha <= 0 | !is.finite(threshold_alpha))
-    stop("Parameter ``threshold_alpha'' needs to be positive.")
+    stop("Parameter threshold_alpha needs to be positive.")
   if(threshold_beta <= 0 | !is.finite(threshold_beta))
-    stop("Parameter ``threshold_beta'' needs to be positive.")
+    stop("Parameter threshold_beta needs to be positive.")
 
   #Check set-up for the Bayesian edge selection model --------------------------
-  if(!inherits(edge_selection, what = "logical"))
-    stop("The parameter ``edge_selection'' needs to have type ``logical.''")
+  edge_selection = as.logical(edge_selection)
+  if(is.na(edge_selection))
+    stop("The parameter edge_selection needs to be TRUE or FALSE.")
   if(edge_selection == TRUE) {
     #Check prior set-up for the edge indicators --------------------------------
     edge_prior = match.arg(edge_prior)
@@ -163,8 +140,11 @@ check_bgm_model = function(x,
           stop("There is no value specified for the inclusion probability.")
         if(theta <= 0)
           stop("The inclusion probability needs to be positive.")
-        if(theta >= 1)
+        if(theta > 1)
           stop("The inclusion probability cannot exceed the value one.")
+        if(theta == 1)
+          stop("The inclusion probability cannot equal one.")
+
         theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
       } else {
         if(!inherits(inclusion_probability, what = "matrix") &&
@@ -213,24 +193,23 @@ check_bgm_model = function(x,
               theta = theta))
 }
 
-
-reformat_data_bgm = function(x, na.action, variable_bool, reference_category) {
+reformat_data = function(x, na.action, variable_bool, reference_category) {
   if(na.action == "listwise") {
     # Check for missing values ---------------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
     if(sum(missing_values) == nrow(x))
       stop(paste0("All rows in x contain at least one missing response.\n",
-                  "You could try option ``na.action = impute''."))
+                  "You could try option na.action = impute."))
     if(sum(missing_values) > 1)
       warning(paste0("There were ",
                      sum(missing_values),
                      " rows with missing observations in the input matrix x.\n",
-                     "Since ``na.action = listwise'' these rows were excluded \n",
+                     "Since na.action = listwise these rows were excluded \n",
                      "from the analysis."),
               call. = FALSE)
     if(sum(missing_values) == 1)
       warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                     "Since ``na.action = listwise'' this row was excluded from \n",
+                     "Since na.action = listwise this row was excluded from \n",
                      "the analysis."),
               call. = FALSE)
     x = x[!missing_values, ]
@@ -304,7 +283,7 @@ reformat_data_bgm = function(x, na.action, variable_bool, reference_category) {
             "The Blume-Capel model assumes that its observations are coded as integers, but \n",
             "the category scores for node ", node, " were not integer. An attempt to recode \n",
             "them to integer failed. Please inspect the documentation for the base R \n",
-            "function ``as.integer(),'' which bgm uses for recoding category scores."))
+            "function as.integer(), which bgm uses for recoding category scores."))
         }
 
         if(length(int_unq_vls) != length(unq_vls)) {
@@ -363,76 +342,3 @@ reformat_data_bgm = function(x, na.action, variable_bool, reference_category) {
               missing_index = missing_index,
               na.impute = na.impute))
 }
-
-xi_delta_matching = function(xi, delta, n) {
-  n * log(n / xi) / (n / xi - 1) - delta ^ 2
-}
-
-set_slab = function(x, no_categories, thresholds, interactions) {
-  no_persons = nrow(x)
-  no_nodes = ncol(x)
-  no_thresholds = sum(no_categories)
-  no_interactions = no_nodes * (no_nodes - 1) / 2
-  no_parameters = no_thresholds + no_interactions
-
-  hessian = matrix(data = NA,
-                   nrow = no_parameters,
-                   ncol = no_parameters)
-  slab_var = matrix(0,
-                    nrow = no_nodes,
-                    ncol = no_nodes)
-
-  # Determine asymptotic covariance matrix (inverse hessian) ------------------
-  if(!hasArg("thresholds") || !hasArg("interactions")) {
-    fit = try(mple(x = x), silent = TRUE)
-    if(inherits(fit, "try-error")) {
-      thresholds = fit$thresholds
-      interactions = fit$interactions
-    } else {
-      stop("Pseudolikelihood optimization failed. Please check the data. If the
-           data checks out, please try different starting values.")
-    }
-  }
-
-  # Compute Hessian  -----------------------------------------------------------
-  hessian[1:no_thresholds, 1:no_thresholds] =
-    hessian_thresholds_pseudolikelihood(interactions = interactions,
-                                        thresholds = thresholds,
-                                        observations = x,
-                                        no_categories = no_categories)
-
-  hessian[-(1:no_thresholds), -(1:no_thresholds)] =
-    hessian_interactions_pseudolikelihood(interactions = interactions,
-                                          thresholds = thresholds,
-                                          observations = x,
-                                          no_categories = no_categories)
-
-  hessian[-(1:no_thresholds), 1:no_thresholds] =
-    hessian_crossparameters(interactions = interactions,
-                            thresholds = thresholds,
-                            observations = x,
-                            no_categories = no_categories)
-
-  hessian[1:no_thresholds, -(1:no_thresholds)] =
-    t(hessian[-(1:no_thresholds), 1:no_thresholds])
-
-  asymptotic_covariance = -solve(hessian)[-(1:no_thresholds),
-                                          -(1:no_thresholds)]
-
-  # Specify spike and slab matrices -------------------------------------------
-  if(no_nodes > 2) {
-    cntr = 0
-    for(node in 1:(no_nodes - 1)) {
-      for(node_2 in (node + 1):no_nodes) {
-        cntr = cntr + 1
-        slab_var[node, node_2] = slab_var[node_2, node] =
-          no_persons * asymptotic_covariance[cntr, cntr]
-      }
-    }
-  } else {
-    slab_var[1, 2] = slab_var[2, 1] = no_persons * asymptotic_covariance[1]
-  }
-
-  return(slab_var)
-}
-

@@ -271,17 +271,17 @@ bgm = function(x,
     stop("The matrix x should have more than one observation (rows).")
 
   #Check model input -----------------------------------------------------------
-  model = check_bgm_model(x = x,
-                          variable_type = variable_type,
-                          reference_category = reference_category,
-                          interaction_scale = interaction_scale,
-                          threshold_alpha = threshold_alpha,
-                          threshold_beta = threshold_beta,
-                          edge_selection = edge_selection,
-                          edge_prior = edge_prior,
-                          inclusion_probability = inclusion_probability,
-                          beta_bernoulli_alpha = beta_bernoulli_alpha,
-                          beta_bernoulli_beta = beta_bernoulli_beta)
+  model = check_model(x = x,
+                      variable_type = variable_type,
+                      reference_category = reference_category,
+                      interaction_scale = interaction_scale,
+                      threshold_alpha = threshold_alpha,
+                      threshold_beta = threshold_beta,
+                      edge_selection = edge_selection,
+                      edge_prior = edge_prior,
+                      inclusion_probability = inclusion_probability,
+                      beta_bernoulli_alpha = beta_bernoulli_alpha,
+                      beta_bernoulli_beta = beta_bernoulli_beta)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
@@ -291,6 +291,7 @@ bgm = function(x,
   # ----------------------------------------------------------------------------
 
   reference_category = model$reference_category
+  edge_selection = model$edge_selection
   edge_prior = model$edge_prior
   theta = model$theta
 
@@ -305,13 +306,30 @@ bgm = function(x,
     stop("Parameter ``burnin'' needs to be a positive integer.")
 
   #Check na.action -------------------------------------------------------------
-  na.action = match.arg(na.action)
+  na.action_input = na.action
+  na.action = try(match.arg(na.action), silent = TRUE)
+  if(inherits(na.action, what = "try-error"))
+    stop(paste0("The na.action argument should equal listwise or impute, not ",
+                na.action_input,
+                "."))
+  #Check save ------------------------------------------------------------------
+  save_input = save
+  save = as.logical(save)
+  if(is.na(save))
+    stop(paste0("The save argument should equal TRUE or FALSE, not ",
+                save_input,
+                "."))
+
+  #Check display_progress ------------------------------------------------------
+  display_progress = as.logical(display_progress)
+  if(is.na(display_progress))
+    stop("The display_progress argument should equal TRUE or FALSE.")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data_bgm(x = x,
-                           na.action = na.action,
-                           variable_bool = variable_bool,
-                           reference_category = reference_category)
+  data = reformat_data(x = x,
+                       na.action = na.action,
+                       variable_bool = variable_bool,
+                       reference_category = reference_category)
   x = data$x
   no_categories = data$no_categories
   missing_index = data$missing_index
@@ -327,8 +345,8 @@ bgm = function(x,
                        nrow = no_variables,
                        ncol = no_variables)
   proposal_sd_blumecapel = matrix(1,
-                                 nrow = no_variables,
-                                 ncol = 2)
+                                  nrow = no_variables,
+                                  ncol = 2)
 
   # Starting value of model matrix ---------------------------------------------
   gamma = matrix(1,
@@ -518,4 +536,3 @@ bgm = function(x,
     return(output)
   }
 }
-
