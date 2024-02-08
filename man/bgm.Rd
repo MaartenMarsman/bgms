@@ -11,7 +11,7 @@ bgm(
   reference_category,
   iter = 10000,
   burnin = 1000,
-  cauchy_scale = 2.5,
+  interaction_scale = 2.5,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
   edge_selection = TRUE,
@@ -61,7 +61,7 @@ recommended to run the Gibbs sampler for at least \code{1e5} iterations.}
 output. Since it may take some time for the Gibbs sampler to converge to
 the posterior distribution, it is recommended not to set this number too low.}
 
-\item{cauchy_scale}{The scale of the Cauchy distribution that is used as a
+\item{interaction_scale}{The scale of the Cauchy distribution that is used as a
 prior for the pairwise interaction parameters. Defaults to \code{2.5}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime

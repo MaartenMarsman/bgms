@@ -844,7 +844,6 @@ List gibbs_sampler(IntegerMatrix observations,
   }
   NumericMatrix out_gamma(nrow, ncol_edges);
 
-
   NumericMatrix rest_matrix(no_persons, no_variables);
   for(int variable1 = 0; variable1 < no_variables; variable1++) {
     for(int person = 0; person < no_persons; person++) {
@@ -934,24 +933,25 @@ List gibbs_sampler(IntegerMatrix observations,
     NumericMatrix rest_matrix = out["rest_matrix"];
     NumericMatrix proposal_sd = out["proposal_sd"];
 
-    if(edge_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          sumG += gamma(i, j);
+    if(edge_selection == true) {
+      if(edge_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            sumG += gamma(i, j);
+          }
         }
-      }
-      double probability = R::rbeta(beta_bernoulli_alpha + sumG,
-                                    beta_bernoulli_beta + no_interactions - sumG);
+        double probability = R::rbeta(beta_bernoulli_alpha + sumG,
+                                      beta_bernoulli_beta + no_interactions - sumG);
 
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          theta(i, j) = probability;
-          theta(j, i) = probability;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            theta(i, j) = probability;
+            theta(j, i) = probability;
+          }
         }
       }
     }
-
   }
 
   //The post burn-in iterations ------------------------------------------------
@@ -1034,26 +1034,29 @@ List gibbs_sampler(IntegerMatrix observations,
     NumericMatrix rest_matrix = out["rest_matrix"];
     NumericMatrix proposal_sd = out["proposal_sd"];
 
-    if(edge_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          sumG += gamma(i, j);
+    if(edge_selection == true) {
+      if(edge_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            sumG += gamma(i, j);
+          }
         }
-      }
-      double probability = R::rbeta(beta_bernoulli_alpha + sumG,
-                                    beta_bernoulli_beta + no_interactions - sumG);
+        double probability = R::rbeta(beta_bernoulli_alpha + sumG,
+                                      beta_bernoulli_beta + no_interactions - sumG);
 
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          theta(i, j) = probability;
-          theta(j, i) = probability;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            theta(i, j) = probability;
+            theta(j, i) = probability;
+          }
         }
       }
     }
 
+
     //Output -------------------------------------------------------------------
-    if(save == TRUE) {
+    if(save == true) {
       //Save raw samples -------------------------------------------------------
       cntr = 0;
       for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
