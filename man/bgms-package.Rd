@@ -4,34 +4,36 @@
 \name{bgms-package}
 \alias{bgms}
 \alias{bgms-package}
-\title{bgms: Bayesian Analysis of Graphical Models}
+\title{bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables}
 \description{
 The \code{R} package \strong{bgms} provides tools for Bayesian analysis of
-graphical models describing networks of variables. The package uses Bayesian
-variable selection methods to model the underlying network structure.
+graphical models describing networks of variables. The package uses Markov
+chain Monte Carlo methods combined with a pseudolikelihood approach to
+estimate the posterior distribution of model parameters.
 
-The package is organized around two Bayesian variable selection approaches:
-(1) EM variable selection, and (2) Gibbs variable selection. The key
-distinction is that the former uses a continuous spike and slab prior
-distribution on the pairwise interactions
-\insertCite{MarsmanEtAl_2022_objective}{bgms} that allows us to use EM
-variable selection \insertCite{RockovaGeorge_2014}{bgms}. The Gibbs variable
-selection approach \insertCite{GeorgeMcCulloch_1993}{bgms}, on the other
-hand, stipulates a discrete spike and slab prior on the pairwise
-interactions, which allows us to set the interactions to exact zeroes. To
-account for the discontinuity at zero, we embed a Metropolis approach for
-mixtures of mutually singular distributions
-\insertCite{GottardoRaftery_2008}{bgms} in a Gibbs sampler.
+Gibbs variable selection \insertCite{GeorgeMcCulloch_1993}{bgms} is used to
+model the underlying network structure of the graphical model. By imposing a
+discrete spike and slab prior on the pairwise interactions, it is possible to
+shrink the interactions to exactly zero. The Gibbs sampler embeds a
+Metropolis approach for mixtures of mutually singular distributions
+\insertCite{GottardoRaftery_2008}{bgms} to account for the discontinuity at
+zero. The goal is to provide these tools for Markov Random Field (MRF) models
+for a wide range of variable types in the \strong{bgms} package, and
+it currently provides them for analyzing networks of binary and/or ordinal
+variables \insertCite{MarsmanHaslbeck_2023_OrdinalMRF}{bgms}.
 
 While the goal is to provide the above tools for Markov Random Field (MRF)
 models for a wide range of variable types in the \strong{bgms} package, it
 currently provides tools for analyzing networks of binary and/or ordinal
-variables \insertCite{MarsmanHaslbeck_2023_OrdinalMRF}{bgms}. MRFs are a
-special class of graphical models whose graph structure reflects the
-conditional associations between their variables. Bayes factor tests on the
-inclusion or exclusion of an edge in the MRF thus compare the conditional
-dependence and conditional independence hypotheses for the corresponding
-network variables \insertCite{HuthEtAl_2023_intro}{bgms}.
+variables \insertCite{MarsmanHaslbeck_2023_OrdinalMRF}{bgms}.
+
+MRFs are a special class of graphical models whose graph structure reflects
+the conditional associations between their variables, making them useful for
+testing for conditional independence or dependence. For example, the
+inclusion Bayes factor tests for conditional independence or dependence of a
+pair of variables in the network by comparing the predictive adequacy of
+models that include the edge between these variables and models that exclude
+the edge. \insertCite{HuthEtAl_2023_intro,SekulovskiEtAl_2023}{bgms}.
 
 The \strong{bgms} package offers several tools for analyzing the structure of
 the MRF:
@@ -41,25 +43,11 @@ the MRF:
  \itemize{
    \item Simulate \code{\link{mrfSampler}}.
  }
-
- \item Estimate the structure of the MRF using EM variable selection.
+ \item Estimate the posterior distribution of the MRF's parameters and
+ possibly its network structure using Gibbs variable selection.
  \itemize{
-   \item Network estimation with \code{\link{bgm.em}}.
+ \item Bayesian estimation or Bayesian edge selection with \code{\link{bgm}}.
  }
- \item Estimate the posterior distribution of the MRF's network structure
- using Gibbs variable selection.
- \itemize{
- \item Structure learning with \code{\link{bgm}}.
- }
-}
-
-\bold{Additional Features}:
-
-\enumerate{
-
- \item Optimizing the joint pseudolikelihood \code{\link{mple}}.
-
- \item Optimizing the joint pseudoposterior \code{\link{mppe}}.
 }
 }
 \references{

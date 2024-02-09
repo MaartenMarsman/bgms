@@ -1,8 +1,12 @@
 # bgms 0.1.3
 
-* Added the "edge_selection" option to the *bgm* function to allow Bayesian estimation without edge selection.
-* Reduced file size when saving raw MCMC samples by changing row names.
-* It is now possible to simulate data from the Blume-Capel ordinal MRF.
+* Added support for Bayesian estimation without edge selection to bgm().
+* Added support for simulating data from a (mixed) binary, ordinal, and Blume-Capel MRF to mrfSampler()
+* Added support for analyzing (mixed) binary, ordinal, and Blume-Capel variables to bgm()
+* Removed support of optimization based functions, mple(), mppe(), and bgm.em()
+* Removed support for the Unit-Information prior from bgm()
+* Removed support to do non-adaptive Metropolis from bgm()
+* Reduced file size when saving raw MCMC samples
 
 # bgms 0.1.2
 
