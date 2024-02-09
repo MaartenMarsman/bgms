@@ -423,6 +423,24 @@ bgm = function(x,
 
 
   #Preparing the output --------------------------------------------------------
+  bgm_arguments = list(
+    no_variables = no_variables,
+    variable_type = variable_type,
+    iter = iter,
+    burnin = burnin,
+    interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha,
+    threshold_beta = threshold_beta,
+    edge_selection = edge_selection,
+    edge_prior = edge_prior,
+    inclusion_probability = theta,
+    beta_bernoulli_alpha = beta_bernoulli_alpha ,
+    beta_bernoulli_beta =  beta_bernoulli_beta,
+    na.action = na.action,
+    save = save,
+    version = packageVersion("bgms")
+  )
+
   if(save == FALSE) {
     if(edge_selection == TRUE) {
       gamma = out$gamma
@@ -451,6 +469,8 @@ bgm = function(x,
     }
 
     colnames(tresholds) = paste0("category ", 1:max(no_categories))
+
+    bgm_arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
       output = list(gamma = gamma,
@@ -504,25 +524,7 @@ bgm = function(x,
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
     dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
 
-
-    bgm_arguments = list(
-      data_columnnames = data_columnnames,
-      no_variables = no_variables,
-      variable_type = variable_type,
-      iter = iter,
-      burnin = burnin,
-      interaction_scale = interaction_scale,
-      threshold_alpha = threshold_alpha,
-      threshold_beta = threshold_beta,
-      edge_selection = edge_selection,
-      edge_prior = edge_prior,
-      inclusion_probability = theta,
-      beta_bernoulli_alpha = beta_bernoulli_alpha ,
-      beta_bernoulli_beta =  beta_bernoulli_beta,
-      na.action = na.action,
-      save = save,
-      version = packageVersion("bgms")
-    )
+    bgm_arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
       output = list(gamma = gamma,
