@@ -134,7 +134,7 @@ mrfSampler = function(no_states,
       for(variable in 1:no_variables)
         variable_type[variable] = match.arg(arg = variable_type[variable],
                                             choices = c("ordinal", "blume-capel"))
-      if(any (variable_type == "blume-capel" & no_categories < 2)) {
+      if(any(variable_type == "blume-capel" & no_categories < 2)) {
         stop(paste0("The Blume-Capel model only works for ordinal variables with more than two \n",
                     "response options. But variables ",
                     which(variable_type == "blume-capel" & no_categories < 2),
@@ -190,7 +190,7 @@ mrfSampler = function(no_states,
 
   for(variable in 1:no_variables) {
     if(variable_type[variable] != "blume-capel") {
-      if(any(is.na(thresholds[variable, 1:no_categories[variable]]))) {
+      if(anyNA(thresholds[variable, 1:no_categories[variable]])) {
         tmp = which(is.na(thresholds[variable, 1:no_categories[variable]]))
 
         string = paste(tmp, sep = ",")
@@ -203,7 +203,7 @@ mrfSampler = function(no_states,
                     ", where a numeric value is needed."))
       }
       if(ncol(thresholds) > no_categories[variable]) {
-        if(any(!is.na(thresholds[variable, (no_categories[variable]+1):ncol(thresholds)]))){
+        if(!anyNA(thresholds[variable, (no_categories[variable]+1):ncol(thresholds)])) {
           warning(paste0("The matrix ``thresholds'' contains numeric values for variable ",
                          variable,
                          " for category \n",
@@ -214,7 +214,7 @@ mrfSampler = function(no_states,
         }
       }
     } else {
-      if(any(is.na(thresholds[variable, 1:2]))) {
+      if(anyNA(thresholds[variable, 1:2])) {
         stop(paste0("The Blume-Capel model is chosen for the category thresholds of variable ",
                     variable,
                     ". \n",
@@ -224,7 +224,7 @@ mrfSampler = function(no_states,
                     "entries, where a numeric value is needed."))
       }
       if(ncol(thresholds) > 2) {
-        if(any(!is.na(thresholds[variable, 3:ncol(thresholds)]))){
+        if(!anyNA(thresholds[variable, 3:ncol(thresholds)])) {
           warning(paste0("The Blume-Capel model is chosen for the category thresholds of variable ",
                          variable,
                          ". \n",

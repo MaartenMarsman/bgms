@@ -83,7 +83,7 @@ check_model = function(x,
 
     integer_check = try(as.integer(reference_category[blume_capel_variables]),
                         silent = TRUE)
-    if(any(is.na(integer_check)))
+    if(anyNA(integer_check))
       stop(paste0("The reference_category argument for the Blume-Capel model contains either \n",
                   "missing values or values that could not be forced into an integer value."))
 
@@ -161,7 +161,7 @@ check_model = function(x,
         if(ncol(theta) != ncol(x))
           stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
 
-        if(any(is.na(theta[lower.tri(theta)])) ||
+        if(anyNA(theta[lower.tri(theta)]) ||
            any(is.null(theta[lower.tri(theta)])))
           stop("One or more elements of the elements in inclusion probability matrix are not specified.")
         if(any(theta[lower.tri(theta)] <= 0))
@@ -196,7 +196,7 @@ check_model = function(x,
 reformat_data = function(x, na.action, variable_bool, reference_category) {
   if(na.action == "listwise") {
     # Check for missing values ---------------------------------------------------
-    missing_values = sapply(1:nrow(x), function(row){any(is.na(x[row, ]))})
+    missing_values = sapply(1:nrow(x), function(row){anyNA(x[row, ])})
     if(sum(missing_values) == nrow(x))
       stop(paste0("All rows in x contain at least one missing response.\n",
                   "You could try option na.action = impute."))
@@ -278,7 +278,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
       # Check if observations are integer or can be recoded --------------------
       if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
         int_unq_vls = unique(as.integer(unq_vls))
-        if(any(is.na(int_unq_vls))) {
+        if(anyNA(int_unq_vls)) {
           stop(paste0(
             "The Blume-Capel model assumes that its observations are coded as integers, but \n",
             "the category scores for node ", node, " were not integer. An attempt to recode \n",
