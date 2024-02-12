@@ -425,6 +425,8 @@ bgm = function(x,
   #Preparing the output --------------------------------------------------------
   bgm_arguments = list(
     no_variables = no_variables,
+    no_cases = nrow(x),
+    na_impute = na.impute,
     variable_type = variable_type,
     iter = iter,
     burnin = burnin,
