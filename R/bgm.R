@@ -478,13 +478,11 @@ bgm = function(x,
       output = list(gamma = gamma,
                     interactions = interactions,
                     thresholds = thresholds,
-                    bgm_arguments = bgm_arguments,
-                    colnames = data_columnnames)
+                    bgm_arguments = bgm_arguments)
     } else {
       output = list(interactions = interactions,
                     thresholds = thresholds,
-                    bgm_arguments = bgm_arguments,
-                    colnames = data_columnnames)
+                    bgm_arguments = bgm_arguments)
     }
 
     class(output) = "bgms"
@@ -532,13 +530,11 @@ bgm = function(x,
       output = list(gamma = gamma,
                     interactions = interactions,
                     thresholds = thresholds,
-                    bgm_arguments = bgm_arguments,
-                    colnames = data_columnnames)
+                    bgm_arguments = bgm_arguments)
     } else {
       output = list(interactions = interactions,
                     thresholds = thresholds,
-                    bgm_arguments = bgm_arguments,
-                    colnames = data_columnnames)
+                    bgm_arguments = bgm_arguments)
     }
     class(output) = "bgms"
     return(output)
