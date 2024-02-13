@@ -3,11 +3,11 @@ extract_arguments <- function(bgms_object) {
     stop(paste0("Expected an object with class bgms and not one with class ",
       class(bgms_object)))
 
-  if(is.null(bgms_object$bgm_arguments)) {
+  if(is.null(bgms_object$arguments)) {
     stop(paste0("Extractor functions have been defined for bgms versions 0.1.3 and up but not \n",
                 "for older versions. The current fit object predates version 0.1.3."))
   } else {
-    return(bgms_object$bgm_arguments)
+    return(bgms_object$arguments)
   }
 }
 
