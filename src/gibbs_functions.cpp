@@ -373,7 +373,6 @@ void metropolis_thresholds_blumecapel(NumericMatrix interactions,
   }
 }
 
-
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 // ----------------------------------------------------------------------------|
@@ -769,7 +768,6 @@ List gibbs_step_gm(IntegerMatrix observations,
                       Named("rest_matrix") = rest_matrix,
                       Named("proposal_sd") = proposal_sd);
 }
-
 
 // ----------------------------------------------------------------------------|
 // The Gibbs sampler for Bayesian edge selection

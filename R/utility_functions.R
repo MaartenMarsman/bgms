@@ -184,6 +184,7 @@ check_model = function(x,
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)
+    edge_prior = "Not Applicable"
   }
 
   return(list(variable_bool = variable_bool,
