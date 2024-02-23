@@ -7,7 +7,6 @@
 #' @param ... Ignored.
 #'
 #' @export
-
 print.bgms <- function(x, ...) {
   arguments = extract_arguments(x)
   if(arguments$edge_selection) {

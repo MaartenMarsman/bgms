@@ -242,6 +242,7 @@
 #'  #Restore user par() settings
 #'  par(op)
 #' }
+#' @importFrom utils packageVersion
 #' @export
 bgm = function(x,
                variable_type = "ordinal",

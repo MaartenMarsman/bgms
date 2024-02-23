@@ -1,5 +1,5 @@
 extract_arguments <- function(bgms_object) {
-  if(class(bgms_object) != "bgms")
+  if(!inherits(bgms_object, what = "bgms"))
     stop(paste0("Expected an object with class bgms and not one with class ",
       class(bgms_object)))
 
