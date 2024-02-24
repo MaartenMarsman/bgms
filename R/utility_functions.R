@@ -60,6 +60,8 @@ check_model = function(x,
   #Check Blume-Capel variable input --------------------------------------------
   if(any(!variable_bool)) {
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+    if(!hasArg(reference_category))
+      stop("The argument reference_category is required for Blume-Capel variables.")
 
     if(length(reference_category) != ncol(x) && length(reference_category) != 1)
       stop(paste0("The argument reference_category for the Blume-Capel model needs to be a \n",
@@ -205,8 +207,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
       warning(paste0("There were ",
                      sum(missing_values),
                      " rows with missing observations in the input matrix x.\n",
-                     "Since na.action = listwise these rows were excluded \n",
-                     "from the analysis."),
+                     "Since na.action = listwise these rows were excluded from the analysis."),
               call. = FALSE)
     if(sum(missing_values) == 1)
       warning(paste0("There was one row with missing observations in the input matrix x.\n",
@@ -311,6 +312,13 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
                        node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
                        "the corresponding reference category score to ", reference_category[node], "."))
       }
+
+      check_range = length(unique(x[, node]))
+      if(check_range < 3)
+        stop(paste0("The Blume-Capel is only available for variables with more than one category \n",
+                    "observed. There two or less categories observed for variable ",
+                    node,
+                    "."))
     }
 
     # Warn that maximum category value is large --------------------------------
