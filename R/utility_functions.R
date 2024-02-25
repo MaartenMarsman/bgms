@@ -60,7 +60,8 @@ check_model = function(x,
   #Check Blume-Capel variable input --------------------------------------------
   if(any(!variable_bool)) {
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-    if(!hasArg(reference_category))
+
+    if(!hasArg("reference_category"))
       stop("The argument reference_category is required for Blume-Capel variables.")
 
     if(length(reference_category) != ncol(x) && length(reference_category) != 1)
