@@ -217,7 +217,7 @@
 #'
 #'
 #'  #------------------------------------------------------------------------------|
-#'  # THE LOCAL MEDIAN PROBABILITY NETWORK
+#'  # THE MEDIAN PROBABILITY NETWORK
 #'  #------------------------------------------------------------------------------|
 #'
 #'  tmp = fit$interactions[lower.tri(fit$interactions)]
