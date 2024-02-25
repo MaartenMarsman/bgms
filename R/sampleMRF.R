@@ -75,11 +75,35 @@
 #'   Interactions[5, 2] = Interactions[5, 4] = .25
 #' Interactions = Interactions + t(Interactions)
 #' Thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
+#'
 #' x = mrfSampler(no_states = 1e3,
 #'                no_variables = no_variables,
 #'                no_categories = no_categories,
 #'                interactions = Interactions,
 #'                thresholds = Thresholds)
+#'
+#' # Generate responses from a network of 2 ordinal and 3 Blume-Capel variables.
+#' no_variables = 5
+#' no_categories = 4
+#'
+#' Interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+#' Interactions[2, 1] = Interactions[4, 1] = Interactions[3, 2] =
+#'   Interactions[5, 2] = Interactions[5, 4] = .25
+#' Interactions = Interactions + t(Interactions)
+#'
+#' Thresholds = matrix(NA, no_variables, no_categories)
+#' Thresholds[, 1] = -1
+#' Thresholds[, 2] = -1
+#' Thresholds[3, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+#' Thresholds[5, ] = sort(-abs(rnorm(4)), decreasing = TRUE)
+#'
+#' x = mrfSampler(no_states = 1e3,
+#'                no_variables = no_variables,
+#'                no_categories = no_categories,
+#'                interactions = Interactions,
+#'                thresholds = Thresholds,
+#'                variable_type = c("b","b","o","b","o"),
+#'                reference_category = 2)
 #' @export
 mrfSampler = function(no_states,
                       no_variables,
