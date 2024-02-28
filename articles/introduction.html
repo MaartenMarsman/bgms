@@ -28,7 +28,7 @@
     
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.1</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -92,14 +92,15 @@ text-align: justify}
 <p>This example demonstrates how to use bgms for Bayesian analysis of
 binary or ordinal data using a Markov Random Field (MRF) model. To learn
 more about the MRF model, check out <span class="citation">Marsman &amp;
-Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal" role="doc-biblioref">2023</a>)</span>, and to learn more about the
-Bayesian analysis of network models, check out <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023" role="doc-biblioref">2023</a>)</span>. A paper on the <code>bgms</code>
-software is coming soon.</p>
+Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>,
+and to learn more about the Bayesian analysis of network models, check
+out <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
+<code>bgms</code> software is coming soon.</p>
 <p>We’ll examine real data on PTSD symptoms from 362 Chinese adults who
-survived the Wenchuan earthquake but tragically lost a child <span class="citation">(<a href="#ref-McNallyEtAl_2015" role="doc-biblioref">McNally et al., 2015</a>)</span>. The data comes
-from a 17-question survey where participants rated how much each symptom
-bothered them in the past month on a scale from “not at all” to
-“extremely.”</p>
+survived the Wenchuan earthquake but tragically lost a child <span class="citation">(<a href="#ref-McNallyEtAl_2015">McNally et al.,
+2015</a>)</span>. The data comes from a 17-question survey where
+participants rated how much each symptom bothered them in the past month
+on a scale from “not at all” to “extremely.”</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://maartenmarsman.github.io/bgms/" class="external-link">bgms</a></span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -110,10 +111,10 @@ bothered them in the past month on a scale from “not at all” to
 network structure and its corresponding parameters. As numerous
 structures could underlie our network, we employ simulation-based
 methods to investigate the posterior distribution of network structures
-and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal" role="doc-biblioref">Marsman
-&amp; Haslbeck, 2023</a>)</span>. The <code>bgm</code> function performs
-this task, iteratively simulating values from the posterior distribution
-of network structures and parameters.</p>
+and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal">Marsman &amp; Haslbeck,
+2023</a>)</span>. The <code>bgm</code> function performs this task,
+iteratively simulating values from the posterior distribution of network
+structures and parameters.</p>
 <div class="section level3">
 <h3 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h3>
@@ -340,7 +341,7 @@ create the median probability model as follows.</p>
 <h4 id="inclusion-bayes-factors">Inclusion Bayes factors<a class="anchor" aria-label="anchor" href="#inclusion-bayes-factors"></a>
 </h4>
 <p>One of the benefits of using a fully Bayesian approach is that it
-allows us to calculate the inclusion Bayes factor <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023" role="doc-biblioref">2023</a>)</span>. The inclusion Bayes factor
+allows us to calculate the inclusion Bayes factor <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. The inclusion Bayes factor
 represents the relative evidence for including or excluding a connection
 between a pair of nodes in the network. An inclusion Bayes factor of 10
 suggests that the observed data is ten times more likely to have come
@@ -444,7 +445,7 @@ structures <code>bgm</code> encountered in 10,000 iterations.</p>
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span> <span class="op">-</span> <span class="fl">1</span></span>
 <span><span class="va">S</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 9054</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 8954</span></span></code></pre></div>
 <p>There are clearly many different network structures that could fit
 the data. Let’s estimate their posterior probabilities.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -456,24 +457,23 @@ the data. Let’s estimate their posterior probabilities.</p>
 <span><span class="op">}</span></span>
 <span><span class="va">Ps</span> <span class="op">=</span> <span class="va">Ps</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">Ps</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.12</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.09</span></span></code></pre></div>
 <p>The most plausible model accounts for less than <code>1</code>
 percent of the posterior probability. In conclusion, we have significant
 uncertainty about the network structure that generated the data.</p>
-<p>In the analysis by <span class="citation">Marsman &amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal" role="doc-biblioref">2023</a>)</span>, it is demonstrated that even when
-there is uncertainty about the network structure that generated the
-data, inclusion Bayes factors are highly robust. They can help identify
-substructures of the network in which we have strong confidence.
-However, to perform these analyses, we need to run <code>bgm</code> for
-many more iterations. In their analysis, <span class="citation">Marsman
-&amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal" role="doc-biblioref">2023</a>)</span> used 1,000,000 iterations. For
-further details, interested readers can refer to their analysis script
-<a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466" class="external-link">here</a>.</p>
+<p>In the analysis by <span class="citation">Marsman &amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, it is
+demonstrated that even when there is uncertainty about the network
+structure that generated the data, inclusion Bayes factors are highly
+robust. They can help identify substructures of the network in which we
+have strong confidence. However, to perform these analyses, we need to
+run <code>bgm</code> for many more iterations. In their analysis, <span class="citation">Marsman &amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span> used 1,000,000
+iterations. For further details, interested readers can refer to their
+analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466" class="external-link">here</a>.</p>
 </div>
 <div class="section level3">
 <h3 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h3>
-<div id="refs" class="references csl-bib-body hanging-indent" line-spacing="2">
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0" line-spacing="2">
 <div id="ref-HuthEtAl_2023" class="csl-entry">
 Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van
 Holst, R. J., Wagenmakers, E.-J., &amp; Marsman, M. (2023). Bayesian
