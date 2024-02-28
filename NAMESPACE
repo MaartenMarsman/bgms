@@ -2,6 +2,11 @@
 
 S3method(print,bgms)
 export(bgm)
+export(extract_arguments)
+export(extract_edge_indicators)
+export(extract_edge_priors)
+export(extract_pairwise_thresholds)
+export(extract_posterior_inclusion_probabilities)
 export(mrfSampler)
 importFrom(Rcpp,evalCpp)
 importFrom(Rdpack,reprompt)

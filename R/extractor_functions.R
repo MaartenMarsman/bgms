@@ -1,3 +1,12 @@
+#' Extractor Functions.
+#'
+#' @rdname extractor_functions
+#' @param bgms_object A fit object created by the bgms package or specifically
+#' by the bgm function.
+#' @details Extract results from bgm objects in a safe way. Mainly intended for
+#' developers of packages that build on top of the bgms package.
+#' @keywords internal
+#' @export
 extract_arguments <- function(bgms_object) {
   if(!inherits(bgms_object, what = "bgms"))
     stop(paste0("Expected an object with class bgms and not one with class ",
@@ -11,6 +20,8 @@ extract_arguments <- function(bgms_object) {
   }
 }
 
+#' @rdname extractor_functions
+#' @export
 extract_edge_indicators <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
   if(arguments$save) {
@@ -22,6 +33,8 @@ extract_edge_indicators <- function(bgms_object) {
   }
 }
 
+#' @rdname extractor_functions
+#' @export
 extract_posterior_inclusion_probabilities <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
@@ -47,6 +60,8 @@ extract_posterior_inclusion_probabilities <- function(bgms_object) {
 }
 
 
+#' @rdname extractor_functions
+#' @export
 extract_edge_priors <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
@@ -72,6 +87,8 @@ extract_pairwise_interactions <- function(bgms_object) {
   return(bgms_object$interactions)
 }
 
+#' @rdname extractor_functions
+#' @export
 extract_pairwise_thresholds <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 

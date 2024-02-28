@@ -1,3 +1,7 @@
+# bgms 0.1.3.1
+
+* Exported extractor functions to extract results from bgm objects in a safe way.
+
 # bgms 0.1.3
 
 * Added support for Bayesian estimation without edge selection to bgm().
