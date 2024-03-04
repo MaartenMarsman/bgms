@@ -1,24 +1,46 @@
-#' Bayesian edge selection or Bayesian estimation for Markov Random Fields of
-#' mixed binary and ordinal variables using MCMC.
+#' A Bayesian comparison of the network structure for two groups for a graphical
+#' model of mixed binary and ordinal variables using MCMC.
 #'
-#' The function \code{bgm} explores the joint pseudoposterior distribution of
-#' parameters and possibly edge indicators for a Markov Random Field model for
-#' mixed binary and ordinal variables.
+#' The function \code{bgmNCT} explores the joint pseudoposterior distribution of
+#' the parameters of a Markov Random Field model for mixed binary and ordinal
+#' variables, group differences in pairwise interactions for a two-sample
+#' design, and indicator variables for these group differences.
 #'
-#' Currently, \code{bgm} supports two types of ordinal variables. The regular, default,
-#' ordinal variable type has no restrictions on its distribution. Every response
-#' category except the first receives its own threshold parameter. The
+#' The pairwise interactions between variables \eqn{i}{i} and \eqn{j}{j} are
+#' modeled as follows
+#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}
+#' in one group and as
+#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}
+#' in the other group. The parameter \eqn{\eta_{\text{ij}}}{\eta_{\text{ij}}}
+#' denotes an overall interaction parameter and is considered to be a nuisance
+#' parameter, and \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}} denotes the a
+#' pairwise difference parameter, the difference in the pairwise interaction
+#' between the two groups.
+#'
+#' Bayesian variable selection is used to model the presence or absence of the
+#' difference in pairwise interactions between the two groups. It imposes a
+#' discrete spike and slab prior distribution on the differences \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}}.
+#' By formulating it as a mixture of mutually singular distributions, the function
+#' can use a combination of Metropolis-Hastings and Gibbs sampling to create a
+#' Markov chain that has the joint posterior distribution as an invariant. The
+#' current option for the slab distribution is a Cauchy with an optional scaling
+#' parameter. Two prior distributions are implemented for the indicator variables
+#' for the pairwise difference parameters (i.e., the prior probability that there
+#' is a pairwise difference); the Bernoulli prior and the Beta-Bernoulli prior.
+#'
+#' Currently, \code{bgmNCT} supports two types of ordinal variables. The regular,
+#' default, ordinal variable type has gets its own threshold parameter. The
 #' Blume-Capel ordinal variable assumes that there is a specific reference
-#' category, such as the ``neutral'' in a Likert scale, and responses are scored
-#' in terms of their distance to this reference category. Specifically, the
+#' category, such as``neutral'' in a Likert scale, and responses are scored
+#' according to their distance from that reference category. Specifically, the
 #' Blume-Capel model specifies the following quadratic model for the threshold
 #' parameters:
 #' \deqn{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}{{\mu_{\text{c}} = \alpha \times \text{c} + \beta \times (\text{c} - \text{r})^2,}}
 #' where \eqn{\mu_{\text{c}}}{\mu_{\text{c}}} is the threshold for category c.
 #' The parameter \eqn{\alpha}{\alpha} models a linear trend across categories,
-#' such that \eqn{\alpha > 0}{\alpha > 0} leads to an increasing number of
+#' such that \eqn{\alpha > 0}{\alpha > 0} results in an increasing number of
 #' observations in higher response categories and \eqn{\alpha <0}{\alpha <0}
-#' leads to a decreasing number of observations in higher response categories.
+#' results in a decreasing number of observations in higher response categories.
 #' The parameter \eqn{\beta}{\beta} models the response style in terms of an
 #' offset with respect to the reference category \eqn{r}{r}; if \eqn{\beta<0}{\beta<0}
 #' there is a preference to respond in the reference category (i.e., the model
@@ -27,22 +49,11 @@
 #' there is preference to score in the extreme categories further away from the
 #' reference_category category.
 #'
-#' The Bayesian estimation procedure (\code{edge_selection = FALSE}) simply
-#' estimates the threshold and pairwise interaction parameters of the ordinal
-#' MRF, while the Bayesian edge selection procedure
-#' (\code{edge_selection = TRUE}) also models the probability that individual
-#' edges should be included or excluded from the model. Bayesian edge selection
-#' imposes a discrete spike and slab prior distribution on the pairwise
-#' interactions. By formulating it as a mixture of mutually singular
-#' distributions, the function can use a combination of Metropolis-Hastings and
-#' Gibbs sampling to create a Markov chain that has the joint posterior
-#' distribution as an invariant. The current option for the slab distribution is
-#' a Cauchy with an optional scaling parameter. The slab distribution is also used
-#' as the prior for the interaction parameters for Bayesian estimation. A
-#' beta-prime distribution is used for the exponent of the category parameters.
-#' For Bayesian edge selection, two prior distributions are implemented for the
-#' edge inclusion variables (i.e., the prior probability that an edge is
-#' included); the Bernoulli prior and the Beta-Bernoulli prior.
+#' The pairwise interaction parameters and the category parameters are considered
+#' nuisance parameters that are common to all models. The prior distribution for
+#' the pairwise interaction parameters is a Cauchy distribution with an optional
+#' scaling value. The prior for the exponent of the category parameters is a
+#' beta-prime distribution, which also has two optional scaling parameters.
 #'
 #' @param x A data frame or matrix with \code{n} rows and \code{p} columns
 #' containing binary and ordinal variables for \code{n} independent observations
@@ -60,6 +71,8 @@
 #' specifying the type for each variable in \code{x} separately. Currently, bgm
 #' supports ``ordinal'' and ``blume-capel''. Binary variables are automatically
 #' treated as ``ordinal’’. Defaults to \code{variable_type = "ordinal"}.
+#' @param group_indicator A vector of length \code{p} that indicates, for each
+#' row in \code{x}, to which of two groups it belongs.
 #' @param reference_category The reference category in the Blume-Capel model.
 #' Should be an integer within the range of integer scores observed for the
 #' ``blume-capel'' variable. Can be a single number specifying the reference
@@ -77,6 +90,8 @@
 #' the posterior distribution, it is recommended not to set this number too low.
 #' @param interaction_scale The scale of the Cauchy distribution that is used as a
 #' prior for the pairwise interaction parameters. Defaults to \code{2.5}.
+#' @param difference_scale The scale of the Cauchy distribution that is used as the
+#' prior for the pairwise difference parameters. Defaults to \code{0.1}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
 #' prior density for the threshold parameters. Must be positive values. If the
 #' two values are equal, the prior density is symmetric about zero. If
@@ -84,30 +99,28 @@
 #' distribution is skewed to the left, and if \code{threshold_beta} is less than
 #' \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
 #' lead to more diffuse prior distributions.
-#' @param edge_selection Should the function perform Bayesian edge selection on
-#' the edges of the MRF in addition to estimating its parameters
-#' (\code{edge_selection = TRUE}), or should it just estimate the parameters
-#' (\code{edge_selection = FALSE})? The default is \code{edge_selection = TRUE}.
-#' @param edge_prior The inclusion or exclusion of individual edges in the
-#' network is modeled with binary indicator variables that capture the structure
-#' of the network. The argument \code{edge_prior} is used to set a prior
-#' distribution for the edge indicator variables, i.e., the structure of the
+#' @param difference_prior The inclusion or exclusion of pairwise differences in
+#' the pairwise interactions between the two groups are modeled with binary
+#' indicator variables. The argument \code{difference_prior} is used to set a
+#' prior distribution for these indicator variables, i.e., the structure of the
 #' network. Currently, two options are implemented: The Bernoulli model
-#' \code{edge_prior = "Bernoulli"} assumes that the probability that an edge
-#' between two variables is included is equal to \code{inclusion_probability}
-#' and independent of other edges or variables. When
-#' \code{inclusion_probability = 0.5}, this means that each possible network
-#' structure is given the same prior weight. The Beta-Bernoulli model
-#' \code{edge_prior = "Beta-Bernoulli"} assumes a beta prior for the unknown
-#' inclusion probability with shape parameters \code{beta_bernoulli_alpha} and
+#' \code{difference_prior = "Bernoulli"} assumes that the probability that there
+#' is a pairwise difference is equal to \code{difference_probability}
+#' and independent of other pairwise differences. When
+#' \code{difference_probability = 0.5}, this means that each possible
+#' configuration of the presence or absence of pairwise differences is given the
+#' same prior weight. The Beta-Bernoulli model
+#' \code{difference_prior = "Beta-Bernoulli"} assumes a beta prior for the unknown
+#' difference probability with shape parameters \code{beta_bernoulli_alpha} and
 #' \code{beta_bernoulli_beta}. If \code{beta_bernoulli_alpha = 1} and
-#' \code{beta_bernoulli_beta = 1}, this means that networks with the same
-#' complexity (number of edges) get the same prior weight. The default is
-#' \code{edge_prior = "Bernoulli"}.
-#' @param inclusion_probability The prior edge inclusion probability for the
-#' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
-#' and \code{p} columns specifying an inclusion probability for each edge pair.
-#' The default is \code{inclusion_probability = 0.5}.
+#' \code{beta_bernoulli_beta = 1}, this means that different configurations of
+#' present or absent diffeences that have the same complexity (number of present
+#' differences) receive the same prior weight. The default is
+#' \code{difference_prior = "Bernoulli"}.
+#' @param difference_probability The prior probability for a pairwise difference
+#' in the Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
+#' and \code{p} columns specifying the probability of a difference for each edge
+#' pair. The default is \code{difference_probability = 0.5}.
 #' @param beta_bernoulli_alpha,beta_bernoulli_beta The two shape parameters of
 #' the Beta prior density for the Bernoulli inclusion probability. Must be
 #' positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
@@ -129,137 +142,60 @@
 #' The default is \code{TRUE}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list of class
-#' ``bgms'' containing the following matrices:
-#' \itemize{
-#' \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
-#' containing posterior inclusion probabilities of individual edges.
-#' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
-#' containing model-averaged posterior means of the pairwise associations.
-#' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
-#' columns, containing model-averaged category thresholds. In the case of
-#' ``blume-capel'' variables, the first entry is the parameter for the linear
-#' effect and the second entry is the parameter for the quadratic effect, which
-#' models the offset to the reference category.
-#' }
+#' ``bgmNCT'' containing the following matrices:
+#'  \itemize{
+#'    \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
+#'    containing posterior inclusion probabilities of pairwise differences.
+#'    \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
+#'    containing model-averaged posterior means of the pairwise associations.
+#'    \item \code{interactions_difference}: A matrix with \code{p} rows and \code{p}
+#'    columns,containing model-averaged posterior means of the pairwise differences.
+#'    \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
+#'    columns, containing model-averaged category thresholds. In the case of
+#'    ``blume-capel'' variables, the first entry is the parameter for the linear
+#'    effect and the second entry is the parameter for the quadratic effect, which
+#'    models the offset to the reference category.
+#'  }
 #'
-#' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
+#' If \code{save = TRUE}, the result is a list of class ``bgmNCT'' containing:
 #' \itemize{
-#' \item \code{gamma}: A matrix with \code{iter} rows and
-#' \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
-#' every iteration of the Gibbs sampler.
-#' \item \code{interactions}: A matrix with \code{iter} rows and
-#' \code{p * (p - 1) / 2} columns, containing parameter states from every
-#' iteration of the Gibbs sampler for the pairwise associations.
-#' \item \code{thresholds}: A matrix with \code{iter} rows and
-#' \code{sum(m)} columns, containing parameter states from every iteration of
-#' the Gibbs sampler for the category thresholds.
-#' }
+#'  \item \code{gamma}: A matrix with \code{iter} rows and
+#'   \code{p * (p - 1) / 2} columns, containing the inclusion indicators of the
+#'    pairwise difference from every iteration of the Gibbs sampler.
+#'  \item \code{interactions}: A matrix with \code{iter} rows and
+#'    \code{p * (p - 1) / 2} columns, containing parameter states from every
+#'    iteration of the Gibbs sampler for the pairwise associations.
+#'  \item \code{interactions_difference}: A matrix with \code{iter} rows and
+#'    \code{p * (p - 1) / 2} columns, containing parameter states from every
+#'    iteration of the Gibbs sampler for the pairwise differences.
+#'  \item \code{thresholds}: A matrix with \code{iter} rows and
+#'    \code{sum(m)} columns, containing parameter states from every iteration of
+#'    the Gibbs sampler for the category thresholds.
+#'  }
 #' Column averages of these matrices provide the model-averaged posterior means.
 #'
-#' In addition to the analysis results, the bgm output lists some of the
+#' In addition to the analysis results, the bgmNCT output lists some of the
 #' arguments of its call. This is useful for post-processing the results.
 #'
-#' @examples
-#' \donttest{
-#'  #Store user par() settings
-#'  op <- par(no.readonly = TRUE)
-#'
-#'  ##Analyse the Wenchuan dataset
-#'
-#'  # Here, we use 1e4 iterations, for an actual analysis please use at least
-#'  # 1e5 iterations.
-#'  fit = bgm(x = Wenchuan)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # INCLUSION - EDGE WEIGHT PLOT
-#'  #------------------------------------------------------------------------------|
-#'
-#'  par(mar = c(6, 5, 1, 1))
-#'  plot(x = fit$interactions[lower.tri(fit$interactions)],
-#'       y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1),
-#'       xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
-#'  abline(h = 0, lty = 2, col = "gray")
-#'  abline(h = 1, lty = 2, col = "gray")
-#'  abline(h = .5, lty = 2, col = "gray")
-#'  mtext("Posterior Mode Edge Weight", side = 1, line = 3, cex = 1.7)
-#'  mtext("Posterior Inclusion Probability", side = 2, line = 3, cex = 1.7)
-#'  axis(1)
-#'  axis(2, las = 1)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # EVIDENCE - EDGE WEIGHT PLOT
-#'  #------------------------------------------------------------------------------|
-#'
-#'  #For the default choice of the structure prior, the prior odds equal one:
-#'  prior.odds = 1
-#'  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
-#'  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
-#'  log.bayesfactor = log(posterior.odds / prior.odds)
-#'  log.bayesfactor[log.bayesfactor > 5] = 5
-#'
-#'  par(mar = c(5, 5, 1, 1) + 0.1)
-#'  plot(fit$interactions[lower.tri(fit$interactions)], log.bayesfactor, pch = 21, bg = "#bfbfbf",
-#'       cex = 1.3, axes = FALSE, xlab = "", ylab = "", ylim = c(-5, 5.5),
-#'       xlim = c(-0.5, 1.5))
-#'  axis(1)
-#'  axis(2, las = 1)
-#'  abline(h = log(1/10), lwd = 2, col = "#bfbfbf")
-#'  abline(h = log(10), lwd = 2, col = "#bfbfbf")
-#'
-#'  text(x = 1, y = log(1 / 10), labels = "Evidence for Exclusion", pos = 1,
-#'       cex = 1.7)
-#'  text(x = 1, y = log(10), labels = "Evidence for Inclusion", pos = 3, cex = 1.7)
-#'  text(x = 1, y = 0, labels = "Absence of Evidence", cex = 1.7)
-#'  mtext("Log-Inclusion Bayes Factor", side = 2, line = 3, cex = 1.5, las = 0)
-#'  mtext("Posterior Mean Interactions ", side = 1, line = 3.7, cex = 1.5, las = 0)
-#'
-#'
-#'  #------------------------------------------------------------------------------|
-#'  # THE MEDIAN PROBABILITY NETWORK
-#'  #------------------------------------------------------------------------------|
-#'
-#'  tmp = fit$interactions[lower.tri(fit$interactions)]
-#'  tmp[posterior.inclusion < 0.5] = 0
-#'
-#'  median.prob.model = matrix(0, nrow = ncol(Wenchuan), ncol = ncol(Wenchuan))
-#'  median.prob.model[lower.tri(median.prob.model)] = tmp
-#'  median.prob.model = median.prob.model + t(median.prob.model)
-#'
-#'  rownames(median.prob.model) = colnames(Wenchuan)
-#'  colnames(median.prob.model) = colnames(Wenchuan)
-#'
-#'  library(qgraph)
-#'  qgraph(median.prob.model,
-#'         theme = "TeamFortress",
-#'         maximum = .5,
-#'         fade = FALSE,
-#'         color = c("#f0ae0e"), vsize = 10, repulsion = .9,
-#'         label.cex = 1.1, label.scale = "FALSE",
-#'         labels = colnames(Wenchuan))
-#'
-#'  #Restore user par() settings
-#'  par(op)
-#' }
 #' @importFrom utils packageVersion
 #' @export
-bgm = function(x,
-               variable_type = "ordinal",
-               reference_category,
-               iter = 1e4,
-               burnin = 1e3,
-               interaction_scale = 2.5,
-               threshold_alpha = 0.5,
-               threshold_beta = 0.5,
-               edge_selection = TRUE,
-               edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-               inclusion_probability = 0.5,
-               beta_bernoulli_alpha = 1,
-               beta_bernoulli_beta = 1,
-               na.action = c("listwise", "impute"),
-               save = FALSE,
-               display_progress = TRUE) {
+bgmNCT = function(x,
+                  variable_type = "ordinal",
+                  group_indicator,
+                  reference_category,
+                  iter = 1e4,
+                  burnin = 1e3,
+                  interaction_scale = 2.5,
+                  difference_scale = 0.1,
+                  threshold_alpha = 0.5,
+                  threshold_beta = 0.5,
+                  edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+                  inclusion_probability = 0.5,
+                  beta_bernoulli_alpha = 1,
+                  beta_bernoulli_beta = 1,
+                  na.action = c("listwise", "impute"),
+                  save = FALSE,
+                  display_progress = TRUE) {
 
   #Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
@@ -272,17 +208,17 @@ bgm = function(x,
     stop("The matrix x should have more than one observation (rows).")
 
   #Check model input -----------------------------------------------------------
-  model = check_model(x = x,
-                      variable_type = variable_type,
-                      reference_category = reference_category,
-                      interaction_scale = interaction_scale,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      edge_selection = edge_selection,
-                      edge_prior = edge_prior,
-                      inclusion_probability = inclusion_probability,
-                      beta_bernoulli_alpha = beta_bernoulli_alpha,
-                      beta_bernoulli_beta = beta_bernoulli_beta)
+  model = nct_check_model(x = x,
+                          variable_type = variable_type,
+                          reference_category = reference_category,
+                          interaction_scale = interaction_scale,
+                          difference_scale = difference_scale,
+                          threshold_alpha = threshold_alpha,
+                          threshold_beta = threshold_beta,
+                          edge_prior = edge_prior,
+                          inclusion_probability = inclusion_probability,
+                          beta_bernoulli_alpha = beta_bernoulli_alpha,
+                          beta_bernoulli_beta = beta_bernoulli_beta)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
@@ -292,7 +228,6 @@ bgm = function(x,
   # ----------------------------------------------------------------------------
 
   reference_category = model$reference_category
-  edge_selection = model$edge_selection
   edge_prior = model$edge_prior
   theta = model$theta
 
@@ -327,15 +262,17 @@ bgm = function(x,
     stop("The display_progress argument should equal TRUE or FALSE.")
 
   #Format the data input -------------------------------------------------------
-  data = reformat_data(x = x,
-                       na.action = na.action,
-                       variable_bool = variable_bool,
-                       reference_category = reference_category)
+  data = nct_reformat_data(x = x,
+                           na.action = na.action,
+                           variable_bool = variable_bool,
+                           reference_category = reference_category,
+                           group_indicator = group_indicator)
   x = data$x
   no_categories = data$no_categories
   missing_index = data$missing_index
   na.impute = data$na.impute
   reference_category = data$reference_category
+  group_indicator = data$group_indicator
 
   no_variables = ncol(x)
   no_interactions = no_variables * (no_variables - 1) / 2
@@ -348,6 +285,9 @@ bgm = function(x,
   proposal_sd_blumecapel = matrix(1,
                                   nrow = no_variables,
                                   ncol = 2)
+  proposal_sd_int_diff = matrix(1,
+                                nrow = no_variables,
+                                ncol = no_variables)
 
   # Starting value of model matrix ---------------------------------------------
   gamma = matrix(1,
@@ -357,6 +297,7 @@ bgm = function(x,
 
   #Starting values of interactions and thresholds (posterior mode) -------------
   interactions = matrix(0, nrow = no_variables, ncol = no_variables)
+  interactions_difference = matrix(0, nrow = no_variables, ncol = no_variables)
   thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
 
   #Precompute the number of observations per category for each variable --------
@@ -395,33 +336,35 @@ bgm = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  out = gibbs_sampler(observations = x,
-                      gamma = gamma,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      no_categories  = no_categories,
-                      interaction_scale = interaction_scale,
-                      proposal_sd = proposal_sd,
-                      proposal_sd_blumecapel = proposal_sd_blumecapel,
-                      edge_prior = edge_prior,
-                      theta = theta,
-                      beta_bernoulli_alpha = beta_bernoulli_alpha,
-                      beta_bernoulli_beta = beta_bernoulli_beta,
-                      Index = Index,
-                      iter = iter,
-                      burnin = burnin,
-                      n_cat_obs = n_cat_obs,
-                      sufficient_blume_capel = sufficient_blume_capel,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      na_impute = na.impute,
-                      missing_index = missing_index,
-                      variable_bool = variable_bool,
-                      reference_category = reference_category,
-                      save = save,
-                      display_progress = display_progress,
-                      edge_selection = edge_selection)
-
+  out = nct_gibbs_sampler(observations = x,
+                          gamma = gamma,
+                          interactions = interactions,
+                          thresholds = thresholds,
+                          interactions_difference = interactions_difference,
+                          group_indicator = group_indicator,
+                          no_categories  = no_categories,
+                          interaction_scale = interaction_scale,
+                          difference_scale = difference_scale,
+                          proposal_sd = proposal_sd,
+                          proposal_sd_blumecapel = proposal_sd_blumecapel,
+                          proposal_sd_int_diff = proposal_sd_int_diff,
+                          edge_prior = edge_prior,
+                          theta = theta,
+                          beta_bernoulli_alpha = beta_bernoulli_alpha,
+                          beta_bernoulli_beta = beta_bernoulli_beta,
+                          Index = Index,
+                          iter = iter,
+                          burnin = burnin,
+                          n_cat_obs = n_cat_obs,
+                          sufficient_blume_capel = sufficient_blume_capel,
+                          threshold_alpha = threshold_alpha,
+                          threshold_beta = threshold_beta,
+                          na_impute = na.impute,
+                          missing_index = missing_index,
+                          variable_bool = variable_bool,
+                          reference_category = reference_category,
+                          save = save,
+                          display_progress = display_progress)
 
   #Preparing the output --------------------------------------------------------
   arguments = list(
@@ -434,40 +377,41 @@ bgm = function(x,
     interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
-    edge_selection = edge_selection,
     edge_prior = edge_prior,
     inclusion_probability = theta,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     na.action = na.action,
     save = save,
+    group_indicator = group_indicator,
     version = packageVersion("bgms")
   )
 
   if(save == FALSE) {
-    if(edge_selection == TRUE) {
-      gamma = out$gamma
-    }
+    gamma = out$gamma
     interactions = out$interactions
+    interactions_difference = out$interactions_difference
     tresholds = out$thresholds
 
     if(is.null(colnames(x))){
       data_columnnames = paste0("variable ", 1:no_variables)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      if(edge_selection == TRUE) {
-        colnames(gamma) = data_columnnames
-        rownames(gamma) = data_columnnames
-      }
+      colnames(interactions_difference) = data_columnnames
+      rownames(interactions_difference) = data_columnnames
+
+      colnames(gamma) = data_columnnames
+      rownames(gamma) = data_columnnames
       rownames(thresholds) = data_columnnames
     } else {
       data_columnnames <- colnames(x)
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
-      if(edge_selection == TRUE) {
-        colnames(gamma) = data_columnnames
-        rownames(gamma) = data_columnnames
-      }
+      colnames(interactions_difference) = data_columnnames
+      rownames(interactions_difference) = data_columnnames
+
+      colnames(gamma) = data_columnnames
+      rownames(gamma) = data_columnnames
       rownames(thresholds) = data_columnnames
     }
 
@@ -475,24 +419,18 @@ bgm = function(x,
 
     arguments$data_columnnames = data_columnnames
 
-    if(edge_selection == TRUE) {
-      output = list(gamma = gamma,
-                    interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
-    } else {
-      output = list(interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
-    }
+    output = list(gamma = gamma,
+                  interactions = interactions,
+                  interactions_difference = interactions_difference,
+                  thresholds = thresholds,
+                  arguments = arguments)
 
-    class(output) = "bgms"
+    class(output) = c("bgmNCT")
     return(output)
   } else {
-    if(edge_selection == TRUE) {
-      gamma = out$gamma
-    }
+    gamma = out$gamma
     interactions = out$interactions
+    interactions_difference = out$interactions_difference
     thresholds = out$thresholds
 
     if(is.null(colnames(x))){
@@ -506,9 +444,7 @@ bgm = function(x,
     names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
     names_vec <- names_comb[lower.tri(names_comb)]
 
-    if(edge_selection == TRUE) {
-      colnames(gamma) = colnames(interactions) = names_vec
-    }
+    colnames(gamma) = colnames(interactions) = colnames(interactions_difference) = names_vec
     names = character(length = sum(no_categories))
     cntr = 0
     for(variable in 1:no_variables) {
@@ -519,25 +455,19 @@ bgm = function(x,
     }
     colnames(thresholds) = names
 
-    if(edge_selection == TRUE) {
-      dimnames(gamma) = list(Iter. = 1:iter, colnames(gamma))
-    }
+    dimnames(gamma) = list(Iter. = 1:iter, colnames(gamma))
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
+    dimnames(interactions_difference) = list(Iter. = 1:iter, colnames(interactions_difference))
     dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
 
     arguments$data_columnnames = data_columnnames
 
-    if(edge_selection == TRUE) {
-      output = list(gamma = gamma,
-                    interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
-    } else {
-      output = list(interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
-    }
-    class(output) = "bgms"
+    output = list(gamma = gamma,
+                  interactions = interactions,
+                  interactions_difference = interactions_difference,
+                  thresholds = thresholds,
+                  arguments = arguments)
+    class(output) = "bgmsNCT"
     return(output)
   }
 }

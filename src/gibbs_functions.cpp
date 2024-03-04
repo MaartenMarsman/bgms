@@ -118,8 +118,7 @@ List impute_missing_data(NumericMatrix interactions,
 // MH algorithm to sample from the full-conditional of the threshold parameters
 //   for a regular binary or ordinal variable
 // ----------------------------------------------------------------------------|
-void metropolis_thresholds_regular(NumericMatrix interactions,
-                                   NumericMatrix thresholds,
+void metropolis_thresholds_regular(NumericMatrix thresholds,
                                    IntegerMatrix observations,
                                    IntegerVector no_categories,
                                    IntegerMatrix n_cat_obs,
@@ -193,8 +192,7 @@ void metropolis_thresholds_regular(NumericMatrix interactions,
 // Adaptive Metropolis algorithm to sample from the full-conditional of the
 //   threshold parameters for a Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
-void metropolis_thresholds_blumecapel(NumericMatrix interactions,
-                                      NumericMatrix thresholds,
+void metropolis_thresholds_blumecapel(NumericMatrix thresholds,
                                       IntegerMatrix observations,
                                       IntegerVector no_categories,
                                       IntegerMatrix sufficient_blume_capel,
@@ -731,8 +729,7 @@ List gibbs_step_gm(IntegerMatrix observations,
   //Update threshold parameters
   for(int variable = 0; variable < no_variables; variable++) {
     if(variable_bool[variable] == true) {
-      metropolis_thresholds_regular(interactions,
-                                    thresholds,
+      metropolis_thresholds_regular(thresholds,
                                     observations,
                                     no_categories,
                                     n_cat_obs,
@@ -742,8 +739,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                                     threshold_beta,
                                     rest_matrix);
     } else {
-      metropolis_thresholds_blumecapel(interactions,
-                                       thresholds,
+      metropolis_thresholds_blumecapel(thresholds,
                                        observations,
                                        no_categories,
                                        sufficient_blume_capel,
