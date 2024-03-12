@@ -8,9 +8,9 @@
 #'
 #' The pairwise interactions between variables \eqn{i}{i} and \eqn{j}{j} are
 #' modeled as follows
-#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}
+#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \delta_{\text{ij}} / 2,}
 #' in one group and as
-#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}
+#' \deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} + \delta_{\text{ij}} / 2,}
 #' in the other group. The parameter \eqn{\eta_{\text{ij}}}{\eta_{\text{ij}}}
 #' denotes an overall interaction parameter and is considered to be a nuisance
 #' parameter, and \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}} denotes the a
@@ -189,8 +189,8 @@ bgmNCT = function(x,
                   difference_scale = 0.1,
                   threshold_alpha = 0.5,
                   threshold_beta = 0.5,
-                  edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-                  inclusion_probability = 0.5,
+                  difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+                  difference_probability = 0.5,
                   beta_bernoulli_alpha = 1,
                   beta_bernoulli_beta = 1,
                   na.action = c("listwise", "impute"),
@@ -215,8 +215,8 @@ bgmNCT = function(x,
                           difference_scale = difference_scale,
                           threshold_alpha = threshold_alpha,
                           threshold_beta = threshold_beta,
-                          edge_prior = edge_prior,
-                          inclusion_probability = inclusion_probability,
+                          difference_prior = difference_prior,
+                          difference_probability = difference_probability,
                           beta_bernoulli_alpha = beta_bernoulli_alpha,
                           beta_bernoulli_beta = beta_bernoulli_beta)
 
@@ -228,7 +228,7 @@ bgmNCT = function(x,
   # ----------------------------------------------------------------------------
 
   reference_category = model$reference_category
-  edge_prior = model$edge_prior
+  difference_prior = model$difference_prior
   theta = model$theta
 
   #Check Gibbs input -----------------------------------------------------------
@@ -348,7 +348,7 @@ bgmNCT = function(x,
                           proposal_sd = proposal_sd,
                           proposal_sd_blumecapel = proposal_sd_blumecapel,
                           proposal_sd_int_diff = proposal_sd_int_diff,
-                          edge_prior = edge_prior,
+                          difference_prior = difference_prior,
                           theta = theta,
                           beta_bernoulli_alpha = beta_bernoulli_alpha,
                           beta_bernoulli_beta = beta_bernoulli_beta,
@@ -377,8 +377,8 @@ bgmNCT = function(x,
     interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
-    edge_prior = edge_prior,
-    inclusion_probability = theta,
+    difference_prior = difference_prior,
+    difference_probability = theta,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     na.action = na.action,

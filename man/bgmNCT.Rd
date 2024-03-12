@@ -13,11 +13,11 @@ bgmNCT(
   iter = 10000,
   burnin = 1000,
   interaction_scale = 2.5,
-  difference_scale = sqrt(2),
+  difference_scale = 0.1,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-  inclusion_probability = 0.5,
+  difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+  difference_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
   na.action = c("listwise", "impute"),
@@ -69,7 +69,7 @@ the posterior distribution, it is recommended not to set this number too low.}
 prior for the pairwise interaction parameters. Defaults to \code{2.5}.}
 
 \item{difference_scale}{The scale of the Cauchy distribution that is used as the
-prior for the pairwise difference parameters. Defaults to \code{sqrt(2)}.}
+prior for the pairwise difference parameters. Defaults to \code{0.1}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
 prior density for the threshold parameters. Must be positive values. If the
@@ -78,29 +78,6 @@ two values are equal, the prior density is symmetric about zero. If
 distribution is skewed to the left, and if \code{threshold_beta} is less than
 \code{threshold_alpha}, it is skewed to the right. Smaller values tend to
 lead to more diffuse prior distributions.}
-
-\item{beta_bernoulli_alpha, beta_bernoulli_beta}{The two shape parameters of
-the Beta prior density for the Bernoulli inclusion probability. Must be
-positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
-\code{beta_bernoulli_beta = 1}.}
-
-\item{na.action}{How do you want the function to handle missing data? If
-\code{na.action = "listwise"}, listwise deletion is used. If
-\code{na.action = "impute"}, missing data are imputed iteratively during the
-MCMC procedure. Since imputation of missing data can have a negative impact
-on the convergence speed of the MCMC procedure, it is recommended to run the
-MCMC for more iterations. Also, since the numerical routines that search for
-the mode of the posterior do not have an imputation option, the bgm function
-will automatically switch to \code{interaction_prior = "Cauchy"} and
-\code{adaptive = TRUE}.}
-
-\item{save}{Should the function collect and return all samples from the Gibbs
-sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
-posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
-
-\item{display_progress}{Should the function show a progress bar
-(\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
-The default is \code{TRUE}.}
 
 \item{difference_prior}{The inclusion or exclusion of pairwise differences in
 the pairwise interactions between the two groups are modeled with binary
@@ -125,6 +102,29 @@ differences) receive the same prior weight. The default is
 in the Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
 and \code{p} columns specifying the probability of a difference for each edge
 pair. The default is \code{difference_probability = 0.5}.}
+
+\item{beta_bernoulli_alpha, beta_bernoulli_beta}{The two shape parameters of
+the Beta prior density for the Bernoulli inclusion probability. Must be
+positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
+\code{beta_bernoulli_beta = 1}.}
+
+\item{na.action}{How do you want the function to handle missing data? If
+\code{na.action = "listwise"}, listwise deletion is used. If
+\code{na.action = "impute"}, missing data are imputed iteratively during the
+MCMC procedure. Since imputation of missing data can have a negative impact
+on the convergence speed of the MCMC procedure, it is recommended to run the
+MCMC for more iterations. Also, since the numerical routines that search for
+the mode of the posterior do not have an imputation option, the bgm function
+will automatically switch to \code{interaction_prior = "Cauchy"} and
+\code{adaptive = TRUE}.}
+
+\item{save}{Should the function collect and return all samples from the Gibbs
+sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
+posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
+
+\item{display_progress}{Should the function show a progress bar
+(\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
+The default is \code{TRUE}.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list of class
@@ -172,9 +172,9 @@ design, and indicator variables for these group differences.
 \details{
 The pairwise interactions between variables \eqn{i}{i} and \eqn{j}{j} are
 modeled as follows
-\deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \times \delta_{\text{ij}} / 2,}
+\deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} -  \delta_{\text{ij}} / 2,}
 in one group and as
-\deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \times \delta_{\text{ij}} / 2,}
+\deqn{\sigma_{\text{ij}} = \eta_{\text{ij}} +  \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \eta_{\text{ij}} + \delta_{\text{ij}} / 2,}
 in the other group. The parameter \eqn{\eta_{\text{ij}}}{\eta_{\text{ij}}}
 denotes an overall interaction parameter and is considered to be a nuisance
 parameter, and \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}} denotes the a

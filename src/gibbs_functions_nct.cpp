@@ -638,7 +638,7 @@ List nct_gibbs_sampler(IntegerMatrix observations,
                        NumericMatrix proposal_sd,
                        NumericMatrix proposal_sd_blumecapel,
                        NumericMatrix proposal_sd_int_diff,
-                       String edge_prior,
+                       String difference_prior,
                        NumericMatrix theta,
                        double beta_bernoulli_alpha,
                        double beta_bernoulli_beta,
@@ -789,7 +789,7 @@ List nct_gibbs_sampler(IntegerMatrix observations,
     NumericMatrix proposal_sd = out["proposal_sd"];
 
     if(edge_selection == true) {
-      if(edge_prior == "Beta-Bernoulli") {
+      if(difference_prior == "Beta-Bernoulli") {
         int sumG = 0;
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {
@@ -893,7 +893,7 @@ List nct_gibbs_sampler(IntegerMatrix observations,
     NumericMatrix proposal_sd = out["proposal_sd"];
 
     if(edge_selection == true) {
-      if(edge_prior == "Beta-Bernoulli") {
+      if(difference_prior == "Beta-Bernoulli") {
         int sumG = 0;
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {

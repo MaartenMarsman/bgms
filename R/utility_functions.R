@@ -1,7 +1,6 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom Rdpack reprompt
 #' @importFrom methods hasArg
-#' @importFrom stats qnorm uniroot
 
 check_model = function(x,
                        variable_type,
@@ -204,8 +203,8 @@ nct_check_model = function(x,
                            difference_scale = 2.5,
                            threshold_alpha = 0.5,
                            threshold_beta = 0.5,
-                           edge_prior = c("Bernoulli", "Beta-Bernoulli"),
-                           inclusion_probability = 0.5,
+                           difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+                           difference_probability = 0.5,
                            beta_bernoulli_alpha = 1,
                            beta_bernoulli_beta = 1) {
 
@@ -329,10 +328,10 @@ nct_check_model = function(x,
 
   #Check set-up for the Bayesian edge selection model --------------------------
   #Check prior set-up for the edge indicators --------------------------------
-  edge_prior = match.arg(edge_prior)
-  if(edge_prior == "Bernoulli") {
-    if(length(inclusion_probability) == 1) {
-      theta = inclusion_probability[1]
+  difference_prior = match.arg(difference_prior)
+  if(difference_prior == "Bernoulli") {
+    if(length(difference_probability) == 1) {
+      theta = difference_probability[1]
       if(is.na(theta) || is.null(theta))
         stop("There is no value specified for the inclusion probability.")
       if(theta <= 0)
@@ -344,14 +343,14 @@ nct_check_model = function(x,
 
       theta = matrix(theta, nrow = ncol(x), ncol = ncol(x))
     } else {
-      if(!inherits(inclusion_probability, what = "matrix") &&
-         !inherits(inclusion_probability, what = "data.frame"))
+      if(!inherits(difference_probability, what = "matrix") &&
+         !inherits(difference_probability, what = "data.frame"))
         stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
 
-      if(inherits(inclusion_probability, what = "data.frame")) {
-        theta = data.matrix(inclusion_probability)
+      if(inherits(difference_probability, what = "data.frame")) {
+        theta = data.matrix(difference_probability)
       } else {
-        theta = inclusion_probability
+        theta = difference_probability
       }
       if(!isSymmetric(theta))
         stop("The inclusion probability matrix needs to be symmetric.")
@@ -368,7 +367,7 @@ nct_check_model = function(x,
         stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
                     "inclusion probabilities cannot exceed or equal the value one."))
     }
-    if(edge_prior == "Beta-Bernoulli") {
+    if(difference_prior == "Beta-Bernoulli") {
       theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
       if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0)
         stop("The scale parameters of the beta distribution need to be positive.")
@@ -380,15 +379,14 @@ nct_check_model = function(x,
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)
-    edge_prior = "Not Applicable"
+    difference_prior = "Not Applicable"
   }
 
   return(list(variable_bool = variable_bool,
               reference_category = reference_category,
-              edge_prior = edge_prior,
+              difference_prior = difference_prior,
               theta = theta))
 }
-
 
 reformat_data = function(x, na.action, variable_bool, reference_category) {
   if(na.action == "listwise") {
