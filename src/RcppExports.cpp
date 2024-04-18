@@ -80,43 +80,42 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// nct_gibbs_sampler
-List nct_gibbs_sampler(IntegerMatrix observations, IntegerMatrix gamma, NumericMatrix interactions, NumericMatrix thresholds, NumericMatrix interactions_difference, IntegerVector group_indicator, IntegerVector no_categories, double interaction_scale, double difference_scale, NumericMatrix proposal_sd, NumericMatrix proposal_sd_blumecapel, NumericMatrix proposal_sd_int_diff, String difference_prior, NumericMatrix theta, double beta_bernoulli_alpha, double beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs, IntegerMatrix sufficient_blume_capel, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index, LogicalVector variable_bool, IntegerVector reference_category, bool save, bool display_progress, bool edge_selection);
-RcppExport SEXP _bgms_nct_gibbs_sampler(SEXP observationsSEXP, SEXP gammaSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP interactions_differenceSEXP, SEXP group_indicatorSEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP difference_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP proposal_sd_int_diffSEXP, SEXP difference_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
+// compare_gibbs_sampler
+List compare_gibbs_sampler(IntegerMatrix observations_gr1, IntegerMatrix observations_gr2, IntegerVector no_categories, double interaction_scale, double pairwise_difference_scale, double main_difference_scale, String pairwise_difference_prior, String main_difference_prior, NumericMatrix inclusion_probability_difference, double pairwise_beta_bernoulli_alpha, double pairwise_beta_bernoulli_beta, double main_beta_bernoulli_alpha, double main_beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, IntegerMatrix n_cat_obs_gr1, IntegerMatrix n_cat_obs_gr2, IntegerMatrix sufficient_blume_capel_gr1, IntegerMatrix sufficient_blume_capel_gr2, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index_gr1, IntegerMatrix missing_index_gr2, LogicalVector variable_bool, IntegerVector reference_category, bool save, bool display_progress);
+RcppExport SEXP _bgms_compare_gibbs_sampler(SEXP observations_gr1SEXP, SEXP observations_gr2SEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP pairwise_difference_scaleSEXP, SEXP main_difference_scaleSEXP, SEXP pairwise_difference_priorSEXP, SEXP main_difference_priorSEXP, SEXP inclusion_probability_differenceSEXP, SEXP pairwise_beta_bernoulli_alphaSEXP, SEXP pairwise_beta_bernoulli_betaSEXP, SEXP main_beta_bernoulli_alphaSEXP, SEXP main_beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obs_gr1SEXP, SEXP n_cat_obs_gr2SEXP, SEXP sufficient_blume_capel_gr1SEXP, SEXP sufficient_blume_capel_gr2SEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_index_gr1SEXP, SEXP missing_index_gr2SEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerMatrix >::type observations(observationsSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type gamma(gammaSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type interactions(interactionsSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type interactions_difference(interactions_differenceSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type group_indicator(group_indicatorSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type observations_gr1(observations_gr1SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type observations_gr2(observations_gr2SEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type no_categories(no_categoriesSEXP);
     Rcpp::traits::input_parameter< double >::type interaction_scale(interaction_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type difference_scale(difference_scaleSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type proposal_sd(proposal_sdSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type proposal_sd_blumecapel(proposal_sd_blumecapelSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type proposal_sd_int_diff(proposal_sd_int_diffSEXP);
-    Rcpp::traits::input_parameter< String >::type difference_prior(difference_priorSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< double >::type beta_bernoulli_alpha(beta_bernoulli_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type beta_bernoulli_beta(beta_bernoulli_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_difference_scale(pairwise_difference_scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type main_difference_scale(main_difference_scaleSEXP);
+    Rcpp::traits::input_parameter< String >::type pairwise_difference_prior(pairwise_difference_priorSEXP);
+    Rcpp::traits::input_parameter< String >::type main_difference_prior(main_difference_priorSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type inclusion_probability_difference(inclusion_probability_differenceSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_beta_bernoulli_alpha(pairwise_beta_bernoulli_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_beta_bernoulli_beta(pairwise_beta_bernoulli_betaSEXP);
+    Rcpp::traits::input_parameter< double >::type main_beta_bernoulli_alpha(main_beta_bernoulli_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type main_beta_bernoulli_beta(main_beta_bernoulli_betaSEXP);
     Rcpp::traits::input_parameter< IntegerMatrix >::type Index(IndexSEXP);
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs(n_cat_obsSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type sufficient_blume_capel(sufficient_blume_capelSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs_gr1(n_cat_obs_gr1SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type n_cat_obs_gr2(n_cat_obs_gr2SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type sufficient_blume_capel_gr1(sufficient_blume_capel_gr1SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type sufficient_blume_capel_gr2(sufficient_blume_capel_gr2SEXP);
     Rcpp::traits::input_parameter< double >::type threshold_alpha(threshold_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_beta(threshold_betaSEXP);
     Rcpp::traits::input_parameter< bool >::type na_impute(na_imputeSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix >::type missing_index(missing_indexSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type missing_index_gr1(missing_index_gr1SEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type missing_index_gr2(missing_index_gr2SEXP);
     Rcpp::traits::input_parameter< LogicalVector >::type variable_bool(variable_boolSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type reference_category(reference_categorySEXP);
     Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(nct_gibbs_sampler(observations, gamma, interactions, thresholds, interactions_difference, group_indicator, no_categories, interaction_scale, difference_scale, proposal_sd, proposal_sd_blumecapel, proposal_sd_int_diff, difference_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection));
+    rcpp_result_gen = Rcpp::wrap(compare_gibbs_sampler(observations_gr1, observations_gr2, no_categories, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, n_cat_obs_gr1, n_cat_obs_gr2, sufficient_blume_capel_gr1, sufficient_blume_capel_gr2, threshold_alpha, threshold_beta, na_impute, missing_index_gr1, missing_index_gr2, variable_bool, reference_category, save, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -125,7 +124,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 26},
-    {"_bgms_nct_gibbs_sampler", (DL_FUNC) &_bgms_nct_gibbs_sampler, 30},
+    {"_bgms_compare_gibbs_sampler", (DL_FUNC) &_bgms_compare_gibbs_sampler, 29},
     {NULL, NULL, 0}
 };
 

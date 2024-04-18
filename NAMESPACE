@@ -2,7 +2,7 @@
 
 S3method(print,bgms)
 export(bgm)
-export(bgmNCT)
+export(bgmCompare)
 export(extract_arguments)
 export(extract_edge_indicators)
 export(extract_edge_priors)
