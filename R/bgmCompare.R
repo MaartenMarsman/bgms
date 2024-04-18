@@ -81,9 +81,12 @@
 #' The pairwise interaction parameters \eqn{\theta}{\theta}, the category
 #' threshold parameters \eqn{\tau}{\tau}, and, in paired-samples designs,
 #' the between-sample interactions \eqn{\omega}{\omega} are considered
-#' nuisance parameters that are common to all models.
-#'
-#' \strong{PRIORS:} Please fill in the details for the PRIORS section here.
+#' nuisance parameters that are common to all models. The pairwise interaction
+#' parameters \eqn{\theta}{\theta} and the between-sample interactions
+#' \eqn{\omega}{\omega} are assigned a diffuse Cauchy prior with an optional
+#' scaling parameter. The exponent of the category threshold parameters
+#' \eqn{\tau}{\tau} are assigned beta-prime distribution with optional scale
+#' values.
 #'
 #' @param x A data frame or matrix with \eqn{n_1}{n_1} rows and \code{p} columns
 #' containing binary and ordinal responses for the first group. Regular ordinal
@@ -95,9 +98,12 @@
 #' category plays an important role in this model, unobserved categories are not
 #' collapsed after recoding.
 #' @param y A data frame or matrix with \eqn{n_2}{n_2} rows and \code{p} columns
-#' containing binary and ordinal responses for the second group. The variables or
-#' columns in \code{y} must match the variables or columns in \code{x}. In the
-#' paired-samples design, the rows in the \code{x} must match the rows of \code{y}.
+#' containing binary and ordinal responses for the second group. The variables
+#' or columns in \code{y} must match the variables or columns in \code{x}. In
+#' the paired samples design, the rows in \code{x} must match the rows in
+#' \code{y}. Note that \code{y} and \code{y} are recoded independently, although
+#' the function checks that the number of different responses observed matches
+#' between \code{y} and \code{x}.
 #' @param paired Logical, if \code{TRUE} models the case-specific dependence using
 #' a paired-samples design; if \code{FALSE} treats the groups as independent.
 #' Default is \code{FALSE}.
@@ -149,6 +155,9 @@
 #' @param interaction_scale The scale of the Cauchy distribution that is used as
 #' a prior for the nuisance pairwise interaction parameters. Defaults to
 #' \code{2.5}.
+#' @param cross_lagged_scale The scale of the Cauchy distribution that is used as
+#' a prior for the nuisance cross-laggedinteraction parameters in paired samples
+#' designs. Defaults to \code{2.5}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
 #' prior density for the nuisance threshold parameters. Must be positive values.
 #' If the two values are equal, the prior density is symmetric about zero. If
@@ -180,15 +189,13 @@
 #' @return If \code{save = FALSE} (the default), the result is a list of class
 #' ``bgmCompare'' containing the following matrices:
 #' \itemize{
-#'    \item \code{indicator_pairwise}: A matrix with \code{p} rows and \code{p}
+#'    \item \code{indicator}: A matrix with \code{p} rows and \code{p}
 #'    columns containing the posterior inclusion probabilities of the differences
-#'    in pairwise interactions.
+#'    in pairwise interactions on the off-diagonal and the posterior inclusion
+#'    probabilities of the differences in category thresholds on the diagonal.
 #'    \item \code{difference_pairwise}: A matrix with \code{p} rows and \code{p}
 #'    columns, containing model-averaged posterior means of the differences in
 #'    pairwise interactions.
-#'    \item \code{indicator_threshold}: A matrix with \code{p} rows and \code{max(m)}
-#'    columns, containing the posterior inclusion probabilities of the
-#'    differences in category thresholds.
 #'    \item \code{difference_threshold}: A matrix with \code{p} rows and
 #'    \code{max(m)} columns, containing model-averaged posterior means of the
 #'    differences in category thresholds.
@@ -202,9 +209,9 @@
 #'  }
 #' If \code{paired = TRUE}, the list will also contain
 #' \itemize{
-#'    \item \code{random_effect_covariance}: A matrix with \code{p} rows and
+#'    \item \code{cross_lagged}: A matrix with \code{p} rows and
 #'    \code{p} columns containing the posterior means of the estimated
-#'    covariance matrix.
+#'    cross-lagged relations.
 #' }
 #'
 #' If \code{save = TRUE}, the result is a list of class ``bgmCompare''
@@ -234,9 +241,9 @@
 #'  }
 #' If \code{paired = TRUE}, the list will also contain
 #' \itemize{
-#' \item \code{random_effect_covariance}: A matrix with A matrix with \code{iter}
-#' rows and \code{p * (p - 1) / 2} columns, containing parameter states for the
-#' nuisance variances and covariances of the random effects.
+#' \item \code{random_effect_covariance}: A matrix with \code{iter} rows and
+#' \code{p * (p - 1) / 2} columns, containing parameter states for the
+#' cross-lagged relations.
 #' }
 #' Column averages of these matrices provide the model-averaged posterior means.
 #'
@@ -261,6 +268,7 @@ bgmCompare = function(x,
                       main_beta_bernoulli_alpha = 1,
                       main_beta_bernoulli_beta = 1,
                       interaction_scale = 2.5,
+                      cross_lagged_scale = 2.5,
                       threshold_alpha = 0.5,
                       threshold_beta = 0.5,
                       iter = 1e4,
@@ -366,7 +374,7 @@ bgmCompare = function(x,
   no_categories = data$no_categories
   missing_index_gr1 = data$missing_index_gr1
   missing_index_gr2 = data$missing_index_gr2
-  na.impute = data$na.impute
+  na_impute = data$na_impute
   reference_category = data$reference_category
 
   no_variables = ncol(x)
@@ -417,6 +425,7 @@ bgmCompare = function(x,
                               observations_gr2 = y,
                               no_categories = no_categories,
                               interaction_scale = interaction_scale,
+                              cross_lagged_scale = cross_lagged_scale,
                               pairwise_difference_scale = pairwise_difference_scale,
                               main_difference_scale = main_difference_scale,
                               pairwise_difference_prior = pairwise_difference_prior,
@@ -435,19 +444,21 @@ bgmCompare = function(x,
                               sufficient_blume_capel_gr2 = sufficient_blume_capel_gr2,
                               threshold_alpha = threshold_alpha,
                               threshold_beta = threshold_beta,
-                              na_impute = na.impute,
+                              na_impute = na_impute,
                               missing_index_gr1 = missing_index_gr1,
                               missing_index_gr2 = missing_index_gr2,
                               variable_bool = variable_bool,
                               reference_category = reference_category,
+                              paired = paired,
                               save = save,
                               display_progress = display_progress)
 
   #Preparing the output --------------------------------------------------------
   arguments = list(
     no_variables = no_variables,
-    no_cases = nrow(x),
-    na_impute = na.impute,
+    no_cases_gr1 = nrow(x),
+    no_cases_gr2 = nrow(y),
+    na_impute = na_impute,
     variable_type = variable_type,
     iter = iter,
     burnin = burnin,
@@ -461,6 +472,9 @@ bgmCompare = function(x,
     pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
     main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
     main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+    main_difference_scale = main_difference_scale,
+    pairwise_difference_scale = pairwise_difference_scale,
+    paired = paired,
     na.action = na.action,
     save = save,
     version = packageVersion("bgms")
@@ -477,26 +491,22 @@ bgmCompare = function(x,
 
     if(is.null(colnames(x))){
       data_columnnames = paste0("variable ", 1:no_variables)
-      colnames(interactions) = data_columnnames
-      rownames(interactions) = data_columnnames
-      colnames(pairwise_difference) = data_columnnames
-      rownames(pairwise_difference) = data_columnnames
-
-      colnames(indicator) = data_columnnames
-      rownames(indicator) = data_columnnames
-      rownames(thresholds) = data_columnnames
-      rownames(main_difference) = data_columnnames
     } else {
       data_columnnames <- colnames(x)
-      colnames(interactions) = data_columnnames
-      rownames(interactions) = data_columnnames
-      colnames(pairwise_difference) = data_columnnames
-      rownames(pairwise_difference) = data_columnnames
+    }
+    colnames(interactions) = data_columnnames
+    rownames(interactions) = data_columnnames
+    colnames(pairwise_difference) = data_columnnames
+    rownames(pairwise_difference) = data_columnnames
+    colnames(indicator) = data_columnnames
+    rownames(indicator) = data_columnnames
+    rownames(thresholds) = data_columnnames
+    rownames(main_difference) = data_columnnames
 
-      colnames(indicator) = data_columnnames
-      rownames(indicator) = data_columnnames
-      rownames(thresholds) = data_columnnames
-      rownames(main_difference) = data_columnnames
+    if(paired == TRUE) {
+      cross_lagged = out$cross_lagged
+      colnames(cross_lagged) = data_columnnames
+      rownames(cross_lagged) = data_columnnames
     }
 
     colnames(thresholds) = paste0("category ", 1:max(no_categories))
@@ -504,34 +514,65 @@ bgmCompare = function(x,
 
     arguments$data_columnnames = data_columnnames
 
-    output = list(indicator = indicator,
-                  interactions = interactions,
-                  pairwise_difference = pairwise_difference,
-                  main_difference = main_difference,
-                  thresholds = thresholds,
-                  arguments = arguments)
+    if(paired == TRUE) {
+      output = list(indicator = indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    main_difference = main_difference,
+                    thresholds = thresholds,
+                    cross_lagged = cross_lagged,
+                    arguments = arguments)
+    } else {
+      output = list(indicator = indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    main_difference = main_difference,
+                    thresholds = thresholds,
+                    arguments = arguments)
+    }
+
 
     class(output) = c("bgmCompare")
     return(output)
   } else {
-    #TODO: Update this for new output
-    indicator = out$indicator
+    pairwise_difference_indicator = out$pairwise_difference_indicator
+    main_difference_indicator = out$main_difference_indicator
+    pairwise_difference = out$pairwise_difference
+    main_difference = out$main_difference
     interactions = out$interactions
-    interactions_difference = out$interactions_difference
     thresholds = out$thresholds
+    if(paired == TRUE) {
+      cross_lagged = out$cross_lagged
+    }
 
     if(is.null(colnames(x))){
       data_columnnames <- 1:ncol(x)
     } else {
       data_columnnames <- colnames(x)
     }
+
     p <- ncol(x)
     names_bycol <- matrix(rep(data_columnnames, each = p), ncol = p)
     names_byrow <- matrix(rep(data_columnnames, each = p), ncol = p, byrow = T)
     names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
     names_vec <- names_comb[lower.tri(names_comb)]
 
-    colnames(indicator) = colnames(interactions) = colnames(interactions_difference) = names_vec
+    colnames(pairwise_difference_indicator) = names_vec
+    colnames(interactions) = names_vec
+    colnames(pairwise_difference) = names_vec
+
+    if(paired == TRUE) {
+      names_vec = vector(length = ncol(x) (ncol(x) + 1) / 2)
+      cntr = 0
+      for(variable1 in 1:ncol(x)) {
+        for(variable2 in variable1:ncol(x)) {
+          cntr = cntr + 1
+          names_vec[cntr] = paste0(colnames[variable1], "--", colnames[variable2])
+        }
+      }
+      colnames(cross_lagged) = names_vec
+    }
+
     names = character(length = sum(no_categories))
     cntr = 0
     for(variable in 1:no_variables) {
@@ -540,20 +581,42 @@ bgmCompare = function(x,
         names[cntr] = paste0("threshold(",variable, ", ",category,")")
       }
     }
+    colnames(main_difference_indicator) = names
     colnames(thresholds) = names
+    colnames(main_difference) = names
 
-    dimnames(indicator) = list(Iter. = 1:iter, colnames(indicator))
+    dimnames(pairwise_difference_indicator) = list(Iter. = 1:iter, colnames(pairwise_difference_indicator))
+    dimnames(main_difference_indicator) = list(Iter. = 1:iter, colnames(main_difference_indicator))
+    dimnames(pairwise_difference) = list(Iter. = 1:iter, colnames(pairwise_difference))
+    dimnames(main_difference) = list(Iter. = 1:iter, colnames(main_difference))
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
-    dimnames(interactions_difference) = list(Iter. = 1:iter, colnames(interactions_difference))
     dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
+
+    if(paired == TRUE) {
+      dimnames(cross_lagged) = list(Iter. = 1:iter, colnames(cross_lagged))
+    }
 
     arguments$data_columnnames = data_columnnames
 
-    output = list(indicator = indicator,
-                  interactions = interactions,
-                  interactions_difference = interactions_difference,
-                  thresholds = thresholds,
-                  arguments = arguments)
+    if(paired == TRUE) {
+      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+                    main_difference_indicator = main_difference_indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    main_difference = main_difference,
+                    thresholds = thresholds,
+                    cross_lagged = cross_lagged,
+                    arguments = arguments)
+    } else {
+      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+                    main_difference_indicator = main_difference_indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    main_difference = main_difference,
+                    thresholds = thresholds,
+                    arguments = arguments)
+    }
+
     class(output) = "bgmCompare"
     return(output)
   }

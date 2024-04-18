@@ -12,14 +12,17 @@ bgmCompare(
   variable_type = "ordinal",
   reference_category,
   pairwise_difference_scale = 0.1,
-  threshold_difference_scale = 0.1,
+  main_difference_scale = 0.1,
   pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
-  threshold_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
+  main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   pairwise_difference_probability = 0.5,
-  threshold_difference_probability = 0.5,
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
+  main_difference_probability = 0.5,
+  pairwise_beta_bernoulli_alpha = 1,
+  pairwise_beta_bernoulli_beta = 1,
+  main_beta_bernoulli_alpha = 1,
+  main_beta_bernoulli_beta = 1,
   interaction_scale = 2.5,
+  cross_lagged_scale = 2.5,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
   iter = 10000,
@@ -41,9 +44,12 @@ category plays an important role in this model, unobserved categories are not
 collapsed after recoding.}
 
 \item{y}{A data frame or matrix with \eqn{n_2}{n_2} rows and \code{p} columns
-containing binary and ordinal responses for the second group. The variables or
-columns in \code{y} must match the variables or columns in \code{x}. In the
-paired-samples design, the rows in the \code{x} must match the rows of \code{y}.}
+containing binary and ordinal responses for the second group. The variables
+or columns in \code{y} must match the variables or columns in \code{x}. In
+the paired samples design, the rows in \code{x} must match the rows in
+\code{y}. Note that \code{y} and \code{y} are recoded independently, although
+the function checks that the number of different responses observed matches
+between \code{y} and \code{x}.}
 
 \item{paired}{Logical, if \code{TRUE} models the case-specific dependence using
 a paired-samples design; if \code{FALSE} treats the groups as independent.
@@ -67,16 +73,8 @@ is at least one variable of type "blume-capel".}
 used as the prior for the pairwise difference parameters. Defaults to
 \code{0.1}.}
 
-\item{threshold_difference_scale}{The scale of the Cauchy distribution that
-is used as the prior for the threshold difference parameters. Defaults to
-\code{0.1}.}
-
 \item{pairwise_difference_prior}{A character string that specifies the model
 to use for the  inclusion probability of pairwise differences. Options are
-"Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
-
-\item{threshold_difference_prior}{A character string that specifies the model
-to use for the  inclusion probability of threshold differences. Options are
 "Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
 
 \item{pairwise_difference_probability}{The inclusion probability for a
@@ -84,21 +82,29 @@ pairwise difference in the Bernoulli model. Can be a single probability or a
 matrix of \code{p} rows and \code{p} columns specifying the probability of a
 difference for each edge pair. Defaults to 0.5.}
 
-\item{threshold_difference_probability}{The inclusion probability for a
-threshold difference in the Bernoulli model. Defaults to 0.5, implying no
-prior preference. Can be a single probability or a matrix of \code{p} rows and
-\code{max(m)} columns specifying the probability of a difference for each
-category threshold. Defaults to 0.5.}
+\item{pairwise_beta_bernoulli_alpha}{The alpha parameter of the beta distribution
+for the Beta-Bernoulli model for group differences in pairwise interactions.
+Default is 1.}
 
-\item{beta_bernoulli_alpha}{The alpha parameter of the beta distribution for
-the Beta-Bernoulli model. Default is 1.}
+\item{pairwise_beta_bernoulli_beta}{The beta parameter of the beta distribution
+for the Beta-Bernoulli model for group differences in pairwise interactions.
+Default is 1.}
 
-\item{beta_bernoulli_beta}{The beta parameter of the beta distribution for
-the Beta-Bernoulli model. Default is 1.}
+\item{main_beta_bernoulli_alpha}{The alpha parameter of the beta distribution
+for the Beta-Bernoulli model for group differences in category thresholds.
+Default is 1.}
+
+\item{main_beta_bernoulli_beta}{The beta parameter of the beta distribution
+for the Beta-Bernoulli model for group differences in category thresholds.
+Default is 1.}
 
 \item{interaction_scale}{The scale of the Cauchy distribution that is used as
 a prior for the nuisance pairwise interaction parameters. Defaults to
 \code{2.5}.}
+
+\item{cross_lagged_scale}{The scale of the Cauchy distribution that is used as
+a prior for the nuisance cross-laggedinteraction parameters in paired samples
+designs. Defaults to \code{2.5}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
 prior density for the nuisance threshold parameters. Must be positive values.
@@ -132,20 +138,32 @@ posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
 \item{display_progress}{Should the function show a progress bar
 (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 The default is \code{TRUE}.}
+
+\item{threshold_difference_scale}{The scale of the Cauchy distribution that
+is used as the prior for the threshold difference parameters. Defaults to
+\code{0.1}.}
+
+\item{threshold_difference_prior}{A character string that specifies the model
+to use for the  inclusion probability of threshold differences. Options are
+"Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
+
+\item{threshold_difference_probability}{The inclusion probability for a
+threshold difference in the Bernoulli model. Defaults to 0.5, implying no
+prior preference. Can be a single probability or a matrix of \code{p} rows and
+\code{max(m)} columns specifying the probability of a difference for each
+category threshold. Defaults to 0.5.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list of class
 ``bgmCompare'' containing the following matrices:
 \itemize{
-   \item \code{gamma_pairwise}: A matrix with \code{p} rows and \code{p}
+   \item \code{indicator}: A matrix with \code{p} rows and \code{p}
    columns containing the posterior inclusion probabilities of the differences
-   in pairwise interactions.
+   in pairwise interactions on the off-diagonal and the posterior inclusion
+   probabilities of the differences in category thresholds on the diagonal.
    \item \code{difference_pairwise}: A matrix with \code{p} rows and \code{p}
    columns, containing model-averaged posterior means of the differences in
    pairwise interactions.
-   \item \code{gamma_threshold}: A matrix with \code{p} rows and \code{max(m)}
-   columns, containing the posterior inclusion probabilities of the
-   differences in category thresholds.
    \item \code{difference_threshold}: A matrix with \code{p} rows and
    \code{max(m)} columns, containing model-averaged posterior means of the
    differences in category thresholds.
@@ -159,15 +177,15 @@ If \code{save = FALSE} (the default), the result is a list of class
  }
 If \code{paired = TRUE}, the list will also contain
 \itemize{
-   \item \code{random_effect_covariance}: A matrix with \code{p} rows and
+   \item \code{cross_lagged}: A matrix with \code{p} rows and
    \code{p} columns containing the posterior means of the estimated
-   covariance matrix.
+   cross-lagged relations.
 }
 
 If \code{save = TRUE}, the result is a list of class ``bgmCompare''
 containing the following matrices:
  \itemize{
-   \item \code{gamma_pairwise}: A matrix with \code{iter} rows and
+   \item \code{indicator_pairwise}: A matrix with \code{iter} rows and
    \code{p * (p - 1) / 2} columns containing the inclusion indicators for the
    differences in pairwise interactions from each iteration of the Gibbs
    sampler.
@@ -175,7 +193,7 @@ containing the following matrices:
    \code{p * (p - 1) / 2} columns, containing parameter states for the
    differences in pairwise interactions from each iteration of the Gibbs
    sampler.
-   \item \code{gamma_threshold}: A matrix with \code{iter} rows and
+   \item \code{indicator_threshold}: A matrix with \code{iter} rows and
    \code{sum(m)} columns, containing the inclusion indicators for the
    differences in category thresholds from each iteration of the Gibbs
    sampler.
@@ -191,9 +209,9 @@ containing the following matrices:
  }
 If \code{paired = TRUE}, the list will also contain
 \itemize{
-\item \code{random_effect_covariance}: A matrix with A matrix with \code{iter}
-rows and \code{p * (p - 1) / 2} columns, containing parameter states for the
-nuisance variances and covariances of the random effects.
+\item \code{random_effect_covariance}: A matrix with \code{iter} rows and
+\code{p * (p - 1) / 2} columns, containing parameter states for the
+cross-lagged relations.
 }
 Column averages of these matrices provide the model-averaged posterior means.
 
@@ -280,7 +298,10 @@ differences:
 The pairwise interaction parameters \eqn{\theta}{\theta}, the category
 threshold parameters \eqn{\tau}{\tau}, and, in paired-samples designs,
 the between-sample interactions \eqn{\omega}{\omega} are considered
-nuisance parameters that are common to all models.
-
-\strong{PRIORS:} Please fill in the details for the PRIORS section here.
+nuisance parameters that are common to all models. The pairwise interaction
+parameters \eqn{\theta}{\theta} and the between-sample interactions
+\eqn{\omega}{\omega} are assigned a diffuse Cauchy prior with an optional
+scaling parameter. The exponent of the category threshold parameters
+\eqn{\tau}{\tau} are assigned beta-prime distribution with optional scale
+values.
 }

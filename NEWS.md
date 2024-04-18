@@ -1,6 +1,6 @@
 # bgms 0.1.4
 
-* Added bgmNCT() for comparing the pairwise interactions in a two-sample design.
+* Added bgmCompare() for comparing the category threshold and pairwise interaction parameters in two-sample designs.
 * Exported extractor functions to extract results from bgm objects in a safe way.
 
 # bgms 0.1.3

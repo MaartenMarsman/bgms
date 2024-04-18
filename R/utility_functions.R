@@ -473,7 +473,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
                   "there were less than two rows left in x."))
 
     missing_index = matrix(NA, nrow = 1, ncol = 1)
-    na.impute = FALSE
+    na_impute = FALSE
   } else {
     # Check for missing values -------------------------------------------------
     no_missings = sum(is.na(x))
@@ -481,7 +481,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
     no_variables = ncol(x)
     if(no_missings > 0) {
       missing_index = matrix(0, nrow = no_missings, ncol = 2)
-      na.impute = TRUE
+      na_impute = TRUE
       cntr = 0
       for(node in 1:no_variables) {
         mis = which(is.na(x[, node]))
@@ -498,7 +498,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
       }
     } else {
       missing_index = matrix(NA, nrow = 1, ncol = 1)
-      na.impute = FALSE
+      na_impute = FALSE
     }
   }
 
@@ -598,14 +598,21 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
               no_categories = no_categories,
               reference_category = reference_category,
               missing_index = missing_index,
-              na.impute = na.impute))
+              na_impute = na_impute))
 }
 
 compare_reformat_data = function(x,
                                  y,
                                  na.action,
                                  variable_bool,
-                                 reference_category) {
+                                 reference_category,
+                                 paired) {
+
+  if(paired == TRUE) {
+    if(nrow(x) != nrow(y))
+      stop(paste0("For paired-samples designs the number of cases (rows) in the matrix x must \n",
+                  "match the number of cases (rows) in the matrix y."))
+  }
 
   if(na.action == "listwise") {
     # Check for missing values in x --------------------------------------------
@@ -625,10 +632,9 @@ compare_reformat_data = function(x,
                      "the analysis."),
               call. = FALSE)
     x = x[!missing_values, ]
+    if(paired == TRUE)
+      y = y[!missing_values, ]
 
-    if(ncol(x) < 2 || is.null(ncol(x)))
-      stop(paste0("After removing missing observations from the input matrix x,\n",
-                  "there were less than two columns left in x."))
     if(nrow(x) < 2 || is.null(nrow(x)))
       stop(paste0("After removing missing observations from the input matrix x,\n",
                   "there were less than two rows left in x."))
@@ -652,16 +658,15 @@ compare_reformat_data = function(x,
                      "the analysis."),
               call. = FALSE)
     y = y[!missing_values, ]
+    if(paired == TRUE)
+      x = x[!missing_values, ]
 
-    if(ncol(y) < 2 || is.null(ncol(y)))
-      stop(paste0("After removing missing observations from the input matrix y,\n",
-                  "there were less than two columns left in y."))
     if(nrow(y) < 2 || is.null(nrow(y)))
       stop(paste0("After removing missing observations from the input matrix y,\n",
                   "there were less than two rows left in y."))
 
     missing_index_gr2 = matrix(NA, nrow = 1, ncol = 1)
-    na.impute = FALSE
+    na_impute = FALSE
 
   } else {
     # Check for missing values group 1 -----------------------------------------
@@ -670,7 +675,7 @@ compare_reformat_data = function(x,
     no_variables = ncol(x)
     if(no_missings_gr1 > 0) {
       missing_index_gr1 = matrix(0, nrow = no_missings_gr1, ncol = 2)
-      na.impute = TRUE
+      na_impute = TRUE
       cntr = 0
       for(node in 1:no_variables) {
         mis = which(is.na(x[, node]))
@@ -687,7 +692,7 @@ compare_reformat_data = function(x,
       }
     } else {
       missing_index_gr1 = matrix(NA, nrow = 1, ncol = 1)
-      na.impute = FALSE
+      na_impute = FALSE
     }
     # Check for missing values group 1 -----------------------------------------
     no_missings_gr2 = sum(is.na(y))
@@ -695,7 +700,7 @@ compare_reformat_data = function(x,
     no_variables = ncol(y)
     if(no_missings_gr2 > 0) {
       missing_index_gr2 = matrix(0, nrow = no_missings_gr2, ncol = 2)
-      na.impute = TRUE
+      na_impute = TRUE
       cntr = 0
       for(node in 1:no_variables) {
         mis = which(is.na(y[, node]))
@@ -712,8 +717,8 @@ compare_reformat_data = function(x,
       }
     } else {
       missing_index_gr2 = matrix(NA, nrow = 1, ncol = 1)
-      if(!na.impute) {
-        na.impute = FALSE
+      if(!na_impute) {
+        na_impute = FALSE
       }
     }
   }
@@ -728,10 +733,9 @@ compare_reformat_data = function(x,
     mx_vl_y = length(unq_vls_y)
 
     if(mx_vl_x != mx_vl_y)
-      stop(paste0("The number of response categories that are observed for variable ",
+      stop(paste0("The number of distinct responses that are observed for variable ",
                   node,
                   " differs between the two groups."))
-
 
     # Check if observed responses are not all unique ---------------------------
     if(mx_vl_x == nrow(x))
@@ -859,5 +863,5 @@ compare_reformat_data = function(x,
               reference_category = reference_category,
               missing_index_gr1 = missing_index_gr1,
               missing_index_gr2 = missing_index_gr2,
-              na.impute = na.impute))
+              na_impute = na_impute))
 }
