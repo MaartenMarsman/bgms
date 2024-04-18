@@ -367,7 +367,8 @@ bgmCompare = function(x,
                                y = y,
                                na.action = na.action,
                                variable_bool = variable_bool,
-                               reference_category = reference_category)
+                               reference_category = reference_category,
+                               paired = paired)
   x = data$x
   y = data$y
 
