@@ -582,7 +582,7 @@ bgmCompare = function(x,
         names[cntr] = paste0("threshold(",variable, ", ",category,")")
       }
     }
-    colnames(main_difference_indicator) = names
+    colnames(main_difference_indicator) = data_columnnames
     colnames(thresholds) = names
     colnames(main_difference) = names
 
