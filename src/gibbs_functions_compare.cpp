@@ -115,9 +115,11 @@ List compare_impute_missing_data(NumericMatrix interactions,
           rest_matrix_gr1(person, vertex) += new_observation *
             interaction;
           if(paired == true) {
-            rest_matrix_gr2(person, vertex) -= old_observation *
+            rest_matrix_gr2(person, vertex) -=
+              .25 * old_observation *
               cross_lagged(vertex, variable);
-            rest_matrix_gr2(person, vertex) += new_observation *
+            rest_matrix_gr2(person, vertex) +=
+              .25 * new_observation *
               cross_lagged(vertex, variable);
           }
         }
@@ -204,9 +206,13 @@ List compare_impute_missing_data(NumericMatrix interactions,
           rest_matrix_gr2(person, vertex) += new_observation *
             interaction;
           if(paired == true) {
-            rest_matrix_gr1(person, vertex) -= old_observation *
+            rest_matrix_gr1(person, vertex) -=
+              .25 *
+              old_observation *
               cross_lagged(vertex, variable);
-            rest_matrix_gr1(person, vertex) += new_observation *
+            rest_matrix_gr1(person, vertex) +=
+              .25 *
+              new_observation *
               cross_lagged(vertex, variable);
           }
         }
@@ -2303,20 +2309,26 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
 
   double delta_state = proposed_state - current_state;
 
-  //x1 | y2
-  //x2 | y1 (if variable1 != variable 2)
-  //y1 | x2
-  //y2 | x1 (if variable1 != variable 2)
+  // The cross_lagged effect [i, j] occurs in four full-conditionals:
+  //  X[i] | Y
+  //  Y[i] | X
+  //  X[j] | Y
+  //  Y[j] | X
+  // But if i = j, then it occurs in:
+  //  X[i] | Y
+  //  Y[i] | X
+  // Also, all cross-lagged effects occur twice, so need to be rescaled.
 
   for(int person = 0; person < no_persons_gr1; person++) {
+    //X[i] | Y
     obs_score1 = observations_gr1(person, variable1);
     obs_score2 = observations_gr2(person, variable2);
 
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state * .25;
 
     //variable 1 log pseudolikelihood ratio
     rest_score = rest_matrix_gr1(person, variable1) -
-      obs_score2 * current_state;
+      .25 * obs_score2 * current_state;
 
     if(rest_score > 0) {
       bound = no_categories[variable1] * rest_score;
@@ -2335,9 +2347,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         score * rest_score -
         bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
+          std::exp(exponent + .25 * score * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
+          std::exp(exponent + .25 * score * obs_score2 * current_state);
       }
     } else {
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2353,23 +2365,23 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         (category - reference_category[variable1]);
         exponent+= category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
+          std::exp(exponent + .25 * category * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
+          std::exp(exponent + .25 * category * obs_score2 * current_state);
       }
     }
     pseudolikelihood_ratio -= std::log(denominator_prop);
     pseudolikelihood_ratio += std::log(denominator_curr);
 
     if(variable1 != variable2) {
-      //variable 2 log pseudolikelihood ratio
+      //X[j] | Y
       obs_score1 = observations_gr1(person, variable2);
       obs_score2 = observations_gr2(person, variable1);
 
-      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state * .25;
 
       rest_score = rest_matrix_gr1(person, variable2) -
-        obs_score2 * current_state;
+        .25 * obs_score2 * current_state;
 
       if(rest_score > 0) {
         bound = no_categories[variable2] * rest_score;
@@ -2388,9 +2400,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           score * rest_score -
           bound;
           denominator_prop +=
-            std::exp(exponent + score * obs_score2 * proposed_state);
+            std::exp(exponent + .25 * score * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + score * obs_score2 * current_state);
+            std::exp(exponent + .25 * score * obs_score2 * current_state);
         }
       } else {
         //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2406,9 +2418,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           (category - reference_category[variable2]);
           exponent+=  category * rest_score - bound;
           denominator_prop +=
-            std::exp(exponent + category * obs_score2 * proposed_state);
+            std::exp(exponent + .25 * category * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + category * obs_score2 * current_state);
+            std::exp(exponent + .25 * category * obs_score2 * current_state);
         }
       }
       pseudolikelihood_ratio -= std::log(denominator_prop);
@@ -2417,14 +2429,15 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
   }
 
   for(int person = 0; person < no_persons_gr2; person++) {
+    //Y[i] | X
     obs_score1 = observations_gr2(person, variable1);
     obs_score2 = observations_gr1(person, variable2);
 
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state * .25;
 
     //variable 1 log pseudolikelihood ratio
     rest_score = rest_matrix_gr2(person, variable1) -
-      obs_score2 * current_state;
+      .25 * obs_score2 * current_state;
 
     if(rest_score > 0) {
       bound = no_categories[variable1] * rest_score;
@@ -2443,9 +2456,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         score * rest_score -
         bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
+          std::exp(exponent + .25 * score * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
+          std::exp(exponent + .25 * score * obs_score2 * current_state);
       }
     } else {
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2461,23 +2474,23 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         (category - reference_category[variable1]);
         exponent+= category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
+          std::exp(exponent + .25 * category * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
+          std::exp(exponent + .25 * category * obs_score2 * current_state);
       }
     }
     pseudolikelihood_ratio -= std::log(denominator_prop);
     pseudolikelihood_ratio += std::log(denominator_curr);
 
     if(variable1 != variable2) {
-      //variable 2 log pseudolikelihood ratio
+      //Y[j] | X
       obs_score1 = observations_gr2(person, variable2);
       obs_score2 = observations_gr1(person, variable1);
 
-      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state * .25;
 
       rest_score = rest_matrix_gr2(person, variable2) -
-        obs_score2 * current_state;
+        .25 * obs_score2 * current_state;
 
       if(rest_score > 0) {
         bound = no_categories[variable2] * rest_score;
@@ -2496,9 +2509,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           score * rest_score -
           bound;
           denominator_prop +=
-            std::exp(exponent + score * obs_score2 * proposed_state);
+            std::exp(exponent + .25 * score * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + score * obs_score2 * current_state);
+            std::exp(exponent + .25 * score * obs_score2 * current_state);
         }
       } else {
         //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2514,16 +2527,15 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           (category - reference_category[variable2]);
           exponent+=  category * rest_score - bound;
           denominator_prop +=
-            std::exp(exponent + category * obs_score2 * proposed_state);
+            std::exp(exponent + .25 * category * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + category * obs_score2 * current_state);
+            std::exp(exponent + .25 * category * obs_score2 * current_state);
         }
       }
       pseudolikelihood_ratio -= std::log(denominator_prop);
       pseudolikelihood_ratio += std::log(denominator_curr);
     }
   }
-
   return pseudolikelihood_ratio;
 }
 
@@ -2559,7 +2571,8 @@ void compare_metropolis_cross_lagged(NumericMatrix thresholds,
   for(int variable1 = 0; variable1 <  no_variables; variable1++) {
     for(int variable2 = variable1; variable2 <  no_variables; variable2++) {
       current_state = cross_lagged(variable1, variable2);
-      proposed_state = R::rnorm(current_state, proposal_sd_cross_lagged(variable1, variable2));
+      proposed_state = R::rnorm(current_state,
+                                proposal_sd_cross_lagged(variable1, variable2));
 
       log_prob = compare_log_pseudolikelihood_ratio_cross_lagged(thresholds,
                                                                  main_difference,
@@ -2587,11 +2600,40 @@ void compare_metropolis_cross_lagged(NumericMatrix thresholds,
         cross_lagged(variable2, variable1) = proposed_state;
 
         //Update the rest score matrices
-        for(int person = 0; person < no_persons_gr1; person++) {
-          rest_matrix_gr1(person, variable1) += observations_gr2(person, variable2) *
-            state_difference;
-          rest_matrix_gr2(person, variable2) += observations_gr1(person, variable1) *
-            state_difference;
+        if(variable1 != variable2) {
+          for(int person = 0; person < no_persons_gr1; person++) {
+            rest_matrix_gr1(person, variable1) +=
+              .25 *
+              observations_gr2(person, variable2) *
+              state_difference;
+
+            rest_matrix_gr1(person, variable2) +=
+              .25 *
+              observations_gr2(person, variable1) *
+              state_difference;
+
+            rest_matrix_gr2(person, variable2) +=
+              .25 *
+              observations_gr1(person, variable1) *
+              state_difference;
+
+            rest_matrix_gr2(person, variable1) +=
+              .25 *
+              observations_gr1(person, variable2) *
+              state_difference;
+          }
+        } else {
+          for(int person = 0; person < no_persons_gr1; person++) {
+            rest_matrix_gr1(person, variable1) +=
+              .25 *
+              observations_gr2(person, variable2) *
+              state_difference;
+
+            rest_matrix_gr2(person, variable2) +=
+              .25 *
+              observations_gr1(person, variable1) *
+              state_difference;
+          }
         }
       }
 

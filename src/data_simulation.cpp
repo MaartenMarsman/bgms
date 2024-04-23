@@ -243,6 +243,7 @@ List sample_twosample_omrf_gibbs(int no_states_gr1,
         if(paired == true) {
           for(int vertex = 0; vertex < no_variables; vertex++) {
             rest_score +=
+              .25 *
               observations_gr2(person, vertex) *
               cross_lagged (vertex, variable);
           }
@@ -285,6 +286,7 @@ List sample_twosample_omrf_gibbs(int no_states_gr1,
         if(paired == true) {
           for(int vertex = 0; vertex < no_variables; vertex++) {
             rest_score +=
+              .25 *
               observations_gr1(person, vertex) *
               cross_lagged(vertex, variable);
           }
@@ -397,6 +399,7 @@ List sample_twosample_bcomrf_gibbs(int no_states_gr1,
         if(paired == true) {
           for(int vertex = 0; vertex < no_variables; vertex++) {
             rest_score +=
+              .25 *
               observations_gr2(person, vertex) *
               cross_lagged(vertex, variable);
           }
@@ -459,6 +462,7 @@ List sample_twosample_bcomrf_gibbs(int no_states_gr1,
         if(paired == true) {
           for(int vertex = 0; vertex < no_variables; vertex++) {
             rest_score +=
+              .25 *
               observations_gr1(person, vertex) *
               cross_lagged(vertex, variable);
           }
