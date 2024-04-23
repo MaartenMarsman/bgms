@@ -1007,7 +1007,6 @@ void compare_metropolis_pairwise_difference_between_model(NumericMatrix threshol
 // MH algorithm to sample from the full-conditional of the overall category
 //  threshold parameters (nuisance) -- regular ordinal variable
 // ----------------------------------------------------------------------------|
-
 void compare_metropolis_threshold_regular(NumericMatrix thresholds,
                                           NumericMatrix main_difference,
                                           IntegerVector no_categories,
@@ -1125,7 +1124,6 @@ double compare_log_pseudolikelihood_ratio_main_difference(NumericMatrix threshol
                                                           double current_state,
                                                           NumericMatrix rest_matrix_gr1,
                                                           NumericMatrix rest_matrix_gr2) {
-
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_proposed, denominator_current, exponent;
@@ -1146,73 +1144,71 @@ double compare_log_pseudolikelihood_ratio_main_difference(NumericMatrix threshol
     thresholds(variable, category) -
     .5 * proposed_state;
 
-    //Compute the pseudolikelihood ratio
-    pseudolikelihood_ratio -= delta_state * .5 * n_cat_obs_gr1(category + 1, variable);
-    pseudolikelihood_ratio += delta_state * .5 * n_cat_obs_gr2(category + 1, variable);
+  //Compute the pseudolikelihood ratio
+  pseudolikelihood_ratio -= delta_state * .5 * n_cat_obs_gr1(category + 1, variable);
+  pseudolikelihood_ratio += delta_state * .5 * n_cat_obs_gr2(category + 1, variable);
 
-    //Compute the contribution for group 1
-    for(int person = 0; person < no_persons_gr1; person++) {
-      rest_score = rest_matrix_gr1(person, variable);
-      if(rest_score > 0) {
-        bound = no_categories[variable] * rest_score;
-      } else {
-        bound = 0.0;
-      }
-
-      denominator_proposed = std::exp(-bound);
-      denominator_current = std::exp(-bound);
-      for(int cat = 0; cat < no_categories[variable]; cat++) {
-        score = cat + 1;
-        exponent = score * rest_score - bound;
-        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-        denominator_current += std::exp(exponent + current_thresholds[cat]);
-      }
-
-      pseudolikelihood_ratio -= std::log(denominator_proposed);
-      pseudolikelihood_ratio += std::log(denominator_current);
+  //Compute the contribution for group 1
+  for(int person = 0; person < no_persons_gr1; person++) {
+    rest_score = rest_matrix_gr1(person, variable);
+    if(rest_score > 0) {
+      bound = no_categories[variable] * rest_score;
+    } else {
+      bound = 0.0;
     }
 
-    //Pre-compute vector of threshold differences for Group 2:
+    denominator_proposed = std::exp(-bound);
+    denominator_current = std::exp(-bound);
     for(int cat = 0; cat < no_categories[variable]; cat++) {
-      proposed_thresholds[cat] =
-        thresholds(variable, cat) +
-        .5 * main_difference(variable, cat);
-        current_thresholds[cat] = proposed_thresholds[cat];
+      score = cat + 1;
+      exponent = score * rest_score - bound;
+      denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
+      denominator_current += std::exp(exponent + current_thresholds[cat]);
     }
-    proposed_thresholds[category] =
-      thresholds(variable, category) +
-      .5 * proposed_state;
 
+    pseudolikelihood_ratio -= std::log(denominator_proposed);
+    pseudolikelihood_ratio += std::log(denominator_current);
+  }
 
-      //Compute the contribution for group 2
-      for(int person = 0; person < no_persons_gr2; person++) {
-        rest_score = rest_matrix_gr2(person, variable);
-        if(rest_score > 0) {
-          bound = no_categories[variable] * rest_score;
-        } else {
-          bound = 0.0;
-        }
+  //Pre-compute vector of threshold differences for Group 2:
+  for(int cat = 0; cat < no_categories[variable]; cat++) {
+    proposed_thresholds[cat] =
+      thresholds(variable, cat) +
+      .5 * main_difference(variable, cat);
+      current_thresholds[cat] = proposed_thresholds[cat];
+  }
+  proposed_thresholds[category] =
+    thresholds(variable, category) +
+    .5 * proposed_state;
 
-        denominator_proposed = std::exp(-bound);
-        denominator_current = std::exp(-bound);
-        for(int cat = 0; cat < no_categories[variable]; cat++) {
-          score = cat + 1;
-          exponent = score * rest_score - bound;
-          denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-          denominator_current += std::exp(exponent + current_thresholds[cat]);
-        }
+  //Compute the contribution for group 2
+  for(int person = 0; person < no_persons_gr2; person++) {
+    rest_score = rest_matrix_gr2(person, variable);
+    if(rest_score > 0) {
+      bound = no_categories[variable] * rest_score;
+    } else {
+      bound = 0.0;
+    }
 
-        pseudolikelihood_ratio -= std::log(denominator_proposed);
-        pseudolikelihood_ratio += std::log(denominator_current);
-      }
-      return pseudolikelihood_ratio;
+    denominator_proposed = std::exp(-bound);
+    denominator_current = std::exp(-bound);
+    for(int cat = 0; cat < no_categories[variable]; cat++) {
+      score = cat + 1;
+      exponent = score * rest_score - bound;
+      denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
+      denominator_current += std::exp(exponent + current_thresholds[cat]);
+    }
+
+    pseudolikelihood_ratio -= std::log(denominator_proposed);
+    pseudolikelihood_ratio += std::log(denominator_current);
+  }
+  return pseudolikelihood_ratio;
 }
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the category threshold
 //  difference parameter -- regular ordinal variable
 // ----------------------------------------------------------------------------|
-
 void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
                                                 NumericMatrix main_difference,
                                                 IntegerMatrix n_cat_obs_gr1,
@@ -1243,19 +1239,18 @@ void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
                                 proposal_sd_main_difference(variable, category));
 
       log_prob = compare_log_pseudolikelihood_ratio_main_difference(thresholds,
-                                                                    main_difference,
-                                                                    n_cat_obs_gr1,
-                                                                    n_cat_obs_gr2,
-                                                                    no_categories,
-                                                                    no_persons_gr1,
-                                                                    no_persons_gr2,
-                                                                    variable,
-                                                                    category,
-                                                                    proposed_state,
-                                                                    current_state,
-                                                                    rest_matrix_gr1,
-                                                                    rest_matrix_gr2);
-
+                                                                      main_difference,
+                                                                      n_cat_obs_gr1,
+                                                                      n_cat_obs_gr2,
+                                                                      no_categories,
+                                                                      no_persons_gr1,
+                                                                      no_persons_gr2,
+                                                                      variable,
+                                                                      category,
+                                                                      proposed_state,
+                                                                      current_state,
+                                                                      rest_matrix_gr1,
+                                                                      rest_matrix_gr2);
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
@@ -1264,32 +1259,31 @@ void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
         main_difference(variable, category) = proposed_state;
       }
 
-      // Update the Robbins-Monro parameters
-      if(log_prob > 0) {
-        log_prob = 1;
-      } else {
-        log_prob = std::exp(log_prob);
-      }
+     // Update the Robbins-Monro parameters
+     if(log_prob > 0) {
+       log_prob = 1;
+     } else {
+       log_prob = std::exp(log_prob);
+     }
 
-      double update_proposal_sd =
-        proposal_sd_main_difference(variable, category) +
-        (log_prob - target_ar) * std::exp(-log(t) * phi);
+     double update_proposal_sd =
+       proposal_sd_main_difference(variable, category) +
+       (log_prob - target_ar) * std::exp(-log(t) * phi);
 
-      if(std::isnan(update_proposal_sd) == true) {
-        update_proposal_sd = 1.0;
-      }
+     if(std::isnan(update_proposal_sd) == true) {
+       update_proposal_sd = 1.0;
+     }
 
-      if(update_proposal_sd < epsilon_lo) {
-        update_proposal_sd = epsilon_lo;
-      } else if (update_proposal_sd > epsilon_hi) {
-        update_proposal_sd = epsilon_hi;
-      }
+     if(update_proposal_sd < epsilon_lo) {
+       update_proposal_sd = epsilon_lo;
+     } else if (update_proposal_sd > epsilon_hi) {
+       update_proposal_sd = epsilon_hi;
+     }
 
-      proposal_sd_main_difference(variable, category) = update_proposal_sd;
+     proposal_sd_main_difference(variable, category) = update_proposal_sd;
     }
   }
 }
-
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the overall category
@@ -2318,11 +2312,11 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
     obs_score1 = observations_gr1(person, variable1);
     obs_score2 = observations_gr2(person, variable2);
 
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * .5 * delta_state;
+    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
     //variable 1 log pseudolikelihood ratio
     rest_score = rest_matrix_gr1(person, variable1) -
-      .5 * obs_score2 * current_state;
+      obs_score2 * current_state;
 
     if(rest_score > 0) {
       bound = no_categories[variable1] * rest_score;
@@ -2341,117 +2335,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         score * rest_score -
         bound;
         denominator_prop +=
-          std::exp(exponent + score * obs_score2 * .5 * proposed_state);
+          std::exp(exponent + score * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + score * obs_score2 * .5 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories[variable1] + 1; category++) {
-        exponent = (thresholds(variable1, 0) -
-          .5 * main_difference(variable1, 0)) *
-          category;
-        exponent += (thresholds(variable1, 1) -
-          .5 * main_difference(variable1, 1)) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score2 * .5 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score2 * .5 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-
-    if(variable1 != variable2) {
-      //variable 2 log pseudolikelihood ratio
-      obs_score1 = observations_gr1(person, variable2);
-      obs_score2 = observations_gr2(person, variable1);
-
-      pseudolikelihood_ratio += obs_score1 * obs_score2 * .5 * delta_state;
-
-      rest_score = rest_matrix_gr1(person, variable2) -
-        .5 * obs_score2 * current_state;
-
-      if(rest_score > 0) {
-        bound = no_categories[variable2] * rest_score;
-      } else {
-        bound = 0.0;
-      }
-
-      if(variable_bool[variable2] == true) {
-        //Regular binary or ordinal MRF variable ---------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int category = 0; category < no_categories[variable2]; category++) {
-          score = category + 1;
-          exponent = (thresholds(variable2, category) -
-            .5 * main_difference(variable2, category)) +
-          score * rest_score -
-          bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score2 * .5 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score2 * .5 * current_state);
-        }
-      } else {
-        //Blume-Capel ordinal MRF variable ---------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int category = 0; category < no_categories[variable2] + 1; category++) {
-          exponent = (thresholds(variable2, 0) -
-            .5 * main_difference(variable2, 0)) *
-            category;
-          exponent += (thresholds(variable2, 1) -
-            .5 * main_difference(variable2, 1)) *
-            (category - reference_category[variable2]) *
-            (category - reference_category[variable2]);
-          exponent+=  category * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + category * obs_score2 * .5 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + category * obs_score2 * .5 * current_state);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
-    }
-  }
-
-  for(int person = 0; person < no_persons_gr2; person++) {
-    obs_score1 = observations_gr2(person, variable1);
-    obs_score2 = observations_gr1(person, variable2);
-
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * .5 * delta_state;
-
-    //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable1) -
-      .5 * obs_score2 * current_state;
-
-    if(rest_score > 0) {
-      bound = no_categories[variable1] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    if(variable_bool[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds(variable1, category) -
-          .5 * main_difference(variable1, category) +
-        score * rest_score -
-        bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score2 * .5 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score2 * .5 * current_state);
+          std::exp(exponent + score * obs_score2 * current_state);
       }
     } else {
       //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2467,9 +2353,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
         (category - reference_category[variable1]);
         exponent+= category * rest_score - bound;
         denominator_prop +=
-          std::exp(exponent + category * obs_score2 * .5 * proposed_state);
+          std::exp(exponent + category * obs_score2 * proposed_state);
         denominator_curr +=
-          std::exp(exponent + category * obs_score2 * .5 * current_state);
+          std::exp(exponent + category * obs_score2 * current_state);
       }
     }
     pseudolikelihood_ratio -= std::log(denominator_prop);
@@ -2477,13 +2363,13 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
 
     if(variable1 != variable2) {
       //variable 2 log pseudolikelihood ratio
-      obs_score1 = observations_gr2(person, variable2);
-      obs_score2 = observations_gr1(person, variable1);
+      obs_score1 = observations_gr1(person, variable2);
+      obs_score2 = observations_gr2(person, variable1);
 
-      pseudolikelihood_ratio += obs_score1 * obs_score2 * .5 * delta_state;
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
-      rest_score = rest_matrix_gr2(person, variable2) -
-        .5 * obs_score2 * current_state;
+      rest_score = rest_matrix_gr1(person, variable2) -
+        obs_score2 * current_state;
 
       if(rest_score > 0) {
         bound = no_categories[variable2] * rest_score;
@@ -2502,9 +2388,9 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           score * rest_score -
           bound;
           denominator_prop +=
-            std::exp(exponent + score * obs_score2 * .5 * proposed_state);
+            std::exp(exponent + score * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + score * obs_score2 * .5 * current_state);
+            std::exp(exponent + score * obs_score2 * current_state);
         }
       } else {
         //Blume-Capel ordinal MRF variable ---------------------------------------
@@ -2520,9 +2406,117 @@ double compare_log_pseudolikelihood_ratio_cross_lagged(NumericMatrix thresholds,
           (category - reference_category[variable2]);
           exponent+=  category * rest_score - bound;
           denominator_prop +=
-            std::exp(exponent + category * obs_score2 * .5 * proposed_state);
+            std::exp(exponent + category * obs_score2 * proposed_state);
           denominator_curr +=
-            std::exp(exponent + category * obs_score2 * .5 * current_state);
+            std::exp(exponent + category * obs_score2 * current_state);
+        }
+      }
+      pseudolikelihood_ratio -= std::log(denominator_prop);
+      pseudolikelihood_ratio += std::log(denominator_curr);
+    }
+  }
+
+  for(int person = 0; person < no_persons_gr2; person++) {
+    obs_score1 = observations_gr2(person, variable1);
+    obs_score2 = observations_gr1(person, variable2);
+
+    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+
+    //variable 1 log pseudolikelihood ratio
+    rest_score = rest_matrix_gr2(person, variable1) -
+      obs_score2 * current_state;
+
+    if(rest_score > 0) {
+      bound = no_categories[variable1] * rest_score;
+    } else {
+      bound = 0.0;
+    }
+
+    if(variable_bool[variable1] == true) {
+      //Regular binary or ordinal MRF variable ---------------------------------
+      denominator_prop = std::exp(-bound);
+      denominator_curr = std::exp(-bound);
+      for(int category = 0; category < no_categories[variable1]; category++) {
+        score = category + 1;
+        exponent = thresholds(variable1, category) -
+          .5 * main_difference(variable1, category) +
+        score * rest_score -
+        bound;
+        denominator_prop +=
+          std::exp(exponent + score * obs_score2 * proposed_state);
+        denominator_curr +=
+          std::exp(exponent + score * obs_score2 * current_state);
+      }
+    } else {
+      //Blume-Capel ordinal MRF variable ---------------------------------------
+      denominator_prop = 0.0;
+      denominator_curr = 0.0;
+      for(int category = 0; category < no_categories[variable1] + 1; category++) {
+        exponent = (thresholds(variable1, 0) -
+          .5 * main_difference(variable1, 0)) *
+        category;
+        exponent += (thresholds(variable1, 1) -
+          .5 * main_difference(variable1, 1)) *
+        (category - reference_category[variable1]) *
+        (category - reference_category[variable1]);
+        exponent+= category * rest_score - bound;
+        denominator_prop +=
+          std::exp(exponent + category * obs_score2 * proposed_state);
+        denominator_curr +=
+          std::exp(exponent + category * obs_score2 * current_state);
+      }
+    }
+    pseudolikelihood_ratio -= std::log(denominator_prop);
+    pseudolikelihood_ratio += std::log(denominator_curr);
+
+    if(variable1 != variable2) {
+      //variable 2 log pseudolikelihood ratio
+      obs_score1 = observations_gr2(person, variable2);
+      obs_score2 = observations_gr1(person, variable1);
+
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+
+      rest_score = rest_matrix_gr2(person, variable2) -
+        obs_score2 * current_state;
+
+      if(rest_score > 0) {
+        bound = no_categories[variable2] * rest_score;
+      } else {
+        bound = 0.0;
+      }
+
+      if(variable_bool[variable2] == true) {
+        //Regular binary or ordinal MRF variable ---------------------------------
+        denominator_prop = std::exp(-bound);
+        denominator_curr = std::exp(-bound);
+        for(int category = 0; category < no_categories[variable2]; category++) {
+          score = category + 1;
+          exponent = (thresholds(variable2, category) -
+            .5 * main_difference(variable2, category)) +
+          score * rest_score -
+          bound;
+          denominator_prop +=
+            std::exp(exponent + score * obs_score2 * proposed_state);
+          denominator_curr +=
+            std::exp(exponent + score * obs_score2 * current_state);
+        }
+      } else {
+        //Blume-Capel ordinal MRF variable ---------------------------------------
+        denominator_prop = 0.0;
+        denominator_curr = 0.0;
+        for(int category = 0; category < no_categories[variable2] + 1; category++) {
+          exponent = (thresholds(variable2, 0) -
+            .5 * main_difference(variable2, 0)) *
+          category;
+          exponent += (thresholds(variable2, 1) -
+            .5 * main_difference(variable2, 1)) *
+          (category - reference_category[variable2]) *
+          (category - reference_category[variable2]);
+          exponent+=  category * rest_score - bound;
+          denominator_prop +=
+            std::exp(exponent + category * obs_score2 * proposed_state);
+          denominator_curr +=
+            std::exp(exponent + category * obs_score2 * current_state);
         }
       }
       pseudolikelihood_ratio -= std::log(denominator_prop);
@@ -2668,34 +2662,37 @@ List compare_gibbs_step_gm(NumericMatrix interactions,
                            IntegerMatrix sufficient_blume_capel_gr2,
                            double threshold_alpha,
                            double threshold_beta,
-                           bool paired) {
+                           bool paired,
+                           bool difference_selection) {
 
   //Between model move for differences in interaction parameters
-  compare_metropolis_pairwise_difference_between_model(thresholds,
-                                                       pairwise_difference,
-                                                       main_difference,
-                                                       observations_gr1,
-                                                       observations_gr2,
-                                                       no_categories,
-                                                       indicator,
-                                                       proposal_sd_pairwise_difference,
-                                                       pairwise_difference_scale,
-                                                       inclusion_probability_difference,
-                                                       no_persons_gr1,
-                                                       no_persons_gr2,
-                                                       no_interactions,
-                                                       index,
-                                                       rest_matrix_gr1,
-                                                       rest_matrix_gr2,
-                                                       phi,
-                                                       target_ar,
-                                                       t,
-                                                       epsilon_lo,
-                                                       epsilon_hi,
-                                                       variable_bool,
-                                                       reference_category);
+  if(difference_selection == true) {
+    compare_metropolis_pairwise_difference_between_model(thresholds,
+                                                         pairwise_difference,
+                                                         main_difference,
+                                                         observations_gr1,
+                                                         observations_gr2,
+                                                         no_categories,
+                                                         indicator,
+                                                         proposal_sd_pairwise_difference,
+                                                         pairwise_difference_scale,
+                                                         inclusion_probability_difference,
+                                                         no_persons_gr1,
+                                                         no_persons_gr2,
+                                                         no_interactions,
+                                                         index,
+                                                         rest_matrix_gr1,
+                                                         rest_matrix_gr2,
+                                                         phi,
+                                                         target_ar,
+                                                         t,
+                                                         epsilon_lo,
+                                                         epsilon_hi,
+                                                         variable_bool,
+                                                         reference_category);
+  }
 
-  //Within model move for differences in interaction parameters
+  // //Within model move for differences in interaction parameters
   compare_metropolis_pairwise_difference(thresholds,
                                          pairwise_difference,
                                          main_difference,
@@ -2741,25 +2738,26 @@ List compare_gibbs_step_gm(NumericMatrix interactions,
                                  reference_category);
 
 
-
   //Update threshold parameters
   for(int variable = 0; variable < no_variables; variable++) {
     if(variable_bool[variable] == true) {
-      //Between model move for the differences in category thresholds
-      compare_metropolis_main_difference_regular_between_model(thresholds,
-                                                               main_difference,
-                                                               n_cat_obs_gr1,
-                                                               n_cat_obs_gr2,
-                                                               no_categories,
-                                                               indicator,
-                                                               proposal_sd_main_difference,
-                                                               main_difference_scale,
-                                                               no_persons_gr1,
-                                                               no_persons_gr2,
-                                                               variable,
-                                                               rest_matrix_gr1,
-                                                               rest_matrix_gr2,
-                                                               inclusion_probability_difference);
+      if(difference_selection == true) {
+        //Between model move for the differences in category thresholds
+        compare_metropolis_main_difference_regular_between_model(thresholds,
+                                                                 main_difference,
+                                                                 n_cat_obs_gr1,
+                                                                 n_cat_obs_gr2,
+                                                                 no_categories,
+                                                                 indicator,
+                                                                 proposal_sd_main_difference,
+                                                                 main_difference_scale,
+                                                                 no_persons_gr1,
+                                                                 no_persons_gr2,
+                                                                 variable,
+                                                                 rest_matrix_gr1,
+                                                                 rest_matrix_gr2,
+                                                                 inclusion_probability_difference);
+      }
 
       //Within model move for the differences in category thresholds
       compare_metropolis_main_difference_regular(thresholds,
@@ -2794,23 +2792,26 @@ List compare_gibbs_step_gm(NumericMatrix interactions,
                                            threshold_beta,
                                            rest_matrix_gr1,
                                            rest_matrix_gr2);
+
     } else {
       //Between model move for the differences in category thresholds
-      compare_metropolis_main_difference_blumecapel_between_model(thresholds,
-                                                                  main_difference,
-                                                                  sufficient_blume_capel_gr1,
-                                                                  sufficient_blume_capel_gr1,
-                                                                  no_categories,
-                                                                  indicator,
-                                                                  proposal_sd_main_difference,
-                                                                  main_difference_scale,
-                                                                  no_persons_gr1,
-                                                                  no_persons_gr2,
-                                                                  variable,
-                                                                  rest_matrix_gr1,
-                                                                  rest_matrix_gr2,
-                                                                  inclusion_probability_difference,
-                                                                  reference_category);
+      if(difference_selection == true) {
+        compare_metropolis_main_difference_blumecapel_between_model(thresholds,
+                                                                    main_difference,
+                                                                    sufficient_blume_capel_gr1,
+                                                                    sufficient_blume_capel_gr1,
+                                                                    no_categories,
+                                                                    indicator,
+                                                                    proposal_sd_main_difference,
+                                                                    main_difference_scale,
+                                                                    no_persons_gr1,
+                                                                    no_persons_gr2,
+                                                                    variable,
+                                                                    rest_matrix_gr1,
+                                                                    rest_matrix_gr2,
+                                                                    inclusion_probability_difference,
+                                                                    reference_category);
+      }
 
       //Within model move for the differences in category thresholds
       compare_metropolis_main_difference_blumecapel(thresholds,
@@ -2852,14 +2853,9 @@ List compare_gibbs_step_gm(NumericMatrix interactions,
                                               t,
                                               epsilon_lo,
                                               epsilon_hi);
+
     }
   }
-
-
-
-
-
-
 
   if(paired == true) {
     compare_metropolis_cross_lagged(thresholds,
@@ -2931,7 +2927,8 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
                            IntegerVector reference_category,
                            bool paired,
                            bool save = false,
-                           bool display_progress = false) {
+                           bool display_progress = false,
+                           bool difference_selection = true) {
   int cntr;
   int no_variables = observations_gr1.ncol();
   int no_persons_gr1 = observations_gr1.nrow();
@@ -3141,7 +3138,8 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
                                      sufficient_blume_capel_gr2,
                                      threshold_alpha,
                                      threshold_beta,
-                                     paired);
+                                     paired,
+                                     difference_selection);
 
     IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions = out["interactions"];
@@ -3155,34 +3153,36 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
     NumericMatrix proposal_sd_pairwise_difference = out["proposal_sd_interaction_difference"];
     NumericMatrix proposal_sd_main_difference = out["proposal_sd_main_difference"];
 
-    if(pairwise_difference_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          sumG += indicator(i, j);
+    if(difference_selection == true) {
+      if(pairwise_difference_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            sumG += indicator(i, j);
+          }
+        }
+        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
+                                      pairwise_beta_bernoulli_beta + no_interactions - sumG);
+
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            inclusion_probability_difference(i, j) = probability;
+            inclusion_probability_difference(j, i) = probability;
+          }
         }
       }
-      double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                    pairwise_beta_bernoulli_beta + no_interactions - sumG);
 
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          inclusion_probability_difference(i, j) = probability;
-          inclusion_probability_difference(j, i) = probability;
+      if(main_difference_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables; i++) {
+          sumG += indicator(i, i);
         }
-      }
-    }
+        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
+                                      main_beta_bernoulli_beta + no_variables - sumG);
 
-    if(main_difference_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables; i++) {
-        sumG += indicator(i, i);
-      }
-      double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                    main_beta_bernoulli_beta + no_variables - sumG);
-
-      for(int i = 0; i < no_variables; i++) {
-        inclusion_probability_difference(i, i) = probability;
+        for(int i = 0; i < no_variables; i++) {
+          inclusion_probability_difference(i, i) = probability;
+        }
       }
     }
   }
@@ -3292,7 +3292,8 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
                                      sufficient_blume_capel_gr2,
                                      threshold_alpha,
                                      threshold_beta,
-                                     paired);
+                                     paired,
+                                     difference_selection);
 
     IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions = out["interactions"];
@@ -3306,34 +3307,36 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
     NumericMatrix proposal_sd_pairwise_difference = out["proposal_sd_interaction_difference"];
     NumericMatrix proposal_sd_main_difference = out["proposal_sd_main_difference"];
 
-    if(pairwise_difference_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          sumG += indicator(i, j);
+    if(difference_selection == true) {
+      if(pairwise_difference_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            sumG += indicator(i, j);
+          }
+        }
+        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
+                                      pairwise_beta_bernoulli_beta + no_interactions - sumG);
+
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            inclusion_probability_difference(i, j) = probability;
+            inclusion_probability_difference(j, i) = probability;
+          }
         }
       }
-      double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                    pairwise_beta_bernoulli_beta + no_interactions - sumG);
 
-      for(int i = 0; i < no_variables - 1; i++) {
-        for(int j = i + 1; j < no_variables; j++) {
-          inclusion_probability_difference(i, j) = probability;
-          inclusion_probability_difference(j, i) = probability;
+      if(main_difference_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < no_variables; i++) {
+          sumG += indicator(i, i);
         }
-      }
-    }
+        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
+                                      main_beta_bernoulli_beta + no_variables - sumG);
 
-    if(main_difference_prior == "Beta-Bernoulli") {
-      int sumG = 0;
-      for(int i = 0; i < no_variables; i++) {
-        sumG += indicator(i, i);
-      }
-      double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                    main_beta_bernoulli_beta + no_variables - sumG);
-
-      for(int i = 0; i < no_variables; i++) {
-        inclusion_probability_difference(i, i) = probability;
+        for(int i = 0; i < no_variables; i++) {
+          inclusion_probability_difference(i, i) = probability;
+        }
       }
     }
 

@@ -104,6 +104,10 @@
 #' \code{y}. Note that \code{y} and \code{y} are recoded independently, although
 #' the function checks that the number of different responses observed matches
 #' between \code{y} and \code{x}.
+#' @param difference_selection Logical. If \code{TRUE}, \code{bgmCompare} will
+#' model the inclusion or exclusion of the between samples parameter
+#' differences; if \code{FALSE}, it will model and estimate all between-sample
+#' parameter differences. Default is \code{TRUE}.
 #' @param paired Logical, if \code{TRUE} models the case-specific dependence using
 #' a paired-samples design; if \code{FALSE} treats the groups as independent.
 #' Default is \code{FALSE}.
@@ -122,20 +126,20 @@
 #' @param pairwise_difference_scale The scale of the Cauchy distribution that is
 #' used as the prior for the pairwise difference parameters. Defaults to
 #' \code{0.1}.
-#' @param threshold_difference_scale The scale of the Cauchy distribution that
+#' @param main_difference_scale The scale of the Cauchy distribution that
 #' is used as the prior for the threshold difference parameters. Defaults to
 #' \code{0.1}.
 #' @param pairwise_difference_prior A character string that specifies the model
 #' to use for the  inclusion probability of pairwise differences. Options are
 #' "Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".
-#' @param threshold_difference_prior A character string that specifies the model
+#' @param main_difference_prior A character string that specifies the model
 #' to use for the  inclusion probability of threshold differences. Options are
 #' "Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".
 #' @param pairwise_difference_probability The inclusion probability for a
 #' pairwise difference in the Bernoulli model. Can be a single probability or a
 #' matrix of \code{p} rows and \code{p} columns specifying the probability of a
 #' difference for each edge pair. Defaults to 0.5.
-#' @param threshold_difference_probability The inclusion probability for a
+#' @param main_difference_probability The inclusion probability for a
 #' threshold difference in the Bernoulli model. Defaults to 0.5, implying no
 #' prior preference. Can be a single probability or a matrix of \code{p} rows and
 #' \code{max(m)} columns specifying the probability of a difference for each
@@ -254,11 +258,12 @@
 #' @export
 bgmCompare = function(x,
                       y,
+                      difference_selection = TRUE,
                       paired = FALSE,
                       variable_type = "ordinal",
                       reference_category,
-                      pairwise_difference_scale = 0.1,
-                      main_difference_scale = 0.1,
+                      pairwise_difference_scale = 2.5,
+                      main_difference_scale = 2.5,
                       pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
                       main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
                       pairwise_difference_probability = 0.5,
@@ -303,6 +308,7 @@ bgmCompare = function(x,
   #Check model input -----------------------------------------------------------
   model = check_compare_model(x = x,
                               y = y,
+                              difference_selection = difference_selection,
                               paired = paired,
                               variable_type = variable_type,
                               reference_category = reference_category,
@@ -452,7 +458,8 @@ bgmCompare = function(x,
                               reference_category = reference_category,
                               paired = paired,
                               save = save,
-                              display_progress = display_progress)
+                              display_progress = display_progress,
+                              difference_selection = difference_selection)
 
   #Preparing the output --------------------------------------------------------
   arguments = list(

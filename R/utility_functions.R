@@ -198,6 +198,7 @@ check_model = function(x,
 
 check_compare_model = function(x,
                                y,
+                               difference_selection,
                                paired,
                                variable_type,
                                reference_category,
@@ -340,103 +341,113 @@ check_compare_model = function(x,
     stop("Parameter threshold_beta needs to be positive.")
 
   #Check set-up for the Bayesian difference selection model --------------------
-  pairwise_difference_prior = match.arg(pairwise_difference_prior)
-  if(pairwise_difference_prior == "Bernoulli") {
-    if(length(pairwise_difference_probability) == 1) {
-      pairwise_difference_inclusion_probability = pairwise_difference_probability[1]
-      if(is.na(pairwise_difference_inclusion_probability) || is.null(pairwise_difference_inclusion_probability))
-        stop("There is no value specified for the inclusion probability.")
-      if(pairwise_difference_inclusion_probability <= 0)
-        stop("The inclusion probability needs to be positive.")
-      if(pairwise_difference_inclusion_probability > 1)
-        stop("The inclusion probability cannot exceed the value one.")
-      if(pairwise_difference_inclusion_probability == 1)
-        stop("The inclusion probability cannot equal one.")
+  difference_selection = as.logical(difference_selection)
+  if(is.na(difference_selection))
+    stop("The parameter difference_selection needs to be TRUE or FALSE.")
+  if(difference_selection == TRUE) {
+    pairwise_difference_prior = match.arg(pairwise_difference_prior)
+    if(pairwise_difference_prior == "Bernoulli") {
+      if(length(pairwise_difference_probability) == 1) {
+        pairwise_difference_inclusion_probability = pairwise_difference_probability[1]
+        if(is.na(pairwise_difference_inclusion_probability) || is.null(pairwise_difference_inclusion_probability))
+          stop("There is no value specified for the inclusion probability.")
+        if(pairwise_difference_inclusion_probability <= 0)
+          stop("The inclusion probability needs to be positive.")
+        if(pairwise_difference_inclusion_probability > 1)
+          stop("The inclusion probability cannot exceed the value one.")
+        if(pairwise_difference_inclusion_probability == 1)
+          stop("The inclusion probability cannot equal one.")
 
-      inclusion_probability_difference = matrix(pairwise_difference_inclusion_probability,
-                                                nrow = ncol(x),
-                                                ncol = ncol(x))
-    } else {
-      if(!inherits(pairwise_difference_probability, what = "matrix") &&
-         !inherits(pairwise_difference_probability, what = "data.frame"))
-        stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
-
-      if(inherits(pairwise_difference_probability, what = "data.frame")) {
-        inclusion_probability_difference = data.matrix(pairwise_difference_probability)
+        inclusion_probability_difference = matrix(pairwise_difference_inclusion_probability,
+                                                  nrow = ncol(x),
+                                                  ncol = ncol(x))
       } else {
-        inclusion_probability_difference = pairwise_difference_probability
+        if(!inherits(pairwise_difference_probability, what = "matrix") &&
+           !inherits(pairwise_difference_probability, what = "data.frame"))
+          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+
+        if(inherits(pairwise_difference_probability, what = "data.frame")) {
+          inclusion_probability_difference = data.matrix(pairwise_difference_probability)
+        } else {
+          inclusion_probability_difference = pairwise_difference_probability
+        }
+        if(!isSymmetric(inclusion_probability_difference))
+          stop("The inclusion probability matrix needs to be symmetric.")
+        if(ncol(inclusion_probability_difference) != ncol(x))
+          stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+
+        if(anyNA(inclusion_probability_difference[lower.tri(inclusion_probability_difference)]) ||
+           any(is.null(inclusion_probability_difference[lower.tri(inclusion_probability_difference)])))
+          stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+        if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] <= 0))
+          stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
+                      "inclusion probabilities need to be positive."))
+        if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] >= 1))
+          stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
+                      "inclusion probabilities cannot exceed or equal the value one."))
       }
-      if(!isSymmetric(inclusion_probability_difference))
-        stop("The inclusion probability matrix needs to be symmetric.")
-      if(ncol(inclusion_probability_difference) != ncol(x))
-        stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
 
-      if(anyNA(inclusion_probability_difference[lower.tri(inclusion_probability_difference)]) ||
-         any(is.null(inclusion_probability_difference[lower.tri(inclusion_probability_difference)])))
-        stop("One or more elements of the elements in inclusion probability matrix are not specified.")
-      if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] <= 0))
-        stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
-                    "inclusion probabilities need to be positive."))
-      if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] >= 1))
-        stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
-                    "inclusion probabilities cannot exceed or equal the value one."))
-    }
+      if(length(main_difference_probability) == 1) {
+        main_difference_probability = main_difference_probability[1]
+        if(is.na(main_difference_probability) || is.null(main_difference_probability))
+          stop("There is no value specified for the inclusion probability.")
+        if(main_difference_probability <= 0)
+          stop("The inclusion probability needs to be positive.")
+        if(main_difference_probability > 1)
+          stop("The inclusion probability cannot exceed the value one.")
+        if(main_difference_probability == 1)
+          stop("The inclusion probability cannot equal one.")
 
-    if(length(main_difference_probability) == 1) {
-      main_difference_probability = main_difference_probability[1]
-      if(is.na(main_difference_probability) || is.null(main_difference_probability))
-        stop("There is no value specified for the inclusion probability.")
-      if(main_difference_probability <= 0)
-        stop("The inclusion probability needs to be positive.")
-      if(main_difference_probability > 1)
-        stop("The inclusion probability cannot exceed the value one.")
-      if(main_difference_probability == 1)
-        stop("The inclusion probability cannot equal one.")
+        diag(inclusion_probability_difference) = main_difference_probability
+      } else {
+        if(!inherits(main_difference_probability, what = "matrix") &&
+           !inherits(main_difference_probability, what = "data.frame"))
+          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
 
-      diag(inclusion_probability_difference) = main_difference_probability
+        if(inherits(main_difference_probability, what = "data.frame")) {
+          main_difference_probability = data.matrix(main_difference_probability)
+        }
+        main_difference_probability = as.vector(main_difference_probability)
+
+        if(length(main_difference_probability) != ncol(x))
+          stop(paste0("There need to be as many inclusion probabilities for the category threshold \n",
+                      " differences as variables (columns) in the matrix x."))
+
+        if(anyNA(main_difference_probability) || any(is.null(main_difference_probability)))
+          stop("One or more inclusion probabilities for the category thresholds are not specified.")
+        if(any(main_difference_probability <= 0))
+          stop(paste0("One or more inclusion probabilities for the category thresholds contains negative or zero values;\n",
+                      "inclusion probabilities need to be positive."))
+        if(any(main_difference_probability >= 1))
+          stop(paste0("One or more inclusion probabilities for the category thresholds contains values greater than or equal to one;\n",
+                      "inclusion probabilities cannot exceed or equal the value one."))
+
+        diag(inclusion_probability_difference) = main_difference_probability
+      }
     } else {
-      if(!inherits(main_difference_probability, what = "matrix") &&
-         !inherits(main_difference_probability, what = "data.frame"))
-        stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+      inclusion_probability_difference = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
+      if(pairwise_beta_bernoulli_alpha <= 0 || pairwise_beta_bernoulli_beta <= 0)
+        stop("The scale parameters of the beta distribution for the pairwise differences need to be positive.")
+      if(!is.finite(pairwise_beta_bernoulli_alpha) || !is.finite(pairwise_beta_bernoulli_beta))
+        stop("The scale parameters of the beta distribution for the pairwise differences need to be finite.")
+      if(is.na(pairwise_beta_bernoulli_alpha) || is.na(pairwise_beta_bernoulli_beta) ||
+         is.null(pairwise_beta_bernoulli_alpha) || is.null(pairwise_beta_bernoulli_beta))
+        stop("Values for both scale parameters of the beta distribution for the pairwise differences need to be specified.")
 
-      if(inherits(main_difference_probability, what = "data.frame")) {
-        main_difference_probability = data.matrix(main_difference_probability)
-      }
-      main_difference_probability = as.vector(main_difference_probability)
-
-      if(length(main_difference_probability) != ncol(x))
-        stop(paste0("There need to be as many inclusion probabilities for the category threshold \n",
-                    " differences as variables (columns) in the matrix x."))
-
-      if(anyNA(main_difference_probability) || any(is.null(main_difference_probability)))
-        stop("One or more inclusion probabilities for the category thresholds are not specified.")
-      if(any(main_difference_probability <= 0))
-        stop(paste0("One or more inclusion probabilities for the category thresholds contains negative or zero values;\n",
-                    "inclusion probabilities need to be positive."))
-      if(any(main_difference_probability >= 1))
-        stop(paste0("One or more inclusion probabilities for the category thresholds contains values greater than or equal to one;\n",
-                    "inclusion probabilities cannot exceed or equal the value one."))
-
-      diag(inclusion_probability_difference) = main_difference_probability
+      if(main_beta_bernoulli_alpha <= 0 || main_beta_bernoulli_beta <= 0)
+        stop("The scale parameters of the beta distribution for the differences in category thresholds need to be positive.")
+      if(!is.finite(main_beta_bernoulli_alpha) || !is.finite(main_beta_bernoulli_beta))
+        stop("The scale parameters of the beta distribution for the differences in category thresholds need to be finite.")
+      if(is.na(main_beta_bernoulli_alpha) || is.na(main_beta_bernoulli_beta) ||
+         is.null(main_beta_bernoulli_alpha) || is.null(main_beta_bernoulli_beta))
+        stop("Values for both scale parameters of the beta distribution for the differences in category thresholds need to be specified.")
     }
   } else {
-    inclusion_probability_difference = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-    if(pairwise_beta_bernoulli_alpha <= 0 || pairwise_beta_bernoulli_beta <= 0)
-      stop("The scale parameters of the beta distribution for the pairwise differences need to be positive.")
-    if(!is.finite(pairwise_beta_bernoulli_alpha) || !is.finite(pairwise_beta_bernoulli_beta))
-      stop("The scale parameters of the beta distribution for the pairwise differences need to be finite.")
-    if(is.na(pairwise_beta_bernoulli_alpha) || is.na(pairwise_beta_bernoulli_beta) ||
-       is.null(pairwise_beta_bernoulli_alpha) || is.null(pairwise_beta_bernoulli_beta))
-      stop("Values for both scale parameters of the beta distribution for the pairwise differences need to be specified.")
-
-    if(main_beta_bernoulli_alpha <= 0 || main_beta_bernoulli_beta <= 0)
-      stop("The scale parameters of the beta distribution for the differences in category thresholds need to be positive.")
-    if(!is.finite(main_beta_bernoulli_alpha) || !is.finite(main_beta_bernoulli_beta))
-      stop("The scale parameters of the beta distribution for the differences in category thresholds need to be finite.")
-    if(is.na(main_beta_bernoulli_alpha) || is.na(main_beta_bernoulli_beta) ||
-       is.null(main_beta_bernoulli_alpha) || is.null(main_beta_bernoulli_beta))
-      stop("Values for both scale parameters of the beta distribution for the differences in category thresholds need to be specified.")
+    main_difference_prior = "Not applicable"
+    pairwise_difference_prior = "Not applicable"
+    inclusion_probability_difference = matrix(0.5, 1, 1)
   }
+
 
   return(list(variable_bool = variable_bool,
               reference_category = reference_category,
@@ -732,11 +743,6 @@ compare_reformat_data = function(x,
     unq_vls_y = sort(unique(y[,  node]))
     mx_vl_y = length(unq_vls_y)
 
-    if(mx_vl_x != mx_vl_y)
-      stop(paste0("The number of distinct responses that are observed for variable ",
-                  node,
-                  " differs between the two groups."))
-
     # Check if observed responses are not all unique ---------------------------
     if(mx_vl_x == nrow(x))
       stop(paste0("Only unique responses observed for variable ",
@@ -747,70 +753,55 @@ compare_reformat_data = function(x,
                   node,
                   " in the matrix y (group 1). We expect >= 1 observations per category."))
 
+    if(mx_vl_x != mx_vl_y && sum(is.na(match(unq_vls_x, unq_vls_y))) > 0)
+      stop(paste0("The observed category responses for variable ",
+                  node,
+                  " differ between the two samples."))
+
+    unq_vls = sort(unique(c(unq_vls_x, unq_vls_y)))
     # Recode data --------------------------------------------------------------
     if(variable_bool[node]) {#Regular ordinal variable
       # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
       z = x[, node]
       cntr = 0
-      for(value in unq_vls_x) {
+      for(value in unq_vls) {
         x[z == value, node] = cntr
         cntr = cntr + 1
       }
 
       z = y[, node]
       cntr = 0
-      for(value in unq_vls_y) {
+      for(value in unq_vls) {
         y[z == value, node] = cntr
         cntr = cntr + 1
       }
     } else {#Blume-Capel ordinal variable
       # Check if observations are integer or can be recoded --------------------
-      if (any(abs(unq_vls_x - round(unq_vls_x)) > .Machine$double.eps)) {
-        int_unq_vls_x = unique(as.integer(unq_vls_x))
-        if(anyNA(int_unq_vls_x)) {
+      if (any(abs(unq_vls - round(unq_vls)) > .Machine$double.eps)) {
+        int_unq_vls = unique(as.integer(unq_vls))
+        if(anyNA(int_unq_vls)) {
           stop(paste0(
             "The Blume-Capel model assumes that its observations are coded as integers, but \n",
-            "the category scores for node ", node, " in the matrix x were not integer. An \n",
-            "attempt to recode them to integer failed. Please inspect the documentation for \n",
-            "the base R function as.integer(), which bgm uses for recoding category scores."))
+            "the category scores for node ", node, " were not integer. An attempt to recode \n",
+            "them to integer failed. Please inspect the documentation for the base R function \n",
+            "as.integer(), which bgmCompare uses for recoding category scores."))
         }
 
         if(length(int_unq_vls_x) != length(unq_vls_x)) {
           stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
-                      "category scores of the observations for node ", node, " in the matrix x were not \n",
-                      "integers. An attempt to recode these observations as integers failed because, after\n",
-                      "rounding, a single integer value was used for several observed score categories."))
+                      "category scores of the observations for node ", node, " were not integers. An \n",
+                      "attempt to recode these observations as integers failed because, after rounding,\n",
+                      "a single integer value was used for several observed score categories."))
         }
         x[, node] = as.integer(x[, node])
-
-        if(reference_category[node] < 0 | reference_category[node] > max(x[, node]))
-          stop(paste0(
-            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
-            "range of observations in the matrix x."))
-      }
-      if (any(abs(unq_vls_y - round(unq_vls_y)) > .Machine$double.eps)) {
-        int_unq_vls_y = unique(as.integer(unq_vls_y))
-        if(anyNA(int_unq_vls_y)) {
-          stop(paste0(
-            "The Blume-Capel model assumes that its observations are coded as integers, but \n",
-            "the category scores for node ", node, " in the matrix y were not integer. An \n",
-            "attempt to recode them to integer failed. Please inspect the documentation for \n",
-            "the base R function as.integer(), which bgm uses for recoding category scores."))
-        }
-
-        if(length(int_unq_vls_y) != length(unq_vls_y)) {
-          stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
-                      "category scores of the observations for node ", node, " in the matrix y were not \n",
-                      "integers. An attempt to recode these observations as integers failed because, after\n",
-                      "rounding, a single integer value was used for several observed score categories."))
-        }
         y[, node] = as.integer(y[, node])
-
-        if(reference_category[node] < 0 | reference_category[node] > max(y[, node]))
-          stop(paste0(
-            "The reference category for the Blume-Capel variable ", node, "is outside its \n",
-            "range of observations in the matrix y."))
       }
+
+      if(reference_category[node] < min(c(x[, node], y[, node])) |
+         reference_category[node] > max(c(x[, node], y[, node])))
+        stop(paste0(
+          "The reference category for the Blume-Capel variable ", node, "is outside its \n",
+          "range of observations in the matrices x and y."))
 
       # Check if observations start at zero and recode otherwise ---------------
       if(min(c(x[, node], y[, node])) < 0) {
@@ -828,7 +819,7 @@ compare_reformat_data = function(x,
       check_range = length(unique(c(x[, node], y[, node])))
       if(check_range < 3)
         stop(paste0("The Blume-Capel is only available for variables with more than one category \n",
-                    "observed. There two or less categories observed for variable ",
+                    "observed. There are two or less categories observed for variable ",
                     node,
                     "."))
     }
@@ -851,7 +842,7 @@ compare_reformat_data = function(x,
     # Check to see if not all responses are in one category --------------------
     if(no_categories[node] == 0)
       stop(paste0("Only one value [",
-                  unq_vls,
+                  unq_vls_x,
                   "] was observed for variable ",
                   node,
                   "."))

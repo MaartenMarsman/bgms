@@ -8,11 +8,12 @@ between two groups using Bayesian edge selection.}
 bgmCompare(
   x,
   y,
+  difference_selection = TRUE,
   paired = FALSE,
   variable_type = "ordinal",
   reference_category,
-  pairwise_difference_scale = 0.1,
-  main_difference_scale = 0.1,
+  pairwise_difference_scale = 2.5,
+  main_difference_scale = 2.5,
   pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   pairwise_difference_probability = 0.5,
@@ -51,6 +52,11 @@ the paired samples design, the rows in \code{x} must match the rows in
 the function checks that the number of different responses observed matches
 between \code{y} and \code{x}.}
 
+\item{difference_selection}{Logical. If \code{TRUE}, \code{bgmCompare} will
+model the inclusion or exclusion of the between samples parameter
+differences; if \code{FALSE}, it will model and estimate all between-sample
+parameter differences. Default is \code{TRUE}.}
+
 \item{paired}{Logical, if \code{TRUE} models the case-specific dependence using
 a paired-samples design; if \code{FALSE} treats the groups as independent.
 Default is \code{FALSE}.}
@@ -73,14 +79,28 @@ is at least one variable of type "blume-capel".}
 used as the prior for the pairwise difference parameters. Defaults to
 \code{0.1}.}
 
+\item{main_difference_scale}{The scale of the Cauchy distribution that
+is used as the prior for the threshold difference parameters. Defaults to
+\code{0.1}.}
+
 \item{pairwise_difference_prior}{A character string that specifies the model
 to use for the  inclusion probability of pairwise differences. Options are
+"Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
+
+\item{main_difference_prior}{A character string that specifies the model
+to use for the  inclusion probability of threshold differences. Options are
 "Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
 
 \item{pairwise_difference_probability}{The inclusion probability for a
 pairwise difference in the Bernoulli model. Can be a single probability or a
 matrix of \code{p} rows and \code{p} columns specifying the probability of a
 difference for each edge pair. Defaults to 0.5.}
+
+\item{main_difference_probability}{The inclusion probability for a
+threshold difference in the Bernoulli model. Defaults to 0.5, implying no
+prior preference. Can be a single probability or a matrix of \code{p} rows and
+\code{max(m)} columns specifying the probability of a difference for each
+category threshold. Defaults to 0.5.}
 
 \item{pairwise_beta_bernoulli_alpha}{The alpha parameter of the beta distribution
 for the Beta-Bernoulli model for group differences in pairwise interactions.
@@ -138,20 +158,6 @@ posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
 \item{display_progress}{Should the function show a progress bar
 (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 The default is \code{TRUE}.}
-
-\item{threshold_difference_scale}{The scale of the Cauchy distribution that
-is used as the prior for the threshold difference parameters. Defaults to
-\code{0.1}.}
-
-\item{threshold_difference_prior}{A character string that specifies the model
-to use for the  inclusion probability of threshold differences. Options are
-"Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".}
-
-\item{threshold_difference_probability}{The inclusion probability for a
-threshold difference in the Bernoulli model. Defaults to 0.5, implying no
-prior preference. Can be a single probability or a matrix of \code{p} rows and
-\code{max(m)} columns specifying the probability of a difference for each
-category threshold. Defaults to 0.5.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list of class

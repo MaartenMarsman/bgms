@@ -12,7 +12,14 @@ mrfSampler(
   thresholds,
   variable_type = "ordinal",
   reference_category,
-  iter = 1000
+  iter = 1000,
+  compare = FALSE,
+  no_states_gr1,
+  no_states_gr2,
+  main_difference,
+  pairwise_difference,
+  paired = FALSE,
+  cross_lagged
 )
 }
 \arguments{
@@ -51,16 +58,43 @@ Can be any integer value between \code{0} and \code{no_categories} (or
 \item{iter}{The number of iterations used by the Gibbs sampler.
 The function provides the last state of the Gibbs sampler as output. By
 default set to \code{1e3}.}
+
+\item{compare}{Logical, if \code{TRUE} models the case-specific dependence using
+a paired-samples design; if \code{FALSE} treats the groups as independent.
+Default is \code{FALSE}.
+compare = FALSE,}
+
+\item{no_states_gr1}{The number of cases simulated for the first sample.}
+
+\item{no_states_gr2}{The number of cases simulated for the second sample. In
+the paired samples scenario this number is set equal to \code{no_states_gr1}.}
+
+\item{main_difference}{A \code{no_variables} by \code{max(no_categories)}
+matrix containing the difference in category thresholds between the two
+samples.}
+
+\item{pairwise_difference}{A \code{no_variables} by \code{no_variables}
+matrix containing the difference in pairwise interactions between the two
+samples.}
+
+\item{paired}{Logical, if \code{TRUE} the data come from a paired-samples
+design; if \code{FALSE} the data come from two independent samples. Default is
+\code{FALSE}.}
+
+\item{cross_lagged}{A \code{no_variables} by \code{no_variables} matrix with
+pairwise interactions between the two samples.}
 }
 \value{
-A \code{no_states} by \code{no_variables} matrix of simulated states of
-the ordinal MRF.
+If \code{paired = FALSE}, a \code{no_states} by \code{no_variables}
+matrix of simulated states of the ordinal MRF. If \code{paired = TRUE}, a
+list with a matrix of simulated states for each of the two samples.
 }
 \description{
-This function samples states from the ordinal MRF using a Gibbs sampler. The
-Gibbs sampler is initiated with random values from the response options,
-after which it proceeds by simulating states for each variable from a logistic
-model using the other variable states as predictor variables.
+This function samples states from the ordinal MRF for a one or two-samples
+design using a Gibbs sampler. The Gibbs sampler is initiated with random
+values from the response options, after which it proceeds by simulating
+states for each variable from a logistic model using the other variable
+states as predictor variables.
 }
 \details{
 There are two modeling options for the category thresholds. The default
@@ -83,6 +117,22 @@ across categories (increasing threshold values if
 increasing penalty for responding in a category further away from the
 reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
 preference for responding in the reference_category category.
+
+In the two-samples design, the pairwise interactions between the variables \eqn{i}{i}
+and \eqn{j}{j} are modeled in the first sample as
+\deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}
+and in the second samples as
+\deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2.}
+The pairwise interaction parameter \eqn{\theta_{\text{ij}}}{\theta_{\text{ij}}}
+denotes an overall effect that is considered nuisance, and attention is focused
+on the pairwise difference parameter \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}},
+which reflects the difference in the pairwise interaction between the two groups.
+
+In a paired samples design, the pairwise interactions between the samples must
+be modeled to account for the dependence in the repeated measures. This
+dependence can also be modeled by assigning a random effect per case to each
+variable in the model. The matrix of between-sample pairwise interactions can
+then be viewed as the covariance matrix of the random effects.
 }
 \examples{
 # Generate responses from a network of five binary and ordinal variables.
