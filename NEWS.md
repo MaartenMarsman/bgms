@@ -1,5 +1,6 @@
 # bgms 0.1.3.1
 
+* Some bug fixes.
 * Exported extractor functions to extract results from bgm objects in a safe way.
 
 # bgms 0.1.3
