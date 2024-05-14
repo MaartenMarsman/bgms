@@ -2568,8 +2568,8 @@ void compare_metropolis_cross_lagged(NumericMatrix thresholds,
   double log_prob;
   double U;
 
-  for(int variable1 = 0; variable1 <  no_variables; variable1++) {
-    for(int variable2 = variable1; variable2 <  no_variables; variable2++) {
+  for(int variable1 = 0; variable1 <  no_variables-1; variable1++) {
+    for(int variable2 = variable1+1; variable2 <  no_variables; variable2++) {
       current_state = cross_lagged(variable1, variable2);
       proposed_state = R::rnorm(current_state,
                                 proposal_sd_cross_lagged(variable1, variable2));
