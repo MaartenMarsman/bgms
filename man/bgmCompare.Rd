@@ -9,11 +9,11 @@ bgmCompare(
   x,
   y,
   difference_selection = TRUE,
-  paired = FALSE,
+  main_difference_model = c("Collapse", "Constrain", "Free"),
   variable_type = "ordinal",
   reference_category,
-  pairwise_difference_scale = 2.5,
-  main_difference_scale = 2.5,
+  pairwise_difference_scale = 1/sqrt(2),
+  main_difference_scale = 1/sqrt(2),
   pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   pairwise_difference_probability = 0.5,
@@ -23,7 +23,6 @@ bgmCompare(
   main_beta_bernoulli_alpha = 1,
   main_beta_bernoulli_beta = 1,
   interaction_scale = 2.5,
-  cross_lagged_scale = 2.5,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
   iter = 10000,
@@ -56,10 +55,6 @@ between \code{y} and \code{x}.}
 model the inclusion or exclusion of the between samples parameter
 differences; if \code{FALSE}, it will model and estimate all between-sample
 parameter differences. Default is \code{TRUE}.}
-
-\item{paired}{Logical, if \code{TRUE} models the case-specific dependence using
-a paired-samples design; if \code{FALSE} treats the groups as independent.
-Default is \code{FALSE}.}
 
 \item{variable_type}{A string or vector specifying the type of variables
 in \code{x} (and \code{y}). Supported types are "ordinal" and "blume-capel",
@@ -122,10 +117,6 @@ Default is 1.}
 a prior for the nuisance pairwise interaction parameters. Defaults to
 \code{2.5}.}
 
-\item{cross_lagged_scale}{The scale of the Cauchy distribution that is used as
-a prior for the nuisance cross-laggedinteraction parameters in paired samples
-designs. Defaults to \code{2.5}.}
-
 \item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
 prior density for the nuisance threshold parameters. Must be positive values.
 If the two values are equal, the prior density is symmetric about zero. If
@@ -181,12 +172,6 @@ If \code{save = FALSE} (the default), the result is a list of class
    for the linear effect and the second entry is the parameter for the
    quadratic effect, which models the offset to the reference category.
  }
-If \code{paired = TRUE}, the list will also contain
-\itemize{
-   \item \code{cross_lagged}: A matrix with \code{p} rows and
-   \code{p} columns containing the posterior means of the estimated
-   cross-lagged relations.
-}
 
 If \code{save = TRUE}, the result is a list of class ``bgmCompare''
 containing the following matrices:
@@ -213,12 +198,6 @@ containing the following matrices:
    columns, containing parameter states for the nuisance category thresholds
    in each iteration of the Gibbs sampler.
  }
-If \code{paired = TRUE}, the list will also contain
-\itemize{
-\item \code{random_effect_covariance}: A matrix with \code{iter} rows and
-\code{p * (p - 1) / 2} columns, containing parameter states for the
-cross-lagged relations.
-}
 Column averages of these matrices provide the model-averaged posterior means.
 
 In addition to the results of the analysis, the output lists some of the
@@ -228,7 +207,7 @@ arguments of its call. This is useful for post-processing the results.
 The \code{bgmCompare} function estimates the pseudoposterior distribution of
 the parameters of a Markov Random Field model for mixed binary and ordinal
 variables, and the differences in pairwise interactions and category thresholds
-between two groups. The groups can be two independent samples, or paired.
+between two groups. The groups are assumed to be two independent samples.
 }
 \details{
 In the first group, the pairwise interactions between the variables \eqn{i}{i}
@@ -268,12 +247,6 @@ on the two threshold difference parameters
 \eqn{\epsilon_{\text{i1}}}{\epsilon_{\text{i1}}} and
 \eqn{\epsilon_{\text{i2}}}{\epsilon_{\text{i2}}}, which reflect the differences
 in the quadratic model for the variable \eqn{i}{i} between the two groups.
-
-In a paired samples design, the pairwise interactions between the samples must
-be modeled to account for the dependence in the repeated measures. This
-dependence can also be modeled by assigning a random effect per case to each
-variable in the model. The matrix of between-sample pairwise interactions can
-then be viewed as the covariance matrix of the random effects.
 
 Bayesian variable selection is used to model the presence or absence of the
 difference parameters \eqn{\delta}{\delta} and \eqn{\epsilon}{\epsilon}, which

@@ -1,13 +1,10 @@
 #' Sample states of the ordinal MRF
 #'
-#' @description
-#' This function samples states from the ordinal MRF for a one or two-samples
-#' design using a Gibbs sampler. The Gibbs sampler is initiated with random
-#' values from the response options, after which it proceeds by simulating
-#' states for each variable from a logistic model using the other variable
-#' states as predictor variables.
+#' This function samples states from the ordinal MRF using a Gibbs sampler. The
+#' Gibbs sampler is initiated with random values from the response options,
+#' after which it proceeds by simulating states for each variable from a logistic
+#' model using the other variable states as predictor variables.
 #'
-#' @details
 #' There are two modeling options for the category thresholds. The default
 #' option assumes that the category thresholds are free, except that the first
 #' threshold is set to zero for identification. The user then only needs to
@@ -28,22 +25,6 @@
 #' increasing penalty for responding in a category further away from the
 #' reference_category category r, while \eqn{\beta > 0}{\beta > 0} suggests a
 #' preference for responding in the reference_category category.
-#'
-#' In the two-samples design, the pairwise interactions between the variables \eqn{i}{i}
-#' and \eqn{j}{j} are modeled in the first sample as
-#' \deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}
-#' and in the second samples as
-#' \deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2.}
-#' The pairwise interaction parameter \eqn{\theta_{\text{ij}}}{\theta_{\text{ij}}}
-#' denotes an overall effect that is considered nuisance, and attention is focused
-#' on the pairwise difference parameter \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}},
-#' which reflects the difference in the pairwise interaction between the two groups.
-#'
-#' In a paired samples design, the pairwise interactions between the samples must
-#' be modeled to account for the dependence in the repeated measures. This
-#' dependence can also be modeled by assigning a random effect per case to each
-#' variable in the model. The matrix of between-sample pairwise interactions can
-#' then be viewed as the covariance matrix of the random effects.
 #'
 #' @param no_states The number of states of the ordinal MRF to be generated.
 #'
@@ -81,34 +62,8 @@
 #' The function provides the last state of the Gibbs sampler as output. By
 #' default set to \code{1e3}.
 #'
-#' @param compare Logical, if \code{TRUE} models the case-specific dependence using
-#' a paired-samples design; if \code{FALSE} treats the groups as independent.
-#' Default is \code{FALSE}.
-#' compare = FALSE,
-#'
-#' @param no_states_gr1 The number of cases simulated for the first sample.
-#'
-#' @param no_states_gr2 The number of cases simulated for the second sample. In
-#' the paired samples scenario this number is set equal to \code{no_states_gr1}.
-#'
-#' @param main_difference A \code{no_variables} by \code{max(no_categories)}
-#' matrix containing the difference in category thresholds between the two
-#' samples.
-#'
-#' @param pairwise_difference A \code{no_variables} by \code{no_variables}
-#' matrix containing the difference in pairwise interactions between the two
-#' samples.
-#'
-#' @param paired Logical, if \code{TRUE} the data come from a paired-samples
-#' design; if \code{FALSE} the data come from two independent samples. Default is
-#' \code{FALSE}.
-#'
-#' @param cross_lagged A \code{no_variables} by \code{no_variables} matrix with
-#' pairwise interactions between the two samples.
-#'
-#' @return If \code{paired = FALSE}, a \code{no_states} by \code{no_variables}
-#' matrix of simulated states of the ordinal MRF. If \code{paired = TRUE}, a
-#' list with a matrix of simulated states for each of the two samples.
+#' @return A \code{no_states} by \code{no_variables} matrix of simulated states of
+#' the ordinal MRF.
 #'
 #' @examples
 #' # Generate responses from a network of five binary and ordinal variables.
@@ -157,42 +112,11 @@ mrfSampler = function(no_states,
                       thresholds,
                       variable_type = "ordinal",
                       reference_category,
-                      iter = 1e3,
-                      compare = FALSE,
-                      no_states_gr1,
-                      no_states_gr2,
-                      main_difference,
-                      pairwise_difference,
-                      paired = FALSE,
-                      cross_lagged) {
-
-  # Check if compare and paired are logical variables --------------------------
-  compare = as.logical(compare)
-  if(is.na(compare))
-    stop("The parameter compare needs to be TRUE or FALSE.")
-  paired = as.logical(paired)
-  if(is.na(paired))
-    stop("The parameter paired needs to be TRUE or FALSE.")
-
-
-  # Check no_states, no_variables, iter ----------------------------------------
-  if(compare == FALSE) {
-    if(no_states <= 0 ||
-       abs(no_states - round(no_states)) > .Machine$double.eps)
-      stop("The parameter no_states needs be a positive integer.")
-  } else {
-    if(no_states_gr1 <= 0 ||
-       abs(no_states_gr1 - round(no_states_gr1)) > .Machine$double.eps)
-      stop("The parameter no_states_gr1 needs be a positive integer.")
-
-    if(paired == TRUE) {
-      no_states_gr2 = no_states_gr1
-    } else {
-      if(no_states_gr2 <= 0 ||
-         abs(no_states_gr2 - round(no_states_gr2)) > .Machine$double.eps)
-        stop("The parameter no_states_gr1 needs be a positive integer.")
-    }
-  }
+                      iter = 1e3) {
+  # Check no_states, no_variables, iter --------------------------------------------
+  if(no_states <= 0 ||
+     abs(no_states - round(no_states)) > .Machine$double.eps)
+    stop("``no_states'' needs be a positive integer.")
   if(no_variables <= 0 ||
      abs(no_variables - round(no_variables)) > .Machine$double.eps)
     stop("``no_variables'' needs be a positive integer.")
@@ -268,26 +192,6 @@ mrfSampler = function(no_states,
   if(nrow(interactions) != no_variables)
     stop("The matrix ``interactions'' needs to have ``no_variables'' rows and columns.")
 
-
-  # Check pairwise_difference and cross_lagged ---------------------------------
-  if(compare == TRUE) {
-    if(!inherits(pairwise_difference, what = "matrix"))
-      pairwise_difference = as.matrix(pairwise_difference)
-    if(!isSymmetric(pairwise_difference))
-      stop("The matrix pairwise_difference needs to be symmetric.")
-    if(nrow(pairwise_difference) != no_variables)
-      stop("The matrix pairwise_difference needs to have no_variables rows and columns.")
-
-    if(paired == TRUE) {
-      if(!inherits(cross_lagged, what = "matrix"))
-        cross_lagged = as.matrix(cross_lagged)
-      if(!isSymmetric(cross_lagged))
-        stop("The matrix cross_lagged needs to be symmetric.")
-      if(nrow(cross_lagged) != no_variables)
-        stop("The matrix cross_lagged needs to have no_variables rows and columns.")
-    }
-  }
-
   # Check the threshold values -------------------------------------------------
   if(!inherits(thresholds, what = "matrix")) {
     if(max(no_categories) == 1) {
@@ -301,23 +205,12 @@ mrfSampler = function(no_states,
                     "."))
       }
     } else {
-      stop("The input thresholds needs to be a matrix.")
+      stop("``Thresholds'' needs to be a matrix.")
     }
   }
 
   if(nrow(thresholds) != no_variables)
-    stop("The matrix thresholds needs to be have no_variables rows.")
-
-  if(compare == TRUE) {
-    if(inherits(thresholds, what = "matrix")) {
-      if(nrow(main_difference) != nrow(thresholds))
-        stop('The matrix main_difference needs to have no_variable rows.')
-      if(ncol(main_difference) != ncol(thresholds))
-        stop('The matrix main_difference needs to have as many columns as the thresholds matrix.')
-    } else {
-      stop("The input main_difference needs to be a matrix.")
-    }
-  }
+    stop("The matrix ``thresholds'' needs to be have ``no_variables'' rows.")
 
   for(variable in 1:no_variables) {
     if(variable_type[variable] != "blume-capel") {
@@ -326,24 +219,12 @@ mrfSampler = function(no_states,
 
         string = paste(tmp, sep = ",")
 
-        stop(paste0("The input thresholds contains NA(s) for variable ",
+        stop(paste0("The matrix ``thresholds'' contains NA(s) for variable ",
                     variable,
                     " in category \n",
                     "(categories) ",
                     paste(which(is.na(thresholds[variable, 1:no_categories[variable]])), collapse = ", "),
                     ", where a numeric value is needed."))
-        if(compare == TRUE) {
-          tmp = which(is.na(main_difference[variable, 1:no_categories[variable]]))
-
-          string = paste(tmp, sep = ",")
-
-          stop(paste0("The input main_difference contains NA(s) for variable ",
-                      variable,
-                      " in category \n",
-                      "(categories) ",
-                      paste(which(is.na(main_difference[variable, 1:no_categories[variable]])), collapse = ", "),
-                      ", where a numeric value is needed."))
-        }
       }
       if(ncol(thresholds) > no_categories[variable]) {
         if(!anyNA(thresholds[variable, (no_categories[variable]+1):ncol(thresholds)])) {
@@ -354,17 +235,6 @@ mrfSampler = function(no_states,
                          no_categories[variable],
                          ". These values will \n",
                          "be ignored."))
-        }
-        if(compare == TRUE) {
-          if(!anyNA(main_difference[variable, (no_categories[variable]+1):ncol(main_difference)])) {
-            warning(paste0("The input main_difference contains numeric values for variable ",
-                           variable,
-                           " for category \n",
-                           "(categories, i.e., columns) exceding the maximum of ",
-                           no_categories[variable],
-                           ". These values will \n",
-                           "be ignored."))
-          }
         }
       }
     } else {
@@ -388,35 +258,8 @@ mrfSampler = function(no_states,
                          "in higher categories. These values will be ignored."))
         }
       }
-      if(paired == TRUE) {
-        if(anyNA(main_difference[variable, 1:2])) {
-          stop(paste0("The Blume-Capel model is chosen for the category thresholds of variable ",
-                      variable,
-                      ". \n",
-                      "This model has two parameters that need to be placed in columns 1 and 2, row \n",
-                      variable,
-                      ", of the thresholds input matrix. Since a two-sample model is simulated, the \n",
-                      "differences in these thresholds between the two groups are modeled with the \n",
-                      "main_difference matrix input, with the differences for the Blume-Capel model \n",
-                      "also placed in columns 1 and 2 of the main_difference input matrix. Currently, \n",
-                      "there are NA(s) in these entries, where a numeric value is needed."))
-        }
-        if(ncol(main_difference) > 2) {
-          if(!anyNA(main_difference[variable, 3:ncol(thresholds)])) {
-            warning(paste0("The Blume-Capel model is chosen for the category thresholds of variable ",
-                           variable,
-                           ". \n",
-                           "This model has two parameters that need to be placed in columns 1 and 2, row \n",
-                           variable,
-                           ", of the thresholds input matrix. Since a two-sample model is simulated, the \n",
-                           "differences in these thresholds between the two groups are modeled with the \n",
-                           "main_difference matrix input, with the differences for the Blume-Capel model \n",
-                           "also placed in columns 1 and 2 of the main_difference input matrix. However, \n",
-                           "there are numeric values in higher categories. These values will be ignored."))
-          }
-        }
-      }
     }
+
   }
 
   for(variable in 1:no_variables) {
@@ -425,11 +268,6 @@ mrfSampler = function(no_states,
         if(!is.finite(thresholds[variable, category]))
           stop(paste("The threshold parameter for variable", variable, "and category",
                      category, "is NA or not finite."))
-        if(compare == TRUE) {
-          if(!is.finite(main_difference[variable, category]))
-            stop(paste("The difference in threshold parameters for variable", variable, "and category",
-                       category, "is NA or not finite."))
-        }
       }
     } else {
       if(!is.finite(thresholds[variable, 1]))
@@ -443,76 +281,27 @@ mrfSampler = function(no_states,
                     variable,
                     "is NA \n",
                     " or not finite."))
-      if(compare == TRUE) {
-        if(!is.finite(main_difference[variable, 1]))
-          stop(paste0(
-            "The between sample difference in the alpha parameter for the Blume-Capel model \n",
-            "for variable ",
-            variable,
-            " is NA \n",
-            " or not finite."))
-        if(!is.finite(main_difference[variable, 2]))
-          stop(paste0(
-            "The between sample difference in the beta parameter for the Blume-Capel model \n",
-            "for variable",
-            variable,
-            "is NA \n",
-            " or not finite."))
-      }
     }
   }
 
   # The Gibbs sampler ----------------------------------------------------------
-  if(compare == FALSE) {
-    if(!any(variable_type == "blume-capel")) {
-      x <- sample_omrf_gibbs(no_states = no_states,
+  if(!any(variable_type == "blume-capel")) {
+    x <- sample_omrf_gibbs(no_states = no_states,
+                           no_variables = no_variables,
+                           no_categories = no_categories,
+                           interactions = interactions,
+                           thresholds = thresholds,
+                           iter = iter)
+  } else {
+    x <- sample_bcomrf_gibbs(no_states = no_states,
                              no_variables = no_variables,
                              no_categories = no_categories,
                              interactions = interactions,
                              thresholds = thresholds,
+                             variable_type = variable_type,
+                             reference_category = reference_category,
                              iter = iter)
-    } else {
-      x <- sample_bcomrf_gibbs(no_states = no_states,
-                               no_variables = no_variables,
-                               no_categories = no_categories,
-                               interactions = interactions,
-                               thresholds = thresholds,
-                               variable_type = variable_type,
-                               reference_category = reference_category,
-                               iter = iter)
-    }
-    return(x)
-  } else {
-    if(paired == FALSE)
-      cross_lagged = matrix(0, 1, 1)
-    if(!any(variable_type == "blume-capel")) {
-      out <- sample_twosample_omrf_gibbs(no_states_gr1 = no_states_gr1,
-                                         no_states_gr2 = no_states_gr2,
-                                         no_variables = no_variables,
-                                         no_categories = no_categories,
-                                         interactions = interactions,
-                                         thresholds = thresholds,
-                                         main_difference = main_difference,
-                                         pairwise_difference = pairwise_difference,
-                                         cross_lagged = cross_lagged,
-                                         paired = paired,
-                                         iter = iter)
-    } else {
-      out <- sample_twosample_bcomrf_gibbs(no_states_gr1 = no_states_gr1,
-                                           no_states_gr2 = no_states_gr2,
-                                           no_variables = no_variables,
-                                           no_categories = no_categories,
-                                           interactions = interactions,
-                                           thresholds = thresholds,
-                                           main_difference = main_difference,
-                                           pairwise_difference = pairwise_difference,
-                                           cross_lagged = cross_lagged,
-                                           paired = paired,
-                                           variable_type = variable_type,
-                                           reference_category = reference_category,
-                                           iter = iter)
-
-    }
-    return(list(x = out$x, y = out$y))
   }
+
+  return(x)
 }

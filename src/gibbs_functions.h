@@ -1,6 +1,19 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+// MH algorithm to sample from the full-conditional of the threshold parameters
+//   for a regular binary or ordinal variable
+// ----------------------------------------------------------------------------|
+void metropolis_thresholds_regular(NumericMatrix thresholds,
+                                   IntegerMatrix observations,
+                                   IntegerVector no_categories,
+                                   IntegerMatrix n_cat_obs,
+                                   int no_persons,
+                                   int variable,
+                                   double threshold_alpha,
+                                   double threshold_beta,
+                                   NumericMatrix rest_matrix);
+
 // ----------------------------------------------------------------------------|
 // Adaptive Metropolis algorithm to sample from the full-conditional of the
 //   threshold parameters for a Blume-Capel ordinal variable

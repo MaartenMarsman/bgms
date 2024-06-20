@@ -199,7 +199,6 @@ check_model = function(x,
 check_compare_model = function(x,
                                y,
                                difference_selection,
-                               paired,
                                variable_type,
                                reference_category,
                                pairwise_difference_scale = 2.5,
@@ -214,7 +213,8 @@ check_compare_model = function(x,
                                pairwise_beta_bernoulli_beta = 1,
                                interaction_scale = 2.5,
                                threshold_alpha = 0.5,
-                               threshold_beta = 0.5) {
+                               threshold_beta = 0.5,
+                               main_difference_model = c("Collapse", "Constrain", "Free")) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -448,12 +448,14 @@ check_compare_model = function(x,
     inclusion_probability_difference = matrix(0.5, 1, 1)
   }
 
+  main_difference_model = match.arg(main_difference_model)
 
   return(list(variable_bool = variable_bool,
               reference_category = reference_category,
               main_difference_prior = main_difference_prior,
               pairwise_difference_prior = pairwise_difference_prior,
-              inclusion_probability_difference = inclusion_probability_difference))
+              inclusion_probability_difference = inclusion_probability_difference,
+              main_difference_model = main_difference_model))
 }
 
 reformat_data = function(x, na.action, variable_bool, reference_category) {
@@ -617,13 +619,7 @@ compare_reformat_data = function(x,
                                  na.action,
                                  variable_bool,
                                  reference_category,
-                                 paired) {
-
-  if(paired == TRUE) {
-    if(nrow(x) != nrow(y))
-      stop(paste0("For paired-samples designs the number of cases (rows) in the matrix x must \n",
-                  "match the number of cases (rows) in the matrix y."))
-  }
+                                 main_difference_model) {
 
   if(na.action == "listwise") {
     # Check for missing values in x --------------------------------------------
@@ -643,8 +639,6 @@ compare_reformat_data = function(x,
                      "the analysis."),
               call. = FALSE)
     x = x[!missing_values, ]
-    if(paired == TRUE)
-      y = y[!missing_values, ]
 
     if(nrow(x) < 2 || is.null(nrow(x)))
       stop(paste0("After removing missing observations from the input matrix x,\n",
@@ -669,8 +663,6 @@ compare_reformat_data = function(x,
                      "the analysis."),
               call. = FALSE)
     y = y[!missing_values, ]
-    if(paired == TRUE)
-      x = x[!missing_values, ]
 
     if(nrow(y) < 2 || is.null(nrow(y)))
       stop(paste0("After removing missing observations from the input matrix y,\n",
@@ -736,6 +728,7 @@ compare_reformat_data = function(x,
 
   no_variables = ncol(x)
   no_categories = vector(length = no_variables)
+  no_categories_gr2 = vector(length = no_variables)
   for(node in 1:no_variables) {
     unq_vls_x = sort(unique(x[,  node]))
     mx_vl_x = length(unq_vls_x)
@@ -753,27 +746,53 @@ compare_reformat_data = function(x,
                   node,
                   " in the matrix y (group 1). We expect >= 1 observations per category."))
 
-    if(mx_vl_x != mx_vl_y && sum(is.na(match(unq_vls_x, unq_vls_y))) > 0)
-      stop(paste0("The observed category responses for variable ",
-                  node,
-                  " differ between the two samples."))
+    if(main_difference_model != "Free"){
+      if(sum(is.na(match(unq_vls_x, unq_vls_y))) == mx_vl_x)
+        stop(paste0("There is no overlap in response categories between the two groups for variable \n",
+                    node,
+                    ". As a result, bgmCompare cannot estimate a difference between the groups for any \n",
+                    "of the category thresholds. You can run bgmCompare with the option \n",
+                    "main_difference_model = ``Free''."))
+    }
 
     unq_vls = sort(unique(c(unq_vls_x, unq_vls_y)))
     # Recode data --------------------------------------------------------------
     if(variable_bool[node]) {#Regular ordinal variable
       # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-      z = x[, node]
-      cntr = 0
-      for(value in unq_vls) {
-        x[z == value, node] = cntr
-        cntr = cntr + 1
-      }
+      if(main_difference_model == "Collapse") {
+        zx = x[, node]
+        zy = y[, node]
 
-      z = y[, node]
-      cntr = 0
-      for(value in unq_vls) {
-        y[z == value, node] = cntr
-        cntr = cntr + 1
+        cntr = 0
+        for(value in unq_vls) {
+          if(!any(zx == value) | !any(zy == value)) {
+            check = FALSE
+            if(cntr > 0) {
+              cntr = cntr - 1
+            }
+          } else {
+            check = TRUE
+          }
+          x[zx == value, node] = cntr
+          y[zy == value, node] = cntr
+
+          if(!(check == FALSE & cntr == 0))
+            cntr = cntr + 1
+        }
+      } else {
+        z = x[, node]
+        cntr = 0
+        for(value in unq_vls) {
+          x[z == value, node] = cntr
+          cntr = cntr + 1
+        }
+
+        z = y[, node]
+        cntr = 0
+        for(value in unq_vls) {
+          y[z == value, node] = cntr
+          cntr = cntr + 1
+        }
       }
     } else {#Blume-Capel ordinal variable
       # Check if observations are integer or can be recoded --------------------
@@ -825,32 +844,75 @@ compare_reformat_data = function(x,
     }
 
     # Warn that maximum category value is large --------------------------------
-    no_categories[node] = max(c(x[, node], y[, node]))
-    if(!variable_bool[node] & no_categories[node] > 10) {
-      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-      warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
-                     "is a sum over all possible values of the ordinal variable. The range of \n",
-                     "observed values, possibly after recoding to integers, is assumed to be the \n",
-                     "number of possible response categories.  For node ", node,", this range was \n",
-                     "equal to ", no_categories[node], "which may cause the analysis to take some \n",
-                     "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
-                     "collapse the categories that have no observations between zero and the last \n",
-                     "category. This may explain the large discrepancy between the first and last \n",
-                     "category values."))
-    }
+    if(main_difference_model != "Free") {
+      no_categories[node] = max(c(x[, node], y[, node]))
+      no_categories_gr2[node] = 0
+      if(!variable_bool[node] & no_categories[node] > 10) {
+        # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+        warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                       "is a sum over all possible values of the ordinal variable. The range of \n",
+                       "observed values, possibly after recoding to integers, is assumed to be the \n",
+                       "number of possible response categories.  For node ", node,", this range was \n",
+                       "equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                       "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                       "collapse the categories that have no observations between zero and the last \n",
+                       "category. This may explain the large discrepancy between the first and last \n",
+                       "category values."))
+      }
+      if(no_categories[node] == 0)
+        stop(paste0("Only one value [",
+                    unq_vls_x,
+                    "] was observed for variable ",
+                    node,
+                    "."))
+    } else {
+      no_categories[node] = max(x[, node])
+      no_categories_gr2[node] = max(y[, node])
+      if(!variable_bool[node] & no_categories[node] > 10) {
+        # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+        warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                       "is a sum over all possible values of the ordinal variable. The range of \n",
+                       "observed values, possibly after recoding to integers, is assumed to be the \n",
+                       "number of possible response categories.  For node ", node,", in group 1, this \n",
+                       "range was equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                       "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                       "collapse the categories that have no observations between zero and the last \n",
+                       "category. This may explain the large discrepancy between the first and last \n",
+                       "category values."))
+      }
+      if(!variable_bool[node] & no_categories_gr2[node] > 10) {
+        # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+        warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                       "is a sum over all possible values of the ordinal variable. The range of \n",
+                       "observed values, possibly after recoding to integers, is assumed to be the \n",
+                       "number of possible response categories.  For node ", node,", in group 2, this \n",
+                       "range was equal to ", no_categories_gr2[node], "which may cause the analysis to take some \n",
+                       "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                       "collapse the categories that have no observations between zero and the last \n",
+                       "category. This may explain the large discrepancy between the first and last \n",
+                       "category values."))
+      }
 
-    # Check to see if not all responses are in one category --------------------
-    if(no_categories[node] == 0)
-      stop(paste0("Only one value [",
-                  unq_vls_x,
-                  "] was observed for variable ",
-                  node,
-                  "."))
+      # Check to see if not all responses are in one category --------------------
+      if(no_categories[node] == 0)
+        stop(paste0("Only one value [",
+                    unq_vls_x,
+                    "] was observed for variable ",
+                    node,
+                    ", in group 1."))
+      if(no_categories_gr2[node] == 0)
+        stop(paste0("Only one value [",
+                    unq_vls_y,
+                    "] was observed for variable ",
+                    node,
+                    ", in group 2."))
+    }
   }
 
   return(list(x = x,
               y = y,
               no_categories = no_categories,
+              no_categories_gr2 = no_categories_gr2,
               reference_category = reference_category,
               missing_index_gr1 = missing_index_gr1,
               missing_index_gr2 = missing_index_gr2,

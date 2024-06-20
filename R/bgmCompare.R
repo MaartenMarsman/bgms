@@ -5,7 +5,7 @@
 #' The \code{bgmCompare} function estimates the pseudoposterior distribution of
 #' the parameters of a Markov Random Field model for mixed binary and ordinal
 #' variables, and the differences in pairwise interactions and category thresholds
-#' between two groups. The groups can be two independent samples, or paired.
+#' between two groups. The groups are assumed to be two independent samples.
 #'
 #' @details
 #' In the first group, the pairwise interactions between the variables \eqn{i}{i}
@@ -45,12 +45,6 @@
 #' \eqn{\epsilon_{\text{i1}}}{\epsilon_{\text{i1}}} and
 #' \eqn{\epsilon_{\text{i2}}}{\epsilon_{\text{i2}}}, which reflect the differences
 #' in the quadratic model for the variable \eqn{i}{i} between the two groups.
-#'
-#' In a paired samples design, the pairwise interactions between the samples must
-#' be modeled to account for the dependence in the repeated measures. This
-#' dependence can also be modeled by assigning a random effect per case to each
-#' variable in the model. The matrix of between-sample pairwise interactions can
-#' then be viewed as the covariance matrix of the random effects.
 #'
 #' Bayesian variable selection is used to model the presence or absence of the
 #' difference parameters \eqn{\delta}{\delta} and \eqn{\epsilon}{\epsilon}, which
@@ -108,9 +102,6 @@
 #' model the inclusion or exclusion of the between samples parameter
 #' differences; if \code{FALSE}, it will model and estimate all between-sample
 #' parameter differences. Default is \code{TRUE}.
-#' @param paired Logical, if \code{TRUE} models the case-specific dependence using
-#' a paired-samples design; if \code{FALSE} treats the groups as independent.
-#' Default is \code{FALSE}.
 #' @param variable_type A string or vector specifying the type of variables
 #' in \code{x} (and \code{y}). Supported types are "ordinal" and "blume-capel",
 #' with binary variables treated as "ordinal". Default is "ordinal".
@@ -159,9 +150,6 @@
 #' @param interaction_scale The scale of the Cauchy distribution that is used as
 #' a prior for the nuisance pairwise interaction parameters. Defaults to
 #' \code{2.5}.
-#' @param cross_lagged_scale The scale of the Cauchy distribution that is used as
-#' a prior for the nuisance cross-laggedinteraction parameters in paired samples
-#' designs. Defaults to \code{2.5}.
 #' @param threshold_alpha,threshold_beta The shape parameters of the beta-prime
 #' prior density for the nuisance threshold parameters. Must be positive values.
 #' If the two values are equal, the prior density is symmetric about zero. If
@@ -211,12 +199,6 @@
 #'    for the linear effect and the second entry is the parameter for the
 #'    quadratic effect, which models the offset to the reference category.
 #'  }
-#' If \code{paired = TRUE}, the list will also contain
-#' \itemize{
-#'    \item \code{cross_lagged}: A matrix with \code{p} rows and
-#'    \code{p} columns containing the posterior means of the estimated
-#'    cross-lagged relations.
-#' }
 #'
 #' If \code{save = TRUE}, the result is a list of class ``bgmCompare''
 #' containing the following matrices:
@@ -243,12 +225,6 @@
 #'    columns, containing parameter states for the nuisance category thresholds
 #'    in each iteration of the Gibbs sampler.
 #'  }
-#' If \code{paired = TRUE}, the list will also contain
-#' \itemize{
-#' \item \code{random_effect_covariance}: A matrix with \code{iter} rows and
-#' \code{p * (p - 1) / 2} columns, containing parameter states for the
-#' cross-lagged relations.
-#' }
 #' Column averages of these matrices provide the model-averaged posterior means.
 #'
 #' In addition to the results of the analysis, the output lists some of the
@@ -259,7 +235,7 @@
 bgmCompare = function(x,
                       y,
                       difference_selection = TRUE,
-                      paired = FALSE,
+                      main_difference_model = c("Collapse", "Constrain", "Free"),
                       variable_type = "ordinal",
                       reference_category,
                       pairwise_difference_scale = 1 / sqrt(2),
@@ -273,7 +249,6 @@ bgmCompare = function(x,
                       main_beta_bernoulli_alpha = 1,
                       main_beta_bernoulli_beta = 1,
                       interaction_scale = 2.5,
-                      cross_lagged_scale = 2.5,
                       threshold_alpha = 0.5,
                       threshold_beta = 0.5,
                       iter = 1e4,
@@ -309,7 +284,6 @@ bgmCompare = function(x,
   model = check_compare_model(x = x,
                               y = y,
                               difference_selection = difference_selection,
-                              paired = paired,
                               variable_type = variable_type,
                               reference_category = reference_category,
                               pairwise_difference_scale = pairwise_difference_scale,
@@ -324,7 +298,8 @@ bgmCompare = function(x,
                               pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
                               interaction_scale = interaction_scale,
                               threshold_alpha = threshold_alpha,
-                              threshold_beta = threshold_beta)
+                              threshold_beta = threshold_beta,
+                              main_difference_model = main_difference_model)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
@@ -337,6 +312,8 @@ bgmCompare = function(x,
   main_difference_prior = model$main_difference_prior
   pairwise_difference_prior = model$pairwise_difference_prior
   inclusion_probability_difference = model$inclusion_probability_difference
+  main_difference_model = model$main_difference_model
+  bool_main_difference_model = (main_difference_model != "Free")
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > .Machine$double.eps)
@@ -374,11 +351,12 @@ bgmCompare = function(x,
                                na.action = na.action,
                                variable_bool = variable_bool,
                                reference_category = reference_category,
-                               paired = paired)
+                               main_difference_model = main_difference_model)
   x = data$x
   y = data$y
 
   no_categories = data$no_categories
+  no_categories_gr2 = data$no_categories_gr2
   missing_index_gr1 = data$missing_index_gr1
   missing_index_gr2 = data$missing_index_gr2
   na_impute = data$na_impute
@@ -432,7 +410,6 @@ bgmCompare = function(x,
                               observations_gr2 = y,
                               no_categories = no_categories,
                               interaction_scale = interaction_scale,
-                              cross_lagged_scale = cross_lagged_scale,
                               pairwise_difference_scale = pairwise_difference_scale,
                               main_difference_scale = main_difference_scale,
                               pairwise_difference_prior = pairwise_difference_prior,
@@ -456,7 +433,8 @@ bgmCompare = function(x,
                               missing_index_gr2 = missing_index_gr2,
                               variable_bool = variable_bool,
                               reference_category = reference_category,
-                              paired = paired,
+                              main_difference_model = bool_main_difference_model,
+                              no_categories_gr2 = no_categories_gr2,
                               save = save,
                               display_progress = display_progress,
                               difference_selection = difference_selection)
@@ -473,6 +451,7 @@ bgmCompare = function(x,
     interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
+    main_difference_model = main_difference_model,
     pairwise_difference_prior = pairwise_difference_prior,
     main_difference_prior = main_difference_prior,
     inclusion_probability_difference = inclusion_probability_difference,
@@ -482,7 +461,6 @@ bgmCompare = function(x,
     main_beta_bernoulli_beta = main_beta_bernoulli_beta,
     main_difference_scale = main_difference_scale,
     pairwise_difference_scale = pairwise_difference_scale,
-    paired = paired,
     na.action = na.action,
     save = save,
     version = packageVersion("bgms")
@@ -511,34 +489,17 @@ bgmCompare = function(x,
     rownames(thresholds) = data_columnnames
     rownames(main_difference) = data_columnnames
 
-    if(paired == TRUE) {
-      cross_lagged = out$cross_lagged
-      colnames(cross_lagged) = data_columnnames
-      rownames(cross_lagged) = data_columnnames
-    }
-
     colnames(thresholds) = paste0("category ", 1:max(no_categories))
     colnames(main_difference) = paste0("category ", 1:max(no_categories))
 
     arguments$data_columnnames = data_columnnames
 
-    if(paired == TRUE) {
-      output = list(indicator = indicator,
-                    interactions = interactions,
-                    pairwise_difference = pairwise_difference,
-                    main_difference = main_difference,
-                    thresholds = thresholds,
-                    cross_lagged = cross_lagged,
-                    arguments = arguments)
-    } else {
-      output = list(indicator = indicator,
+    output = list(indicator = indicator,
                     interactions = interactions,
                     pairwise_difference = pairwise_difference,
                     main_difference = main_difference,
                     thresholds = thresholds,
                     arguments = arguments)
-    }
-
 
     class(output) = c("bgmCompare")
     return(output)
@@ -549,9 +510,6 @@ bgmCompare = function(x,
     main_difference = out$main_difference
     interactions = out$interactions
     thresholds = out$thresholds
-    if(paired == TRUE) {
-      cross_lagged = out$cross_lagged
-    }
 
     if(is.null(colnames(x))){
       data_columnnames <- 1:ncol(x)
@@ -568,18 +526,6 @@ bgmCompare = function(x,
     colnames(pairwise_difference_indicator) = names_vec
     colnames(interactions) = names_vec
     colnames(pairwise_difference) = names_vec
-
-    if(paired == TRUE) {
-      names_vec = vector(length = ncol(x) (ncol(x) + 1) / 2)
-      cntr = 0
-      for(variable1 in 1:ncol(x)) {
-        for(variable2 in variable1:ncol(x)) {
-          cntr = cntr + 1
-          names_vec[cntr] = paste0(colnames[variable1], "--", colnames[variable2])
-        }
-      }
-      colnames(cross_lagged) = names_vec
-    }
 
     names = character(length = sum(no_categories))
     cntr = 0
@@ -600,30 +546,15 @@ bgmCompare = function(x,
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
     dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
 
-    if(paired == TRUE) {
-      dimnames(cross_lagged) = list(Iter. = 1:iter, colnames(cross_lagged))
-    }
-
     arguments$data_columnnames = data_columnnames
 
-    if(paired == TRUE) {
-      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
-                    main_difference_indicator = main_difference_indicator,
-                    interactions = interactions,
-                    pairwise_difference = pairwise_difference,
-                    main_difference = main_difference,
-                    thresholds = thresholds,
-                    cross_lagged = cross_lagged,
-                    arguments = arguments)
-    } else {
-      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+    output = list(pairwise_difference_indicator = pairwise_difference_indicator,
                     main_difference_indicator = main_difference_indicator,
                     interactions = interactions,
                     pairwise_difference = pairwise_difference,
                     main_difference = main_difference,
                     thresholds = thresholds,
                     arguments = arguments)
-    }
 
     class(output) = "bgmCompare"
     return(output)
