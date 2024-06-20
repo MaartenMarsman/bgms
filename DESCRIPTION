@@ -2,7 +2,7 @@ Package: bgms
 Type: Package
 Title: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
 Version: 0.1.4
-Date: 2024-04-18
+Date: 2024-06-20
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-5309-7502")),
