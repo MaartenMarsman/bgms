@@ -801,7 +801,6 @@ void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
                                                                           ordinal_variable,
                                                                           reference_category);
 
-
         log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
         log_prob -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
 
@@ -941,7 +940,7 @@ void compare_metropolis_pairwise_difference_between_model(IntegerVector indicato
     U = R::unif_rand();
     if(std::log(U) < log_prob) {
       indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
-      indicator(variable2, variable1) = 1 - indicator(variable2, variable1);
+      indicator(variable2, variable1) = indicator(variable1, variable2);
 
       pairwise_difference(variable1, variable2) = proposed_state;
       pairwise_difference(variable2, variable1) = proposed_state;
