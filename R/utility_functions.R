@@ -765,6 +765,7 @@ compare_reformat_data = function(x,
 
         cntr = 0
         for(value in unq_vls) {
+          #Collapse categories for one group when not observed in the other.
           if(!any(zx == value) | !any(zy == value)) {
             check = FALSE
             if(cntr > 0) {
@@ -844,30 +845,50 @@ compare_reformat_data = function(x,
     }
 
     # Warn that maximum category value is large --------------------------------
-    if(main_difference_model != "Free") {
-      no_categories[node] = max(c(x[, node], y[, node]))
-      no_categories_gr2[node] = 0
+    if(main_difference_model == "Free") {
+      no_categories[node] = max(x[, node])
+      no_categories_gr2[node] = max(y[, node])
       if(!variable_bool[node] & no_categories[node] > 10) {
         # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
         warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
                        "is a sum over all possible values of the ordinal variable. The range of \n",
                        "observed values, possibly after recoding to integers, is assumed to be the \n",
                        "number of possible response categories.  For node ", node,", this range was \n",
-                       "equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                       "equal to ", no_categories[node], " in group 1, which may cause the analysis to take some \n",
                        "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
                        "collapse the categories that have no observations between zero and the last \n",
                        "category. This may explain the large discrepancy between the first and last \n",
                        "category values."))
       }
+      if(!variable_bool[node] & no_categories_gr2[node] > 10) {
+        # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+        warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
+                       "is a sum over all possible values of the ordinal variable. The range of \n",
+                       "observed values, possibly after recoding to integers, is assumed to be the \n",
+                       "number of possible response categories.  For node ", node,", this range was \n",
+                       "equal to ", no_categories[node], " in group 2, which may cause the analysis to take some \n",
+                       "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
+                       "collapse the categories that have no observations between zero and the last \n",
+                       "category. This may explain the large discrepancy between the first and last \n",
+                       "category values."))
+      }
+
       if(no_categories[node] == 0)
         stop(paste0("Only one value [",
                     unq_vls_x,
                     "] was observed for variable ",
                     node,
-                    "."))
+                    ", in group 1."))
+      if(no_categories_gr2[node] == 0)
+        stop(paste0("Only one value [",
+                    unq_vls_y,
+                    "] was observed for variable ",
+                    node,
+                    ", in group 2."))
     } else {
-      no_categories[node] = max(x[, node])
-      no_categories_gr2[node] = max(y[, node])
+      no_categories[node] = max(c(x[, node], y[, node]))
+      no_categories_gr2[node] = max(c(x[, node], y[, node]))
+
       if(!variable_bool[node] & no_categories[node] > 10) {
         # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
         warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
@@ -899,13 +920,7 @@ compare_reformat_data = function(x,
                     unq_vls_x,
                     "] was observed for variable ",
                     node,
-                    ", in group 1."))
-      if(no_categories_gr2[node] == 0)
-        stop(paste0("Only one value [",
-                    unq_vls_y,
-                    "] was observed for variable ",
-                    node,
-                    ", in group 2."))
+                    "."))
     }
   }
 

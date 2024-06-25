@@ -305,7 +305,7 @@ bgmCompare = function(x,
   # The vector variable_type is now coded as boolean.
   # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
   # ----------------------------------------------------------------------------
-  variable_bool = model$variable_bool
+  ordinal_variable = model$variable_bool
   # ----------------------------------------------------------------------------
 
   reference_category = model$reference_category
@@ -313,7 +313,7 @@ bgmCompare = function(x,
   pairwise_difference_prior = model$pairwise_difference_prior
   inclusion_probability_difference = model$inclusion_probability_difference
   main_difference_model = model$main_difference_model
-  bool_main_difference_model = (main_difference_model != "Free")
+  independent_thresholds = (main_difference_model == "Free")
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > .Machine$double.eps)
@@ -349,13 +349,13 @@ bgmCompare = function(x,
   data = compare_reformat_data(x = x,
                                y = y,
                                na.action = na.action,
-                               variable_bool = variable_bool,
+                               variable_bool = ordinal_variable,
                                reference_category = reference_category,
                                main_difference_model = main_difference_model)
   x = data$x
   y = data$y
 
-  no_categories = data$no_categories
+  no_categories_gr1 = data$no_categories
   no_categories_gr2 = data$no_categories_gr2
   missing_index_gr1 = data$missing_index_gr1
   missing_index_gr2 = data$missing_index_gr2
@@ -364,25 +364,41 @@ bgmCompare = function(x,
 
   no_variables = ncol(x)
   no_interactions = no_variables * (no_variables - 1) / 2
-  no_thresholds = sum(no_categories)
+  no_thresholds = sum(no_categories_gr1)
 
   #Precompute the number of observations per category for each variable --------
-  n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
-                                         nrow = max(no_categories) + 1,
-                                         ncol = no_variables)
-  for(variable in 1:no_variables) {
-    for(category in 0:no_categories[variable]) {
-      n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
-      n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+  if(main_difference_model == "Free") {
+    n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
+                                           nrow = max(c(no_categories_gr1,
+                                                        no_categories_gr2)) + 1,
+                                           ncol = no_variables)
+    for(variable in 1:no_variables) {
+      for(category in 0:no_categories_gr1[variable]) {
+        n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
+      }
+      for(category in 0:no_categories_gr2[variable]) {
+        n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+      }
+    }
+  } else {
+    n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
+                                           nrow = max(no_categories_gr1) + 1,
+                                           ncol = no_variables)
+    for(variable in 1:no_variables) {
+      for(category in 0:no_categories_gr1[variable]) {
+        n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
+        n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+      }
     }
   }
+
 
   #Precompute the sufficient statistics for the two Blume-Capel parameters -----
   sufficient_blume_capel_gr1 = matrix(0, nrow = 2, ncol = no_variables)
   sufficient_blume_capel_gr2 = matrix(0, nrow = 2, ncol = no_variables)
-  if(any(!variable_bool)) {
+  if(any(!ordinal_variable)) {
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-    bc_vars = which(!variable_bool)
+    bc_vars = which(!ordinal_variable)
     for(i in bc_vars) {
       sufficient_blume_capel_gr1[1, i] = sum(x[, i])
       sufficient_blume_capel_gr1[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
@@ -408,7 +424,8 @@ bgmCompare = function(x,
   #The Metropolis within Gibbs sampler -----------------------------------------
   out = compare_gibbs_sampler(observations_gr1 = x,
                               observations_gr2 = y,
-                              no_categories = no_categories,
+                              no_categories_gr1 = no_categories_gr1,
+                              no_categories_gr2 = no_categories_gr2,
                               interaction_scale = interaction_scale,
                               pairwise_difference_scale = pairwise_difference_scale,
                               main_difference_scale = main_difference_scale,
@@ -431,10 +448,9 @@ bgmCompare = function(x,
                               na_impute = na_impute,
                               missing_index_gr1 = missing_index_gr1,
                               missing_index_gr2 = missing_index_gr2,
-                              variable_bool = variable_bool,
+                              ordinal_variable = ordinal_variable,
                               reference_category = reference_category,
-                              main_difference_model = bool_main_difference_model,
-                              no_categories_gr2 = no_categories_gr2,
+                              independent_thresholds = independent_thresholds,
                               save = save,
                               display_progress = display_progress,
                               difference_selection = difference_selection)
@@ -468,12 +484,18 @@ bgmCompare = function(x,
 
   if(save == FALSE) {
     indicator = out$pairwise_difference_indicator
-    main_difference_indicator = out$main_difference_indicator
-    diag(indicator) = main_difference_indicator
+    if(independent_thresholds == TRUE) {
+      thresholds_gr1 = out$thresholds_gr1
+      thresholds_gr2 = out$thresholds_gr2
+    } else {
+      main_difference_indicator = out$main_difference_indicator
+      diag(indicator) = main_difference_indicator
+      thresholds = out$thresholds
+      main_difference = out$main_difference
+    }
+
     interactions = out$interactions
     pairwise_difference = out$pairwise_difference
-    thresholds = out$thresholds
-    main_difference = out$main_difference
 
     if(is.null(colnames(x))){
       data_columnnames = paste0("variable ", 1:no_variables)
@@ -486,36 +508,58 @@ bgmCompare = function(x,
     rownames(pairwise_difference) = data_columnnames
     colnames(indicator) = data_columnnames
     rownames(indicator) = data_columnnames
-    rownames(thresholds) = data_columnnames
-    rownames(main_difference) = data_columnnames
 
-    colnames(thresholds) = paste0("category ", 1:max(no_categories))
-    colnames(main_difference) = paste0("category ", 1:max(no_categories))
-
+    if(independent_thresholds == TRUE) {
+      rownames(thresholds_gr1) = data_columnnames
+      rownames(thresholds_gr2) = data_columnnames
+      colnames(thresholds_gr1) = paste0("category ", 1:max(no_categories_gr1))
+      colnames(thresholds_gr2) = paste0("category ", 1:max(no_categories_gr2))
+    } else {
+      rownames(thresholds) = data_columnnames
+      rownames(main_difference) = data_columnnames
+      colnames(thresholds) = paste0("category ", 1:max(no_categories_gr1))
+      colnames(main_difference) = paste0("category ", 1:max(no_categories_gr1))
+    }
     arguments$data_columnnames = data_columnnames
 
-    output = list(indicator = indicator,
+    if(independent_thresholds == TRUE) {
+      output = list(indicator = indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    thresholds_gr1 = thresholds_gr1,
+                    thresholds_gr2 = thresholds_gr2,
+                    arguments = arguments)
+    } else {
+      output = list(indicator = indicator,
                     interactions = interactions,
                     pairwise_difference = pairwise_difference,
                     main_difference = main_difference,
                     thresholds = thresholds,
                     arguments = arguments)
+    }
 
     class(output) = c("bgmCompare")
     return(output)
   } else {
     pairwise_difference_indicator = out$pairwise_difference_indicator
-    main_difference_indicator = out$main_difference_indicator
     pairwise_difference = out$pairwise_difference
-    main_difference = out$main_difference
     interactions = out$interactions
-    thresholds = out$thresholds
+
+    if(independent_thresholds == TRUE) {
+      thresholds_gr1 = out$thresholds_gr1
+      thresholds_gr2 = out$thresholds_gr2
+    } else {
+      main_difference_indicator = out$main_difference_indicator
+      main_difference = out$main_difference
+      thresholds = out$thresholds
+    }
 
     if(is.null(colnames(x))){
       data_columnnames <- 1:ncol(x)
     } else {
       data_columnnames <- colnames(x)
     }
+    arguments$data_columnnames = data_columnnames
 
     p <- ncol(x)
     names_bycol <- matrix(rep(data_columnnames, each = p), ncol = p)
@@ -527,34 +571,67 @@ bgmCompare = function(x,
     colnames(interactions) = names_vec
     colnames(pairwise_difference) = names_vec
 
-    names = character(length = sum(no_categories))
-    cntr = 0
-    for(variable in 1:no_variables) {
-      for(category in 1:no_categories[variable]) {
-        cntr = cntr + 1
-        names[cntr] = paste0("threshold(",variable, ", ",category,")")
-      }
-    }
-    colnames(main_difference_indicator) = data_columnnames
-    colnames(thresholds) = names
-    colnames(main_difference) = names
-
     dimnames(pairwise_difference_indicator) = list(Iter. = 1:iter, colnames(pairwise_difference_indicator))
-    dimnames(main_difference_indicator) = list(Iter. = 1:iter, colnames(main_difference_indicator))
     dimnames(pairwise_difference) = list(Iter. = 1:iter, colnames(pairwise_difference))
-    dimnames(main_difference) = list(Iter. = 1:iter, colnames(main_difference))
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
-    dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
 
-    arguments$data_columnnames = data_columnnames
+    if(independent_thresholds == TRUE) {
+      names = character(length = sum(no_categories_gr1))
+      cntr = 0
+      for(variable in 1:no_variables) {
+        for(category in 1:no_categories_gr1[variable]) {
+          cntr = cntr + 1
+          names[cntr] = paste0("threshold(",variable, ", ",category,")")
+        }
+      }
+      colnames(thresholds_gr1) = names
 
-    output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+      names = character(length = sum(no_categories_gr2))
+      cntr = 0
+      for(variable in 1:no_variables) {
+        for(category in 1:no_categories_gr2[variable]) {
+          cntr = cntr + 1
+          names[cntr] = paste0("threshold(",variable, ", ",category,")")
+        }
+      }
+      colnames(thresholds_gr2) = names
+
+      dimnames(thresholds_gr1) = list(Iter. = 1:iter, colnames(thresholds_gr1))
+      dimnames(thresholds_gr2) = list(Iter. = 1:iter, colnames(thresholds_gr2))
+    } else {
+      names = character(length = sum(no_categories_gr1))
+      cntr = 0
+      for(variable in 1:no_variables) {
+        for(category in 1:no_categories_gr1[variable]) {
+          cntr = cntr + 1
+          names[cntr] = paste0("threshold(",variable, ", ",category,")")
+        }
+      }
+      colnames(main_difference_indicator) = data_columnnames
+      colnames(thresholds) = names
+      colnames(main_difference) = names
+
+      dimnames(main_difference_indicator) = list(Iter. = 1:iter, colnames(main_difference_indicator))
+      dimnames(main_difference) = list(Iter. = 1:iter, colnames(main_difference))
+      dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
+    }
+
+    if(independent_thresholds == TRUE) {
+      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+                    interactions = interactions,
+                    pairwise_difference = pairwise_difference,
+                    thresholds_gr1 = thresholds_gr1,
+                    thresholds_gr2 = thresholds_gr2,
+                    arguments = arguments)
+    } else {
+      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
                     main_difference_indicator = main_difference_indicator,
                     interactions = interactions,
                     pairwise_difference = pairwise_difference,
                     main_difference = main_difference,
                     thresholds = thresholds,
                     arguments = arguments)
+    }
 
     class(output) = "bgmCompare"
     return(output)
