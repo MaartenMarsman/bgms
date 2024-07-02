@@ -1,11 +1,15 @@
 citHeader("To cite bgms in publications use:")
 
 bibentry(
-  bibtype = "article",
-  title    = "Bayesian Analysis of the Ordinal Markov Random Field",
-  author   = "Marsman, M. and Haslbeck, J. M. B.",
-  journal  = "PsyArXiv",
+  bibtype = "manual",
+  title    = "bgms: Bayesian Variable Selection for Networks of Binary and/or
+Ordinal Variables",
+  author   = "Maarten Marsman and Karoline Huth and Nikola Sekulovski and Don van den Bergh",
   year     = "2023",
-  url      = "https://osf.io/preprints/psyarxiv/ukwrf/",
-  textVersion = "Marsman, M., & Haslbeck, J. M. B. (2023, March 3). Bayesian Analysis of the Ordinal Markov Random Field. https://doi.org/10.31234/osf.io/ukwrf"
+  url      = "https://CRAN.R-project.org/package=bgms",
+  note     = "R package version 0.1.3.2",
+  textVersion = "Marsman, M., Huth, K., Sekulovski, N., & Bergh, D. van den. (2023). Bgms: Bayesian variable selection for networks of binary and/or ordinal variables. https://CRAN.R-project.org/package=bgms"
 )
+
+
+
