@@ -49,7 +49,7 @@ that if an edge is excluded, we do not know whether this is because the
 edge is absent in the population or because we lack the power to reject
 the null hypothesis of independence. To avoid this problem, we will use
 a Bayesian approach using Bayes factors (Kass and Raftery 1995)). The
-inclusion Bayes factor (Huth et al. 2023; Sekulovski et al. 2023) allows
+inclusion Bayes factor (Huth et al. 2023; Sekulovski et al. 2024) allows
 us to quantify how much the data support both conditional dependence
 -<em>evidence of edge presence</em>- or conditional independence
 -<em>evidence of edge absence</em>. It also allows us to conclude that
@@ -166,10 +166,7 @@ Robinaugh, D. J., R. H. A. Hoekstra, E. R. Toner, and D. Borsboom. 2020.
 
 <div id="ref-SekulovskiEtAl_2023" class="csl-entry">
 
-Sekulovski, N., S. Keetelaar, K. Huth, E.-J. Wagenmakers, R. van Bork,
-D. van den Bergh, and M. Marsman. 2023. “Testing Conditional
-Independence in Psychometric Networks: An Analysis of Three Bayesian
-Methods.” *PsyArXiv*. <https://doi.org/10.31234/osf.io/ch7a2>.
+Sekulovski N, Keetelaar S, Huth K, Wagenmakers E.-J, van Bork R, van den Bergh D, Marsman M (2024). “Testing conditional independence in psychometric networks: An analysis of three bayesian methods.” *Multivariate Behavioral Research*, 1–21. <doi:10.1080/00273171.2024.2345915>.
 
 </div>
 
