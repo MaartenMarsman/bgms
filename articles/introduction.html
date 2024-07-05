@@ -91,10 +91,10 @@ text-align: justify}
 </h3>
 <p>This example demonstrates how to use bgms for Bayesian analysis of
 binary or ordinal data using a Markov Random Field (MRF) model. To learn
-more about the MRF model, check out <span class="citation">Marsman &amp;
-Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>,
-and to learn more about the Bayesian analysis of network models, check
-out <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
+more about the MRF model, check out <span class="citation">Marsman et
+al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, and
+to learn more about the Bayesian analysis of network models, check out
+<span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
 <code>bgms</code> software is coming soon.</p>
 <p>We’ll examine real data on PTSD symptoms from 362 Chinese adults who
 survived the Wenchuan earthquake but tragically lost a child <span class="citation">(<a href="#ref-McNallyEtAl_2015">McNally et al.,
@@ -111,7 +111,7 @@ on a scale from “not at all” to “extremely.”</p>
 network structure and its corresponding parameters. As numerous
 structures could underlie our network, we employ simulation-based
 methods to investigate the posterior distribution of network structures
-and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal">Marsman &amp; Haslbeck,
+and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal">Marsman et al.,
 2023</a>)</span>. The <code>bgm</code> function performs this task,
 iteratively simulating values from the posterior distribution of network
 structures and parameters.</p>
@@ -461,12 +461,12 @@ the data. Let’s estimate their posterior probabilities.</p>
 <p>The most plausible model accounts for less than <code>1</code>
 percent of the posterior probability. In conclusion, we have significant
 uncertainty about the network structure that generated the data.</p>
-<p>In the analysis by <span class="citation">Marsman &amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, it is
+<p>In the analysis by <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, it is
 demonstrated that even when there is uncertainty about the network
 structure that generated the data, inclusion Bayes factors are highly
 robust. They can help identify substructures of the network in which we
 have strong confidence. However, to perform these analyses, we need to
-run <code>bgm</code> for many more iterations. In their analysis, <span class="citation">Marsman &amp; Haslbeck (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span> used 1,000,000
+run <code>bgm</code> for many more iterations. In their analysis, <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span> used 1,000,000
 iterations. For further details, interested readers can refer to their
 analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466" class="external-link">here</a>.</p>
 </div>
@@ -478,11 +478,14 @@ analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9
 Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van
 Holst, R. J., Wagenmakers, E.-J., &amp; Marsman, M. (2023). Bayesian
 analysis of cross-sectional networks: <span>A</span> tutorial in
-<span>R</span> and <span>JASP</span>. <em>Retrieved from <a href="https://osf.io/preprints/psyarxiv/ub5tc/" class="external-link uri">Https://Osf.io/Preprints/Psyarxiv/Ub5tc/</a></em>.
+<span>R</span> and <span>JASP</span>. <em>Advances in
+<span>M</span>ethods and <span>P</span>ractices in
+<span>P</span>sychological <span>S</span>cience</em>. <a href="https://doi.org/10.1177/25152459231193334" class="external-link">https://doi.org/10.1177/25152459231193334</a>
 </div>
 <div id="ref-MarsmanHaslbeck_2023_ordinal" class="csl-entry">
-Marsman, M., &amp; Haslbeck, J. M. B. (2023). Bayesian analysis of the
-ordinal <span>M</span>arkov random field. <em>Retrieved from <a href="https://osf.io/preprints/psyarxiv/ukwrf/" class="external-link uri">Https://Osf.io/Preprints/Psyarxiv/Ukwrf/</a></em>.
+Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B. (2023).
+Bayesian analysis of the ordinal <span>M</span>arkov random field.
+<em>PsyArXiv Preprint</em>. <a href="https://doi.org/10.31234/osf.io/ukwrf" class="external-link">https://doi.org/10.31234/osf.io/ukwrf</a>
 </div>
 <div id="ref-McNallyEtAl_2015" class="csl-entry">
 McNally, R. J., Robinaugh, D. J., Wu, G. W. Y., Wang, L., Deserno, M.
