@@ -1,42 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/404.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/articles/index.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/articles/introduction.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/authors.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/index.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/news/index.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/Wenchuan.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/bgm.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/bgms-package.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/extractor_functions.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/mrfSampler.html</loc>
-  </url>
-  <url>
-    <loc>https://maartenMarsman.github.io/bgms/reference/print.bgms.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://maartenMarsman.github.io/bgms/404.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/articles/index.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/articles/introduction.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/authors.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/index.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/news/index.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/Wenchuan.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/bgm.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/bgms-package.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/extractor_functions.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/index.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/mrfSampler.html</loc></url>
+<url><loc>https://maartenMarsman.github.io/bgms/reference/print.bgms.html</loc></url>
 </urlset>
+
