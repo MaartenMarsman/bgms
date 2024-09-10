@@ -3,7 +3,7 @@ pkgdown: 2.1.0
 pkgdown_sha: ~
 articles:
   introduction: introduction.html
-last_built: 2024-07-13T10:20Z
+last_built: 2024-09-10T13:24Z
 urls:
   reference: https://maartenMarsman.github.io/bgms/reference
   article: https://maartenMarsman.github.io/bgms/articles
