@@ -751,7 +751,7 @@ compare_reformat_data = function(x,
         stop(paste0("There is no overlap in response categories between the two groups for variable \n",
                     node,
                     ". As a result, bgmCompare cannot estimate a difference between the groups for any \n",
-                    "of the category thresholds. You can run bgmCompare with the option \n",
+                    "of its category thresholds. You can run bgmCompare with the option \n",
                     "main_difference_model = ``Free''."))
     }
 

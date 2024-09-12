@@ -1289,26 +1289,18 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Adaptive Metropolis for the linear Blume-Capel parameter
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   current_state = thresholds(variable, 0);
   proposed_state = R::rnorm(current_state,
                             proposal_sd_blumecapel(variable, 0));
 
-  //--------------------------------------------------------------------------
-  //Compute the log acceptance probability -----------------------------------
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //Compute the log acceptance probability -------------------------------------
+  //----------------------------------------------------------------------------
 
-  //Compute the prior ratio --------------------------------------------------
-  log_prob = threshold_alpha * proposed_state;
-  log_prob -= threshold_alpha * current_state;
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-
-  //Precompute bounds for group 1 for numeric stability and efficiency -------
+  //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent = (thresholds(variable, 1) - .5 * main_difference(variable, 1)) *
       (category - reference_category[variable]) *
@@ -1321,20 +1313,21 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
       category + exponent;
   }
 
-  double tmp_n = max(constant_numerator);
-  double tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  double tmp_num = max(constant_numerator);
+  double tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 1----------------------------------
-  log_prob += sufficient_blume_capel_gr1(0, variable) * proposed_state;
+  //Compute the log pseudolikelihood ratio for group 1--------------------------
+  log_prob = sufficient_blume_capel_gr1(0, variable) * proposed_state;
   log_prob -= sufficient_blume_capel_gr1(0, variable) * current_state;
 
   for(int person = 0; person < no_persons_gr1; person++) {
@@ -1356,7 +1349,7 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
-  //Precompute bounds for group 2 for numeric stability and efficiency -------
+  //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent = (thresholds(variable, 1) + .5 * main_difference(variable, 1)) *
       (category - reference_category[variable]) *
@@ -1369,19 +1362,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
       category + exponent;
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 2 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 2----------------------------------
+  //Compute the log pseudolikelihood ratio for group 2--------------------------
   log_prob += sufficient_blume_capel_gr2(0, variable) * proposed_state;
   log_prob -= sufficient_blume_capel_gr2(0, variable) * current_state;
 
@@ -1404,12 +1398,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
+  //Compute the prior ratio ----------------------------------------------------
+  log_prob += threshold_alpha * (proposed_state - current_state);
+  log_prob += (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(current_state));
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(proposed_state));
+
+  //Metropolis step ------------------------------------------------------------
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
     thresholds(variable, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ----------------------------
+  //Robbins-Monro update of the proposal variance ------------------------------
   if(log_prob > 0) {
     log_prob = 1;
   } else {
@@ -1432,27 +1434,19 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   proposal_sd_blumecapel(variable, 0) = update_proposal_sd;
 
 
-  //--------------------------------------------------------------------------
+
+  //---------------------------------------------------------------------------|
   // Adaptive Metropolis for the quadratic Blume-Capel parameter
-  //--------------------------------------------------------------------------
+  //---------------------------------------------------------------------------|
   current_state = thresholds(variable, 1);
   proposed_state = R::rnorm(current_state,
                             proposal_sd_blumecapel(variable, 1));
 
-  //--------------------------------------------------------------------------
-  // Compute the log acceptance probability ----------------------------------
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //Compute the log acceptance probability -------------------------------------
+  //----------------------------------------------------------------------------
 
-  //Compute the prior ratio --------------------------------------------------
-  log_prob = threshold_alpha * proposed_state;
-  log_prob -= threshold_alpha * current_state;
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-
-
-  //Precompute bounds for group 1 for numeric stability and efficiency -------
+  //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent =  thresholds(variable, 0) * category;
     exponent -= .5 * main_difference(variable, 0) * category;
@@ -1466,20 +1460,21 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
       (category - reference_category[variable]);
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 1----------------------------------
-  log_prob += sufficient_blume_capel_gr1(1, variable) * proposed_state;
+  //Compute the log pseudolikelihood ratio for group 1--------------------------
+  log_prob = sufficient_blume_capel_gr1(1, variable) * proposed_state;
   log_prob -= sufficient_blume_capel_gr1(1, variable) * current_state;
 
   for(int person = 0; person < no_persons_gr1; person++) {
@@ -1502,7 +1497,7 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   }
 
 
-  //Precompute bounds for group 2 for numeric stability and efficiency -------
+  //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent =  thresholds(variable, 0) * category;
     exponent += .5 * main_difference(variable, 0) * category;
@@ -1516,19 +1511,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
       (category - reference_category[variable]);
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 2 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 2----------------------------------
+  //Compute the log likelihood ratio for group 2--------------------------------
   log_prob += sufficient_blume_capel_gr2(1, variable) * proposed_state;
   log_prob -= sufficient_blume_capel_gr2(1, variable) * current_state;
 
@@ -1551,12 +1547,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
+  //Compute the prior ratio ----------------------------------------------------
+  log_prob += threshold_alpha * (proposed_state - current_state);
+  log_prob += (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(current_state));
+  log_prob -= (threshold_alpha + threshold_beta) *
+    std::log(1 + std::exp(proposed_state));
+
+  //Metropolis step ------------------------------------------------------------
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
     thresholds(variable, 1) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ----------------------------
+  //Robbins-Monro update of the proposal variance ------------------------------
   if(log_prob > 0) {
     log_prob = 1;
   } else {
@@ -1608,22 +1612,23 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
 
-  //--------------------------------------------------------------------------
+  //---------------------------------------------------------------------------|
   // Adaptive Metropolis for the difference in the linear Blume-Capel parameter
-  //--------------------------------------------------------------------------
+  //---------------------------------------------------------------------------|
   current_state = main_difference(variable, 0);
   proposed_state = R::rnorm(current_state,
                             proposal_sd_main_difference(variable, 0));
 
-  //--------------------------------------------------------------------------
-  // Compute the log acceptance probability -----------------------------------
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //Compute the log acceptance probability -------------------------------------
+  //----------------------------------------------------------------------------
 
-  //Compute the prior ratio --------------------------------------------------
-  log_prob = R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+  //Sufficient statistics ------------------------------------------------------
+  int sufficient_statistic = sufficient_blume_capel_gr2(0, variable) -
+    sufficient_blume_capel_gr1(0, variable);
+  log_prob = .5 * sufficient_statistic * (proposed_state - current_state);
 
-  //Precompute bounds for group 1 for numeric stability and efficiency -------
+  //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent = (thresholds(variable, 1) - .5 * main_difference(variable, 1)) *
       (category - reference_category[variable]) *
@@ -1636,22 +1641,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
       category + exponent;
   }
 
-  double tmp_n = max(constant_numerator);
-  double tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  double tmp_num = max(constant_numerator);
+  double tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 1----------------------------------
-  log_prob -= .5 * sufficient_blume_capel_gr1(0, variable) * proposed_state;
-  log_prob += .5 * sufficient_blume_capel_gr1(0, variable) * current_state;
-
+  //Compute the log pseudolikelihood ratio for group 1--------------------------
   for(int person = 0; person < no_persons_gr1; person++) {
     rest_score = rest_matrix_gr1(person, variable);
     if(rest_score > 0) {
@@ -1671,7 +1674,7 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
-  //Precompute bounds for group 2 for numeric stability and efficiency -------
+  //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent = (thresholds(variable, 1) + .5 * main_difference(variable, 1)) *
       (category - reference_category[variable]) *
@@ -1684,22 +1687,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
       category + exponent;
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 2 ---------------------------------
-  log_prob += .5 * sufficient_blume_capel_gr2(0, variable) * proposed_state;
-  log_prob -= .5 * sufficient_blume_capel_gr2(0, variable) * current_state;
-
+  //Compute the log pseudolikelihood ratio for group 2 -------------------------
   for(int person = 0; person < no_persons_gr2; person++) {
     rest_score = rest_matrix_gr2(person, variable);
     if(rest_score > 0) {
@@ -1719,12 +1720,17 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
+  //Compute the prior ratio ---------------------------------------------------
+  log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+  //Metropolis step ------------------------------------------------------------
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
     main_difference(variable, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ----------------------------
+  //Robbins-Monro update of the proposal variance ------------------------------
   if(log_prob > 0) {
     log_prob = 1;
   } else {
@@ -1746,22 +1752,23 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
 
   proposal_sd_main_difference(variable, 0) = update_proposal_sd;
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Adaptive Metropolis for the difference in quadratic Blume-Capel parameter
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   current_state = main_difference(variable, 1);
   proposed_state = R::rnorm(current_state,
                             proposal_sd_main_difference(variable, 1));
 
-  //--------------------------------------------------------------------------
-  // Compute the log acceptance probability ----------------------------------
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Compute the log acceptance probability ------------------------------------
+  //----------------------------------------------------------------------------
 
-  // Compute the prior ratio -------------------------------------------------
-  log_prob = R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+  //Sufficient statistics ------------------------------------------------------
+  sufficient_statistic = sufficient_blume_capel_gr2(1, variable) -
+    sufficient_blume_capel_gr1(1, variable);
+  log_prob = .5 * sufficient_statistic * (proposed_state - current_state);
 
-  //Precompute bounds for group 1 for numeric stability and efficiency -------
+  //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent =  thresholds(variable, 0) * category;
     exponent -= .5 * main_difference(variable, 0) * category;
@@ -1775,22 +1782,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
       (category - reference_category[variable]);
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 1----------------------------------
-  log_prob -= .5 * sufficient_blume_capel_gr1(1, variable) * proposed_state;
-  log_prob += .5 * sufficient_blume_capel_gr1(1, variable) * current_state;
-
+  //Compute the log pseudolikelihood ratio for group 1--------------------------
   for(int person = 0; person < no_persons_gr1; person++) {
     rest_score = rest_matrix_gr1(person, variable);
     if(rest_score > 0) {
@@ -1810,7 +1815,7 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
-  //Precompute bounds for group 2 for numeric stability and efficiency -------
+  //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     exponent =  thresholds(variable, 0) * category;
     exponent += .5 * main_difference(variable, 0) * category;
@@ -1824,22 +1829,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
       (category - reference_category[variable]);
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 2 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 2 ---------------------------------
-  log_prob += .5 * sufficient_blume_capel_gr2(1, variable) * proposed_state;
-  log_prob -= .5 * sufficient_blume_capel_gr2(1, variable) * current_state;
-
+  //Compute the log pseudolikelihood ratio for group 2 -------------------------
   for(int person = 0; person < no_persons_gr2; person++) {
     rest_score = rest_matrix_gr2(person, variable);
     if(rest_score > 0) {
@@ -1859,10 +1862,16 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     log_prob -= std::log(denominator);
   }
 
+  //Compute the prior ratio -------------------------------------------------
+  log_prob = R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+  //Metropolis step ------------------------------------------------------------
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
     main_difference(variable, 1) = proposed_state;
   }
+
   //Robbins-Monro update of the proposal variance ----------------------------
   if(log_prob > 0) {
     log_prob = 1;
@@ -2081,8 +2090,6 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
                                                                  NumericMatrix rest_matrix_gr2,
                                                                  NumericMatrix inclusion_probability_difference,
                                                                  IntegerVector reference_category) {
-  double proposed_state;
-  double current_state;
   double log_prob;
   double U;
   double lbound, bound, rest_score;
@@ -2092,54 +2099,35 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
 
-  log_prob = 0.0;
+  //--------------------------------------------------------------------------
+  // Adaptive Metropolis for the difference in Blume-Capel parameters
+  //--------------------------------------------------------------------------
+  current_states[0] = main_difference(variable, 0);
+  current_states[1] = main_difference(variable, 1);
 
-  for(int parameter = 0; parameter < 2; parameter++) {
-    //------------------------------------------------------------------------
-    // Adaptive Metropolis for the difference in Blume-Capel parameters
-    //------------------------------------------------------------------------
-    current_state = main_difference(variable, parameter);
-    current_states[parameter] = current_state;
-
-    if(indicator(variable, variable) == 0) {
-      proposed_state = R::rnorm(current_state,
-                                proposal_sd_main_difference(variable, parameter));
-      proposed_states[parameter] = proposed_state;
-    } else {
-      proposed_state = 0.0;
-      proposed_states[parameter] = proposed_state;
-    }
-
-    //------------------------------------------------------------------------
-    // Compute the log acceptance probability --------------------------------
-    //------------------------------------------------------------------------
-
-    //Compute the prior and proposal ratios ----------------------------------
-    if(indicator(variable, variable) == 0) {
-      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-      log_prob -= R::dnorm(proposed_state,
-                           current_state,
-                           proposal_sd_main_difference(variable, parameter),
-                           true);
-    } else {
-      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
-      log_prob += R::dnorm(current_state,
-                           proposed_state,
-                           proposal_sd_main_difference(variable, parameter),
-                           true);
-    }
-  }
-
-  //Compute the prior inclusion ratios ---------------------------------------
   if(indicator(variable, variable) == 0) {
-    log_prob += std::log(inclusion_probability_difference(variable, variable));
-    log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
+    proposed_states[0] = R::rnorm(current_states[0],
+                                  proposal_sd_main_difference(variable, 0));
+    proposed_states[1] = R::rnorm(current_states[1],
+                                  proposal_sd_main_difference(variable, 1));
   } else {
-    log_prob -= log(inclusion_probability_difference(variable, variable));
-    log_prob += log(1 - inclusion_probability_difference(variable, variable));
+      proposed_states[0] = 0.0;
+      proposed_states[1] = 0.0;
   }
 
-  //Precompute bounds for group 1 for numeric stability and efficiency -------
+  //--------------------------------------------------------------------------
+  // Compute the log acceptance probability ----------------------------------
+  //--------------------------------------------------------------------------
+
+  //Sufficient statistics ------------------------------------------------------
+  int sufficient_statistic_0 = sufficient_blume_capel_gr2(0, variable) -
+    sufficient_blume_capel_gr1(0, variable);
+  int sufficient_statistic_1 = sufficient_blume_capel_gr2(1, variable) -
+    sufficient_blume_capel_gr1(1, variable);
+  log_prob = .5 * sufficient_statistic_0 * (proposed_states[0] - current_states[0]);
+  log_prob += .5 * sufficient_statistic_1 * (proposed_states[1] - current_states[1]);
+
+  //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     constant_numerator[category] =
       (thresholds(variable, 0) - .5 * current_states[0]) *
@@ -2155,24 +2143,20 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
       (category - reference_category[variable]);
   }
 
-  double tmp_n = max(constant_numerator);
-  double tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 1 for numeric stability ------------------------
+  double tmp_num = max(constant_numerator);
+  double tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 1----------------------------------
-  log_prob -= .5 * sufficient_blume_capel_gr1(0, variable) * proposed_states[0];
-  log_prob += .5 * sufficient_blume_capel_gr1(0, variable) * current_states[0];
-  log_prob -= .5 * sufficient_blume_capel_gr1(1, variable) * proposed_states[1];
-  log_prob += .5 * sufficient_blume_capel_gr1(1, variable) * current_states[1];
-
+  //Compute the log pseudolikelihood ratio for group 1--------------------------
   for(int person = 0; person < no_persons_gr1; person++) {
     rest_score = rest_matrix_gr1(person, variable);
     if(rest_score > 0) {
@@ -2192,7 +2176,7 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
     log_prob -= std::log(denominator);
   }
 
-  //Precompute bounds for group 2 for numeric stability and efficiency -------
+  //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
     constant_numerator[category] =
       (thresholds(variable, 0) + .5 * current_states[0]) *
@@ -2208,24 +2192,20 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
       (category - reference_category[variable]);
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
+  //Precompute bounds for group 2 for numeric stability ------------------------
+  tmp_num = max(constant_numerator);
+  tmp_den = max(constant_denominator);
+  if(tmp_num > 0) {
+    if(tmp_num > tmp_den) {
+      lbound = tmp_num;
     } else {
-      lbound = tmp_d;
+      lbound = tmp_den;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log likelihood ratio group 2----------------------------------
-  log_prob += .5 * sufficient_blume_capel_gr2(0, variable) * proposed_states[0];
-  log_prob -= .5 * sufficient_blume_capel_gr2(0, variable) * current_states[0];
-  log_prob += .5 * sufficient_blume_capel_gr2(1, variable) * proposed_states[1];
-  log_prob -= .5 * sufficient_blume_capel_gr2(1, variable) * current_states[1];
-
+  //Compute the log pseudolikelihood ratio for group 2--------------------------
   for(int person = 0; person < no_persons_gr2; person++) {
     rest_score = rest_matrix_gr2(person, variable);
     if(rest_score > 0) {
@@ -2245,6 +2225,41 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
     log_prob -= std::log(denominator);
   }
 
+  //Compute the parameter prior and proposal ratios ----------------------------
+  if(indicator(variable, variable) == 0) {
+    log_prob += R::dcauchy(proposed_states[0], 0.0, main_difference_scale, true);
+    log_prob += R::dcauchy(proposed_states[1], 0.0, main_difference_scale, true);
+    log_prob -= R::dnorm(proposed_states[0],
+                         current_states[0],
+                         proposal_sd_main_difference(variable, 0),
+                         true);
+    log_prob -= R::dnorm(proposed_states[1],
+                         current_states[1],
+                         proposal_sd_main_difference(variable, 1),
+                         true);
+  } else {
+    log_prob -= R::dcauchy(current_states[0], 0.0, main_difference_scale, true);
+    log_prob -= R::dcauchy(current_states[1], 0.0, main_difference_scale, true);
+    log_prob += R::dnorm(current_states[0],
+                         proposed_states[0],
+                         proposal_sd_main_difference(variable, 0),
+                         true);
+    log_prob += R::dnorm(current_states[1],
+                         proposed_states[1],
+                         proposal_sd_main_difference(variable, 1),
+                         true);
+  }
+
+  //Compute the prior inclusion ratios -----------------------------------------
+  if(indicator(variable, variable) == 0) {
+    log_prob += std::log(inclusion_probability_difference(variable, variable));
+    log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
+  } else {
+    log_prob -= log(inclusion_probability_difference(variable, variable));
+    log_prob += log(1 - inclusion_probability_difference(variable, variable));
+  }
+
+  //Metropolis step ------------------------------------------------------------
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
     indicator(variable, variable) = 1 - indicator(variable, variable);
@@ -2378,7 +2393,7 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
                                                          reference_category);
   }
 
-  // //Within model move for differences in interaction parameters
+  //Within model move for differences in interaction parameters
   compare_metropolis_pairwise_difference(pairwise_difference,
                                          thresholds_gr1,
                                          thresholds_gr2,
@@ -2468,24 +2483,6 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
                                                    epsilon_hi);
 
         //Within model move for the main category thresholds
-        // compare_metropolis_threshold_regular(thresholds,
-        //                                      main_difference,
-        //                                      n_cat_obs_gr1,
-        //                                      n_cat_obs_gr2,
-        //                                      no_categories_gr1,
-        //                                      proposal_sd_threshold_regular,
-        //                                      threshold_regular_scale,
-        //                                      no_persons_gr1,
-        //                                      no_persons_gr2,
-        //                                      variable,
-        //                                      rest_matrix_gr1,
-        //                                      rest_matrix_gr2,
-        //                                      phi,
-        //                                      target_ar,
-        //                                      t,
-        //                                      epsilon_lo,
-        //                                      epsilon_hi);
-
         compare_metropolis_threshold_regular(thresholds,
                                              main_difference,
                                              no_categories_gr1,
