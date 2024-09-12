@@ -503,8 +503,8 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
             cntr = cntr + 1
             missing_index[cntr, 1] = mis[i]
             missing_index[cntr, 2] = node
-            x[mis[i], node] = stats::median(x[, node], #start value for imputation
-                                            na.rm = TRUE)
+            x[mis[i], node] = sample(x[-mis, node], #start value for imputation
+                                     size = 1)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
         }
@@ -687,8 +687,8 @@ compare_reformat_data = function(x,
             cntr = cntr + 1
             missing_index_gr1[cntr, 1] = mis[i]
             missing_index_gr1[cntr, 2] = node
-            x[mis[i], node] = stats::median(x[, node], #start value for imputation
-                                            na.rm = TRUE)
+            x[mis[i], node] = sample(x[-mis, node], #start value for imputation
+                                     size = 1)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
         }
@@ -712,8 +712,8 @@ compare_reformat_data = function(x,
             cntr = cntr + 1
             missing_index_gr2[cntr, 1] = mis[i]
             missing_index_gr2[cntr, 2] = node
-            y[mis[i], node] = stats::median(y[, node], #start value for imputation
-                                            na.rm = TRUE)
+            y[mis[i], node] = sample(y[-mis, node], #start value for imputation
+                                     size = 1)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
         }

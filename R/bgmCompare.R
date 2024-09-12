@@ -392,7 +392,6 @@ bgmCompare = function(x,
     }
   }
 
-
   #Precompute the sufficient statistics for the two Blume-Capel parameters -----
   sufficient_blume_capel_gr1 = matrix(0, nrow = 2, ncol = no_variables)
   sufficient_blume_capel_gr2 = matrix(0, nrow = 2, ncol = no_variables)

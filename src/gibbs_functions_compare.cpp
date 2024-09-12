@@ -37,19 +37,17 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
   double exponent, rest_score, cumsum, u;
   int score, person, variable, new_observation, old_observation;
 
+  //Impute missing data (if there are any) for group 1 -------------------------
   if(no_missings_gr1 > 1) {
     for(int missing = 0; missing < no_missings_gr1; missing++) {
-      //Which observation to impute? ---------------------------------------------
+      //Which observation to impute? -------------------------------------------
       person = missing_index_gr1(missing, 0) - 1; //R to C++ indexing
       variable = missing_index_gr1(missing, 1) - 1; //R to C++ indexing
 
-      //Generate new observation -------------------------------------------------
+      //Generate a new observation from the ordinal MRF ------------------------
       rest_score = rest_matrix_gr1(person, variable);
-
-      //Two distinct (ordinal) variable types ------------------------------------
       if(ordinal_variable[variable] == true) {
-
-        //Regular binary or ordinal MRF variable ---------------------------------
+        //Regular binary or ordinal variable -----------------------------------
         cumsum = 1.0;
         probabilities[0] = 1.0;
         for(int category = 0; category < no_categories_gr1[variable]; category++) {
@@ -59,7 +57,7 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
           probabilities[category + 1] = cumsum;
         }
       } else {
-        //Blume-Capel ordinal MRF variable ---------------------------------------
+        //Blume-Capel variable -------------------------------------------------
         exponent = thresholds_gr1(variable, 1) *
           reference_category[variable] *
           reference_category[variable];
@@ -76,24 +74,26 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
           probabilities[category + 1] = cumsum;
         }
       }
-
       u = cumsum * R::unif_rand();
       score = 0;
       while (u > probabilities[score]) {
         score++;
       }
 
-      //Update observations
+      //Update current data with newly generated observation -------------------
       new_observation = score;
       old_observation = observations_gr1(person, variable);
       if(old_observation != new_observation) {
+        //Update raw data ------------------------------------------------------
         observations_gr1(person, variable) = new_observation;
+
+        //Update pre-computed statistics ---------------------------------------
         if(ordinal_variable[variable] == true) {
-          //Regular binary or ordinal MRF variable -------------------------------
+          //Regular binary or ordinal variable ---------------------------------
           n_cat_obs_gr1(old_observation, variable)--;
           n_cat_obs_gr1(new_observation, variable)++;
         } else {
-          //Regular binary or ordinal MRF variable -------------------------------
+          //Blume-Capel variable -----------------------------------------------
           sufficient_blume_capel_gr1(0, variable) -= old_observation;
           sufficient_blume_capel_gr1(0, variable) += new_observation;
           sufficient_blume_capel_gr1(1, variable) -=
@@ -104,8 +104,8 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
             (new_observation - reference_category[variable]);
         }
 
+        //Update rest score ----------------------------------------------------
         for(int vertex = 0; vertex < no_variables; vertex++) {
-          //interactions(i, i) = 0
           rest_matrix_gr1(person, vertex) -= old_observation *
             interactions_gr1(vertex, variable);
           rest_matrix_gr1(person, vertex) += new_observation *
@@ -115,19 +115,18 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
     }
   }
 
+
+  //Impute missing data (if there are any) for group 1 -------------------------
   if(no_missings_gr2 > 1) {
     for(int missing = 0; missing < no_missings_gr2; missing++) {
-      //Which observation to impute? ---------------------------------------------
+      //Which observation to impute? -------------------------------------------
       person = missing_index_gr2(missing, 0) - 1; //R to C++ indexing
       variable = missing_index_gr2(missing, 1) - 1; //R to C++ indexing
 
-      //Generate new observation -------------------------------------------------
+      //Generate a new observation from the ordinal MRF ------------------------
       rest_score = rest_matrix_gr2(person, variable);
-
-      //Two distinct (ordinal) variable types ------------------------------------
       if(ordinal_variable[variable] == true) {
-
-        //Regular binary or ordinal MRF variable ---------------------------------
+        //Regular binary or ordinal variable -----------------------------------
         cumsum = 1.0;
         probabilities[0] = 1.0;
         for(int category = 0; category < no_categories_gr2[variable]; category++) {
@@ -137,8 +136,7 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
           probabilities[category + 1] = cumsum;
         }
       } else {
-
-        //Blume-Capel ordinal MRF variable ---------------------------------------
+        //Blume-Capel variable -------------------------------------------------
         exponent = thresholds_gr2(variable, 1) *
           reference_category[variable] *
           reference_category[variable];
@@ -155,24 +153,26 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
           probabilities[category + 1] = cumsum;
         }
       }
-
       u = cumsum * R::unif_rand();
       score = 0;
       while (u > probabilities[score]) {
         score++;
       }
 
-      //Update observations
+      //Update current data with newly generated observation -------------------
       new_observation = score;
       old_observation = observations_gr2(person, variable);
       if(old_observation != new_observation) {
+        //Update raw data ------------------------------------------------------
         observations_gr2(person, variable) = new_observation;
+
+        //Update pre-computed statistics ---------------------------------------
         if(ordinal_variable[variable] == true) {
-          //Regular binary or ordinal MRF variable -------------------------------
+          //Regular binary or ordinal variable ---------------------------------
           n_cat_obs_gr2(old_observation, variable)--;
           n_cat_obs_gr2(new_observation, variable)++;
         } else {
-          //Regular binary or ordinal MRF variable -------------------------------
+          //Blume-Capel variable -----------------------------------------------
           sufficient_blume_capel_gr2(0, variable) -= old_observation;
           sufficient_blume_capel_gr2(0, variable) += new_observation;
           sufficient_blume_capel_gr2(1, variable) -=
@@ -183,8 +183,8 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
             (new_observation - reference_category[variable]);
         }
 
+        //Update rest score ----------------------------------------------------
         for(int vertex = 0; vertex < no_variables; vertex++) {
-          //interactions(i, i) = 0
           rest_matrix_gr2(person, vertex) -= old_observation *
             interactions_gr2(vertex, variable);
           rest_matrix_gr2(person, vertex) += new_observation *
