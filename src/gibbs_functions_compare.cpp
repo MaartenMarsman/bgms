@@ -231,6 +231,9 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
 
   double delta_state = proposed_state - current_state;
 
+  // --------------------------------------------------------------------------|
+  // Compute log pseudolikelihood ratio for group 1 ----------------------------
+  // --------------------------------------------------------------------------|
   for(int person = 0; person < no_persons_gr1; person++) {
     obs_score1 = observations_gr1(person, variable1);
     obs_score2 = observations_gr1(person, variable2);
@@ -266,12 +269,11 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr1[variable1] + 1; category++) {
-        exponent = thresholds_gr1(variable1, 0) *
-          category;
+        exponent = thresholds_gr1(variable1, 0) * category;
         exponent += thresholds_gr1(variable1, 1) *
           (category - reference_category[variable1]) *
           (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
+        exponent += category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + category * obs_score2 * proposed_state);
         denominator_curr +=
@@ -310,12 +312,11 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr1[variable2] + 1; category++) {
-        exponent = thresholds_gr1(variable2, 0) *
-          category;
+        exponent = thresholds_gr1(variable2, 0) * category;
         exponent += thresholds_gr1(variable2, 1) *
           (category - reference_category[variable2]) *
           (category - reference_category[variable2]);
-        exponent+=  category * rest_score - bound;
+        exponent +=  category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + category * obs_score1 * proposed_state);
         denominator_curr +=
@@ -326,6 +327,9 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
     pseudolikelihood_ratio += std::log(denominator_curr);
   }
 
+  // --------------------------------------------------------------------------|
+  // Compute log pseudolikelihood ratio for group 2 ----------------------------
+  // --------------------------------------------------------------------------|
   for(int person = 0; person < no_persons_gr2; person++) {
     obs_score1 = observations_gr2(person, variable1);
     obs_score2 = observations_gr2(person, variable2);
@@ -333,8 +337,7 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
     pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
 
     //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable1) -
-      obs_score2 * current_state;
+    rest_score = rest_matrix_gr2(person, variable1) - obs_score2 * current_state;
 
     if(rest_score > 0) {
       bound = no_categories_gr2[variable1] * rest_score;
@@ -361,12 +364,11 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr2[variable1] + 1; category++) {
-        exponent = thresholds_gr2(variable1, 0) *
-          category;
+        exponent = thresholds_gr2(variable1, 0) * category;
         exponent += thresholds_gr2(variable1, 1) *
           (category - reference_category[variable1]) *
           (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
+        exponent += category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + category * obs_score2 * proposed_state);
         denominator_curr +=
@@ -377,8 +379,7 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
     pseudolikelihood_ratio += std::log(denominator_curr);
 
     //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable2) -
-      obs_score1 * current_state;
+    rest_score = rest_matrix_gr2(person, variable2) - obs_score1 * current_state;
 
     if(rest_score > 0) {
       bound = no_categories_gr2[variable2] * rest_score;
@@ -405,12 +406,11 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr2[variable2] + 1; category++) {
-        exponent = thresholds_gr2(variable2, 0) *
-          category;
+        exponent = thresholds_gr2(variable2, 0) * category;
         exponent += thresholds_gr2(variable2, 1) *
           (category - reference_category[variable2]) *
           (category - reference_category[variable2]);
-        exponent+=  category * rest_score - bound;
+        exponent +=  category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + category * obs_score1 * proposed_state);
         denominator_curr +=
@@ -423,6 +423,7 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
 
   return pseudolikelihood_ratio;
 }
+
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of an overall pairwise
@@ -553,6 +554,9 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
 
   double delta_state = proposed_state - current_state;
 
+  // --------------------------------------------------------------------------|
+  // Compute log pseudolikelihood ratio for group 1 ----------------------------
+  // --------------------------------------------------------------------------|
   for(int person = 0; person < no_persons_gr1; person++) {
     obs_score1 = observations_gr1(person, variable1);
     obs_score2 = observations_gr1(person, variable2);
@@ -588,12 +592,11 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr1[variable1] + 1; category++) {
-        exponent = thresholds_gr1(variable1, 0) *
-          category;
+        exponent = thresholds_gr1(variable1, 0) * category;
         exponent += thresholds_gr1(variable1, 1) *
           (category - reference_category[variable1]) *
           (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
+        exponent += category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent - category * .5 * obs_score2 * proposed_state);
         denominator_curr +=
@@ -632,8 +635,7 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr1[variable2] + 1; category++) {
-        exponent = thresholds_gr1(variable2, 0) *
-          category;
+        exponent = thresholds_gr1(variable2, 0) * category;
         exponent += thresholds_gr1(variable2, 1) *
           (category - reference_category[variable2]) *
           (category - reference_category[variable2]);
@@ -648,7 +650,9 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
     pseudolikelihood_ratio += std::log(denominator_curr);
   }
 
-
+  // --------------------------------------------------------------------------|
+  // Compute log pseudolikelihood ratio for group 2 ----------------------------
+  // --------------------------------------------------------------------------|
   for(int person = 0; person < no_persons_gr2; person++) {
     obs_score1 = observations_gr2(person, variable1);
     obs_score2 = observations_gr2(person, variable2);
@@ -684,12 +688,11 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr2[variable1] + 1; category++) {
-        exponent = thresholds_gr2(variable1, 0) *
-          category;
+        exponent = thresholds_gr2(variable1, 0) * category;
         exponent += thresholds_gr2(variable1, 1) *
           (category - reference_category[variable1]) *
           (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
+        exponent += category * rest_score - bound;
         denominator_prop +=
           std::exp(exponent + category * .5 * obs_score2 * proposed_state);
         denominator_curr +=
@@ -728,8 +731,7 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
       denominator_prop = 0.0;
       denominator_curr = 0.0;
       for(int category = 0; category < no_categories_gr2[variable2] + 1; category++) {
-        exponent = thresholds_gr2(variable2, 0) *
-          category;
+        exponent = thresholds_gr2(variable2, 0) * category;
         exponent += thresholds_gr2(variable2, 1) *
           (category - reference_category[variable2]) *
           (category - reference_category[variable2]);
@@ -1435,6 +1437,7 @@ void compare_metropolis_main_difference_regular_between_model(NumericMatrix thre
   }
 }
 
+
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for the two
 // category threshold parameters of the Blume-Capel model
@@ -1457,34 +1460,28 @@ double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_cu
   NumericVector constant_denominator (no_categories[variable] + 1);
   double lbound, bound;
   double log_prob, rest_score, numerator, denominator, exponent;
+  int linear_score, quadratic_score;
 
   //----------------------------------------------------------------------------
   //Compute the log acceptance probability -------------------------------------
   //----------------------------------------------------------------------------
-  log_prob = sufficient_blume_capel_gr1(0, variable) * linear_proposed;
-  log_prob += sufficient_blume_capel_gr1(1, variable) * quadratic_proposed;
-  log_prob -= sufficient_blume_capel_gr1(0, variable) * linear_current;
-  log_prob -= sufficient_blume_capel_gr1(1, variable) * quadratic_current;
 
   //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    constant_numerator[category] = linear_current * category;
-    constant_numerator[category] -= .5 * main_difference(variable, 0) * category;
-    constant_numerator[category] += quadratic_current *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_numerator[category] -= .5 * main_difference(variable, 1) *
+    linear_score = category;
+    quadratic_score =
       (category - reference_category[variable]) *
       (category - reference_category[variable]);
 
-    constant_denominator[category] = linear_proposed * category;
-    constant_denominator[category] -= .5 * main_difference(variable, 0) * category;
-    constant_denominator[category] += quadratic_proposed *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_denominator[category] -= .5 * main_difference(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    constant_numerator[category] = linear_current * linear_score;
+    constant_numerator[category] -= .5 * main_difference(variable, 0) * linear_score;
+    constant_numerator[category] += quadratic_current * quadratic_score;
+    constant_numerator[category] -= .5 * main_difference(variable, 1) * quadratic_score;
+
+    constant_denominator[category] = linear_proposed * linear_score ;
+    constant_denominator[category] -= .5 * main_difference(variable, 0) * linear_score;
+    constant_denominator[category] += quadratic_proposed * quadratic_score;
+    constant_denominator[category] -= .5 * main_difference(variable, 1) * quadratic_score;
   }
 
   //Precompute bounds for group 1 for numeric stability ------------------------
@@ -1501,6 +1498,11 @@ double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_cu
   }
 
   //Compute the log pseudolikelihood ratio for group 1--------------------------
+  log_prob = sufficient_blume_capel_gr1(0, variable) * linear_proposed;
+  log_prob += sufficient_blume_capel_gr1(1, variable) * quadratic_proposed;
+  log_prob -= sufficient_blume_capel_gr1(0, variable) * linear_current;
+  log_prob -= sufficient_blume_capel_gr1(1, variable) * quadratic_current;
+
   for(int person = 0; person < no_persons_gr1; person++) {
     rest_score = rest_matrix_gr1(person, variable);
     if(rest_score > 0) {
@@ -1522,23 +1524,20 @@ double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_cu
 
   //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    constant_numerator[category] = linear_current * category;
-    constant_numerator[category] += .5 * main_difference(variable, 0) * category;
-    constant_numerator[category] += quadratic_current *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_numerator[category] += .5 * main_difference(variable, 1) *
+    linear_score = category;
+    quadratic_score =
       (category - reference_category[variable]) *
       (category - reference_category[variable]);
 
-    constant_denominator[category] = linear_proposed * category;
-    constant_denominator[category] += .5 * main_difference(variable, 0) * category;
-    constant_denominator[category] += quadratic_proposed *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_denominator[category] += .5 * main_difference(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    constant_numerator[category] = linear_current * linear_score ;
+    constant_numerator[category] += .5 * main_difference(variable, 0) * linear_score;
+    constant_numerator[category] += quadratic_current * quadratic_score;
+    constant_numerator[category] += .5 * main_difference(variable, 1) * quadratic_score;
+
+    constant_denominator[category] = linear_proposed * linear_score;
+    constant_denominator[category] += .5 * main_difference(variable, 0) * linear_score;
+    constant_denominator[category] += quadratic_proposed * quadratic_score;
+    constant_denominator[category] += .5 * main_difference(variable, 1) * quadratic_score;
   }
 
   //Precompute bounds for group 2 for numeric stability ------------------------
@@ -1555,6 +1554,11 @@ double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_cu
   }
 
   //Compute the log pseudolikelihood ratio for group 2--------------------------
+  log_prob += sufficient_blume_capel_gr2(0, variable) * linear_proposed;
+  log_prob += sufficient_blume_capel_gr2(1, variable) * quadratic_proposed;
+  log_prob -= sufficient_blume_capel_gr2(0, variable) * linear_current;
+  log_prob -= sufficient_blume_capel_gr2(1, variable) * quadratic_current;
+
   for(int person = 0; person < no_persons_gr2; person++) {
     rest_score = rest_matrix_gr2(person, variable);
     if(rest_score > 0) {
@@ -1609,8 +1613,7 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   // Adaptive Metropolis for the linear Blume-Capel parameter
   //----------------------------------------------------------------------------
   current_state = thresholds(variable, 0);
-  proposed_state = R::rnorm(current_state,
-                            proposal_sd_blumecapel(variable, 0));
+  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 0));
 
   //----------------------------------------------------------------------------
   //Compute the log acceptance probability -------------------------------------
@@ -1676,8 +1679,7 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   // Adaptive Metropolis for the quadratic Blume-Capel parameter
   //---------------------------------------------------------------------------|
   current_state = thresholds(variable, 1);
-  proposed_state = R::rnorm(current_state,
-                            proposal_sd_blumecapel(variable, 1));
+  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 1));
 
   //----------------------------------------------------------------------------
   //Compute the log acceptance probability -------------------------------------
@@ -1740,7 +1742,6 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
 }
 
 
-
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for the two
 // category threshold differences of the Blume-Capel model
@@ -1763,6 +1764,7 @@ double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double line
   NumericVector constant_denominator (no_categories[variable] + 1);
   double lbound, bound;
   double log_prob, rest_score, numerator, denominator, exponent;
+  int linear_score, quadratic_score;
 
 
   //----------------------------------------------------------------------------
@@ -1770,7 +1772,7 @@ double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double line
   //----------------------------------------------------------------------------
 
   int linear_sufficient = .5 * (sufficient_blume_capel_gr2(0, variable) -
-    sufficient_blume_capel_gr1(0, variable));
+                                sufficient_blume_capel_gr1(0, variable));
   int quadratic_sufficient = .5 * (sufficient_blume_capel_gr2(1, variable) -
                                    sufficient_blume_capel_gr1(1, variable));
 
@@ -1782,23 +1784,20 @@ double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double line
 
   //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    constant_numerator[category] = thresholds(variable, 0) * category;
-    constant_numerator[category] -= .5 * linear_current * category;
-    constant_numerator[category] += thresholds(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_numerator[category] -= .5 * quadratic_current *
+    linear_score = category;
+    quadratic_score =
       (category - reference_category[variable]) *
       (category - reference_category[variable]);
 
-    constant_denominator[category] = thresholds(variable, 0) * category;
-    constant_denominator[category] -= .5 * linear_proposed * category;
-    constant_denominator[category] += thresholds(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_denominator[category] -= .5 * quadratic_proposed *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    constant_numerator[category] = thresholds(variable, 0) * linear_score ;
+    constant_numerator[category] -= .5 * linear_current * linear_score;
+    constant_numerator[category] += thresholds(variable, 1) * quadratic_score;
+    constant_numerator[category] -= .5 * quadratic_current * quadratic_score;
+
+    constant_denominator[category] = thresholds(variable, 0) * linear_score ;
+    constant_denominator[category] -= .5 * linear_proposed * linear_score;
+    constant_denominator[category] += thresholds(variable, 1) * quadratic_score;
+    constant_denominator[category] -= .5 * quadratic_proposed * quadratic_score;
   }
 
   //Precompute bounds for group 1 for numeric stability ------------------------
@@ -1836,23 +1835,20 @@ double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double line
 
   //Precompute common terms for group 2 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    constant_numerator[category] = thresholds(variable, 0) * category;
-    constant_numerator[category] += .5 * linear_current * category;
-    constant_numerator[category] += thresholds(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_numerator[category] += .5 * quadratic_current *
+    linear_score = category;
+    quadratic_score =
       (category - reference_category[variable]) *
       (category - reference_category[variable]);
 
-    constant_denominator[category] = thresholds(variable, 0) * category;
-    constant_denominator[category] += .5 * linear_proposed * category;
-    constant_denominator[category] += thresholds(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_denominator[category] += .5 * quadratic_proposed *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    constant_numerator[category] = thresholds(variable, 0) * linear_score ;
+    constant_numerator[category] += .5 * linear_current * linear_score;
+    constant_numerator[category] += thresholds(variable, 1) * quadratic_score;
+    constant_numerator[category] += .5 * quadratic_current * quadratic_score;
+
+    constant_denominator[category] = thresholds(variable, 0) * linear_score ;
+    constant_denominator[category] += .5 * linear_proposed * linear_score;
+    constant_denominator[category] += thresholds(variable, 1) * quadratic_score;
+    constant_denominator[category] += .5 * quadratic_proposed * quadratic_score;
   }
 
   //Precompute bounds for group 2 for numeric stability ------------------------
@@ -2087,8 +2083,8 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
     proposed_states[1] = R::rnorm(current_states[1],
                                   proposal_sd_main_difference(variable, 1));
   } else {
-      proposed_states[0] = 0.0;
-      proposed_states[1] = 0.0;
+    proposed_states[0] = 0.0;
+    proposed_states[1] = 0.0;
   }
 
   //--------------------------------------------------------------------------
@@ -3078,8 +3074,8 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
               thresholds_gr2(variable, 0) -
               thresholds_gr1(variable, 0);
             double threshold =
-              thresholds_gr1(variable, 0) +
-              .5 * main_difference;
+              .5 * thresholds_gr2(variable, 0) +
+              .5 * thresholds_gr1(variable, 0);
 
               out_thresholds(iteration, cntr) = threshold;
               out_main_difference(iteration, cntr) = main_difference;
@@ -3089,12 +3085,12 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
                 thresholds_gr2(variable, 1) -
                 thresholds_gr1(variable, 1);
               threshold =
-                thresholds_gr1(variable, 1) +
-                .5 * main_difference;
+                .5 * thresholds_gr2(variable, 1) +
+                .5 * thresholds_gr1(variable, 1);
 
-                out_thresholds(iteration, cntr) = threshold;
-                out_main_difference(iteration, cntr) = main_difference;
-                cntr++;
+              out_thresholds(iteration, cntr) = threshold;
+              out_main_difference(iteration, cntr) = main_difference;
+              cntr++;
           }
         }
       }
