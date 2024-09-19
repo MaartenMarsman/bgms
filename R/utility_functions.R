@@ -515,6 +515,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
     }
   }
 
+  check_fail_zero = FALSE
   no_variables = ncol(x)
   no_categories = vector(length = no_variables)
   for(node in 1:no_variables) {
@@ -569,10 +570,12 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
         reference_category[node] = reference_category[node] - min(x[, node])
         x[, node] = x[, node] - min(x[, node])
 
-        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
-                       "that the lowest observed category score is zero. The lowest score for node \n",
-                       node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
-                       "the corresponding reference category score to ", reference_category[node], "."))
+        if(check_fail_zero == FALSE) {
+          check_fail_zero = TRUE
+          failed_zeroes = c(node)
+        } else {
+          failed_zeroes = c(failed_zeroes, node)
+        }
       }
 
       check_range = length(unique(x[, node]))
@@ -605,6 +608,21 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
                   "] was observed for variable ",
                   node,
                   "."))
+  }
+
+  if(check_fail_zero == TRUE) {
+    if(length(failed_zeroes) == 1) {
+      node = failed_zeroes[1]
+      warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                     "that the lowest observed category score is zero. The lowest score for node \n",
+                     node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
+                     "the corresponding reference category score to ", reference_category[node], "."))
+    } else {
+      warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                     "that the lowest observed category score is zero. The lowest score for nodes \n",
+                     paste(failed_zeroes, collapse = ","), " were recoded to zero for the analysis. Note that bgm also recoded the \n",
+                     "the corresponding reference category scores."))
+    }
   }
 
   return(list(x = x,
@@ -726,6 +744,7 @@ compare_reformat_data = function(x,
     }
   }
 
+  check_fail_zero = FALSE
   no_variables = ncol(x)
   no_categories = vector(length = no_variables)
   no_categories_gr2 = vector(length = no_variables)
@@ -830,10 +849,12 @@ compare_reformat_data = function(x,
         x[, node] = x[, node] - minimum
         y[, node] = y[, node] - minimum
 
-        warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
-                       "that the lowest observed category score is zero. The lowest score for node \n",
-                       node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
-                       "the corresponding reference category score to ", reference_category[node], "."))
+        if(check_fail_zero == FALSE) {
+          check_fail_zero = TRUE
+          failed_zeroes = c(node)
+        } else {
+          failed_zeroes = c(failed_zeroes, node)
+        }
       }
 
       check_range = length(unique(c(x[, node], y[, node])))
@@ -843,6 +864,7 @@ compare_reformat_data = function(x,
                     node,
                     "."))
     }
+
 
     # Warn that maximum category value is large --------------------------------
     if(main_difference_model == "Free") {
@@ -921,6 +943,21 @@ compare_reformat_data = function(x,
                     "] was observed for variable ",
                     node,
                     "."))
+    }
+  }
+
+  if(check_fail_zero == TRUE) {
+    if(length(failed_zeroes) == 1) {
+      node = failed_zeroes[1]
+      warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                     "that the lowest observed category score is zero. The lowest score for node \n",
+                     node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
+                     "the corresponding reference category score to ", reference_category[node], "."))
+    } else {
+      warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
+                     "that the lowest observed category score is zero. The lowest score for nodes \n",
+                     paste(failed_zeroes, collapse = ","), " were recoded to zero for the analysis. Note that bgm also recoded the \n",
+                     "the corresponding reference category scores."))
     }
   }
 
