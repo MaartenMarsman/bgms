@@ -1,5 +1,6 @@
-#' Compare the parameters of a graphical model for binary and ordinal variables
-#' between two groups using Bayesian edge selection.
+#' Bayesian variable selection or Bayesian estimation for differences in the
+#' Markov random field model for binary and/or ordinal variables in two
+#' independent samples.
 #'
 #' @description
 #' The \code{bgmCompare} function estimates the pseudoposterior distribution of

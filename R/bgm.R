@@ -1,5 +1,5 @@
-#' Bayesian edge selection or Bayesian estimation for Markov Random Fields of
-#' mixed binary and ordinal variables using MCMC.
+#' Bayesian edge selection or Bayesian estimation for a Markov random field
+#' model for binary and/or ordinal variables.
 #'
 #' The function \code{bgm} explores the joint pseudoposterior distribution of
 #' parameters and possibly edge indicators for a Markov Random Field model for

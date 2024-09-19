@@ -2,8 +2,8 @@
 % Please edit documentation in R/bgm.R
 \name{bgm}
 \alias{bgm}
-\title{Bayesian edge selection or Bayesian estimation for Markov Random Fields of
-mixed binary and ordinal variables using MCMC.}
+\title{Bayesian edge selection or Bayesian estimation for a Markov random field
+model for binary and/or ordinal variables.}
 \usage{
 bgm(
   x,

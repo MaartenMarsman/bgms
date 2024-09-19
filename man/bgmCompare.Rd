@@ -2,8 +2,9 @@
 % Please edit documentation in R/bgmCompare.R
 \name{bgmCompare}
 \alias{bgmCompare}
-\title{Compare the parameters of a graphical model for binary and ordinal variables
-between two groups using Bayesian edge selection.}
+\title{Bayesian variable selection or Bayesian estimation for differences in the
+Markov random field model for binary and/or ordinal variables in two
+independent samples.}
 \usage{
 bgmCompare(
   x,
@@ -13,7 +14,7 @@ bgmCompare(
   variable_type = "ordinal",
   reference_category,
   pairwise_difference_scale = 1,
-  main_difference_scale = 1,
+  main_difference_scale = 0.1,
   pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   pairwise_difference_probability = 0.5,
@@ -47,13 +48,13 @@ collapsed after recoding.}
 containing binary and ordinal responses for the second group. The variables
 or columns in \code{y} must match the variables or columns in \code{x}. In
 the paired samples design, the rows in \code{x} must match the rows in
-\code{y}. Note that \code{y} and \code{y} are recoded independently, although
+\code{y}. Note that \code{x} and \code{y} are recoded independently, although
 the function checks that the number of different responses observed matches
-between \code{y} and \code{x}.}
+between \code{x} and \code{y}.}
 
 \item{difference_selection}{Logical. If \code{TRUE}, \code{bgmCompare} will
 model the inclusion or exclusion of the between samples parameter
-differences; if \code{FALSE}, it will model and estimate all between-sample
+differences; if \code{FALSE}, it will estimate all between-sample
 parameter differences. Default is \code{TRUE}.}
 
 \item{variable_type}{A string or vector specifying the type of variables
@@ -93,9 +94,9 @@ difference for each edge pair. Defaults to 0.5.}
 
 \item{main_difference_probability}{The inclusion probability for a
 threshold difference in the Bernoulli model. Defaults to 0.5, implying no
-prior preference. Can be a single probability or a matrix of \code{p} rows and
-\code{max(m)} columns specifying the probability of a difference for each
-category threshold. Defaults to 0.5.}
+prior preference. Can be a single probability or a vector of length \code{p}
+specifying the probability of a difference between the category thresholds
+for each variable. Defaults to 0.5.}
 
 \item{pairwise_beta_bernoulli_alpha}{The alpha parameter of the beta distribution
 for the Beta-Bernoulli model for group differences in pairwise interactions.
@@ -220,9 +221,9 @@ denotes an overall effect that is considered nuisance, and attention is focused
 on the pairwise difference parameter \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}},
 which reflects the difference in the pairwise interaction between the two groups.
 
-The \code{bgmCompare} supports two types of ordinal variables, which can be mixed.
-The default ordinal variable introduces a threshold parameter for each category
-except the lowest category. For this variable type, the threshold parameter for
+The \code{bgmCompare} function supports two types of ordinal variables, which
+can be mixed. The default ordinal variable introduces a threshold parameter
+for each category except the lowest category. For this variable type, the threshold parameter for
 variable \eqn{i}{i}, category \eqn{c}{c}, is modeled as
 \deqn{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}
 in the first group and in the second group as
@@ -275,7 +276,7 @@ differences:
   \code{threshold_difference_probability}.
 
 The pairwise interaction parameters \eqn{\theta}{\theta}, the category
-threshold parameters \eqn{\tau}{\tau}, and, in paired-samples designs,
+threshold parameters \eqn{\tau}{\tau}, and, in the not yet implemented paired-samples designs,
 the between-sample interactions \eqn{\omega}{\omega} are considered
 nuisance parameters that are common to all models. The pairwise interaction
 parameters \eqn{\theta}{\theta} and the between-sample interactions
