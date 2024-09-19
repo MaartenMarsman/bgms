@@ -113,6 +113,18 @@ differences; if <code>FALSE</code>, it will estimate all between-sample
 parameter differences. Default is <code>TRUE</code>.</p></dd>
 
 
+<dt id="arg-main-difference-model">main_difference_model<a class="anchor" aria-label="anchor" href="#arg-main-difference-model"></a></dt>
+<dd><p>A string specifying options for how the
+bgmCompare function should handle the comparison of threshold parameters when
+the observed categories in the samples do not match. The "Collapse" option
+tells bgmCompare to collapse the two categories into one (for the data set
+where both categories were observed). The "Constrain" option sets the
+difference between the category thresholds in the two data sets to zero if
+the category is not observed in one of the two data sets. The "Free" option
+tells bgmCompare to estimate a separate set of thresholds in the two samples
+and to not model their differences.</p></dd>
+
+
 <dt id="arg-variable-type">variable_type<a class="anchor" aria-label="anchor" href="#arg-variable-type"></a></dt>
 <dd><p>A string or vector specifying the type of variables
 in <code>x</code> (and <code>y</code>). Supported types are "ordinal" and "blume-capel",
