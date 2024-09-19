@@ -11,7 +11,7 @@ mixed binary and ordinal variables."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -225,7 +225,7 @@ arguments of its call. This is useful for post-processing the results.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Currently, bgm supports two types of ordinal variables. The regular, default,
+    <p>Currently, <code>bgm</code> supports two types of ordinal variables. The regular, default,
 ordinal variable type has no restrictions on its distribution. Every response
 category except the first receives its own threshold parameter. The
 Blume-Capel ordinal variable assumes that there is a specific reference
@@ -323,6 +323,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/text.html" class="external-link">text</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span>, y <span class="op">=</span> <span class="fl">0</span>, labels <span class="op">=</span> <span class="st">"Absence of Evidence"</span>, cex <span class="op">=</span> <span class="fl">1.7</span><span class="op">)</span></span></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/mtext.html" class="external-link">mtext</a></span><span class="op">(</span><span class="st">"Log-Inclusion Bayes Factor"</span>, side <span class="op">=</span> <span class="fl">2</span>, line <span class="op">=</span> <span class="fl">3</span>, cex <span class="op">=</span> <span class="fl">1.5</span>, las <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/mtext.html" class="external-link">mtext</a></span><span class="op">(</span><span class="st">"Posterior Mean Interactions "</span>, side <span class="op">=</span> <span class="fl">1</span>, line <span class="op">=</span> <span class="fl">3.7</span>, cex <span class="op">=</span> <span class="fl">1.5</span>, las <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="bgm-2.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="co">#------------------------------------------------------------------------------|</span></span></span>
@@ -340,7 +341,6 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">median.prob.model</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Wenchuan</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="bgm-2.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">median.prob.model</span>,</span></span>
 <span class="r-in"><span>        theme <span class="op">=</span> <span class="st">"TeamFortress"</span>,</span></span>
 <span class="r-in"><span>        maximum <span class="op">=</span> <span class="fl">.5</span>,</span></span>
@@ -366,7 +366,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
   </div></footer></body></html>

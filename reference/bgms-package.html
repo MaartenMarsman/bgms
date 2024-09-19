@@ -3,32 +3,27 @@
 graphical models describing networks of variables. The package uses Markov
 chain Monte Carlo methods combined with a pseudolikelihood approach to
 estimate the posterior distribution of model parameters.
-Gibbs variable selection (George and McCulloch 1993)
- is used to
+Gibbs variable selection GeorgeMcCulloch_1993bgms is used to
 model the underlying network structure of the graphical model. By imposing a
 discrete spike and slab prior on the pairwise interactions, it is possible to
 shrink the interactions to exactly zero. The Gibbs sampler embeds a
 Metropolis approach for mixtures of mutually singular distributions
-(Gottardo and Raftery 2008)
- to account for the discontinuity at
+GottardoRaftery_2008bgms to account for the discontinuity at
 zero. The goal is to provide these tools for Markov Random Field (MRF) models
 for a wide range of variable types in the bgms package, and
 it currently provides them for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.
 While the goal is to provide the above tools for Markov Random Field (MRF)
 models for a wide range of variable types in the bgms package, it
 currently provides tools for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.
 MRFs are a special class of graphical models whose graph structure reflects
 the conditional associations between their variables, making them useful for
 testing for conditional independence or dependence. For example, the
 inclusion Bayes factor tests for conditional independence or dependence of a
 pair of variables in the network by comparing the predictive adequacy of
 models that include the edge between these variables and models that exclude
-the edge. (Huth et al. 2023; Sekulovski et al. 2024)
-.
+the edge. HuthEtAl_2023_intro,SekulovskiEtAl_2023bgms.
 The bgms package offers several tools for analyzing the structure of
 the MRF:
 
@@ -44,32 +39,27 @@ Bayesian estimation or Bayesian edge selection with bgm.
 graphical models describing networks of variables. The package uses Markov
 chain Monte Carlo methods combined with a pseudolikelihood approach to
 estimate the posterior distribution of model parameters.
-Gibbs variable selection (George and McCulloch 1993)
- is used to
+Gibbs variable selection GeorgeMcCulloch_1993bgms is used to
 model the underlying network structure of the graphical model. By imposing a
 discrete spike and slab prior on the pairwise interactions, it is possible to
 shrink the interactions to exactly zero. The Gibbs sampler embeds a
 Metropolis approach for mixtures of mutually singular distributions
-(Gottardo and Raftery 2008)
- to account for the discontinuity at
+GottardoRaftery_2008bgms to account for the discontinuity at
 zero. The goal is to provide these tools for Markov Random Field (MRF) models
 for a wide range of variable types in the bgms package, and
 it currently provides them for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.
 While the goal is to provide the above tools for Markov Random Field (MRF)
 models for a wide range of variable types in the bgms package, it
 currently provides tools for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.
 MRFs are a special class of graphical models whose graph structure reflects
 the conditional associations between their variables, making them useful for
 testing for conditional independence or dependence. For example, the
 inclusion Bayes factor tests for conditional independence or dependence of a
 pair of variables in the network by comparing the predictive adequacy of
 models that include the edge between these variables and models that exclude
-the edge. (Huth et al. 2023; Sekulovski et al. 2024)
-.
+the edge. HuthEtAl_2023_intro,SekulovskiEtAl_2023bgms.
 The bgms package offers several tools for analyzing the structure of
 the MRF:
 
@@ -89,7 +79,7 @@ Bayesian estimation or Bayesian edge selection with bgm.
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -124,32 +114,27 @@ Bayesian estimation or Bayesian edge selection with bgm.
 graphical models describing networks of variables. The package uses Markov
 chain Monte Carlo methods combined with a pseudolikelihood approach to
 estimate the posterior distribution of model parameters.</p>
-<p>Gibbs variable selection (George and McCulloch 1993)
- is used to
+<p>Gibbs variable selection GeorgeMcCulloch_1993bgms is used to
 model the underlying network structure of the graphical model. By imposing a
 discrete spike and slab prior on the pairwise interactions, it is possible to
 shrink the interactions to exactly zero. The Gibbs sampler embeds a
 Metropolis approach for mixtures of mutually singular distributions
-(Gottardo and Raftery 2008)
- to account for the discontinuity at
+GottardoRaftery_2008bgms to account for the discontinuity at
 zero. The goal is to provide these tools for Markov Random Field (MRF) models
 for a wide range of variable types in the <strong>bgms</strong> package, and
 it currently provides them for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.</p>
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.</p>
 <p>While the goal is to provide the above tools for Markov Random Field (MRF)
 models for a wide range of variable types in the <strong>bgms</strong> package, it
 currently provides tools for analyzing networks of binary and/or ordinal
-variables (Marsman et al. 2023)
-.</p>
+variables MarsmanHaslbeck_2023_OrdinalMRFbgms.</p>
 <p>MRFs are a special class of graphical models whose graph structure reflects
 the conditional associations between their variables, making them useful for
 testing for conditional independence or dependence. For example, the
 inclusion Bayes factor tests for conditional independence or dependence of a
 pair of variables in the network by comparing the predictive adequacy of
 models that include the edge between these variables and models that exclude
-the edge. (Huth et al. 2023; Sekulovski et al. 2024)
-.</p>
+the edge. HuthEtAl_2023_intro,SekulovskiEtAl_2023bgms.</p>
 <p>The <strong>bgms</strong> package offers several tools for analyzing the structure of
 the MRF:</p>
 <ol><li><p>Simulate response data from the MRF using the Gibbs sampler.</p><ul><li><p>Simulate <code><a href="mrfSampler.html">mrfSampler</a></code>.</p></li>
@@ -162,27 +147,7 @@ the MRF:</p>
 
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>George EI, McCulloch RE (1993).
-“Variable selection via Gibbs sampling.”
-<em>Journal of the American Statistical Association</em>, <b>88</b>(423), 881-889.
-<a href="https://doi.org/10.1080/01621459.1993.10476353" class="external-link">doi:10.1080/01621459.1993.10476353</a>
-.<br><br> Gottardo R, Raftery AE (2008).
-“Markov Chain Monte Carlo With Mixtures of Mutually Singular Distributions.”
-<em>Journal of Computational and Graphical Statistics</em>, <b>17</b>(4), 949–975.
-<a href="https://doi.org/10.1198/106186008X386102" class="external-link">doi:10.1198/106186008X386102</a>
-.<br><br> Huth K, de Ron J, Goudriaan AE, Luigjes K, Mohammadi R, van Holst RJ, Wagenmakers E, Marsman M (2023).
-“Bayesian analysis of cross-sectional networks: A tutorial in R and JASP.”
-<em>Advances in Methods and Practices in Psychological Science</em>.
-<a href="https://doi.org/10.1177/25152459231193334" class="external-link">doi:10.1177/25152459231193334</a>
-.<br><br> Marsman M, van den Bergh D, Haslbeck JMB (2023).
-“Bayesian analysis of the ordinal Markov random field.”
-<em>PsyArXiv preprint</em>.
-<a href="https://doi.org/10.31234/osf.io/ukwrf" class="external-link">doi:10.31234/osf.io/ukwrf</a>
-.<br><br> Sekulovski N, Keetelaar S, Huth K, Wagenmakers E, van Bork R, van den Bergh D, Marsman M (2024).
-“Testing conditional independence in psychometric networks: An analysis of three bayesian methods.”
-<em>Multivariate Behavioral Research</em>, 1–21.
-<a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link">doi:10.1080/00273171.2024.2345915</a>
-.</p>
+    <p></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -209,7 +174,7 @@ the MRF:</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
   </div></footer></body></html>
