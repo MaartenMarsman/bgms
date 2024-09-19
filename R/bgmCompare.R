@@ -103,6 +103,15 @@
 #' model the inclusion or exclusion of the between samples parameter
 #' differences; if \code{FALSE}, it will estimate all between-sample
 #' parameter differences. Default is \code{TRUE}.
+#' @param main_difference_model A string specifying options for how the
+#' bgmCompare function should handle the comparison of threshold parameters when
+#' the observed categories in the samples do not match. The "Collapse" option
+#' tells bgmCompare to collapse the two categories into one (for the data set
+#' where both categories were observed). The "Constrain" option sets the
+#' difference between the category thresholds in the two data sets to zero if
+#' the category is not observed in one of the two data sets. The "Free" option
+#' tells bgmCompare to estimate a separate set of thresholds in the two samples
+#' and to not model their differences.
 #' @param variable_type A string or vector specifying the type of variables
 #' in \code{x} (and \code{y}). Supported types are "ordinal" and "blume-capel",
 #' with binary variables treated as "ordinal". Default is "ordinal".
