@@ -14,7 +14,7 @@ bgmCompare(
   variable_type = "ordinal",
   reference_category,
   pairwise_difference_scale = 1,
-  main_difference_scale = 0.1,
+  main_difference_scale = 1,
   pairwise_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   main_difference_prior = c("Bernoulli", "Beta-Bernoulli"),
   pairwise_difference_probability = 0.5,
