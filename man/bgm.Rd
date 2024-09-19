@@ -160,7 +160,7 @@ parameters and possibly edge indicators for a Markov Random Field model for
 mixed binary and ordinal variables.
 }
 \details{
-Currently, bgm supports two types of ordinal variables. The regular, default,
+Currently, \code{bgm} supports two types of ordinal variables. The regular, default,
 ordinal variable type has no restrictions on its distribution. Every response
 category except the first receives its own threshold parameter. The
 Blume-Capel ordinal variable assumes that there is a specific reference

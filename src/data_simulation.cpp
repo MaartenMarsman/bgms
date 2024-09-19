@@ -10,12 +10,7 @@ IntegerMatrix sample_omrf_gibbs(int no_states,
                                 int iter) {
 
   IntegerMatrix observations(no_states, no_variables);
-  int max_no_categories = 0;
-  for(int variable = 0; variable < no_variables; variable++) {
-    if(no_categories[variable] > max_no_categories) {
-      max_no_categories = no_categories[variable];
-    }
-  }
+  int max_no_categories = max(no_categories);
   NumericVector probabilities(max_no_categories + 1);
   double exponent = 0.0;
   double rest_score = 0.0;
@@ -88,12 +83,7 @@ IntegerMatrix sample_bcomrf_gibbs(int no_states,
                                   int iter) {
 
   IntegerMatrix observations(no_states, no_variables);
-  int max_no_categories = 0;
-  for(int variable = 0; variable < no_variables; variable++) {
-    if(no_categories[variable] > max_no_categories) {
-      max_no_categories = no_categories[variable];
-    }
-  }
+  int max_no_categories = max(no_categories);
   NumericVector probabilities(max_no_categories + 1);
   double exponent = 0.0;
   double rest_score = 0.0;
