@@ -826,7 +826,7 @@ compare_reformat_data = function(x,
             "as.integer(), which bgmCompare uses for recoding category scores."))
         }
 
-        if(length(int_unq_vls_x) != length(unq_vls_x)) {
+        if(length(int_unq_vls) != length(unq_vls)) {
           stop(paste0("The Blume-Capel model assumes that its observations are coded as integers. The \n",
                       "category scores of the observations for node ", node, " were not integers. An \n",
                       "attempt to recode these observations as integers failed because, after rounding,\n",
