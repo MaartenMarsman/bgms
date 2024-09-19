@@ -507,8 +507,9 @@ bgm = function(x,
     names_vec <- names_comb[lower.tri(names_comb)]
 
     if(edge_selection == TRUE) {
-      colnames(gamma) = colnames(interactions) = names_vec
+      colnames(gamma) = names_vec
     }
+    colnames(interactions) = names_vec
     names = character(length = sum(no_categories))
     cntr = 0
     for(variable in 1:no_variables) {
