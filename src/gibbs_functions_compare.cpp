@@ -2012,7 +2012,7 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
                                                                            no_categories);
 
   //Compute the prior ratio -------------------------------------------------
-  log_prob = R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+  log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
   log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
   //Metropolis step ------------------------------------------------------------
