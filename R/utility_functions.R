@@ -565,7 +565,7 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
       }
 
       # Check if observations start at zero and recode otherwise ---------------
-      if(min(x[, node]) < 0) {
+      if(min(x[, node]) != 0) {
         reference_category[node] = reference_category[node] - min(x[, node])
         x[, node] = x[, node] - min(x[, node])
 
@@ -746,7 +746,7 @@ compare_reformat_data = function(x,
                   node,
                   " in the matrix y (group 1). We expect >= 1 observations per category."))
 
-    if(main_difference_model != "Free"){
+    if(main_difference_model != "Free" & variable_bool[node] == TRUE){
       if(sum(is.na(match(unq_vls_x, unq_vls_y))) == mx_vl_x)
         stop(paste0("There is no overlap in response categories between the two groups for variable \n",
                     node,
@@ -824,7 +824,7 @@ compare_reformat_data = function(x,
           "range of observations in the matrices x and y."))
 
       # Check if observations start at zero and recode otherwise ---------------
-      if(min(c(x[, node], y[, node])) < 0) {
+      if(min(c(x[, node], y[, node])) != 0) {
         minimum = min(c(x[, node], y[, node]))
         reference_category[node] = reference_category[node] - minimum
         x[, node] = x[, node] - minimum
