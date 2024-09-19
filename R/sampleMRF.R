@@ -1,4 +1,4 @@
-#' Sample states of the ordinal MRF
+#' Sample observations from the ordinal MRF
 #'
 #' This function samples states from the ordinal MRF using a Gibbs sampler. The
 #' Gibbs sampler is initiated with random values from the response options,

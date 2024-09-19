@@ -2,7 +2,7 @@
 % Please edit documentation in R/sampleMRF.R
 \name{mrfSampler}
 \alias{mrfSampler}
-\title{Sample states of the ordinal MRF}
+\title{Sample observations from the ordinal MRF}
 \usage{
 mrfSampler(
   no_states,
