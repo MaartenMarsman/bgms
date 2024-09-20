@@ -138,7 +138,7 @@ The default is \code{TRUE}.}
 If \code{save = FALSE} (the default), the result is a list of class
 ``bgms'' containing the following matrices:
 \itemize{
-\item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
+\item \code{indicator}: A matrix with \code{p} rows and \code{p} columns,
 containing posterior inclusion probabilities of individual edges.
 \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 containing model-averaged posterior means of the pairwise associations.
@@ -151,7 +151,7 @@ models the offset to the reference category.
 
 If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 \itemize{
-\item \code{gamma}: A matrix with \code{iter} rows and
+\item \code{indicator}: A matrix with \code{iter} rows and
 \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
 every iteration of the Gibbs sampler.
 \item \code{interactions}: A matrix with \code{iter} rows and
@@ -229,7 +229,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.
 
  par(mar = c(6, 5, 1, 1))
  plot(x = fit$interactions[lower.tri(fit$interactions)],
-      y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1),
+      y = fit$indicator[lower.tri(fit$indicator)], ylim = c(0, 1),
       xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
  abline(h = 0, lty = 2, col = "gray")
  abline(h = 1, lty = 2, col = "gray")
@@ -246,7 +246,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.
 
  #For the default choice of the structure prior, the prior odds equal one:
  prior.odds = 1
- posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
+ posterior.inclusion = fit$indicator[lower.tri(fit$indicator)]
  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
  log.bayesfactor = log(posterior.odds / prior.odds)
  log.bayesfactor[log.bayesfactor > 5] = 5

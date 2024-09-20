@@ -357,102 +357,136 @@ check_compare_model = function(x,
   if(is.na(difference_selection))
     stop("The parameter difference_selection needs to be TRUE or FALSE.")
   if(difference_selection == TRUE) {
+    inclusion_probability_difference = matrix(0,
+                                              nrow = ncol(x),
+                                              ncol = ncol(x))
+
+    main_difference_prior = match.arg(main_difference_prior)
+    if(main_difference_prior == "Bernoulli") {
+      if(length(main_difference_probability) == 1) {
+        main_difference_inclusion_probability = main_difference_probability[1]
+        if(is.na(main_difference_inclusion_probability) || is.null(main_difference_inclusion_probability))
+          stop("There is no value specified for the inclusion probability for category threshold differences.")
+        if(main_difference_inclusion_probability <= 0)
+          stop("The inclusion probability for category threshold differences needs to be positive.")
+        if(main_difference_inclusion_probability > 1)
+          stop("The inclusion probability for category threshold differences cannot exceed the value one.")
+        if(main_difference_inclusion_probability == 1)
+          stop("The inclusion probability for category threshold differences cannot equal one.")
+
+        diag(inclusion_probability_difference) = main_difference_inclusion_probability
+
+      } else {
+        if(!inherits(main_difference_probability, what = "matrix") &&
+           !inherits(main_difference_probability, what = "data.frame"))
+          stop(paste0("The input for the inclusion probability argument for category threshold \n",
+                      "differences needs to be a single number, matrix, or dataframe."))
+
+        if(length(as.vector(main_difference_probability)) != ncol(x)) {
+          stop(paste0("The inclusion probability argument for the category threshold \n",
+                      "parameters needs to have either one or as many elements as\n",
+                      "there are variables in the data."))
+        } else {
+          diag(inclusion_probability_difference) = as.vector(main_difference_probability)
+        }
+
+        if(anyNA(diag(inclusion_probability_difference)) ||
+           any(is.null(diag(inclusion_probability_difference))))
+          stop(paste0("One or more of the inclusion probabilities for the category threshold\n",
+                      "parameters are not specified."))
+        if(any(diag(inclusion_probability_difference) <= 0))
+          stop(paste0("One or more of the inclusion probabilities for the category threshold\n",
+                      "parameters are non-positive."))
+        if(any(diag(inclusion_probability_difference) >= 1))
+          stop(paste0("One or more of the inclusion probabilities for the category threshold\n",
+                      "parameters are larger than one."))
+      }
+
+    } else {
+      diag(inclusion_probability_difference) = 0.5
+      if(main_beta_bernoulli_alpha <= 0 || main_beta_bernoulli_beta <= 0)
+        stop(paste0("The scale parameters of the beta distribution for the differences in category\n",
+                    "thresholds need to be positive."))
+      if(!is.finite(main_beta_bernoulli_alpha) || !is.finite(main_beta_bernoulli_beta))
+        stop(paste0("The scale parameters of the beta distribution for the differences in category\n",
+                    "thresholds need to be finite."))
+      if(is.na(main_beta_bernoulli_alpha) || is.na(main_beta_bernoulli_beta) ||
+         is.null(main_beta_bernoulli_alpha) || is.null(main_beta_bernoulli_beta))
+        stop(paste0("The scale parameters of the beta distribution for the differences in category\n",
+                    "thresholds need to be specified."))
+    }
+
     pairwise_difference_prior = match.arg(pairwise_difference_prior)
     if(pairwise_difference_prior == "Bernoulli") {
       if(length(pairwise_difference_probability) == 1) {
         pairwise_difference_inclusion_probability = pairwise_difference_probability[1]
         if(is.na(pairwise_difference_inclusion_probability) || is.null(pairwise_difference_inclusion_probability))
-          stop("There is no value specified for the inclusion probability.")
+          stop(paste0("There is no value specified for the inclusion probability for the differences \n",
+                      "in the pairwise interactions."))
         if(pairwise_difference_inclusion_probability <= 0)
-          stop("The inclusion probability needs to be positive.")
+          stop(paste0("The inclusion probability for the differences in the pairwise interactions \n",
+                      "needs to be positive."))
         if(pairwise_difference_inclusion_probability > 1)
-          stop("The inclusion probability cannot exceed the value one.")
+          stop(paste0("The inclusion probability for the differences in the pairwise interactions\n","
+                      cannot exceed the value one."))
         if(pairwise_difference_inclusion_probability == 1)
-          stop("The inclusion probability cannot equal one.")
+          stop(paste0("The inclusion probability for the differences in the pairwise interactions\n", "
+                      cannot equal one."))
 
-        inclusion_probability_difference = matrix(pairwise_difference_inclusion_probability,
-                                                  nrow = ncol(x),
-                                                  ncol = ncol(x))
+        inclusion_probability_difference[lower.tri(inclusion_probability_difference)] =
+          pairwise_difference_inclusion_probability
+        inclusion_probability_difference[upper.tri(inclusion_probability_difference)] =
+          pairwise_difference_inclusion_probability
+
       } else {
         if(!inherits(pairwise_difference_probability, what = "matrix") &&
            !inherits(pairwise_difference_probability, what = "data.frame"))
-          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
+          stop(paste0("The input for the inclusion probability argument for differences in the \n",
+                      "pairwise interactions needs to be a single number, matrix, or dataframe."))
 
         if(inherits(pairwise_difference_probability, what = "data.frame")) {
-          inclusion_probability_difference = data.matrix(pairwise_difference_probability)
+          tmp = data.matrix(pairwise_difference_probability)
+          diag(tmp) = diag(inclusion_probability_difference)
+          inclusion_probability_difference = tmp
         } else {
-          inclusion_probability_difference = pairwise_difference_probability
+          tmp = pairwise_difference_probability
+          diag(tmp) = diag(inclusion_probability_difference)
+          inclusion_probability_difference = tmp
         }
+
         if(!isSymmetric(inclusion_probability_difference))
           stop("The inclusion probability matrix needs to be symmetric.")
         if(ncol(inclusion_probability_difference) != ncol(x))
-          stop("The inclusion probability matrix needs to have as many rows (columns) as there are variables in the data.")
+          stop(paste0("The inclusion probability matrix needs to have as many rows (columns) as there\n",
+                      " are variables in the data."))
 
         if(anyNA(inclusion_probability_difference[lower.tri(inclusion_probability_difference)]) ||
            any(is.null(inclusion_probability_difference[lower.tri(inclusion_probability_difference)])))
-          stop("One or more elements of the elements in inclusion probability matrix are not specified.")
+          stop(paste0("One or more inclusion probabilities for differences in the pairwise \n",
+                      "interactions are not specified."))
         if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] <= 0))
-          stop(paste0("The inclusion probability matrix contains negative or zero values;\n",
-                      "inclusion probabilities need to be positive."))
+          stop(paste0("One or more inclusion probabilities for differences in the pairwise \n",
+                      "interactions are negative or equal to zero."))
         if(any(inclusion_probability_difference[lower.tri(inclusion_probability_difference)] >= 1))
-          stop(paste0("The inclusion probability matrix contains values greater than or equal to one;\n",
-                      "inclusion probabilities cannot exceed or equal the value one."))
-      }
-
-      if(length(main_difference_probability) == 1) {
-        main_difference_probability = main_difference_probability[1]
-        if(is.na(main_difference_probability) || is.null(main_difference_probability))
-          stop("There is no value specified for the inclusion probability.")
-        if(main_difference_probability <= 0)
-          stop("The inclusion probability needs to be positive.")
-        if(main_difference_probability > 1)
-          stop("The inclusion probability cannot exceed the value one.")
-        if(main_difference_probability == 1)
-          stop("The inclusion probability cannot equal one.")
-
-        diag(inclusion_probability_difference) = main_difference_probability
-      } else {
-        if(!inherits(main_difference_probability, what = "matrix") &&
-           !inherits(main_difference_probability, what = "data.frame"))
-          stop("The input for the inclusion probability argument needs to be a single number, matrix, or dataframe.")
-
-        if(inherits(main_difference_probability, what = "data.frame")) {
-          main_difference_probability = data.matrix(main_difference_probability)
-        }
-        main_difference_probability = as.vector(main_difference_probability)
-
-        if(length(main_difference_probability) != ncol(x))
-          stop(paste0("There need to be as many inclusion probabilities for the category threshold \n",
-                      " differences as variables (columns) in the matrix x."))
-
-        if(anyNA(main_difference_probability) || any(is.null(main_difference_probability)))
-          stop("One or more inclusion probabilities for the category thresholds are not specified.")
-        if(any(main_difference_probability <= 0))
-          stop(paste0("One or more inclusion probabilities for the category thresholds contains negative or zero values;\n",
-                      "inclusion probabilities need to be positive."))
-        if(any(main_difference_probability >= 1))
-          stop(paste0("One or more inclusion probabilities for the category thresholds contains values greater than or equal to one;\n",
-                      "inclusion probabilities cannot exceed or equal the value one."))
-
-        diag(inclusion_probability_difference) = main_difference_probability
+          stop(paste0("One or more inclusion probabilities for differences in the pairwise \n",
+                      "interactions are larger than one."))
       }
     } else {
-      inclusion_probability_difference = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
+      inclusion_probability_difference[lower.tri(inclusion_probability_difference)] =
+        0.5
+      inclusion_probability_difference[upper.tri(inclusion_probability_difference)] =
+        0.5
+
       if(pairwise_beta_bernoulli_alpha <= 0 || pairwise_beta_bernoulli_beta <= 0)
-        stop("The scale parameters of the beta distribution for the pairwise differences need to be positive.")
+        stop(paste0("The scale parameters of the beta distribution for the differences in pairwise\n",
+                    "interactions need to be positive."))
       if(!is.finite(pairwise_beta_bernoulli_alpha) || !is.finite(pairwise_beta_bernoulli_beta))
-        stop("The scale parameters of the beta distribution for the pairwise differences need to be finite.")
+        stop(paste0("The scale parameters of the beta distribution for the differences in pairwise\n",
+                    "interactions need to be finite."))
       if(is.na(pairwise_beta_bernoulli_alpha) || is.na(pairwise_beta_bernoulli_beta) ||
          is.null(pairwise_beta_bernoulli_alpha) || is.null(pairwise_beta_bernoulli_beta))
-        stop("Values for both scale parameters of the beta distribution for the pairwise differences need to be specified.")
-
-      if(main_beta_bernoulli_alpha <= 0 || main_beta_bernoulli_beta <= 0)
-        stop("The scale parameters of the beta distribution for the differences in category thresholds need to be positive.")
-      if(!is.finite(main_beta_bernoulli_alpha) || !is.finite(main_beta_bernoulli_beta))
-        stop("The scale parameters of the beta distribution for the differences in category thresholds need to be finite.")
-      if(is.na(main_beta_bernoulli_alpha) || is.na(main_beta_bernoulli_beta) ||
-         is.null(main_beta_bernoulli_alpha) || is.null(main_beta_bernoulli_beta))
-        stop("Values for both scale parameters of the beta distribution for the differences in category thresholds need to be specified.")
+        stop(paste0("The scale parameters of the beta distribution for the differences in pairwise\n",
+                    "differences need to be specified."))
     }
   } else {
     main_difference_prior = "Not applicable"
