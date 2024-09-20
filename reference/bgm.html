@@ -59,7 +59,7 @@ mixed binary and ordinal variables.</p>
 <span>  threshold_alpha <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  threshold_beta <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  edge_selection <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span>, <span class="st">"Stochastic Block"</span><span class="op">)</span>,</span>
+<span>  edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span>, <span class="st">"Stochastic-Block"</span><span class="op">)</span>,</span>
 <span>  inclusion_probability <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  beta_bernoulli_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  beta_bernoulli_beta <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -158,7 +158,7 @@ inclusion probability with shape parameters <code>beta_bernoulli_alpha</code> an
 <code>beta_bernoulli_beta</code>. If <code>beta_bernoulli_alpha = 1</code> and
 <code>beta_bernoulli_beta = 1</code>, this means that networks with the same
 complexity (number of edges) get the same prior weight. The Stochastic Block
-model <code>edge_prior = "Stochastic Block"</code> assumes that nodes can be
+model <code>edge_prior = "Stochastic-Block"</code> assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
 possible options (i.e., specifies a Dirichlet process on the node to block
