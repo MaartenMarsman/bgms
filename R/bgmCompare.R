@@ -642,7 +642,7 @@ bgmCompare = function(x,
                     arguments = arguments)
     }
 
-    class(output) = "bgmCompare"
+    class(output) = c("bgmCompare", "bgms")
     return(output)
   }
 }
