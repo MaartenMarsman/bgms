@@ -14,7 +14,7 @@ print.bgms <- function(x, ...) {
       cat("Bayesian Edge Selection using a Bernoulli prior on edge inclusion\n")
     } else if(arguments$edge_prior == "Beta-Bernoulli") {
       cat("Bayesian Edge Selection using a Beta-Bernoulli prior on edge inclusion\n")
-    } else if(arguments$edge_prior == "Stochastic Block") {
+    } else if(arguments$edge_prior == "Stochastic-Block") {
       cat("Bayesian Edge Selection using a Stochastic Block prior on edge inclusion\n")
     }
   } else {
@@ -32,7 +32,7 @@ print.bgms <- function(x, ...) {
   } else {
     cat(paste0(" Number of post-burnin MCMC iterations: ", arguments$iter, " (posterior means saved)\n"))
   }
-  cat("See the easybgm package for extensive summary and plotting functions")
+  cat("See the easybgm package for extensive summary and plotting functions\n")
 }
 
 #' @name print.bgmCompare
@@ -81,5 +81,5 @@ print.bgmCompare <- function(x, ...) {
   } else {
     cat(paste0(" Number of post-burnin MCMC iterations: ", arguments$iter, " (posterior means saved)\n"))
   }
-  cat("See the easybgm package for extensive summary and plotting functions")
+  cat("See the easybgm package for extensive summary and plotting functions \n")
 }

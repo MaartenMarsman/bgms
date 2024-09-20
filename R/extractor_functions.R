@@ -44,7 +44,7 @@ extract_indicators <- function(bgms_object) {
 extract_indicators.bgms <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
   if(arguments$edge_selection & arguments$save) {
-    edge_indicators = bgms_object$gamma
+    edge_indicators = bgms_object$indicator
     return(edge_indicators)
   } else {
     stop(paste0("To access the sampled edge indicators the bgms package needs to be run using \n",
@@ -59,7 +59,7 @@ extract_indicators.bgmCompare <- function(bgms_object) {
 
   if(arguments$difference_selection & arguments$save) {
     pairwise_difference_indicator = bgms_object$pairwise_difference_indicator
-    if(bgms_object$independent_thresholds == FALSE) {
+    if(arguments$independent_thresholds == FALSE) {
       main_difference_indicator = bgms_object$main_difference_indicator
     } else {
       main_difference_indicator = NULL
@@ -89,7 +89,7 @@ extract_posterior_inclusion_probabilities.bgms <- function(bgms_object) {
   }
 
   if(arguments$save) {
-    edge_means = colMeans(bgms_object$gamma)
+    edge_means = colMeans(bgms_object$indicator)
     no_variables = arguments$no_variables
 
     posterior_inclusion_probabilities = matrix(0, no_variables, no_variables)
@@ -102,7 +102,7 @@ extract_posterior_inclusion_probabilities.bgms <- function(bgms_object) {
     rownames(posterior_inclusion_probabilities) = data_columnnames
 
   } else {
-    posterior_inclusion_probabilities = bgms_object$gamma
+    posterior_inclusion_probabilities = bgms_object$indicator
   }
   return(posterior_inclusion_probabilities)
 }
@@ -122,7 +122,6 @@ extract_posterior_inclusion_probabilities.bgmCompare <- function(bgms_object) {
     pairwise_difference_means = colMeans(bgms_object$pairwise_difference_indicator)
     no_variables = arguments$no_variables
 
-
     posterior_inclusion_probabilities = matrix(0, no_variables, no_variables)
     posterior_inclusion_probabilities[lower.tri(posterior_inclusion_probabilities)] = pairwise_difference_means
     posterior_inclusion_probabilities = posterior_inclusion_probabilities +
@@ -137,12 +136,7 @@ extract_posterior_inclusion_probabilities.bgmCompare <- function(bgms_object) {
     rownames(posterior_inclusion_probabilities) = data_columnnames
 
   } else {
-    posterior_inclusion_probabilities = bgms_object$pairwise_difference_indicator
-
-    if(!arguments$independent_thresholds) {
-      main_difference_means = colMeans(bgms_object$main_difference_indicator)
-      diag(posterior_inclusion_probabilities) = main_difference_means
-    }
+    posterior_inclusion_probabilities = bgms_object$indicator
   }
   return(posterior_inclusion_probabilities)
 }
@@ -164,16 +158,16 @@ extract_indicator_priors.bgms <- function(bgms_object) {
   } else {
     if(arguments$edge_prior == "Bernoulli") {
       indicator_prior = list(type = "Bernoulli",
-                        prior_inclusion_probability = arguments$inclusion_probability)
+                             prior_inclusion_probability = arguments$inclusion_probability)
     } else if (arguments$edge_prior == "Beta-Bernoulli") {
       indicator_prior = list(type = "Beta-Bernoulli",
-                        alpha = arguments$beta_bernoulli_alpha,
-                        beta = arguments$beta_bernoulli_beta)
-    } else if (arguments$edge_prior == "Stochastic Block") {
-      indicator_prior = list(type = "Stochastic Block",
-                        beta_bernoulli_alpha = arguments$beta_bernoulli_alpha,
-                        beta_bernoulli_beta = arguments$beta_bernoulli_beta,
-                        dirichlet_alpha = arguments$dirichlet_alpha)
+                             alpha = arguments$beta_bernoulli_alpha,
+                             beta = arguments$beta_bernoulli_beta)
+    } else if (arguments$edge_prior == "Stochastic-Block") {
+      indicator_prior = list(type = "Stochastic-Block",
+                             beta_bernoulli_alpha = arguments$beta_bernoulli_alpha,
+                             beta_bernoulli_beta = arguments$beta_bernoulli_beta,
+                             dirichlet_alpha = arguments$dirichlet_alpha)
     }
   }
   return(indicator_prior)

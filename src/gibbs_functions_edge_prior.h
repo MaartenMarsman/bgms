@@ -15,7 +15,7 @@ Rcpp::IntegerVector block_allocations_mfm_sbm(Rcpp::IntegerVector cluster_assign
                                               int no_variables,
                                               Rcpp::NumericVector log_Vn,
                                               Rcpp::NumericMatrix block_probs,
-                                              Rcpp::IntegerMatrix gamma,
+                                              Rcpp::IntegerMatrix indicator,
                                               int dirichlet_alpha,
                                               double beta_bernoulli_alpha,
                                               double beta_bernoulli_beta);
@@ -24,7 +24,7 @@ Rcpp::IntegerVector block_allocations_mfm_sbm(Rcpp::IntegerVector cluster_assign
 // Sample the block parameters for the MFM - SBM
 // ----------------------------------------------------------------------------|
 Rcpp::NumericMatrix block_probs_mfm_sbm(Rcpp::IntegerVector cluster_assign,
-                                        Rcpp::IntegerMatrix gamma,
+                                        Rcpp::IntegerMatrix indicator,
                                         int no_variables,
                                         double beta_bernoulli_alpha,
                                         double beta_bernoulli_beta);

@@ -112,7 +112,7 @@ List impute_missing_data(NumericMatrix interactions,
                       Named("n_cat_obs") = n_cat_obs,
                       Named("sufficient_blume_capel") =
                         sufficient_blume_capel,
-                      Named("rest_matrix") = rest_matrix);
+                        Named("rest_matrix") = rest_matrix);
 }
 
 // ----------------------------------------------------------------------------|
@@ -495,7 +495,7 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
 // ----------------------------------------------------------------------------|
 void metropolis_interactions(NumericMatrix interactions,
                              NumericMatrix thresholds,
-                             IntegerMatrix gamma,
+                             IntegerMatrix indicator,
                              IntegerMatrix observations,
                              IntegerVector no_categories,
                              NumericMatrix proposal_sd,
@@ -517,7 +517,7 @@ void metropolis_interactions(NumericMatrix interactions,
 
   for(int variable1 = 0; variable1 <  no_variables - 1; variable1++) {
     for(int variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-      if(gamma(variable1, variable2) == 1) {
+      if(indicator(variable1, variable2) == 1) {
         current_state = interactions(variable1, variable2);
         proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
 
@@ -574,7 +574,7 @@ void metropolis_interactions(NumericMatrix interactions,
 // ----------------------------------------------------------------------------|
 void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                       NumericMatrix thresholds,
-                                      IntegerMatrix gamma,
+                                      IntegerMatrix indicator,
                                       IntegerMatrix observations,
                                       IntegerVector no_categories,
                                       NumericMatrix proposal_sd,
@@ -600,7 +600,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 
     current_state = interactions(variable1, variable2);
 
-    if(gamma(variable1, variable2) == 0) {
+    if(indicator(variable1, variable2) == 0) {
       proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
     } else {
       proposed_state = 0.0;
@@ -619,7 +619,7 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
                                           variable_bool,
                                           reference_category);
 
-    if(gamma(variable1, variable2) == 0) {
+    if(indicator(variable1, variable2) == 0) {
       log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
       log_prob -= R::dnorm(proposed_state,
                            current_state,
@@ -639,8 +639,8 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 
     U = R::unif_rand();
     if(std::log(U) < log_prob) {
-      gamma(variable1, variable2) = 1 - gamma(variable1, variable2);
-      gamma(variable2, variable1) = 1 - gamma(variable2, variable1);
+      indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
+      indicator(variable2, variable1) = 1 - indicator(variable2, variable1);
 
       interactions(variable1, variable2) = proposed_state;
       interactions(variable2, variable1) = proposed_state;
@@ -676,7 +676,7 @@ List gibbs_step_gm(IntegerMatrix observations,
                    int no_interactions,
                    int no_thresholds,
                    int max_no_categories,
-                   IntegerMatrix gamma,
+                   IntegerMatrix indicator,
                    NumericMatrix interactions,
                    NumericMatrix thresholds,
                    NumericMatrix rest_matrix,
@@ -694,7 +694,7 @@ List gibbs_step_gm(IntegerMatrix observations,
     //Between model move (update edge indicators and interaction parameters)
     metropolis_edge_interaction_pair(interactions,
                                      thresholds,
-                                     gamma,
+                                     indicator,
                                      observations,
                                      no_categories,
                                      proposal_sd,
@@ -711,7 +711,7 @@ List gibbs_step_gm(IntegerMatrix observations,
   //Within model move (update interaction parameters)
   metropolis_interactions(interactions,
                           thresholds,
-                          gamma,
+                          indicator,
                           observations,
                           no_categories,
                           proposal_sd,
@@ -759,7 +759,7 @@ List gibbs_step_gm(IntegerMatrix observations,
     }
   }
 
-  return List::create(Named("gamma") = gamma,
+  return List::create(Named("indicator") = indicator,
                       Named("interactions") = interactions,
                       Named("thresholds") = thresholds,
                       Named("rest_matrix") = rest_matrix,
@@ -771,7 +771,7 @@ List gibbs_step_gm(IntegerMatrix observations,
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_sampler(IntegerMatrix observations,
-                   IntegerMatrix gamma,
+                   IntegerMatrix indicator,
                    NumericMatrix interactions,
                    NumericMatrix thresholds,
                    IntegerVector no_categories,
@@ -831,14 +831,14 @@ List gibbs_sampler(IntegerMatrix observations,
   if(edge_selection == false) {
     for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
       for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
-        gamma(variable1, variable2) = 1;
-        gamma(variable2, variable1) = 1;
+        indicator(variable1, variable2) = 1;
+        indicator(variable2, variable1) = 1;
       }
     }
     nrow = 1;
     ncol_edges = 1;
   }
-  NumericMatrix out_gamma(nrow, ncol_edges);
+  NumericMatrix out_indicator(nrow, ncol_edges);
 
   NumericMatrix rest_matrix(no_persons, no_variables);
   for(int variable1 = 0; variable1 < no_variables; variable1++) {
@@ -868,7 +868,7 @@ List gibbs_sampler(IntegerMatrix observations,
     }
 
     cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                       gamma,
+                                       indicator,
                                        no_variables,
                                        beta_bernoulli_alpha,
                                        beta_bernoulli_beta);
@@ -892,7 +892,7 @@ List gibbs_sampler(IntegerMatrix observations,
   //First, we do burn-in iterations---------------------------------------------
   for(int iteration = 0; iteration < burnin; iteration++) {
     if (Progress::check_abort()) {
-      return List::create(Named("gamma") = out_gamma,
+      return List::create(Named("indicator") = out_indicator,
                           Named("interactions") = out_interactions,
                           Named("thresholds") = out_thresholds);
     }
@@ -944,7 +944,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              no_interactions,
                              no_thresholds,
                              max_no_categories,
-                             gamma,
+                             indicator,
                              interactions,
                              thresholds,
                              rest_matrix,
@@ -958,7 +958,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              reference_category,
                              edge_selection);
 
-    IntegerMatrix gamma = out["gamma"];
+    IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions = out["interactions"];
     NumericMatrix thresholds = out["thresholds"];
     NumericMatrix rest_matrix = out["rest_matrix"];
@@ -969,7 +969,7 @@ List gibbs_sampler(IntegerMatrix observations,
         int sumG = 0;
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {
-            sumG += gamma(i, j);
+            sumG += indicator(i, j);
           }
         }
         double probability = R::rbeta(beta_bernoulli_alpha + sumG,
@@ -987,14 +987,14 @@ List gibbs_sampler(IntegerMatrix observations,
                                                         no_variables,
                                                         log_Vn,
                                                         cluster_prob,
-                                                        gamma,
+                                                        indicator,
                                                         dirichlet_alpha,
                                                         beta_bernoulli_alpha,
                                                         beta_bernoulli_beta);
 
 
         cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           gamma,
+                                           indicator,
                                            no_variables,
                                            beta_bernoulli_alpha,
                                            beta_bernoulli_beta);
@@ -1013,7 +1013,7 @@ List gibbs_sampler(IntegerMatrix observations,
   for(int iteration = 0; iteration < iter; iteration++) {
     if (Progress::check_abort()) {
       if(edge_selection == true) {
-        return List::create(Named("gamma") = out_gamma,
+        return List::create(Named("indicator") = out_indicator,
                             Named("interactions") = out_interactions,
                             Named("thresholds") = out_thresholds);
       } else {
@@ -1069,7 +1069,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              no_interactions,
                              no_thresholds,
                              max_no_categories,
-                             gamma,
+                             indicator,
                              interactions,
                              thresholds,
                              rest_matrix,
@@ -1083,7 +1083,7 @@ List gibbs_sampler(IntegerMatrix observations,
                              reference_category,
                              edge_selection);
 
-    IntegerMatrix gamma = out["gamma"];
+    IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions = out["interactions"];
     NumericMatrix thresholds = out["thresholds"];
     NumericMatrix rest_matrix = out["rest_matrix"];
@@ -1094,7 +1094,7 @@ List gibbs_sampler(IntegerMatrix observations,
         int sumG = 0;
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {
-            sumG += gamma(i, j);
+            sumG += indicator(i, j);
           }
         }
         double probability = R::rbeta(beta_bernoulli_alpha + sumG,
@@ -1112,14 +1112,14 @@ List gibbs_sampler(IntegerMatrix observations,
                                                         no_variables,
                                                         log_Vn,
                                                         cluster_prob,
-                                                        gamma,
+                                                        indicator,
                                                         dirichlet_alpha,
                                                         beta_bernoulli_alpha,
                                                         beta_bernoulli_beta);
 
 
         cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           gamma,
+                                           indicator,
                                            no_variables,
                                            beta_bernoulli_alpha,
                                            beta_bernoulli_beta);
@@ -1141,7 +1141,7 @@ List gibbs_sampler(IntegerMatrix observations,
       for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
         for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
           if(edge_selection == true) {
-            out_gamma(iteration, cntr) = gamma(variable1, variable2);
+            out_indicator(iteration, cntr) = indicator(variable1, variable2);
           }
           out_interactions(iteration, cntr) = interactions(variable1, variable2);
           cntr++;
@@ -1166,10 +1166,10 @@ List gibbs_sampler(IntegerMatrix observations,
       for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
         for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
           if(edge_selection == true) {
-            out_gamma(variable1, variable2) *= iteration;
-            out_gamma(variable1, variable2) += gamma(variable1, variable2);
-            out_gamma(variable1, variable2) /= iteration + 1;
-            out_gamma(variable2, variable1) = out_gamma(variable1, variable2);
+            out_indicator(variable1, variable2) *= iteration;
+            out_indicator(variable1, variable2) += indicator(variable1, variable2);
+            out_indicator(variable1, variable2) /= iteration + 1;
+            out_indicator(variable2, variable1) = out_indicator(variable1, variable2);
           }
 
           out_interactions(variable1, variable2) *= iteration;
@@ -1212,7 +1212,7 @@ List gibbs_sampler(IntegerMatrix observations,
 
 
   if(edge_selection == true) {
-    return List::create(Named("gamma") = out_gamma,
+    return List::create(Named("indicator") = out_indicator,
                         Named("interactions") = out_interactions,
                         Named("thresholds") = out_thresholds);
   } else {

@@ -22,7 +22,7 @@ check_model = function(x,
                                   choices = c("ordinal", "blume-capel")),
                         silent = TRUE)
     if(inherits(variable_type, what = "try-error"))
-      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
                   "but not of type ",
                   variable_input, "."))
     variable_bool = (variable_type == "ordinal")
@@ -38,7 +38,7 @@ check_model = function(x,
                                   several.ok = TRUE), silent = TRUE)
 
     if(inherits(variable_type, what = "try-error"))
-      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
                   "but not of type ",
                   paste0(variable_input, collapse = ", "), "."))
 
@@ -50,7 +50,7 @@ check_model = function(x,
     })
 
     if(length(variable_type) != ncol(x))
-      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
                   "but not of type ",
                   paste0(variable_input[no_types], collapse = ", "), "."))
 

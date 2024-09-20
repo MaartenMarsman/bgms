@@ -141,7 +141,7 @@
 #' @return If \code{save = FALSE} (the default), the result is a list of class
 #' ``bgms'' containing the following matrices:
 #' \itemize{
-#' \item \code{gamma}: A matrix with \code{p} rows and \code{p} columns,
+#' \item \code{indicator}: A matrix with \code{p} rows and \code{p} columns,
 #' containing posterior inclusion probabilities of individual edges.
 #' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 #' containing model-averaged posterior means of the pairwise associations.
@@ -154,7 +154,7 @@
 #'
 #' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 #' \itemize{
-#' \item \code{gamma}: A matrix with \code{iter} rows and
+#' \item \code{indicator}: A matrix with \code{iter} rows and
 #' \code{p * (p - 1) / 2} columns, containing the edge inclusion indicators from
 #' every iteration of the Gibbs sampler.
 #' \item \code{interactions}: A matrix with \code{iter} rows and
@@ -187,7 +187,7 @@
 #'
 #'  par(mar = c(6, 5, 1, 1))
 #'  plot(x = fit$interactions[lower.tri(fit$interactions)],
-#'       y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1),
+#'       y = fit$indicator[lower.tri(fit$indicator)], ylim = c(0, 1),
 #'       xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
 #'  abline(h = 0, lty = 2, col = "gray")
 #'  abline(h = 1, lty = 2, col = "gray")
@@ -204,7 +204,7 @@
 #'
 #'  #For the default choice of the structure prior, the prior odds equal one:
 #'  prior.odds = 1
-#'  posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
+#'  posterior.inclusion = fit$indicator[lower.tri(fit$indicator)]
 #'  posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
 #'  log.bayesfactor = log(posterior.odds / prior.odds)
 #'  log.bayesfactor[log.bayesfactor > 5] = 5
@@ -362,7 +362,7 @@ bgm = function(x,
                                   ncol = 2)
 
   # Starting value of model matrix ---------------------------------------------
-  gamma = matrix(1,
+  indicator = matrix(1,
                  nrow = no_variables,
                  ncol = no_variables)
 
@@ -408,7 +408,7 @@ bgm = function(x,
 
   #The Metropolis within Gibbs sampler -----------------------------------------
   out = gibbs_sampler(observations = x,
-                      gamma = gamma,
+                      indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
                       no_categories  = no_categories,
@@ -452,6 +452,7 @@ bgm = function(x,
     inclusion_probability = theta,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
+    dirichlet_alpha = dirichlet_alpha,
     na.action = na.action,
     save = save,
     version = packageVersion("bgms")
@@ -459,7 +460,7 @@ bgm = function(x,
 
   if(save == FALSE) {
     if(edge_selection == TRUE) {
-      gamma = out$gamma
+      indicator = out$indicator
     }
     interactions = out$interactions
     tresholds = out$thresholds
@@ -469,8 +470,8 @@ bgm = function(x,
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
       if(edge_selection == TRUE) {
-        colnames(gamma) = data_columnnames
-        rownames(gamma) = data_columnnames
+        colnames(indicator) = data_columnnames
+        rownames(indicator) = data_columnnames
       }
       rownames(thresholds) = data_columnnames
     } else {
@@ -478,8 +479,8 @@ bgm = function(x,
       colnames(interactions) = data_columnnames
       rownames(interactions) = data_columnnames
       if(edge_selection == TRUE) {
-        colnames(gamma) = data_columnnames
-        rownames(gamma) = data_columnnames
+        colnames(indicator) = data_columnnames
+        rownames(indicator) = data_columnnames
       }
       rownames(thresholds) = data_columnnames
     }
@@ -489,7 +490,7 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(gamma = gamma,
+      output = list(indicator = indicator,
                     interactions = interactions,
                     thresholds = thresholds,
                     arguments = arguments)
@@ -503,7 +504,7 @@ bgm = function(x,
     return(output)
   } else {
     if(edge_selection == TRUE) {
-      gamma = out$gamma
+      indicator = out$indicator
     }
     interactions = out$interactions
     thresholds = out$thresholds
@@ -520,7 +521,7 @@ bgm = function(x,
     names_vec <- names_comb[lower.tri(names_comb)]
 
     if(edge_selection == TRUE) {
-      colnames(gamma) = names_vec
+      colnames(indicator) = names_vec
     }
     colnames(interactions) = names_vec
     names = character(length = sum(no_categories))
@@ -534,7 +535,7 @@ bgm = function(x,
     colnames(thresholds) = names
 
     if(edge_selection == TRUE) {
-      dimnames(gamma) = list(Iter. = 1:iter, colnames(gamma))
+      dimnames(indicator) = list(Iter. = 1:iter, colnames(indicator))
     }
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
     dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
@@ -542,7 +543,7 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(gamma = gamma,
+      output = list(indicator = indicator,
                     interactions = interactions,
                     thresholds = thresholds,
                     arguments = arguments)

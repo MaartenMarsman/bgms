@@ -118,7 +118,7 @@ NumericVector compute_Vn_mfm_sbm(int no_variables,
 // ----------------------------------------------------------------------------|
 double log_likelihood_mfm_sbm(IntegerVector cluster_assign,
                               NumericMatrix cluster_probs,
-                              IntegerMatrix gamma,
+                              IntegerMatrix indicator,
                               int node,
                               int no_variables) {
   double output = 0;
@@ -126,14 +126,14 @@ double log_likelihood_mfm_sbm(IntegerVector cluster_assign,
   for(int j = 0; j < no_variables; j++) {
     if(j != node) {
       if(j < node) {
-        output += gamma(j, node) *
+        output += indicator(j, node) *
           std::log(cluster_probs(cluster_assign[j], cluster_assign[node]));
-        output += (1 - gamma(j, node)) *
+        output += (1 - indicator(j, node)) *
           std::log(1 - cluster_probs(cluster_assign[j], cluster_assign[node]));
       } else {
-        output += gamma(node, j) *
+        output += indicator(node, j) *
           std::log(cluster_probs(cluster_assign[node], cluster_assign[j]));
-        output += (1 - gamma(node, j)) *
+        output += (1 - indicator(node, j)) *
           std::log(1 - cluster_probs(cluster_assign[node], cluster_assign[j]));
       }
     }
@@ -146,7 +146,7 @@ double log_likelihood_mfm_sbm(IntegerVector cluster_assign,
 // Compute log-marginal for the MFM - SBM
 // ----------------------------------------------------------------------------|
 double log_marginal_mfm_sbm(IntegerVector cluster_assign,
-                            IntegerMatrix gamma,
+                            IntegerMatrix indicator,
                             int node,
                             int no_variables,
                             double beta_bernoulli_alpha,
@@ -165,7 +165,7 @@ double log_marginal_mfm_sbm(IntegerVector cluster_assign,
     sumN = 0;
     for(int i = 0; i < no_variables; i++) {
       if(cluster_assign[i] == c) {
-        sumG += gamma(node, i);
+        sumG += indicator(node, i);
         sumN++;
       }
     }
@@ -179,7 +179,7 @@ double log_marginal_mfm_sbm(IntegerVector cluster_assign,
 // ----------------------------------------------------------------------------|
 inline void update_sumG(int &sumG,
                         const IntegerVector &cluster_assign,
-                        const IntegerMatrix &gamma,
+                        const IntegerMatrix &indicator,
                         int r,
                         int s,
                         int no_variables) {
@@ -187,7 +187,7 @@ inline void update_sumG(int &sumG,
     if(cluster_assign[node1] == r) {
       for(int node2 = node1 + 1; node2 < no_variables; node2++) {
         if(cluster_assign[node2] == s) {
-          sumG += gamma(node1, node2);
+          sumG += indicator(node1, node2);
         }
       }
     }
@@ -216,7 +216,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
                                         int no_variables,
                                         NumericVector log_Vn,
                                         NumericMatrix block_probs,
-                                        IntegerMatrix gamma,
+                                        IntegerMatrix indicator,
                                         int dirichlet_alpha,
                                         double beta_bernoulli_alpha,
                                         double beta_bernoulli_beta) {
@@ -249,7 +249,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
         if (c < no_clusters) {
           loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
                                            block_probs,
-                                           gamma,
+                                           indicator,
                                            node,
                                            no_variables);
 
@@ -257,7 +257,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
             std::exp(loglike);
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
-                                         gamma,
+                                         indicator,
                                          node,
                                          no_variables,
                                          beta_bernoulli_alpha,
@@ -301,7 +301,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
         if (c < no_clusters) {
           loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
                                            block_probs,
-                                           gamma,
+                                           indicator,
                                            node,
                                            no_variables);
 
@@ -309,7 +309,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
             std::exp(loglike);
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
-                                         gamma,
+                                         indicator,
                                          node,
                                          no_variables,
                                          beta_bernoulli_alpha,
@@ -343,7 +343,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
 // Sample the block parameters for the MFM - SBM
 // ----------------------------------------------------------------------------|
 NumericMatrix block_probs_mfm_sbm(IntegerVector cluster_assign,
-                                  IntegerMatrix gamma,
+                                  IntegerMatrix indicator,
                                   int no_variables,
                                   double beta_bernoulli_alpha,
                                   double beta_bernoulli_beta) {
@@ -362,11 +362,11 @@ NumericMatrix block_probs_mfm_sbm(IntegerVector cluster_assign,
       sumG = 0;
 
       if(r == s) {
-        update_sumG(sumG, cluster_assign, gamma, r, r, no_variables);
+        update_sumG(sumG, cluster_assign, indicator, r, r, no_variables);
         size = cluster_size[r] * (cluster_size[r] - 1) / 2;
       } else {
-        update_sumG(sumG, cluster_assign, gamma, r, s, no_variables);
-        update_sumG(sumG, cluster_assign, gamma, s, r, no_variables);
+        update_sumG(sumG, cluster_assign, indicator, r, s, no_variables);
+        update_sumG(sumG, cluster_assign, indicator, s, r, no_variables);
         size = cluster_size[s] * cluster_size[r];
       }
 
