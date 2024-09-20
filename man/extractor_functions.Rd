@@ -2,21 +2,54 @@
 % Please edit documentation in R/extractor_functions.R
 \name{extract_arguments}
 \alias{extract_arguments}
-\alias{extract_edge_indicators}
+\alias{extract_arguments.bgms}
+\alias{extract_arguments.bgmCompare}
+\alias{extract_indicators}
+\alias{extract_indicators.bgms}
+\alias{extract_indicators.bgmCompare}
 \alias{extract_posterior_inclusion_probabilities}
-\alias{extract_edge_priors}
-\alias{extract_pairwise_thresholds}
+\alias{extract_posterior_inclusion_probabilities.bgms}
+\alias{extract_posterior_inclusion_probabilities.bgmCompare}
+\alias{extract_indicator_priors}
+\alias{extract_indicator_priors.bgms}
+\alias{extract_indicator_priors.bgmCompare}
+\alias{extract_pairwise_interactions}
+\alias{extract_category_thresholds}
+\alias{extract_pairwise_difference.bgmCompare}
+\alias{extract_main_difference.bgmCompare}
 \title{Extractor Functions.}
 \usage{
 extract_arguments(bgms_object)
 
-extract_edge_indicators(bgms_object)
+\method{extract_arguments}{bgms}(bgms_object)
+
+\method{extract_arguments}{bgmCompare}(bgms_object)
+
+extract_indicators(bgms_object)
+
+\method{extract_indicators}{bgms}(bgms_object)
+
+\method{extract_indicators}{bgmCompare}(bgms_object)
 
 extract_posterior_inclusion_probabilities(bgms_object)
 
-extract_edge_priors(bgms_object)
+\method{extract_posterior_inclusion_probabilities}{bgms}(bgms_object)
 
-extract_pairwise_thresholds(bgms_object)
+\method{extract_posterior_inclusion_probabilities}{bgmCompare}(bgms_object)
+
+extract_indicator_priors(bgms_object)
+
+\method{extract_indicator_priors}{bgms}(bgms_object)
+
+\method{extract_indicator_priors}{bgmCompare}(bgms_object)
+
+extract_pairwise_interactions(bgms_object)
+
+extract_category_thresholds(bgms_object)
+
+extract_pairwise_difference.bgmCompare(bgms_object)
+
+extract_main_difference.bgmCompare(bgms_object)
 }
 \arguments{
 \item{bgms_object}{A fit object created by the bgms package or specifically

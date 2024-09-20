@@ -15,7 +15,7 @@ bgm(
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
   edge_selection = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic Block"),
+  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
@@ -93,7 +93,7 @@ inclusion probability with shape parameters \code{beta_bernoulli_alpha} and
 \code{beta_bernoulli_beta}. If \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}, this means that networks with the same
 complexity (number of edges) get the same prior weight. The Stochastic Block
-model \code{edge_prior = "Stochastic Block"} assumes that nodes can be
+model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
 possible options (i.e., specifies a Dirichlet process on the node to block

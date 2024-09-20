@@ -1,6 +1,6 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
-#include "gibbs_edge_model.h"
+#include "gibbs_functions_edge_prior.h"
 #include <progress.hpp>
 #include <progress_bar.hpp>
 using namespace Rcpp;
@@ -855,7 +855,7 @@ List gibbs_sampler(IntegerMatrix observations,
   NumericMatrix cluster_prob(1, 1);
   NumericVector log_Vn(1);
 
-  if(edge_prior == "Stochastic Block") {
+  if(edge_prior == "Stochastic-Block") {
     cluster_allocations[0] = 0;
     cluster_allocations[1] = 1;
     for(int i = 2; i < no_variables; i++) {
@@ -982,7 +982,7 @@ List gibbs_sampler(IntegerMatrix observations,
           }
         }
       }
-      if(edge_prior == "Stochastic Block") {
+      if(edge_prior == "Stochastic-Block") {
         cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
                                                         no_variables,
                                                         log_Vn,
@@ -1107,7 +1107,7 @@ List gibbs_sampler(IntegerMatrix observations,
           }
         }
       }
-      if(edge_prior == "Stochastic Block") {
+      if(edge_prior == "Stochastic-Block") {
         cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
                                                         no_variables,
                                                         log_Vn,

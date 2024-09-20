@@ -489,7 +489,8 @@ bgmCompare = function(x,
     pairwise_difference_scale = pairwise_difference_scale,
     na.action = na.action,
     save = save,
-    version = packageVersion("bgms")
+    version = packageVersion("bgms"),
+    independent_thresholds = independent_thresholds
   )
 
   if(save == FALSE) {

@@ -12,10 +12,11 @@ print.bgms <- function(x, ...) {
   if(arguments$edge_selection) {
     if(arguments$edge_prior == "Bernoulli") {
       cat("Bayesian Edge Selection using a Bernoulli prior on edge inclusion\n")
-    } else {
+    } else if(arguments$edge_prior == "Beta-Bernoulli") {
       cat("Bayesian Edge Selection using a Beta-Bernoulli prior on edge inclusion\n")
+    } else if(arguments$edge_prior == "Stochastic Block") {
+      cat("Bayesian Edge Selection using a Stochastic Block prior on edge inclusion\n")
     }
-
   } else {
     cat("Bayesian Estimation\n")
   }

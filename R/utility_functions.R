@@ -9,7 +9,7 @@ check_model = function(x,
                        threshold_alpha = 0.5,
                        threshold_beta = 0.5,
                        edge_selection = TRUE,
-                       edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic Block"),
+                       edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
                        inclusion_probability = 0.5,
                        beta_bernoulli_alpha = 1,
                        beta_bernoulli_beta = 1,
@@ -22,7 +22,7 @@ check_model = function(x,
                                   choices = c("ordinal", "blume-capel")),
                         silent = TRUE)
     if(inherits(variable_type, what = "try-error"))
-      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
                   "but not of type ",
                   variable_input, "."))
     variable_bool = (variable_type == "ordinal")
@@ -38,7 +38,7 @@ check_model = function(x,
                                   several.ok = TRUE), silent = TRUE)
 
     if(inherits(variable_type, what = "try-error"))
-      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
                   "but not of type ",
                   paste0(variable_input, collapse = ", "), "."))
 
@@ -50,7 +50,7 @@ check_model = function(x,
     })
 
     if(length(variable_type) != ncol(x))
-      stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
+      stop(paste0("The bgm function supports variables of type ordinal and Blume-Capel, \n",
                   "but not of type ",
                   paste0(variable_input[no_types], collapse = ", "), "."))
 
@@ -185,7 +185,7 @@ check_model = function(x,
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
         stop("Values for both scale parameters of the beta distribution need to be specified.")
     }
-    if(edge_prior == "Stochastic Block") {
+    if(edge_prior == "Stochastic-Block") {
       theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
       if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0)
         stop("The scale parameters of the beta and Dirichlet distribution need to be positive.")
