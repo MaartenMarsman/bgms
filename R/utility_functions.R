@@ -9,10 +9,11 @@ check_model = function(x,
                        threshold_alpha = 0.5,
                        threshold_beta = 0.5,
                        edge_selection = TRUE,
-                       edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+                       edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic Block"),
                        inclusion_probability = 0.5,
                        beta_bernoulli_alpha = 1,
-                       beta_bernoulli_beta = 1) {
+                       beta_bernoulli_beta = 1,
+                       dirichlet_alpha = dirichlet_alpha) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -183,6 +184,17 @@ check_model = function(x,
       if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta))
         stop("Values for both scale parameters of the beta distribution need to be specified.")
+    }
+    if(edge_prior == "Stochastic Block") {
+      theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
+      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0)
+        stop("The scale parameters of the beta and Dirichlet distribution need to be positive.")
+      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha))
+        stop("The scale parameters of the beta and Dirichlet distribution need to be finite.")
+      if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
+         is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
+         is.null(dirichlet_alpha) || is.null(dirichlet_alpha))
+        stop("Values for both scale parameters of the beta and Dirichlet distribution need to be specified.")
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)

@@ -15,10 +15,11 @@ bgm(
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
   edge_selection = TRUE,
-  edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+  edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic Block"),
   inclusion_probability = 0.5,
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
+  dirichlet_alpha = 1,
   na.action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
@@ -81,7 +82,7 @@ the edges of the MRF in addition to estimating its parameters
 network is modeled with binary indicator variables that capture the structure
 of the network. The argument \code{edge_prior} is used to set a prior
 distribution for the edge indicator variables, i.e., the structure of the
-network. Currently, two options are implemented: The Bernoulli model
+network. Currently, three options are implemented: The Bernoulli model
 \code{edge_prior = "Bernoulli"} assumes that the probability that an edge
 between two variables is included is equal to \code{inclusion_probability}
 and independent of other edges or variables. When
@@ -91,8 +92,16 @@ structure is given the same prior weight. The Beta-Bernoulli model
 inclusion probability with shape parameters \code{beta_bernoulli_alpha} and
 \code{beta_bernoulli_beta}. If \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}, this means that networks with the same
-complexity (number of edges) get the same prior weight. The default is
-\code{edge_prior = "Bernoulli"}.}
+complexity (number of edges) get the same prior weight. The Stochastic Block
+model \code{edge_prior = "Stochastic Block"} assumes that nodes can be
+organized into blocks or clusters. In principle, the assignment of nodes to
+such clusters is unknown, and the model as implemented here considers all
+possible options (i.e., specifies a Dirichlet process on the node to block
+allocation). This model is advantageous when nodes are expected to fall into
+distinct clusters. The inclusion probabilities for the edges are defined at
+the level of the clusters, with a beta prior for the unknown inclusion
+probability with shape parameters \code{beta_bernoulli_alpha} and
+\code{beta_bernoulli_beta}. The default is \code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
 Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
@@ -103,6 +112,9 @@ The default is \code{inclusion_probability = 0.5}.}
 the Beta prior density for the Bernoulli inclusion probability. Must be
 positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \code{beta_bernoulli_beta = 1}.}
+
+\item{dirichlet_alpha}{The shape of the Dirichlet prior on the node-to-block
+allocation parameters for the Stochastic Block model.}
 
 \item{na.action}{How do you want the function to handle missing data? If
 \code{na.action = "listwise"}, listwise deletion is used. If

@@ -1,5 +1,6 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
+#include "gibbs_edge_model.h"
 #include <progress.hpp>
 #include <progress_bar.hpp>
 using namespace Rcpp;
@@ -781,6 +782,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    NumericMatrix theta,
                    double beta_bernoulli_alpha,
                    double beta_bernoulli_beta,
+                   double dirichlet_alpha,
                    IntegerMatrix Index,
                    int iter,
                    int burnin,
@@ -846,6 +848,41 @@ List gibbs_sampler(IntegerMatrix observations,
           observations(person, variable2) * interactions(variable2, variable1);
       }
     }
+  }
+
+  //Variable declaration edge prior
+  IntegerVector cluster_allocations(no_variables);
+  NumericMatrix cluster_prob(1, 1);
+  NumericVector log_Vn(1);
+
+  if(edge_prior == "Stochastic Block") {
+    cluster_allocations[0] = 0;
+    cluster_allocations[1] = 1;
+    for(int i = 2; i < no_variables; i++) {
+      double U = R::unif_rand();
+      if(U > 0.5){
+        cluster_allocations[i] = 1;
+      } else {
+        cluster_allocations[i] = 0;
+      }
+    }
+
+    cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+                                       gamma,
+                                       no_variables,
+                                       beta_bernoulli_alpha,
+                                       beta_bernoulli_beta);
+
+    for(int i = 0; i < no_variables - 1; i++) {
+      for(int j = i + 1; j < no_variables; j++) {
+        theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+        theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+      }
+    }
+
+    log_Vn = compute_Vn_mfm_sbm(no_variables,
+                                dirichlet_alpha,
+                                no_variables + 10);
   }
 
   //Progress bar
@@ -942,6 +979,30 @@ List gibbs_sampler(IntegerMatrix observations,
           for(int j = i + 1; j < no_variables; j++) {
             theta(i, j) = probability;
             theta(j, i) = probability;
+          }
+        }
+      }
+      if(edge_prior == "Stochastic Block") {
+        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
+                                                        no_variables,
+                                                        log_Vn,
+                                                        cluster_prob,
+                                                        gamma,
+                                                        dirichlet_alpha,
+                                                        beta_bernoulli_alpha,
+                                                        beta_bernoulli_beta);
+
+
+        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+                                           gamma,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta);
+
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+            theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
       }
@@ -1043,6 +1104,30 @@ List gibbs_sampler(IntegerMatrix observations,
           for(int j = i + 1; j < no_variables; j++) {
             theta(i, j) = probability;
             theta(j, i) = probability;
+          }
+        }
+      }
+      if(edge_prior == "Stochastic Block") {
+        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
+                                                        no_variables,
+                                                        log_Vn,
+                                                        cluster_prob,
+                                                        gamma,
+                                                        dirichlet_alpha,
+                                                        beta_bernoulli_alpha,
+                                                        beta_bernoulli_beta);
+
+
+        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+                                           gamma,
+                                           no_variables,
+                                           beta_bernoulli_alpha,
+                                           beta_bernoulli_beta);
+
+        for(int i = 0; i < no_variables - 1; i++) {
+          for(int j = i + 1; j < no_variables; j++) {
+            theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+            theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
       }
