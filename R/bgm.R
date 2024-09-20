@@ -490,8 +490,7 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(gamma = indicator,
-                    indicator = indicator,
+      output = list(indicator = indicator,
                     interactions = interactions,
                     thresholds = thresholds,
                     arguments = arguments)
@@ -544,8 +543,7 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(gamma = indicator,
-                    indicator = indicator,
+      output = list(indicator = indicator,
                     interactions = interactions,
                     thresholds = thresholds,
                     arguments = arguments)

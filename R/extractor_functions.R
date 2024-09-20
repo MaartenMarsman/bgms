@@ -44,7 +44,11 @@ extract_indicators <- function(bgms_object) {
 extract_indicators.bgms <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
   if(arguments$edge_selection & arguments$save) {
-    edge_indicators = bgms_object$indicator
+    if(arguments$version < "0.1.4") {
+      edge_indicators = bgms_object$gamma
+    } else {
+      edge_indicators = bgms_object$indicator
+    }
     return(edge_indicators)
   } else {
     stop(paste0("To access the sampled edge indicators the bgms package needs to be run using \n",
@@ -67,7 +71,7 @@ extract_indicators.bgmCompare <- function(bgms_object) {
     return(list(main_difference_indicator = main_difference_indicator,
                 pairwise_difference_indicator = pairwise_difference_indicator))
   } else {
-    stop(paste0("To access the sampled edge indicators the bgmCompare function needs to be run using \n",
+    stop(paste0("To access the sampled difference indicators the bgmCompare function needs to be run using \n",
                 "difference_selection = TRUE and save = TRUE."))
   }
 }
