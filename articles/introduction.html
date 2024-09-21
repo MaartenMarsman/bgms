@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Introducing bgms • bgms</title>
+<title>Bayesian analysis of the ordinal MRF using the bgm function • bgms</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.9/font.css" rel="stylesheet">
 <link href="../deps/Source_Code_Pro-0.4.9/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Introducing bgms">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bayesian analysis of the ordinal MRF using the bgm function">
 </head>
 <body>
     <a href="#container" class="visually-hidden-focusable">Skip to content</a>
@@ -35,7 +35,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/introduction.html">Introducing bgms</a></li>
+<li><a class="dropdown-item" href="../articles/introduction.html">Bayesian analysis of the ordinal MRF using the bgm function</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -58,7 +58,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Introducing bgms</h1>
+      <h1>Bayesian analysis of the ordinal MRF using the bgm function</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/MaartenMarsman/bgms/blob/main/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
@@ -74,13 +74,12 @@ text-align: justify}
 <div class="section level3">
 <h3 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h3>
-<p>This example demonstrates how to use bgms for Bayesian analysis of
-binary or ordinal data using a Markov Random Field (MRF) model. To learn
-more about the MRF model, check out <span class="citation">Marsman et
-al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>,
-and to learn more about the Bayesian analysis of network models, check
-out <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
-<code>bgms</code> software is coming soon.</p>
+<p>This example demonstrates how to use the <code>bgm</code> function
+for the Bayesian analysis of binary or ordinal data using a Markov
+Random Field (MRF) model. To learn more about the MRF model, check out
+<span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>, and to
+learn more about the Bayesian analysis of network models, check out
+<span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span> or <span class="citation">Sekulovski et al. (<a href="#ref-SekulovskiEtAl_2023">in press</a>)</span>.</p>
 <p>We’ll examine real data on PTSD symptoms from 362 Chinese adults who
 survived the Wenchuan earthquake but tragically lost a child <span class="citation">(<a href="#ref-McNallyEtAl_2015">McNally et al.,
 2015</a>)</span>. The data comes from a 17-question survey where
@@ -280,12 +279,12 @@ posterior means.</p>
 iterations, which is 10,000. However, this is probably not enough to
 fully explore the posterior distribution of the network structures and
 parameters. To obtain reliable and accurate estimates, we recommend
-increasing the number of iterations to 100,000 or more. The function
-employs a simulation method that averages over all plausible network
-structures to estimate the posterior inclusion probability, which
-represents the probability that a network containing the edge in
-question generated the observed data. Let’s plot the relation between
-interaction estimates and inclusion probabilities.</p>
+increasing the number of iterations to 100,000 or more.</p>
+<p>The function employs a simulation method that averages over all
+plausible network structures to estimate the posterior inclusion
+probability, which represents the probability that a network containing
+the edge in question generated the observed data. Let’s plot the
+relation between interaction estimates and inclusion probabilities.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fl">5</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">)</span><span class="op">]</span>, </span>
@@ -493,6 +492,12 @@ McNally, R. J., Robinaugh, D. J., Wu, G. W. Y., Wang, L., Deserno, M.
 K., &amp; Borsboom, D. (2015). Mental disorders as causal systems:
 <span>A</span> network approach to posttraumatic stress disorder.
 <em>Clinical Psychological Science</em>, <em>5</em>, 836–849. <a href="https://doi.org/10.1177/2167702614553230" class="external-link">https://doi.org/10.1177/2167702614553230</a>
+</div>
+<div id="ref-SekulovskiEtAl_2023" class="csl-entry">
+Sekulovski, N., Keetelaar, S., Huth, K., Wagenmakers, E.-J., Bork, R.
+van, Bergh, D. van den, &amp; Marsman, M. (in press). Testing
+conditional independence in psychometric networks: An analysis of three
+bayesian methods. <em>Multivariate Behavioral Research</em>. <a href="https://doi.org/10.1080/00273171.2024.2345915" class="external-link">https://doi.org/10.1080/00273171.2024.2345915</a>
 </div>
 </div>
 </div>
