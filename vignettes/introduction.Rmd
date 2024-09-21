@@ -1,8 +1,8 @@
 ---
-title: "Introducing bgms"
+title: "Bayesian analysis of the ordinal MRF using the bgm function"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introducing bgms}
+  %\VignetteIndexEntry{Introducing the bgm function}
   %\VignetteEngine{knitr::rmarkdown}
 bibliography: refs.bib
 csl: apa.csl
@@ -15,7 +15,7 @@ text-align: justify}
 
 ## Introduction
 
-This example demonstrates how to use bgms for Bayesian analysis of binary or ordinal data using a Markov Random Field (MRF) model. To learn more about the MRF model, check out @MarsmanHaslbeck_2023_ordinal, and to learn more about the Bayesian analysis of network models, check out @HuthEtAl_2023. A paper on the `bgms` software is coming soon.
+This example demonstrates how to use the `bgm` function for the Bayesian analysis of binary or ordinal data using a Markov Random Field (MRF) model. To learn more about the MRF model, check out @MarsmanHaslbeck_2023_ordinal, and to learn more about the Bayesian analysis of network models, check out @HuthEtAl_2023 or @SekulovskiEtAl_2023.
 
 We'll examine real data on PTSD symptoms from 362 Chinese adults who survived the Wenchuan earthquake but tragically lost a child [@McNallyEtAl_2015]. The data comes from a 17-question survey where participants rated how much each symptom bothered them in the past month on a scale from "not at all" to "extremely."
 
@@ -35,7 +35,7 @@ library(bgms)
 
 # Example -- Bayesian Model Averaging
 
-A comprehensive Bayesian analysis of the data considers both the network structure and its corresponding parameters. As numerous structures could underlie our network, we employ simulation-based methods to investigate the posterior distribution of network structures and parameters [@MarsmanHaslbeck_2023_ordinal]. The `bgm` function performs this task, iteratively simulating values from the posterior distribution of network structures and parameters. 
+A comprehensive Bayesian analysis of the data considers both the network structure and its corresponding parameters. As numerous structures could underlie our network, we employ simulation-based methods to investigate the posterior distribution of network structures and parameters [@MarsmanHaslbeck_2023_ordinal]. The `bgm` function performs this task, iteratively simulating values from the posterior distribution of network structures and parameters.
 
 
 ## Usage 
@@ -121,7 +121,8 @@ Column averages of these matrices provide the model-averaged posterior means.
 fit <-  bgm(x = Wenchuan)
 ```
 
-To save time, we ran the algorithm using the default number of iterations, which is 10,000. However, this is probably not enough to fully explore the posterior distribution of the network structures and parameters. To obtain reliable and accurate estimates, we recommend increasing the number of iterations to 100,000 or more. 
+To save time, we ran the algorithm using the default number of iterations, which is 10,000. However, this is probably not enough to fully explore the posterior distribution of the network structures and parameters. To obtain reliable and accurate estimates, we recommend increasing the number of iterations to 100,000 or more.
+
 The function employs a simulation method that averages over all plausible network structures to estimate the posterior inclusion probability, which represents the probability that a network containing the edge in question generated the observed data. Let's plot the relation between interaction estimates and inclusion probabilities.
 
 ```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
