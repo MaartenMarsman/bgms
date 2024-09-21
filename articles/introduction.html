@@ -196,11 +196,11 @@ Defaults to `edge_prior = “Bernoulli”’. The Stochastic Block model
 assumes that nodes can be organized into blocks or clusters. In
 principle, the assignment of nodes to such clusters is unknown, and the
 model as implemented here considers all possible options (i.e.,
-specifies a Dirichlet process on the node to block allocation <span class="citation">(<a href="#ref-GengEtAl_2019"><strong>GengEtAl_2019?</strong></a>)</span>).
-This model is advantageous when nodes are expected to fall into distinct
-clusters. The inclusion probabilities for the edges are defined at the
-level of the clusters, with a beta prior for the unknown inclusion
-probability with shape parameters and . The default is .</p></li>
+specifies a Dirichlet process on the node to block allocation <span class="citation">Geng et al. (<a href="#ref-GengEtAl_2019">2019</a>)</span>). This model is advantageous
+when nodes are expected to fall into distinct clusters. The inclusion
+probabilities for the edges are defined at the level of the clusters,
+with a beta prior for the unknown inclusion probability with shape
+parameters and . The default is .</p></li>
 <li><p><code>inclusion_probability</code>: The prior edge inclusion
 probability for the Bernoulli model. Can be a single probability, or a
 matrix of <code>p</code> rows and <code>p</code> columns specifying an
@@ -470,6 +470,11 @@ to their analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88
 <h3 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h3>
 <div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0" line-spacing="2">
+<div id="ref-GengEtAl_2019" class="csl-entry">
+Geng, J., Bhattacharya, A., &amp; Pati, D. (2019). Probabilistic
+community detection with unknown number of communities. <em>Journal of
+the American Statistical Association</em>, <em>114</em>, 893–905. <a href="https://doi.org/10.1080/01621459.2018.1458618" class="external-link">https://doi.org/10.1080/01621459.2018.1458618</a>
+</div>
 <div id="ref-HuthEtAl_2023" class="csl-entry">
 Huth, K., de Ron, J., Goudriaan, A. E., Luigjes, K., Mohammadi, R., van
 Holst, R. J., Wagenmakers, E.-J., &amp; Marsman, M. (2023). Bayesian
