@@ -50,14 +50,14 @@ bgm(x,
     threshold_alpha = 0.5,
     threshold_beta = 0.5,
     edge_selection = TRUE,
-    edge_prior = c("Bernoulli", "Beta-Bernoulli"),
+    edge_prior = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block"),
     inclusion_probability = 0.5,
     beta_bernoulli_alpha = 1,
     beta_bernoulli_beta = 1,
+    dirichlet_alpha = 1,
     na.action = c("listwise", "impute"),
     save = FALSE,
-    display_progress = TRUE
-)
+    display_progress = TRUE)
 ```
 
 
@@ -85,10 +85,14 @@ edges of the MRF in addition to estimating its parameters
 (`edge_selection = FALSE`)? The default is `edge_selection = TRUE`.
 
 - `edge_prior`: The prior distribution for the edges or structure of the network. Two prior distributions are currently implemented: The Bernoulli model `edge_prior = "Bernoulli"` assumes that the probability that an edge between two variables is included is equal to `inclusion_probability` and independent of other edges or variables. When `inclusion_probability = 0.5`, this implies that each network structure receives the same prior weight. The Beta-Bernoulli model `edge_prior = "Beta-Bernoulli"` assumes a beta prior for the unknown inclusion probability with shape parameters `beta_bernoulli_alpha` and `beta_bernoulli_beta`. If `beta_bernoulli_alpha = 1` and `beta_bernoulli_beta = 1`, this means that networks with the same complexity (number of edges) receive the same prior weight. Defaults to `edge_prior = "Bernoulli"'.
+The Stochastic Block model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be organized into blocks or clusters. In principle, the assignment of nodes to such clusters is unknown, and the model as implemented here considers all possible options (i.e., specifies a Dirichlet process on the node to block
+allocation @GengEtAl_2019). This model is advantageous when nodes are expected to fall into distinct clusters. The inclusion probabilities for the edges are defined at the level of the clusters, with a beta prior for the unknown inclusion probability with shape parameters \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}. The default is \code{edge_prior = "Bernoulli"}.
 
 - `inclusion_probability`: The prior edge inclusion probability for the Bernoulli model. Can be a single probability, or a matrix of `p` rows and `p` columns specifying an inclusion probability for each edge pair. Defaults to `inclusion_probability = 0.5`.
 
 - `beta_bernoulli_alpha, beta_bernoulli_beta`: The two shape parameters of the Beta prior density for the Bernoulli inclusion probability. Must be positive numbers. Defaults to `beta_bernoulli_alpha = 1` and `beta_bernoulli_beta = 1`.
+
+- `dirichlet_alpha`: The shape of the Dirichlet prior on the node-to-block allocation parameters for the Stochastic Block model. Must be a positive number. Defaults to `dirichlet_alpha = 1`
 
 - `na.action`: How do you want the function to handle missing data? If `na.action = "listwise"`, listwise deletion is used. If `na.action = "impute"`, missing data are imputed iteratively during the MCMC procedure. Since imputation of missing data can have a negative impact on the convergence speed of the MCMC procedure, it is recommended to run the MCMC for more iterations. Also, since the numerical routines that search for the mode of the posterior do not have an imputation option, the bgm function will automatically switch to `interaction_prior = "Cauchy"` and `adaptive = TRUE`.
 
@@ -100,15 +104,15 @@ edges of the MRF in addition to estimating its parameters
 
 If `save = FALSE` (the default), the result is a list containing the following matrices:
 
-- `gamma`: A matrix with `p` rows and `p` columns, containing posterior inclusion probabilities of individual edges.
+- `indicator`: A matrix with `p` rows and `p` columns, containing posterior inclusion probabilities of individual edges.
 - `interactions`: A matrix with `p` rows and `p` columns, containing model-averaged posterior means of the pairwise associations.
 - `thresholds`: A matrix with `p` rows and `max(m)` columns, containing model-averaged category thresholds.
 
 If `save = TRUE`, the result is a list containing:
 
-- `samples.gamma`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing the edge inclusion indicators from every iteration of the Gibbs sampler.
-- `samples.interactions`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing parameter states from every iteration of the Gibbs sampler for the pairwise associations.
-- `samples.thresholds`: A matrix with `iter` rows and `sum(m)` columns, containing parameter states from every iteration of the Gibbs sampler for the category thresholds.
+- `indicator`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing the edge inclusion indicators from every iteration of the Gibbs sampler.
+- `interactions`: A matrix with `iter` rows and `p * (p - 1) / 2` columns, containing parameter states from every iteration of the Gibbs sampler for the pairwise associations.
+- `thresholds`: A matrix with `iter` rows and `sum(m)` columns, containing parameter states from every iteration of the Gibbs sampler for the category thresholds.
 
 Column averages of these matrices provide the model-averaged posterior means.
 
@@ -125,7 +129,7 @@ The function employs a simulation method that averages over all plausible networ
 ```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 par(mar = c(6, 5, 1, 1))
 plot(x = fit$interactions[lower.tri(fit$interactions)], 
-     y = fit$gamma[lower.tri(fit$gamma)], ylim = c(0, 1), 
+     y = fit$indicator[lower.tri(fit$indicator)], ylim = c(0, 1), 
      xlab = "", ylab = "", axes = FALSE, pch = 21, bg = "gray", cex = 1.3)
 abline(h = 0, lty = 2, col = "gray")
 abline(h = 1, lty = 2, col = "gray")
@@ -145,7 +149,7 @@ Using the posterior inclusion probabilities, we can also identify the median pro
 ```{r message=FALSE, warning=FALSE, fig.width= 7, fig.height= 7}
 library(qgraph) #For plotting the estimated network
   
-posterior.inclusion <- fit$gamma[lower.tri(fit$gamma)]
+posterior.inclusion <- fit$indicator[lower.tri(fit$indicator)]
 tmp <- fit$interactions[lower.tri(fit$interactions)]
 tmp[posterior.inclusion < 0.5] = 0
   
@@ -175,7 +179,7 @@ In the current version analysis, it is assumed that the prior inclusion probabil
 ```{r message=FALSE, warning=FALSE}
 # Calculate the inclusion BFs
 prior.odds = 1
-posterior.inclusion = fit$gamma[lower.tri(fit$gamma)]
+posterior.inclusion = fit$indicator[lower.tri(fit$indicator)]
 posterior.odds = posterior.inclusion / (1 - posterior.inclusion)
 log.bayesfactor = log(posterior.odds / prior.odds)
 #The next line is used to truncate the extreme values of the Bayes factor in the plot
@@ -242,8 +246,8 @@ Note that the estimate is not very smooth. This is because we only used 10,000 s
 We can also use the raw samples to count the number of unique structures `bgm` encountered in 10,000 iterations. 
 
 ```{r message=FALSE, warning=FALSE}
-G = 2 * fit$gamma - 1
-S = unique(G)
+I = 2 * fit$indicator - 1
+S = unique(I)
 nrow(S)
 ```
 
@@ -253,10 +257,10 @@ There are clearly many different network structures that could fit the data. Let
 Ps = vector(length = nrow(S))
 for(r in 1:nrow(S)) {
   s = S[r, ]
-  tmp = G %*% s
-  Ps[r] = sum(tmp == ncol(G))
+  tmp = I %*% s
+  Ps[r] = sum(tmp == ncol(I))
 }
-Ps = Ps / nrow(G) * 100
+Ps = Ps / nrow(I) * 100
 max(Ps)
 ```
 

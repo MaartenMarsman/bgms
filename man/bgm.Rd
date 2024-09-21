@@ -96,9 +96,8 @@ complexity (number of edges) get the same prior weight. The Stochastic Block
 model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
-possible options (i.e., specifies a Dirichlet process on the node to block
-allocation). \insertCite{@i.e., specifies a Dirichlet process on the node to block
-allocation as described by @GengEtAl_2019}{bgms} This model is advantageous
+possible options \insertCite{@i.e., specifies a Dirichlet process on the node to block
+allocation as described by @GengEtAl_2019}{bgms}. This model is advantageous
 when nodes are expected to fall into distinct clusters. The inclusion
 probabilities for the edges are defined at the level of the clusters, with a
 beta prior for the unknown inclusion probability with shape parameters
