@@ -161,12 +161,13 @@ complexity (number of edges) get the same prior weight. The Stochastic Block
 model <code>edge_prior = "Stochastic-Block"</code> assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
-possible options (i.e., specifies a Dirichlet process on the node to block
-allocation). This model is advantageous when nodes are expected to fall into
-distinct clusters. The inclusion probabilities for the edges are defined at
-the level of the clusters, with a beta prior for the unknown inclusion
-probability with shape parameters <code>beta_bernoulli_alpha</code> and
-<code>beta_bernoulli_beta</code>. The default is <code>edge_prior = "Bernoulli"</code>.</p></dd>
+possible options @i.e., specifies a Dirichlet process on the node to block
+allocation as described by @GengEtAl_2019bgms. This model is advantageous
+when nodes are expected to fall into distinct clusters. The inclusion
+probabilities for the edges are defined at the level of the clusters, with a
+beta prior for the unknown inclusion probability with shape parameters
+<code>beta_bernoulli_alpha</code> and <code>beta_bernoulli_beta</code>. The default is
+<code>edge_prior = "Bernoulli"</code>.</p></dd>
 
 
 <dt id="arg-inclusion-probability">inclusion_probability<a class="anchor" aria-label="anchor" href="#arg-inclusion-probability"></a></dt>
@@ -215,8 +216,8 @@ The default is <code>TRUE</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>If <code>save = FALSE</code> (the default), the result is a list of class
-“bgms” containing the following matrices:</p><ul><li><p><code>indicator</code>: A matrix with <code>p</code> rows and <code>p</code> columns,
-containing posterior inclusion probabilities of individual edges.</p></li>
+“bgms” containing the following matrices with model-averaged quantities:</p><ul><li><p><code>indicator</code>: A matrix with <code>p</code> rows and <code>p</code> columns,
+containing the posterior inclusion probabilities of individual edges.</p></li>
 <li><p><code>interactions</code>: A matrix with <code>p</code> rows and <code>p</code> columns,
 containing model-averaged posterior means of the pairwise associations.</p></li>
 <li><p><code>thresholds</code>: A matrix with <code>p</code> rows and <code>max(m)</code>
@@ -276,6 +277,10 @@ beta-prime distribution is used for the exponent of the category parameters.
 For Bayesian edge selection, two prior distributions are implemented for the
 edge inclusion variables (i.e., the prior probability that an edge is
 included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p></p>
     </div>
 
     <div class="section level2">

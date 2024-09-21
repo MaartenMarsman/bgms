@@ -77,9 +77,9 @@ text-align: justify}
 <p>This example demonstrates how to use bgms for Bayesian analysis of
 binary or ordinal data using a Markov Random Field (MRF) model. To learn
 more about the MRF model, check out <span class="citation">Marsman et
-al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, and
-to learn more about the Bayesian analysis of network models, check out
-<span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
+al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>,
+and to learn more about the Bayesian analysis of network models, check
+out <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span>. A paper on the
 <code>bgms</code> software is coming soon.</p>
 <p>We’ll examine real data on PTSD symptoms from 362 Chinese adults who
 survived the Wenchuan earthquake but tragically lost a child <span class="citation">(<a href="#ref-McNallyEtAl_2015">McNally et al.,
@@ -96,8 +96,8 @@ on a scale from “not at all” to “extremely.”</p>
 network structure and its corresponding parameters. As numerous
 structures could underlie our network, we employ simulation-based
 methods to investigate the posterior distribution of network structures
-and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal">Marsman et al.,
-2023</a>)</span>. The <code>bgm</code> function performs this task,
+and parameters <span class="citation">(<a href="#ref-MarsmanHaslbeck_2023_ordinal">Marsman et al., in
+press</a>)</span>. The <code>bgm</code> function performs this task,
 iteratively simulating values from the posterior distribution of network
 structures and parameters.</p>
 <div class="section level3">
@@ -113,14 +113,14 @@ structures and parameters.</p>
 <span>    threshold_alpha <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>    threshold_beta <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>    edge_selection <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>    edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span><span class="op">)</span>,</span>
+<span>    edge_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bernoulli"</span>, <span class="st">"Beta-Bernoulli"</span>, <span class="st">"Stochastic-Block"</span><span class="op">)</span>,</span>
 <span>    inclusion_probability <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>    beta_bernoulli_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>    beta_bernoulli_beta <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>    dirichlet_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>    na.action <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"listwise"</span>, <span class="st">"impute"</span><span class="op">)</span>,</span>
 <span>    save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>    display_progress <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span>    display_progress <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a>
@@ -192,7 +192,15 @@ unknown inclusion probability with shape parameters
 If <code>beta_bernoulli_alpha = 1</code> and
 <code>beta_bernoulli_beta = 1</code>, this means that networks with the
 same complexity (number of edges) receive the same prior weight.
-Defaults to `edge_prior = “Bernoulli”’.</p></li>
+Defaults to `edge_prior = “Bernoulli”’. The Stochastic Block model
+assumes that nodes can be organized into blocks or clusters. In
+principle, the assignment of nodes to such clusters is unknown, and the
+model as implemented here considers all possible options (i.e.,
+specifies a Dirichlet process on the node to block allocation <span class="citation">(<a href="#ref-GengEtAl_2019"><strong>GengEtAl_2019?</strong></a>)</span>).
+This model is advantageous when nodes are expected to fall into distinct
+clusters. The inclusion probabilities for the edges are defined at the
+level of the clusters, with a beta prior for the unknown inclusion
+probability with shape parameters and . The default is .</p></li>
 <li><p><code>inclusion_probability</code>: The prior edge inclusion
 probability for the Bernoulli model. Can be a single probability, or a
 matrix of <code>p</code> rows and <code>p</code> columns specifying an
@@ -203,6 +211,10 @@ shape parameters of the Beta prior density for the Bernoulli inclusion
 probability. Must be positive numbers. Defaults to
 <code>beta_bernoulli_alpha = 1</code> and
 <code>beta_bernoulli_beta = 1</code>.</p></li>
+<li><p><code>dirichlet_alpha</code>: The shape of the Dirichlet prior on
+the node-to-block allocation parameters for the Stochastic Block model.
+Must be a positive number. Defaults to
+<code>dirichlet_alpha = 1</code></p></li>
 <li><p><code>na.action</code>: How do you want the function to handle
 missing data? If <code>na.action = "listwise"</code>, listwise deletion
 is used. If <code>na.action = "impute"</code>, missing data are imputed
@@ -229,7 +241,7 @@ progress bar (<code>display_progress = TRUE</code>)? Or not
 containing the following matrices:</p>
 <ul>
 <li>
-<code>gamma</code>: A matrix with <code>p</code> rows and
+<code>indicator</code>: A matrix with <code>p</code> rows and
 <code>p</code> columns, containing posterior inclusion probabilities of
 individual edges.</li>
 <li>
@@ -244,18 +256,17 @@ thresholds.</li>
 <p>If <code>save = TRUE</code>, the result is a list containing:</p>
 <ul>
 <li>
-<code>samples.gamma</code>: A matrix with <code>iter</code> rows and
+<code>indicator</code>: A matrix with <code>iter</code> rows and
 <code>p * (p - 1) / 2</code> columns, containing the edge inclusion
 indicators from every iteration of the Gibbs sampler.</li>
 <li>
-<code>samples.interactions</code>: A matrix with <code>iter</code>
-rows and <code>p * (p - 1) / 2</code> columns, containing parameter
-states from every iteration of the Gibbs sampler for the pairwise
-associations.</li>
+<code>interactions</code>: A matrix with <code>iter</code> rows and
+<code>p * (p - 1) / 2</code> columns, containing parameter states from
+every iteration of the Gibbs sampler for the pairwise associations.</li>
 <li>
-<code>samples.thresholds</code>: A matrix with <code>iter</code>
-rows and <code>sum(m)</code> columns, containing parameter states from
-every iteration of the Gibbs sampler for the category thresholds.</li>
+<code>thresholds</code>: A matrix with <code>iter</code> rows and
+<code>sum(m)</code> columns, containing parameter states from every
+iteration of the Gibbs sampler for the category thresholds.</li>
 </ul>
 <p>Column averages of these matrices provide the model-averaged
 posterior means.</p>
@@ -278,7 +289,7 @@ interaction estimates and inclusion probabilities.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fl">5</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">)</span><span class="op">]</span>, </span>
-<span>     y <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">)</span><span class="op">]</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, </span>
+<span>     y <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">)</span><span class="op">]</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, </span>
 <span>     xlab <span class="op">=</span> <span class="st">""</span>, ylab <span class="op">=</span> <span class="st">""</span>, axes <span class="op">=</span> <span class="cn">FALSE</span>, pch <span class="op">=</span> <span class="fl">21</span>, bg <span class="op">=</span> <span class="st">"gray"</span>, cex <span class="op">=</span> <span class="fl">1.3</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html" class="external-link">abline</a></span><span class="op">(</span>h <span class="op">=</span> <span class="fl">0</span>, lty <span class="op">=</span> <span class="fl">2</span>, col <span class="op">=</span> <span class="st">"gray"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html" class="external-link">abline</a></span><span class="op">(</span>h <span class="op">=</span> <span class="fl">1</span>, lty <span class="op">=</span> <span class="fl">2</span>, col <span class="op">=</span> <span class="st">"gray"</span><span class="op">)</span></span>
@@ -302,7 +313,7 @@ create the median probability model as follows.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span> <span class="co">#For plotting the estimated network</span></span>
 <span>  </span>
-<span><span class="va">posterior.inclusion</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">posterior.inclusion</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">tmp</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">interactions</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">tmp</span><span class="op">[</span><span class="va">posterior.inclusion</span> <span class="op">&lt;</span> <span class="fl">0.5</span><span class="op">]</span> <span class="op">=</span> <span class="fl">0</span></span>
 <span>  </span>
@@ -348,7 +359,7 @@ logarithm of the Bayes factor when plotting.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Calculate the inclusion BFs</span></span>
 <span><span class="va">prior.odds</span> <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="va">posterior.inclusion</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">gamma</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">posterior.inclusion</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lower.tri.html" class="external-link">lower.tri</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">indicator</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">posterior.odds</span> <span class="op">=</span> <span class="va">posterior.inclusion</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">posterior.inclusion</span><span class="op">)</span></span>
 <span><span class="va">log.bayesfactor</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">posterior.odds</span> <span class="op">/</span> <span class="va">prior.odds</span><span class="op">)</span></span>
 <span><span class="co">#The next line is used to truncate the extreme values of the Bayes factor in the plot</span></span>
@@ -427,8 +438,8 @@ used 10,000 samples to estimate the posterior distribution.</p>
 <p>We can also use the raw samples to count the number of unique
 structures <code>bgm</code> encountered in 10,000 iterations.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">G</span> <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">fit</span><span class="op">$</span><span class="va">gamma</span> <span class="op">-</span> <span class="fl">1</span></span>
-<span><span class="va">S</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">I</span> <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">fit</span><span class="op">$</span><span class="va">indicator</span> <span class="op">-</span> <span class="fl">1</span></span>
+<span><span class="va">S</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">I</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 8996</span></span></code></pre></div>
 <p>There are clearly many different network structures that could fit
@@ -437,23 +448,23 @@ the data. Let’s estimate their posterior probabilities.</p>
 <code class="sourceCode R"><span><span class="va">Ps</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span>length <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw">for</span><span class="op">(</span><span class="va">r</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">s</span> <span class="op">=</span> <span class="va">S</span><span class="op">[</span><span class="va">r</span>, <span class="op">]</span></span>
-<span>  <span class="va">tmp</span> <span class="op">=</span> <span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">s</span></span>
-<span>  <span class="va">Ps</span><span class="op">[</span><span class="va">r</span><span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">tmp</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">tmp</span> <span class="op">=</span> <span class="va">I</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">s</span></span>
+<span>  <span class="va">Ps</span><span class="op">[</span><span class="va">r</span><span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">tmp</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">I</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="va">Ps</span> <span class="op">=</span> <span class="va">Ps</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span></span>
+<span><span class="va">Ps</span> <span class="op">=</span> <span class="va">Ps</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">I</span><span class="op">)</span> <span class="op">*</span> <span class="fl">100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">Ps</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0.14</span></span></code></pre></div>
 <p>The most plausible model accounts for less than <code>1</code>
 percent of the posterior probability. In conclusion, we have significant
 uncertainty about the network structure that generated the data.</p>
-<p>In the analysis by <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span>, it is
+<p>In the analysis by <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>, it is
 demonstrated that even when there is uncertainty about the network
 structure that generated the data, inclusion Bayes factors are highly
 robust. They can help identify substructures of the network in which we
 have strong confidence. However, to perform these analyses, we need to
-run <code>bgm</code> for many more iterations. In their analysis, <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">2023</a>)</span> used 1,000,000
-iterations. For further details, interested readers can refer to their
-analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466" class="external-link">here</a>.</p>
+run <code>bgm</code> for many more iterations. In their analysis, <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span> used
+1,000,000 iterations. For further details, interested readers can refer
+to their analysis script <a href="https://osf.io/qsj4w/files/osfstorage/6401be88bbc5e50b9bf81466" class="external-link">here</a>.</p>
 </div>
 <div class="section level3">
 <h3 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -468,15 +479,15 @@ analysis of cross-sectional networks: <span>A</span> tutorial in
 <span>P</span>sychological <span>S</span>cience</em>. <a href="https://doi.org/10.1177/25152459231193334" class="external-link">https://doi.org/10.1177/25152459231193334</a>
 </div>
 <div id="ref-MarsmanHaslbeck_2023_ordinal" class="csl-entry">
-Marsman, M., van den Bergh, D., &amp; Haslbeck, J. M. B. (2023).
+Marsman, M., Bergh, D. van den, &amp; Haslbeck, J. M. B. (in press).
 Bayesian analysis of the ordinal <span>M</span>arkov random field.
-<em>PsyArXiv Preprint</em>. <a href="https://doi.org/10.31234/osf.io/ukwrf" class="external-link">https://doi.org/10.31234/osf.io/ukwrf</a>
+<em>Psychometrika</em>.
 </div>
 <div id="ref-McNallyEtAl_2015" class="csl-entry">
 McNally, R. J., Robinaugh, D. J., Wu, G. W. Y., Wang, L., Deserno, M.
 K., &amp; Borsboom, D. (2015). Mental disorders as causal systems:
 <span>A</span> network approach to posttraumatic stress disorder.
-<em>Clinical Psychological Science</em>, <em>5</em>(6), 836–849. <a href="https://doi.org/10.1177/2167702614553230" class="external-link">https://doi.org/10.1177/2167702614553230</a>
+<em>Clinical Psychological Science</em>, <em>5</em>, 836–849. <a href="https://doi.org/10.1177/2167702614553230" class="external-link">https://doi.org/10.1177/2167702614553230</a>
 </div>
 </div>
 </div>
