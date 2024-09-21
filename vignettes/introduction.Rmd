@@ -69,9 +69,7 @@ bgm(x,
 
 - `reference_category`: The reference category in the Blume-Capel model. Should be an integer within the range of integer scores observed for the "blume-capel" variable. Can be a single number specifying the reference category for all Blume-Capel variables at once, or a vector of length `p` where the `i`-th element contains the reference category for variable `i` if it is Blume-Capel, and bgm ignores its elements for other variable types. The value of the reference category is also recoded when bgm recodes the corresponding observations. Only required if there is at least one variable of type "blume-capel".
 
-- `iter`: How many iterations should the Gibbs sampler run? The default of `1e4` 
-is for illustrative purposes. For stable estimates, it is recommended to run the 
-Gibbs sampler for at least `1e5` iterations.
+- `iter`: How many iterations should the Gibbs sampler run? The default of `1e4` is for illustrative purposes. For stable estimates, it is recommended to run the Gibbs sampler for at least `1e5` iterations.
 
 - `burnin`: The number of iterations of the Gibbs sampler before its output is saved. Since it may take some time for the Gibbs sampler to converge to the posterior distribution, it is recommended not to set this number too low.
 
