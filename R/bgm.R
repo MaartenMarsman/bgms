@@ -141,10 +141,10 @@
 #' The default is \code{TRUE}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list of class
-#' ``bgms'' containing the following matrices:
+#' ``bgms'' containing the following matrices with model-averaged quantities:
 #' \itemize{
 #' \item \code{indicator}: A matrix with \code{p} rows and \code{p} columns,
-#' containing posterior inclusion probabilities of individual edges.
+#' containing the posterior inclusion probabilities of individual edges.
 #' \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 #' containing model-averaged posterior means of the pairwise associations.
 #' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
