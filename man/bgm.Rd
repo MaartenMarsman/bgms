@@ -97,11 +97,13 @@ model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
 possible options (i.e., specifies a Dirichlet process on the node to block
-allocation). This model is advantageous when nodes are expected to fall into
-distinct clusters. The inclusion probabilities for the edges are defined at
-the level of the clusters, with a beta prior for the unknown inclusion
-probability with shape parameters \code{beta_bernoulli_alpha} and
-\code{beta_bernoulli_beta}. The default is \code{edge_prior = "Bernoulli"}.}
+allocation). \insertCite{@i.e., specifies a Dirichlet process on the node to block
+allocation as described by @GengEtAl_2019}{bgms} This model is advantageous
+when nodes are expected to fall into distinct clusters. The inclusion
+probabilities for the edges are defined at the level of the clusters, with a
+beta prior for the unknown inclusion probability with shape parameters
+\code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}. The default is
+\code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
 Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
@@ -294,4 +296,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.
  #Restore user par() settings
  par(op)
 }
+}
+\references{
+\insertAllCited{}
 }
