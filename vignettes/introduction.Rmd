@@ -77,10 +77,7 @@ bgm(x,
 
 - `threshold_alpha, threshold_beta`: The shape parameters of the beta-prime prior density for the threshold parameters. Must be positive values. If the two values are equal, the prior density is symmetric about zero. If `threshold_beta` is greater than `threshold_alpha`, the distribution is skewed to the left, and if `threshold_beta` is less than `threshold_alpha`, it is skewed to the right. Smaller values tend to lead to more diffuse prior distributions.
 
-- `edge_selection`: Should the function perform Bayesian edge selection on the 
-edges of the MRF in addition to estimating its parameters 
-(`edge_selection = TRUE`), or should it just estimate the parameters
-(`edge_selection = FALSE`)? The default is `edge_selection = TRUE`.
+- `edge_selection`: Should the function perform Bayesian edge selection on the edges of the MRF in addition to estimating its parameters  (`edge_selection = TRUE`), or should it just estimate the parameters (`edge_selection = FALSE`)? The default is `edge_selection = TRUE`.
 
 - `edge_prior`: The prior distribution for the edges or structure of the network. Two prior distributions are currently implemented: The Bernoulli model `edge_prior = "Bernoulli"` assumes that the probability that an edge between two variables is included is equal to `inclusion_probability` and independent of other edges or variables. When `inclusion_probability = 0.5`, this implies that each network structure receives the same prior weight. The Beta-Bernoulli model `edge_prior = "Beta-Bernoulli"` assumes a beta prior for the unknown inclusion probability with shape parameters `beta_bernoulli_alpha` and `beta_bernoulli_beta`. If `beta_bernoulli_alpha = 1` and `beta_bernoulli_beta = 1`, this means that networks with the same complexity (number of edges) receive the same prior weight. Defaults to `edge_prior = "Bernoulli"'.
 The Stochastic Block model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be organized into blocks or clusters. In principle, the assignment of nodes to such clusters is unknown, and the model as implemented here considers all possible options (i.e., specifies a Dirichlet process on the node to block
