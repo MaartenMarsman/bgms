@@ -1,5 +1,5 @@
 ---
-title: "Bayesian analysis of the ordinal MRF using the bgm function"
+title: "Bayesian analysis of networks of binary and/or ordinal variables using the bgm function"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Introducing the bgm function}
@@ -15,7 +15,7 @@ text-align: justify}
 
 ## Introduction
 
-This example demonstrates how to use the `bgm` function for the Bayesian analysis of binary or ordinal data using a Markov Random Field (MRF) model. To learn more about the MRF model, check out @MarsmanHaslbeck_2023_ordinal, and to learn more about the Bayesian analysis of network models, check out @HuthEtAl_2023 or @SekulovskiEtAl_2023.
+This example demonstrates how to use the `bgm` function for the Bayesian analysis of a networks of binary and/or ordinal data (i.e., a Markov Random Field (MRF) model for mixed binary and ordinal data). To learn more about the MRF model, check out @MarsmanHaslbeck_2023_ordinal, and to learn more about the Bayesian analysis of network models, check out @HuthEtAl_2023 or @SekulovskiEtAl_2023.
 
 We'll examine real data on PTSD symptoms from 362 Chinese adults who survived the Wenchuan earthquake but tragically lost a child [@McNallyEtAl_2015]. The data comes from a 17-question survey where participants rated how much each symptom bothered them in the past month on a scale from "not at all" to "extremely."
 
