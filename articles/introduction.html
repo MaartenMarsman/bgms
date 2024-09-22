@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Bayesian analysis of the ordinal MRF using the bgm function • bgms</title>
+<title>Bayesian analysis of networks of binary and/or ordinal variables using the bgm function • bgms</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.9/font.css" rel="stylesheet">
 <link href="../deps/Source_Code_Pro-0.4.9/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bayesian analysis of the ordinal MRF using the bgm function">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bayesian analysis of networks of binary and/or ordinal variables using the bgm function">
 </head>
 <body>
     <a href="#container" class="visually-hidden-focusable">Skip to content</a>
@@ -35,7 +35,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/introduction.html">Bayesian analysis of the ordinal MRF using the bgm function</a></li>
+<li><a class="dropdown-item" href="../articles/introduction.html">Bayesian analysis of networks of binary and/or ordinal variables using the bgm function</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -58,7 +58,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Bayesian analysis of the ordinal MRF using the bgm function</h1>
+      <h1>Bayesian analysis of networks of binary and/or ordinal variables using the bgm function</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/MaartenMarsman/bgms/blob/main/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
@@ -75,9 +75,9 @@ text-align: justify}
 <h3 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h3>
 <p>This example demonstrates how to use the <code>bgm</code> function
-for the Bayesian analysis of binary or ordinal data using a Markov
-Random Field (MRF) model. To learn more about the MRF model, check out
-<span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>, and to
+for the Bayesian analysis of a networks of binary and/or ordinal data
+(i.e., a Markov Random Field (MRF) model for mixed binary and ordinal
+data). To learn more about the MRF model, check out <span class="citation">Marsman et al. (<a href="#ref-MarsmanHaslbeck_2023_ordinal">in press</a>)</span>, and to
 learn more about the Bayesian analysis of network models, check out
 <span class="citation">Huth et al. (<a href="#ref-HuthEtAl_2023">2023</a>)</span> or <span class="citation">Sekulovski et al. (<a href="#ref-SekulovskiEtAl_2023">in press</a>)</span>.</p>
 <p>We’ll examine real data on PTSD symptoms from 362 Chinese adults who
