@@ -661,13 +661,13 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
       node = failed_zeroes[1]
       warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
                      "that the lowest observed category score is zero. The lowest score for node \n",
-                     node, " was recoded to zero for the analysis. Note that bgm also recoded the \n",
-                     "the corresponding reference category score to ", reference_category[node], "."))
+                     node, " was recoded to zero for the analysis.\n",
+                     "Note that bgm also recoded the corresponding reference category score to ", reference_category[node], "."))
     } else {
       warning(paste0("The bgm function assumes that the observed ordinal variables are integers and \n",
                      "that the lowest observed category score is zero. The lowest score for nodes \n",
-                     paste(failed_zeroes, collapse = ","), " were recoded to zero for the analysis. Note that bgm also recoded the \n",
-                     "the corresponding reference category scores."))
+                     paste(failed_zeroes, collapse = ","), " were recoded to zero for the analysis.\n",
+                     "Note that bgm also recoded the corresponding reference category scores."))
     }
   }
 

@@ -489,7 +489,12 @@ bgm = function(x,
       rownames(thresholds) = data_columnnames
     }
 
-    colnames(thresholds) = paste0("category ", 1:max(no_categories))
+    if(any(variable_bool)) {
+      colnames(thresholds) = paste0("category ", 1:max(no_categories))
+    } else {
+      thresholds = thresholds[, 1:2]
+      colnames(thresholds) = c("linear", "quadratic")
+    }
 
     arguments$data_columnnames = data_columnnames
 
