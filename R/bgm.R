@@ -489,7 +489,7 @@ bgm = function(x,
       rownames(thresholds) = data_columnnames
     }
 
-    colnames(tresholds) = paste0("category ", 1:max(no_categories))
+    colnames(thresholds) = paste0("category ", 1:max(no_categories))
 
     arguments$data_columnnames = data_columnnames
 
