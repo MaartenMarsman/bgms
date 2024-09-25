@@ -58,20 +58,15 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
         }
       } else {
         //Blume-Capel variable -------------------------------------------------
-        exponent = thresholds_gr1(variable, 1) *
-          reference_category[variable] *
-          reference_category[variable];
-        cumsum = std::exp(exponent);
-        probabilities[0] = cumsum;
-        for(int category = 0; category < no_categories_gr1[variable]; category++) {
-          exponent = thresholds_gr1(variable, 0) *
-            (category + 1);
+        cumsum = 0.0;
+        for(int category = 0; category < no_categories_gr1[variable] + 1; category++) {
+          exponent = thresholds_gr1(variable, 0) * category;
           exponent += thresholds_gr1(variable, 1) *
-            (category + 1 - reference_category[variable]) *
-            (category + 1 - reference_category[variable]);
-          exponent += (category + 1) * rest_score;
+            (category - reference_category[variable]) *
+            (category - reference_category[variable]);
+          exponent += category * rest_score;
           cumsum += std::exp(exponent);
-          probabilities[category + 1] = cumsum;
+          probabilities[category] = cumsum;
         }
       }
       u = cumsum * R::unif_rand();
@@ -115,7 +110,6 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
     }
   }
 
-
   //Impute missing data (if there are any) for group 1 -------------------------
   if(no_missings_gr2 > 1) {
     for(int missing = 0; missing < no_missings_gr2; missing++) {
@@ -137,20 +131,15 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
         }
       } else {
         //Blume-Capel variable -------------------------------------------------
-        exponent = thresholds_gr2(variable, 1) *
-          reference_category[variable] *
-          reference_category[variable];
-        cumsum = std::exp(exponent);
-        probabilities[0] = cumsum;
-        for(int category = 0; category < no_categories_gr2[variable]; category++) {
-          exponent = thresholds_gr2(variable, 0) *
-            (category + 1);
+        cumsum = 0.0;
+        for(int category = 0; category < no_categories_gr2[variable] + 1; category++) {
+          exponent = thresholds_gr2(variable, 0) * category;
           exponent += thresholds_gr2(variable, 1) *
-            (category + 1 - reference_category[variable]) *
-            (category + 1 - reference_category[variable]);
-          exponent += (category + 1) * rest_score;
+            (category - reference_category[variable]) *
+            (category - reference_category[variable]);
+          exponent += category * rest_score;
           cumsum += std::exp(exponent);
-          probabilities[category + 1] = cumsum;
+          probabilities[category] = cumsum;
         }
       }
       u = cumsum * R::unif_rand();
