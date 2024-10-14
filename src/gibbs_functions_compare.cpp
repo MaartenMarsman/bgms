@@ -1380,16 +1380,12 @@ void compare_metropolis_main_difference_regular_between_model(NumericMatrix thre
                              current_state,
                              proposal_sd_main_difference(variable, category),
                              true);
-        log_prob += std::log(inclusion_probability_difference(variable, variable));
-        log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
       } else {
         log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
         log_prob += R::dnorm(current_state,
                              proposed_state,
                              proposal_sd_main_difference(variable, category),
                              true);
-        log_prob -= log(inclusion_probability_difference(variable, variable));
-        log_prob += log(1 - inclusion_probability_difference(variable, variable));
       }
     } else {
       current_states[category] = 0.0;
