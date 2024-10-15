@@ -2630,7 +2630,7 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
   } else {
     epsilon_lo = 1 / no_persons_gr1;
   }
-  double epsilon_hi = 2.0;
+  double epsilon_hi = 15.0;
 
   //Randomized index for the pairwise updates ----------------------------------
   IntegerVector v = seq(0, no_interactions - 1);

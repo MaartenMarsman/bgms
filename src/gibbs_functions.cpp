@@ -812,7 +812,7 @@ List gibbs_sampler(IntegerMatrix observations,
   double phi = .75;
   double target_ar = 0.234;
   double epsilon_lo = 1 / no_persons;
-  double epsilon_hi = 2.0;
+  double epsilon_hi = 15.0;
 
   //The resizing based on ``save'' could probably be prettier ------------------
   int nrow = no_variables;
