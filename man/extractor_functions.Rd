@@ -17,6 +17,7 @@
 \alias{extract_category_thresholds}
 \alias{extract_pairwise_difference.bgmCompare}
 \alias{extract_main_difference.bgmCompare}
+\alias{extract_edge_indicators}
 \title{Extractor Functions.}
 \usage{
 extract_arguments(bgms_object)
@@ -50,6 +51,8 @@ extract_category_thresholds(bgms_object)
 extract_pairwise_difference.bgmCompare(bgms_object)
 
 extract_main_difference.bgmCompare(bgms_object)
+
+extract_edge_indicators(bgms_object)
 }
 \arguments{
 \item{bgms_object}{A fit object created by the bgms package or specifically
