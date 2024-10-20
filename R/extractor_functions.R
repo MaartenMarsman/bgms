@@ -249,3 +249,11 @@ extract_edge_indicators <- function(bgms_object) {
                  "future release of bgms. Please use the ``extract_indicators'' function instead."))
   return(extract_indicators(bgms_object))
 }
+
+#' @rdname extractor_functions
+#' @export
+extract_pairwise_thresholds <- function(bgms_object) {
+  warning(paste0("The ``extract_pairwise_thresholds'' function is deprecated and will be removed in a \n",
+                 "future release of bgms. Please use the ``extract_category_thresholds'' function instead."))
+  return(extract_category_thresholds(bgms_object))
+}
