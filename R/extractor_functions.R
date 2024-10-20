@@ -245,18 +245,7 @@ extract_main_difference.bgmCompare <- function(bgms_object) {
 #' @rdname extractor_functions
 #' @export
 extract_edge_indicators <- function(bgms_object) {
-  arguments = extract_arguments(bgms_object)
-  warning(paste0("The ``extract_edge_indicators'' function is deprecated and will be removed in a\n",
-                 "future release of bgms."))
-  if(arguments$edge_selection & arguments$save) {
-    if(arguments$version < "0.1.4") {
-      edge_indicators = bgms_object$gamma
-    } else {
-      edge_indicators = bgms_object$indicator
-    }
-    return(edge_indicators)
-  } else {
-    stop(paste0("To access the sampled edge indicators the bgms package needs to be run using \n",
-                "edge_selection = TRUE and save = TRUE."))
-  }
+  warning(paste0("The ``extract_edge_indicators'' function is deprecated and will be removed in a \n",
+                 "future release of bgms. Please use the ``extract_indicators'' function instead."))
+  return(extract_indicators(bgms_object))
 }
