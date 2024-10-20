@@ -241,7 +241,6 @@ extract_main_difference.bgmCompare <- function(bgms_object) {
   return(bgms_object$main_difference)
 }
 
-
 #' @rdname extractor_functions
 #' @export
 extract_edge_indicators <- function(bgms_object) {
