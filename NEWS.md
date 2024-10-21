@@ -1,4 +1,9 @@
+# bgms 0.1.4.1
+
+This is a minor release that adds some documentation and bug fixes.
+
 # bgms 0.1.4
+
 * Added bgmCompare() for comparing the category threshold and pairwise interaction parameters in two independent samples.
 * Added the Stochastic Block model as prior option for the network structure.
 * Exported extractor functions to extract results from bgm objects in a safe way.
