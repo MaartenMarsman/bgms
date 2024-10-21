@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,23 +37,39 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.4.1" id="bgms-0141">bgms 0.1.4.1<a class="anchor" aria-label="anchor" href="#bgms-0141"></a></h2>
+<p>This is a minor release that adds some documentation and bug fixes.</p>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.4" id="bgms-014">bgms 0.1.4<a class="anchor" aria-label="anchor" href="#bgms-014"></a></h2><p class="text-muted">CRAN release: 2024-10-20</p>
-<ul><li>Added bgmCompare() for comparing the category threshold and pairwise interaction parameters in two independent samples.</li>
-<li>Added the Stochastic Block model as prior option for the network structure.</li>
-<li>Exported extractor functions to extract results from bgm objects in a safe way.</li>
+<div class="section level3">
+<h3 id="new-features-0-1-4">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-4"></a></h3>
+<ul><li>Comparing the category threshold and pairwise interaction parameters in two independent samples with bgmCompare().</li>
+<li>The Stochastic Block model is a new prior option for the network structure in bgm().</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-1-4">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-4"></a></h3>
+<ul><li>Exported extractor functions to extract results from bgm objects in a safe way.</li>
 <li>Changed the maximum standard deviation of the adaptive proposal from 2 to 20.</li>
 <li>Some small bug fixes.</li>
 </ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.3" id="bgms-013">bgms 0.1.3<a class="anchor" aria-label="anchor" href="#bgms-013"></a></h2><p class="text-muted">CRAN release: 2024-02-25</p>
+<div class="section level3">
+<h3 id="new-features-0-1-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-3"></a></h3>
 <ul><li>Added support for Bayesian estimation without edge selection to bgm().</li>
 <li>Added support for simulating data from a (mixed) binary, ordinal, and Blume-Capel MRF to mrfSampler()</li>
 <li>Added support for analyzing (mixed) binary, ordinal, and Blume-Capel variables to bgm()</li>
-<li>Removed support of optimization based functions, mple(), mppe(), and bgm.em()</li>
+</ul></div>
+<div class="section level3">
+<h3 id="user-level-changes-0-1-3">User level changes<a class="anchor" aria-label="anchor" href="#user-level-changes-0-1-3"></a></h3>
+<ul><li>Removed support of optimization based functions, mple(), mppe(), and bgm.em()</li>
 <li>Removed support for the Unit-Information prior from bgm()</li>
 <li>Removed support to do non-adaptive Metropolis from bgm()</li>
 <li>Reduced file size when saving raw MCMC samples</li>
 </ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.2" id="bgms-012">bgms 0.1.2<a class="anchor" aria-label="anchor" href="#bgms-012"></a></h2><p class="text-muted">CRAN release: 2023-10-13</p>
 <p>This is a minor release that adds some bug fixes.</p>
