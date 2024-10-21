@@ -4,17 +4,23 @@ This is a minor release that adds some documentation and bug fixes.
 
 # bgms 0.1.4
 
-* Added bgmCompare() for comparing the category threshold and pairwise interaction parameters in two independent samples.
-* Added the Stochastic Block model as prior option for the network structure.
+## New features
+* Comparing the category threshold and pairwise interaction parameters in two independent samples with bgmCompare().
+* The Stochastic Block model is a new prior option for the network structure in bgm().
+
+## Other changes
 * Exported extractor functions to extract results from bgm objects in a safe way.
 * Changed the maximum standard deviation of the adaptive proposal from 2 to 20.
 * Some small bug fixes.
 
 # bgms 0.1.3
 
+## New features
 * Added support for Bayesian estimation without edge selection to bgm().
 * Added support for simulating data from a (mixed) binary, ordinal, and Blume-Capel MRF to mrfSampler()
 * Added support for analyzing (mixed) binary, ordinal, and Blume-Capel variables to bgm()
+
+## User level changes
 * Removed support of optimization based functions, mple(), mppe(), and bgm.em()
 * Removed support for the Unit-Information prior from bgm()
 * Removed support to do non-adaptive Metropolis from bgm()
@@ -23,7 +29,6 @@ This is a minor release that adds some documentation and bug fixes.
 # bgms 0.1.2
 
 This is a minor release that adds some bug fixes.
-
 
 # bgms 0.1.1
 
