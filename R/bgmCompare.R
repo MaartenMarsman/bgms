@@ -126,10 +126,10 @@
 #' is at least one variable of type "blume-capel".
 #' @param pairwise_difference_scale The scale of the Cauchy distribution that is
 #' used as the prior for the pairwise difference parameters. Defaults to
-#' \code{0.1}.
+#' \code{1}.
 #' @param main_difference_scale The scale of the Cauchy distribution that
 #' is used as the prior for the threshold difference parameters. Defaults to
-#' \code{0.1}.
+#' \code{1}.
 #' @param pairwise_difference_prior A character string that specifies the model
 #' to use for the  inclusion probability of pairwise differences. Options are
 #' "Bernoulli" or "Beta-Bernoulli". Default is "Bernoulli".
@@ -245,7 +245,7 @@
 bgmCompare = function(x,
                       y,
                       difference_selection = TRUE,
-                      main_difference_model = c("Collapse", "Constrain", "Free"),
+                      main_difference_model = c("Free", "Collapse", "Constrain"),
                       variable_type = "ordinal",
                       reference_category,
                       pairwise_difference_scale = 1,
