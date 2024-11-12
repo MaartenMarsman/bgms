@@ -226,7 +226,7 @@ check_compare_model = function(x,
                                interaction_scale = 2.5,
                                threshold_alpha = 0.5,
                                threshold_beta = 0.5,
-                               main_difference_model = c("Collapse", "Constrain", "Free")) {
+                               main_difference_model = c("Free", "Collapse", "Constrain")) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
