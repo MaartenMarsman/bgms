@@ -17,3 +17,19 @@ compare_gibbs_sampler <- function(observations_gr1, observations_gr2, no_categor
     .Call(`_bgms_compare_gibbs_sampler`, observations_gr1, observations_gr2, no_categories_gr1, no_categories_gr2, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, n_cat_obs_gr1, n_cat_obs_gr2, sufficient_blume_capel_gr1, sufficient_blume_capel_gr2, threshold_alpha, threshold_beta, na_impute, missing_index_gr1, missing_index_gr2, ordinal_variable, reference_category, independent_thresholds, save, display_progress, difference_selection)
 }
 
+sample_moment <- function(theta, index_1, index_2, atheta, batch_size, delta, max_num_batches) {
+    .Call(`_bgms_sample_moment`, theta, index_1, index_2, atheta, batch_size, delta, max_num_batches)
+}
+
+raoblackwellized_sample_moment <- function(theta, index_1, index_2, atheta, batch_size, delta, max_num_batches) {
+    .Call(`_bgms_raoblackwellized_sample_moment`, theta, index_1, index_2, atheta, batch_size, delta, max_num_batches)
+}
+
+taylor_raoblackwellized_sample_moment <- function(theta, index_1, index_2, batch_size, delta, max_num_batches) {
+    .Call(`_bgms_taylor_raoblackwellized_sample_moment`, theta, index_1, index_2, batch_size, delta, max_num_batches)
+}
+
+mcmc_mh <- function(x, n_iter, n_burnin, target_moms, target_mh, epsilon) {
+    .Call(`_bgms_mcmc_mh`, x, n_iter, n_burnin, target_moms, target_mh, epsilon)
+}
+
