@@ -347,13 +347,15 @@ Rcpp::List mcmc_mh(arma::mat x,
   arma::mat eap_theta = theta;
   arma::mat eap_gamma = gamma;
 
-  double prop_rej_moms = 0;
-  double prop_rej_mh = 0;
-  double delta_moms = 0.01;
-  double delta_mh = 0.01;
-
   double a = 0.5, b = 0.5;
-  int tel = 0;
+
+  double delta_moms = 0.1;
+  double delta_mh = 0.1;
+  double prop_rej_moms = 0.0;
+  double prop_rej_mh = 0.0;
+  double R_mh = 0.0;
+  double R_moms = 0.0;
+  int counter = 0;
 
   Progress q(n_iter + n_burnin, true);
 
@@ -361,9 +363,9 @@ Rcpp::List mcmc_mh(arma::mat x,
   for (int iter = 1; iter <= n_burnin; ++iter) {
     q.increment();
 
-    prop_rej_moms = 0;
-    prop_rej_mh = 0;
-    tel = 0;
+    prop_rej_moms = 0.0;
+    prop_rej_mh = 0.0;
+    counter = 0;
 
     for (int i = 0; i < p; ++i) {
       for (int j = i; j < p; ++j) {
@@ -372,14 +374,25 @@ Rcpp::List mcmc_mh(arma::mat x,
           double agamma = 1 - gamma(i, j);
           double atheta = (agamma == 1) ? R::rnorm(theta(i, j), sd_theta(i, j)) : 0.0;
 
-          arma::mat theta_prime = theta;
-          theta_prime(i, j) = atheta;
-          theta_prime(j, i) = atheta;
+          // Save the original values
+          double original_theta = theta(i, j);
 
-          double E1 = raoblackwellized_sample_moment(theta_prime, i + 1, j + 1, theta(i, j), 50, delta_moms, 1e5);
-          double E2 = raoblackwellized_sample_moment(theta, i + 1, j + 1, atheta, 50, delta_moms, 1e5);
+          // Modify theta in place
+          theta(i, j) = atheta;
+          theta(j, i) = atheta;
 
-          if (std::abs(1 - E1 * E2) < epsilon) {
+          // Perform computation with modified theta
+          double CE1 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_moms, 1e5);
+          double E1 = 1.0 + (std::exp(original_theta - atheta) - 1.0) * CE1;
+
+          // Restore the original values of theta
+          theta(i, j) = original_theta;
+          theta(j, i) = original_theta;
+
+          double CE2 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_moms, 1e5);
+          double E2 = 1.0 + (std::exp(atheta - original_theta) - 1.0) * CE2;
+
+          if (std::abs(1.0 - E1 * E2) < epsilon) {
             double lnE = 0.5 * std::log(E1) - 0.5 * std::log(E2);
             double ln_prob = s(i, j) * (atheta - theta(i, j)) + n * lnE;
 
@@ -396,23 +409,34 @@ Rcpp::List mcmc_mh(arma::mat x,
               gamma(j, i) = agamma;
             }
           } else {
-            prop_rej_moms += 1;
+            prop_rej_moms += 1.0;
           }
         }
 
         // Within Model Move
         if (gamma(i, j) == 1) {
-          tel += 1;
+          counter++;
           double atheta = R::rnorm(theta(i, j), sd_theta(i, j));
 
-          arma::mat theta_prime = theta;
-          theta_prime(i, j) = atheta;
-          theta_prime(j, i) = atheta;
+          // Save the original values
+          double original_theta = theta(i, j);
 
-          double E1 = raoblackwellized_sample_moment(theta_prime, i + 1, j + 1, theta(i, j), 50, delta_mh, 1e5);
-          double E2 = raoblackwellized_sample_moment(theta, i + 1, j + 1, atheta, 50, delta_mh, 1e5);
+          // Modify theta in place
+          theta(i, j) = atheta;
+          theta(j, i) = atheta;
 
-          if (std::abs(1 - E1 * E2) < epsilon) {
+          // Perform computation with modified theta
+          double CE1 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_mh, 1e5);
+          double E1 = 1.0 + (std::exp(original_theta - atheta) - 1.0) * CE1;
+
+          // Restore the original values of theta
+          theta(i, j) = original_theta;
+          theta(j, i) = original_theta;
+
+          double CE2 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_mh, 1e5);
+          double E2 = 1.0 + (std::exp(atheta - original_theta) - 1.0) * CE2;
+
+          if (std::abs(1.0 - E1 * E2) < epsilon) {
             double lnE = 0.5 * std::log(E1) - 0.5 * std::log(E2);
             double ln_prob = s(i, j) * (atheta - theta(i, j)) + n * lnE;
 
@@ -433,30 +457,35 @@ Rcpp::List mcmc_mh(arma::mat x,
             sd_theta(i, j) = std::clamp(sd_theta(i, j), 1.0 / n, 20.0);
             sd_theta(j, i) = sd_theta(i, j);
           } else {
-            prop_rej_mh += 1;
+            prop_rej_mh += 1.0;
           }
         }
       }
     }
 
-    prop_rej_moms /= (p * (p - 1) / 2);
-    prop_rej_mh /= tel;
+    prop_rej_moms /= p * (p - 1) / 2;
+    if(counter > 0) {
+      prop_rej_mh /= counter;
+    } else {
+      prop_rej_mh = target_mh;
+    }
 
     // Adapt hyperparameters
-    delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.51) * (target_moms - prop_rej_moms));
-    delta_moms = std::clamp(delta_moms, 0.001, 0.5);
+    // delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.75) * (target_moms - prop_rej_moms));
+    // delta_moms = std::clamp(delta_moms, 0.01, 1.0);
+    //
+    // delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.75) * (target_mh - prop_rej_mh));
+    // delta_mh = std::clamp(delta_mh, 0.01, 1.0);
 
-    delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.51) * (target_mh - prop_rej_mh));
-    delta_mh = std::clamp(delta_mh, 0.001, 0.5);
   }
 
   //The Gibbs sampler
   for (int iter = 1; iter <= n_iter; ++iter) {
     q.increment();
 
-    prop_rej_moms = 0;
-    prop_rej_mh = 0;
-    tel = 0;
+    prop_rej_moms = 0.0;
+    prop_rej_mh = 0.0;
+    counter = 0;
 
     for (int i = 0; i < p; ++i) {
       for (int j = i; j < p; ++j) {
@@ -465,14 +494,26 @@ Rcpp::List mcmc_mh(arma::mat x,
           double agamma = 1 - gamma(i, j);
           double atheta = (agamma == 1) ? R::rnorm(theta(i, j), sd_theta(i, j)) : 0.0;
 
-          arma::mat theta_prime = theta;
-          theta_prime(i, j) = atheta;
-          theta_prime(j, i) = atheta;
+          // Save the original values
+          double original_theta = theta(i, j);
 
-          double E1 = raoblackwellized_sample_moment(theta_prime, i + 1, j + 1, theta(i, j), 50, delta_moms, 1e5);
-          double E2 = raoblackwellized_sample_moment(theta, i + 1, j + 1, atheta, 50, delta_moms, 1e5);
+          // Modify theta in place
+          theta(i, j) = atheta;
+          theta(j, i) = atheta;
 
-          if (std::abs(1 - E1 * E2) < epsilon) {
+          // Perform computation with modified theta
+          double CE1 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_moms, 1e5);
+          double E1 = 1.0 + (std::exp(original_theta - atheta) - 1.0) * CE1;
+
+          // Restore the original values of theta
+          theta(i, j) = original_theta;
+          theta(j, i) = original_theta;
+
+          double CE2 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_moms, 1e5);
+          double E2 = 1.0 + (std::exp(atheta - original_theta) - 1.0) * CE2;
+
+          if (std::abs(1.0 - E1 * E2) < epsilon) {
+
             double lnE = 0.5 * std::log(E1) - 0.5 * std::log(E2);
             double ln_prob = s(i, j) * (atheta - theta(i, j)) + n * lnE;
 
@@ -489,23 +530,34 @@ Rcpp::List mcmc_mh(arma::mat x,
               gamma(j, i) = agamma;
             }
           } else {
-            prop_rej_moms += 1;
+            prop_rej_moms += 1.0;
           }
         }
 
         // Within Model Move
         if (gamma(i, j) == 1) {
-          tel += 1;
+          counter++;
           double atheta = R::rnorm(theta(i, j), sd_theta(i, j));
 
-          arma::mat theta_prime = theta;
-          theta_prime(i, j) = atheta;
-          theta_prime(j, i) = atheta;
+          // Save the original values
+          double original_theta = theta(i, j);
 
-          double E1 = raoblackwellized_sample_moment(theta_prime, i + 1, j + 1, theta(i, j), 50, delta_mh, 1e5);
-          double E2 = raoblackwellized_sample_moment(theta, i + 1, j + 1, atheta, 50, delta_mh, 1e5);
+          // Modify theta in place
+          theta(i, j) = atheta;
+          theta(j, i) = atheta;
 
-          if (std::abs(1 - E1 * E2) < epsilon) {
+          // Perform computation with modified theta
+          double CE1 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_mh, 1e5);
+          double E1 = 1.0 + (std::exp(original_theta - atheta) - 1.0) * CE1;
+
+          // Restore the original values of theta
+          theta(i, j) = original_theta;
+          theta(j, i) = original_theta;
+
+          double CE2 = taylor_raoblackwellized_sample_moment(theta, i + 1, j + 1, 50, delta_mh, 1e5);
+          double E2 = 1.0 + (std::exp(atheta - original_theta) - 1.0) * CE2;
+
+          if (std::abs(1.0 - E1 * E2) < epsilon) {
             double lnE = 0.5 * std::log(E1) - 0.5 * std::log(E2);
             double ln_prob = s(i, j) * (atheta - theta(i, j)) + n * lnE;
 
@@ -526,25 +578,36 @@ Rcpp::List mcmc_mh(arma::mat x,
             sd_theta(i, j) = std::clamp(sd_theta(i, j), 1.0 / n, 20.0);
             sd_theta(j, i) = sd_theta(i, j);
           } else {
-            prop_rej_mh += 1;
+            prop_rej_mh += 1.0;
           }
         }
+        // Update EAP estimates
+        eap_theta(i, j) *= (iter - 1);
+        eap_theta(i, j) += theta(i,j);
+        eap_theta(i, j) /= iter;
+
+        eap_gamma(i, j) *= (iter - 1);
+        eap_gamma(i, j) += gamma(i,j);
+        eap_gamma(i, j) /= iter;
+
+        eap_theta(j, i) = eap_theta(i, j);
+        eap_gamma(j, i) = eap_gamma(i, j);
       }
     }
 
-    // Update EAP estimates
-    eap_theta = (iter - 1) * eap_theta / iter + theta / iter;
-    eap_gamma = (iter - 1) * eap_gamma / iter + gamma / iter;
-
-    prop_rej_moms /= (p * (p - 1) / 2);
-    prop_rej_mh /= tel;
+    prop_rej_moms /= p * (p - 1) / 2;
+    if(counter > 0) {
+      prop_rej_mh /= counter;
+    } else {
+      prop_rej_mh = target_mh;
+    }
 
     // Adapt hyperparameters
-    delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.51) * (0.05 - prop_rej_moms));
-    delta_moms = std::clamp(delta_moms, 0.001, 0.5);
-
-    delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.51) * (0.05 - prop_rej_mh));
-    delta_mh = std::clamp(delta_mh, 0.001, 0.5);
+  //   delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.75) * (target_moms - prop_rej_moms));
+  //   delta_moms = std::clamp(delta_moms, 0.01, 1.0);
+  //
+  //   delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.75) * (target_mh - prop_rej_mh));
+  //   delta_mh = std::clamp(delta_mh, 0.01, 1.0);
   }
 
   return Rcpp::List::create(
