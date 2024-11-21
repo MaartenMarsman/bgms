@@ -809,10 +809,10 @@ List gibbs_sampler(IntegerMatrix observations,
   IntegerMatrix index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
-  double phi = .75;
-  double target_ar = 0.234;
-  double epsilon_lo = 1 / no_persons;
-  double epsilon_hi = 20.0;
+  double phi =  0.750;
+  double target_ar =  0.234;
+  double epsilon_lo = 1.0 / no_persons;
+  double epsilon_hi = 2.000;
 
   //The resizing based on ``save'' could probably be prettier ------------------
   int nrow = no_variables;

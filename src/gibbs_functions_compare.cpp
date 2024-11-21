@@ -505,13 +505,10 @@ void compare_metropolis_interaction(NumericMatrix interactions,
         update_proposal_sd = 1.0;
       }
 
-      if(update_proposal_sd < epsilon_lo) {
-        update_proposal_sd = epsilon_lo;
-      } else if (update_proposal_sd > epsilon_hi) {
-        update_proposal_sd = epsilon_hi;
-      }
+      update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
       proposal_sd_interaction(variable1, variable2) = update_proposal_sd;
+      proposal_sd_interaction(variable2, variable1) = update_proposal_sd;
     }
   }
 }
@@ -831,13 +828,10 @@ void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
           update_proposal_sd = 1.0;
         }
 
-        if(update_proposal_sd < epsilon_lo) {
-          update_proposal_sd = epsilon_lo;
-        } else if (update_proposal_sd > epsilon_hi) {
-          update_proposal_sd = epsilon_hi;
-        }
+        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
         proposal_sd_pairwise_difference(variable1, variable2) = update_proposal_sd;
+        proposal_sd_pairwise_difference(variable2, variable1) = update_proposal_sd;
       }
     }
   }
@@ -1237,11 +1231,8 @@ void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
           update_proposal_sd = 1.0;
         }
 
-        if(update_proposal_sd < epsilon_lo) {
-          update_proposal_sd = epsilon_lo;
-        } else if (update_proposal_sd > epsilon_hi) {
-          update_proposal_sd = epsilon_hi;
-        }
+        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
+
         proposal_sd_main_difference(variable, category) = update_proposal_sd;
       } else {
         main_difference(variable, category) = 0.0;
@@ -1650,15 +1641,9 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
     update_proposal_sd = 1.0;
   }
 
-  if(update_proposal_sd < epsilon_lo) {
-    update_proposal_sd = epsilon_lo;
-  } else if (update_proposal_sd > epsilon_hi) {
-    update_proposal_sd = epsilon_hi;
-  }
+  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
   proposal_sd_blumecapel(variable, 0) = update_proposal_sd;
-
-
 
   //---------------------------------------------------------------------------|
   // Adaptive Metropolis for the quadratic Blume-Capel parameter
@@ -1717,11 +1702,7 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
     update_proposal_sd = 1.0;
   }
 
-  if(update_proposal_sd < epsilon_lo) {
-    update_proposal_sd = epsilon_lo;
-  } else if (update_proposal_sd > epsilon_hi) {
-    update_proposal_sd = epsilon_hi;
-  }
+  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
   proposal_sd_blumecapel(variable, 1) = update_proposal_sd;
 }
@@ -1956,11 +1937,7 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     update_proposal_sd = 1.0;
   }
 
-  if(update_proposal_sd < epsilon_lo) {
-    update_proposal_sd = epsilon_lo;
-  } else if (update_proposal_sd > epsilon_hi) {
-    update_proposal_sd = epsilon_hi;
-  }
+  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
   proposal_sd_main_difference(variable, 0) = update_proposal_sd;
 
@@ -2020,11 +1997,7 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
     update_proposal_sd = 1.0;
   }
 
-  if(update_proposal_sd < epsilon_lo) {
-    update_proposal_sd = epsilon_lo;
-  } else if (update_proposal_sd > epsilon_hi) {
-    update_proposal_sd = epsilon_hi;
-  }
+  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
 
   proposal_sd_main_difference(variable, 1) = update_proposal_sd;
 }
@@ -2622,15 +2595,13 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
   std::fill(proposal_sd_blumecapel_gr2.begin(), proposal_sd_blumecapel_gr2.end(), 1.0);
 
   //Parameters for the Robbins-Monro approach for adaptive Metropolis ----------
-  double phi = .75;
-  double target_ar = 0.234;
-  double epsilon_lo;
+  double phi =        0.750;
+  double target_ar =  0.234;
+  double epsilon_lo = 1.0 / no_persons_gr1;
   if(no_persons_gr1 > no_persons_gr2) {
-    epsilon_lo = 1 / no_persons_gr2;
-  } else {
-    epsilon_lo = 1 / no_persons_gr1;
+    epsilon_lo = 1.0 / no_persons_gr2;
   }
-  double epsilon_hi = 20.0;
+  double epsilon_hi = 2.000;
 
   //Randomized index for the pairwise updates ----------------------------------
   IntegerVector v = seq(0, no_interactions - 1);
