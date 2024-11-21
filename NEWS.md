@@ -1,3 +1,7 @@
+# bgms 0.1.4.2
+
+Fixes a bug with the adaptation of the proposal variances.
+
 # bgms 0.1.4.1
 
 This is a minor release that adds some documentation and bug fixes.
