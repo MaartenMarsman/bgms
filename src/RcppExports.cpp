@@ -175,18 +175,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // mcmc_mh
-Rcpp::List mcmc_mh(arma::mat x, int n_iter, int n_burnin, double target_moms, double target_mh, double epsilon);
-RcppExport SEXP _bgms_mcmc_mh(SEXP xSEXP, SEXP n_iterSEXP, SEXP n_burninSEXP, SEXP target_momsSEXP, SEXP target_mhSEXP, SEXP epsilonSEXP) {
+Rcpp::List mcmc_mh(arma::umat x, int n_iter, int n_burnin, double delta_moms, double delta_mh, double epsilon);
+RcppExport SEXP _bgms_mcmc_mh(SEXP xSEXP, SEXP n_iterSEXP, SEXP n_burninSEXP, SEXP delta_momsSEXP, SEXP delta_mhSEXP, SEXP epsilonSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::umat >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
     Rcpp::traits::input_parameter< int >::type n_burnin(n_burninSEXP);
-    Rcpp::traits::input_parameter< double >::type target_moms(target_momsSEXP);
-    Rcpp::traits::input_parameter< double >::type target_mh(target_mhSEXP);
+    Rcpp::traits::input_parameter< double >::type delta_moms(delta_momsSEXP);
+    Rcpp::traits::input_parameter< double >::type delta_mh(delta_mhSEXP);
     Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
-    rcpp_result_gen = Rcpp::wrap(mcmc_mh(x, n_iter, n_burnin, target_moms, target_mh, epsilon));
+    rcpp_result_gen = Rcpp::wrap(mcmc_mh(x, n_iter, n_burnin, delta_moms, delta_mh, epsilon));
     return rcpp_result_gen;
 END_RCPP
 }

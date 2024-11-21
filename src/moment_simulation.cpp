@@ -31,7 +31,7 @@ double sample_moment(const arma::mat& theta,
                      int max_num_batches) {
 
   int no_variables = theta.n_cols;
-  arma::vec x(no_variables, arma::fill::zeros);
+  arma::uvec x(no_variables, arma::fill::zeros);
   arma::vec chain(batch_size);
   arma::vec batch_means(max_num_batches);
   double cumulative_batch_sum = 0.0;
@@ -42,13 +42,11 @@ double sample_moment(const arma::mat& theta,
   arma::vec exp_diff(2);
   exp_diff[0] = 1.0;
   exp_diff[1] = std::exp(diff);
-  //if(i != j)
-  //  exp_diff[1] = std::exp(2 * diff);
 
   // Random starting values for the chain
   for (int variable = 0; variable < no_variables; variable++) {
     double u = R::unif_rand();
-    x[variable] = (u > 0.5) ? 1.0 : 0.0;
+    x[variable] = (u > 0.5) ? 1 : 0;
   }
 
   // MCMC Sampling Loop
@@ -103,7 +101,7 @@ double raoblackwellized_sample_moment(const arma::mat& theta,
                                       int max_num_batches) {
 
   int no_variables = theta.n_cols;
-  arma::vec x(no_variables, arma::fill::zeros);
+  arma::uvec x(no_variables, arma::fill::zeros);
   arma::vec chain(batch_size);
   arma::vec batch_means(max_num_batches);
   double cumulative_batch_sum = 0.0;
@@ -119,7 +117,7 @@ double raoblackwellized_sample_moment(const arma::mat& theta,
   // Random starting values for the chain
   for (int variable = 0; variable < no_variables; variable++) {
     double u = R::unif_rand();
-    x[variable] = (u > 0.5) ? 1.0 : 0.0;
+    x[variable] = (u > 0.5) ? 1 : 0;
   }
 
   // MCMC Sampling Loop
@@ -192,7 +190,7 @@ double raoblackwellized_sample_moment(const arma::mat& theta,
         e = p00 / z;
         e += p01 / z;
         e += p10 / z;
-        e += p11 / z * exp_diff;
+        e += exp_diff * p11 / z;
 
         chain[iter] = e;
 
@@ -226,7 +224,7 @@ double taylor_raoblackwellized_sample_moment(const arma::mat& theta,
                                              int max_num_batches) {
 
   int no_variables = theta.n_cols;
-  arma::vec x(no_variables, arma::fill::zeros);
+  arma::uvec x(no_variables, arma::fill::zeros);
   arma::vec chain(batch_size);
   arma::vec batch_means(max_num_batches);
   double cumulative_batch_sum = 0.0;
@@ -240,7 +238,7 @@ double taylor_raoblackwellized_sample_moment(const arma::mat& theta,
   // Random starting values for the chain
   for (int variable = 0; variable < no_variables; variable++) {
     double u = R::unif_rand();
-    x[variable] = (u > 0.5) ? 1.0 : 0.0;
+    x[variable] = (u > 0.5) ? 1 : 0;
   }
 
   // MCMC Sampling Loop
@@ -255,8 +253,8 @@ double taylor_raoblackwellized_sample_moment(const arma::mat& theta,
 
         // Compute dot product with Armadillo
         exponent = arma::dot(x, theta.col(variable));
-
-        z = 1.0 + std::exp(exponent);
+        double exp_exponent = std::exp(exponent);
+        z = 1.0 + exp_exponent;
         u = z * R::unif_rand();
 
         if (u < 1.0) {
@@ -331,47 +329,35 @@ double taylor_raoblackwellized_sample_moment(const arma::mat& theta,
 }
 
 // [[Rcpp::export]]
-Rcpp::List mcmc_mh(arma::mat x,
+Rcpp::List mcmc_mh(arma::umat x,
                    int n_iter,
                    int n_burnin,
-                   double target_moms,
-                   double target_mh,
+                   double delta_moms,
+                   double delta_mh,
                    double epsilon) {
   int n = x.n_rows;
   int p = x.n_cols;
 
-  arma::mat s = x.t() * x;
-  arma::mat gamma(p, p, arma::fill::ones);
+  arma::umat s = x.t() * x;
+  arma::umat gamma(p, p, arma::fill::ones);
   arma::mat theta(p, p, arma::fill::zeros);
   arma::mat sd_theta(p, p, arma::fill::ones);
-  arma::mat eap_theta = theta;
-  arma::mat eap_gamma = gamma;
+  arma::mat eap_theta(p, p, arma::fill::zeros);
+  arma::mat eap_gamma(p, p, arma::fill::zeros);
 
   double a = 0.5, b = 0.5;
-
-  double delta_moms = 0.1;
-  double delta_mh = 0.1;
-  double prop_rej_moms = 0.0;
-  double prop_rej_mh = 0.0;
-  double R_mh = 0.0;
-  double R_moms = 0.0;
-  int counter = 0;
 
   Progress q(n_iter + n_burnin, true);
 
   //burnin
-  for (int iter = 1; iter <= n_burnin; ++iter) {
+  for (int iter = 1; iter < n_burnin; iter++) {
     q.increment();
-
-    prop_rej_moms = 0.0;
-    prop_rej_mh = 0.0;
-    counter = 0;
 
     for (int i = 0; i < p; ++i) {
       for (int j = i; j < p; ++j) {
         // Between Model Move
         if (i < j) {
-          double agamma = 1 - gamma(i, j);
+          int agamma = 1 - gamma(i, j);
           double atheta = (agamma == 1) ? R::rnorm(theta(i, j), sd_theta(i, j)) : 0.0;
 
           // Save the original values
@@ -408,14 +394,11 @@ Rcpp::List mcmc_mh(arma::mat x,
               gamma(i, j) = agamma;
               gamma(j, i) = agamma;
             }
-          } else {
-            prop_rej_moms += 1.0;
           }
         }
 
         // Within Model Move
         if (gamma(i, j) == 1) {
-          counter++;
           double atheta = R::rnorm(theta(i, j), sd_theta(i, j));
 
           // Save the original values
@@ -454,44 +437,23 @@ Rcpp::List mcmc_mh(arma::mat x,
 
             double prob_accept = (ln_prob > 0) ? 1.0 : std::exp(ln_prob);
             sd_theta(i, j) += (prob_accept - 0.234) * std::exp(-std::log(iter) * 0.75);
-            sd_theta(i, j) = std::clamp(sd_theta(i, j), 1.0 / n, 20.0);
+            sd_theta(i, j) = std::clamp(sd_theta(i, j), 1.0 / n, 2.0);
             sd_theta(j, i) = sd_theta(i, j);
-          } else {
-            prop_rej_mh += 1.0;
           }
         }
       }
     }
-
-    prop_rej_moms /= p * (p - 1) / 2;
-    if(counter > 0) {
-      prop_rej_mh /= counter;
-    } else {
-      prop_rej_mh = target_mh;
-    }
-
-    // Adapt hyperparameters
-    // delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.75) * (target_moms - prop_rej_moms));
-    // delta_moms = std::clamp(delta_moms, 0.01, 1.0);
-    //
-    // delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.75) * (target_mh - prop_rej_mh));
-    // delta_mh = std::clamp(delta_mh, 0.01, 1.0);
-
   }
 
   //The Gibbs sampler
   for (int iter = 1; iter <= n_iter; ++iter) {
     q.increment();
 
-    prop_rej_moms = 0.0;
-    prop_rej_mh = 0.0;
-    counter = 0;
-
     for (int i = 0; i < p; ++i) {
       for (int j = i; j < p; ++j) {
         // Between Model Move
         if (i < j) {
-          double agamma = 1 - gamma(i, j);
+          int agamma = 1 - gamma(i, j);
           double atheta = (agamma == 1) ? R::rnorm(theta(i, j), sd_theta(i, j)) : 0.0;
 
           // Save the original values
@@ -529,14 +491,11 @@ Rcpp::List mcmc_mh(arma::mat x,
               gamma(i, j) = agamma;
               gamma(j, i) = agamma;
             }
-          } else {
-            prop_rej_moms += 1.0;
           }
         }
 
         // Within Model Move
         if (gamma(i, j) == 1) {
-          counter++;
           double atheta = R::rnorm(theta(i, j), sd_theta(i, j));
 
           // Save the original values
@@ -577,8 +536,6 @@ Rcpp::List mcmc_mh(arma::mat x,
             sd_theta(i, j) += (prob_accept - 0.234) * std::exp(-std::log(iter) * 0.75);
             sd_theta(i, j) = std::clamp(sd_theta(i, j), 1.0 / n, 20.0);
             sd_theta(j, i) = sd_theta(i, j);
-          } else {
-            prop_rej_mh += 1.0;
           }
         }
         // Update EAP estimates
@@ -594,20 +551,6 @@ Rcpp::List mcmc_mh(arma::mat x,
         eap_gamma(j, i) = eap_gamma(i, j);
       }
     }
-
-    prop_rej_moms /= p * (p - 1) / 2;
-    if(counter > 0) {
-      prop_rej_mh /= counter;
-    } else {
-      prop_rej_mh = target_mh;
-    }
-
-    // Adapt hyperparameters
-  //   delta_moms = std::exp(std::log(delta_moms) + std::exp(-std::log(iter) * 0.75) * (target_moms - prop_rej_moms));
-  //   delta_moms = std::clamp(delta_moms, 0.01, 1.0);
-  //
-  //   delta_mh = std::exp(std::log(delta_mh) + std::exp(-std::log(iter) * 0.75) * (target_mh - prop_rej_mh));
-  //   delta_mh = std::clamp(delta_mh, 0.01, 1.0);
   }
 
   return Rcpp::List::create(

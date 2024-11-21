@@ -29,7 +29,7 @@ taylor_raoblackwellized_sample_moment <- function(theta, index_1, index_2, batch
     .Call(`_bgms_taylor_raoblackwellized_sample_moment`, theta, index_1, index_2, batch_size, delta, max_num_batches)
 }
 
-mcmc_mh <- function(x, n_iter, n_burnin, target_moms, target_mh, epsilon) {
-    .Call(`_bgms_mcmc_mh`, x, n_iter, n_burnin, target_moms, target_mh, epsilon)
+mcmc_mh <- function(x, n_iter, n_burnin, delta_moms, delta_mh, epsilon) {
+    .Call(`_bgms_mcmc_mh`, x, n_iter, n_burnin, delta_moms, delta_mh, epsilon)
 }
 
