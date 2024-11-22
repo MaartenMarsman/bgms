@@ -1,6 +1,7 @@
 # bgms 0.1.4.2
 
-Fixes a bug with the adaptation of the proposal variances.
+Fixed a bug with adjusting the variance of the proposal distributions.
+Fixed a bug with recoding data under the "collapse" condition.
 
 # bgms 0.1.4.1
 
