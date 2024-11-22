@@ -365,7 +365,7 @@ void metropolis_thresholds_blumecapel(NumericMatrix thresholds,
     log_prob = std::exp(log_prob);
   }
 
-  double update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
+  update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
     (log_prob - target_ar) * std::exp(-log(t) * phi);
 
   if(std::isnan(update_proposal_sd) == true) {
@@ -818,8 +818,8 @@ List gibbs_sampler(IntegerMatrix observations,
   IntegerMatrix index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
-  double phi =  0.75;
-  double target_ar =  0.234;
+  double phi = 0.75;
+  double target_ar = 0.234;
   double epsilon_lo = 1.0 / static_cast<double>(no_persons);
   double epsilon_hi = 2.0;
 
