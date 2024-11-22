@@ -2595,13 +2595,13 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
   std::fill(proposal_sd_blumecapel_gr2.begin(), proposal_sd_blumecapel_gr2.end(), 1.0);
 
   //Parameters for the Robbins-Monro approach for adaptive Metropolis ----------
-  double phi =        0.750;
-  double target_ar =  0.234;
-  double epsilon_lo = 1.0 / no_persons_gr1;
+  double phi = 0.75;
+  double target_ar = 0.234;
+  double epsilon_lo = 1.0 / static_cast<double>(no_persons_gr1);
   if(no_persons_gr1 > no_persons_gr2) {
-    epsilon_lo = 1.0 / no_persons_gr2;
+    epsilon_lo = 1.0 / static_cast<double>(no_persons_gr2);
   }
-  double epsilon_hi = 2.000;
+  double epsilon_hi = 2.0;
 
   //Randomized index for the pairwise updates ----------------------------------
   IntegerVector v = seq(0, no_interactions - 1);

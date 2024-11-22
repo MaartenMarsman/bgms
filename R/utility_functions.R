@@ -828,22 +828,13 @@ compare_reformat_data = function(x,
         zx = x[, node]
         zy = y[, node]
 
-        cntr = 0
+        cntr = -1
         for(value in unq_vls) {
           #Collapse categories for one group when not observed in the other.
-          if(!any(zx == value) | !any(zy == value)) {
-            check = FALSE
-            if(cntr > 0) {
-              cntr = cntr - 1
-            }
-          } else {
-            check = TRUE
-          }
-          x[zx == value, node] = cntr
-          y[zy == value, node] = cntr
-
-          if(!(check == FALSE & cntr == 0))
+          if(any(zx == value) & any(zy == value))
             cntr = cntr + 1
+          x[zx == value, node] = max(0, cntr)
+          y[zy == value, node] = max(0, cntr)
         }
       } else {
         z = x[, node]
