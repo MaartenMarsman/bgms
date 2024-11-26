@@ -1286,7 +1286,7 @@ double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresho
       denominator_proposed += std::exp(exponent +
         thresholds(variable, category) -
         .5 * proposed_states[category]);
-        denominator_current += std::exp(exponent +
+      denominator_current += std::exp(exponent +
         thresholds(variable, category) -
         .5 * current_states[category]);
     }
@@ -1312,7 +1312,7 @@ double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresho
       denominator_proposed += std::exp(exponent +
         thresholds(variable, category) +
         .5 * proposed_states[category]);
-        denominator_current += std::exp(exponent +
+      denominator_current += std::exp(exponent +
         thresholds(variable, category) +
         .5 * current_states[category]);
     }
@@ -1361,17 +1361,14 @@ void compare_metropolis_main_difference_regular_between_model(NumericMatrix thre
       if(indicator(variable, variable) == 0) {
         proposed_state = R::rnorm(current_state, proposal_sd_main_difference(variable, category));
         proposed_states[category] = proposed_state;
-      } else {
-        proposed_state = 0.0;
-        proposed_states[category] = proposed_state;
-      }
-      if(indicator(variable, variable) == 0) {
         log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
         log_prob -= R::dnorm(proposed_state,
                              current_state,
                              proposal_sd_main_difference(variable, category),
                              true);
       } else {
+        proposed_state = 0.0;
+        proposed_states[category] = proposed_state;
         log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
         log_prob += R::dnorm(current_state,
                              proposed_state,
