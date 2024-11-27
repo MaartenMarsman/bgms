@@ -10,7 +10,7 @@ bgm(
   variable_type = "ordinal",
   reference_category,
   iter = 10000,
-  burnin = 1000,
+  burnin = 500,
   interaction_scale = 2.5,
   threshold_alpha = 0.5,
   threshold_beta = 0.5,
@@ -59,11 +59,16 @@ least one variable of type ``blume-capel''.}
 recommended to run the Gibbs sampler for at least \code{1e5} iterations.}
 
 \item{burnin}{The number of iterations of the Gibbs sampler before saving its
-output. Since it may take some time for the Gibbs sampler to converge to
-the posterior distribution, it is recommended not to set this number too low.}
+output. Since it may take some time for the Gibbs sampler to converge to the
+posterior distribution, it is recommended not to set this number too low.
+When \code{edge_selection = TRUE}, the bgm function will perform
+\code{2 * burnin} iterations, first \code{burnin} iterations without edge
+selection, then \code{burnin} iterations with edge selection. This helps
+ensure that the Markov chain used for estimation starts with good parameter
+values and that the adaptive MH proposals are properly calibrated.}
 
-\item{interaction_scale}{The scale of the Cauchy distribution that is used as a
-prior for the pairwise interaction parameters. Defaults to \code{2.5}.}
+\item{interaction_scale}{The scale of the Cauchy distribution that is used as
+a prior for the pairwise interaction parameters. Defaults to \code{2.5}.}
 
 \item{threshold_alpha, threshold_beta}{The shape parameters of the beta-prime
 prior density for the threshold parameters. Must be positive values. If the
