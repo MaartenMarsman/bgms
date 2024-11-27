@@ -175,6 +175,12 @@
 #' @param burnin The number of iterations of the Gibbs sampler before saving its
 #' output. Since it may take some time for the Gibbs sampler to converge to the
 #' posterior distribution, it is recommended not to set this number too low.
+#' When \code{difference_selection = TRUE}, the bgm function will perform
+#' \code{2 * burnin} iterations, first \code{burnin} iterations without
+#' difference selection, then \code{burnin} iterations with difference
+#' selection. This helps ensure that the Markov chain used for estimation starts
+#' with good parameter values and that the adaptive MH proposals are properly
+#' calibrated.
 #' @param na.action How do you want the function to handle missing data? If
 #' \code{na.action = "listwise"}, listwise deletion is used. If
 #' \code{na.action = "impute"}, missing data will be imputed iteratively during
@@ -262,7 +268,7 @@ bgmCompare = function(x,
                       threshold_alpha = 0.5,
                       threshold_beta = 0.5,
                       iter = 1e4,
-                      burnin = 1e3,
+                      burnin = 5e2,
                       na.action = c("listwise", "impute"),
                       save = FALSE,
                       display_progress = TRUE) {

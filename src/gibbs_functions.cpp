@@ -894,12 +894,27 @@ List gibbs_sampler(IntegerMatrix observations,
                                 no_variables + 10);
   }
 
-  //Progress bar
-  Progress p(iter + burnin, display_progress);
-
   //The Gibbs sampler ----------------------------------------------------------
   //First, we do burn-in iterations---------------------------------------------
-  for(int iteration = 0; iteration < burnin; iteration++) {
+
+  //When edge_selection = true we do 2 * burnin iterations. The first burnin
+  // iterations without selection to ensure good starting values, and proposal
+  // calibration. The second burnin iterations with selection.
+
+  int first_burnin = burnin;
+  int second_burnin = 0;
+  if(edge_selection == true)
+    second_burnin = burnin;
+  bool input_edge_selection = edge_selection;
+  edge_selection = false;
+
+  //Progress bar ---------------------------------------------------------------
+  Progress p(iter + first_burnin + second_burnin, display_progress);
+
+  for(int iteration = 0; iteration < first_burnin + second_burnin; iteration++) {
+    if(iteration >= first_burnin) {
+      edge_selection = input_edge_selection;
+    }
     if (Progress::check_abort()) {
       return List::create(Named("indicator") = out_indicator,
                           Named("interactions") = out_interactions,
@@ -1017,6 +1032,8 @@ List gibbs_sampler(IntegerMatrix observations,
       }
     }
   }
+  //To ensure that edge_selection is reinstated to the input value -------------
+  edge_selection = input_edge_selection;
 
   //The post burn-in iterations ------------------------------------------------
   for(int iteration = 0; iteration < iter; iteration++) {

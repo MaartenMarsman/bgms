@@ -2650,12 +2650,27 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
   NumericMatrix rest_matrix_gr1(no_persons_gr1, no_variables);
   NumericMatrix rest_matrix_gr2(no_persons_gr2, no_variables);
 
-  //Progress bar ---------------------------------------------------------------
-  Progress p(iter + burnin, display_progress);
-
   //The Gibbs sampler ----------------------------------------------------------
   //First, we do burn-in iterations---------------------------------------------
-  for(int iteration = 0; iteration < burnin; iteration++) {
+
+  //When difference_selection = true we do 2 * burnin iterations. The first
+  // burnin iterations without selection to ensure good starting values, and
+  // proposal calibration. The second burnin iterations with selection.
+
+  int first_burnin = burnin;
+  int second_burnin = 0;
+  if(difference_selection == true)
+    second_burnin = burnin;
+  bool input_difference_selection = difference_selection;
+  difference_selection = false;
+
+  //Progress bar ---------------------------------------------------------------
+  Progress p(iter + first_burnin + second_burnin, display_progress);
+
+  for(int iteration = 0; iteration < first_burnin + second_burnin; iteration++) {
+    if(iteration >= first_burnin) {
+      difference_selection = input_difference_selection;
+    }
     if (Progress::check_abort()) {
       if(independent_thresholds == true) {
         return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
@@ -2804,6 +2819,8 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
       }
     }
   }
+  //To ensure that difference_selection is reinstated to the input value -------
+  difference_selection = input_difference_selection;
 
   //The post burn-in iterations ------------------------------------------------
   for(int iteration = 0; iteration < iter; iteration++) {
