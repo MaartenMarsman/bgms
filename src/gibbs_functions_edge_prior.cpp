@@ -108,7 +108,7 @@ NumericVector compute_Vn_mfm_sbm(int no_variables,
         r = std::log(1 + std::exp(tmp - r)) + r;
       }
     }
-    log_Vn(t-1) = r - log(exp(1) - 1);
+    log_Vn(t-1) = r - std::log(std::exp(1) - 1);
   }
   return log_Vn;
 }
