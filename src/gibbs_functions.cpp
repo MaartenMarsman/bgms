@@ -1040,7 +1040,8 @@ List gibbs_sampler(IntegerMatrix observations,
         // Sample the number of clusters (K)
         int sampled_K = sample_K_mfm_sbm(cluster_allocations,
                                          dirichlet_alpha,
-                                         log_Vn);
+                                         log_Vn,
+                                         no_variables);
 
         // Store the sampled K value
         K_values.push_back(sampled_K);
@@ -1186,7 +1187,8 @@ List gibbs_sampler(IntegerMatrix observations,
         // Sample the number of clusters (K)
         int sampled_K = sample_K_mfm_sbm(cluster_allocations,
                                          dirichlet_alpha,
-                                         log_Vn);
+                                         log_Vn,
+                                         no_variables);
         // Store the sampled K value to out_K
         out_K[iteration] = sampled_K;
       }
