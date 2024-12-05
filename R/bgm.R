@@ -504,10 +504,22 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(indicator = indicator,
-                    interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
+      if(edge_prior == "Stochastic-Block"){
+        output = list(indicator = indicator,
+                      interactions = interactions,
+                      thresholds = thresholds,
+                      allocations = out$allocations,
+                      cluster_edge_prob = out$cluster_edge_prob,
+                      clusters = out$clusters,
+                      arguments = arguments)
+      } else {
+
+        output = list(indicator = indicator,
+                           interactions = interactions,
+                           thresholds = thresholds,
+                           arguments = arguments)
+        }
+
     } else {
       output = list(interactions = interactions,
                     thresholds = thresholds,
@@ -557,10 +569,21 @@ bgm = function(x,
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
-      output = list(indicator = indicator,
-                    interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
+      if(edge_prior == "Stochastic-Block"){
+        output = list(indicator = indicator,
+                      interactions = interactions,
+                      thresholds = thresholds,
+                      allocations = out$allocations,
+                      cluster_edge_prob = out$cluster_edge_prob,
+                      clusters = out$clusters,
+                      arguments = arguments)
+      } else {
+
+        output = list(indicator = indicator,
+                      interactions = interactions,
+                      thresholds = thresholds,
+                      arguments = arguments)
+      }
     } else {
       output = list(interactions = interactions,
                     thresholds = thresholds,

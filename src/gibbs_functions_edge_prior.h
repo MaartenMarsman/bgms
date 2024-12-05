@@ -21,6 +21,14 @@ Rcpp::IntegerVector block_allocations_mfm_sbm(Rcpp::IntegerVector cluster_assign
                                               double beta_bernoulli_beta);
 
 // ----------------------------------------------------------------------------|
+// Sample the number of clusters (K) based on Equation (3.7) from Miller & Harrison
+// ----------------------------------------------------------------------------|
+int sample_K_mfm_sbm(IntegerVector cluster_assign,
+                     double dirichlet_alpha,
+                     NumericVector log_Vn,
+                     int max_K = 12);
+
+// ----------------------------------------------------------------------------|
 // Sample the block parameters for the MFM - SBM
 // ----------------------------------------------------------------------------|
 Rcpp::NumericMatrix block_probs_mfm_sbm(Rcpp::IntegerVector cluster_assign,

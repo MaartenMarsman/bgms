@@ -812,6 +812,8 @@ List gibbs_sampler(IntegerMatrix observations,
   int no_interactions = Index.nrow();
   int no_thresholds = sum(no_categories);
   int max_no_categories = max(no_categories);
+  IntegerVector K_values;  // To store sampled K values
+
 
   IntegerVector v = seq(0, no_interactions - 1);
   IntegerVector order(no_interactions);
@@ -864,7 +866,12 @@ List gibbs_sampler(IntegerMatrix observations,
   NumericMatrix cluster_prob(1, 1);
   NumericVector log_Vn(1);
 
-  if(edge_prior == "Stochastic-Block") {
+  // store the allocation indices for each iteration
+  NumericMatrix out_allocations(iter, no_variables);
+  List out_cluster_prob(iter); // store the cluster probabilities for each iteration
+  IntegerVector out_K(iter); // store the number of clusters for each iteration
+
+  if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
     cluster_allocations[0] = 0;
     cluster_allocations[1] = 1;
     for(int i = 2; i < no_variables; i++) {
@@ -1029,6 +1036,14 @@ List gibbs_sampler(IntegerMatrix observations,
             theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
+
+        // Sample the number of clusters (K)
+        int sampled_K = sample_K_mfm_sbm(cluster_allocations,
+                                         dirichlet_alpha,
+                                         log_Vn);
+
+        // Store the sampled K value
+        K_values.push_back(sampled_K);
       }
     }
   }
@@ -1038,11 +1053,19 @@ List gibbs_sampler(IntegerMatrix observations,
   //The post burn-in iterations ------------------------------------------------
   for(int iteration = 0; iteration < iter; iteration++) {
     if (Progress::check_abort()) {
-      if(edge_selection == true) {
+      if(edge_selection == true && edge_prior == "Stochastic-Block") {
+        return List::create(Named("indicator") = out_indicator,
+                            Named("interactions") = out_interactions,
+                            Named("thresholds") = out_thresholds,
+                            Named("allocations") = out_allocations,
+                            Named("cluster_edge_prob") = out_cluster_prob,
+                            Named("clusters") = out_K);
+      } if(edge_selection == true && edge_prior != "Stochastic-Block") {
         return List::create(Named("indicator") = out_indicator,
                             Named("interactions") = out_interactions,
                             Named("thresholds") = out_thresholds);
-      } else {
+      }
+      else {
         return List::create(Named("interactions") = out_interactions,
                             Named("thresholds") = out_thresholds);
       }
@@ -1150,12 +1173,22 @@ List gibbs_sampler(IntegerMatrix observations,
                                            beta_bernoulli_alpha,
                                            beta_bernoulli_beta);
 
+        // store cluster_prob to out_cluster_prob
+        out_cluster_prob[iteration] = clone(cluster_prob);
+
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {
             theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
             theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
+
+        // Sample the number of clusters (K)
+        int sampled_K = sample_K_mfm_sbm(cluster_allocations,
+                                         dirichlet_alpha,
+                                         log_Vn);
+        // Store the sampled K value to out_K
+        out_K[iteration] = sampled_K;
       }
     }
 
@@ -1234,15 +1267,28 @@ List gibbs_sampler(IntegerMatrix observations,
         out_thresholds(no_variables - 1, 1) /= iteration + 1;
       }
     }
+
+    for(int i = 0; i < no_variables; i++) {
+      out_allocations(iteration, i) = cluster_allocations[i] + 1;
+    }
   }
 
 
   if(edge_selection == true) {
+    if(edge_prior == "Stochastic-Block"){
     return List::create(Named("indicator") = out_indicator,
                         Named("interactions") = out_interactions,
-                        Named("thresholds") = out_thresholds);
+                        Named("thresholds") = out_thresholds,
+                        Named("allocations") = out_allocations,  // Include z values
+                        Named("cluster_edge_prob") = out_cluster_prob, // Include cluster probabilities (i.e., the block matrix)
+                        Named("clusters") = out_K);  // Include the sampled number of clusters
+    } else {
+      return List::create(Named("indicator") = out_indicator,
+                          Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
+    }
   } else {
-    return List::create(Named("interactions") = out_interactions,
-                        Named("thresholds") = out_thresholds);
+      return List::create(Named("interactions") = out_interactions,
+                          Named("thresholds") = out_thresholds);
   }
 }
