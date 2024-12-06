@@ -509,7 +509,6 @@ bgm = function(x,
                       interactions = interactions,
                       thresholds = thresholds,
                       allocations = out$allocations,
-                      clusters = out$clusters,
                       arguments = arguments)
       } else {
 
@@ -573,7 +572,6 @@ bgm = function(x,
                       interactions = interactions,
                       thresholds = thresholds,
                       allocations = out$allocations,
-                      clusters = out$clusters,
                       arguments = arguments)
       } else {
 

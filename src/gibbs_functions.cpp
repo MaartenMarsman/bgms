@@ -868,7 +868,6 @@ List gibbs_sampler(IntegerMatrix observations,
 
   // store the allocation indices for each iteration
   NumericMatrix out_allocations(iter, no_variables);
-  IntegerVector out_K(iter); // store the number of clusters for each iteration
 
   if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
     cluster_allocations[0] = 0;
@@ -1057,8 +1056,7 @@ List gibbs_sampler(IntegerMatrix observations,
         return List::create(Named("indicator") = out_indicator,
                             Named("interactions") = out_interactions,
                             Named("thresholds") = out_thresholds,
-                            Named("allocations") = out_allocations,
-                            Named("clusters") = out_K);
+                            Named("allocations") = out_allocations);
       } if(edge_selection == true && edge_prior != "Stochastic-Block") {
         return List::create(Named("indicator") = out_indicator,
                             Named("interactions") = out_interactions,
@@ -1179,14 +1177,6 @@ List gibbs_sampler(IntegerMatrix observations,
             theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
-
-        // Sample the number of clusters (K)
-        int sampled_K = sample_K_mfm_sbm(cluster_allocations,
-                                         dirichlet_alpha,
-                                         log_Vn,
-                                         no_variables + 10);
-        // Store the sampled K value to out_K
-        out_K[iteration] = sampled_K;
       }
     }
 
@@ -1277,8 +1267,7 @@ List gibbs_sampler(IntegerMatrix observations,
     return List::create(Named("indicator") = out_indicator,
                         Named("interactions") = out_interactions,
                         Named("thresholds") = out_thresholds,
-                        Named("allocations") = out_allocations,  // Include z values
-                        Named("clusters") = out_K);  // Include the sampled number of clusters
+                        Named("allocations") = out_allocations);  // Include the sampled number of clusters
     } else {
       return List::create(Named("indicator") = out_indicator,
                           Named("interactions") = out_interactions,
