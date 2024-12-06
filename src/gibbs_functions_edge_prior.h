@@ -26,7 +26,7 @@ Rcpp::IntegerVector block_allocations_mfm_sbm(Rcpp::IntegerVector cluster_assign
 int sample_K_mfm_sbm(IntegerVector cluster_assign,
                      double dirichlet_alpha,
                      NumericVector log_Vn,
-                     int max_K = 500);
+                     int max_K);
 
 // ----------------------------------------------------------------------------|
 // Sample the block parameters for the MFM - SBM

@@ -868,7 +868,6 @@ List gibbs_sampler(IntegerMatrix observations,
 
   // store the allocation indices for each iteration
   NumericMatrix out_allocations(iter, no_variables);
-  List out_cluster_prob(iter); // store the cluster probabilities for each iteration
   IntegerVector out_K(iter); // store the number of clusters for each iteration
 
   if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
@@ -1041,7 +1040,7 @@ List gibbs_sampler(IntegerMatrix observations,
         int sampled_K = sample_K_mfm_sbm(cluster_allocations,
                                          dirichlet_alpha,
                                          log_Vn,
-                                         no_variables);
+                                         no_variables + 10);
 
         // Store the sampled K value
         K_values.push_back(sampled_K);
@@ -1059,7 +1058,6 @@ List gibbs_sampler(IntegerMatrix observations,
                             Named("interactions") = out_interactions,
                             Named("thresholds") = out_thresholds,
                             Named("allocations") = out_allocations,
-                            Named("cluster_edge_prob") = out_cluster_prob,
                             Named("clusters") = out_K);
       } if(edge_selection == true && edge_prior != "Stochastic-Block") {
         return List::create(Named("indicator") = out_indicator,
@@ -1174,8 +1172,6 @@ List gibbs_sampler(IntegerMatrix observations,
                                            beta_bernoulli_alpha,
                                            beta_bernoulli_beta);
 
-        // store cluster_prob to out_cluster_prob
-        out_cluster_prob[iteration] = clone(cluster_prob);
 
         for(int i = 0; i < no_variables - 1; i++) {
           for(int j = i + 1; j < no_variables; j++) {
@@ -1188,7 +1184,7 @@ List gibbs_sampler(IntegerMatrix observations,
         int sampled_K = sample_K_mfm_sbm(cluster_allocations,
                                          dirichlet_alpha,
                                          log_Vn,
-                                         no_variables);
+                                         no_variables + 10);
         // Store the sampled K value to out_K
         out_K[iteration] = sampled_K;
       }
@@ -1282,7 +1278,6 @@ List gibbs_sampler(IntegerMatrix observations,
                         Named("interactions") = out_interactions,
                         Named("thresholds") = out_thresholds,
                         Named("allocations") = out_allocations,  // Include z values
-                        Named("cluster_edge_prob") = out_cluster_prob, // Include cluster probabilities (i.e., the block matrix)
                         Named("clusters") = out_K);  // Include the sampled number of clusters
     } else {
       return List::create(Named("indicator") = out_indicator,

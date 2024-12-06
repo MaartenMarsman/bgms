@@ -346,7 +346,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
 int sample_K_mfm_sbm(IntegerVector cluster_allocations,
                      double dirichlet_alpha,
                      NumericVector log_Vn,
-                     int max_K = 500) {
+                     int max_K) {
   // compute t = |C| (number of unique clusters i.e., the cardinality of C)
   IntegerVector cluster_size = table_cpp(cluster_allocations); // Cluster sizes
   int t = cluster_size.size(); // Number of non-zero clusters
