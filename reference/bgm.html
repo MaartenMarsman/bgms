@@ -166,12 +166,14 @@ complexity (number of edges) get the same prior weight. The Stochastic Block
 model <code>edge_prior = "Stochastic-Block"</code> assumes that nodes can be
 organized into blocks or clusters. In principle, the assignment of nodes to
 such clusters is unknown, and the model as implemented here considers all
-possible options @i.e., specifies a Dirichlet process on the node to block
-allocation as described by @GengEtAl_2019bgms. This model is advantageous
+possible options @i.e., specifies a Dirichlet prior on the probability
+of allocations as described by @GengEtAl_2019bgms. This model is advantageous
 when nodes are expected to fall into distinct clusters. The inclusion
 probabilities for the edges are defined at the level of the clusters, with a
 beta prior for the unknown inclusion probability with shape parameters
-<code>beta_bernoulli_alpha</code> and <code>beta_bernoulli_beta</code>. The default is
+<code>beta_bernoulli_alpha</code> and <code>beta_bernoulli_beta</code>, and a Dirichlet
+prior on the cluster assignment probabilities with a common concentration
+parameter <code>dirichlet_alpha</code>. The default is
 <code>edge_prior = "Bernoulli"</code>.</p></dd>
 
 
@@ -191,7 +193,7 @@ positive numbers. Defaults to <code>beta_bernoulli_alpha = 1</code> and
 
 <dt id="arg-dirichlet-alpha">dirichlet_alpha<a class="anchor" aria-label="anchor" href="#arg-dirichlet-alpha"></a></dt>
 <dd><p>The shape of the Dirichlet prior on the node-to-block
-allocation parameters for the Stochastic Block model.</p></dd>
+allocation probabilities for the Stochastic Block model.</p></dd>
 
 
 <dt id="arg-na-action">na.action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>
@@ -230,6 +232,13 @@ columns, containing model-averaged category thresholds. In the case of
 “blume-capel” variables, the first entry is the parameter for the linear
 effect and the second entry is the parameter for the quadratic effect, which
 models the offset to the reference category.</p></li>
+<li><p>In the case of
+<code>edge_prior = "Stochastic-Block"</code> two additional elements are returned:
+a vector <code>allocations</code> with the estimated cluster assignments of the nodes and an
+table <code>clusters</code> with the estimated posterior probability of the number
+of clusters in the network. The vector of node allocations is calculated using
+a method proposed by Dahl2009bgms and also used by
+GengEtAl_2019bgms.</p></li>
 </ul><p>If <code>save = TRUE</code>, the result is a list of class “bgms” containing:</p><ul><li><p><code>indicator</code>: A matrix with <code>iter</code> rows and
 <code>p * (p - 1) / 2</code> columns, containing the edge inclusion indicators from
 every iteration of the Gibbs sampler.</p></li>
@@ -239,7 +248,14 @@ iteration of the Gibbs sampler for the pairwise associations.</p></li>
 <li><p><code>thresholds</code>: A matrix with <code>iter</code> rows and
 <code>sum(m)</code> columns, containing parameter states from every iteration of
 the Gibbs sampler for the category thresholds.</p></li>
-</ul><p>Column averages of these matrices provide the model-averaged posterior means.</p>
+<li><p>In the case of
+<code>edge_prior = "Stochastic-Block"</code> a matrix <code>allocations</code> with the
+cluster assignments of the nodes from each iteration is returned. This matrix
+can be used to calculate the posterior probability of the number of clusters
+by utilizing the <code>summary_SBM(bgm_output[["allocations"]])</code> function.</p></li>
+</ul><p>Column averages of these matrices provide the model-averaged posterior means.
+Except for the <code>allocations</code> matrix, for which the <code>summary_SBM</code>
+needs to be utilized.</p>
 <p>In addition to the analysis results, the bgm output lists some of the
 arguments of its call. This is useful for post-processing the results.</p>
     </div>
