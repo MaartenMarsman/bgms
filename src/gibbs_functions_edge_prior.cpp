@@ -337,6 +337,7 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
     }
   }
   return cluster_assign;
+
 }
 
 // ----------------------------------------------------------------------------|
