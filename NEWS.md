@@ -6,7 +6,7 @@ When selection = true, we run 2 * burnin iterations instead of 1 * burnin in the
 
 # bgms 0.1.4.1
 
-This is a minor release that adds some documentation and bug fixes.
+This is a minor release that adds some documentation and output bug fixes.
 
 # bgms 0.1.4
 
