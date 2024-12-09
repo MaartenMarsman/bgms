@@ -111,12 +111,14 @@
 #' model \code{edge_prior = "Stochastic-Block"} assumes that nodes can be
 #' organized into blocks or clusters. In principle, the assignment of nodes to
 #' such clusters is unknown, and the model as implemented here considers all
-#' possible options \insertCite{@i.e., specifies a Dirichlet process on the node to block
-#' allocation as described by @GengEtAl_2019}{bgms}. This model is advantageous
+#' possible options \insertCite{@i.e., specifies a Dirichlet prior on the probability
+#' of allocations as described by @GengEtAl_2019}{bgms}. This model is advantageous
 #' when nodes are expected to fall into distinct clusters. The inclusion
 #' probabilities for the edges are defined at the level of the clusters, with a
 #' beta prior for the unknown inclusion probability with shape parameters
-#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}. The default is
+#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, and a Dirichlet
+#' prior on the cluster assignment probabilities with a common concentration
+#' parameter \code{dirichlet_alpha}. The default is
 #' \code{edge_prior = "Bernoulli"}.
 #' @param inclusion_probability The prior edge inclusion probability for the
 #' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
@@ -127,7 +129,7 @@
 #' positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 #' \code{beta_bernoulli_beta = 1}.
 #' @param dirichlet_alpha The shape of the Dirichlet prior on the node-to-block
-#' allocation parameters for the Stochastic Block model.
+#' allocation probabilities for the Stochastic Block model.
 #' @param na.action How do you want the function to handle missing data? If
 #' \code{na.action = "listwise"}, listwise deletion is used. If
 #' \code{na.action = "impute"}, missing data are imputed iteratively during the
@@ -156,8 +158,14 @@
 #' ``blume-capel'' variables, the first entry is the parameter for the linear
 #' effect and the second entry is the parameter for the quadratic effect, which
 #' models the offset to the reference category.
+#' \item In the case of
+#' \code{edge_prior = "Stochastic-Block"} two additional elements are returned:
+#' a vector \code{allocations} with the estimated cluster assignments of the nodes and an
+#' table \code{clusters} with the estimated posterior probability of the number
+#' of clusters in the network. The vector of node allocations is calculated using
+#' a method proposed by \insertCite{Dahl2009}{bgms} and also used by
+#' \insertCite{GengEtAl_2019}{bgms}.
 #' }
-#'
 #' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 #' \itemize{
 #' \item \code{indicator}: A matrix with \code{iter} rows and
@@ -169,8 +177,15 @@
 #' \item \code{thresholds}: A matrix with \code{iter} rows and
 #' \code{sum(m)} columns, containing parameter states from every iteration of
 #' the Gibbs sampler for the category thresholds.
+#' \item In the case of
+#' \code{edge_prior = "Stochastic-Block"} a matrix \code{allocations} with the
+#' cluster assignments of the nodes from each iteration is returned. This matrix
+#' can be used to calculate the posterior probability of the number of clusters
+#' by utilizing the \code{summary_SBM(bgm_output[["allocations"]])} function.
 #' }
 #' Column averages of these matrices provide the model-averaged posterior means.
+#' Except for the \code{allocations} matrix, for which the \code{summary_SBM}
+#' needs to be utilized.
 #'
 #' In addition to the analysis results, the bgm output lists some of the
 #' arguments of its call. This is useful for post-processing the results.
@@ -505,10 +520,14 @@ bgm = function(x,
 
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
+
+        summarySbm <- summary_SBM(cluster_allocations = out$allocations)
+
         output = list(indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
-                      allocations = out$allocations,
+                      allocations = summarySbm$allocations,
+                      clusters = summarySbm$no_clusters,
                       arguments = arguments)
       } else {
 

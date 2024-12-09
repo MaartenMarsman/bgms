@@ -1034,15 +1034,6 @@ List gibbs_sampler(IntegerMatrix observations,
             theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
           }
         }
-
-        // Sample the number of clusters (K)
-        int sampled_K = sample_K_mfm_sbm(cluster_allocations,
-                                         dirichlet_alpha,
-                                         log_Vn,
-                                         no_variables + 10);
-
-        // Store the sampled K value
-        K_values.push_back(sampled_K);
       }
     }
   }
@@ -1267,7 +1258,7 @@ List gibbs_sampler(IntegerMatrix observations,
     return List::create(Named("indicator") = out_indicator,
                         Named("interactions") = out_interactions,
                         Named("thresholds") = out_thresholds,
-                        Named("allocations") = out_allocations);  // Include the sampled number of clusters
+                        Named("allocations") = out_allocations);
     } else {
       return List::create(Named("indicator") = out_indicator,
                           Named("interactions") = out_interactions,

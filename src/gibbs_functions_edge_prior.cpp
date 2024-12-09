@@ -341,60 +341,6 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
 }
 
 // ----------------------------------------------------------------------------|
-// Sample the number of clusters (K) based on Equation (3.7) from Miller & Harrison
-// ----------------------------------------------------------------------------|
-int sample_K_mfm_sbm(IntegerVector cluster_allocations,
-                     double dirichlet_alpha,
-                     NumericVector log_Vn,
-                     int max_K) {
-  // compute t = |C| (number of unique clusters i.e., the cardinality of C)
-  IntegerVector cluster_size = table_cpp(cluster_allocations); // Cluster sizes
-  int t = cluster_size.size(); // Number of non-zero clusters
-
-  // Step 2: Compute p(k|t) using Equation 3.7 in Miller and Harrison (2018)
-  NumericVector log_p_K(max_K, R_NegInf); // Log-probabilities of k
-  for (int k = t; k < max_K; ++k) {
-    double log_term1 = std::lgamma(k + 1) - std::lgamma(k - t + 1); // (k choose t)
-    double log_term2 = k * std::log(dirichlet_alpha);              // dirichlet_alpha^k
-    double log_term3 = -log_Vn[t - 1];                             // Normalize by Vn
-    log_p_K[k] = log_term1 + log_term2 + log_term3;                // Combine terms
-  }
-
-  // Normalize probabilities using log-sum-exp
-  double log_sum_exp = -INFINITY;
-  for (int k = t; k < max_K; ++k) {
-    log_sum_exp = std::log1p(std::exp(log_p_K[k] - log_sum_exp)) + log_sum_exp;
-  }
-  NumericVector p_K(max_K, 0.0);
-  for (int k = t; k < max_K; ++k) {
-    p_K[k] = std::exp(log_p_K[k] - log_sum_exp); // Convert log-p to p
-  }
-
-  // Step 3: Exclude zero and adjust probabilities for truncated Poisson
-  double p_zero = std::exp(-1.0); // P(k = 0) for Poisson(lambda = 1)
-  double truncated_normalizer = 1.0 - p_zero;
-  double cumulative_probability = 0.0;
-
-  for (int k = t; k < max_K; ++k) {
-    p_K[k] /= truncated_normalizer; // Adjust probabilities to exclude zero
-    cumulative_probability += p_K[k];
-  }
-
-  // Step 4: Draw a uniform random number within [0, cumulative_probability]
-  double u = R::runif(0, cumulative_probability);
-
-  // Step 5: sample from the truncated Poisson distribution
-  double lambda = 1.0; // Poisson parameter (fixed to 1)
-  int sampled_k = R::qpois(u * truncated_normalizer, lambda, true, false);
-
-  // Ensure k is at least t
-  return std::max(t, std::min(sampled_k, max_K - 1));
-}
-
-
-
-
-// ----------------------------------------------------------------------------|
 // Sample the block parameters for the MFM - SBM
 // ----------------------------------------------------------------------------|
 NumericMatrix block_probs_mfm_sbm(IntegerVector cluster_assign,
