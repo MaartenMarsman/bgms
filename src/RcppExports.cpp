@@ -123,12 +123,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_Vn_mfm_sbm
+NumericVector compute_Vn_mfm_sbm(int no_variables, double dirichlet_alpha, int t_max);
+RcppExport SEXP _bgms_compute_Vn_mfm_sbm(SEXP no_variablesSEXP, SEXP dirichlet_alphaSEXP, SEXP t_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type no_variables(no_variablesSEXP);
+    Rcpp::traits::input_parameter< double >::type dirichlet_alpha(dirichlet_alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type t_max(t_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, t_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 27},
     {"_bgms_compare_gibbs_sampler", (DL_FUNC) &_bgms_compare_gibbs_sampler, 32},
+    {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 3},
     {NULL, NULL, 0}
 };
 

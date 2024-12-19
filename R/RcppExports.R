@@ -17,3 +17,7 @@ compare_gibbs_sampler <- function(observations_gr1, observations_gr2, no_categor
     .Call(`_bgms_compare_gibbs_sampler`, observations_gr1, observations_gr2, no_categories_gr1, no_categories_gr2, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, n_cat_obs_gr1, n_cat_obs_gr2, sufficient_blume_capel_gr1, sufficient_blume_capel_gr2, threshold_alpha, threshold_beta, na_impute, missing_index_gr1, missing_index_gr2, ordinal_variable, reference_category, independent_thresholds, save, display_progress, difference_selection)
 }
 
+compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max) {
+    .Call(`_bgms_compute_Vn_mfm_sbm`, no_variables, dirichlet_alpha, t_max)
+}
+

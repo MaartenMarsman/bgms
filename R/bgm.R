@@ -521,13 +521,15 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
 
-        summarySbm <- summary_SBM(cluster_allocations = out$allocations)
+        summarySbm <- summary_SBM(cluster_allocations = out$allocations,
+                                  dirichlet_alpha = dirichlet_alpha)
 
         output = list(indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
                       allocations = summarySbm$allocations,
                       clusters = summarySbm$no_clusters,
+                      r_b_cluster_probability = summarySbm$r_b_cluster_prob,
                       arguments = arguments)
       } else {
 

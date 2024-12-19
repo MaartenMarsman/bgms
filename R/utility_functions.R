@@ -1013,7 +1013,6 @@ compare_reformat_data = function(x,
 #  Geng, J., Bhattacharya, A., & Pati, D. (2019). Probabilistic Community
 #  Detection With Unknown Number of Communities, Journal of the American
 #  Statistical Association, 114:526, 893-905, DOI:10.1080/01621459.2018.1458618
-
 getDahl <- function(cluster_allocations) {
   # Dimensions of the input matrix
   niters <- nrow(cluster_allocations)  # Number of iterations
@@ -1045,21 +1044,87 @@ getDahl <- function(cluster_allocations) {
   return(DahlAns)
 }
 
+# Calculate the conditional probability of the number of
+# components given the cardinality of a sampled
+# allocation vector based on Equation (3.7) from
+# Miller & Harrison (2018). Mixture Models With a Prior on the Number of
+# Components, Journal of the American Statistical Association, 113:521, 340-356,
+# DOI:10.1080/01621459.2016.1255636
 
-# A function that computes the cluster posterior probabilities and allocations
+compute_p_k_given_t <- function(t, log_Vn, dirichlet_alpha, no_variables) {
+  # Define the K_values
+  K_values <- as.numeric(1:no_variables)
+  # Initialize vector for probabilities
+  p_k_given_t <- numeric(length(K_values))
+  # The rate hyperparameter of the Poisson is fixed to 1
+  lambda <- 1
+  # Normalization constant for t
+  log_vn_t <- log_Vn[t]
 
-summary_SBM <- function(cluster_allocations) {
-  # Compute the number of unique clusters for each iteration
+  # Loop through each value of K
+  for (i in seq_along(K_values)) {
+    K <- K_values[i]
+
+    if (K >= t) {
+      # Falling factorial k_(t) = prod(k - i) for i = 0:(t-1)
+      falling_factorial <- prod(K:(K - t + 1))
+
+      # Rising factorial (dirichlet_alpha k)^(n) = prod(dirichlet_alpha k + i) for i = 0:(no_variables-1)
+      rising_factorial <- prod((dirichlet_alpha * K) + 0:(no_variables - 1))
+
+      # Poisson probability p_K(k) = (lambda^k * exp(-lambda)) / k!
+      poisson_pmf <- dpois(K, lambda)
+
+      # Compute log probability
+      log_p_k <- log(falling_factorial) - log(rising_factorial) + log(poisson_pmf) - log_vn_t
+
+      # Convert log probability to probability
+      p_k_given_t[i] <- exp(log_p_k)
+    } else {
+      # Set probability to zero if K < t
+      p_k_given_t[i] <- 0
+    }
+  }
+  # Normalize probabilities
+  p_k_given_t <- p_k_given_t / sum(p_k_given_t)
+
+  # Return a vector of length no_variables with the probabilities
+  return(p_k_given_t)
+}
+
+
+# A function that computes the posterior probabilities of the
+# number of sampled clusters, the Rao-Blackwellized probabilities
+# and the allocations of the nodes based on Dahl's method
+summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
+
+  # precompute things
+  no_variables <- ncol(cluster_allocations)
+  log_Vn <- compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, no_variables)
+  # Compute the number of unique clusters (t) for each iteration
+  # i.e., the cardinality  of the partition z
   clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
-
   # Compute the posterior probabilities of the actual unique clusters
   no_clusters <- table(clusters) / length(clusters)
+
+  # Compute the conditional probabilities of the number of clusters
+  # for each row in clusters
+  p_k_given_t <- matrix(NA, nrow = length(clusters), ncol = no_variables)
+
+  for (i in 1:length(clusters)) {
+    p_k_given_t[i, ] <- compute_p_k_given_t(clusters[i],
+                                            log_Vn,
+                                            dirichlet_alpha,
+                                            no_variables)
+  }
+  # average across all iterations
+  p_k_given_t <- colMeans(p_k_given_t)
 
   # Compute the allocations of the nodes based on Dahl's method
   allocations <- getDahl(cluster_allocations)
 
   # Return the results
   return(list(no_clusters = no_clusters,
+              r_b_cluster_prob = p_k_given_t, # the Rao-Blackwellized prob
               allocations = allocations))
 }
-

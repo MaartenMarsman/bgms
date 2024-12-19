@@ -82,6 +82,7 @@ NumericMatrix add_row_col_block_prob_matrix(NumericMatrix X,
 // ----------------------------------------------------------------------------|
 // Compute partition coefficient for the MFM - SBM
 // ----------------------------------------------------------------------------|
+// [[Rcpp::export]]
 NumericVector compute_Vn_mfm_sbm(int no_variables,
                                  double dirichlet_alpha,
                                  int t_max) {
