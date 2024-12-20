@@ -144,7 +144,7 @@ The default is \code{TRUE}.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list of class
-``bgms'' containing the following matrices with model-averaged quantities:
+\code{"bgms"} containing the following matrices with model-averaged quantities:
 \itemize{
 \item \code{indicator}: A matrix with \code{p} rows and \code{p} columns,
 containing the posterior inclusion probabilities of individual edges.
@@ -152,16 +152,23 @@ containing the posterior inclusion probabilities of individual edges.
 containing model-averaged posterior means of the pairwise associations.
 \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
 columns, containing model-averaged category thresholds. In the case of
-``blume-capel'' variables, the first entry is the parameter for the linear
+\code{"blume-capel"} variables, the first entry is the parameter for the linear
 effect and the second entry is the parameter for the quadratic effect, which
 models the offset to the reference category.
-\item In the case of
-\code{edge_prior = "Stochastic-Block"} two additional elements are returned:
-a vector \code{allocations} with the estimated cluster assignments of the nodes and an
-table \code{clusters} with the estimated posterior probability of the number
-of clusters in the network. The vector of node allocations is calculated using
-a method proposed by \insertCite{Dahl2009}{bgms} and also used by
-\insertCite{GengEtAl_2019}{bgms}.
+\item In the case of \code{edge_prior = "Stochastic-Block"}, two additional
+elements are returned:
+  \itemize{
+    \item A vector \code{allocations} with the estimated cluster assignments
+    of the nodes, calculated using a method proposed by \code{Dahl (2009)} and
+    also used by \code{Geng et al. (2019)}.
+    \item A table \code{components} with the estimated posterior probability
+    of the number of components (clusters) in the network. These probabilities
+    are calculated based on Equation 3.7 in \code{Miller (2018)}, which computes
+    the conditional probability of the number of components given the
+    number of clusters. The number of clusters is derived from the
+    cardinality of the sampled \code{allocations} vector for each iteration of
+    the MCMC sampler (see \code{save = TRUE}).
+  }
 }
 If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 \itemize{
@@ -177,8 +184,9 @@ the Gibbs sampler for the category thresholds.
 \item In the case of
 \code{edge_prior = "Stochastic-Block"} a matrix \code{allocations} with the
 cluster assignments of the nodes from each iteration is returned. This matrix
-can be used to calculate the posterior probability of the number of clusters
-by utilizing the \code{summary_SBM(bgm_output[["allocations"]])} function.
+can be used to calculate the posterior probability of the number of components
+and estimated cluster assignments of the nodes, by and  utilizing the
+\code{summary_SBM()} function.
 }
 Column averages of these matrices provide the model-averaged posterior means.
 Except for the \code{allocations} matrix, for which the \code{summary_SBM}

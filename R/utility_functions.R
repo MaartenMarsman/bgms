@@ -1094,7 +1094,7 @@ compute_p_k_given_t <- function(t, log_Vn, dirichlet_alpha, no_variables) {
 
 
 # A function that computes the posterior probabilities of the
-# number of sampled clusters, the Rao-Blackwellized probabilities
+# number of components K given the cardinality of the partition t
 # and the allocations of the nodes based on Dahl's method
 summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
 
@@ -1104,9 +1104,6 @@ summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
   # Compute the number of unique clusters (t) for each iteration
   # i.e., the cardinality  of the partition z
   clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
-  # Compute the posterior probabilities of the actual unique clusters
-  no_clusters <- table(clusters) / length(clusters)
-
   # Compute the conditional probabilities of the number of clusters
   # for each row in clusters
   p_k_given_t <- matrix(NA, nrow = length(clusters), ncol = no_variables)
@@ -1120,11 +1117,15 @@ summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
   # average across all iterations
   p_k_given_t <- colMeans(p_k_given_t)
 
+  # make it as a matrix
+  no_components <- 1:no_variables
+  components <- cbind(no_components, p_k_given_t)
+  colnames(components) <- c("no_components", "probability")
+
   # Compute the allocations of the nodes based on Dahl's method
   allocations <- getDahl(cluster_allocations)
 
   # Return the results
-  return(list(no_clusters = no_clusters,
-              r_b_cluster_prob = p_k_given_t, # the Rao-Blackwellized prob
+  return(list(components = components,
               allocations = allocations))
 }
