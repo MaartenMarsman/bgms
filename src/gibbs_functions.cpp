@@ -812,7 +812,6 @@ List gibbs_sampler(IntegerMatrix observations,
   int no_interactions = Index.nrow();
   int no_thresholds = sum(no_categories);
   int max_no_categories = max(no_categories);
-  IntegerVector K_values;  // To store sampled K values
 
 
   IntegerVector v = seq(0, no_interactions - 1);
