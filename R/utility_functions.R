@@ -1061,34 +1061,28 @@ compute_p_k_given_t <- function(t, log_Vn, dirichlet_alpha, no_variables) {
   # Normalization constant for t
   log_vn_t <- log_Vn[t]
 
+  # Normalizing factor for the truncated Poisson distribution
+  norm_factor <- 1 - dpois(0, lambda)
+  truncated_poisson_pmf <- dpois(K_values, lambda) / norm_factor
+
   # Loop through each value of K
   for (i in seq_along(K_values)) {
     K <- K_values[i]
-
     if (K >= t) {
-      # Falling factorial k_(t) = prod(k - i) for i = 0:(t-1)
+      # Falling factorial
       falling_factorial <- prod(K:(K - t + 1))
-
-      # Rising factorial (dirichlet_alpha k)^(n) = prod(dirichlet_alpha k + i) for i = 0:(no_variables-1)
+      # Rising factorial
       rising_factorial <- prod((dirichlet_alpha * K) + 0:(no_variables - 1))
-
-      # Poisson probability p_K(k) = (lambda^k * exp(-lambda)) / k!
-      poisson_pmf <- dpois(K, lambda)
-
       # Compute log probability
-      log_p_k <- log(falling_factorial) - log(rising_factorial) + log(poisson_pmf) - log_vn_t
-
+      log_p_k <- log(falling_factorial) - log(rising_factorial) + log(truncated_poisson_pmf[i]) - log_vn_t
       # Convert log probability to probability
       p_k_given_t[i] <- exp(log_p_k)
     } else {
-      # Set probability to zero if K < t
       p_k_given_t[i] <- 0
     }
   }
   # Normalize probabilities
   p_k_given_t <- p_k_given_t / sum(p_k_given_t)
-
-  # Return a vector of length no_variables with the probabilities
   return(p_k_given_t)
 }
 
