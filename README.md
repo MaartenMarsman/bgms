@@ -42,9 +42,9 @@ remotes::install_github("MaartenMarsman/bgms")
 
 <div id="ref-ContrerasEtAl_2019" class="csl-entry">
 
-Contreras, A., I. Nieto, C. Valiente, R. Espinosa, and C. Vazquez. 2019.
-“The Study of Psychopathology from the Network Analysis Perspective: A
-Systematic Review.” *Psychotherapy and Psychosomatics* 88 (2): 71–83.
+Contreras, A., Nieto, I., Valiente,  C., Espinosa, R., & Vazquez, C. (2019)
+The study of psychopathology from the network analysis perspective: A
+systematic review. *Psychotherapy and Psychosomatics*, *88*(2), 71–83.
 <https://doi.org/10.1159/000497425>.
 
 </div>
