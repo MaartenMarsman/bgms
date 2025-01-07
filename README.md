@@ -14,7 +14,7 @@ In two-independent-samples designs, the <strong>bgmCompare</strong> function mod
 
 ## Why use Markov Random Fields?
 
-Multivariate analysis using graphical models has received much attention in the recent psychological and psychometric literature (Robinaugh et al., 2020; Marsman, & Rhemtulla 2022; Contreras et al., 2019). Most of these graphical models are Markov Random Field (MRF) models, whose graph structure reflects the partial associations between variables (Kindermann, & Snell 1980). In these models, a missing edge between two variables in the network implies that these variables are independent, given the remaining variables (Lauritzen, 2004). In other words, the remaining variables of the network fully account for the potential association between the unconnected variables.
+Multivariate analysis using graphical models has received much attention in the recent psychological and psychometric literature (Robinaugh et al., 2020; Marsman, & Rhemtulla, 2022; Contreras et al., 2019). Most of these graphical models are Markov Random Field (MRF) models, whose graph structure reflects the partial associations between variables (Kindermann, & Snell 1980). In these models, a missing edge between two variables in the network implies that these variables are independent, given the remaining variables (Lauritzen, 2004). In other words, the remaining variables of the network fully account for the potential association between the unconnected variables.
 
 ## Why use a Bayesian approach to analyze the MRF?
 
