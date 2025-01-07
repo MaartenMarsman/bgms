@@ -58,7 +58,9 @@
 <div class="section level1">
 <div class="page-header"><h1 id="bgms-bayesian-analysis-of-graphical-models">bgms: Bayesian Analysis of Graphical Models<a class="anchor" aria-label="anchor" href="#bgms-bayesian-analysis-of-graphical-models"></a>
 </h1></div>
-<p>The <code>R</code> package <strong>bgms</strong> provides tools for Bayesian analysis of graphical models describing networks of variables. The package uses Markov chain Monte Carlo methods combined with a pseudolikelihood approach to estimate the posterior distribution of model parameters. Gibbs variable selection (George and McCulloch 1993) is used to model the underlying network structure of the graphical model. By imposing a discrete spike and slab prior on the pairwise interactions, it is possible to shrink the interactions to exactly zero. The Gibbs sampler embeds a Metropolis approach for mixtures of mutually singular distributions (Gottardo and Raftery 2008) to account for the discontinuity at zero. The goal is to provide these tools for Markov Random Field (MRF) models for a wide range of variable types in the <strong>bgms</strong> package, and it currently provides them for analyzing networks of binary and/or ordinal variables (Marsman and Haslbeck 2023).</p>
+<p>The <code>R</code> package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman, van den Bergh, and Haslbeck, in press). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.</p>
+<p>The <strong>bgm</strong> function can be used for a one sample design and the <strong>bgmCompare</strong> function can be used for a two independent samples design (cf., Marsman, Waldorp, Sekulovski, and Haslbeck, 2024). Both functions can model the selection of effects. In one-sample designs, the <strong>bgm</strong> function models the presence or absence of edges between pairs of variables in the network. The estimated posterior inclusion probability indicates how plausible it is that a network with an edge between the two corresponding variables produced the observed data, and can be converted into a Bayes factor test for conditional independence.</p>
+<p>In two independent samples designs, the <strong>bgmCompare</strong> function models the selection of group differences in edge weights and possibly category thresholds. The estimated posterior inclusion probability indicates how plausible it is that graphical models with a difference in the corresponding edge weight or category threshold generated the data at hand, and can be converted to a Bayes factor test for parameter equivalence.</p>
 <div class="section level2">
 <h2 id="why-use-markov-random-fields">Why use Markov Random Fields?<a class="anchor" aria-label="anchor" href="#why-use-markov-random-fields"></a>
 </h2>
@@ -67,7 +69,9 @@
 <div class="section level2">
 <h2 id="why-use-a-bayesian-approach-to-analyze-the-mrf">Why use a Bayesian approach to analyze the MRF?<a class="anchor" aria-label="anchor" href="#why-use-a-bayesian-approach-to-analyze-the-mrf"></a>
 </h2>
-<p>Testing the structure of the MRF requires us to determine the plausibility of the opposing hypotheses of conditional dependence and conditional independence. That is, how plausible is it that the observed data come from a network with a structure that includes the edge between two variables compared to a network structure that excludes that edge? Frequentist approaches are limited in this regard because they can only reject the conditional independence hypothesis, not support it (Wagenmakers et al. 2018; Wagenmakers 2007). This leads to the problem that if an edge is excluded, we do not know whether this is because the edge is absent in the population or because we lack the power to reject the null hypothesis of independence. To avoid this problem, we will use a Bayesian approach using Bayes factors (Kass and Raftery 1995)). The inclusion Bayes factor (Huth et al. 2023; Sekulovski et al. 2024) allows us to quantify how much the data support both conditional dependence -<em>evidence of edge presence</em>- or conditional independence -<em>evidence of edge absence</em>. It also allows us to conclude that there is limited support for either hypothesis (Dienes 2014)-an <em>absence of evidence</em>.</p>
+<p>Testing the structure of the MRF in a one-sample design requires us to determine the plausibility of the opposing hypotheses of conditional dependence and conditional independence. That is, how plausible is it that the observed data come from a network with a structure that includes the edge between two variables compared to a network structure that excludes that edge? Similarly, testing for group differences in the MRF in a two independent samples design requires us to determine the plausibility of the opposing hypotheses of parameter difference and parameter equivalence. That is, how plausible is it that the observed data come from two MRFs with a difference in the corresponding edge weight or threshold parameter compared to two MRFs that do not differ in this parameter?</p>
+<p>Frequentist approaches are limited in this respect because they can only reject, not support, null hypotheses of conditional independence or parameter equivalence. This leads to the problem that if an edge is excluded, we do not know whether this is because the edge is absent in the population or because we do not have enough data to reject the null hypothesis of independence. Similarly, if a difference is excluded, we do not know whether this is because there is no difference in the parameter between the two groups or because we do not have enough data to reject the null hypothesis of parameter equivalence.</p>
+<p>To avoid this problem, we will advocate a Bayesian approach using Bayes factors. In one-sample designs, the inclusion Bayes factor (Huth et al. 2023; Sekulovski et al. 2024) allows us to quantify how much the data support both conditional dependence -<em>evidence of edge presence</em> - or conditional independence -<em>evidence of edge absence</em>. It also allows us to conclude that there is limited support for either hypothesis - an <em>absence of evidence</em>. In two sample designs, they can be used to quantify how much the data support the hypotheses of parameter difference and equivalence. The output of the <strong>bgm</strong> and <strong>bgmCompare</strong> functions can be used to estimate these inclusion Bayes factors.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -83,23 +87,12 @@
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <div id="refs" class="references csl-bib-body hanging-indent">
+
 <div id="ref-ContrerasEtAl_2019" class="csl-entry">
 Contreras, A., I. Nieto, C. Valiente, R. Espinosa, and C. Vazquez. 2019. “The Study of Psychopathology from the Network Analysis Perspective: A Systematic Review.” <em>Psychotherapy and Psychosomatics</em> 88 (2): 71–83. <a href="https://doi.org/10.1159/000497425" class="external-link uri">https://doi.org/10.1159/000497425</a>.
 </div>
-<div id="ref-Dienes_2014" class="csl-entry">
-Dienes, Z. 2014. “Using Bayes to Get the Most Out of Non-Significant Results.” <em>Frontiers in Psychology</em> 5 (781): 1–17. <a href="https://doi.org/10.3389/fpsyg.2014.00781" class="external-link uri">https://doi.org/10.3389/fpsyg.2014.00781</a>.
-</div>
-<div id="ref-GeorgeMcCulloch_1993" class="csl-entry">
-George, E. I., and R. E. McCulloch. 1993. “Variable Selection via Gibbs Sampling.” <em>Journal of the American Statistical Association</em> 88 (423): 881–89. <a href="https://doi.org/10.1080/01621459.1993.10476353" class="external-link uri">https://doi.org/10.1080/01621459.1993.10476353</a>.
-</div>
-<div id="ref-GottardoRaftery_2008" class="csl-entry">
-Gottardo, R., and A. E. Raftery. 2008. “Markov Chain Monte Carlo with Mixtures of Mutually Singular Distributions.” <em>Journal of Computational and Graphical Statistics</em> 17 (4): 949–75. <a href="https://doi.org/10.1198/106186008X386102" class="external-link uri">https://doi.org/10.1198/106186008X386102</a>.
-</div>
 <div id="ref-HuthEtAl_2023_intro" class="csl-entry">
 Huth, K., J. de Ron, A. E. Goudriaan, K. Luigjes, R. Mohammadi, R. J. van Holst, E.-J. Wagenmakers, and M. Marsman. 2023. “Bayesian Analysis of Cross-Sectional Networks: A Tutorial in R and JASP.” <em>Advances in Methods and Practices in Psychological Science</em> 6 (4): 1–18. <a href="https://doi.org/10.1177/25152459231193334" class="external-link uri">https://doi.org/10.1177/25152459231193334</a>.
-</div>
-<div id="ref-KassRaftery_1995" class="csl-entry">
-Kass, R. E., and A. E. Raftery. 1995. “Bayes Factors.” <em>Journal of the American Statistical Association</em> 90 (430): 773–95. <a href="https://doi.org/10.2307/2291091" class="external-link uri">https://doi.org/10.2307/2291091</a>.
 </div>
 <div id="ref-KindermannSnell1980" class="csl-entry">
 Kindermann, R., and J. L. Snell. 1980. <em>Markov Random Fields and Their Applications</em>. Vol. 1. Contemporary Mathematics. Providence: American Mathematical Society.
@@ -107,8 +100,8 @@ Kindermann, R., and J. L. Snell. 1980. <em>Markov Random Fields and Their Applic
 <div id="ref-Lauritzen2004" class="csl-entry">
 Lauritzen, S. L.. 2004. <em>Graphical Models</em>. Oxford: Oxford University Press.
 </div>
-<div id="ref-MarsmanHaslbeck_2023_OrdinalMRF" class="csl-entry">
-Marsman, M., and J. M. B. Haslbeck. 2023. “Bayesian Analysis of the Ordinal Markov Random Field.” <em>PsyArXiv</em>. <a href="https://doi.org/10.31234/osf.io/ukwrf" class="external-link uri">https://doi.org/10.31234/osf.io/ukwrf</a>.
+<div id="ref-MarsmanVandenBerghHaslbeck_inpress" class="csl-entry">
+Marsman, M., van den Bergh, D. and J. M. B. Haslbeck. In press. “Bayesian Analysis of the Ordinal Markov Random Field.” <em>Psychometrika</em>. <a href="https://doi.org/10.1017/psy.2024.4" class="external-link uri">https://doi.org/10.1017/psy.2024.4</a>.
 </div>
 <div id="ref-MarsmanRhemtulla_2022_SIintro" class="csl-entry">
 Marsman, M., and M. Rhemtulla. 2022. “Guest Editors’ Introduction to the Special Issue ‘Network Psychometrics in Action’: Methodological Innovations Inspired by Empirical Problems.” <em>Psychometrika</em> 87 (1): 1–11. <a href="https://doi.org/10.1007/s11336-022-09861-x" class="external-link uri">https://doi.org/10.1007/s11336-022-09861-x</a>.
@@ -118,12 +111,6 @@ Robinaugh, D. J., R. H. A. Hoekstra, E. R. Toner, and D. Borsboom. 2020. “The 
 </div>
 <div id="ref-SekulovskiEtAl_2023" class="csl-entry">
 Sekulovski N, Keetelaar S, Huth K, Wagenmakers E.-J, van Bork R, van den Bergh D, Marsman M (2024). “Testing conditional independence in psychometric networks: An analysis of three bayesian methods.” <em>Multivariate Behavioral Research</em>, 1–21. <a href="doi:10.1080/00273171.2024.2345915" class="uri">doi:10.1080/00273171.2024.2345915</a>.
-</div>
-<div id="ref-Wagenmakers_2007" class="csl-entry">
-Wagenmakers, E.-J. 2007. “A Practical Solution to the Pervasive Problems of p Values.” <em>Psychonomic Bulletin &amp; Review</em> 14: 779–804. <a href="https://doi.org/10.3758/BF03194105" class="external-link uri">https://doi.org/10.3758/BF03194105</a>.
-</div>
-<div id="ref-WagenmakersEtAl_2018_BIP1" class="csl-entry">
-Wagenmakers, E.-J., M. Marsman, T. Jamil, A. Ly, J. Verhagen, J. Love, R. Selker, et al. 2018. “Bayesian Inference for Psychology. Part I: Theoretical Advantages and Practical Ramifications.” <em>Psychonomic Bulleting &amp; Review</em> 25 (1): 58–76. <a href="https://doi.org/10.3758/s13423-017-1343-3" class="external-link uri">https://doi.org/10.3758/s13423-017-1343-3</a>.
 </div>
 </div>
 </div>
