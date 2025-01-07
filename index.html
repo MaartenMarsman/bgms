@@ -58,7 +58,9 @@
 <div class="section level1">
 <div class="page-header"><h1 id="bgms-bayesian-analysis-of-graphical-models">bgms: Bayesian Analysis of Graphical Models<a class="anchor" aria-label="anchor" href="#bgms-bayesian-analysis-of-graphical-models"></a>
 </h1></div>
-<p>The <code>R</code> package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman, van den Bergh, and Haslbeck, in press). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.</p>
+<p style="text-align:justify">
+The R package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman, van den Bergh, and Haslbeck, in press). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.
+</p>
 <p>The <strong>bgm</strong> function can be used for a one sample design and the <strong>bgmCompare</strong> function can be used for a two independent samples design (cf., Marsman, Waldorp, Sekulovski, and Haslbeck, 2024). Both functions can model the selection of effects. In one-sample designs, the <strong>bgm</strong> function models the presence or absence of edges between pairs of variables in the network. The estimated posterior inclusion probability indicates how plausible it is that a network with an edge between the two corresponding variables produced the observed data, and can be converted into a Bayes factor test for conditional independence.</p>
 <p>In two independent samples designs, the <strong>bgmCompare</strong> function models the selection of group differences in edge weights and possibly category thresholds. The estimated posterior inclusion probability indicates how plausible it is that graphical models with a difference in the corresponding edge weight or category threshold generated the data at hand, and can be converted to a Bayes factor test for parameter equivalence.</p>
 <div class="section level2">
@@ -89,7 +91,7 @@
 <div id="refs" class="references csl-bib-body hanging-indent">
 
 <div id="ref-ContrerasEtAl_2019" class="csl-entry">
-Contreras, A., I. Nieto, C. Valiente, R. Espinosa, and C. Vazquez. 2019. “The Study of Psychopathology from the Network Analysis Perspective: A Systematic Review.” <em>Psychotherapy and Psychosomatics</em> 88 (2): 71–83. <a href="https://doi.org/10.1159/000497425" class="external-link uri">https://doi.org/10.1159/000497425</a>.
+Contreras, A., Nieto, I., Valiente, C., Espinosa, R., &amp; Vazquez, C. (2019) The study of psychopathology from the network analysis perspective: A systematic review. <em>Psychotherapy and Psychosomatics</em>, <em>88</em>(2), 71–83. <a href="https://doi.org/10.1159/000497425" class="external-link uri">https://doi.org/10.1159/000497425</a>.
 </div>
 <div id="ref-HuthEtAl_2023_intro" class="csl-entry">
 Huth, K., J. de Ron, A. E. Goudriaan, K. Luigjes, R. Mohammadi, R. J. van Holst, E.-J. Wagenmakers, and M. Marsman. 2023. “Bayesian Analysis of Cross-Sectional Networks: A Tutorial in R and JASP.” <em>Advances in Methods and Practices in Psychological Science</em> 6 (4): 1–18. <a href="https://doi.org/10.1177/25152459231193334" class="external-link uri">https://doi.org/10.1177/25152459231193334</a>.
