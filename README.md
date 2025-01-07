@@ -4,9 +4,9 @@
 [![Total](https://cranlogs.r-pkg.org/badges/grand-total/bgms)](https://cran.r-project.org/package=bgms)
 <!-- badges: end -->
 
-# bgms: Bayesian Analysis of Graphical Models
+# bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables
 
-<p style="text-align:justify"> The R package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman, van den Bergh, & Haslbeck, in press). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters. </p>
+The R package <strong>bgms</strong> provides tools for Bayesian analysis of the ordinal Markov random field, a graphical model describing a network of binary and/or ordinal variables (Marsman, van den Bergh, & Haslbeck, in press). A pseudolikelihood is used to approximate the likelihood of the graphical model, and Markov chain Monte Carlo methods are used to simulate from the corresponding pseudoposterior distribution of the graphical model parameters.
 
 The <strong>bgm</strong> function can be used for a one-sample design and the <strong>bgmCompare</strong> function can be used for a two-independent-samples design (cf., Marsman, Waldorp, Sekulovski, & Haslbeck, 2024). Both functions can model the selection of effects. In one-sample designs, the <strong>bgm</strong> function models the presence or absence of edges between pairs of variables in the network. The estimated posterior inclusion probability indicates how plausible it is that a network with an edge between the two corresponding variables produced the observed data, and can be converted into a Bayes factor test for conditional independence.
 

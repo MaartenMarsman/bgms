@@ -7,33 +7,28 @@
 \title{bgms: Bayesian Analysis of Networks of Binary and/or Ordinal Variables}
 \description{
 The \code{R} package \strong{bgms} provides tools for Bayesian analysis of
-graphical models describing networks of variables. The package uses Markov
-chain Monte Carlo methods combined with a pseudolikelihood approach to
-estimate the posterior distribution of model parameters.
+the ordinal Markov random field, a graphical model describing a network of
+binary and/or ordinal variables \insertCite{MarsmanVandenBerghHaslbeck_2024}{bgms}.
+A pseudolikelihood is used to approximate the likelihood of the graphical
+model, and Markov chain Monte Carlo methods are used to simulate from the
+corresponding pseudoposterior distribution of the graphical model parameters.
 
-Gibbs variable selection \insertCite{GeorgeMcCulloch_1993}{bgms} is used to
-model the underlying network structure of the graphical model. By imposing a
-discrete spike and slab prior on the pairwise interactions, it is possible to
-shrink the interactions to exactly zero. The Gibbs sampler embeds a
-Metropolis approach for mixtures of mutually singular distributions
-\insertCite{GottardoRaftery_2008}{bgms} to account for the discontinuity at
-zero. The goal is to provide these tools for Markov Random Field (MRF) models
-for a wide range of variable types in the \strong{bgms} package, and
-it currently provides them for analyzing networks of binary and/or ordinal
-variables \insertCite{MarsmanHaslbeck_2023_OrdinalMRF}{bgms}.
+The \strong{bgm} function can be used for a one-sample design and the
+\strong{bgmCompare} function can be used for a two-independent-samples design
+\insertCite{MarsmanWaldorpSekulovskiHaslbeck_2024}{bgms}. Both functions can
+model the selection of effects. In one-sample designs, the \strong{bgm}
+function models the presence or absence of edges between pairs of variables
+in the network. The estimated posterior inclusion probability indicates how
+plausible it is that a network with an edge between the two corresponding
+variables produced the observed data, and can be converted into a Bayes
+factor test for conditional independence.
 
-While the goal is to provide the above tools for Markov Random Field (MRF)
-models for a wide range of variable types in the \strong{bgms} package, it
-currently provides tools for analyzing networks of binary and/or ordinal
-variables \insertCite{MarsmanHaslbeck_2023_OrdinalMRF}{bgms}.
-
-MRFs are a special class of graphical models whose graph structure reflects
-the conditional associations between their variables, making them useful for
-testing for conditional independence or dependence. For example, the
-inclusion Bayes factor tests for conditional independence or dependence of a
-pair of variables in the network by comparing the predictive adequacy of
-models that include the edge between these variables and models that exclude
-the edge. \insertCite{HuthEtAl_2023_intro,SekulovskiEtAl_2023}{bgms}.
+In two-independent-samples designs, the \strong{bgmCompare} function models
+the selection of group differences in edge weights and possibly category
+thresholds. The estimated posterior inclusion probability indicates how
+plausible it is that graphical models with a difference in the corresponding
+edge weight or category threshold generated the data at hand, and can be
+converted to a Bayes factor test for parameter equivalence.
 
 The \strong{bgms} package offers several tools for analyzing the structure of
 the MRF:
@@ -44,9 +39,16 @@ the MRF:
    \item Simulate \code{\link{mrfSampler}}.
  }
  \item Estimate the posterior distribution of the MRF's parameters and
- possibly its network structure using Gibbs variable selection.
+ possibly its network structure in one-sample designs.
  \itemize{
  \item Bayesian estimation or Bayesian edge selection with \code{\link{bgm}}.
+ }
+
+ \item Estimate the posterior distribution of the MRF's parameters in a
+ two-independent-sample design, and possibly perform selection on group
+ differences in MRF parameters.
+ \itemize{
+ \item Bayesian estimation or Bayesian difference selection with \code{\link{bgmCompare}}.
  }
 }
 }

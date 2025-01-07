@@ -2,12 +2,12 @@ citHeader("To cite bgms in publications use:")
 
 bibentry(
   bibtype = "manual",
-  title    = "bgms: Bayesian Edge Selection or Estimation for Networks of Binary and Ordinal Variables",
+  title    = "bgms: Bayesian analysis of networks of binary and/or ordinal variables",
   author   = "Maarten Marsman and Karoline Huth and Nikola Sekulovski and Don van den Bergh",
   year     = "2024",
   url      = "https://CRAN.R-project.org/package=bgms",
-  note     = "R package version 0.1.4.1",
-  textVersion = "Marsman, M., Huth, K., Sekulovski, N., & van den Bergh, D. (2024). bgms: Bayesian Edge Selection or Estimation for Networks of Binary and Ordinal Variables. https://CRAN.R-project.org/package=bgms"
+  note     = "R package version 0.1.4.2",
+  textVersion = "Marsman, M., Huth, K., Sekulovski, N., & van den Bergh, D. (2024). bgms: Bayesian analysis of networks of binary and/or ordinal variables. https://CRAN.R-project.org/package=bgms"
 )
 
 
