@@ -1,104 +1,107 @@
 #' Bayesian variable selection or Bayesian estimation for differences in the
-#' Markov random field model for binary and/or ordinal variables in two
-#' independent samples.
+#' Markov random field model for binary and/or ordinal variables in independent
+#' samples.
 #'
 #' @description
 #' The \code{bgmCompare} function estimates the pseudoposterior distribution of
 #' the parameters of a Markov Random Field model for mixed binary and ordinal
 #' variables, and the differences in pairwise interactions and category thresholds
-#' between two groups. The groups are assumed to be two independent samples.
+#' between groups. The groups are assumed to be \code{G} independent samples.
 #'
 #' @details
-#' In the first group, the pairwise interactions between the variables \eqn{i}{i}
-#' and \eqn{j}{j} are modeled as
-#' \deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}
-#' and in the second group as
-#' \deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2.}
-#' The pairwise interaction parameter \eqn{\theta_{\text{ij}}}{\theta_{\text{ij}}}
-#' denotes an overall effect that is considered nuisance, and attention is focused
-#' on the pairwise difference parameter \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}},
-#' which reflects the difference in the pairwise interaction between the two groups.
+#' The pairwise interactions between the variables \eqn{i}{i} and \eqn{j}{j} are
+#' modeled as
+#' \deqn{\boldsymbol{\theta}_{\text{ij}} = \phi_{\text{ij}} + \boldsymbol{\delta}_{\text{ij}},}{
+#' \boldsymbol{\theta}_{\text{ij}} = \phi_{\text{ij}} + \boldsymbol{\delta}_{\text{ij}},}
+#' where \eqn{\boldsymbol{\theta}_{\text{ij}}}{\boldsymbol{\theta}_{\text{ij}}}
+#' is the vector of pairwise interaction parameters of length \eqn{G}{G},
+#' \eqn{G}{G} is the number of groups, \eqn{\phi_{\text{ij}}}{\phi_{\text{ij}}}
+#' is the overall pairwise interaction that is considered nuisance, and attention
+#' is focused on the group differences from the overall pairwise interactions in
+#' the vector \eqn{\boldsymbol{\delta}_{\text{ij}}}{\boldsymbol{\delta}_{\text{ij}}}.
+#' The group differences from the overall pairwise interaction are constrained
+#' to sum to zero for identification.
 #'
 #' The \code{bgmCompare} function supports two types of ordinal variables, which
 #' can be mixed. The default ordinal variable introduces a threshold parameter
-#' for each category except the lowest category. For this variable type, the threshold parameter for
-#' variable \eqn{i}{i}, category \eqn{c}{c}, is modeled as
-#' \deqn{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}
-#' in the first group and in the second group as
-#' \deqn{\mu_{\text{ic}} = \tau_{\text{ic}} - \epsilon_{\text{ic}} / 2,}{\mu_{\text{ic}} = \tau_{\text{ic}} - \epsilon_{\text{ic}} / 2.}
-#' The category threshold parameter \eqn{\tau_{\text{ic}}}{\tau_{\text{ic}}} denotes
-#' an overall effect that is considered nuisance, and attention is focused on the
-#' threshold difference parameter \eqn{\epsilon_{\text{ic}}}{\epsilon_{\text{ic}}},
-#' which reflects the difference in threshold of for variable \eqn{i}{i}, category
-#' \eqn{c}{c} between the two groups.
+#' for each category except the lowest category. For this variable type,
+#' the vector of threshold parameters for variable \eqn{i}{i}, category
+#' \eqn{c}{c}, is modeled as
+#' \deqn{\boldsymbol{\mu}_{\text{ic}} = \tau_{\text{ic}} + \boldsymbol{\epsilon}_{\text{ic}},}{\boldsymbol{\mu}_{\text{ic}} = \tau_{\text{ic}} + \boldsymbol{\epsilon}_{\text{ic}},}
+#' where category threshold parameter \eqn{\tau_{\text{ic}}}{\tau_{\text{ic}}}
+#' denotes an overall effect that is considered nuisance, and attention is
+#' focused on the vector of group differences from the overall category
+#' threshold parameter \eqn{\boldsymbol{\epsilon}_{\text{ic}}}{\boldsymbol{\epsilon}_{\text{ic}}}.
+#' The group differences from the overall category threshold are constrained to
+#' sum to zero for identification.
 #'
 #' The Blume-Capel ordinal variable assumes that there is a specific reference
 #' category, such as ``neutral'' in a Likert scale, and responses are scored
-#' according to their distance from this reference category. In the first group,
-#' the threshold parameters are modelled as
-#' \deqn{\mu_{\text{ic}} = (\tau_{\text{i1}} + \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} + \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2,}{ {\mu_{\text{ic}} = (\tau_{\text{i1}} + \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} + \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2,}}
-#' and in the second groups as
-#' \deqn{\mu_{\text{ic}} = (\tau_{\text{i1}} - \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} - \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2.}{ {\mu_{\text{ic}} = (\tau_{\text{i1}} - \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} - \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2.}}
-#' The linear and quadratic category threshold parameters
-#' \eqn{\tau_{\text{i1}}}{\tau_{\text{i1}}} and \eqn{\tau_{\text{i2}}}{\tau_{\text{i2}}}
+#' according to their distance from this reference category. The vector of
+#' category threshold parameters are modeled as
+#' \deqn{\boldsymbol{\mu}_{\text{ic}} = (\tau_{\text{i1}} + \boldsymbol{\epsilon}_{\text{i1}}) \times \text{c} + (\tau_{\text{i2}} + \boldsymbol{\epsilon}_{\text{i2}}) \times (\text{c} - \text{r})^2,}{ \boldsymbol{\mu}_{\text{ic}} = (\tau_{\text{i1}} + \boldsymbol{\epsilon}_{\text{i1}}) \times \text{c} + (\tau_{\text{i2}} + \boldsymbol{\epsilon}_{\text{i2}}) \times (\text{c} - \text{r})^2,}
+#' where \eqn{\tau_{\text{i1}}}{\tau_{\text{i1}}} and \eqn{\tau_{\text{i2}}}{\tau_{\text{i2}}}
 #' denote overall effects that are considered nuisance, and attention is focused
-#' on the two threshold difference parameters
-#' \eqn{\epsilon_{\text{i1}}}{\epsilon_{\text{i1}}} and
-#' \eqn{\epsilon_{\text{i2}}}{\epsilon_{\text{i2}}}, which reflect the differences
-#' in the quadratic model for the variable \eqn{i}{i} between the two groups.
+#' on the vectors of group differences from these overall effects;
+#' \eqn{\boldsymbol{\epsilon}_{\text{i1}}}{\boldsymbol{\epsilon}_{\text{i1}}} and
+#' \eqn{\boldsymbol{\epsilon}_{\text{i2}}}{\boldsymbol{\epsilon}_{\text{i2}}}.
+#' The group differences from the overall Blume-Capel parameters are constrained
+#' to sum to zero for identification.
 #'
 #' Bayesian variable selection is used to model the presence or absence of the
-#' difference parameters \eqn{\delta}{\delta} and \eqn{\epsilon}{\epsilon}, which
-#' allow us to assess parameter differences between the two groups. Independent
-#' spike and slab priors are specified for these difference parameters. The spike
-#' and slab priors use binary indicator variables to select the difference parameters,
-#' assigning them a diffuse Cauchy prior with an optional scaling parameter if
-#' selected, or setting the difference parameter to zero if not selected.
+#' vectors of difference parameters \eqn{\boldsymbol{\delta}}{\boldsymbol{\delta}}
+#' and \eqn{\boldsymbol{\epsilon}}{\boldsymbol{\epsilon}}, which allow us to
+#' test hypotheses about parameter differences or equivalence across groups.
+#' Independent spike and slab priors are specified for these (vectors of)
+#' difference parameters. The spike and slab prior uses a binary indicator
+#' variable to select the vector of difference parameters, assigning them a
+#' diffuse (multivariate) Cauchy prior with an optional scaling parameter if
+#' selected, or setting the vector of difference parameters to zero if not
+#' selected.
 #'
 #' The function offers two models for the probabilistic inclusion of parameter
 #' differences:
 #' \itemize{
 #'   \item \strong{Bernoulli Model}: This model assigns a fixed probability of
-#'   selecting a parameter difference, treating them as independent events. A
-#'   probability of 0.5 indicates no preference, giving equal prior weight to
-#'   all configurations.
+#'   selecting a vector of parameter differences, treating them as independent
+#'   events. A probability of 0.5 indicates no preference, giving equal prior
+#'   weight to all configurations.
 #'   \item \strong{Beta-Bernoulli Model}: Introduces a beta distribution prior
-#'   for the inclusion probability that models the complexity of the configuration
-#'   of the difference indicators. When the alpha and beta shape parameters of the
-#'   beta distribution are set to 1, the model assigns the same prior weight to
-#'   the number of differences present (i.e., a configuration with two differences
-#'   or with four differences is a priori equally likely).
-#'   }
-#'   Inclusion probabilities can be specified for pairwise interactions with
-#'   \code{pairwise_difference_probability} and for category thresholds with
-#'   \code{threshold_difference_probability}.
+#'   for the inclusion probability that models the complexity of the
+#'   configuration of the vector of difference indicators. When the shape
+#'   parameters of the beta distribution are set to 1, the model assigns the
+#'   same prior weight to the number of difference vectors present (i.e., a
+#'   configuration with two difference or with four differences is a priori
+#'   equally likely).
+#' }
+#' Inclusion probabilities can be specified for pairwise interactions with
+#' \code{pairwise_difference_probability} and for category thresholds with
+#' \code{threshold_difference_probability}.
 #'
 #' The pairwise interaction parameters \eqn{\theta}{\theta}, the category
-#' threshold parameters \eqn{\tau}{\tau}, and, in the not yet implemented paired-samples designs,
-#' the between-sample interactions \eqn{\omega}{\omega} are considered
-#' nuisance parameters that are common to all models. The pairwise interaction
-#' parameters \eqn{\theta}{\theta} and the between-sample interactions
-#' \eqn{\omega}{\omega} are assigned a diffuse Cauchy prior with an optional
-#' scaling parameter. The exponent of the category threshold parameters
-#' \eqn{\tau}{\tau} are assigned beta-prime distribution with optional scale
-#' values.
+#' threshold parameters \eqn{\tau}{\tau} are considered nuisance parameters that
+#' are common to all models. The pairwise interaction parameters \eqn{\theta}{\theta}
+#' are assigned a diffuse Cauchy prior with an optional scaling parameter. The
+#' exponent of the category threshold parameters \eqn{\tau}{\tau} are assigned
+#' beta-prime distribution with optional scale values.
 #'
-#' @param x A data frame or matrix with \eqn{n_1}{n_1} rows and \code{p} columns
-#' containing binary and ordinal responses for the first group. Regular ordinal
-#' variables are recoded as non-negative integers \code{(0, 1, ..., m)} if not
-#' already done. Unobserved categories are collapsed into other categories after
-#' recoding (i.e., if category 1 is unobserved, the data are recoded from (0, 2)
-#' to (0, 1)). Blume-Capel ordinal variables are also coded as non-negative
+#' @param x A data frame or matrix with \eqn{n}{n} rows and \code{p} columns
+#' containing binary and ordinal responses. Regular ordinal variables are
+#' recoded as non-negative integers \code{(0, 1, ..., m)} if not already done.
+#' Unobserved categories are collapsed into other categories after recoding
+#' (i.e., if category 1 is unobserved, the data are recoded from (0, 2) to
+#' (0, 1)). Blume-Capel ordinal variables are also coded as non-negative
 #' integers if not already done. However, since ``distance'' from the reference
 #' category plays an important role in this model, unobserved categories are not
 #' collapsed after recoding.
-#' @param y A data frame or matrix with \eqn{n_2}{n_2} rows and \code{p} columns
-#' containing binary and ordinal responses for the second group. The variables
-#' or columns in \code{y} must match the variables or columns in \code{x}. In
-#' the paired samples design, the rows in \code{x} must match the rows in
-#' \code{y}. Note that \code{x} and \code{y} are recoded independently, although
-#' the function checks that the number of different responses observed matches
-#' between \code{x} and \code{y}.
+#' @param y A data frame or matrix with \eqn{n}{n} rows and \code{p} columns
+#' containing binary and ordinal responses, similar to \code{x}. Optional
+#' argument for two-group designs, where \code{x} contains the data for Group 1
+#' and \code{y} contains the data for Group 2.
+#' @param g A vector of length \eqn{n}{n} containing group membership indicators
+#' for the rows of \code{x}. Optional argument for two-group designs (see the
+#' documentation for \code{y}), but required for multi-group designs. This
+#' argument is ignored if there is an input for \code{y}.
 #' @param difference_selection Logical. If \code{TRUE}, \code{bgmCompare} will
 #' model the inclusion or exclusion of the between samples parameter
 #' differences; if \code{FALSE}, it will estimate all between-sample
@@ -116,14 +119,14 @@
 #' in \code{x} (and \code{y}). Supported types are "ordinal" and "blume-capel",
 #' with binary variables treated as "ordinal". Default is "ordinal".
 #' @param reference_category The reference category in the Blume-Capel model.
-#' Should be an integer within the range of integer values observed for the "blume-capel"
-#' variable. Can be a single number that sets the reference category for all
-#' Blume-Capel variables at once, or a vector of length \code{p}, where the
-#' \code{i}-th element is the reference category for the \code{i} variable if
-#' it is a Blume-Capel variable, and elements for other variable types are
-#' ignored. The value of the reference category is also recoded when
-#' `bgmCompare` recodes the corresponding observations. Required only if there
-#' is at least one variable of type "blume-capel".
+#' Should be an integer within the range of integer values observed for the
+#' "blume-capel" variable. Can be a single number that sets the reference
+#' category for all Blume-Capel variables at once, or a vector of length
+#' \code{p}, where the \code{i}-th element is the reference category for the
+#' \code{i} variable if it is a Blume-Capel variable, and elements for other
+#' variable types are ignored. The value of the reference category is also
+#' recoded when `bgmCompare` recodes the corresponding observations. Required
+#' only if there is at least one variable of type "blume-capel".
 #' @param pairwise_difference_scale The scale of the Cauchy distribution that is
 #' used as the prior for the pairwise difference parameters. Defaults to
 #' \code{1}.
@@ -164,9 +167,9 @@
 #' prior density for the nuisance threshold parameters. Must be positive values.
 #' If the two values are equal, the prior density is symmetric about zero. If
 #' \code{threshold_beta} is greater than \code{threshold_alpha}, the distribution
-#' is left-skewed, and if \code{threshold_beta} is less than \code{threshold_alpha},
-#' it is right-skewed. Smaller values tend to result in more diffuse prior
-#' distributions.
+#' is left-skewed, and if \code{threshold_beta} is less than
+#' \code{threshold_alpha}, it is right-skewed. Smaller values tend to result in
+#' more diffuse prior distributions.
 #' @param iter The function uses a Gibbs sampler to sample from the posterior
 #' distribution of the model parameters and indicator variables. How many
 #' iterations should this Gibbs sampler run? The default of \code{1e4} is for
@@ -201,12 +204,14 @@
 #'    columns containing the posterior inclusion probabilities of the differences
 #'    in pairwise interactions on the off-diagonal and the posterior inclusion
 #'    probabilities of the differences in category thresholds on the diagonal.
-#'    \item \code{difference_pairwise}: A matrix with \code{p} rows and \code{p}
-#'    columns, containing model-averaged posterior means of the differences in
-#'    pairwise interactions.
-#'    \item \code{difference_threshold}: A matrix with \code{p} rows and
-#'    \code{max(m)} columns, containing model-averaged posterior means of the
-#'    differences in category thresholds.
+#'    \item \code{difference_pairwise}: A list of length \code{G}, the number of
+#'    groups, each containing a matrix with \code{p} rows and \code{p} columns
+#'    containing model-averaged posterior means of the
+#'    differences in pairwise interactions for that group.
+#'    \item \code{difference_threshold}: A list of length \code{G}, the number of
+#'    groups, each containing a matrix with \code{p} rows and \code{max(m)}
+#'    columns containing model-averaged posterior means of the
+#'    differences in category thresholds for that group.
 #'    \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
 #'    containing posterior means of the nuisance pairwise interactions.
 #'    \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
@@ -223,17 +228,20 @@
 #'    \code{p * (p - 1) / 2} columns containing the inclusion indicators for the
 #'    differences in pairwise interactions from each iteration of the Gibbs
 #'    sampler.
-#'    \item \code{difference_pairwise}: A matrix with \code{iter} rows and
+#'    \item \code{difference_pairwise}: A list of length \code{G}, the number of
+#'    groups, each containing a matrix with \code{iter} rows and
 #'    \code{p * (p - 1) / 2} columns, containing parameter states for the
 #'    differences in pairwise interactions from each iteration of the Gibbs
-#'    sampler.
+#'    sampler for that group.
 #'    \item \code{indicator_threshold}: A matrix with \code{iter} rows and
 #'    \code{sum(m)} columns, containing the inclusion indicators for the
 #'    differences in category thresholds from each iteration of the Gibbs
 #'    sampler.
-#'    \item \code{difference_threshold}: A matrix with \code{iter} rows and
+#'    \item \code{difference_threshold}: A list of length \code{G}, the number of
+#'    groups, each containing a matrix with \code{iter} rows and
 #'    \code{sum(m)} columns, containing the parameter states for the differences
-#'    in category thresholds from each iteration of the Gibbs sampler.
+#'    in category thresholds from each iteration of the Gibbs sampler for that
+#'    group.
 #'    \item \code{interactions}: A matrix with \code{iter} rows and
 #'    \code{p * (p - 1) / 2} columns, containing parameter states for the
 #'    nuisance pairwise interactions in each iteration of the Gibbs sampler.
@@ -250,6 +258,7 @@
 #' @export
 bgmCompare = function(x,
                       y,
+                      g,
                       difference_selection = TRUE,
                       main_difference_model = c("Free", "Collapse", "Constrain"),
                       variable_type = "ordinal",
@@ -273,7 +282,13 @@ bgmCompare = function(x,
                       save = FALSE,
                       display_progress = TRUE) {
 
+  ttest = hasArg(y)
+
   #Check data input ------------------------------------------------------------
+  if(!ttest & !hasArg(g))
+    stop(paste0("For multi-group designs, the bgmCompare function requires input for\n",
+                "either y (group 2 data) or g (group indicator)."))
+
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
     stop("The input x needs to be a matrix or dataframe.")
   if(inherits(x, what = "data.frame"))
@@ -283,22 +298,44 @@ bgmCompare = function(x,
   if(nrow(x) < 2)
     stop("The matrix x should have more than one observation (rows).")
 
-  if(!inherits(y, what = "matrix") && !inherits(y, what = "data.frame"))
-    stop("The input y needs to be a matrix or dataframe.")
-  if(inherits(y, what = "data.frame"))
-    y = data.matrix(y)
-  if(ncol(y) < 2)
-    stop("The matrix y should have more than one variable (columns).")
-  if(nrow(y) < 2)
-    stop("The matrix y should have more than one observation (rows).")
+  if(ttest) {
+    if(!inherits(y, what = "matrix") && !inherits(y, what = "data.frame"))
+      stop("The input y needs to be a matrix or dataframe.")
+    if(inherits(y, what = "data.frame"))
+      y = data.matrix(y)
 
-  if(ncol(x) != ncol(y))
-    stop("The matrix x should have as many variables (columns) as the matrix y.")
+    if(ncol(x) != ncol(y))
+      stop("The matrix x should have as many variables (columns) as the matrix y.")
 
+    if(nrow(y) < 2)
+      stop("The matrix y should have more than one observation (rows).")
+  }
+
+  if(!ttest & hasArg(g)) {
+    g = as.vector(g)
+    if(anyNA(g))
+      stop("The input g has missing values.")
+    if(length(g) != nrow(x))
+      stop("The input g needs to be a vector of length nrow(x).")
+
+    unique_g = unique(g)
+    if(length(unique_g) == 2) {
+      y = x[g == unique_g[2]]
+      x = x[g == unique_g[1]]
+      ttest = TRUE
+    }
+  }
 
   #Check model input -----------------------------------------------------------
+  if(!ttest) #True if either hasArg(y) or length(unique(g)) = 2
+    y = NULL
+  if(!hasArg(g))
+    g = NULL
+
   model = check_compare_model(x = x,
                               y = y,
+                              g = g,
+                              ttest = ttest,
                               difference_selection = difference_selection,
                               variable_type = variable_type,
                               reference_category = reference_category,
@@ -364,67 +401,109 @@ bgmCompare = function(x,
   #Format the data input -------------------------------------------------------
   data = compare_reformat_data(x = x,
                                y = y,
+                               g = g,
+                               ttest = ttest,
                                na.action = na.action,
                                variable_bool = ordinal_variable,
                                reference_category = reference_category,
                                main_difference_model = main_difference_model)
   x = data$x
-  y = data$y
+  if(ttest == TRUE) {
+    y = data$y
 
-  no_categories_gr1 = data$no_categories
-  no_categories_gr2 = data$no_categories_gr2
-  missing_index_gr1 = data$missing_index_gr1
-  missing_index_gr2 = data$missing_index_gr2
+    no_categories_gr1 = data$no_categories[, 1]
+    no_categories_gr2 = data$no_categories[, 2]
+    missing_index_gr1 = data$missing_index_gr1
+    missing_index_gr2 = data$missing_index_gr2
+
+    no_obs_groups = c(nrow(x), nrow(y))
+  } else {
+    group = data$group
+    no_obs_groups = tabulate(group)
+    missing_index = data$missing_index
+  }
+
   na_impute = data$na_impute
   reference_category = data$reference_category
 
   no_variables = ncol(x)
   no_interactions = no_variables * (no_variables - 1) / 2
-  no_thresholds = sum(no_categories_gr1)
 
   #Precompute the number of observations per category for each variable --------
-  if(main_difference_model == "Free") {
-    n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
-                                           nrow = max(c(no_categories_gr1,
-                                                        no_categories_gr2)) + 1,
-                                           ncol = no_variables)
-    for(variable in 1:no_variables) {
-      for(category in 0:no_categories_gr1[variable]) {
-        n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
+  if(ttest == TRUE) {
+    if(main_difference_model == "Free") {
+      n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
+                                             nrow = max(c(no_categories_gr1,
+                                                          no_categories_gr2)) + 1,
+                                             ncol = no_variables)
+      for(variable in 1:no_variables) {
+        for(category in 0:no_categories_gr1[variable]) {
+          n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
+        }
+        for(category in 0:no_categories_gr2[variable]) {
+          n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+        }
       }
-      for(category in 0:no_categories_gr2[variable]) {
-        n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+    } else {
+      n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
+                                             nrow = max(no_categories_gr1) + 1,
+                                             ncol = no_variables)
+      for(variable in 1:no_variables) {
+        for(category in 0:no_categories_gr1[variable]) {
+          n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
+          n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
+        }
+      }
+    }
+
+    #Precompute the sufficient statistics for the two Blume-Capel parameters -----
+    sufficient_blume_capel_gr1 = matrix(0, nrow = 2, ncol = no_variables)
+    sufficient_blume_capel_gr2 = matrix(0, nrow = 2, ncol = no_variables)
+    if(any(!ordinal_variable)) {
+      # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+      bc_vars = which(!ordinal_variable)
+      for(i in bc_vars) {
+        sufficient_blume_capel_gr1[1, i] = sum(x[, i])
+        sufficient_blume_capel_gr1[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
+        sufficient_blume_capel_gr2[1, i] = sum(y[, i])
+        sufficient_blume_capel_gr2[2, i] = sum((y[, i] - reference_category[i]) ^ 2)
       }
     }
   } else {
-    n_cat_obs_gr1 = n_cat_obs_gr2 = matrix(0,
-                                           nrow = max(no_categories_gr1) + 1,
-                                           ncol = no_variables)
-    for(variable in 1:no_variables) {
-      for(category in 0:no_categories_gr1[variable]) {
-        n_cat_obs_gr1[category + 1, variable] = sum(x[, variable] == category)
-        n_cat_obs_gr2[category + 1, variable] = sum(y[, variable] == category)
-      }
-    }
-  }
+    n_cat_obs = list()
+    for(g in group) {
+      n_cat_obs_gr = matrix(0,
+                            nrow = max(no_categories[, g]) + 1,
+                            ncol = no_variables)
 
-  #Precompute the sufficient statistics for the two Blume-Capel parameters -----
-  sufficient_blume_capel_gr1 = matrix(0, nrow = 2, ncol = no_variables)
-  sufficient_blume_capel_gr2 = matrix(0, nrow = 2, ncol = no_variables)
-  if(any(!ordinal_variable)) {
-    # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
-    bc_vars = which(!ordinal_variable)
-    for(i in bc_vars) {
-      sufficient_blume_capel_gr1[1, i] = sum(x[, i])
-      sufficient_blume_capel_gr1[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
-      sufficient_blume_capel_gr2[1, i] = sum(y[, i])
-      sufficient_blume_capel_gr2[2, i] = sum((y[, i] - reference_category[i]) ^ 2)
+      for(variable in 1:no_variables) {
+        for(category in 0:no_categories_gr[variable, g]) {
+          n_cat_obs_gr[category + 1, variable] = sum(x[group == g, variable] == category)
+        }
+      }
+
+      n_cat_obs[[g]] = n_cat_obs_gr
+    }
+
+    #Precompute the sufficient statistics for the two Blume-Capel parameters -----
+    sufficient_blume_capel = list()
+    for(g in group) {
+      sufficient_blume_capel_gr = matrix(0, nrow = 2, ncol = no_variables)
+      if(any(!ordinal_variable)) {
+        # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
+        bc_vars = which(!ordinal_variable)
+        for(i in bc_vars) {
+          sufficient_blume_capel_gr[1, i] = sum(x[group == g, i])
+          sufficient_blume_capel_gr[2, i] = sum((x[group == g, i] - reference_category[i]) ^ 2)
+        }
+      }
+      sufficient_blume_capel[[g]] = sufficient_blume_capel_gr
     }
   }
 
   # Index vector used to sample interactions in a random order -----------------
   Index = matrix(0,
-                 nrow = no_variables * (no_variables - 1) / 2,
+                 nrow = no_interactions,
                  ncol = 3)
   cntr = 0
   for(variable1 in 1:(no_variables - 1)) {
@@ -437,44 +516,76 @@ bgmCompare = function(x,
   }
 
   #The Metropolis within Gibbs sampler -----------------------------------------
-  out = compare_gibbs_sampler(observations_gr1 = x,
-                              observations_gr2 = y,
-                              no_categories_gr1 = no_categories_gr1,
-                              no_categories_gr2 = no_categories_gr2,
-                              interaction_scale = interaction_scale,
-                              pairwise_difference_scale = pairwise_difference_scale,
-                              main_difference_scale = main_difference_scale,
-                              pairwise_difference_prior = pairwise_difference_prior,
-                              main_difference_prior = main_difference_prior,
-                              inclusion_probability_difference = inclusion_probability_difference,
-                              pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
-                              pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
-                              main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
-                              main_beta_bernoulli_beta = main_beta_bernoulli_beta,
-                              Index = Index,
-                              iter = iter,
-                              burnin = burnin,
-                              n_cat_obs_gr1 = n_cat_obs_gr1,
-                              n_cat_obs_gr2 = n_cat_obs_gr2,
-                              sufficient_blume_capel_gr1 = sufficient_blume_capel_gr1,
-                              sufficient_blume_capel_gr2 = sufficient_blume_capel_gr2,
-                              threshold_alpha = threshold_alpha,
-                              threshold_beta = threshold_beta,
-                              na_impute = na_impute,
-                              missing_index_gr1 = missing_index_gr1,
-                              missing_index_gr2 = missing_index_gr2,
-                              ordinal_variable = ordinal_variable,
-                              reference_category = reference_category,
-                              independent_thresholds = independent_thresholds,
-                              save = save,
-                              display_progress = display_progress,
-                              difference_selection = difference_selection)
+  if(ttest == TRUE) {
+    out = compare_gibbs_sampler(observations_gr1 = x,
+                                observations_gr2 = y,
+                                no_categories_gr1 = no_categories_gr1,
+                                no_categories_gr2 = no_categories_gr2,
+                                interaction_scale = interaction_scale,
+                                pairwise_difference_scale = pairwise_difference_scale,
+                                main_difference_scale = main_difference_scale,
+                                pairwise_difference_prior = pairwise_difference_prior,
+                                main_difference_prior = main_difference_prior,
+                                inclusion_probability_difference = inclusion_probability_difference,
+                                pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
+                                pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
+                                main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
+                                main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+                                Index = Index,
+                                iter = iter,
+                                burnin = burnin,
+                                n_cat_obs_gr1 = n_cat_obs_gr1,
+                                n_cat_obs_gr2 = n_cat_obs_gr2,
+                                sufficient_blume_capel_gr1 = sufficient_blume_capel_gr1,
+                                sufficient_blume_capel_gr2 = sufficient_blume_capel_gr2,
+                                threshold_alpha = threshold_alpha,
+                                threshold_beta = threshold_beta,
+                                na_impute = na_impute,
+                                missing_index_gr1 = missing_index_gr1,
+                                missing_index_gr2 = missing_index_gr2,
+                                ordinal_variable = ordinal_variable,
+                                reference_category = reference_category,
+                                independent_thresholds = independent_thresholds,
+                                save = save,
+                                display_progress = display_progress,
+                                difference_selection = difference_selection)
+  } else {
+    out = compare_gibbs_sampler_anova(observations = x,
+                                      group = group,
+                                      no_categories = no_categories,
+                                      no_obs_groups = no_obs_groups,
+                                      interaction_scale = interaction_scale,
+                                      pairwise_difference_scale = pairwise_difference_scale,
+                                      main_difference_scale = main_difference_scale,
+                                      pairwise_difference_prior = pairwise_difference_prior,
+                                      main_difference_prior = main_difference_prior,
+                                      inclusion_probability_difference = inclusion_probability_difference,
+                                      pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
+                                      pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
+                                      main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
+                                      main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+                                      Index = Index,
+                                      iter = iter,
+                                      burnin = burnin,
+                                      n_cat_obs = n_cat_obs,
+                                      sufficient_blume_capel = sufficient_blume_capel,
+                                      threshold_alpha = threshold_alpha,
+                                      threshold_beta = threshold_beta,
+                                      na_impute = na_impute,
+                                      missing_index = missing_index,
+                                      ordinal_variable = ordinal_variable,
+                                      reference_category = reference_category,
+                                      independent_thresholds = independent_thresholds,
+                                      save = save,
+                                      display_progress = display_progress,
+                                      difference_selection = difference_selection)
+  }
+
 
   #Preparing the output --------------------------------------------------------
   arguments = list(
     no_variables = no_variables,
-    no_cases_gr1 = nrow(x),
-    no_cases_gr2 = nrow(y),
+    no_cases = no_obs_groups,
     na_impute = na_impute,
     variable_type = variable_type,
     iter = iter,
@@ -502,12 +613,16 @@ bgmCompare = function(x,
   if(save == FALSE) {
     indicator = out$pairwise_difference_indicator
     if(independent_thresholds == TRUE) {
-      thresholds_gr1 = out$thresholds_gr1
-      thresholds_gr2 = out$thresholds_gr2
+      if(ttest == TRUE) {
+        thresholds_gr1 = out$thresholds_gr1
+        thresholds_gr2 = out$thresholds_gr2
+      } else {
+        thresholds = out$thresholds
+      }
     } else {
       main_difference_indicator = out$main_difference_indicator
       diag(indicator) = main_difference_indicator
-      thresholds = out$thresholds
+      thresholds = out$thresholds[[1]]
       main_difference = out$main_difference
     }
 
@@ -519,6 +634,7 @@ bgmCompare = function(x,
     } else {
       data_columnnames <- colnames(x)
     }
+
     colnames(interactions) = data_columnnames
     rownames(interactions) = data_columnnames
     colnames(pairwise_difference) = data_columnnames
@@ -527,25 +643,46 @@ bgmCompare = function(x,
     rownames(indicator) = data_columnnames
 
     if(independent_thresholds == TRUE) {
-      rownames(thresholds_gr1) = data_columnnames
-      rownames(thresholds_gr2) = data_columnnames
-      colnames(thresholds_gr1) = paste0("category ", 1:max(no_categories_gr1))
-      colnames(thresholds_gr2) = paste0("category ", 1:max(no_categories_gr2))
+      if(ttest == TRUE) {
+        rownames(thresholds_gr1) = data_columnnames
+        rownames(thresholds_gr2) = data_columnnames
+        colnames(thresholds_gr1) = paste0("category ", 1:max(no_categories_gr1))
+        colnames(thresholds_gr2) = paste0("category ", 1:max(no_categories_gr2))
+      } else {
+        for(g in group) {
+           rownames(thresholds[[g]]$thresholds) = data_columnnames
+           colnames(thresholds[[g]]$thresholds) = paste0("category ", 1:max(no_categories[, g]))
+        }
+      }
     } else {
       rownames(thresholds) = data_columnnames
       rownames(main_difference) = data_columnnames
-      colnames(thresholds) = paste0("category ", 1:max(no_categories_gr1))
-      colnames(main_difference) = paste0("category ", 1:max(no_categories_gr1))
+      if(ttest == TRUE) {
+        colnames(thresholds) = paste0("category ", 1:max(no_categories_gr1))
+        colnames(main_difference) = paste0("category ", 1:max(no_categories_gr1))
+      } else {
+        colnames(thresholds) = paste0("category ", 1:max(no_categories))
+        colnames(main_difference) = paste0("category ", 1:max(no_categories))
+      }
     }
     arguments$data_columnnames = data_columnnames
 
     if(independent_thresholds == TRUE) {
-      output = list(indicator = indicator,
-                    interactions = interactions,
-                    pairwise_difference = pairwise_difference,
-                    thresholds_gr1 = thresholds_gr1,
-                    thresholds_gr2 = thresholds_gr2,
-                    arguments = arguments)
+      if(ttest == TRUE) {
+        output = list(indicator = indicator,
+                      interactions = interactions,
+                      pairwise_difference = pairwise_difference,
+                      thresholds_gr1 = thresholds_gr1,
+                      thresholds_gr2 = thresholds_gr2,
+                      arguments = arguments)
+      } else {
+        output = list(indicator = indicator,
+                      interactions = interactions,
+                      pairwise_difference = pairwise_difference,
+                      thresholds = thresholds,
+                      arguments = arguments)
+      }
+
     } else {
       output = list(indicator = indicator,
                     interactions = interactions,
@@ -563,8 +700,12 @@ bgmCompare = function(x,
     interactions = out$interactions
 
     if(independent_thresholds == TRUE) {
-      thresholds_gr1 = out$thresholds_gr1
-      thresholds_gr2 = out$thresholds_gr2
+      if(ttest == TRUE) {
+        thresholds_gr1 = out$thresholds_gr1
+        thresholds_gr2 = out$thresholds_gr2
+      } else {
+        thresholds = out$thresholds
+      }
     } else {
       main_difference_indicator = out$main_difference_indicator
       main_difference = out$main_difference
@@ -586,60 +727,86 @@ bgmCompare = function(x,
 
     colnames(pairwise_difference_indicator) = names_vec
     colnames(interactions) = names_vec
-    colnames(pairwise_difference) = names_vec
+    for(g in group) {
+      dimnames(pairwise_difference[[g]]$pairwise_difference) = list(Iter. = 1:iter, names_vec)
+    }
 
     dimnames(pairwise_difference_indicator) = list(Iter. = 1:iter, colnames(pairwise_difference_indicator))
-    dimnames(pairwise_difference) = list(Iter. = 1:iter, colnames(pairwise_difference))
     dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
 
     if(independent_thresholds == TRUE) {
-      names = character(length = sum(no_categories_gr1))
-      cntr = 0
-      for(variable in 1:no_variables) {
-        for(category in 1:no_categories_gr1[variable]) {
-          cntr = cntr + 1
-          names[cntr] = paste0("threshold(",variable, ", ",category,")")
+      if(ttest == TRUE) {
+        names = character(length = sum(no_categories[, 1]))
+        cntr = 0
+        for(variable in 1:no_variables) {
+          for(category in 1:no_categories[variable, 1]) {
+            cntr = cntr + 1
+            names[cntr] = paste0("threshold(",variable, ", ",category,")")
+          }
+        }
+        dimnames(thresholds_gr1) = list(Iter. = 1:iter, names)
+
+        names = character(length = sum(no_categories[, 2]))
+        cntr = 0
+        for(variable in 1:no_variables) {
+          for(category in 1:no_categories[variable, 2]) {
+            cntr = cntr + 1
+            names[cntr] = paste0("threshold(",variable, ", ",category,")")
+          }
+        }
+        dimnames(thresholds_gr2) = list(Iter. = 1:iter, names)
+
+      } else {
+        for(g in group) {
+          names = character(length = sum(no_categories[, g]))
+          cntr = 0
+          for(variable in 1:no_variables) {
+            for(category in 1:no_categories[variable, g]) {
+              cntr = cntr + 1
+              names[cntr] = paste0("threshold(",variable, ", ",category,")")
+            }
+          }
+          dimnames(thresholds[[g]]$thresholds) = list(Iter. = 1:iter, names)
         }
       }
-      colnames(thresholds_gr1) = names
-
-      names = character(length = sum(no_categories_gr2))
-      cntr = 0
-      for(variable in 1:no_variables) {
-        for(category in 1:no_categories_gr2[variable]) {
-          cntr = cntr + 1
-          names[cntr] = paste0("threshold(",variable, ", ",category,")")
-        }
-      }
-      colnames(thresholds_gr2) = names
-
-      dimnames(thresholds_gr1) = list(Iter. = 1:iter, colnames(thresholds_gr1))
-      dimnames(thresholds_gr2) = list(Iter. = 1:iter, colnames(thresholds_gr2))
     } else {
-      names = character(length = sum(no_categories_gr1))
+      names = character(length = sum(no_categories[1,]))
       cntr = 0
       for(variable in 1:no_variables) {
-        for(category in 1:no_categories_gr1[variable]) {
+        for(category in 1:no_categories[variable, 1]) {
           cntr = cntr + 1
           names[cntr] = paste0("threshold(",variable, ", ",category,")")
         }
       }
       colnames(main_difference_indicator) = data_columnnames
-      colnames(thresholds) = names
-      colnames(main_difference) = names
+      dimnames(thresholds) = list(Iter. = 1:iter, names)
 
       dimnames(main_difference_indicator) = list(Iter. = 1:iter, colnames(main_difference_indicator))
-      dimnames(main_difference) = list(Iter. = 1:iter, colnames(main_difference))
-      dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
+
+      if(ttest == TRUE) {
+        dimnames(main_difference) = list(Iter. = 1:iter, colnames(main_difference))
+      } else {
+        for(g in group) {
+          dimnames(main_difference[[g]]$main_difference) = list(Iter. = 1:iter, names)
+        }
+      }
     }
 
     if(independent_thresholds == TRUE) {
-      output = list(pairwise_difference_indicator = pairwise_difference_indicator,
-                    interactions = interactions,
-                    pairwise_difference = pairwise_difference,
-                    thresholds_gr1 = thresholds_gr1,
-                    thresholds_gr2 = thresholds_gr2,
-                    arguments = arguments)
+      if(ttest == TRUE) {
+        output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+                      interactions = interactions,
+                      pairwise_difference = pairwise_difference,
+                      thresholds_gr1 = thresholds_gr1,
+                      thresholds_gr2 = thresholds_gr2,
+                      arguments = arguments)
+      } else {
+        output = list(pairwise_difference_indicator = pairwise_difference_indicator,
+                      interactions = interactions,
+                      pairwise_difference = pairwise_difference,
+                      thresholds = thresholds,
+                      arguments = arguments)
+      }
     } else {
       output = list(pairwise_difference_indicator = pairwise_difference_indicator,
                     main_difference_indicator = main_difference_indicator,
