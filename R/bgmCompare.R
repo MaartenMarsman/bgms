@@ -622,7 +622,11 @@ bgmCompare = function(x,
     } else {
       main_difference_indicator = out$main_difference_indicator
       diag(indicator) = main_difference_indicator
-      thresholds = out$thresholds[[1]]
+      if(ttest == TRUE) {
+        thresholds = out$thresholds
+      } else {
+        thresholds = out$thresholds[[1]]
+      }
       main_difference = out$main_difference
     }
 
@@ -727,8 +731,12 @@ bgmCompare = function(x,
 
     colnames(pairwise_difference_indicator) = names_vec
     colnames(interactions) = names_vec
-    for(g in group) {
-      dimnames(pairwise_difference[[g]]$pairwise_difference) = list(Iter. = 1:iter, names_vec)
+    if(ttest == TRUE) {
+      dimnames(pairwise_difference) = list(Iter. = 1:iter, names_vec)
+    } else {
+      for(g in group) {
+        dimnames(pairwise_difference[[g]]$pairwise_difference) = list(Iter. = 1:iter, names_vec)
+      }
     }
 
     dimnames(pairwise_difference_indicator) = list(Iter. = 1:iter, colnames(pairwise_difference_indicator))
@@ -736,20 +744,20 @@ bgmCompare = function(x,
 
     if(independent_thresholds == TRUE) {
       if(ttest == TRUE) {
-        names = character(length = sum(no_categories[, 1]))
+        names = character(length = sum(no_categories_gr1))
         cntr = 0
         for(variable in 1:no_variables) {
-          for(category in 1:no_categories[variable, 1]) {
+          for(category in 1:no_categories_gr1[variable]) {
             cntr = cntr + 1
             names[cntr] = paste0("threshold(",variable, ", ",category,")")
           }
         }
         dimnames(thresholds_gr1) = list(Iter. = 1:iter, names)
 
-        names = character(length = sum(no_categories[, 2]))
+        names = character(length = sum(no_categories_gr2))
         cntr = 0
         for(variable in 1:no_variables) {
-          for(category in 1:no_categories[variable, 2]) {
+          for(category in 1:no_categories_gr2[variable]) {
             cntr = cntr + 1
             names[cntr] = paste0("threshold(",variable, ", ",category,")")
           }
@@ -770,13 +778,25 @@ bgmCompare = function(x,
         }
       }
     } else {
-      names = character(length = sum(no_categories[1,]))
-      cntr = 0
-      for(variable in 1:no_variables) {
-        for(category in 1:no_categories[variable, 1]) {
-          cntr = cntr + 1
-          names[cntr] = paste0("threshold(",variable, ", ",category,")")
+      if(ttest == TRUE) {
+        names = character(length = sum(no_categories_gr1))
+        cntr = 0
+        for(variable in 1:no_variables) {
+          for(category in 1:no_categories_gr1[variable]) {
+            cntr = cntr + 1
+            names[cntr] = paste0("threshold(",variable, ", ",category,")")
+          }
         }
+      } else {
+        names = character(length = sum(no_categories[1,]))
+        cntr = 0
+        for(variable in 1:no_variables) {
+          for(category in 1:no_categories[variable, 1]) {
+            cntr = cntr + 1
+            names[cntr] = paste0("threshold(",variable, ", ",category,")")
+          }
+        }
+
       }
       colnames(main_difference_indicator) = data_columnnames
       dimnames(thresholds) = list(Iter. = 1:iter, names)
