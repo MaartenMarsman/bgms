@@ -228,7 +228,11 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
   double loglike;
   double logmarg;
 
-  for(int node = 0; node < no_variables; node++) {
+  // Generate a randomized order using Rcpp's sample function
+  IntegerVector indices = sample(no_variables, no_variables);
+
+  for (int idx = 0; idx < no_variables; ++idx) {
+    int node = indices[idx] - 1; // Convert to zero-based index
     old = cluster_assign[node];
 
     IntegerVector cluster_size = table_cpp(cluster_assign);
