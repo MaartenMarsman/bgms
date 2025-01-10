@@ -320,14 +320,14 @@ bgmCompare = function(x,
 
     unique_g = unique(g)
     if(length(unique_g) == 2) {
-      y = x[g == unique_g[2]]
-      x = x[g == unique_g[1]]
+      y = x[g == unique_g[2],]
+      x = x[g == unique_g[1],]
       ttest = TRUE
     }
   }
 
   #Check model input -----------------------------------------------------------
-  if(!ttest) #True if either hasArg(y) or length(unique(g)) = 2
+  if(ttest == FALSE) #True if either hasArg(y) or length(unique(g)) = 2
     y = NULL
   if(!hasArg(g))
     g = NULL
