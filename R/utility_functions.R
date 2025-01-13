@@ -1051,13 +1051,17 @@ getDahl <- function(cluster_allocations) {
 # Components, Journal of the American Statistical Association, 113:521, 340-356,
 # DOI:10.1080/01621459.2016.1255636
 
-compute_p_k_given_t <- function(t, log_Vn, dirichlet_alpha, no_variables) {
+compute_p_k_given_t <- function(t,
+                                log_Vn,
+                                dirichlet_alpha,
+                                no_variables,
+                                lambda) {
   # Define the K_values
   K_values <- as.numeric(1:no_variables)
+
   # Initialize vector for probabilities
   p_k_given_t <- numeric(length(K_values))
-  # The rate hyperparameter of the Poisson is fixed to 1
-  lambda <- 1
+
   # Normalization constant for t
   log_vn_t <- log_Vn[t]
 
@@ -1090,11 +1094,16 @@ compute_p_k_given_t <- function(t, log_Vn, dirichlet_alpha, no_variables) {
 # A function that computes the posterior probabilities of the
 # number of components K given the cardinality of the partition t
 # and the allocations of the nodes based on Dahl's method
-summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
+summary_SBM <- function(cluster_allocations,
+                        dirichlet_alpha,
+                        lambda) {
 
   # precompute things
   no_variables <- ncol(cluster_allocations)
-  log_Vn <- compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, no_variables)
+  log_Vn <- compute_Vn_mfm_sbm(no_variables,
+                               dirichlet_alpha,
+                               no_variables,
+                               lambda)
   # Compute the number of unique clusters (t) for each iteration
   # i.e., the cardinality  of the partition z
   clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
@@ -1106,7 +1115,8 @@ summary_SBM <- function(cluster_allocations, dirichlet_alpha) {
     p_k_given_t[i, ] <- compute_p_k_given_t(clusters[i],
                                             log_Vn,
                                             dirichlet_alpha,
-                                            no_variables)
+                                            no_variables,
+                                            lambda)
   }
   # average across all iterations
   p_k_given_t <- colMeans(p_k_given_t)

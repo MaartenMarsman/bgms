@@ -792,6 +792,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    double beta_bernoulli_alpha,
                    double beta_bernoulli_beta,
                    double dirichlet_alpha,
+                   double lambda,
                    IntegerMatrix Index,
                    int iter,
                    int burnin,
@@ -894,7 +895,8 @@ List gibbs_sampler(IntegerMatrix observations,
 
     log_Vn = compute_Vn_mfm_sbm(no_variables,
                                 dirichlet_alpha,
-                                no_variables);
+                                no_variables,
+                                lambda);
   }
 
   //The Gibbs sampler ----------------------------------------------------------

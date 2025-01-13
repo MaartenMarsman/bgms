@@ -6,7 +6,8 @@ using namespace Rcpp;
 // ----------------------------------------------------------------------------|
 Rcpp::NumericVector compute_Vn_mfm_sbm(int no_variables,
                                        double dirichlet_alpha,
-                                       int t_max);
+                                       int t_max,
+                                       double lambda);
 
 // ----------------------------------------------------------------------------|
 // Sample the block allocations for the MFM - SBM

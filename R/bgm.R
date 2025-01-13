@@ -300,6 +300,7 @@ bgm = function(x,
                beta_bernoulli_alpha = 1,
                beta_bernoulli_beta = 1,
                dirichlet_alpha = 1,
+               lambda = 1,
                na.action = c("listwise", "impute"),
                save = FALSE,
                display_progress = TRUE) {
@@ -452,6 +453,7 @@ bgm = function(x,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,
                       beta_bernoulli_beta = beta_bernoulli_beta,
                       dirichlet_alpha = dirichlet_alpha,
+                      lambda = lambda,
                       Index = Index,
                       iter = iter,
                       burnin = burnin,
@@ -485,6 +487,7 @@ bgm = function(x,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda,
     na.action = na.action,
     save = save,
     version = packageVersion("bgms")
@@ -530,7 +533,8 @@ bgm = function(x,
       if(edge_prior == "Stochastic-Block"){
 
         summarySbm <- summary_SBM(cluster_allocations = out$allocations,
-                                  dirichlet_alpha = dirichlet_alpha)
+                                  dirichlet_alpha = dirichlet_alpha,
+                                  lambda = lambda)
 
         output = list(indicator = indicator,
                       interactions = interactions,
