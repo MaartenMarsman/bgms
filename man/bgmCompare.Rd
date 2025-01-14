@@ -3,12 +3,13 @@
 \name{bgmCompare}
 \alias{bgmCompare}
 \title{Bayesian variable selection or Bayesian estimation for differences in the
-Markov random field model for binary and/or ordinal variables in two
-independent samples.}
+Markov random field model for binary and/or ordinal variables in independent
+samples.}
 \usage{
 bgmCompare(
   x,
   y,
+  g,
   difference_selection = TRUE,
   main_difference_model = c("Free", "Collapse", "Constrain"),
   variable_type = "ordinal",
@@ -34,23 +35,25 @@ bgmCompare(
 )
 }
 \arguments{
-\item{x}{A data frame or matrix with \eqn{n_1}{n_1} rows and \code{p} columns
-containing binary and ordinal responses for the first group. Regular ordinal
-variables are recoded as non-negative integers \code{(0, 1, ..., m)} if not
-already done. Unobserved categories are collapsed into other categories after
-recoding (i.e., if category 1 is unobserved, the data are recoded from (0, 2)
-to (0, 1)). Blume-Capel ordinal variables are also coded as non-negative
+\item{x}{A data frame or matrix with \eqn{n}{n} rows and \code{p} columns
+containing binary and ordinal responses. Regular ordinal variables are
+recoded as non-negative integers \code{(0, 1, ..., m)} if not already done.
+Unobserved categories are collapsed into other categories after recoding
+(i.e., if category 1 is unobserved, the data are recoded from (0, 2) to
+(0, 1)). Blume-Capel ordinal variables are also coded as non-negative
 integers if not already done. However, since ``distance'' from the reference
 category plays an important role in this model, unobserved categories are not
 collapsed after recoding.}
 
-\item{y}{A data frame or matrix with \eqn{n_2}{n_2} rows and \code{p} columns
-containing binary and ordinal responses for the second group. The variables
-or columns in \code{y} must match the variables or columns in \code{x}. In
-the paired samples design, the rows in \code{x} must match the rows in
-\code{y}. Note that \code{x} and \code{y} are recoded independently, although
-the function checks that the number of different responses observed matches
-between \code{x} and \code{y}.}
+\item{y}{A data frame or matrix with \eqn{n}{n} rows and \code{p} columns
+containing binary and ordinal responses, similar to \code{x}. Optional
+argument for two-group designs, where \code{x} contains the data for Group 1
+and \code{y} contains the data for Group 2.}
+
+\item{g}{A vector of length \eqn{n}{n} containing group membership indicators
+for the rows of \code{x}. Optional argument for two-group designs (see the
+documentation for \code{y}), but required for multi-group designs. This
+argument is ignored if there is an input for \code{y}.}
 
 \item{difference_selection}{Logical. If \code{TRUE}, \code{bgmCompare} will
 model the inclusion or exclusion of the between samples parameter
@@ -72,14 +75,14 @@ in \code{x} (and \code{y}). Supported types are "ordinal" and "blume-capel",
 with binary variables treated as "ordinal". Default is "ordinal".}
 
 \item{reference_category}{The reference category in the Blume-Capel model.
-Should be an integer within the range of integer values observed for the "blume-capel"
-variable. Can be a single number that sets the reference category for all
-Blume-Capel variables at once, or a vector of length \code{p}, where the
-\code{i}-th element is the reference category for the \code{i} variable if
-it is a Blume-Capel variable, and elements for other variable types are
-ignored. The value of the reference category is also recoded when
-`bgmCompare` recodes the corresponding observations. Required only if there
-is at least one variable of type "blume-capel".}
+Should be an integer within the range of integer values observed for the
+"blume-capel" variable. Can be a single number that sets the reference
+category for all Blume-Capel variables at once, or a vector of length
+\code{p}, where the \code{i}-th element is the reference category for the
+\code{i} variable if it is a Blume-Capel variable, and elements for other
+variable types are ignored. The value of the reference category is also
+recoded when `bgmCompare` recodes the corresponding observations. Required
+only if there is at least one variable of type "blume-capel".}
 
 \item{pairwise_difference_scale}{The scale of the Cauchy distribution that is
 used as the prior for the pairwise difference parameters. Defaults to
@@ -132,9 +135,9 @@ a prior for the nuisance pairwise interaction parameters. Defaults to
 prior density for the nuisance threshold parameters. Must be positive values.
 If the two values are equal, the prior density is symmetric about zero. If
 \code{threshold_beta} is greater than \code{threshold_alpha}, the distribution
-is left-skewed, and if \code{threshold_beta} is less than \code{threshold_alpha},
-it is right-skewed. Smaller values tend to result in more diffuse prior
-distributions.}
+is left-skewed, and if \code{threshold_beta} is less than
+\code{threshold_alpha}, it is right-skewed. Smaller values tend to result in
+more diffuse prior distributions.}
 
 \item{iter}{The function uses a Gibbs sampler to sample from the posterior
 distribution of the model parameters and indicator variables. How many
@@ -175,12 +178,14 @@ If \code{save = FALSE} (the default), the result is a list of class
    columns containing the posterior inclusion probabilities of the differences
    in pairwise interactions on the off-diagonal and the posterior inclusion
    probabilities of the differences in category thresholds on the diagonal.
-   \item \code{difference_pairwise}: A matrix with \code{p} rows and \code{p}
-   columns, containing model-averaged posterior means of the differences in
-   pairwise interactions.
-   \item \code{difference_threshold}: A matrix with \code{p} rows and
-   \code{max(m)} columns, containing model-averaged posterior means of the
-   differences in category thresholds.
+   \item \code{difference_pairwise}: A list of length \code{G}, the number of
+   groups, each containing a matrix with \code{p} rows and \code{p} columns
+   containing model-averaged posterior means of the
+   differences in pairwise interactions for that group.
+   \item \code{difference_threshold}: A list of length \code{G}, the number of
+   groups, each containing a matrix with \code{p} rows and \code{max(m)}
+   columns containing model-averaged posterior means of the
+   differences in category thresholds for that group.
    \item \code{interactions}: A matrix with \code{p} rows and \code{p} columns,
    containing posterior means of the nuisance pairwise interactions.
    \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
@@ -197,17 +202,20 @@ containing the following matrices:
    \code{p * (p - 1) / 2} columns containing the inclusion indicators for the
    differences in pairwise interactions from each iteration of the Gibbs
    sampler.
-   \item \code{difference_pairwise}: A matrix with \code{iter} rows and
+   \item \code{difference_pairwise}: A list of length \code{G}, the number of
+   groups, each containing a matrix with \code{iter} rows and
    \code{p * (p - 1) / 2} columns, containing parameter states for the
    differences in pairwise interactions from each iteration of the Gibbs
-   sampler.
+   sampler for that group.
    \item \code{indicator_threshold}: A matrix with \code{iter} rows and
    \code{sum(m)} columns, containing the inclusion indicators for the
    differences in category thresholds from each iteration of the Gibbs
    sampler.
-   \item \code{difference_threshold}: A matrix with \code{iter} rows and
+   \item \code{difference_threshold}: A list of length \code{G}, the number of
+   groups, each containing a matrix with \code{iter} rows and
    \code{sum(m)} columns, containing the parameter states for the differences
-   in category thresholds from each iteration of the Gibbs sampler.
+   in category thresholds from each iteration of the Gibbs sampler for that
+   group.
    \item \code{interactions}: A matrix with \code{iter} rows and
    \code{p * (p - 1) / 2} columns, containing parameter states for the
    nuisance pairwise interactions in each iteration of the Gibbs sampler.
@@ -224,80 +232,82 @@ arguments of its call. This is useful for post-processing the results.
 The \code{bgmCompare} function estimates the pseudoposterior distribution of
 the parameters of a Markov Random Field model for mixed binary and ordinal
 variables, and the differences in pairwise interactions and category thresholds
-between two groups. The groups are assumed to be two independent samples.
+between groups. The groups are assumed to be \code{G} independent samples.
 }
 \details{
-In the first group, the pairwise interactions between the variables \eqn{i}{i}
-and \eqn{j}{j} are modeled as
-\deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} + \delta_{\text{ij}} / 2,}
-and in the second group as
-\deqn{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2,}{\sigma_{\text{ij}} = \theta_{\text{ij}} - \delta_{\text{ij}} / 2.}
-The pairwise interaction parameter \eqn{\theta_{\text{ij}}}{\theta_{\text{ij}}}
-denotes an overall effect that is considered nuisance, and attention is focused
-on the pairwise difference parameter \eqn{\delta_{\text{ij}}}{\delta_{\text{ij}}},
-which reflects the difference in the pairwise interaction between the two groups.
+The pairwise interactions between the variables \eqn{i}{i} and \eqn{j}{j} are
+modeled as
+\deqn{\boldsymbol{\theta}_{\text{ij}} = \phi_{\text{ij}} + \boldsymbol{\delta}_{\text{ij}},}{
+\boldsymbol{\theta}_{\text{ij}} = \phi_{\text{ij}} + \boldsymbol{\delta}_{\text{ij}},}
+where \eqn{\boldsymbol{\theta}_{\text{ij}}}{\boldsymbol{\theta}_{\text{ij}}}
+is the vector of pairwise interaction parameters of length \eqn{G}{G},
+\eqn{G}{G} is the number of groups, \eqn{\phi_{\text{ij}}}{\phi_{\text{ij}}}
+is the overall pairwise interaction that is considered nuisance, and attention
+is focused on the group differences from the overall pairwise interactions in
+the vector \eqn{\boldsymbol{\delta}_{\text{ij}}}{\boldsymbol{\delta}_{\text{ij}}}.
+The group differences from the overall pairwise interaction are constrained
+to sum to zero for identification.
 
 The \code{bgmCompare} function supports two types of ordinal variables, which
 can be mixed. The default ordinal variable introduces a threshold parameter
-for each category except the lowest category. For this variable type, the threshold parameter for
-variable \eqn{i}{i}, category \eqn{c}{c}, is modeled as
-\deqn{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}{\mu_{\text{ic}} = \tau_{\text{ic}} + \epsilon_{\text{ic}} / 2,}
-in the first group and in the second group as
-\deqn{\mu_{\text{ic}} = \tau_{\text{ic}} - \epsilon_{\text{ic}} / 2,}{\mu_{\text{ic}} = \tau_{\text{ic}} - \epsilon_{\text{ic}} / 2.}
-The category threshold parameter \eqn{\tau_{\text{ic}}}{\tau_{\text{ic}}} denotes
-an overall effect that is considered nuisance, and attention is focused on the
-threshold difference parameter \eqn{\epsilon_{\text{ic}}}{\epsilon_{\text{ic}}},
-which reflects the difference in threshold of for variable \eqn{i}{i}, category
-\eqn{c}{c} between the two groups.
+for each category except the lowest category. For this variable type,
+the vector of threshold parameters for variable \eqn{i}{i}, category
+\eqn{c}{c}, is modeled as
+\deqn{\boldsymbol{\mu}_{\text{ic}} = \tau_{\text{ic}} + \boldsymbol{\epsilon}_{\text{ic}},}{\boldsymbol{\mu}_{\text{ic}} = \tau_{\text{ic}} + \boldsymbol{\epsilon}_{\text{ic}},}
+where category threshold parameter \eqn{\tau_{\text{ic}}}{\tau_{\text{ic}}}
+denotes an overall effect that is considered nuisance, and attention is
+focused on the vector of group differences from the overall category
+threshold parameter \eqn{\boldsymbol{\epsilon}_{\text{ic}}}{\boldsymbol{\epsilon}_{\text{ic}}}.
+The group differences from the overall category threshold are constrained to
+sum to zero for identification.
 
 The Blume-Capel ordinal variable assumes that there is a specific reference
 category, such as ``neutral'' in a Likert scale, and responses are scored
-according to their distance from this reference category. In the first group,
-the threshold parameters are modelled as
-\deqn{\mu_{\text{ic}} = (\tau_{\text{i1}} + \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} + \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2,}{ {\mu_{\text{ic}} = (\tau_{\text{i1}} + \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} + \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2,}}
-and in the second groups as
-\deqn{\mu_{\text{ic}} = (\tau_{\text{i1}} - \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} - \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2.}{ {\mu_{\text{ic}} = (\tau_{\text{i1}} - \epsilon_{\text{i1}} / 2) \times \text{c} + (\tau_{\text{i2}} - \epsilon_{\text{i2}} / 2) \times (\text{c} - \text{r})^2.}}
-The linear and quadratic category threshold parameters
-\eqn{\tau_{\text{i1}}}{\tau_{\text{i1}}} and \eqn{\tau_{\text{i2}}}{\tau_{\text{i2}}}
+according to their distance from this reference category. The vector of
+category threshold parameters are modeled as
+\deqn{\boldsymbol{\mu}_{\text{ic}} = (\tau_{\text{i1}} + \boldsymbol{\epsilon}_{\text{i1}}) \times \text{c} + (\tau_{\text{i2}} + \boldsymbol{\epsilon}_{\text{i2}}) \times (\text{c} - \text{r})^2,}{ \boldsymbol{\mu}_{\text{ic}} = (\tau_{\text{i1}} + \boldsymbol{\epsilon}_{\text{i1}}) \times \text{c} + (\tau_{\text{i2}} + \boldsymbol{\epsilon}_{\text{i2}}) \times (\text{c} - \text{r})^2,}
+where \eqn{\tau_{\text{i1}}}{\tau_{\text{i1}}} and \eqn{\tau_{\text{i2}}}{\tau_{\text{i2}}}
 denote overall effects that are considered nuisance, and attention is focused
-on the two threshold difference parameters
-\eqn{\epsilon_{\text{i1}}}{\epsilon_{\text{i1}}} and
-\eqn{\epsilon_{\text{i2}}}{\epsilon_{\text{i2}}}, which reflect the differences
-in the quadratic model for the variable \eqn{i}{i} between the two groups.
+on the vectors of group differences from these overall effects;
+\eqn{\boldsymbol{\epsilon}_{\text{i1}}}{\boldsymbol{\epsilon}_{\text{i1}}} and
+\eqn{\boldsymbol{\epsilon}_{\text{i2}}}{\boldsymbol{\epsilon}_{\text{i2}}}.
+The group differences from the overall Blume-Capel parameters are constrained
+to sum to zero for identification.
 
 Bayesian variable selection is used to model the presence or absence of the
-difference parameters \eqn{\delta}{\delta} and \eqn{\epsilon}{\epsilon}, which
-allow us to assess parameter differences between the two groups. Independent
-spike and slab priors are specified for these difference parameters. The spike
-and slab priors use binary indicator variables to select the difference parameters,
-assigning them a diffuse Cauchy prior with an optional scaling parameter if
-selected, or setting the difference parameter to zero if not selected.
+vectors of difference parameters \eqn{\boldsymbol{\delta}}{\boldsymbol{\delta}}
+and \eqn{\boldsymbol{\epsilon}}{\boldsymbol{\epsilon}}, which allow us to
+test hypotheses about parameter differences or equivalence across groups.
+Independent spike and slab priors are specified for these (vectors of)
+difference parameters. The spike and slab prior uses a binary indicator
+variable to select the vector of difference parameters, assigning them a
+diffuse (multivariate) Cauchy prior with an optional scaling parameter if
+selected, or setting the vector of difference parameters to zero if not
+selected.
 
 The function offers two models for the probabilistic inclusion of parameter
 differences:
 \itemize{
   \item \strong{Bernoulli Model}: This model assigns a fixed probability of
-  selecting a parameter difference, treating them as independent events. A
-  probability of 0.5 indicates no preference, giving equal prior weight to
-  all configurations.
+  selecting a vector of parameter differences, treating them as independent
+  events. A probability of 0.5 indicates no preference, giving equal prior
+  weight to all configurations.
   \item \strong{Beta-Bernoulli Model}: Introduces a beta distribution prior
-  for the inclusion probability that models the complexity of the configuration
-  of the difference indicators. When the alpha and beta shape parameters of the
-  beta distribution are set to 1, the model assigns the same prior weight to
-  the number of differences present (i.e., a configuration with two differences
-  or with four differences is a priori equally likely).
-  }
-  Inclusion probabilities can be specified for pairwise interactions with
-  \code{pairwise_difference_probability} and for category thresholds with
-  \code{threshold_difference_probability}.
+  for the inclusion probability that models the complexity of the
+  configuration of the vector of difference indicators. When the shape
+  parameters of the beta distribution are set to 1, the model assigns the
+  same prior weight to the number of difference vectors present (i.e., a
+  configuration with two difference or with four differences is a priori
+  equally likely).
+}
+Inclusion probabilities can be specified for pairwise interactions with
+\code{pairwise_difference_probability} and for category thresholds with
+\code{threshold_difference_probability}.
 
 The pairwise interaction parameters \eqn{\theta}{\theta}, the category
-threshold parameters \eqn{\tau}{\tau}, and, in the not yet implemented paired-samples designs,
-the between-sample interactions \eqn{\omega}{\omega} are considered
-nuisance parameters that are common to all models. The pairwise interaction
-parameters \eqn{\theta}{\theta} and the between-sample interactions
-\eqn{\omega}{\omega} are assigned a diffuse Cauchy prior with an optional
-scaling parameter. The exponent of the category threshold parameters
-\eqn{\tau}{\tau} are assigned beta-prime distribution with optional scale
-values.
+threshold parameters \eqn{\tau}{\tau} are considered nuisance parameters that
+are common to all models. The pairwise interaction parameters \eqn{\theta}{\theta}
+are assigned a diffuse Cauchy prior with an optional scaling parameter. The
+exponent of the category threshold parameters \eqn{\tau}{\tau} are assigned
+beta-prime distribution with optional scale values.
 }

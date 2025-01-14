@@ -8,24 +8,24 @@ using namespace Rcpp;
 // ----------------------------------------------------------------------------|
 // Impute missing data for two-samples designs
 // ----------------------------------------------------------------------------|
-List compare_impute_missing_data(NumericMatrix thresholds_gr1,
-                                 NumericMatrix thresholds_gr2,
-                                 NumericMatrix interactions_gr1,
-                                 NumericMatrix interactions_gr2,
-                                 IntegerMatrix observations_gr1,
-                                 IntegerMatrix observations_gr2,
-                                 IntegerMatrix n_cat_obs_gr1,
-                                 IntegerMatrix n_cat_obs_gr2,
-                                 IntegerMatrix sufficient_blume_capel_gr1,
-                                 IntegerMatrix sufficient_blume_capel_gr2,
-                                 IntegerVector no_categories_gr1,
-                                 IntegerVector no_categories_gr2,
-                                 NumericMatrix rest_matrix_gr1,
-                                 NumericMatrix rest_matrix_gr2,
-                                 IntegerMatrix missing_index_gr1,
-                                 IntegerMatrix missing_index_gr2,
-                                 LogicalVector ordinal_variable,
-                                 IntegerVector reference_category) {
+List compare_ttest_impute_missing_data(NumericMatrix thresholds_gr1,
+                                       NumericMatrix thresholds_gr2,
+                                       NumericMatrix interactions_gr1,
+                                       NumericMatrix interactions_gr2,
+                                       IntegerMatrix observations_gr1,
+                                       IntegerMatrix observations_gr2,
+                                       IntegerMatrix n_cat_obs_gr1,
+                                       IntegerMatrix n_cat_obs_gr2,
+                                       IntegerMatrix sufficient_blume_capel_gr1,
+                                       IntegerMatrix sufficient_blume_capel_gr2,
+                                       IntegerVector no_categories_gr1,
+                                       IntegerVector no_categories_gr2,
+                                       NumericMatrix rest_matrix_gr1,
+                                       NumericMatrix rest_matrix_gr2,
+                                       IntegerMatrix missing_index_gr1,
+                                       IntegerMatrix missing_index_gr2,
+                                       LogicalVector ordinal_variable,
+                                       IntegerVector reference_category) {
   int no_variables = observations_gr1.ncol();
   int no_missings_gr1 = missing_index_gr1.nrow();
   int no_missings_gr2 = missing_index_gr2.nrow();
@@ -197,22 +197,22 @@ List compare_impute_missing_data(NumericMatrix thresholds_gr1,
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 //  for the two independent samples design
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_gr1,
-                                                      NumericMatrix thresholds_gr2,
-                                                      IntegerMatrix observations_gr1,
-                                                      IntegerMatrix observations_gr2,
-                                                      IntegerVector no_categories_gr1,
-                                                      IntegerVector no_categories_gr2,
-                                                      int no_persons_gr1,
-                                                      int no_persons_gr2,
-                                                      int variable1,
-                                                      int variable2,
-                                                      double proposed_state,
-                                                      double current_state,
-                                                      NumericMatrix rest_matrix_gr1,
-                                                      NumericMatrix rest_matrix_gr2,
-                                                      LogicalVector ordinal_variable,
-                                                      IntegerVector reference_category) {
+double compare_ttest_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_gr1,
+                                                            NumericMatrix thresholds_gr2,
+                                                            IntegerMatrix observations_gr1,
+                                                            IntegerMatrix observations_gr2,
+                                                            IntegerVector no_categories_gr1,
+                                                            IntegerVector no_categories_gr2,
+                                                            int no_persons_gr1,
+                                                            int no_persons_gr2,
+                                                            int variable1,
+                                                            int variable2,
+                                                            double proposed_state,
+                                                            double current_state,
+                                                            NumericMatrix rest_matrix_gr1,
+                                                            NumericMatrix rest_matrix_gr2,
+                                                            LogicalVector ordinal_variable,
+                                                            IntegerVector reference_category) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_prop, denominator_curr, exponent;
@@ -418,27 +418,27 @@ double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_g
 // MH algorithm to sample from the full-conditional of an overall pairwise
 //  interaction parameter (nuisance)
 // ----------------------------------------------------------------------------|
-void compare_metropolis_interaction(NumericMatrix interactions,
-                                    NumericMatrix thresholds_gr1,
-                                    NumericMatrix thresholds_gr2,
-                                    IntegerMatrix observations_gr1,
-                                    IntegerMatrix observations_gr2,
-                                    IntegerVector no_categories_gr1,
-                                    IntegerVector no_categories_gr2,
-                                    NumericMatrix proposal_sd_interaction,
-                                    double interaction_scale,
-                                    int no_persons_gr1,
-                                    int no_persons_gr2,
-                                    int no_variables,
-                                    NumericMatrix rest_matrix_gr1,
-                                    NumericMatrix rest_matrix_gr2,
-                                    double phi,
-                                    double target_ar,
-                                    int t,
-                                    double epsilon_lo,
-                                    double epsilon_hi,
-                                    LogicalVector ordinal_variable,
-                                    IntegerVector reference_category) {
+void compare_ttest_metropolis_interaction(NumericMatrix interactions,
+                                          NumericMatrix thresholds_gr1,
+                                          NumericMatrix thresholds_gr2,
+                                          IntegerMatrix observations_gr1,
+                                          IntegerMatrix observations_gr2,
+                                          IntegerVector no_categories_gr1,
+                                          IntegerVector no_categories_gr2,
+                                          NumericMatrix proposal_sd_interaction,
+                                          double interaction_scale,
+                                          int no_persons_gr1,
+                                          int no_persons_gr2,
+                                          int no_variables,
+                                          NumericMatrix rest_matrix_gr1,
+                                          NumericMatrix rest_matrix_gr2,
+                                          double phi,
+                                          double target_ar,
+                                          int t,
+                                          double epsilon_lo,
+                                          double epsilon_hi,
+                                          LogicalVector ordinal_variable,
+                                          IntegerVector reference_category) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -449,22 +449,22 @@ void compare_metropolis_interaction(NumericMatrix interactions,
       current_state = interactions(variable1, variable2);
       proposed_state = R::rnorm(current_state, proposal_sd_interaction(variable1, variable2));
 
-      log_prob = compare_log_pseudolikelihood_ratio_interaction(thresholds_gr1,
-                                                                thresholds_gr2,
-                                                                observations_gr1,
-                                                                observations_gr2,
-                                                                no_categories_gr1,
-                                                                no_categories_gr2,
-                                                                no_persons_gr1,
-                                                                no_persons_gr2,
-                                                                variable1,
-                                                                variable2,
-                                                                proposed_state,
-                                                                current_state,
-                                                                rest_matrix_gr1,
-                                                                rest_matrix_gr2,
-                                                                ordinal_variable,
-                                                                reference_category);
+      log_prob = compare_ttest_log_pseudolikelihood_ratio_interaction(thresholds_gr1,
+                                                                      thresholds_gr2,
+                                                                      observations_gr1,
+                                                                      observations_gr2,
+                                                                      no_categories_gr1,
+                                                                      no_categories_gr2,
+                                                                      no_persons_gr1,
+                                                                      no_persons_gr2,
+                                                                      variable1,
+                                                                      variable2,
+                                                                      proposed_state,
+                                                                      current_state,
+                                                                      rest_matrix_gr1,
+                                                                      rest_matrix_gr2,
+                                                                      ordinal_variable,
+                                                                      reference_category);
 
       log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
       log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
@@ -517,22 +517,22 @@ void compare_metropolis_interaction(NumericMatrix interactions,
 // The log pseudolikelihood ratio [proposed against current] for the difference
 //  in a pairwise interaction for a two independent samples design
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thresholds_gr1,
-                                                              NumericMatrix thresholds_gr2,
-                                                              IntegerMatrix observations_gr1,
-                                                              IntegerMatrix observations_gr2,
-                                                              IntegerVector no_categories_gr1,
-                                                              IntegerVector no_categories_gr2,
-                                                              int no_persons_gr1,
-                                                              int no_persons_gr2,
-                                                              int variable1,
-                                                              int variable2,
-                                                              double proposed_state,
-                                                              double current_state,
-                                                              NumericMatrix rest_matrix_gr1,
-                                                              NumericMatrix rest_matrix_gr2,
-                                                              LogicalVector ordinal_variable,
-                                                              IntegerVector reference_category) {
+double compare_ttest_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thresholds_gr1,
+                                                                    NumericMatrix thresholds_gr2,
+                                                                    IntegerMatrix observations_gr1,
+                                                                    IntegerMatrix observations_gr2,
+                                                                    IntegerVector no_categories_gr1,
+                                                                    IntegerVector no_categories_gr2,
+                                                                    int no_persons_gr1,
+                                                                    int no_persons_gr2,
+                                                                    int variable1,
+                                                                    int variable2,
+                                                                    double proposed_state,
+                                                                    double current_state,
+                                                                    NumericMatrix rest_matrix_gr1,
+                                                                    NumericMatrix rest_matrix_gr2,
+                                                                    LogicalVector ordinal_variable,
+                                                                    IntegerVector reference_category) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_prop, denominator_curr, exponent;
@@ -739,28 +739,28 @@ double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thre
 // MH algorithm to sample from the full-conditional of the active differences
 //  in the pairwise interaction parameters
 // ----------------------------------------------------------------------------|
-void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
-                                            NumericMatrix thresholds_gr1,
-                                            NumericMatrix thresholds_gr2,
-                                            IntegerMatrix observations_gr1,
-                                            IntegerMatrix observations_gr2,
-                                            IntegerVector no_categories_gr1,
-                                            IntegerVector no_categories_gr2,
-                                            IntegerMatrix indicator,
-                                            int no_persons_gr1,
-                                            int no_persons_gr2,
-                                            int no_variables,
-                                            NumericMatrix rest_matrix_gr1,
-                                            NumericMatrix rest_matrix_gr2,
-                                            NumericMatrix proposal_sd_pairwise_difference,
-                                            double pairwise_difference_scale,
-                                            double phi,
-                                            double target_ar,
-                                            int t,
-                                            double epsilon_lo,
-                                            double epsilon_hi,
-                                            LogicalVector ordinal_variable,
-                                            IntegerVector reference_category) {
+void compare_ttest_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
+                                                  NumericMatrix thresholds_gr1,
+                                                  NumericMatrix thresholds_gr2,
+                                                  IntegerMatrix observations_gr1,
+                                                  IntegerMatrix observations_gr2,
+                                                  IntegerVector no_categories_gr1,
+                                                  IntegerVector no_categories_gr2,
+                                                  IntegerMatrix indicator,
+                                                  int no_persons_gr1,
+                                                  int no_persons_gr2,
+                                                  int no_variables,
+                                                  NumericMatrix rest_matrix_gr1,
+                                                  NumericMatrix rest_matrix_gr2,
+                                                  NumericMatrix proposal_sd_pairwise_difference,
+                                                  double pairwise_difference_scale,
+                                                  double phi,
+                                                  double target_ar,
+                                                  int t,
+                                                  double epsilon_lo,
+                                                  double epsilon_hi,
+                                                  LogicalVector ordinal_variable,
+                                                  IntegerVector reference_category) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -772,22 +772,22 @@ void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
         current_state = pairwise_difference(variable1, variable2);
         proposed_state = R::rnorm(current_state, proposal_sd_pairwise_difference(variable1, variable2));
 
-        log_prob = compare_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
-                                                                          thresholds_gr2,
-                                                                          observations_gr1,
-                                                                          observations_gr2,
-                                                                          no_categories_gr1,
-                                                                          no_categories_gr2,
-                                                                          no_persons_gr1,
-                                                                          no_persons_gr2,
-                                                                          variable1,
-                                                                          variable2,
-                                                                          proposed_state,
-                                                                          current_state,
-                                                                          rest_matrix_gr1,
-                                                                          rest_matrix_gr2,
-                                                                          ordinal_variable,
-                                                                          reference_category);
+        log_prob = compare_ttest_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
+                                                                                thresholds_gr2,
+                                                                                observations_gr1,
+                                                                                observations_gr2,
+                                                                                no_categories_gr1,
+                                                                                no_categories_gr2,
+                                                                                no_persons_gr1,
+                                                                                no_persons_gr2,
+                                                                                variable1,
+                                                                                variable2,
+                                                                                proposed_state,
+                                                                                current_state,
+                                                                                rest_matrix_gr1,
+                                                                                rest_matrix_gr2,
+                                                                                ordinal_variable,
+                                                                                reference_category);
 
         log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
         log_prob -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
@@ -840,30 +840,30 @@ void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
 // ----------------------------------------------------------------------------|
 // Between model MH algorithm for the pairwise differences
 // ----------------------------------------------------------------------------|
-void compare_metropolis_pairwise_difference_between_model(IntegerVector indicator,
-                                                          NumericMatrix inclusion_probability_difference,
-                                                          NumericMatrix pairwise_difference,
-                                                          NumericMatrix thresholds_gr1,
-                                                          NumericMatrix thresholds_gr2,
-                                                          IntegerMatrix observations_gr1,
-                                                          IntegerMatrix observations_gr2,
-                                                          IntegerVector no_categories_gr1,
-                                                          IntegerVector no_categories_gr2,
-                                                          int no_persons_gr1,
-                                                          int no_persons_gr2,
-                                                          int no_interactions,
-                                                          IntegerMatrix index,
-                                                          NumericMatrix rest_matrix_gr1,
-                                                          NumericMatrix rest_matrix_gr2,
-                                                          NumericMatrix proposal_sd_pairwise_difference,
-                                                          double pairwise_difference_scale,
-                                                          double phi,
-                                                          double target_ar,
-                                                          int t,
-                                                          double epsilon_lo,
-                                                          double epsilon_hi,
-                                                          LogicalVector ordinal_variable,
-                                                          IntegerVector reference_category) {
+void compare_ttest_metropolis_pairwise_difference_between_model(IntegerVector indicator,
+                                                                NumericMatrix inclusion_probability_difference,
+                                                                NumericMatrix pairwise_difference,
+                                                                NumericMatrix thresholds_gr1,
+                                                                NumericMatrix thresholds_gr2,
+                                                                IntegerMatrix observations_gr1,
+                                                                IntegerMatrix observations_gr2,
+                                                                IntegerVector no_categories_gr1,
+                                                                IntegerVector no_categories_gr2,
+                                                                int no_persons_gr1,
+                                                                int no_persons_gr2,
+                                                                int no_interactions,
+                                                                IntegerMatrix index,
+                                                                NumericMatrix rest_matrix_gr1,
+                                                                NumericMatrix rest_matrix_gr2,
+                                                                NumericMatrix proposal_sd_pairwise_difference,
+                                                                double pairwise_difference_scale,
+                                                                double phi,
+                                                                double target_ar,
+                                                                int t,
+                                                                double epsilon_lo,
+                                                                double epsilon_hi,
+                                                                LogicalVector ordinal_variable,
+                                                                IntegerVector reference_category) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -884,22 +884,22 @@ void compare_metropolis_pairwise_difference_between_model(IntegerVector indicato
       proposed_state = 0.0;
     }
 
-    log_prob = compare_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
-                                                                      thresholds_gr2,
-                                                                      observations_gr1,
-                                                                      observations_gr2,
-                                                                      no_categories_gr1,
-                                                                      no_categories_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable1,
-                                                                      variable2,
-                                                                      proposed_state,
-                                                                      current_state,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      ordinal_variable,
-                                                                      reference_category);
+    log_prob = compare_ttest_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
+                                                                            thresholds_gr2,
+                                                                            observations_gr1,
+                                                                            observations_gr2,
+                                                                            no_categories_gr1,
+                                                                            no_categories_gr2,
+                                                                            no_persons_gr1,
+                                                                            no_persons_gr2,
+                                                                            variable1,
+                                                                            variable2,
+                                                                            proposed_state,
+                                                                            current_state,
+                                                                            rest_matrix_gr1,
+                                                                            rest_matrix_gr2,
+                                                                            ordinal_variable,
+                                                                            reference_category);
 
     if(indicator(variable1, variable2) == 0) {
       log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
@@ -953,18 +953,18 @@ void compare_metropolis_pairwise_difference_between_model(IntegerVector indicato
 // MH algorithm to sample from the full-conditional of the overall category
 //  threshold parameters (nuisance) -- regular ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_threshold_regular(NumericMatrix thresholds,
-                                          NumericMatrix main_difference,
-                                          IntegerVector no_categories,
-                                          IntegerMatrix n_cat_obs_gr1,
-                                          IntegerMatrix n_cat_obs_gr2,
-                                          int no_persons_gr1,
-                                          int no_persons_gr2,
-                                          int variable,
-                                          double threshold_alpha,
-                                          double threshold_beta,
-                                          NumericMatrix rest_matrix_gr1,
-                                          NumericMatrix rest_matrix_gr2) {
+void compare_ttest_metropolis_threshold_regular(NumericMatrix thresholds,
+                                                NumericMatrix main_difference,
+                                                IntegerVector no_categories,
+                                                IntegerMatrix n_cat_obs_gr1,
+                                                IntegerMatrix n_cat_obs_gr2,
+                                                int no_persons_gr1,
+                                                int no_persons_gr2,
+                                                int variable,
+                                                double threshold_alpha,
+                                                double threshold_beta,
+                                                NumericMatrix rest_matrix_gr1,
+                                                NumericMatrix rest_matrix_gr2) {
   NumericVector g1(no_persons_gr1);
   NumericVector q1(no_persons_gr1);
   NumericVector g2(no_persons_gr2);
@@ -1069,19 +1069,19 @@ void compare_metropolis_threshold_regular(NumericMatrix thresholds,
 // The log pseudolikelihood ratio [proposed against current] for a category
 //  threshold difference for the two independent samples design
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_difference(NumericMatrix thresholds,
-                                                          NumericMatrix main_difference,
-                                                          IntegerMatrix n_cat_obs_gr1,
-                                                          IntegerMatrix n_cat_obs_gr2,
-                                                          IntegerVector no_categories,
-                                                          int no_persons_gr1,
-                                                          int no_persons_gr2,
-                                                          int variable,
-                                                          int category,
-                                                          double proposed_state,
-                                                          double current_state,
-                                                          NumericMatrix rest_matrix_gr1,
-                                                          NumericMatrix rest_matrix_gr2) {
+double compare_ttest_log_pseudolikelihood_ratio_main_difference(NumericMatrix thresholds,
+                                                                NumericMatrix main_difference,
+                                                                IntegerMatrix n_cat_obs_gr1,
+                                                                IntegerMatrix n_cat_obs_gr2,
+                                                                IntegerVector no_categories,
+                                                                int no_persons_gr1,
+                                                                int no_persons_gr2,
+                                                                int variable,
+                                                                int category,
+                                                                double proposed_state,
+                                                                double current_state,
+                                                                NumericMatrix rest_matrix_gr1,
+                                                                NumericMatrix rest_matrix_gr2) {
 
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
@@ -1163,24 +1163,24 @@ double compare_log_pseudolikelihood_ratio_main_difference(NumericMatrix threshol
 // MH algorithm to sample from the full-conditional of the category threshold
 //  difference parameter -- regular ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
-                                                NumericMatrix main_difference,
-                                                IntegerMatrix n_cat_obs_gr1,
-                                                IntegerMatrix n_cat_obs_gr2,
-                                                IntegerVector no_categories,
-                                                IntegerMatrix indicator,
-                                                NumericMatrix proposal_sd_main_difference,
-                                                double main_difference_scale,
-                                                int no_persons_gr1,
-                                                int no_persons_gr2,
-                                                int variable,
-                                                NumericMatrix rest_matrix_gr1,
-                                                NumericMatrix rest_matrix_gr2,
-                                                double phi,
-                                                double target_ar,
-                                                int t,
-                                                double epsilon_lo,
-                                                double epsilon_hi) {
+void compare_ttest_metropolis_main_difference_regular(NumericMatrix thresholds,
+                                                      NumericMatrix main_difference,
+                                                      IntegerMatrix n_cat_obs_gr1,
+                                                      IntegerMatrix n_cat_obs_gr2,
+                                                      IntegerVector no_categories,
+                                                      IntegerMatrix indicator,
+                                                      NumericMatrix proposal_sd_main_difference,
+                                                      double main_difference_scale,
+                                                      int no_persons_gr1,
+                                                      int no_persons_gr2,
+                                                      int variable,
+                                                      NumericMatrix rest_matrix_gr1,
+                                                      NumericMatrix rest_matrix_gr2,
+                                                      double phi,
+                                                      double target_ar,
+                                                      int t,
+                                                      double epsilon_lo,
+                                                      double epsilon_hi) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -1194,19 +1194,19 @@ void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
         proposed_state = R::rnorm(current_state,
                                   proposal_sd_main_difference(variable, category));
 
-        log_prob = compare_log_pseudolikelihood_ratio_main_difference(thresholds,
-                                                                      main_difference,
-                                                                      n_cat_obs_gr1,
-                                                                      n_cat_obs_gr2,
-                                                                      no_categories,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable,
-                                                                      category,
-                                                                      proposed_state,
-                                                                      current_state,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2);
+        log_prob = compare_ttest_log_pseudolikelihood_ratio_main_difference(thresholds,
+                                                                            main_difference,
+                                                                            n_cat_obs_gr1,
+                                                                            n_cat_obs_gr2,
+                                                                            no_categories,
+                                                                            no_persons_gr1,
+                                                                            no_persons_gr2,
+                                                                            variable,
+                                                                            category,
+                                                                            proposed_state,
+                                                                            current_state,
+                                                                            rest_matrix_gr1,
+                                                                            rest_matrix_gr2);
 
         log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
         log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
@@ -1245,17 +1245,17 @@ void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
 // The log pseudolikelihood ratio [proposed against current] for a vector of
 // category threshold differences for the two independent samples design
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresholds,
-                                                           IntegerMatrix n_cat_obs_gr1,
-                                                           IntegerMatrix n_cat_obs_gr2,
-                                                           IntegerVector no_categories,
-                                                           int no_persons_gr1,
-                                                           int no_persons_gr2,
-                                                           int variable,
-                                                           NumericVector proposed_states,
-                                                           NumericVector current_states,
-                                                           NumericMatrix rest_matrix_gr1,
-                                                           NumericMatrix rest_matrix_gr2) {
+double compare_ttest_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresholds,
+                                                                 IntegerMatrix n_cat_obs_gr1,
+                                                                 IntegerMatrix n_cat_obs_gr2,
+                                                                 IntegerVector no_categories,
+                                                                 int no_persons_gr1,
+                                                                 int no_persons_gr2,
+                                                                 int variable,
+                                                                 NumericVector proposed_states,
+                                                                 NumericVector current_states,
+                                                                 NumericMatrix rest_matrix_gr1,
+                                                                 NumericMatrix rest_matrix_gr2) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_proposed, denominator_current, exponent;
@@ -1286,7 +1286,7 @@ double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresho
       denominator_proposed += std::exp(exponent +
         thresholds(variable, category) -
         .5 * proposed_states[category]);
-      denominator_current += std::exp(exponent +
+        denominator_current += std::exp(exponent +
         thresholds(variable, category) -
         .5 * current_states[category]);
     }
@@ -1312,7 +1312,7 @@ double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresho
       denominator_proposed += std::exp(exponent +
         thresholds(variable, category) +
         .5 * proposed_states[category]);
-      denominator_current += std::exp(exponent +
+        denominator_current += std::exp(exponent +
         thresholds(variable, category) +
         .5 * current_states[category]);
     }
@@ -1328,20 +1328,20 @@ double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresho
 // Between model MH algorithm for the threshold differences
 //    -- regular ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_regular_between_model(NumericMatrix thresholds,
-                                                              NumericMatrix main_difference,
-                                                              IntegerMatrix n_cat_obs_gr1,
-                                                              IntegerMatrix n_cat_obs_gr2,
-                                                              IntegerVector no_categories,
-                                                              IntegerMatrix indicator,
-                                                              NumericMatrix proposal_sd_main_difference,
-                                                              double main_difference_scale,
-                                                              int no_persons_gr1,
-                                                              int no_persons_gr2,
-                                                              int variable,
-                                                              NumericMatrix rest_matrix_gr1,
-                                                              NumericMatrix rest_matrix_gr2,
-                                                              NumericMatrix inclusion_probability_difference) {
+void compare_ttest_metropolis_main_difference_regular_between_model(NumericMatrix thresholds,
+                                                                    NumericMatrix main_difference,
+                                                                    IntegerMatrix n_cat_obs_gr1,
+                                                                    IntegerMatrix n_cat_obs_gr2,
+                                                                    IntegerVector no_categories,
+                                                                    IntegerMatrix indicator,
+                                                                    NumericMatrix proposal_sd_main_difference,
+                                                                    double main_difference_scale,
+                                                                    int no_persons_gr1,
+                                                                    int no_persons_gr2,
+                                                                    int variable,
+                                                                    NumericMatrix rest_matrix_gr1,
+                                                                    NumericMatrix rest_matrix_gr2,
+                                                                    NumericMatrix inclusion_probability_difference) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -1389,17 +1389,17 @@ void compare_metropolis_main_difference_regular_between_model(NumericMatrix thre
     log_prob += log(1 - inclusion_probability_difference(variable, variable));
   }
 
-  log_prob += compare_log_pseudolikelihood_ratio_main_differences(thresholds,
-                                                                  n_cat_obs_gr1,
-                                                                  n_cat_obs_gr2,
-                                                                  no_categories,
-                                                                  no_persons_gr1,
-                                                                  no_persons_gr2,
-                                                                  variable,
-                                                                  proposed_states,
-                                                                  current_states,
-                                                                  rest_matrix_gr1,
-                                                                  rest_matrix_gr2);
+  log_prob += compare_ttest_log_pseudolikelihood_ratio_main_differences(thresholds,
+                                                                        n_cat_obs_gr1,
+                                                                        n_cat_obs_gr2,
+                                                                        no_categories,
+                                                                        no_persons_gr1,
+                                                                        no_persons_gr2,
+                                                                        variable,
+                                                                        proposed_states,
+                                                                        current_states,
+                                                                        rest_matrix_gr1,
+                                                                        rest_matrix_gr2);
 
   U = R::unif_rand();
   if(std::log(U) < log_prob) {
@@ -1415,20 +1415,20 @@ void compare_metropolis_main_difference_regular_between_model(NumericMatrix thre
 // The log pseudolikelihood ratio [proposed against current] for the two
 // category threshold parameters of the Blume-Capel model
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_current,
-                                                                double quadratic_current,
-                                                                double linear_proposed,
-                                                                double quadratic_proposed,
-                                                                int variable,
-                                                                IntegerVector reference_category,
-                                                                NumericMatrix main_difference,
-                                                                IntegerMatrix sufficient_blume_capel_gr1,
-                                                                IntegerMatrix sufficient_blume_capel_gr2,
-                                                                int no_persons_gr1,
-                                                                int no_persons_gr2,
-                                                                NumericMatrix rest_matrix_gr1,
-                                                                NumericMatrix rest_matrix_gr2,
-                                                                IntegerVector no_categories) {
+double compare_ttest_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_current,
+                                                                      double quadratic_current,
+                                                                      double linear_proposed,
+                                                                      double quadratic_proposed,
+                                                                      int variable,
+                                                                      IntegerVector reference_category,
+                                                                      NumericMatrix main_difference,
+                                                                      IntegerMatrix sufficient_blume_capel_gr1,
+                                                                      IntegerMatrix sufficient_blume_capel_gr2,
+                                                                      int no_persons_gr1,
+                                                                      int no_persons_gr2,
+                                                                      NumericMatrix rest_matrix_gr1,
+                                                                      NumericMatrix rest_matrix_gr2,
+                                                                      IntegerVector no_categories) {
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
   double lbound, bound;
@@ -1558,25 +1558,25 @@ double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_cu
 // MH algorithm to sample from the full-conditional of the overall category
 //  threshold parameters (nuisance) -- Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
-                                             NumericMatrix main_difference,
-                                             IntegerVector no_categories,
-                                             IntegerMatrix sufficient_blume_capel_gr1,
-                                             IntegerMatrix sufficient_blume_capel_gr2,
-                                             int no_persons_gr1,
-                                             int no_persons_gr2,
-                                             int variable,
-                                             IntegerVector reference_category,
-                                             double threshold_alpha,
-                                             double threshold_beta,
-                                             NumericMatrix rest_matrix_gr1,
-                                             NumericMatrix rest_matrix_gr2,
-                                             NumericMatrix proposal_sd_blumecapel,
-                                             double phi,
-                                             double target_ar,
-                                             int t,
-                                             double epsilon_lo,
-                                             double epsilon_hi) {
+void compare_ttest_metropolis_threshold_blumecapel(NumericMatrix thresholds,
+                                                   NumericMatrix main_difference,
+                                                   IntegerVector no_categories,
+                                                   IntegerMatrix sufficient_blume_capel_gr1,
+                                                   IntegerMatrix sufficient_blume_capel_gr2,
+                                                   int no_persons_gr1,
+                                                   int no_persons_gr2,
+                                                   int variable,
+                                                   IntegerVector reference_category,
+                                                   double threshold_alpha,
+                                                   double threshold_beta,
+                                                   NumericMatrix rest_matrix_gr1,
+                                                   NumericMatrix rest_matrix_gr2,
+                                                   NumericMatrix proposal_sd_blumecapel,
+                                                   double phi,
+                                                   double target_ar,
+                                                   int t,
+                                                   double epsilon_lo,
+                                                   double epsilon_hi) {
   double log_prob, U;
   double current_state, proposed_state;
   NumericVector constant_numerator (no_categories[variable] + 1);
@@ -1596,20 +1596,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   double linear_proposed = proposed_state;
   double quadratic_proposed = thresholds(variable, 1);
 
-  log_prob = compare_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
-                                                                      quadratic_current,
-                                                                      linear_proposed,
-                                                                      quadratic_proposed,
-                                                                      variable,
-                                                                      reference_category,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      no_categories);
+  log_prob = compare_ttest_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
+                                                                            quadratic_current,
+                                                                            linear_proposed,
+                                                                            quadratic_proposed,
+                                                                            variable,
+                                                                            reference_category,
+                                                                            main_difference,
+                                                                            sufficient_blume_capel_gr1,
+                                                                            sufficient_blume_capel_gr2,
+                                                                            no_persons_gr1,
+                                                                            no_persons_gr2,
+                                                                            rest_matrix_gr1,
+                                                                            rest_matrix_gr2,
+                                                                            no_categories);
 
   //Compute the prior ratio ----------------------------------------------------
   log_prob += threshold_alpha * (proposed_state - current_state);
@@ -1657,20 +1657,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
   linear_proposed = thresholds(variable, 0);
   quadratic_proposed =  proposed_state;
 
-  log_prob = compare_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
-                                                                      quadratic_current,
-                                                                      linear_proposed,
-                                                                      quadratic_proposed,
-                                                                      variable,
-                                                                      reference_category,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      no_categories);
+  log_prob = compare_ttest_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
+                                                                            quadratic_current,
+                                                                            linear_proposed,
+                                                                            quadratic_proposed,
+                                                                            variable,
+                                                                            reference_category,
+                                                                            main_difference,
+                                                                            sufficient_blume_capel_gr1,
+                                                                            sufficient_blume_capel_gr2,
+                                                                            no_persons_gr1,
+                                                                            no_persons_gr2,
+                                                                            rest_matrix_gr1,
+                                                                            rest_matrix_gr2,
+                                                                            no_categories);
 
   //Compute the prior ratio ----------------------------------------------------
   log_prob += threshold_alpha * (proposed_state - current_state);
@@ -1709,20 +1709,20 @@ void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
 // The log pseudolikelihood ratio [proposed against current] for the two
 // category threshold differences of the Blume-Capel model
 // ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double linear_current,
-                                                                     double quadratic_current,
-                                                                     double linear_proposed,
-                                                                     double quadratic_proposed,
-                                                                     int variable,
-                                                                     IntegerVector reference_category,
-                                                                     NumericMatrix thresholds,
-                                                                     IntegerMatrix sufficient_blume_capel_gr1,
-                                                                     IntegerMatrix sufficient_blume_capel_gr2,
-                                                                     int no_persons_gr1,
-                                                                     int no_persons_gr2,
-                                                                     NumericMatrix rest_matrix_gr1,
-                                                                     NumericMatrix rest_matrix_gr2,
-                                                                     IntegerVector no_categories) {
+double compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(double linear_current,
+                                                                           double quadratic_current,
+                                                                           double linear_proposed,
+                                                                           double quadratic_proposed,
+                                                                           int variable,
+                                                                           IntegerVector reference_category,
+                                                                           NumericMatrix thresholds,
+                                                                           IntegerMatrix sufficient_blume_capel_gr1,
+                                                                           IntegerMatrix sufficient_blume_capel_gr2,
+                                                                           int no_persons_gr1,
+                                                                           int no_persons_gr2,
+                                                                           NumericMatrix rest_matrix_gr1,
+                                                                           NumericMatrix rest_matrix_gr2,
+                                                                           IntegerVector no_categories) {
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
   double lbound, bound;
@@ -1856,24 +1856,24 @@ double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double line
 // MH algorithm to sample from the full-conditional of the category threshold
 //  difference parameters-- Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
-                                                   NumericMatrix main_difference,
-                                                   IntegerVector no_categories,
-                                                   IntegerMatrix sufficient_blume_capel_gr1,
-                                                   IntegerMatrix sufficient_blume_capel_gr2,
-                                                   int no_persons_gr1,
-                                                   int no_persons_gr2,
-                                                   int variable,
-                                                   IntegerVector reference_category,
-                                                   double main_difference_scale,
-                                                   NumericMatrix rest_matrix_gr1,
-                                                   NumericMatrix rest_matrix_gr2,
-                                                   NumericMatrix proposal_sd_main_difference,
-                                                   double phi,
-                                                   double target_ar,
-                                                   int t,
-                                                   double epsilon_lo,
-                                                   double epsilon_hi) {
+void compare_ttest_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
+                                                         NumericMatrix main_difference,
+                                                         IntegerVector no_categories,
+                                                         IntegerMatrix sufficient_blume_capel_gr1,
+                                                         IntegerMatrix sufficient_blume_capel_gr2,
+                                                         int no_persons_gr1,
+                                                         int no_persons_gr2,
+                                                         int variable,
+                                                         IntegerVector reference_category,
+                                                         double main_difference_scale,
+                                                         NumericMatrix rest_matrix_gr1,
+                                                         NumericMatrix rest_matrix_gr2,
+                                                         NumericMatrix proposal_sd_main_difference,
+                                                         double phi,
+                                                         double target_ar,
+                                                         int t,
+                                                         double epsilon_lo,
+                                                         double epsilon_hi) {
   double log_prob, U;
   double current_state, proposed_state;
   NumericVector constant_numerator (no_categories[variable] + 1);
@@ -1895,20 +1895,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
   double linear_proposed = proposed_state;
   double quadratic_proposed = main_difference(variable, 1);
 
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
+  log_prob = compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
+                                                                                 quadratic_current,
+                                                                                 linear_proposed,
+                                                                                 quadratic_proposed,
+                                                                                 variable,
+                                                                                 reference_category,
+                                                                                 thresholds,
+                                                                                 sufficient_blume_capel_gr1,
+                                                                                 sufficient_blume_capel_gr2,
+                                                                                 no_persons_gr1,
+                                                                                 no_persons_gr2,
+                                                                                 rest_matrix_gr1,
+                                                                                 rest_matrix_gr2,
+                                                                                 no_categories);
 
   //Compute the prior ratio ---------------------------------------------------
   log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
@@ -1955,20 +1955,20 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
   linear_proposed = main_difference(variable, 0);
   quadratic_proposed = proposed_state;
 
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
+  log_prob = compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
+                                                                                 quadratic_current,
+                                                                                 linear_proposed,
+                                                                                 quadratic_proposed,
+                                                                                 variable,
+                                                                                 reference_category,
+                                                                                 thresholds,
+                                                                                 sufficient_blume_capel_gr1,
+                                                                                 sufficient_blume_capel_gr2,
+                                                                                 no_persons_gr1,
+                                                                                 no_persons_gr2,
+                                                                                 rest_matrix_gr1,
+                                                                                 rest_matrix_gr2,
+                                                                                 no_categories);
 
   //Compute the prior ratio -------------------------------------------------
   log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
@@ -2004,21 +2004,21 @@ void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
 // Between model MH algorithm for the threshold differences
 //    -- blume capel ordinal variable
 // ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix thresholds,
-                                                                 NumericMatrix main_difference,
-                                                                 IntegerMatrix sufficient_blume_capel_gr1,
-                                                                 IntegerMatrix sufficient_blume_capel_gr2,
-                                                                 IntegerVector no_categories,
-                                                                 IntegerMatrix indicator,
-                                                                 NumericMatrix proposal_sd_main_difference,
-                                                                 double main_difference_scale,
-                                                                 int no_persons_gr1,
-                                                                 int no_persons_gr2,
-                                                                 int variable,
-                                                                 NumericMatrix rest_matrix_gr1,
-                                                                 NumericMatrix rest_matrix_gr2,
-                                                                 NumericMatrix inclusion_probability_difference,
-                                                                 IntegerVector reference_category) {
+void compare_ttest_metropolis_main_difference_blumecapel_between_model(NumericMatrix thresholds,
+                                                                       NumericMatrix main_difference,
+                                                                       IntegerMatrix sufficient_blume_capel_gr1,
+                                                                       IntegerMatrix sufficient_blume_capel_gr2,
+                                                                       IntegerVector no_categories,
+                                                                       IntegerMatrix indicator,
+                                                                       NumericMatrix proposal_sd_main_difference,
+                                                                       double main_difference_scale,
+                                                                       int no_persons_gr1,
+                                                                       int no_persons_gr2,
+                                                                       int variable,
+                                                                       NumericMatrix rest_matrix_gr1,
+                                                                       NumericMatrix rest_matrix_gr2,
+                                                                       NumericMatrix inclusion_probability_difference,
+                                                                       IntegerVector reference_category) {
   double log_prob;
   double U;
   NumericVector proposed_states(2);
@@ -2051,20 +2051,20 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
   double linear_proposed = proposed_states[0];
   double quadratic_proposed = proposed_states[1];
 
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
+  log_prob = compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
+                                                                                 quadratic_current,
+                                                                                 linear_proposed,
+                                                                                 quadratic_proposed,
+                                                                                 variable,
+                                                                                 reference_category,
+                                                                                 thresholds,
+                                                                                 sufficient_blume_capel_gr1,
+                                                                                 sufficient_blume_capel_gr2,
+                                                                                 no_persons_gr1,
+                                                                                 no_persons_gr2,
+                                                                                 rest_matrix_gr1,
+                                                                                 rest_matrix_gr2,
+                                                                                 no_categories);
 
   //Compute the parameter prior and proposal ratios ----------------------------
   if(indicator(variable, variable) == 0) {
@@ -2072,23 +2072,23 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
     log_prob += R::dcauchy(proposed_states[1], 0.0, main_difference_scale, true);
     log_prob -= R::dnorm(proposed_states[0],
                          current_states[0],
-                         proposal_sd_main_difference(variable, 0),
-                         true);
+                                       proposal_sd_main_difference(variable, 0),
+                                       true);
     log_prob -= R::dnorm(proposed_states[1],
                          current_states[1],
-                         proposal_sd_main_difference(variable, 1),
-                         true);
+                                       proposal_sd_main_difference(variable, 1),
+                                       true);
   } else {
     log_prob -= R::dcauchy(current_states[0], 0.0, main_difference_scale, true);
     log_prob -= R::dcauchy(current_states[1], 0.0, main_difference_scale, true);
     log_prob += R::dnorm(current_states[0],
                          proposed_states[0],
-                         proposal_sd_main_difference(variable, 0),
-                         true);
+                                        proposal_sd_main_difference(variable, 0),
+                                        true);
     log_prob += R::dnorm(current_states[1],
                          proposed_states[1],
-                         proposal_sd_main_difference(variable, 1),
-                         true);
+                                        proposal_sd_main_difference(variable, 1),
+                                        true);
   }
 
   //Compute the prior inclusion ratios -----------------------------------------
@@ -2112,46 +2112,46 @@ void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix t
 // ----------------------------------------------------------------------------|
 // A Gibbs step for graphical model parameters for Bayesian parameter comparison
 // ----------------------------------------------------------------------------|
-List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
-                           NumericMatrix thresholds_gr2,
-                           NumericMatrix interactions_gr1,
-                           NumericMatrix interactions_gr2,
-                           IntegerMatrix indicator,
-                           NumericMatrix inclusion_probability_difference,
-                           IntegerMatrix observations_gr1,
-                           IntegerMatrix observations_gr2,
-                           IntegerVector no_categories_gr1,
-                           IntegerVector no_categories_gr2,
-                           int no_persons_gr1,
-                           int no_persons_gr2,
-                           int no_variables,
-                           IntegerMatrix n_cat_obs_gr1,
-                           IntegerMatrix n_cat_obs_gr2,
-                           IntegerMatrix sufficient_blume_capel_gr1,
-                           IntegerMatrix sufficient_blume_capel_gr2,
-                           NumericMatrix rest_matrix_gr1,
-                           NumericMatrix rest_matrix_gr2,
-                           NumericMatrix proposal_sd_interaction,
-                           NumericMatrix proposal_sd_main_difference,
-                           NumericMatrix proposal_sd_pairwise_difference,
-                           NumericMatrix proposal_sd_blumecapel_gr1,
-                           NumericMatrix proposal_sd_blumecapel_gr2,
-                           double interaction_scale,
-                           double main_difference_scale,
-                           double pairwise_difference_scale,
-                           double threshold_alpha,
-                           double threshold_beta,
-                           double phi,
-                           double target_ar,
-                           int t,
-                           double epsilon_lo,
-                           double epsilon_hi,
-                           LogicalVector ordinal_variable,
-                           IntegerVector reference_category,
-                           bool independent_thresholds,
-                           bool difference_selection,
-                           int no_interactions,
-                           IntegerMatrix index) {
+List compare_ttest_gibbs_step_gm(NumericMatrix thresholds_gr1,
+                                 NumericMatrix thresholds_gr2,
+                                 NumericMatrix interactions_gr1,
+                                 NumericMatrix interactions_gr2,
+                                 IntegerMatrix indicator,
+                                 NumericMatrix inclusion_probability_difference,
+                                 IntegerMatrix observations_gr1,
+                                 IntegerMatrix observations_gr2,
+                                 IntegerVector no_categories_gr1,
+                                 IntegerVector no_categories_gr2,
+                                 int no_persons_gr1,
+                                 int no_persons_gr2,
+                                 int no_variables,
+                                 IntegerMatrix n_cat_obs_gr1,
+                                 IntegerMatrix n_cat_obs_gr2,
+                                 IntegerMatrix sufficient_blume_capel_gr1,
+                                 IntegerMatrix sufficient_blume_capel_gr2,
+                                 NumericMatrix rest_matrix_gr1,
+                                 NumericMatrix rest_matrix_gr2,
+                                 NumericMatrix proposal_sd_interaction,
+                                 NumericMatrix proposal_sd_main_difference,
+                                 NumericMatrix proposal_sd_pairwise_difference,
+                                 NumericMatrix proposal_sd_blumecapel_gr1,
+                                 NumericMatrix proposal_sd_blumecapel_gr2,
+                                 double interaction_scale,
+                                 double main_difference_scale,
+                                 double pairwise_difference_scale,
+                                 double threshold_alpha,
+                                 double threshold_beta,
+                                 double phi,
+                                 double target_ar,
+                                 int t,
+                                 double epsilon_lo,
+                                 double epsilon_hi,
+                                 LogicalVector ordinal_variable,
+                                 IntegerVector reference_category,
+                                 bool independent_thresholds,
+                                 bool difference_selection,
+                                 int no_interactions,
+                                 IntegerMatrix index) {
 
   NumericMatrix thresholds(no_variables, max(no_categories_gr1));
   NumericMatrix main_difference(no_variables, max(no_categories_gr1));
@@ -2179,8 +2179,8 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
           .5 * thresholds_gr1(variable, 0);
 
         main_difference(variable, 1) =
-          thresholds_gr2(variable, 1) -
-          thresholds_gr1(variable, 1);
+        thresholds_gr2(variable, 1) -
+        thresholds_gr1(variable, 1);
 
         thresholds(variable, 1) =
           .5 * thresholds_gr2(variable, 1) +
@@ -2199,7 +2199,7 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
         .5 * interactions_gr2(variable1, variable2);
 
       pairwise_difference(variable2, variable1) =
-        pairwise_difference(variable1, variable2);
+      pairwise_difference(variable1, variable2);
 
       interactions(variable2, variable1) =
         interactions(variable1, variable2);
@@ -2208,78 +2208,78 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
 
   //Between model move for differences in interaction parameters
   if(difference_selection == true) {
-    compare_metropolis_pairwise_difference_between_model(indicator,
-                                                         inclusion_probability_difference,
-                                                         pairwise_difference,
-                                                         thresholds_gr1,
-                                                         thresholds_gr2,
-                                                         observations_gr1,
-                                                         observations_gr2,
-                                                         no_categories_gr1,
-                                                         no_categories_gr2,
-                                                         no_persons_gr1,
-                                                         no_persons_gr2,
-                                                         no_interactions,
-                                                         index,
-                                                         rest_matrix_gr1,
-                                                         rest_matrix_gr2,
-                                                         proposal_sd_pairwise_difference,
-                                                         pairwise_difference_scale,
-                                                         phi,
-                                                         target_ar,
-                                                         t,
-                                                         epsilon_lo,
-                                                         epsilon_hi,
-                                                         ordinal_variable,
-                                                         reference_category);
+    compare_ttest_metropolis_pairwise_difference_between_model(indicator,
+                                                               inclusion_probability_difference,
+                                                               pairwise_difference,
+                                                               thresholds_gr1,
+                                                               thresholds_gr2,
+                                                               observations_gr1,
+                                                               observations_gr2,
+                                                               no_categories_gr1,
+                                                               no_categories_gr2,
+                                                               no_persons_gr1,
+                                                               no_persons_gr2,
+                                                               no_interactions,
+                                                               index,
+                                                               rest_matrix_gr1,
+                                                               rest_matrix_gr2,
+                                                               proposal_sd_pairwise_difference,
+                                                               pairwise_difference_scale,
+                                                               phi,
+                                                               target_ar,
+                                                               t,
+                                                               epsilon_lo,
+                                                               epsilon_hi,
+                                                               ordinal_variable,
+                                                               reference_category);
   }
 
   //Within model move for differences in interaction parameters
-  compare_metropolis_pairwise_difference(pairwise_difference,
-                                         thresholds_gr1,
-                                         thresholds_gr2,
-                                         observations_gr1,
-                                         observations_gr2,
-                                         no_categories_gr1,
-                                         no_categories_gr2,
-                                         indicator,
-                                         no_persons_gr1,
-                                         no_persons_gr2,
-                                         no_variables,
-                                         rest_matrix_gr1,
-                                         rest_matrix_gr2,
-                                         proposal_sd_pairwise_difference,
-                                         pairwise_difference_scale,
-                                         phi,
-                                         target_ar,
-                                         t,
-                                         epsilon_lo,
-                                         epsilon_hi,
-                                         ordinal_variable,
-                                         reference_category);
+  compare_ttest_metropolis_pairwise_difference(pairwise_difference,
+                                               thresholds_gr1,
+                                               thresholds_gr2,
+                                               observations_gr1,
+                                               observations_gr2,
+                                               no_categories_gr1,
+                                               no_categories_gr2,
+                                               indicator,
+                                               no_persons_gr1,
+                                               no_persons_gr2,
+                                               no_variables,
+                                               rest_matrix_gr1,
+                                               rest_matrix_gr2,
+                                               proposal_sd_pairwise_difference,
+                                               pairwise_difference_scale,
+                                               phi,
+                                               target_ar,
+                                               t,
+                                               epsilon_lo,
+                                               epsilon_hi,
+                                               ordinal_variable,
+                                               reference_category);
 
   //Within model move for the pairwise interaction parameters
-  compare_metropolis_interaction(interactions,
-                                 thresholds_gr1,
-                                 thresholds_gr2,
-                                 observations_gr1,
-                                 observations_gr2,
-                                 no_categories_gr1,
-                                 no_categories_gr2,
-                                 proposal_sd_interaction,
-                                 interaction_scale,
-                                 no_persons_gr1,
-                                 no_persons_gr2,
-                                 no_variables,
-                                 rest_matrix_gr1,
-                                 rest_matrix_gr2,
-                                 phi,
-                                 target_ar,
-                                 t,
-                                 epsilon_lo,
-                                 epsilon_hi,
-                                 ordinal_variable,
-                                 reference_category);
+  compare_ttest_metropolis_interaction(interactions,
+                                       thresholds_gr1,
+                                       thresholds_gr2,
+                                       observations_gr1,
+                                       observations_gr2,
+                                       no_categories_gr1,
+                                       no_categories_gr2,
+                                       proposal_sd_interaction,
+                                       interaction_scale,
+                                       no_persons_gr1,
+                                       no_persons_gr2,
+                                       no_variables,
+                                       rest_matrix_gr1,
+                                       rest_matrix_gr2,
+                                       phi,
+                                       target_ar,
+                                       t,
+                                       epsilon_lo,
+                                       epsilon_hi,
+                                       ordinal_variable,
+                                       reference_category);
 
   //Update threshold parameters
   if(independent_thresholds == false) {
@@ -2287,77 +2287,97 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
       if(ordinal_variable[variable] == true) {
         if(difference_selection == true) {
           //Between model move for the differences in category thresholds
-          compare_metropolis_main_difference_regular_between_model(thresholds,
-                                                                   main_difference,
-                                                                   n_cat_obs_gr1,
-                                                                   n_cat_obs_gr2,
-                                                                   no_categories_gr1,
-                                                                   indicator,
-                                                                   proposal_sd_main_difference,
-                                                                   main_difference_scale,
-                                                                   no_persons_gr1,
-                                                                   no_persons_gr2,
-                                                                   variable,
-                                                                   rest_matrix_gr1,
-                                                                   rest_matrix_gr2,
-                                                                   inclusion_probability_difference);
+          compare_ttest_metropolis_main_difference_regular_between_model(thresholds,
+                                                                         main_difference,
+                                                                         n_cat_obs_gr1,
+                                                                         n_cat_obs_gr2,
+                                                                         no_categories_gr1,
+                                                                         indicator,
+                                                                         proposal_sd_main_difference,
+                                                                         main_difference_scale,
+                                                                         no_persons_gr1,
+                                                                         no_persons_gr2,
+                                                                         variable,
+                                                                         rest_matrix_gr1,
+                                                                         rest_matrix_gr2,
+                                                                         inclusion_probability_difference);
         }
 
         //Within model move for the differences in category thresholds
-        compare_metropolis_main_difference_regular(thresholds,
+        compare_ttest_metropolis_main_difference_regular(thresholds,
+                                                         main_difference,
+                                                         n_cat_obs_gr1,
+                                                         n_cat_obs_gr2,
+                                                         no_categories_gr1,
+                                                         indicator,
+                                                         proposal_sd_main_difference,
+                                                         main_difference_scale,
+                                                         no_persons_gr1,
+                                                         no_persons_gr2,
+                                                         variable,
+                                                         rest_matrix_gr1,
+                                                         rest_matrix_gr2,
+                                                         phi,
+                                                         target_ar,
+                                                         t,
+                                                         epsilon_lo,
+                                                         epsilon_hi);
+
+        //Within model move for the main category thresholds
+        compare_ttest_metropolis_threshold_regular(thresholds,
                                                    main_difference,
+                                                   no_categories_gr1,
                                                    n_cat_obs_gr1,
                                                    n_cat_obs_gr2,
-                                                   no_categories_gr1,
-                                                   indicator,
-                                                   proposal_sd_main_difference,
-                                                   main_difference_scale,
                                                    no_persons_gr1,
                                                    no_persons_gr2,
                                                    variable,
+                                                   threshold_alpha,
+                                                   threshold_beta,
                                                    rest_matrix_gr1,
-                                                   rest_matrix_gr2,
-                                                   phi,
-                                                   target_ar,
-                                                   t,
-                                                   epsilon_lo,
-                                                   epsilon_hi);
-
-        //Within model move for the main category thresholds
-        compare_metropolis_threshold_regular(thresholds,
-                                             main_difference,
-                                             no_categories_gr1,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             no_persons_gr1,
-                                             no_persons_gr2,
-                                             variable,
-                                             threshold_alpha,
-                                             threshold_beta,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2);
+                                                   rest_matrix_gr2);
       } else {
         //Between model move for the differences in category thresholds
         if(difference_selection == true) {
-          compare_metropolis_main_difference_blumecapel_between_model(thresholds,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_categories_gr1,
-                                                                      indicator,
-                                                                      proposal_sd_main_difference,
-                                                                      main_difference_scale,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      inclusion_probability_difference,
-                                                                      reference_category);
+          compare_ttest_metropolis_main_difference_blumecapel_between_model(thresholds,
+                                                                            main_difference,
+                                                                            sufficient_blume_capel_gr1,
+                                                                            sufficient_blume_capel_gr2,
+                                                                            no_categories_gr1,
+                                                                            indicator,
+                                                                            proposal_sd_main_difference,
+                                                                            main_difference_scale,
+                                                                            no_persons_gr1,
+                                                                            no_persons_gr2,
+                                                                            variable,
+                                                                            rest_matrix_gr1,
+                                                                            rest_matrix_gr2,
+                                                                            inclusion_probability_difference,
+                                                                            reference_category);
         }
 
         //Within model move for the differences in category thresholds
-        compare_metropolis_main_difference_blumecapel(thresholds,
+        compare_ttest_metropolis_main_difference_blumecapel(thresholds,
+                                                            main_difference,
+                                                            no_categories_gr1,
+                                                            sufficient_blume_capel_gr1,
+                                                            sufficient_blume_capel_gr2,
+                                                            no_persons_gr1,
+                                                            no_persons_gr2,
+                                                            variable,
+                                                            reference_category,
+                                                            main_difference_scale,
+                                                            rest_matrix_gr1,
+                                                            rest_matrix_gr2,
+                                                            proposal_sd_main_difference,
+                                                            phi,
+                                                            target_ar,
+                                                            t,
+                                                            epsilon_lo,
+                                                            epsilon_hi);
+
+        //Within model move for the main category thresholds
+        compare_ttest_metropolis_threshold_blumecapel(thresholds,
                                                       main_difference,
                                                       no_categories_gr1,
                                                       sufficient_blume_capel_gr1,
@@ -2366,36 +2386,16 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
                                                       no_persons_gr2,
                                                       variable,
                                                       reference_category,
-                                                      main_difference_scale,
+                                                      threshold_alpha,
+                                                      threshold_beta,
                                                       rest_matrix_gr1,
                                                       rest_matrix_gr2,
-                                                      proposal_sd_main_difference,
+                                                      proposal_sd_blumecapel_gr1,
                                                       phi,
                                                       target_ar,
                                                       t,
                                                       epsilon_lo,
                                                       epsilon_hi);
-
-        //Within model move for the main category thresholds
-        compare_metropolis_threshold_blumecapel(thresholds,
-                                                main_difference,
-                                                no_categories_gr1,
-                                                sufficient_blume_capel_gr1,
-                                                sufficient_blume_capel_gr2,
-                                                no_persons_gr1,
-                                                no_persons_gr2,
-                                                variable,
-                                                reference_category,
-                                                threshold_alpha,
-                                                threshold_beta,
-                                                rest_matrix_gr1,
-                                                rest_matrix_gr2,
-                                                proposal_sd_blumecapel_gr1,
-                                                phi,
-                                                target_ar,
-                                                t,
-                                                epsilon_lo,
-                                                epsilon_hi);
       }
     }
   } else {
@@ -2468,7 +2468,7 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
             thresholds(variable, category) -
             .5 * main_difference(variable, category);
 
-          thresholds_gr2(variable, category) =
+            thresholds_gr2(variable, category) =
             thresholds(variable, category) +
             .5 * main_difference(variable, category);
         }
@@ -2477,15 +2477,15 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
           thresholds(variable, 0) -
           .5 * main_difference(variable, 0);
 
-        thresholds_gr2(variable, 0) =
+          thresholds_gr2(variable, 0) =
           thresholds(variable, 0) +
           .5 * main_difference(variable, 0);
 
-        thresholds_gr1(variable, 1) =
+          thresholds_gr1(variable, 1) =
           thresholds(variable, 1) -
           .5 * main_difference(variable, 1);
 
-        thresholds_gr2(variable, 1) =
+          thresholds_gr2(variable, 1) =
           thresholds(variable, 1) +
           .5 * main_difference(variable, 1);
       }
@@ -2498,15 +2498,15 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
         interactions(variable1, variable2) -
         .5 * pairwise_difference(variable1, variable2);
 
-      interactions_gr2(variable1, variable2) =
+        interactions_gr2(variable1, variable2) =
         interactions(variable1, variable2) +
         .5 * pairwise_difference(variable1, variable2);
 
-      interactions_gr1(variable2, variable1) =
+        interactions_gr1(variable2, variable1) =
         interactions_gr1(variable1, variable2);
 
-      interactions_gr2(variable2, variable1) =
-        interactions_gr2(variable1, variable2);
+        interactions_gr2(variable2, variable1) =
+          interactions_gr2(variable1, variable2);
     }
   }
 
@@ -2528,38 +2528,38 @@ List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
 // The Gibbs sampler for Bayesian parameter comparisons
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
-List compare_gibbs_sampler(IntegerMatrix observations_gr1,
-                           IntegerMatrix observations_gr2,
-                           IntegerVector no_categories_gr1,
-                           IntegerVector no_categories_gr2,
-                           double interaction_scale,
-                           double pairwise_difference_scale,
-                           double main_difference_scale,
-                           String pairwise_difference_prior,
-                           String main_difference_prior,
-                           NumericMatrix inclusion_probability_difference,
-                           double pairwise_beta_bernoulli_alpha,
-                           double pairwise_beta_bernoulli_beta,
-                           double main_beta_bernoulli_alpha,
-                           double main_beta_bernoulli_beta,
-                           IntegerMatrix Index,
-                           int iter,
-                           int burnin,
-                           IntegerMatrix n_cat_obs_gr1,
-                           IntegerMatrix n_cat_obs_gr2,
-                           IntegerMatrix sufficient_blume_capel_gr1,
-                           IntegerMatrix sufficient_blume_capel_gr2,
-                           double threshold_alpha,
-                           double threshold_beta,
-                           bool na_impute,
-                           IntegerMatrix missing_index_gr1,
-                           IntegerMatrix missing_index_gr2,
-                           LogicalVector ordinal_variable,
-                           IntegerVector reference_category,
-                           bool independent_thresholds,
-                           bool save = false,
-                           bool display_progress = false,
-                           bool difference_selection = true) {
+List compare_ttest_gibbs_sampler(IntegerMatrix observations_gr1,
+                                 IntegerMatrix observations_gr2,
+                                 IntegerVector no_categories_gr1,
+                                 IntegerVector no_categories_gr2,
+                                 double interaction_scale,
+                                 double pairwise_difference_scale,
+                                 double main_difference_scale,
+                                 String pairwise_difference_prior,
+                                 String main_difference_prior,
+                                 NumericMatrix inclusion_probability_difference,
+                                 double pairwise_beta_bernoulli_alpha,
+                                 double pairwise_beta_bernoulli_beta,
+                                 double main_beta_bernoulli_alpha,
+                                 double main_beta_bernoulli_beta,
+                                 IntegerMatrix Index,
+                                 int iter,
+                                 int burnin,
+                                 IntegerMatrix n_cat_obs_gr1,
+                                 IntegerMatrix n_cat_obs_gr2,
+                                 IntegerMatrix sufficient_blume_capel_gr1,
+                                 IntegerMatrix sufficient_blume_capel_gr2,
+                                 double threshold_alpha,
+                                 double threshold_beta,
+                                 bool na_impute,
+                                 IntegerMatrix missing_index_gr1,
+                                 IntegerMatrix missing_index_gr2,
+                                 LogicalVector ordinal_variable,
+                                 IntegerVector reference_category,
+                                 bool independent_thresholds,
+                                 bool save = false,
+                                 bool display_progress = false,
+                                 bool difference_selection = true) {
   int cntr;
   int no_variables = observations_gr1.ncol();
   int no_persons_gr1 = observations_gr1.nrow();
@@ -2703,24 +2703,24 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
     }
 
     if(na_impute == true) {
-      List out = compare_impute_missing_data(thresholds_gr1,
-                                             thresholds_gr2,
-                                             interactions_gr1,
-                                             interactions_gr2,
-                                             observations_gr1,
-                                             observations_gr2,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             sufficient_blume_capel_gr1,
-                                             sufficient_blume_capel_gr2,
-                                             no_categories_gr1,
-                                             no_categories_gr2,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2,
-                                             missing_index_gr1,
-                                             missing_index_gr2,
-                                             ordinal_variable,
-                                             reference_category);
+      List out = compare_ttest_impute_missing_data(thresholds_gr1,
+                                                   thresholds_gr2,
+                                                   interactions_gr1,
+                                                   interactions_gr2,
+                                                   observations_gr1,
+                                                   observations_gr2,
+                                                   n_cat_obs_gr1,
+                                                   n_cat_obs_gr2,
+                                                   sufficient_blume_capel_gr1,
+                                                   sufficient_blume_capel_gr2,
+                                                   no_categories_gr1,
+                                                   no_categories_gr2,
+                                                   rest_matrix_gr1,
+                                                   rest_matrix_gr2,
+                                                   missing_index_gr1,
+                                                   missing_index_gr2,
+                                                   ordinal_variable,
+                                                   reference_category);
 
       IntegerMatrix observations_gr1 = out["observations_gr1"];
       IntegerMatrix observations_gr2 = out["observations_gr2"];
@@ -2732,46 +2732,46 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
       NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
     }
 
-    List out = compare_gibbs_step_gm(thresholds_gr1,
-                                     thresholds_gr2,
-                                     interactions_gr1,
-                                     interactions_gr2,
-                                     indicator,
-                                     inclusion_probability_difference,
-                                     observations_gr1,
-                                     observations_gr2,
-                                     no_categories_gr1,
-                                     no_categories_gr2,
-                                     no_persons_gr1,
-                                     no_persons_gr2,
-                                     no_variables,
-                                     n_cat_obs_gr1,
-                                     n_cat_obs_gr2,
-                                     sufficient_blume_capel_gr1,
-                                     sufficient_blume_capel_gr2,
-                                     rest_matrix_gr1,
-                                     rest_matrix_gr2,
-                                     proposal_sd_interaction,
-                                     proposal_sd_main_difference,
-                                     proposal_sd_pairwise_difference,
-                                     proposal_sd_blumecapel_gr1,
-                                     proposal_sd_blumecapel_gr2,
-                                     interaction_scale,
-                                     main_difference_scale,
-                                     pairwise_difference_scale,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     phi,
-                                     target_ar,
-                                     iteration,
-                                     epsilon_lo,
-                                     epsilon_hi,
-                                     ordinal_variable,
-                                     reference_category,
-                                     independent_thresholds,
-                                     difference_selection,
-                                     no_interactions,
-                                     index);
+    List out = compare_ttest_gibbs_step_gm(thresholds_gr1,
+                                           thresholds_gr2,
+                                           interactions_gr1,
+                                           interactions_gr2,
+                                           indicator,
+                                           inclusion_probability_difference,
+                                           observations_gr1,
+                                           observations_gr2,
+                                           no_categories_gr1,
+                                           no_categories_gr2,
+                                           no_persons_gr1,
+                                           no_persons_gr2,
+                                           no_variables,
+                                           n_cat_obs_gr1,
+                                           n_cat_obs_gr2,
+                                           sufficient_blume_capel_gr1,
+                                           sufficient_blume_capel_gr2,
+                                           rest_matrix_gr1,
+                                           rest_matrix_gr2,
+                                           proposal_sd_interaction,
+                                           proposal_sd_main_difference,
+                                           proposal_sd_pairwise_difference,
+                                           proposal_sd_blumecapel_gr1,
+                                           proposal_sd_blumecapel_gr2,
+                                           interaction_scale,
+                                           main_difference_scale,
+                                           pairwise_difference_scale,
+                                           threshold_alpha,
+                                           threshold_beta,
+                                           phi,
+                                           target_ar,
+                                           iteration,
+                                           epsilon_lo,
+                                           epsilon_hi,
+                                           ordinal_variable,
+                                           reference_category,
+                                           independent_thresholds,
+                                           difference_selection,
+                                           no_interactions,
+                                           index);
 
     IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions_gr1 = out["interactions_gr1"];
@@ -2856,24 +2856,24 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
     }
 
     if(na_impute == true) {
-      List out = compare_impute_missing_data(thresholds_gr1,
-                                             thresholds_gr2,
-                                             interactions_gr1,
-                                             interactions_gr2,
-                                             observations_gr1,
-                                             observations_gr2,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             sufficient_blume_capel_gr1,
-                                             sufficient_blume_capel_gr2,
-                                             no_categories_gr1,
-                                             no_categories_gr2,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2,
-                                             missing_index_gr1,
-                                             missing_index_gr2,
-                                             ordinal_variable,
-                                             reference_category);
+      List out = compare_ttest_impute_missing_data(thresholds_gr1,
+                                                   thresholds_gr2,
+                                                   interactions_gr1,
+                                                   interactions_gr2,
+                                                   observations_gr1,
+                                                   observations_gr2,
+                                                   n_cat_obs_gr1,
+                                                   n_cat_obs_gr2,
+                                                   sufficient_blume_capel_gr1,
+                                                   sufficient_blume_capel_gr2,
+                                                   no_categories_gr1,
+                                                   no_categories_gr2,
+                                                   rest_matrix_gr1,
+                                                   rest_matrix_gr2,
+                                                   missing_index_gr1,
+                                                   missing_index_gr2,
+                                                   ordinal_variable,
+                                                   reference_category);
 
       IntegerMatrix observations_gr1 = out["observations_gr1"];
       IntegerMatrix observations_gr2 = out["observations_gr2"];
@@ -2885,46 +2885,46 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
       NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
     }
 
-    List out = compare_gibbs_step_gm(thresholds_gr1,
-                                     thresholds_gr2,
-                                     interactions_gr1,
-                                     interactions_gr2,
-                                     indicator,
-                                     inclusion_probability_difference,
-                                     observations_gr1,
-                                     observations_gr2,
-                                     no_categories_gr1,
-                                     no_categories_gr2,
-                                     no_persons_gr1,
-                                     no_persons_gr2,
-                                     no_variables,
-                                     n_cat_obs_gr1,
-                                     n_cat_obs_gr2,
-                                     sufficient_blume_capel_gr1,
-                                     sufficient_blume_capel_gr2,
-                                     rest_matrix_gr1,
-                                     rest_matrix_gr2,
-                                     proposal_sd_interaction,
-                                     proposal_sd_main_difference,
-                                     proposal_sd_pairwise_difference,
-                                     proposal_sd_blumecapel_gr1,
-                                     proposal_sd_blumecapel_gr2,
-                                     interaction_scale,
-                                     main_difference_scale,
-                                     pairwise_difference_scale,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     phi,
-                                     target_ar,
-                                     iteration,
-                                     epsilon_lo,
-                                     epsilon_hi,
-                                     ordinal_variable,
-                                     reference_category,
-                                     independent_thresholds,
-                                     difference_selection,
-                                     no_interactions,
-                                     index);
+    List out = compare_ttest_gibbs_step_gm(thresholds_gr1,
+                                           thresholds_gr2,
+                                           interactions_gr1,
+                                           interactions_gr2,
+                                           indicator,
+                                           inclusion_probability_difference,
+                                           observations_gr1,
+                                           observations_gr2,
+                                           no_categories_gr1,
+                                           no_categories_gr2,
+                                           no_persons_gr1,
+                                           no_persons_gr2,
+                                           no_variables,
+                                           n_cat_obs_gr1,
+                                           n_cat_obs_gr2,
+                                           sufficient_blume_capel_gr1,
+                                           sufficient_blume_capel_gr2,
+                                           rest_matrix_gr1,
+                                           rest_matrix_gr2,
+                                           proposal_sd_interaction,
+                                           proposal_sd_main_difference,
+                                           proposal_sd_pairwise_difference,
+                                           proposal_sd_blumecapel_gr1,
+                                           proposal_sd_blumecapel_gr2,
+                                           interaction_scale,
+                                           main_difference_scale,
+                                           pairwise_difference_scale,
+                                           threshold_alpha,
+                                           threshold_beta,
+                                           phi,
+                                           target_ar,
+                                           iteration,
+                                           epsilon_lo,
+                                           epsilon_hi,
+                                           ordinal_variable,
+                                           reference_category,
+                                           independent_thresholds,
+                                           difference_selection,
+                                           no_interactions,
+                                           index);
 
     IntegerMatrix indicator = out["indicator"];
     NumericMatrix interactions_gr1 = out["interactions_gr1"];
@@ -2986,11 +2986,11 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
             interactions_gr1(variable1, variable2) +
             .5 * pairwise_difference;
 
-          out_indicator_pairwise_difference(iteration, cntr) =
+            out_indicator_pairwise_difference(iteration, cntr) =
             indicator(variable1, variable2);
-          out_interactions(iteration, cntr) = interaction;
-          out_pairwise_difference(iteration, cntr) = pairwise_difference;
-          cntr++;
+            out_interactions(iteration, cntr) = interaction;
+            out_pairwise_difference(iteration, cntr) = pairwise_difference;
+            cntr++;
         }
       }
 
@@ -3047,20 +3047,20 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
               .5 * thresholds_gr2(variable, 0) +
               .5 * thresholds_gr1(variable, 0);
 
-              out_thresholds(iteration, cntr) = threshold;
-              out_main_difference(iteration, cntr) = main_difference;
-              cntr++;
+            out_thresholds(iteration, cntr) = threshold;
+            out_main_difference(iteration, cntr) = main_difference;
+            cntr++;
 
-              main_difference =
-                thresholds_gr2(variable, 1) -
-                thresholds_gr1(variable, 1);
-              threshold =
-                .5 * thresholds_gr2(variable, 1) +
-                .5 * thresholds_gr1(variable, 1);
+            main_difference =
+              thresholds_gr2(variable, 1) -
+              thresholds_gr1(variable, 1);
+            threshold =
+              .5 * thresholds_gr2(variable, 1) +
+              .5 * thresholds_gr1(variable, 1);
 
-              out_thresholds(iteration, cntr) = threshold;
-              out_main_difference(iteration, cntr) = main_difference;
-              cntr++;
+            out_thresholds(iteration, cntr) = threshold;
+            out_main_difference(iteration, cntr) = main_difference;
+            cntr++;
           }
         }
       }
@@ -3076,20 +3076,20 @@ List compare_gibbs_sampler(IntegerMatrix observations_gr1,
             interactions_gr1(variable1, variable2) +
             .5 * pairwise_difference;
 
-          out_indicator_pairwise_difference(variable1, variable2) *= iteration;
-          out_indicator_pairwise_difference(variable1, variable2) += indicator(variable1, variable2);
-          out_indicator_pairwise_difference(variable1, variable2) /= iteration + 1;
-          out_indicator_pairwise_difference(variable2, variable1) = out_indicator_pairwise_difference(variable1, variable2);
+            out_indicator_pairwise_difference(variable1, variable2) *= iteration;
+            out_indicator_pairwise_difference(variable1, variable2) += indicator(variable1, variable2);
+            out_indicator_pairwise_difference(variable1, variable2) /= iteration + 1;
+            out_indicator_pairwise_difference(variable2, variable1) = out_indicator_pairwise_difference(variable1, variable2);
 
-          out_interactions(variable1, variable2) *= iteration;
-          out_interactions(variable1, variable2) += interaction;
-          out_interactions(variable1, variable2) /= iteration + 1;
-          out_interactions(variable2, variable1) = out_interactions(variable1, variable2);
+            out_interactions(variable1, variable2) *= iteration;
+            out_interactions(variable1, variable2) += interaction;
+            out_interactions(variable1, variable2) /= iteration + 1;
+            out_interactions(variable2, variable1) = out_interactions(variable1, variable2);
 
-          out_pairwise_difference(variable1, variable2) *= iteration;
-          out_pairwise_difference(variable1, variable2) += pairwise_difference;
-          out_pairwise_difference(variable1, variable2) /= iteration + 1;
-          out_pairwise_difference(variable2, variable1) = out_pairwise_difference(variable1, variable2);
+            out_pairwise_difference(variable1, variable2) *= iteration;
+            out_pairwise_difference(variable1, variable2) += pairwise_difference;
+            out_pairwise_difference(variable1, variable2) /= iteration + 1;
+            out_pairwise_difference(variable2, variable1) = out_pairwise_difference(variable1, variable2);
         }
       }
 

@@ -421,6 +421,7 @@ bgmCompare = function(x,
     group = data$group
     no_obs_groups = tabulate(group)
     missing_index = data$missing_index
+    no_categories = data$no_categories
   }
 
   na_impute = data$na_impute
@@ -477,7 +478,7 @@ bgmCompare = function(x,
                             ncol = no_variables)
 
       for(variable in 1:no_variables) {
-        for(category in 0:no_categories_gr[variable, g]) {
+        for(category in 0:no_categories[variable, g]) {
           n_cat_obs_gr[category + 1, variable] = sum(x[group == g, variable] == category)
         }
       }
@@ -517,43 +518,90 @@ bgmCompare = function(x,
 
   #The Metropolis within Gibbs sampler -----------------------------------------
   if(ttest == TRUE) {
-    out = compare_gibbs_sampler(observations_gr1 = x,
-                                observations_gr2 = y,
-                                no_categories_gr1 = no_categories_gr1,
-                                no_categories_gr2 = no_categories_gr2,
-                                interaction_scale = interaction_scale,
-                                pairwise_difference_scale = pairwise_difference_scale,
-                                main_difference_scale = main_difference_scale,
-                                pairwise_difference_prior = pairwise_difference_prior,
-                                main_difference_prior = main_difference_prior,
-                                inclusion_probability_difference = inclusion_probability_difference,
-                                pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
-                                pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
-                                main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
-                                main_beta_bernoulli_beta = main_beta_bernoulli_beta,
-                                Index = Index,
-                                iter = iter,
-                                burnin = burnin,
-                                n_cat_obs_gr1 = n_cat_obs_gr1,
-                                n_cat_obs_gr2 = n_cat_obs_gr2,
-                                sufficient_blume_capel_gr1 = sufficient_blume_capel_gr1,
-                                sufficient_blume_capel_gr2 = sufficient_blume_capel_gr2,
-                                threshold_alpha = threshold_alpha,
-                                threshold_beta = threshold_beta,
-                                na_impute = na_impute,
-                                missing_index_gr1 = missing_index_gr1,
-                                missing_index_gr2 = missing_index_gr2,
-                                ordinal_variable = ordinal_variable,
-                                reference_category = reference_category,
-                                independent_thresholds = independent_thresholds,
-                                save = save,
-                                display_progress = display_progress,
-                                difference_selection = difference_selection)
+    out = compare_ttest_gibbs_sampler(observations_gr1 = x,
+                                      observations_gr2 = y,
+                                      no_categories_gr1 = no_categories_gr1,
+                                      no_categories_gr2 = no_categories_gr2,
+                                      interaction_scale = interaction_scale,
+                                      pairwise_difference_scale = pairwise_difference_scale,
+                                      main_difference_scale = main_difference_scale,
+                                      pairwise_difference_prior = pairwise_difference_prior,
+                                      main_difference_prior = main_difference_prior,
+                                      inclusion_probability_difference = inclusion_probability_difference,
+                                      pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
+                                      pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
+                                      main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
+                                      main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+                                      Index = Index,
+                                      iter = iter,
+                                      burnin = burnin,
+                                      n_cat_obs_gr1 = n_cat_obs_gr1,
+                                      n_cat_obs_gr2 = n_cat_obs_gr2,
+                                      sufficient_blume_capel_gr1 = sufficient_blume_capel_gr1,
+                                      sufficient_blume_capel_gr2 = sufficient_blume_capel_gr2,
+                                      threshold_alpha = threshold_alpha,
+                                      threshold_beta = threshold_beta,
+                                      na_impute = na_impute,
+                                      missing_index_gr1 = missing_index_gr1,
+                                      missing_index_gr2 = missing_index_gr2,
+                                      ordinal_variable = ordinal_variable,
+                                      reference_category = reference_category,
+                                      independent_thresholds = independent_thresholds,
+                                      save = save,
+                                      display_progress = display_progress,
+                                      difference_selection = difference_selection)
   } else {
-    out = compare_gibbs_sampler_anova(observations = x,
-                                      group = group,
+    main_index = matrix(NA, nrow = no_variables, ncol = 2)
+    tel = 0
+    for(variable in 1:no_variables){
+      if(variable > 1) {
+        main_index[variable, 1] = 1 + main_index[variable - 1, 2]
+      } else {
+        main_index[variable, 1] = 0 #C++ starts at zero
+      }
+      if(ordinal_variable[variable] == TRUE) {
+        main_index[variable, 2] = main_index[variable, 1] + max(no_categories[variable,]) - 1
+      } else {
+        main_index[variable, 2] = main_index[variable, 1] + 1
+      }
+    }
+
+    print(no_categories)
+    print(main_index)
+    pairwise_index = matrix(NA, nrow = no_variables, ncol = no_variables)
+    tel = 0
+    for(v1 in 1:(no_variables-1)) {
+      for(v2 in (v1+1):no_variables) {
+        pairwise_index[v1, v2] = tel
+        pairwise_index[v2, v1] = tel
+        tel = tel + 1 #C++ starts at zero
+      }
+    }
+
+    no_groups = length(unique(group))
+    group_index = matrix(NA,
+                         nrow = no_groups,
+                         ncol = 2)
+
+    observations = x
+    sorted_group = sort(group)
+    for(g in group) {
+      observations[which(sorted_group == g), ] = x[which(group == g), ]
+      group_index[g, 1] = min(which(sorted_group == g)) - 1 #C++ starts at zero
+      group_index[g, 2] = max(which(sorted_group == g)) - 1 #C++ starts at zero
+    }
+
+    one = matrix(1, nrow = no_groups, ncol = no_groups)
+    V = diag(no_groups) - one / no_groups
+    projection = eigen(V)$vectors[, -no_groups]
+
+    out = compare_anova_gibbs_sampler(observations = observations,
+                                      main_index = main_index,
+                                      pairwise_index = pairwise_index,
+                                      projection = projection,
                                       no_categories = no_categories,
-                                      no_obs_groups = no_obs_groups,
+                                      no_groups = no_groups,
+                                      group_index = group_index,
                                       interaction_scale = interaction_scale,
                                       pairwise_difference_scale = pairwise_difference_scale,
                                       main_difference_scale = main_difference_scale,
@@ -581,6 +629,8 @@ bgmCompare = function(x,
                                       difference_selection = difference_selection)
   }
 
+  if(!ttest)
+    return(out)
 
   #Preparing the output --------------------------------------------------------
   arguments = list(
@@ -654,8 +704,8 @@ bgmCompare = function(x,
         colnames(thresholds_gr2) = paste0("category ", 1:max(no_categories_gr2))
       } else {
         for(g in group) {
-           rownames(thresholds[[g]]$thresholds) = data_columnnames
-           colnames(thresholds[[g]]$thresholds) = paste0("category ", 1:max(no_categories[, g]))
+          rownames(thresholds[[g]]$thresholds) = data_columnnames
+          colnames(thresholds[[g]]$thresholds) = paste0("category ", 1:max(no_categories[, g]))
         }
       }
     } else {

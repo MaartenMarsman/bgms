@@ -1039,7 +1039,7 @@ compare_reformat_data = function(x,
         no_categories[node, 1] = max(x[, node])
         no_categories[node, 2] = max(y[, node])
       } else {
-        no_categories[node, ] = sapply(group, function(g) {
+        no_categories[node, ] = sapply(1:max(group), function(g) {
           max(x[group == g, node])
         })
       }
