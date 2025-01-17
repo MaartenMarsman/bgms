@@ -831,24 +831,24 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference(NumericMatrix ma
   for(int gr = 0; gr < no_groups; gr++) {
     NumericVector proposed_thresholds(no_categories(variable, gr));
     NumericVector current_thresholds(no_categories(variable, gr));
-    int P = projection(gr, h);
 
     for(int cat = 0; cat < no_categories(variable, gr); cat++) {
       int cat_index = main_index(variable, 0) + cat;
       current_thresholds[cat] = main_effects(cat_index, 0);
-      for(int h = 0; h < no_groups - 1; h++) {
-        current_thresholds[cat] += projection(gr, h) *
-          main_effects(cat_index, h + 1);
+      for(int hh = 0; hh < no_groups - 1; hh++) {
+        current_thresholds[cat] += projection(gr, hh) * main_effects(cat_index, hh + 1);
       }
       proposed_thresholds[cat] = current_thresholds[cat];
     }
-    int cat_index = main_index(variable, 0) + category;
-    proposed_thresholds[category] -= P * main_effects(cat_index, h + 1);
-    proposed_thresholds[category] += P * proposed_state;
+
+    proposed_thresholds[category] -= projection(gr, h) * current_state;
+    proposed_thresholds[category] += projection(gr, h) * proposed_state;
 
     //Compute the pseudo-ikelihood ratio
     IntegerMatrix n_cat_obs_gr = n_cat_obs[gr];
-    pseudolikelihood_ratio += delta_state * P * n_cat_obs_gr(category + 1, variable);
+    pseudolikelihood_ratio += delta_state *
+      projection(gr, h) *
+      n_cat_obs_gr(category + 1, variable);
 
     for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       rest_score = rest_matrix(person, variable);
@@ -909,7 +909,6 @@ void compare_anova_metropolis_main_difference_regular(NumericMatrix main_effects
       cat_index = main_index(variable, 0) + category;
       for(int h = 0; h < no_groups - 1; h++) {
         current_state = main_effects(cat_index, h + 1);
-
         proposed_state = R::rnorm(current_state,
                                   proposal_sd_main(cat_index, h));              //No sd needed for overall threshold, so start at zero.
 
