@@ -745,6 +745,8 @@ compare_reformat_data = function(x,
               call. = FALSE)
 
     x = x[!missing_values, ]
+    if(ttest == FALSE)
+      group = group[!missing_values]
 
     if(nrow(x) < 2 || is.null(nrow(x)))
       stop(paste0("After removing missing observations from the input matrix x,\n",
@@ -774,15 +776,14 @@ compare_reformat_data = function(x,
                     "there were less than two rows left in y."))
 
     } else {
-      g = group[!missing_values]
-      unique_g = unique(g)
+      unique_g = unique(group)
       if(length(unique_g) == length(g))
         stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
                     "there were only unique values in the input g left."))
       if(length(unique_g) == 1)
         stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
                     "there was only one value in the input g left."))
-      group = g
+      g = group
       for(u in unique_g) {
         group[g == u] = which(unique_g == u)
       }
@@ -934,7 +935,8 @@ compare_reformat_data = function(x,
                                    nrow = mx_vls,
                                    ncol = max(group))
           for(value in unq_vls) {
-            for(g in group) {
+            unique_g = unique(group)
+            for(g in unique_g) {
               observed_scores[which(unq_vls == value), g] =
                 any(x[group == g, node] == value) * 1
             }

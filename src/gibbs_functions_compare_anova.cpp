@@ -8,8 +8,8 @@ using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
 // List of to do's
-// 1. Use "index" to vary updates to pairwise effects.
-// 2. Add between model moves.
+// 1. Add between model moves.
+// 2. Use "index" to vary between-model updates to pairwise effects.
 // 3. Add g prior.
 // 4. Output matrices (resizing based on ``save'' and ``independent_thresholds'')
 // ----------------------------------------------------------------------------|
@@ -226,7 +226,6 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
   // Compute log pseudo-likelihood ratio ---------------------------------------
   // --------------------------------------------------------------------------|
   for(int gr = 0; gr < no_groups; gr++) {
-
     NumericVector GroupThresholds_v1 = group_thresholds_for_variable(variable1,
                                                                      ordinal_variable,
                                                                      gr,
@@ -248,7 +247,7 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
                                                                      independent_thresholds);
 
     //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       obs_score1 = observations(person, variable1);
       obs_score2 = observations(person, variable2);
 
@@ -494,7 +493,7 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
     double P = projection(gr, h);
 
     //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       obs_score1 = observations(person, variable1);
       obs_score2 = observations(person, variable2);
 
@@ -658,7 +657,7 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
             for(int gr = 0; gr < no_groups; gr++) {
               double state_difference = proposed_state - current_state;
               state_difference *= projection(gr, h);
-              for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+              for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
                 rest_matrix(person, variable1) += observations(person, variable2) *
                   state_difference;
                 rest_matrix(person, variable2) += observations(person, variable1) *
@@ -739,7 +738,7 @@ void compare_anova_metropolis_threshold_regular(NumericMatrix main_effects,
       }
       GroupThresholds[category] -= main_effects(cat_index + category, 0);       //Store only pairwise difference in element "category"
 
-      for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+      for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
         q[person] = 1.0;
         r[person] = 1.0;
         rest_score = rest_matrix(person, variable);
@@ -781,7 +780,7 @@ void compare_anova_metropolis_threshold_regular(NumericMatrix main_effects,
     //First, we use q and r above to compute the ratio of pseudo-likelihoods
     log_prob = 0;
     for(int gr = 0; gr < no_groups; gr++) {
-      for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+      for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
         log_prob += std::log(q[person] + r[person] * exp_current);
         log_prob -= std::log(q[person] + r[person] * exp_proposed);
       }
@@ -849,10 +848,9 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference(NumericMatrix ma
 
     //Compute the pseudo-ikelihood ratio
     IntegerMatrix n_cat_obs_gr = n_cat_obs[gr];
-    pseudolikelihood_ratio -= delta_state * P * n_cat_obs_gr(category + 1, variable);
     pseudolikelihood_ratio += delta_state * P * n_cat_obs_gr(category + 1, variable);
 
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       rest_score = rest_matrix(person, variable);
       if(rest_score > 0) {
         bound = no_categories(variable, gr) * rest_score;
@@ -907,13 +905,13 @@ void compare_anova_metropolis_main_difference_regular(NumericMatrix main_effects
   int cat_index;
 
   if(indicator(variable, variable) == 1) {
-    for(int category = 0; category < no_categories(variable, 0); category++) {
+    for(int category = 0; category < no_categories(variable, 0); category++) {  //Should be the same across groups for this model choice.
       cat_index = main_index(variable, 0) + category;
       for(int h = 0; h < no_groups - 1; h++) {
         current_state = main_effects(cat_index, h + 1);
 
         proposed_state = R::rnorm(current_state,
-                                  proposal_sd_main(cat_index, h));   //No sd needed for overall threshold
+                                  proposal_sd_main(cat_index, h));              //No sd needed for overall threshold, so start at zero.
 
         log_prob = compare_anova_log_pseudolikelihood_ratio_main_difference(main_effects,
                                                                             main_index,
@@ -1042,7 +1040,7 @@ double compare_anova_log_pseudolikelihood_ratio_thresholds_blumecapel(double lin
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(0, variable) * linear_current;
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(1, variable) * quadratic_current;
 
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       rest_score = rest_matrix(person, variable);
       if(rest_score > 0) {
         bound = no_categories(variable, gr) * rest_score + lbound;
@@ -1312,7 +1310,7 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(0, variable) * P * linear_current;
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(1, variable) * P * quadratic_current;
 
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       rest_score = rest_matrix(person, variable);
       if(rest_score > 0) {
         bound = no_categories(variable, gr) * rest_score + lbound;
@@ -1555,7 +1553,7 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference_between_mode
     }
 
     //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person == group_index(gr, 1); person++) {
+    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
       obs_score1 = observations(person, variable1);
       obs_score2 = observations(person, variable2);
 
@@ -1807,7 +1805,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   log_prob = threshold_alpha * difference;
   log_prob += sufficient_blume_capel_group(0, variable) * difference;
 
-  for(int person = group_index(group, 0); person == group_index(group, 1); person++) {
+  for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
     rest_score = rest_matrix(person, variable);
     if(rest_score > 0) {
       bound = no_categories(variable, group) * rest_score + lbound;
@@ -1887,7 +1885,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   log_prob = threshold_alpha * difference;
   log_prob += sufficient_blume_capel_group(1, variable) * difference;
 
-  for(int person = group_index(group, 0); person == group_index(group, 1); person++) {
+  for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
     rest_score = rest_matrix(person, variable);
     if(rest_score > 0) {
       bound = no_categories[variable] * rest_score + lbound;
@@ -2221,7 +2219,7 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
 
   IntegerVector person_group_indicator (no_persons);
   for(int group = 0; group < no_groups; group++) {
-    for(int person = group_index(group, 0); person == group_index(group, 1); person++) {
+    for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
       person_group_indicator[person] = group;
     }
   }
@@ -2242,7 +2240,7 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   //Parameters for the Robbins-Monro approach for adaptive Metropolis ----------
   double phi = 0.75;
   double target_ar = 0.234;
-  double epsilon_lo = 1.0 / static_cast<double>(no_persons) * static_cast<double>(no_groups);
+  double epsilon_lo = 1.0 / static_cast<double>(no_persons);
   double epsilon_hi = 2.0;
 
   //Randomized index for the pairwise updates ----------------------------------
