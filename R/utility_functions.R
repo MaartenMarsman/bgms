@@ -562,9 +562,9 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
         if(length(mis) > 0) {
           for(i in 1:length(mis)) {
             cntr = cntr + 1
-            missing_index[cntr, 1] = mis[i]
-            missing_index[cntr, 2] = node
-            x[mis[i], node] = sample(x[-mis, node], #start value for imputation
+            missing_index[cntr, 1] = mis[i] - 1                                 #c++ index starts at 0
+            missing_index[cntr, 2] = node - 1                                   #c++ index starts at 0
+            x[mis[i], node] = sample(x[-mis, node],                             #start value for imputation
                                      size = 1)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
@@ -812,9 +812,9 @@ compare_reformat_data = function(x,
         if(length(mis) > 0) {
           for(i in 1:length(mis)) {
             cntr = cntr + 1
-            missing_index_gr1[cntr, 1] = mis[i]
-            missing_index_gr1[cntr, 2] = node
-            x[mis[i], node] = sample(x[-mis, node], #start value for imputation
+            missing_index_gr1[cntr, 1] = mis[i] - 1                             #c++ index starts at 0
+            missing_index_gr1[cntr, 2] = node - 1                               #c++ index starts at 0
+            x[mis[i], node] = sample(x[-mis, node],                             #start value for imputation
                                      size = 1)
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
@@ -839,8 +839,8 @@ compare_reformat_data = function(x,
           if(length(mis) > 0) {
             for(i in 1:length(mis)) {
               cntr = cntr + 1
-              missing_index_gr2[cntr, 1] = mis[i]
-              missing_index_gr2[cntr, 2] = node
+              missing_index_gr2[cntr, 1] = mis[i] - 1                           #c++ index starts at zero.
+              missing_index_gr2[cntr, 2] = node                                 #c++ index starts at zero.
               y[mis[i], node] = sample(y[-mis, node], #start value for imputation
                                        size = 1)
               #This is non-zero if no zeroes are observed (we then collapse over zero below)

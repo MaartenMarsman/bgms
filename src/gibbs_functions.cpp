@@ -33,8 +33,8 @@ List impute_missing_data(NumericMatrix interactions,
 
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute? ---------------------------------------------
-    person = missing_index(missing, 0) - 1; //R to C++ indexing
-    variable = missing_index(missing, 1) - 1; //R to C++ indexing
+    person = missing_index(missing, 0);
+    variable = missing_index(missing, 1);
 
     //Generate new observation -------------------------------------------------
     rest_score = rest_matrix(person, variable);

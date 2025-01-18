@@ -12,58 +12,70 @@ using namespace Rcpp;
 // 2. Use "index" to vary between-model updates to pairwise effects.
 // 3. Add g prior.
 // 4. Output matrices (resizing based on ``save'' and ``independent_thresholds'')
+// 5. Add "enum" to handle threshold scenarios
 // ----------------------------------------------------------------------------|
 
+double robbins_monro_update(double current_sd,
+                            double log_ar,
+                            double target_ar,
+                            double epsilon_lo,
+                            double epsilon_hi,
+                            double rm_weight) {
 
-// ----------------------------------------------------------------------------|
-// Create the group-specific thresholds for one variable
-// ----------------------------------------------------------------------------|
-NumericVector group_thresholds_for_variable(int variable,
-                                            LogicalVector ordinal_variable,
-                                            int group,
-                                            int no_groups,
-                                            IntegerMatrix no_categories,
-                                            NumericMatrix main_effects,
-                                            IntegerMatrix main_index,
-                                            NumericMatrix projection,
-                                            bool independent_thresholds) {
-  int category_index;
-  int vector_length = 2;
-  if(ordinal_variable[variable] == true) {
-    vector_length = no_categories(variable, group);
+  // Normalize the acceptance probability
+  double obs_ar = 1.0;
+  if(log_ar < 0) {
+    obs_ar = std::exp(log_ar);
   }
-  NumericVector GroupThresholds(vector_length);
 
-  if(independent_thresholds == false) {
-    if(ordinal_variable[variable] == true) {
-      for(int category = 0; category < no_categories(variable, group); category++) {
-        category_index = main_index(variable, 0) + category;
-        GroupThresholds[category] = main_effects(category_index, 0);
-        for(int h = 0; h < no_groups - 1; h++) {
-          GroupThresholds[category] += projection(group, h) *
-            main_effects(category_index, h + 1);
-        }
+  // Update the proposal standard deviation
+  double update = current_sd + (obs_ar - target_ar) * rm_weight;
+
+  // Handle NaN cases by resetting to default value
+  if (std::isnan(update)) {
+    update = 1.0; // Default proposal standard deviation
+  }
+
+  // Clamp the updated standard deviation within bounds
+  return std::clamp(update, epsilon_lo, epsilon_hi);
+}
+
+
+NumericVector group_thresholds_for_variable (int variable,
+                                             LogicalVector ordinal_variable,
+                                             int group,
+                                             int no_groups,
+                                             IntegerMatrix no_categories,
+                                             NumericMatrix main_effects,
+                                             IntegerMatrix main_index,
+                                             NumericMatrix projection,
+                                             bool independent_thresholds){
+  int vector_length = (ordinal_variable[variable]) ? no_categories(variable, group) : 2;
+  NumericVector GroupThresholds(vector_length);
+  int base_category_index = main_index(variable, 0);
+
+  if (!independent_thresholds) {
+    int n_cats = no_categories(variable, group);
+    for (int category = 0; category < n_cats; category++) {
+      int category_index = base_category_index + category;
+      double threshold = main_effects(category_index, 0);
+
+      for (int h = 0; h < no_groups - 1; h++) {
+        threshold += projection(group, h) * main_effects(category_index, h + 1);
       }
-    } else {
-      for(int category = 0; category < 2; category++) {
-        category_index = main_index(variable, 0) + category;
-        GroupThresholds[category] = main_effects(category_index, 0);
-        for(int h = 0; h < no_groups - 1; h++) {
-          GroupThresholds[category] += projection(group, h) *
-            main_effects(category_index, h + 1);
-        }
-      }
+
+      GroupThresholds[category] = threshold;
     }
   } else {
-    if(ordinal_variable[variable] == true) {
-      for(int category = 0; category < no_categories(variable, group); category++) {
-        category_index = main_index(variable, 0) + category;
+    if (ordinal_variable[variable]) {
+      int n_cats = no_categories(variable, group);
+      for (int category = 0; category < n_cats; category++) {
+        int category_index = base_category_index + category;
         GroupThresholds[category] = main_effects(category_index, group);
       }
     } else {
-      category_index = main_index(variable, 0);
-      GroupThresholds[0] = main_effects(category_index, group);
-      GroupThresholds[1] = main_effects(category_index + 1, group);
+      GroupThresholds[0] = main_effects(base_category_index, group);
+      GroupThresholds[1] = main_effects(base_category_index + 1, group);
     }
   }
 
@@ -90,7 +102,6 @@ List compare_anova_impute_missing_data(NumericMatrix main_effects,
                                        LogicalVector ordinal_variable,
                                        IntegerVector reference_category,
                                        bool independent_thresholds) {
-
   int no_variables = observations.ncol();
   int no_missings = missing_index.nrow();
   int max_no_categories = max(no_categories);
@@ -102,8 +113,8 @@ List compare_anova_impute_missing_data(NumericMatrix main_effects,
   //Impute missing data --------------------------------------------------------
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute? -------------------------------------------
-    person = missing_index(missing, 0) - 1; //R to C++ indexing
-    variable = missing_index(missing, 1) - 1; //R to C++ indexing
+    person = missing_index(missing, 0);
+    variable = missing_index(missing, 1);
     int gr = person_group_indicator[person];
 
     NumericVector GroupThresholds = group_thresholds_for_variable(variable,
@@ -122,16 +133,16 @@ List compare_anova_impute_missing_data(NumericMatrix main_effects,
       //Regular binary or ordinal variable -----------------------------------
       cumsum = 1.0;
       probabilities[0] = 1.0;
-      for(int category = 0; category < no_categories(variable, gr); category++) {
-        exponent = GroupThresholds(category);
-        exponent += (category + 1) * rest_score;
+      for(int category = 1; category <= no_categories(variable, gr); category++) {
+        exponent = GroupThresholds(category - 1);
+        exponent += category * rest_score;
         cumsum += std::exp(exponent);
-        probabilities[category + 1] = cumsum;
+        probabilities[category] = cumsum;
       }
     } else {
       //Blume-Capel variable -------------------------------------------------
       cumsum = 0.0;
-      for(int category = 0; category < no_categories(variable, gr) + 1; category++) {
+      for(int category = 0; category <= no_categories(variable, gr); category++) {
         exponent = GroupThresholds[0] * category;
         exponent += GroupThresholds[1] *
           (category - reference_category[variable]) *
@@ -215,127 +226,70 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
                                                             NumericMatrix rest_matrix,
                                                             LogicalVector ordinal_variable,
                                                             IntegerVector reference_category) {
-  double rest_score, bound;
+  double delta_state = 2.0 * (proposed_state - current_state);
   double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
-
-  double delta_state = proposed_state - current_state;
 
   // --------------------------------------------------------------------------|
   // Compute log pseudo-likelihood ratio ---------------------------------------
   // --------------------------------------------------------------------------|
   for(int gr = 0; gr < no_groups; gr++) {
-    NumericVector GroupThresholds_v1 = group_thresholds_for_variable(variable1,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
+    NumericVector GroupThresholds_v1 = group_thresholds_for_variable (
+      variable1, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
 
-    NumericVector GroupThresholds_v2 = group_thresholds_for_variable(variable2,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
+    NumericVector GroupThresholds_v2 = group_thresholds_for_variable (
+      variable2, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
+
+    int n_cats_v1 = no_categories(variable1, gr);
+    int n_cats_v2 = no_categories(variable2, gr);
 
     //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-      obs_score1 = observations(person, variable1);
-      obs_score2 = observations(person, variable2);
+    for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
+      int obs_score1 = observations(person, variable1);
+      int obs_score2 = observations(person, variable2);
 
-      pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
-      //Log pseudo-likelihood for variable 1 -----------------------------------
-      rest_score = rest_matrix(person, variable1) - obs_score2 * current_state; //This should contains the pairwise difference effects.
+      for (int variable = 0; variable < 2; ++variable) {
+        int var = (variable == 0) ? variable1 : variable2;
+        int obs = (variable == 0) ? obs_score2 : obs_score1;
+        double obs_current = obs * current_state;
+        double obs_proposed = obs * proposed_state;
 
-      if(rest_score > 0) {
-        bound = no_categories(variable1, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
+        int n_cats = (variable == 0) ? n_cats_v1 : n_cats_v2;
+        NumericVector& GroupThresholds = (variable == 0) ? GroupThresholds_v1 : GroupThresholds_v2;
 
-      if(ordinal_variable[variable1] == true) {
-        //Regular binary or ordinal MRF variable -------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable1, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v1[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score2 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score2 * current_state);
+        double rest_score = rest_matrix(person, var) - obs_current;
+        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+        double denominator_prop = 0.0;
+        double denominator_curr = 0.0;
+
+        if(ordinal_variable[var]) {
+          // Regular binary or ordinal MRF variable
+          denominator_prop += std::exp(-bound);
+          denominator_curr += std::exp(-bound);
+          for(int cat = 0; cat < n_cats; cat++) {
+            int score = cat + 1;
+            double exponent = GroupThresholds[cat] + score * rest_score - bound;
+            denominator_prop += std::exp(exponent + score * obs_proposed);
+            denominator_curr += std::exp(exponent + score * obs_current);
+          }
+        } else {
+          // Blume-Capel ordinal MRF variable
+          for(int cat = 0; cat <= n_cats; cat++) {
+            double exponent = GroupThresholds_v1[0] * cat;
+            exponent += GroupThresholds_v1[1] *
+              (cat - reference_category[variable1]) *
+              (cat - reference_category[variable1]);
+            exponent += cat * rest_score - bound;
+            denominator_prop += std::exp(exponent + cat * obs_proposed);
+            denominator_curr += std::exp(exponent + cat * obs_current);
+          }
         }
-      } else {
-        //Blume-Capel ordinal MRF variable -------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable1, gr) + 1; cat++) {
-          exponent = GroupThresholds_v1[0] * cat;
-          exponent += GroupThresholds_v1[1] *
-            (cat - reference_category[variable1]) *
-            (cat - reference_category[variable1]);
-          exponent += cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score2 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score2 * current_state);
-        }
+        pseudolikelihood_ratio -= std::log(denominator_prop);
+        pseudolikelihood_ratio += std::log(denominator_curr);
       }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
-
-      //Log pseudo-likelihood for variable 2 -----------------------------------
-      rest_score = rest_matrix(person, variable2) - obs_score1 * current_state;
-
-      if(rest_score > 0) {
-        bound = no_categories(variable2, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
-
-      if(ordinal_variable[variable2] == true) {
-        //Regular binary or ordinal MRF variable ---------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable2, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v2[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score1 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score1 * current_state);
-        }
-      } else {
-        //Blume-Capel ordinal MRF variable ---------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable2, gr) + 1; cat++) {
-          exponent = GroupThresholds_v2[0] * cat;
-          exponent += GroupThresholds_v2[1] *
-            (cat - reference_category[variable2]) *
-            (cat - reference_category[variable2]);
-          exponent +=  cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score1 * proposed_state);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score1 * current_state);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
     }
   }
   return pseudolikelihood_ratio;
@@ -368,70 +322,43 @@ void compare_anova_metropolis_interaction(NumericMatrix main_effects,
                                           int t,
                                           double epsilon_lo,
                                           double epsilon_hi) {
-  double proposed_state;
-  double current_state;
   double log_prob;
-  double U;
+  double exp_neg_log_t_phi = std::exp(-std::log(t) * phi);
 
   for(int variable1 = 0; variable1 <  no_variables - 1; variable1++) {
     for(int variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-
       int int_index = pairwise_index(variable1, variable2);
 
-      current_state = pairwise_effects(int_index, 0);
-      proposed_state = R::rnorm(current_state, proposal_sd_pairwise(int_index, 0));
+      double current_state = pairwise_effects(int_index, 0);
+      double proposed_state = R::rnorm(current_state, proposal_sd_pairwise(int_index, 0));
 
-      log_prob = compare_anova_log_pseudolikelihood_ratio_interaction(main_effects,
-                                                                      main_index,
-                                                                      projection,
-                                                                      observations,
-                                                                      no_groups,
-                                                                      group_index,
-                                                                      no_categories,
-                                                                      independent_thresholds,
-                                                                      no_persons,
-                                                                      variable1,
-                                                                      variable2,
-                                                                      proposed_state,
-                                                                      current_state,
-                                                                      rest_matrix,
-                                                                      ordinal_variable,
-                                                                      reference_category);
+      log_prob = compare_anova_log_pseudolikelihood_ratio_interaction(
+        main_effects, main_index, projection, observations, no_groups,
+        group_index, no_categories, independent_thresholds, no_persons,
+        variable1, variable2, proposed_state, current_state, rest_matrix,
+        ordinal_variable, reference_category);
 
       log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
       log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
-      U = R::unif_rand();
+      double U = R::unif_rand();
       if(std::log(U) < log_prob) {
         double state_difference = proposed_state - current_state;
         pairwise_effects(int_index, 0) = proposed_state;
 
         //Update the matrix of rest scores
         for(int person = 0; person < no_persons; person++) {
-          rest_matrix(person, variable1) += observations(person, variable2) *
-            state_difference;
-          rest_matrix(person, variable2) += observations(person, variable1) *
-            state_difference;
+          double obs1 = observations(person, variable1);
+          double obs2 = observations(person, variable2);
+          rest_matrix(person, variable1) += obs2 * state_difference;
+          rest_matrix(person, variable2) += obs1 * state_difference;
         }
       }
 
-      if(log_prob > 0) {
-        log_prob = 1.0;
-      } else {
-        log_prob = std::exp(log_prob);
-      }
-
-      double update_proposal_sd =
-        proposal_sd_pairwise(int_index, 0) +
-        (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-      if(std::isnan(update_proposal_sd) == true) {
-        update_proposal_sd = 1.0;
-      }
-
-      update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-      proposal_sd_pairwise(int_index, 0) = update_proposal_sd;
+      // Robbins-Monro update to the proposal sd
+      proposal_sd_pairwise(int_index, 0) = robbins_monro_update(
+        proposal_sd_pairwise(int_index, 0), log_prob, target_ar, epsilon_lo,
+        epsilon_hi, exp_neg_log_t_phi);
     }
   }
 }
@@ -458,130 +385,83 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
                                                                     NumericMatrix rest_matrix,
                                                                     LogicalVector ordinal_variable,
                                                                     IntegerVector reference_category) {
-  double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
+  double delta_state = 2.0 * (proposed_state - current_state);
 
-  double delta_state = proposed_state - current_state;
-
-  // --------------------------------------------------------------------------|
-  // Compute log pseudo-likelihood ratio ---------------------------------------
-  // --------------------------------------------------------------------------|
+  // Loop over groups
   for(int gr = 0; gr < no_groups; gr++) {
 
-    NumericVector GroupThresholds_v1 = group_thresholds_for_variable(variable1,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
+    NumericVector GroupThresholds_v1 = group_thresholds_for_variable(
+      variable1, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
 
-    NumericVector GroupThresholds_v2 = group_thresholds_for_variable(variable2,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
+    NumericVector GroupThresholds_v2 = group_thresholds_for_variable(
+      variable2, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
 
     double P = projection(gr, h);
+    double delta_state_group = delta_state * P;
+
+    // Cache the number of categories
+    int n_cats_v1 = no_categories(variable1, gr);
+    int n_cats_v2 = no_categories(variable2, gr);
 
     //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-      obs_score1 = observations(person, variable1);
-      obs_score2 = observations(person, variable2);
+    for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
+      // Cache observation scores and scaled terms
+      int obs_score1 = observations(person, variable1);
+      int obs_score2 = observations(person, variable2);
+      double obs_proposed_p1 = obs_score2 * proposed_state * P;
+      double obs_current_p1 = obs_score2 * current_state * P;
+      double obs_proposed_p2 = obs_score1 * proposed_state * P;
+      double obs_current_p2 = obs_score1 * current_state * P;
 
-      pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state * P;
+      pseudolikelihood_ratio +=  obs_score1 * obs_score2 * delta_state_group;
 
-      //Log pseudo-likelihood for variable 1 -----------------------------------
-      rest_score = rest_matrix(person, variable1) - obs_score2 * current_state * P;
+      // Process each variable
+      for (int var = 1; var <= 2; ++var) {
+        int variable = (var == 1) ? variable1 : variable2;
+        int n_cats = (var == 1) ? n_cats_v1 : n_cats_v2;
+        NumericVector& GroupThresholds = (var == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        double obs_proposed_p = (var == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        double obs_current_p = (var == 1) ? obs_current_p1 : obs_current_p2;
 
-      if(rest_score > 0) {
-        bound = no_categories(variable1, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
+        // Calculate rest_score
+        double rest_score = rest_matrix(person, variable) - obs_current_p;
+        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
-      if(ordinal_variable[variable1] == true) {
-        //Regular binary or ordinal MRF variable -------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable1, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v1[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score2 * proposed_state * P);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score2 * current_state * P);
+        // Initialize denominators
+        double denominator_prop = 0.0;
+        double denominator_curr = 0.0;
+
+        // Compute denominators
+        if (ordinal_variable[variable]) {
+          // Binary or ordinal MRF variable
+          denominator_prop += std::exp(-bound);
+          denominator_curr += std::exp(-bound);
+
+          for (int cat = 0; cat < n_cats; ++cat) {
+            int score = cat + 1;
+            double exponent = GroupThresholds[cat] + score * rest_score - bound;
+            denominator_prop += std::exp(exponent + score * obs_proposed_p);
+            denominator_curr += std::exp(exponent + score * obs_current_p);
+          }
+        } else {
+          // Blume-Capel ordinal MRF variable
+          for (int cat = 0; cat <= n_cats; ++cat) {
+            double exponent = GroupThresholds[0] * cat +
+              GroupThresholds[1] * (cat - reference_category[variable]) *
+              (cat - reference_category[variable]) +
+              cat * rest_score - bound;
+            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
+            denominator_curr += std::exp(exponent + cat * obs_current_p);
+          }
         }
-      } else {
-        //Blume-Capel ordinal MRF variable -------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable1, gr) + 1; cat++) {
-          exponent = GroupThresholds_v1[0] * cat;
-          exponent += GroupThresholds_v1[1] *
-            (cat - reference_category[variable1]) *
-            (cat - reference_category[variable1]);
-          exponent += cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score2 * proposed_state * P);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score2 * current_state * P);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
 
-      //Log pseudo-likelihood for variable 2 -----------------------------------
-      rest_score = rest_matrix(person, variable2) - obs_score1 * current_state * P;
-
-      if(rest_score > 0) {
-        bound = no_categories(variable2, gr) * rest_score;
-      } else {
-        bound = 0.0;
+        // Update pseudolikelihood ratio
+        pseudolikelihood_ratio -= std::log(denominator_prop);
+        pseudolikelihood_ratio += std::log(denominator_curr);
       }
-
-      if(ordinal_variable[variable2] == true) {
-        //Regular binary or ordinal MRF variable ---------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable2, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v2[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score1 * proposed_state * P);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score1 * current_state * P);
-        }
-      } else {
-        //Blume-Capel ordinal MRF variable ---------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable2, gr) + 1; cat++) {
-          exponent = GroupThresholds_v2[0] * cat;
-          exponent += GroupThresholds_v2[1] *
-            (cat - reference_category[variable2]) *
-            (cat - reference_category[variable2]);
-          exponent +=  cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score1 * proposed_state * P);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score1 * current_state * P);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
     }
   }
   return pseudolikelihood_ratio;
@@ -614,75 +494,50 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
                                                   int t,
                                                   double epsilon_lo,
                                                   double epsilon_hi) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
+  double exp_neg_log_t_phi = std::exp(-std::log(t) * phi);
 
+  // Loop over variables pairs
   for(int variable1 = 0; variable1 <  no_variables - 1; variable1++) {
     for(int variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-      if(indicator(variable1, variable2) == 1) {
+      if (indicator(variable1, variable2) == 1) {
         int int_index = pairwise_index(variable1, variable2);
 
-        for(int h = 0; h < no_groups - 1; h++) {
-          current_state = pairwise_effects(int_index, h + 1);
-          proposed_state = R::rnorm(current_state, proposal_sd_pairwise(int_index, h + 1));
+        // Loop over groups
+        for(int h = 1; h < no_groups; h++) {
+          double current_state = pairwise_effects(int_index, h);
+          double proposed_state = R::rnorm(current_state, proposal_sd_pairwise(int_index, h));
 
-          log_prob = compare_anova_log_pseudolikelihood_ratio_pairwise_difference(main_effects,
-                                                                                  main_index,
-                                                                                  projection,
-                                                                                  observations,
-                                                                                  no_groups,
-                                                                                  group_index,
-                                                                                  no_categories,
-                                                                                  independent_thresholds,
-                                                                                  no_persons,
-                                                                                  variable1,
-                                                                                  variable2,
-                                                                                  h,
-                                                                                  proposed_state,
-                                                                                  current_state,
-                                                                                  rest_matrix,
-                                                                                  ordinal_variable,
-                                                                                  reference_category);
+          // Compute log pseudo-likelihood ratio
+          double log_prob = compare_anova_log_pseudolikelihood_ratio_pairwise_difference(
+            main_effects, main_index, projection, observations, no_groups,
+            group_index, no_categories, independent_thresholds, no_persons,
+            variable1, variable2, h - 1, proposed_state, current_state,
+            rest_matrix, ordinal_variable, reference_category);
 
           log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
           log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
-          U = R::unif_rand();
+          double U = R::unif_rand();
           if(std::log(U) < log_prob) {
-            pairwise_effects(int_index, h + 1) = proposed_state;
+            pairwise_effects(int_index, h) = proposed_state;
 
-            //Update the matrix of rest scores
+            // Update rest matrix
             for(int gr = 0; gr < no_groups; gr++) {
               double state_difference = proposed_state - current_state;
-              state_difference *= projection(gr, h);
-              for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-                rest_matrix(person, variable1) += observations(person, variable2) *
-                  state_difference;
-                rest_matrix(person, variable2) += observations(person, variable1) *
-                  state_difference;
+              state_difference *= projection(gr, h - 1);
+              for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
+                double obs1 = observations(person, variable1);
+                double obs2 = observations(person, variable2);
+                rest_matrix(person, variable1) += obs2 * state_difference;
+                rest_matrix(person, variable2) += obs1 * state_difference;
               }
             }
           }
 
-          if(log_prob > 0) {
-            log_prob = 1.0;
-          } else {
-            log_prob = std::exp(log_prob);
-          }
-
-          double update_proposal_sd =
-            proposal_sd_pairwise(int_index, h + 1) +
-            (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-          if(std::isnan(update_proposal_sd) == true) {
-            update_proposal_sd = 1.0;
-          }
-
-          update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-          proposal_sd_pairwise(int_index, h + 1) = update_proposal_sd;
+          // Robbins-Monro update to the proposal sd
+          proposal_sd_pairwise(int_index, h) = robbins_monro_update(
+            proposal_sd_pairwise(int_index, h), log_prob, target_ar, epsilon_lo,
+            epsilon_hi, exp_neg_log_t_phi);
         }
       }
     }
@@ -709,92 +564,86 @@ void compare_anova_metropolis_threshold_regular(NumericMatrix main_effects,
                                                 int variable) {
   NumericVector q(no_persons);
   NumericVector r(no_persons);
-  NumericVector GroupThresholds(no_categories(variable, 0));
 
-  double log_prob, rest_score;
-  double a, b, c;
-  double tmp;
-  double current_state, proposed_state;
-  double U;
-  double exp_current, exp_proposed;
-  double exponent;
+  // Cache the number of categories for this variable
+  int n_cats = no_categories(variable, 0);
+  int cat_index = main_index(variable, 0);
 
-  for(int category = 0; category < no_categories(variable, 0); category++) {
-    int cat_index = main_index(variable, 0);
-    current_state = main_effects(cat_index + category, 0);
+  NumericVector GroupThresholds(n_cats);
 
-    exp_current = std::exp(current_state);
-    c = (threshold_alpha + threshold_beta) / (1 + exp_current);
+  // Iterate over categories
+  for(int category = 0; category < n_cats; category++) {
+    double current_state = main_effects(cat_index + category, 0);
+    double exp_current = std::exp(current_state);
+    double c = (threshold_alpha + threshold_beta) / (1 + exp_current);
 
-    for(int gr = 0; gr < no_groups; gr++) {
-
-      // Group threshold parameters --------------------------------------------
-      for(int cat = 0; cat < no_categories(variable, 0); cat++) {
-        GroupThresholds[cat] = main_effects(cat_index + cat, 0);
-        for(int h = 0; h < no_groups-1; h++) {
-          GroupThresholds[cat] += projection(gr, h) *
-            main_effects(cat_index + cat, h + 1);
+    // Update group thresholds
+    for (int gr = 0; gr < no_groups; gr++) {
+      for (int cat = 0; cat < n_cats; cat++) {
+        double threshold = main_effects(cat_index + cat, 0);
+        for (int h = 1; h < no_groups; h++) {
+          threshold += projection(gr, h - 1) * main_effects(cat_index + cat, h);
         }
+        GroupThresholds[cat] = threshold;
       }
-      GroupThresholds[category] -= main_effects(cat_index + category, 0);       //Store only pairwise difference in element "category"
+      GroupThresholds[category] -= main_effects(cat_index + category, 0);
 
-      for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-        q[person] = 1.0;
-        r[person] = 1.0;
-        rest_score = rest_matrix(person, variable);
-        for(int cat = 0; cat < no_categories(variable, 0); cat++) {
-          if(cat != category) {
-            exponent = GroupThresholds[cat];
-            exponent += (cat + 1) * rest_score;
-            q[person] += std::exp(exponent);
+      // Compute `q` and `r` for each person in the group
+      for (int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
+        double rest_score = rest_matrix(person, variable);
+        double q_person = 1.0;
+        for (int cat = 0; cat < n_cats; ++cat) {
+          if (cat != category) {
+            double exponent = GroupThresholds[cat] + (cat + 1) * rest_score;
+            q_person += std::exp(exponent);
           }
         }
-        exponent = (category + 1) * rest_score;
-        exponent += GroupThresholds[category];
-        r[person] = std::exp(exponent);
-        c +=  r[person] / (q[person] + r[person] * exp_current);
+        double exponent_r = GroupThresholds[category] + (category + 1) * rest_score;
+        double r_person = std::exp(exponent_r);
+        q[person] = q_person;
+        r[person] = r_person;
+        c += r_person / (q_person + r_person * exp_current);
       }
     }
 
-    tmp = no_persons;
-    tmp += threshold_alpha;
-    tmp += threshold_beta;
-    tmp -= exp_current * c;
-    c = c / tmp;
+    // Update c
+    double tmp = no_persons + threshold_alpha + threshold_beta - exp_current * c;
+    c /= tmp;
 
-    //Proposal is generalized beta-prime.
-    a = threshold_alpha;
-    b = no_persons;
-    b += threshold_beta;
+    // Generalized beta-prime proposal
+    double a = threshold_alpha;
+    double b = no_persons + threshold_beta;
     for(int gr = 0; gr < no_groups; gr++) {
       IntegerMatrix n_cat_obs_gr = n_cat_obs[gr];
       a += n_cat_obs_gr(category + 1, variable);
       b -= n_cat_obs_gr(category + 1, variable);
     }
 
-    tmp = R::rbeta(a, b);
-    proposed_state = std::log(tmp / (1  - tmp) / c);
-    exp_proposed = exp(proposed_state);
+    double tmp_beta = R::rbeta(a, b);
+    double proposed_state = std::log(tmp_beta / (1  - tmp_beta) / c);
+    double exp_proposed = std::exp(proposed_state);
 
-    //Compute log_acceptance probability for Metropolis.
-    //First, we use q and r above to compute the ratio of pseudo-likelihoods
-    log_prob = 0;
-    for(int gr = 0; gr < no_groups; gr++) {
-      for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
+    // Compute log acceptance probability
+    double log_prob = 0.0;
+
+    // Pseudo-likelihood ratio
+    for (int gr = 0; gr < no_groups; ++gr) {
+      for (int person = group_index(gr, 0); person <= group_index(gr, 1); ++person) {
         log_prob += std::log(q[person] + r[person] * exp_current);
         log_prob -= std::log(q[person] + r[person] * exp_proposed);
       }
     }
-    //Second, we add the ratio of prior probabilities
-    log_prob -= (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_proposed);
-    log_prob += (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_current);
-    //Third, we add the ratio of proposals
+
+    // Prior ratio
+    log_prob -= (threshold_alpha + threshold_beta) * std::log(1 + exp_proposed);
+    log_prob += (threshold_alpha + threshold_beta) * std::log(1 + exp_current);
+
+    // Proposal ratio
     log_prob -= (a + b) * std::log(1 + c * exp_current);
     log_prob += (a + b) * std::log(1 + c * exp_proposed);
 
-    U = std::log(R::unif_rand());
+    // Metropolis-Hastings acceptance step
+    double U = std::log(R::unif_rand());
     if(U < log_prob) {
       main_effects(cat_index + category, 0) = proposed_state;
     }
@@ -822,50 +671,50 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference(NumericMatrix ma
                                                                 double proposed_state,
                                                                 double current_state) {
 
-  double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
-  double denominator_proposed, denominator_current, exponent;
-  int score;
   double delta_state = proposed_state - current_state;
+  int cat_index = main_index(variable, 0);
 
+  // Loop over groups
   for(int gr = 0; gr < no_groups; gr++) {
-    NumericVector proposed_thresholds(no_categories(variable, gr));
-    NumericVector current_thresholds(no_categories(variable, gr));
+    int n_cats = no_categories(variable, gr);
+    NumericVector current_thresholds(n_cats);
+    NumericVector proposed_thresholds(n_cats);
+    double P = projection(gr, h);
 
-    for(int cat = 0; cat < no_categories(variable, gr); cat++) {
-      int cat_index = main_index(variable, 0) + cat;
-      current_thresholds[cat] = main_effects(cat_index, 0);
-      for(int hh = 0; hh < no_groups - 1; hh++) {
-        current_thresholds[cat] += projection(gr, hh) * main_effects(cat_index, hh + 1);
+    // Compute current and proposed thresholds
+    for(int cat = 0; cat < n_cats; cat++) {
+      int full_cat_index = cat_index + cat;
+      double threshold = main_effects(full_cat_index, 0);
+      for (int hh = 1; hh < no_groups; ++hh) {
+        threshold += projection(gr, hh - 1) * main_effects(full_cat_index, hh);
       }
-      proposed_thresholds[cat] = current_thresholds[cat];
+      current_thresholds[cat] = threshold;
+      proposed_thresholds[cat] = threshold;
     }
 
-    proposed_thresholds[category] -= projection(gr, h) * current_state;
-    proposed_thresholds[category] += projection(gr, h) * proposed_state;
+    // Adjust vector of proposals for the specific category
+    proposed_thresholds[category] -= P * current_state;
+    proposed_thresholds[category] += P * proposed_state;
 
-    //Compute the pseudo-ikelihood ratio
+    // Contribution from delta_state
     IntegerMatrix n_cat_obs_gr = n_cat_obs[gr];
-    pseudolikelihood_ratio += delta_state *
-      projection(gr, h) *
-      n_cat_obs_gr(category + 1, variable);
+    pseudolikelihood_ratio += delta_state * P * n_cat_obs_gr(category + 1, variable);
 
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-      rest_score = rest_matrix(person, variable);
-      if(rest_score > 0) {
-        bound = no_categories(variable, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
+    // Loop over persons in the group
 
-      denominator_proposed = std::exp(-bound);
-      denominator_current = std::exp(-bound);
-      for(int cat = 0; cat < no_categories(variable, gr); cat++) {
-        score = cat + 1;
-        exponent = score * rest_score - bound;
+    for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
+      double rest_score = rest_matrix(person, variable);
+      double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+
+      double denominator_proposed = std::exp(-bound);
+      double denominator_current = std::exp(-bound);
+      for(int cat = 0; cat < n_cats; cat++) {
+        double exponent = (cat + 1) * rest_score - bound;
         denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
         denominator_current += std::exp(exponent + current_thresholds[cat]);
       }
+      // Update pseudolikelihood ratio
       pseudolikelihood_ratio -= std::log(denominator_proposed);
       pseudolikelihood_ratio += std::log(denominator_current);
     }
@@ -898,65 +747,50 @@ void compare_anova_metropolis_main_difference_regular(NumericMatrix main_effects
                                                       int t,
                                                       double epsilon_lo,
                                                       double epsilon_hi) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
-  int cat_index;
+  // Precompute Robbins-Monro term
+  double exp_neg_log_t_phi = std::exp(-log(t) * phi);
 
-  if(indicator(variable, variable) == 1) {
-    for(int category = 0; category < no_categories(variable, 0); category++) {  //Should be the same across groups for this model choice.
-      cat_index = main_index(variable, 0) + category;
-      for(int h = 0; h < no_groups - 1; h++) {
-        current_state = main_effects(cat_index, h + 1);
-        proposed_state = R::rnorm(current_state,
-                                  proposal_sd_main(cat_index, h));              //No sd needed for overall threshold, so start at zero.
+  // Check if the variable is active
+  if (indicator(variable, variable) != 1) {
+    return;
+  }
 
-        log_prob = compare_anova_log_pseudolikelihood_ratio_main_difference(main_effects,
-                                                                            main_index,
-                                                                            projection,
-                                                                            observations,
-                                                                            no_groups,
-                                                                            group_index,
-                                                                            no_categories,
-                                                                            no_persons,
-                                                                            rest_matrix,
-                                                                            n_cat_obs,
-                                                                            variable,
-                                                                            category,
-                                                                            h,
-                                                                            proposed_state,
-                                                                            current_state);
+  // Look up and cache base category index
+  int base_cat_index = main_index(variable, 0);
 
-        log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-        log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+  // Loop over categories
+  int n_cats = no_categories(variable, 0);
+  for(int category = 0; category < n_cats; category++) {
+    int cat_index = base_cat_index + category;
 
-        U = R::unif_rand();
-        if(std::log(U) < log_prob) {
-          main_effects(cat_index, h + 1) = proposed_state;
-        }
+    // Loop over groups (starting from h = 1)
+    for(int h = 1; h < no_groups; h++) {
+      double current_state = main_effects(cat_index, h);
+      double proposed_state = R::rnorm(current_state, proposal_sd_main(cat_index, h));
 
-        // Update the Robbins-Monro parameters
-        if(log_prob > 0) {
-          log_prob = 1;
-        } else {
-          log_prob = std::exp(log_prob);
-        }
+      // Compute log pseudo-likelihood ratio
+      double log_prob = compare_anova_log_pseudolikelihood_ratio_main_difference(
+        main_effects, main_index, projection, observations, no_groups,
+        group_index, no_categories, no_persons, rest_matrix, n_cat_obs,
+        variable, category, h - 1, proposed_state, current_state);
 
-        double update_proposal_sd =
-          proposal_sd_main(cat_index, h) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
+      // Add prior contributions
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
-        if(std::isnan(update_proposal_sd) == true) {
-          update_proposal_sd = 1.0;
-        }
-
-        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-        proposal_sd_main(cat_index, h) = update_proposal_sd;
+      // Metropolis-Hastings acceptance step
+      double U = R::unif_rand();
+      if(std::log(U) < log_prob) {
+        main_effects(cat_index, h) = proposed_state;
       }
+
+      // Robbins-Monro update to the proposal sd
+      proposal_sd_main(cat_index, h) = robbins_monro_update(
+        proposal_sd_main(cat_index, h), log_prob, target_ar, epsilon_lo,
+        epsilon_hi, exp_neg_log_t_phi);
     }
   }
+
 }
 
 
@@ -993,29 +827,23 @@ double compare_anova_log_pseudolikelihood_ratio_thresholds_blumecapel(double lin
     NumericVector constant_denominator (no_categories(variable, gr) + 1);
 
     //Pre-compute common terms
-    for(int category = 0; category < no_categories(variable, gr) + 1; category++) {
+    for(int category = 0; category <= no_categories(variable, gr); category++) {
       linear_score = category;
-      quadratic_score =
-        (category - reference_category[variable]) *
+      quadratic_score = (category - reference_category[variable]) *
         (category - reference_category[variable]);
 
       constant_numerator[category] = linear_current * linear_score;
       constant_numerator[category] += quadratic_current * quadratic_score;
       constant_denominator[category] = linear_proposed * linear_score ;
       constant_denominator[category] += quadratic_proposed * quadratic_score;
-      for(int h = 0; h < no_groups-1; h++) {
-        constant_numerator[category] += projection(gr, h) *
-          main_effects(cat_index, h + 1) *
-          linear_score;
-        constant_numerator[category] += projection(gr, h) *
-          main_effects(cat_index + 1, h + 1) *
-          quadratic_score;
-        constant_denominator[category] += projection(gr, h) *
-          main_effects(cat_index, h + 1) *
-          linear_score;
-        constant_denominator[category] += projection(gr, h) *
-          main_effects(cat_index + 1, h + 1) *
-          quadratic_score;
+      for(int h = 1; h < no_groups; h++) {
+        double P = projection(gr, h - 1);
+        double m1 =  main_effects(cat_index, h);
+        double m2 =  main_effects(cat_index + 1, h);
+        constant_numerator[category] += P * m1 * linear_score;
+        constant_numerator[category] += P * m2 * quadratic_score;
+        constant_denominator[category] += P * m1 * linear_score;
+        constant_denominator[category] += P * m2 * quadratic_score;
       }
     }
 
@@ -1039,7 +867,7 @@ double compare_anova_log_pseudolikelihood_ratio_thresholds_blumecapel(double lin
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(0, variable) * linear_current;
     pseudolikelihood_ratio -= sufficient_blume_capel_gr(1, variable) * quadratic_current;
 
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
+    for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
       rest_score = rest_matrix(person, variable);
       if(rest_score > 0) {
         bound = no_categories(variable, gr) * rest_score + lbound;
@@ -1049,7 +877,7 @@ double compare_anova_log_pseudolikelihood_ratio_thresholds_blumecapel(double lin
 
       numerator = 0.0;
       denominator = 0.0;
-      for(int category = 0; category < no_categories[variable] + 1; category ++) {
+      for(int category = 0; category <= no_categories[variable]; category ++) {
         exponent = category * rest_score - bound;
         numerator += std::exp(constant_numerator[category] + exponent);
         denominator += std::exp(constant_denominator[category] + exponent);
@@ -1088,7 +916,7 @@ void compare_anova_metropolis_threshold_blumecapel(NumericMatrix main_effects,
                                                    double epsilon_hi) {
   double log_prob, U;
   double current_state, proposed_state;
-
+  double exp_neg_log_t_phi = std::exp(-log(t) * phi);
   //----------------------------------------------------------------------------
   // Adaptive Metropolis for the linear Blume-Capel parameter
   //----------------------------------------------------------------------------
@@ -1133,23 +961,10 @@ void compare_anova_metropolis_threshold_blumecapel(NumericMatrix main_effects,
     main_effects(cat_index, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  double update_proposal_sd = proposal_sd_main(cat_index, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_main(cat_index, 0) = update_proposal_sd;
+  // Robbins-Monro update to the proposal sd
+  proposal_sd_main(cat_index, 0) = robbins_monro_update(
+    proposal_sd_main(cat_index, 0), log_prob, target_ar, epsilon_lo,
+    epsilon_hi, exp_neg_log_t_phi);
 
   //---------------------------------------------------------------------------|
   // Adaptive Metropolis for the quadratic Blume-Capel parameter
@@ -1195,23 +1010,11 @@ void compare_anova_metropolis_threshold_blumecapel(NumericMatrix main_effects,
     main_effects(cat_index + 1, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
+  // Robbins-Monro update to the proposal sd
+  proposal_sd_main(cat_index + 1, 0) = robbins_monro_update(
+    proposal_sd_main(cat_index + 1, 0), log_prob, target_ar, epsilon_lo,
+    epsilon_hi, exp_neg_log_t_phi);
 
-  update_proposal_sd = proposal_sd_main(cat_index + 1, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_main(cat_index + 1, 0) = update_proposal_sd;
 }
 
 
@@ -1250,31 +1053,24 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
     double P = projection(gr, h);
 
     //Pre-compute common terms
-    for(int category = 0; category < no_categories(variable, gr) + 1; category++) {
+    for(int category = 0; category <= no_categories(variable, gr); category++) {
       linear_score = category;
-      quadratic_score =
-        (category - reference_category[variable]) *
+      quadratic_score = (category - reference_category[variable]) *
         (category - reference_category[variable]);
 
       constant_numerator[category] = main_effects(cat_index, 0) * linear_score;
       constant_numerator[category] +=  main_effects(cat_index + 1, 0) * quadratic_score;
       constant_denominator[category] =  main_effects(cat_index, 0) * linear_score ;
       constant_denominator[category] += main_effects(cat_index + 1, 0) * quadratic_score;
-      for(int hh = 0; hh < no_groups-1; hh++) {
-        constant_numerator[category] += projection(gr, hh) *
-          main_effects(cat_index, hh + 1) *
-          linear_score;
-        constant_numerator[category] += projection(gr, hh) *
-          main_effects(cat_index + 1, hh + 1) *
-          quadratic_score;
-        constant_denominator[category] += projection(gr, hh) *
-          main_effects(cat_index, hh + 1) *
-          linear_score;
-        constant_denominator[category] += projection(gr, hh) *
-          main_effects(cat_index + 1, hh + 1) *
-          quadratic_score;
+      for(int hh = 1; hh < no_groups; hh++) {
+        double P = projection(gr, hh - 1);
+        double m1 =  main_effects(cat_index, hh);
+        double m2 =  main_effects(cat_index + 1, hh);
+        constant_numerator[category] += P * m1 * linear_score;
+        constant_numerator[category] += P * m2 * quadratic_score;
+        constant_denominator[category] += P * m1 * linear_score;
+        constant_denominator[category] += P * m2 * quadratic_score;
       }
-
       constant_denominator[category] -= P *
         main_effects(cat_index, h + 1) *
         linear_score;
@@ -1304,12 +1100,14 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
 
     IntegerMatrix sufficient_blume_capel_gr = sufficient_blume_capel[gr];
 
-    pseudolikelihood_ratio += sufficient_blume_capel_gr(0, variable) * P * linear_proposed;
-    pseudolikelihood_ratio += sufficient_blume_capel_gr(1, variable) * P * quadratic_proposed;
-    pseudolikelihood_ratio -= sufficient_blume_capel_gr(0, variable) * P * linear_current;
-    pseudolikelihood_ratio -= sufficient_blume_capel_gr(1, variable) * P * quadratic_current;
+    double sp0 = sufficient_blume_capel_gr(0, variable) * P;
+    double sp1 = sufficient_blume_capel_gr(1, variable) * P;
+    pseudolikelihood_ratio += sp0 * linear_proposed;
+    pseudolikelihood_ratio += sp1 * quadratic_proposed;
+    pseudolikelihood_ratio -= sp0 * linear_current;
+    pseudolikelihood_ratio -= sp1 * quadratic_current;
 
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
+    for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
       rest_score = rest_matrix(person, variable);
       if(rest_score > 0) {
         bound = no_categories(variable, gr) * rest_score + lbound;
@@ -1319,7 +1117,7 @@ double compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
 
       numerator = 0.0;
       denominator = 0.0;
-      for(int category = 0; category < no_categories[variable] + 1; category ++) {
+      for(int category = 0; category <= no_categories[variable]; category ++) {
         exponent = category * rest_score - bound;
         numerator += std::exp(constant_numerator[category] + exponent);
         denominator += std::exp(constant_denominator[category] + exponent);
@@ -1359,31 +1157,32 @@ void compare_anova_metropolis_main_difference_blumecapel(NumericMatrix main_effe
                                                          double epsilon_hi) {
   double log_prob, U;
   double current_state, proposed_state;
+  double exp_neg_log_t_phi = std::exp(-log(t) * phi);
 
   if(indicator(variable, variable) == 1) {
     //Loop over the group difference effects--------------------------------------
-    for(int h = 0; h < no_groups - 1; h++) {
+    for(int h = 1; h < no_groups; h++) {
       //----------------------------------------------------------------------------
       // Adaptive Metropolis for the linear Blume-Capel parameter
       //----------------------------------------------------------------------------
       int cat_index = main_index(variable, 0);
-      current_state = main_effects(cat_index, h + 1);
-      proposed_state = R::rnorm(current_state, proposal_sd_main(cat_index, h + 1));
+      current_state = main_effects(cat_index, h);
+      proposed_state = R::rnorm(current_state, proposal_sd_main(cat_index, h));
 
       //----------------------------------------------------------------------------
       //Compute the log acceptance probability -------------------------------------
       //----------------------------------------------------------------------------
       double linear_current = current_state;
-      double quadratic_current = main_effects(cat_index + 1, h + 1);
+      double quadratic_current = main_effects(cat_index + 1, h);
       double linear_proposed = proposed_state;
-      double quadratic_proposed = main_effects(cat_index + 1, h + 1);
+      double quadratic_proposed = main_effects(cat_index + 1, h);
 
       log_prob = compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
                                                                                      quadratic_current,
                                                                                      linear_proposed,
                                                                                      quadratic_proposed,
                                                                                      variable,
-                                                                                     h,
+                                                                                     h - 1,
                                                                                      reference_category,
                                                                                      main_effects,
                                                                                      main_index,
@@ -1405,40 +1204,27 @@ void compare_anova_metropolis_main_difference_blumecapel(NumericMatrix main_effe
       //Metropolis step ------------------------------------------------------------
       U = R::unif_rand();
       if(std::log(U) < log_prob) {
-        main_effects(cat_index, h + 1) = proposed_state;
+        main_effects(cat_index, h) = proposed_state;
       }
 
-      //Robbins-Monro update of the proposal variance ------------------------------
-      if(log_prob > 0) {
-        log_prob = 1;
-      } else {
-        log_prob = std::exp(log_prob);
-      }
-
-      double update_proposal_sd = proposal_sd_main(cat_index, h + 1) +
-        (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-      if(std::isnan(update_proposal_sd) == true) {
-        update_proposal_sd = 1.0;
-      }
-
-      update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-      proposal_sd_main(cat_index, h + 1) = update_proposal_sd;
+      // Robbins-Monro update to the proposal sd
+      proposal_sd_main(cat_index, h) = robbins_monro_update(
+        proposal_sd_main(cat_index, h), log_prob, target_ar, epsilon_lo,
+        epsilon_hi, exp_neg_log_t_phi);
 
       //---------------------------------------------------------------------------|
       // Adaptive Metropolis for the quadratic Blume-Capel parameter
       //---------------------------------------------------------------------------|
-      current_state = main_effects(cat_index + 1, h + 1);
-      proposed_state = R::rnorm(current_state, proposal_sd_main(cat_index + 1, h + 1));
+      current_state = main_effects(cat_index + 1, h);
+      proposed_state = R::rnorm(current_state, proposal_sd_main(cat_index + 1, h));
 
       //----------------------------------------------------------------------------
       //Compute the log acceptance probability -------------------------------------
       //----------------------------------------------------------------------------
 
-      linear_current = main_effects(cat_index, h + 1);
+      linear_current = main_effects(cat_index, h);
       quadratic_current = current_state;
-      linear_proposed =  main_effects(cat_index, h + 1);
+      linear_proposed =  main_effects(cat_index, h);
       quadratic_proposed =  proposed_state;
 
       log_prob = compare_anova_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
@@ -1446,7 +1232,7 @@ void compare_anova_metropolis_main_difference_blumecapel(NumericMatrix main_effe
                                                                                      linear_proposed,
                                                                                      quadratic_proposed,
                                                                                      variable,
-                                                                                     h,
+                                                                                     h - 1,
                                                                                      reference_category,
                                                                                      main_effects,
                                                                                      main_index,
@@ -1468,185 +1254,17 @@ void compare_anova_metropolis_main_difference_blumecapel(NumericMatrix main_effe
       //Metropolis step ------------------------------------------------------------
       U = R::unif_rand();
       if(std::log(U) < log_prob) {
-        main_effects(cat_index + 1, h + 1) = proposed_state;
+        main_effects(cat_index + 1, h) = proposed_state;
       }
 
-      //Robbins-Monro update of the proposal variance ------------------------------
-      if(log_prob > 0) {
-        log_prob = 1;
-      } else {
-        log_prob = std::exp(log_prob);
-      }
+      // Robbins-Monro update to the proposal sd
+      proposal_sd_main(cat_index + 1, h) = robbins_monro_update(
+        proposal_sd_main(cat_index + 1, h), log_prob, target_ar, epsilon_lo,
+        epsilon_hi, exp_neg_log_t_phi);
 
-      update_proposal_sd = proposal_sd_main(cat_index + 1, h + 1) +
-        (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-      if(std::isnan(update_proposal_sd) == true) {
-        update_proposal_sd = 1.0;
-      }
-
-      update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-      proposal_sd_main(cat_index + 1, h + 1) = update_proposal_sd;
     }
   }
 }
-
-
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for the difference
-//  in a pairwise interaction for an independent samples design
-// ----------------------------------------------------------------------------|
-double compare_anova_log_pseudolikelihood_ratio_pairwise_difference_between_model(NumericMatrix main_effects,
-                                                                                  IntegerMatrix main_index,
-                                                                                  NumericMatrix projection,
-                                                                                  IntegerMatrix observations,
-                                                                                  int no_groups,
-                                                                                  IntegerMatrix group_index,
-                                                                                  IntegerMatrix no_categories,
-                                                                                  bool independent_thresholds,
-                                                                                  int no_persons,
-                                                                                  int variable1,
-                                                                                  int variable2,
-                                                                                  NumericVector proposed_states,
-                                                                                  NumericVector current_states,
-                                                                                  NumericMatrix rest_matrix,
-                                                                                  LogicalVector ordinal_variable,
-                                                                                  IntegerVector reference_category) {
-  double rest_score, bound;
-  double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
-
-  // --------------------------------------------------------------------------|
-  // Compute log pseudo-likelihood ratio ---------------------------------------
-  // --------------------------------------------------------------------------|
-  for(int gr = 0; gr < no_groups; gr++) {
-
-    NumericVector GroupThresholds_v1 = group_thresholds_for_variable(variable1,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
-
-    NumericVector GroupThresholds_v2 = group_thresholds_for_variable(variable2,
-                                                                     ordinal_variable,
-                                                                     gr,
-                                                                     no_groups,
-                                                                     no_categories,
-                                                                     main_effects,
-                                                                     main_index,
-                                                                     projection,
-                                                                     independent_thresholds);
-
-    double proposed_pairwise_group_effect = 0.0;
-    double current_pairwise_group_effect = 0.0;
-    for(int h = 0; h < no_groups - 1; h++) {
-      double P = projection(gr, h);
-      proposed_pairwise_group_effect += P * proposed_states[h];
-      current_pairwise_group_effect += P * current_states[h];
-    }
-
-    //Loop over the pseudo-likelihoods for persons in group gr -----------------
-    for(int person = group_index(gr, 0); person < group_index(gr, 1) + 1; person++) {
-      obs_score1 = observations(person, variable1);
-      obs_score2 = observations(person, variable2);
-
-      pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * proposed_pairwise_group_effect;
-      pseudolikelihood_ratio -= 2 * obs_score1 * obs_score2 * current_pairwise_group_effect;
-
-      //Log pseudo-likelihood for variable 1 -----------------------------------
-      rest_score = rest_matrix(person, variable1) - obs_score2 * current_pairwise_group_effect;
-
-      if(rest_score > 0) {
-        bound = no_categories(variable1, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
-
-      if(ordinal_variable[variable1] == true) {
-        //Regular binary or ordinal MRF variable -------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable1, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v1[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score2 * proposed_pairwise_group_effect);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score2 * current_pairwise_group_effect);
-        }
-      } else {
-        //Blume-Capel ordinal MRF variable -------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable1, gr) + 1; cat++) {
-          exponent = GroupThresholds_v1[0] * cat;
-          exponent += GroupThresholds_v1[1] *
-            (cat - reference_category[variable1]) *
-            (cat - reference_category[variable1]);
-          exponent += cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score2 * proposed_pairwise_group_effect);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score2 * current_pairwise_group_effect);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
-
-      //Log pseudo-likelihood for variable 2 -----------------------------------
-      rest_score = rest_matrix(person, variable2) - obs_score1 * current_pairwise_group_effect;
-
-      if(rest_score > 0) {
-        bound = no_categories(variable2, gr) * rest_score;
-      } else {
-        bound = 0.0;
-      }
-
-      if(ordinal_variable[variable2] == true) {
-        //Regular binary or ordinal MRF variable ---------------------------------
-        denominator_prop = std::exp(-bound);
-        denominator_curr = std::exp(-bound);
-        for(int cat = 0; cat < no_categories(variable2, gr); cat++) {
-          score = cat + 1;
-          exponent = GroupThresholds_v2[cat] +
-            score * rest_score -
-            bound;
-          denominator_prop +=
-            std::exp(exponent + score * obs_score1 * proposed_pairwise_group_effect);
-          denominator_curr +=
-            std::exp(exponent + score * obs_score1 * current_pairwise_group_effect);
-        }
-      } else {
-        //Blume-Capel ordinal MRF variable ---------------------------------------
-        denominator_prop = 0.0;
-        denominator_curr = 0.0;
-        for(int cat = 0; cat < no_categories(variable2, gr) + 1; cat++) {
-          exponent = GroupThresholds_v2[0] * cat;
-          exponent += GroupThresholds_v2[1] *
-            (cat - reference_category[variable2]) *
-            (cat - reference_category[variable2]);
-          exponent +=  cat * rest_score - bound;
-          denominator_prop +=
-            std::exp(exponent + cat * obs_score1 * proposed_pairwise_group_effect);
-          denominator_curr +=
-            std::exp(exponent + cat * obs_score1 * current_pairwise_group_effect);
-        }
-      }
-      pseudolikelihood_ratio -= std::log(denominator_prop);
-      pseudolikelihood_ratio += std::log(denominator_curr);
-    }
-  }
-  return pseudolikelihood_ratio;
-}
-
 
 
 // ----------------------------------------------------------------------------|
@@ -1666,70 +1284,81 @@ void compare_anova_metropolis_thresholds_regular_free(NumericMatrix main_effects
                                                       int variable,
                                                       int group) {
 
-  int no_persons = 1 + group_index(group, 1) - group_index(group, 0);
+  // Number of persons in the group
+  int no_persons = group_index(group, 1) - group_index(group, 0) + 1;
 
+  // Cache group-specific category observations
+  IntegerMatrix n_cat_obs_gr = n_cat_obs[group];
+
+  // Base category index for the variable
+  int base_cat_index = main_index(variable, 0);
+  int n_cats = no_categories(variable, group);
+
+  // Temporary storage for pseudo-likelihood elements
   NumericVector q(no_persons);
   NumericVector r(no_persons);
 
-  double log_prob, rest_score;
-  double a, b, c;
-  double tmp;
-  double current_state, proposed_state;
-  double U;
-  double exp_current, exp_proposed;
-  IntegerMatrix n_cat_obs_gr = n_cat_obs[group];
+  // Loop over categories
+  for(int category = 0; category < n_cats; category++) {
+    double current_state = main_effects(base_cat_index + category, group);
+    double exp_current = std::exp(current_state);
 
+    // Initialize `c`
+    double c = (threshold_alpha + threshold_beta) / (1 + exp_current);
 
-  for(int category = 0; category < no_categories(variable, group); category++) {
-    int cat_index = main_index(variable, 0);
-    current_state = main_effects(cat_index + category, group);
-    exp_current = std::exp(current_state);
-    c = (threshold_alpha + threshold_beta) / (1 + exp_current);
-
+    // Loop over persons
     for(int person = 0; person < no_persons; person++) {
-      q[person] = 1.0;
-      r[person] = 1.0;
-      rest_score = rest_matrix(group_index(group, 0) + person, variable);
-      for(int cat = 0; cat < no_categories[variable]; cat++) {
+      double rest_score = rest_matrix(group_index(group, 0) + person, variable);
+
+      // Compute `q` and `r` for this person
+      double q_person = 1.0;
+      for(int cat = 0; cat < n_cats; cat++) {
         if(cat != category) {
-          q[person] += std::exp(main_effects(cat_index + cat, group) +
-            (cat + 1) * rest_score);
+          q_person += std::exp(main_effects(base_cat_index + cat, group) + (cat + 1) * rest_score);
         }
       }
-      r[person] = std::exp((category + 1) * rest_score);
-      c +=  r[person] / (q[person] + r[person] * exp_current);
+      double r_person = std::exp((category + 1) * rest_score);
+
+      // Update `q` and `r` vectors
+      q[person] = q_person;
+      r[person] = r_person;
+
+      // Update `c`
+      c += r_person / (q_person + r_person * exp_current);
     }
 
-    c = c / ((no_persons + threshold_alpha + threshold_beta) -
-      exp_current * c);
+    // Finalize `c`
+    c /= (no_persons + threshold_alpha + threshold_beta - exp_current * c);
 
-    //Proposal is generalized beta-prime.
-    a = n_cat_obs_gr(category + 1, variable) + threshold_alpha;
-    b = no_persons + threshold_beta - n_cat_obs_gr(category + 1, variable);
-    tmp = R::rbeta(a, b);
-    proposed_state = std::log(tmp / (1  - tmp) / c);
-    exp_proposed = exp(proposed_state);
+    // Generalized beta-prime proposal
+    double a = n_cat_obs_gr(category + 1, variable) + threshold_alpha;
+    double b = no_persons + threshold_beta - n_cat_obs_gr(category + 1, variable);
+    double tmp = R::rbeta(a, b);
+    double proposed_state = std::log(tmp / ((1 - tmp) * c));
+    double exp_proposed = std::exp(proposed_state);
 
-    //Compute log_acceptance probability for Metropolis.
-    //First, we use g and q above to compute the ratio of pseudolikelihoods
-    log_prob = 0;
-    for(int person = 0; person < no_persons; person++) {
+
+    // Compute log acceptance probability
+    double log_prob = 0.0;
+
+    // Pseudo-likelihood ratio
+    for (int person = 0; person < no_persons; ++person) {
       log_prob += std::log(q[person] + r[person] * exp_current);
       log_prob -= std::log(q[person] + r[person] * exp_proposed);
     }
-    //Second, we add the ratio of prior probabilities
-    log_prob -= (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_proposed);
-    log_prob += (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_current);
-    //Third, we add the ratio of proposals
+
+    // Prior ratio
+    log_prob -= (threshold_alpha + threshold_beta) * std::log(1 + exp_proposed);
+    log_prob += (threshold_alpha + threshold_beta) * std::log(1 + exp_current);
+
+    // Proposal ratio
     log_prob -= (a + b) * std::log(1 + c * exp_current);
     log_prob += (a + b) * std::log(1 + c * exp_proposed);
 
-    U = std::log(R::unif_rand());
-
+    // Metropolis-Hastings acceptance step
+    double U = std::log(R::unif_rand());
     if(U < log_prob) {
-      main_effects(cat_index + category, group) = proposed_state;
+      main_effects(base_cat_index + category, group) = proposed_state;
     }
   }
 }
@@ -1764,6 +1393,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   double current_state, proposed_state, difference;
   double numerator, denominator;
   double lbound, bound, exponent, rest_score;
+  double exp_neg_log_t_phi = std::exp(-log(t) * phi);
 
   NumericMatrix sufficient_blume_capel_group = sufficient_blume_capel[group];
 
@@ -1781,7 +1411,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
-  for(int category = 0; category < no_categories(variable, group) + 1; category ++) {
+  for(int category = 0; category <= no_categories(variable, group); category ++) {
     exponent = main_effects(cat_index + 1, group) *
       (category - reference_category[variable]) *
       (category - reference_category[variable]);
@@ -1804,7 +1434,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   log_prob = threshold_alpha * difference;
   log_prob += sufficient_blume_capel_group(0, variable) * difference;
 
-  for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
+  for(int person = group_index(group, 0); person <= group_index(group, 1); person++) {
     rest_score = rest_matrix(person, variable);
     if(rest_score > 0) {
       bound = no_categories(variable, group) * rest_score + lbound;
@@ -1813,10 +1443,10 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
     }
     numerator = std::exp(constant_numerator[0] - bound);
     denominator = std::exp(constant_denominator[0] - bound);
-    for(int category = 0; category < no_categories(variable, group); category ++) {
-      exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
+    for(int score = 1; score <= no_categories(variable, group); score++) {
+      exponent = score * rest_score - bound;
+      numerator += std::exp(constant_numerator[score] + exponent);
+      denominator += std::exp(constant_denominator[score] + exponent);
     }
     log_prob += std::log(numerator);
     log_prob -= std::log(denominator);
@@ -1832,22 +1462,11 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
     main_effects(cat_index, group) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
+  // Robbins-Monro update to the proposal sd
+  proposal_sd_main(cat_index, group) = robbins_monro_update(
+    proposal_sd_main(cat_index, group), log_prob, target_ar, epsilon_lo,
+    epsilon_hi, exp_neg_log_t_phi);
 
-  double update_proposal_sd = proposal_sd_main(cat_index, group) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-  proposal_sd_main(cat_index, group) = update_proposal_sd;
 
   //----------------------------------------------------------------------------
   //Adaptive Metropolis for the quadratic Blume-Capel parameter
@@ -1859,7 +1478,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
-  for(int category = 0; category < no_categories(variable, group) + 1; category ++) {
+  for(int category = 0; category <= no_categories(variable, group); category ++) {
     exponent = main_effects(cat_index, group) * category;
     int score = (category - reference_category[variable]) *
       (category - reference_category[variable]);
@@ -1884,7 +1503,7 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
   log_prob = threshold_alpha * difference;
   log_prob += sufficient_blume_capel_group(1, variable) * difference;
 
-  for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
+  for(int person = group_index(group, 0); person <= group_index(group, 1); person++) {
     rest_score = rest_matrix(person, variable);
     if(rest_score > 0) {
       bound = no_categories[variable] * rest_score + lbound;
@@ -1895,10 +1514,10 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
     numerator = std::exp(constant_numerator[0] - bound);
     denominator = std::exp(constant_denominator[0] - bound);
 
-    for(int category = 0; category < no_categories(variable, group); category ++) {
-      exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
+    for(int score = 1; score <= no_categories(variable, group); score ++) {
+      exponent = score * rest_score - bound;
+      numerator += std::exp(constant_numerator[score] + exponent);
+      denominator += std::exp(constant_denominator[score] + exponent);
     }
 
     log_prob += std::log(numerator);
@@ -1914,22 +1533,10 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
     main_effects(cat_index + 1, group) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  update_proposal_sd = proposal_sd_main(cat_index + 1, group) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-  proposal_sd_main(cat_index + 1, group) = update_proposal_sd;
+  // Robbins-Monro update to the proposal sd
+  proposal_sd_main(cat_index + 1, group) = robbins_monro_update(
+    proposal_sd_main(cat_index + 1, group), log_prob, target_ar, epsilon_lo,
+    epsilon_hi, exp_neg_log_t_phi);
 
 }
 
@@ -1969,202 +1576,75 @@ List compare_anova_gibbs_step_gm(NumericMatrix main_effects,
                                  double epsilon_hi,
                                  bool difference_selection,
                                  int no_pairwise,
-                                 int no_variables,
-                                 IntegerMatrix index) {
+                                 int no_variables) {
 
   NumericMatrix proposal_sd_blumecapel_group(no_variables, 2);
 
 
-  //Within model move for the pairwise interaction parameters
-  compare_anova_metropolis_interaction(main_effects,
-                                       pairwise_effects,
-                                       main_index,
-                                       pairwise_index,
-                                       projection,
-                                       observations,
-                                       no_groups,
-                                       group_index,
-                                       no_categories,
-                                       independent_thresholds,
-                                       no_persons,
-                                       rest_matrix,
-                                       ordinal_variable,
-                                       reference_category,
-                                       proposal_sd_pairwise,
-                                       interaction_scale,
-                                       no_variables,
-                                       phi,
-                                       target_ar,
-                                       t,
-                                       epsilon_lo,
-                                       epsilon_hi);
+  // Update pairwise interaction parameters
+  compare_anova_metropolis_interaction(
+    main_effects, pairwise_effects, main_index,
+    pairwise_index, projection, observations, no_groups, group_index,
+    no_categories, independent_thresholds, no_persons, rest_matrix,
+    ordinal_variable, reference_category, proposal_sd_pairwise,
+    interaction_scale, no_variables, phi, target_ar, t, epsilon_lo, epsilon_hi);
 
-  //Between model move for differences in interaction parameters
-  // if(difference_selection == true) {
-  //
-  // }
+  // Update pairwise differences
+  compare_anova_metropolis_pairwise_difference(
+    main_effects, pairwise_effects, main_index, pairwise_index, projection,
+    observations, no_groups, group_index, no_categories, independent_thresholds,
+    indicator, no_persons, rest_matrix, ordinal_variable, reference_category,
+    proposal_sd_pairwise, interaction_scale, no_variables, phi, target_ar, t, epsilon_lo,
+    epsilon_hi);
 
-  //Within model move for differences in interaction parameters
-  compare_anova_metropolis_pairwise_difference(main_effects,
-                                               pairwise_effects,
-                                               main_index,
-                                               pairwise_index,
-                                               projection,
-                                               observations,
-                                               no_groups,
-                                               group_index,
-                                               no_categories,
-                                               independent_thresholds,
-                                               indicator,
-                                               no_persons,
-                                               rest_matrix,
-                                               ordinal_variable,
-                                               reference_category,
-                                               proposal_sd_pairwise,
-                                               interaction_scale,
-                                               no_variables,
-                                               phi,
-                                               target_ar,
-                                               t,
-                                               epsilon_lo,
-                                               epsilon_hi);
-
-  //Update threshold parameters
-  if(independent_thresholds == false) {
-    for(int variable = 0; variable < no_variables; variable++) {
-      if(ordinal_variable[variable] == true) {
-        //Within model move for the main category thresholds
-        compare_anova_metropolis_threshold_regular(main_effects,
-                                                   main_index,
-                                                   projection,
-                                                   observations,
-                                                   no_groups,
-                                                   group_index,
-                                                   no_categories,
-                                                   no_persons,
-                                                   rest_matrix,
-                                                   n_cat_obs,
-                                                   threshold_alpha,
-                                                   threshold_beta,
-                                                   variable);
-
-        // if(difference_selection == true) {
-        //   //Between model move for the differences in category thresholds
-        // }
-
-        //Within model move for the differences in category thresholds
-        compare_anova_metropolis_main_difference_regular(main_effects,
-                                                         main_index,
-                                                         projection,
-                                                         observations,
-                                                         no_groups,
-                                                         group_index,
-                                                         no_categories,
-                                                         no_persons,
-                                                         rest_matrix,
-                                                         n_cat_obs,
-                                                         variable,
-                                                         indicator,
-                                                         proposal_sd_main,
-                                                         main_difference_scale,
-                                                         phi,
-                                                         target_ar,
-                                                         t,
-                                                         epsilon_lo,
-                                                         epsilon_hi);
-      } else {
-        //Within model move for the main category thresholds
-        compare_anova_metropolis_threshold_blumecapel(main_effects,
-                                                      main_index,
-                                                      projection,
-                                                      no_categories,
-                                                      sufficient_blume_capel,
-                                                      no_persons,
-                                                      no_groups,
-                                                      group_index,
-                                                      variable,
-                                                      reference_category,
-                                                      threshold_alpha,
-                                                      threshold_beta,
-                                                      rest_matrix,
-                                                      proposal_sd_main,
-                                                      phi,
-                                                      target_ar,
-                                                      t,
-                                                      epsilon_lo,
-                                                      epsilon_hi);
-
-        //Between model move for the differences in category thresholds
-        // if(difference_selection == true) {
-        //
-        // }
-
-        //Within model move for the differences in category thresholds
-        compare_anova_metropolis_main_difference_blumecapel(main_effects,
-                                                            main_index,
-                                                            projection,
-                                                            no_categories,
-                                                            sufficient_blume_capel,
-                                                            no_persons,
-                                                            no_groups,
-                                                            group_index,
-                                                            variable,
-                                                            reference_category,
-                                                            threshold_alpha,
-                                                            threshold_beta,
-                                                            rest_matrix,
-                                                            indicator,
-                                                            proposal_sd_main,
-                                                            phi,
-                                                            target_ar,
-                                                            t,
-                                                            epsilon_lo,
-                                                            epsilon_hi);
-      }
-    }
-  } else {
-    for(int variable = 0; variable < no_variables; variable++) {
-      for(int group = 0; group < no_groups; group++) {
-        if(ordinal_variable[variable] == true) {
-          compare_anova_metropolis_thresholds_regular_free(main_effects,
-                                                           main_index,
-                                                           observations,
-                                                           no_groups,
-                                                           group_index,
-                                                           no_categories,
-                                                           rest_matrix,
-                                                           n_cat_obs,
-                                                           threshold_alpha,
-                                                           threshold_beta,
-                                                           variable,
-                                                           group);
+  // Update thresholds based on main_model input
+  for (int variable = 0; variable < no_variables; ++variable) {
+    if (independent_thresholds) {
+      // Group-specific thresholds (main_model = "Free")
+      for (int group = 0; group < no_groups; ++group) {
+        if (ordinal_variable[variable]) {
+          compare_anova_metropolis_thresholds_regular_free(
+            main_effects, main_index, observations, no_groups, group_index,
+            no_categories, rest_matrix, n_cat_obs, threshold_alpha, threshold_beta,
+            variable, group);
         } else {
-          compare_anova_metropolis_thresholds_blumecapel_free(main_effects,
-                                                              main_index,
-                                                              observations,
-                                                              no_groups,
-                                                              group_index,
-                                                              reference_category,
-                                                              no_categories,
-                                                              sufficient_blume_capel,
-                                                              no_persons,
-                                                              rest_matrix,
-                                                              n_cat_obs,
-                                                              threshold_alpha,
-                                                              threshold_beta,
-                                                              variable,
-                                                              group,
-                                                              proposal_sd_main,
-                                                              phi,
-                                                              target_ar,
-                                                              t,
-                                                              epsilon_lo,
-                                                              epsilon_hi);
+          compare_anova_metropolis_thresholds_blumecapel_free(
+            main_effects, main_index, observations, no_groups, group_index,
+            reference_category, no_categories, sufficient_blume_capel, no_persons,
+            rest_matrix, n_cat_obs, threshold_alpha, threshold_beta, variable, group,
+            proposal_sd_main, phi, target_ar, t, epsilon_lo, epsilon_hi);
         }
+      }
+    } else {
+      // Model group differences in thresholds (main_model != "Free")
+      if (ordinal_variable[variable]) {
+        compare_anova_metropolis_threshold_regular(
+          main_effects, main_index, projection, observations, no_groups,
+          group_index, no_categories, no_persons, rest_matrix, n_cat_obs,
+          threshold_alpha, threshold_beta, variable);
+
+        compare_anova_metropolis_main_difference_regular(
+          main_effects, main_index, projection, observations, no_groups,
+          group_index, no_categories, no_persons, rest_matrix, n_cat_obs, variable,
+          indicator, proposal_sd_main, main_difference_scale, phi, target_ar, t,
+          epsilon_lo, epsilon_hi);
+      } else {
+        compare_anova_metropolis_threshold_blumecapel(
+          main_effects, main_index, projection, no_categories, sufficient_blume_capel,
+          no_persons, no_groups, group_index, variable, reference_category,
+          threshold_alpha, threshold_beta, rest_matrix, proposal_sd_main, phi, target_ar,
+          t, epsilon_lo, epsilon_hi);
+
+        compare_anova_metropolis_main_difference_blumecapel(
+          main_effects, main_index, projection, no_categories, sufficient_blume_capel,
+          no_persons, no_groups, group_index, variable, reference_category,
+          threshold_alpha, threshold_beta, rest_matrix, indicator, proposal_sd_main,
+          phi, target_ar, t, epsilon_lo, epsilon_hi);
       }
     }
   }
 
+  // Return updated parameters
   return List::create(Named("indicator") = indicator,
                       Named("main_effects") = main_effects,
                       Named("pairwise_effects") = pairwise_effects,
@@ -2211,11 +1691,13 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
                                  bool display_progress = false,
                                  bool difference_selection = true) {
 
+  // Dimensions and parameters
   int no_variables = observations.ncol();
   int no_persons = observations.nrow();
   int no_main = 1 + main_index(no_variables - 1, 1);
   int no_pairwise = no_variables * (no_variables - 1) / 2;
 
+  // Initialize person-group indicator
   IntegerVector person_group_indicator (no_persons);
   for(int group = 0; group < no_groups; group++) {
     for(int person = group_index(group, 0); person < group_index(group, 1) + 1; person++) {
@@ -2223,54 +1705,36 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
     }
   }
 
-  // Matrices with model parameters --------------------------------------------
+  // Initialize model parameters
   NumericMatrix main_effects(no_main, no_groups);
   NumericMatrix pairwise_effects(no_pairwise, no_groups);
   IntegerMatrix indicator(no_variables, no_variables);
-  std::fill(indicator.begin(), indicator.end(), 1.0);
+  std::fill(indicator.begin(), indicator.end(), 1);
 
-  // Matrices with standard deviations for adaptive Metropolis -----------------
+  // Adaptive Metropolis proposal standard deviations
   NumericMatrix proposal_sd_main(no_main, no_groups);
   NumericMatrix proposal_sd_pairwise(no_pairwise, no_groups);
-
   std::fill(proposal_sd_main.begin(), proposal_sd_main.end(), 1.0);
   std::fill(proposal_sd_pairwise.begin(), proposal_sd_pairwise.end(), 1.0);
 
-  //Parameters for the Robbins-Monro approach for adaptive Metropolis ----------
-  double phi = 0.75;
-  double target_ar = 0.234;
+  // Robbins-Monro parameters
+  double phi = 0.75, target_ar = 0.234;
   double epsilon_lo = 1.0 / static_cast<double>(no_persons);
   double epsilon_hi = 2.0;
 
-  //Randomized index for the pairwise updates ----------------------------------
-  IntegerVector v = seq(0, no_pairwise - 1);
-  IntegerVector order(no_pairwise);
-  IntegerMatrix index(no_pairwise, 3);
+  // Rest matrix for pseudo-likelihoods
+  NumericMatrix rest_matrix(no_persons, no_variables);
 
+  // Output matrices
   NumericMatrix out_main(no_main, no_groups);
   NumericMatrix out_pairwise(no_pairwise, no_groups);
   NumericMatrix out_indicator(no_variables, no_variables);
 
-  //These matrices will contain the rest scores in the pseudo-likelihoods ------
-  NumericMatrix rest_matrix(no_persons, no_variables);
+  // Progress bar
+  Progress p(iter + burnin, display_progress);
 
-  //The Gibbs sampler ----------------------------------------------------------
-  //First, we do burn-in iterations---------------------------------------------
-
-  int first_burnin = burnin;
-  int second_burnin = 0;
-  if(difference_selection == true)
-    second_burnin = burnin;
-  bool input_difference_selection = difference_selection;
-  difference_selection = false;
-
-  //Progress bar ---------------------------------------------------------------
-  Progress p(iter + first_burnin + second_burnin, display_progress);
-
-  for(int iteration = 0; iteration < first_burnin + second_burnin; iteration++) {
-    if(iteration >= first_burnin) {
-      difference_selection = input_difference_selection;
-    }
+  // Gibbs sampling iterations
+  for (int iteration = 0; iteration < iter + burnin; ++iteration) {
     if (Progress::check_abort()) {
       return List::create(Named("main") = out_main,
                           Named("pairwise") = out_pairwise,
@@ -2279,270 +1743,105 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
     }
     p.increment();
 
-    //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_pairwise,
-                   false,
-                   R_NilValue);
+    // Handle missing data if required
+    if (na_impute) {
+      List impute_out = compare_anova_impute_missing_data(
+        main_effects, pairwise_effects, main_index, pairwise_index,
+        projection, observations, no_groups, person_group_indicator,
+        n_cat_obs, sufficient_blume_capel, no_categories, rest_matrix,
+        missing_index, ordinal_variable, reference_category, independent_thresholds);
 
-    for(int cntr = 0; cntr < no_pairwise; cntr++) {
-      index(cntr, 0) = Index(order[cntr], 0);
-      index(cntr, 1) = Index(order[cntr], 1);
-      index(cntr, 2) = Index(order[cntr], 2);
+      IntegerMatrix observations_tmp = impute_out["observations"];
+      List n_cat_obs_tmp = impute_out["n_cat_obs"];
+      List sufficient_blume_capel_tmp = impute_out["sufficient_blume_capel"];
+      NumericMatrix rest_matrix_tmp = impute_out["rest_matrix"];
+
+      // Reassign to original variables
+      observations = observations_tmp;
+      n_cat_obs = n_cat_obs_tmp;
+      sufficient_blume_capel = sufficient_blume_capel_tmp;
+      rest_matrix = rest_matrix_tmp;
     }
 
-    if(na_impute == true) {
-      List out = compare_anova_impute_missing_data(main_effects,
-                                                   pairwise_effects,
-                                                   main_index,
-                                                   pairwise_index,
-                                                   projection,
-                                                   observations,
-                                                   no_groups,
-                                                   person_group_indicator,
-                                                   n_cat_obs,
-                                                   sufficient_blume_capel,
-                                                   no_categories,
-                                                   rest_matrix,
-                                                   missing_index,
-                                                   ordinal_variable,
-                                                   reference_category,
-                                                   independent_thresholds);
+    // Update parameters using Gibbs step
+    List step_out = compare_anova_gibbs_step_gm(
+      main_effects, main_index, pairwise_effects, pairwise_index, projection,
+      no_categories, observations, no_persons, no_groups, group_index, n_cat_obs,
+      sufficient_blume_capel, rest_matrix, independent_thresholds, ordinal_variable,
+      reference_category, indicator, inclusion_probability_difference,
+      proposal_sd_main, proposal_sd_pairwise, interaction_scale,
+      main_difference_scale, pairwise_difference_scale, threshold_alpha,
+      threshold_beta, phi, target_ar, iteration, epsilon_lo, epsilon_hi,
+      difference_selection, no_pairwise, no_variables);
 
-      IntegerMatrix observations = out["observations"];
-      List n_cat_obs = out["n_cat_obs"];
-      List sufficient_blume_capel = out["sufficient_blume_capel"];
-      NumericMatrix rest_matrix = out["rest_matrix"];
-    }
+    IntegerMatrix indicator_tmp = step_out["indicator"];
+    NumericMatrix main_effects_tmp = step_out["main_effects"];
+    NumericMatrix pairwise_effects_tmp = step_out["pairwise_effects"];
+    NumericMatrix rest_matrix_tmp = step_out["rest_matrix"];
+    NumericMatrix proposal_sd_pairwise_tmp = step_out["proposal_sd_pairwise"];
+    NumericMatrix proposal_sd_main_tmp = step_out["proposal_sd_main"];
 
-    List out = compare_anova_gibbs_step_gm(main_effects,
-                                           main_index,
-                                           pairwise_effects,
-                                           pairwise_index,
-                                           projection,
-                                           no_categories,
-                                           observations,
-                                           no_persons,
-                                           no_groups,
-                                           group_index,
-                                           n_cat_obs,
-                                           sufficient_blume_capel,
-                                           rest_matrix,
-                                           independent_thresholds,
-                                           ordinal_variable,
-                                           reference_category,
-                                           indicator,
-                                           inclusion_probability_difference,
-                                           proposal_sd_main,
-                                           proposal_sd_pairwise,
-                                           interaction_scale,
-                                           main_difference_scale,
-                                           pairwise_difference_scale,
-                                           threshold_alpha,
-                                           threshold_beta,
-                                           phi,
-                                           target_ar,
-                                           iteration,
-                                           epsilon_lo,
-                                           epsilon_hi,
-                                           difference_selection,
-                                           no_pairwise,
-                                           no_variables,
-                                           index);
+    // Update matrices from Gibbs step output
+    indicator = indicator_tmp;
+    main_effects = main_effects_tmp;
+    pairwise_effects = pairwise_effects_tmp;
+    rest_matrix = rest_matrix_tmp;
+    proposal_sd_pairwise = proposal_sd_pairwise_tmp;
+    proposal_sd_main = proposal_sd_main_tmp;
 
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix main_effects = out["main_effects"];
-    NumericMatrix pairwise_effects = out["pairwise_effects"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-    NumericMatrix proposal_sd_pairwise = out["proposal_sd_pairwise"];
-    NumericMatrix proposal_sd_main = out["proposal_sd_main"];
 
-    if(difference_selection == true) {
-      if(pairwise_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
+    // Update inclusion probabilities if difference_selection is enabled
+    if (difference_selection) {
+      int sumG = 0;
+
+      // Pairwise differences
+      if (pairwise_difference_prior == "Beta-Bernoulli") {
+        for (int i = 0; i < no_variables - 1; ++i) {
+          for (int j = i + 1; j < no_variables; ++j) {
             sumG += indicator(i, j);
           }
         }
-        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                      pairwise_beta_bernoulli_beta + no_pairwise - sumG);
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            inclusion_probability_difference(i, j) = probability;
-            inclusion_probability_difference(j, i) = probability;
-          }
-        }
+        double prob = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
+                               pairwise_beta_bernoulli_beta + no_pairwise - sumG);
+        std::fill(inclusion_probability_difference.begin(),
+                  inclusion_probability_difference.end(), prob);
       }
 
-      if(main_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables; i++) {
+      // Main differences
+      if (main_difference_prior == "Beta-Bernoulli") {
+        sumG = 0;
+        for (int i = 0; i < no_variables; ++i) {
           sumG += indicator(i, i);
         }
-        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                      main_beta_bernoulli_beta + no_variables - sumG);
-
-        for(int i = 0; i < no_variables; i++) {
-          inclusion_probability_difference(i, i) = probability;
-        }
-      }
-    }
-  }
-  //To ensure that difference_selection is reinstated to the input value -------
-  difference_selection = input_difference_selection;
-
-  //The post burn-in iterations ------------------------------------------------
-  for(int iteration = 0; iteration < iter; iteration++) {
-    if (Progress::check_abort()) {
-      return List::create(Named("main") = out_main,
-                          Named("pairwise") = out_pairwise,
-                          Named("indicator") = out_indicator);
-    }
-    p.increment();
-
-    //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_pairwise,
-                   false,
-                   R_NilValue);
-
-    for(int cntr = 0; cntr < no_pairwise; cntr++) {
-      index(cntr, 0) = Index(order[cntr], 0);
-      index(cntr, 1) = Index(order[cntr], 1);
-      index(cntr, 2) = Index(order[cntr], 2);
-    }
-
-    if(na_impute == true) {
-      List out = compare_anova_impute_missing_data(main_effects,
-                                                   pairwise_effects,
-                                                   main_index,
-                                                   pairwise_index,
-                                                   projection,
-                                                   observations,
-                                                   no_groups,
-                                                   person_group_indicator,
-                                                   n_cat_obs,
-                                                   sufficient_blume_capel,
-                                                   no_categories,
-                                                   rest_matrix,
-                                                   missing_index,
-                                                   ordinal_variable,
-                                                   reference_category,
-                                                   independent_thresholds);
-
-      IntegerMatrix observations = out["observations"];
-      List n_cat_obs = out["n_cat_obs"];
-      List sufficient_blume_capel = out["sufficient_blume_capel"];
-      NumericMatrix rest_matrix = out["rest_matrix"];
-    }
-
-    List out = compare_anova_gibbs_step_gm(main_effects,
-                                           main_index,
-                                           pairwise_effects,
-                                           pairwise_index,
-                                           projection,
-                                           no_categories,
-                                           observations,
-                                           no_persons,
-                                           no_groups,
-                                           group_index,
-                                           n_cat_obs,
-                                           sufficient_blume_capel,
-                                           rest_matrix,
-                                           independent_thresholds,
-                                           ordinal_variable,
-                                           reference_category,
-                                           indicator,
-                                           inclusion_probability_difference,
-                                           proposal_sd_main,
-                                           proposal_sd_pairwise,
-                                           interaction_scale,
-                                           main_difference_scale,
-                                           pairwise_difference_scale,
-                                           threshold_alpha,
-                                           threshold_beta,
-                                           phi,
-                                           target_ar,
-                                           iteration,
-                                           epsilon_lo,
-                                           epsilon_hi,
-                                           difference_selection,
-                                           no_pairwise,
-                                           no_variables,
-                                           index);
-
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix main_effects = out["main_effects"];
-    NumericMatrix pairwise_effects = out["pairwise_effects"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-    NumericMatrix proposal_sd_pairwise = out["proposal_sd_pairwise"];
-    NumericMatrix proposal_sd_main = out["proposal_sd_main"];
-
-    if(difference_selection == true) {
-      if(pairwise_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            sumG += indicator(i, j);
-          }
-        }
-        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                      pairwise_beta_bernoulli_beta + no_pairwise - sumG);
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            inclusion_probability_difference(i, j) = probability;
-            inclusion_probability_difference(j, i) = probability;
-          }
-        }
-      }
-
-      if(main_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables; i++) {
-          sumG += indicator(i, i);
-        }
-        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                      main_beta_bernoulli_beta + no_variables - sumG);
-
-        for(int i = 0; i < no_variables; i++) {
-          inclusion_probability_difference(i, i) = probability;
+        double prob = R::rbeta(main_beta_bernoulli_alpha + sumG,
+                               main_beta_bernoulli_beta + no_variables - sumG);
+        for (int i = 0; i < no_variables; ++i) {
+          inclusion_probability_difference(i, i) = prob;
         }
       }
     }
 
-    //Output -------------------------------------------------------------------
-    //Compute running averages -----------------------------------------------
-    for(int row = 0; row < no_main; row++) {
-      for(int column = 0; column < no_groups; column++) {
-
-        out_main(row, column) *= iteration;
-        out_main(row, column) += main_effects(row, column);
-        out_main(row, column) /= iteration + 1;
-
+    // Save results after burn-in
+    if (iteration >= burnin) {
+      int iter_adj = iteration - burnin;
+      for (int row = 0; row < no_main; ++row) {
+        for (int col = 0; col < no_groups; ++col) {
+          out_main(row, col) = (out_main(row, col) * iter_adj + main_effects(row, col)) /
+            (iter_adj + 1);
+        }
       }
-    }
-
-    for(int row = 0; row < no_pairwise; row++) {
-      for(int column = 0; column < no_groups; column++) {
-
-        out_pairwise(row, column) *= iteration;
-        out_pairwise(row, column) += pairwise_effects(row, column);
-        out_pairwise(row, column) /= iteration + 1;
-
+      for (int row = 0; row < no_pairwise; ++row) {
+        for (int col = 0; col < no_groups; ++col) {
+          out_pairwise(row, col) = (out_pairwise(row, col) * iter_adj + pairwise_effects(row, col)) /
+            (iter_adj + 1);
+        }
       }
-    }
-
-    for(int i = 0; i < no_variables - 1; i++) {
-      for(int j = i + 1; j < no_variables; j++) {
-        out_indicator(i, j) *= iteration;
-        out_indicator(i, j) += static_cast<double>(indicator(i, j));
-        out_indicator(i, j) /= iteration + 1;
-        out_indicator(j, i) = out_indicator(i, j);
+      for (int i = 0; i < no_variables - 1; ++i) {
+        for (int j = i + 1; j < no_variables; ++j) {
+          out_indicator(i, j) = (out_indicator(i, j) * iter_adj + indicator(i, j)) /
+            (iter_adj + 1);
+          out_indicator(j, i) = out_indicator(i, j);
+        }
       }
     }
   }

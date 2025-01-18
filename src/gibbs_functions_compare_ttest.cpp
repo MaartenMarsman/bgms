@@ -41,8 +41,8 @@ List compare_ttest_impute_missing_data(NumericMatrix thresholds_gr1,
   if(no_missings_gr1 > 1) {
     for(int missing = 0; missing < no_missings_gr1; missing++) {
       //Which observation to impute? -------------------------------------------
-      person = missing_index_gr1(missing, 0) - 1; //R to C++ indexing
-      variable = missing_index_gr1(missing, 1) - 1; //R to C++ indexing
+      person = missing_index_gr1(missing, 0);
+      variable = missing_index_gr1(missing, 1);
 
       //Generate a new observation from the ordinal MRF ------------------------
       rest_score = rest_matrix_gr1(person, variable);

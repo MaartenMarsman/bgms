@@ -10,6 +10,7 @@ bgmCompare(
   x,
   y,
   g,
+  t.test = TRUE,
   difference_selection = TRUE,
   main_difference_model = c("Free", "Collapse", "Constrain"),
   variable_type = "ordinal",
