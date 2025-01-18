@@ -251,7 +251,7 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
 
       pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
-      for (int variable = 0; variable < 2; ++variable) {
+      for (int variable = 0; variable < 2; variable++) {
         int var = (variable == 0) ? variable1 : variable2;
         int obs = (variable == 0) ? obs_score2 : obs_score1;
         double obs_current = obs * current_state;
@@ -419,7 +419,7 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
       pseudolikelihood_ratio +=  obs_score1 * obs_score2 * delta_state_group;
 
       // Process each variable
-      for (int var = 1; var <= 2; ++var) {
+      for (int var = 1; var <= 2; var++) {
         int variable = (var == 1) ? variable1 : variable2;
         int n_cats = (var == 1) ? n_cats_v1 : n_cats_v2;
         NumericVector& GroupThresholds = (var == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
@@ -1598,7 +1598,7 @@ List compare_anova_gibbs_step_gm(NumericMatrix main_effects,
     epsilon_hi);
 
   // Update thresholds based on main_model input
-  for (int variable = 0; variable < no_variables; ++variable) {
+  for (int variable = 0; variable < no_variables; variable++) {
     if (independent_thresholds) {
       // Group-specific thresholds (main_model = "Free")
       for (int group = 0; group < no_groups; ++group) {
