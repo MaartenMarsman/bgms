@@ -259,6 +259,7 @@
 bgmCompare = function(x,
                       y,
                       g,
+                      t.test = TRUE, #this is for checking software
                       difference_selection = TRUE,
                       main_difference_model = c("Free", "Collapse", "Constrain"),
                       variable_type = "ordinal",
@@ -283,6 +284,8 @@ bgmCompare = function(x,
                       display_progress = TRUE) {
 
   ttest = hasArg(y)
+  if(t.test == FALSE)
+    ttest = FALSE
 
   #Check data input ------------------------------------------------------------
   if(!ttest & !hasArg(g))
@@ -319,7 +322,7 @@ bgmCompare = function(x,
       stop("The input g needs to be a vector of length nrow(x).")
 
     unique_g = unique(g)
-    if(length(unique_g) == 2) {
+    if(length(unique_g) == 2 && t.test == TRUE) {
       y = x[g == unique_g[2],]
       x = x[g == unique_g[1],]
       ttest = TRUE
@@ -566,8 +569,6 @@ bgmCompare = function(x,
       }
     }
 
-    print(no_categories)
-    print(main_index)
     pairwise_index = matrix(NA, nrow = no_variables, ncol = no_variables)
     tel = 0
     for(v1 in 1:(no_variables-1)) {
@@ -594,6 +595,8 @@ bgmCompare = function(x,
     one = matrix(1, nrow = no_groups, ncol = no_groups)
     V = diag(no_groups) - one / no_groups
     projection = eigen(V)$vectors[, -no_groups]
+    if(t.test == FALSE && no_groups == 2)
+      projection = matrix(projection, ncol = 1) / sqrt(2)
 
     out = compare_anova_gibbs_sampler(observations = observations,
                                       main_index = main_index,
