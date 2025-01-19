@@ -755,6 +755,287 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
 
 
 /**
+ * Function: compare_anova_log_pseudolikelihood_ratio_pairwise_differences
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for proposed vs. current pairwise
+ *   difference states in a Bayesian ANOVA.
+ *
+ * Inputs:
+ *   - main_effects: NumericMatrix of main effects for all variables and groups.
+ *   - main_index: IntegerMatrix mapping variables to category indices.
+ *   - pairwise_effects: NumericMatrix of pairwise effects for all variable pairs and groups.
+ *   - pairwise_index: IntegerMatrix mapping variable pairs to pairwise effect indices.
+ *   - projection: NumericMatrix representing group-specific scaling.
+ *   - observations: IntegerMatrix of observed data (individuals by variables).
+ *   - no_groups: Total number of groups in the analysis.
+ *   - group_index: IntegerMatrix specifying group-wise start and end indices for individuals.
+ *   - no_categories: IntegerMatrix containing category counts for each variable and group.
+ *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
+ *   - no_persons: Total number of individuals in the analysis.
+ *   - variable1: Index of the first variable in the pair.
+ *   - variable2: Index of the second variable in the pair.
+ *   - proposed_states: NumericVector of proposed pairwise difference states for all groups.
+ *   - current_states: NumericVector of current pairwise difference states for all groups.
+ *   - rest_matrix: NumericMatrix of residuals used for pseudo-likelihood calculations.
+ *   - ordinal_variable: LogicalVector indicating whether variables are ordinal.
+ *   - reference_category: IntegerVector specifying reference categories for each variable.
+ *
+ * Outputs:
+ *   - A double representing the log pseudo-likelihood ratio for the proposed
+ *     vs. current states.
+ *
+ * Details:
+ *   - Iterates over all groups and individuals to compute contributions to the
+ *     pseudo-likelihood ratio.
+ *   - Handles ordinal and Blume-Capel variables separately, adjusting for their
+ *     specific modeling requirements.
+ */
+double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatrix main_effects,
+                                                                     IntegerMatrix main_index,
+                                                                     NumericMatrix pairwise_effects,
+                                                                     IntegerMatrix pairwise_index,
+                                                                     NumericMatrix projection,
+                                                                     IntegerMatrix observations,
+                                                                     int no_groups,
+                                                                     IntegerMatrix group_index,
+                                                                     IntegerMatrix no_categories,
+                                                                     bool independent_thresholds,
+                                                                     int no_persons,
+                                                                     int variable1,
+                                                                     int variable2,
+                                                                     NumericVector proposed_states,
+                                                                     NumericVector current_states,
+                                                                     NumericMatrix rest_matrix,
+                                                                     LogicalVector ordinal_variable,
+                                                                     IntegerVector reference_category) {
+
+  double pseudolikelihood_ratio = 0.0;
+
+  // Loop over groups
+  for (int gr = 0; gr < no_groups; ++gr) {
+    // Compute thresholds for both variables
+    NumericVector GroupThresholds_v1 = group_thresholds_for_variable(
+      variable1, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
+
+    NumericVector GroupThresholds_v2 = group_thresholds_for_variable(
+      variable2, ordinal_variable, gr, no_groups, no_categories, main_effects,
+      main_index, projection, independent_thresholds);
+
+    // Compute current and proposed group interactions
+    double current_group_interaction = 0.0;
+    double proposed_group_interaction = 0.0;
+    for (int h = 0; h < no_groups - 1; h++) {
+      current_group_interaction += current_states[h] * projection(gr, h);
+      proposed_group_interaction += proposed_states[h] * projection(gr, h);
+    }
+    double delta_state_group = 2.0 * (proposed_group_interaction - current_group_interaction);
+
+    // Cache the number of categories for both variables
+    int n_cats_v1 = no_categories(variable1, gr);
+    int n_cats_v2 = no_categories(variable2, gr);
+
+    // Iterate over all individuals in the current group
+    for (int person = group_index(gr, 0); person <= group_index(gr, 1); ++person) {
+      int obs_score1 = observations(person, variable1);
+      int obs_score2 = observations(person, variable2);
+      double obs_proposed_p1 = obs_score2 * proposed_group_interaction;
+      double obs_current_p1 = obs_score2 * current_group_interaction;
+      double obs_proposed_p2 = obs_score1 * proposed_group_interaction;
+      double obs_current_p2 = obs_score1 * current_group_interaction;
+
+      // Contribution from the interaction term
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state_group;
+
+      // Process each variable in the interaction pair
+      for (int variable = 1; variable <= 2; variable++) {
+        int var = (variable == 1) ? variable1 : variable2;
+        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        NumericVector& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        double obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        double obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
+
+
+        double rest_score = rest_matrix(person, var) - obs_current_p;
+        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+
+        double denominator_curr = 0.0, denominator_prop = 0.0;
+
+        // Compute denominators
+        if (ordinal_variable[var]) {
+          for (int cat = 0; cat < n_cats; cat++) {
+            int score = cat + 1;
+            double exponent = GroupThresholds[cat] + rest_score * score - bound;
+            denominator_curr += std::exp(exponent + score * obs_current_p);
+            denominator_prop += std::exp(exponent + score * obs_proposed_p);
+          }
+        } else {
+          for (int cat = 0; cat <= n_cats; cat++) {
+            double exponent = GroupThresholds[0] * cat +
+                              GroupThresholds[1] * (cat - reference_category[var]) *
+                              (cat - reference_category[var]) +
+                              rest_score * cat - bound;
+            denominator_curr += std::exp(exponent + cat * obs_current_p);
+            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
+          }
+        }
+
+        // Update log pseudo-likelihood ratio
+        pseudolikelihood_ratio += std::log(denominator_curr) - std::log(denominator_prop);
+      }
+    }
+  }
+
+  return pseudolikelihood_ratio;
+}
+
+
+/**
+ * Function: compare_anova_metropolis_pairwise_difference_between_model
+ * Purpose:
+ *   Implements a between-model Metropolis-Hastings algorithm to update
+ *   the inclusion indicator and pairwise differences for variable pairs.
+ *
+ * Inputs:
+ *   - inclusion_probability_difference: NumericMatrix of inclusion probabilities
+ *                                       for pairwise differences.
+ *   - index: IntegerMatrix mapping pairwise differences to variable indices.
+ *   - main_effects: NumericMatrix of main effects for all variables and groups.
+ *   - pairwise_effects: NumericMatrix of pairwise effects for all variable pairs and groups.
+ *   - main_index: IntegerMatrix mapping variables to category indices.
+ *   - pairwise_index: IntegerMatrix mapping variable pairs to pairwise effect indices.
+ *   - projection: NumericMatrix for group-specific scaling.
+ *   - observations: IntegerMatrix of observed data (individuals by variables).
+ *   - no_groups: Total number of groups in the analysis.
+ *   - group_index: IntegerMatrix specifying group-wise start and end indices for individuals.
+ *   - no_categories: IntegerMatrix containing category counts for each variable and group.
+ *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
+ *   - indicator: IntegerMatrix indicating active pairwise differences.
+ *   - no_persons: Total number of individuals in the analysis.
+ *   - rest_matrix: NumericMatrix of residuals used for pseudo-likelihood calculations.
+ *   - ordinal_variable: LogicalVector indicating whether variables are ordinal.
+ *   - reference_category: IntegerVector specifying reference categories for each variable.
+ *   - proposal_sd_pairwise: NumericMatrix of proposal standard deviations for pairwise differences.
+ *   - pairwise_difference_scale: Double representing the scale of the prior distribution
+ *                                for pairwise differences.
+ *   - no_variables: Total number of variables in the analysis.
+ *   - phi: Robbins-Monro learning rate parameter.
+ *   - target_acceptance_probability: Target acceptance probability for Metropolis-Hastings updates.
+ *   - t: Current iteration number.
+ *   - epsilon_lo: Lower bound for proposal standard deviations.
+ *   - epsilon_hi: Upper bound for proposal standard deviations.
+ *   - no_pairwise: Total number of pairwise differences.
+ *
+ * Outputs:
+ *   - Updates `indicator`, `pairwise_effects`, and `rest_matrix` to reflect
+ *     accepted proposals for pairwise differences.
+ */
+void compare_anova_metropolis_pairwise_difference_between_model(NumericMatrix inclusion_probability_difference,
+                                                                IntegerMatrix index,
+                                                                NumericMatrix main_effects,
+                                                                NumericMatrix pairwise_effects,
+                                                                IntegerMatrix main_index,
+                                                                IntegerMatrix pairwise_index,
+                                                                NumericMatrix projection,
+                                                                IntegerMatrix observations,
+                                                                int no_groups,
+                                                                IntegerMatrix group_index,
+                                                                IntegerMatrix no_categories,
+                                                                bool independent_thresholds,
+                                                                IntegerMatrix indicator,
+                                                                int no_persons,
+                                                                NumericMatrix rest_matrix,
+                                                                LogicalVector ordinal_variable,
+                                                                IntegerVector reference_category,
+                                                                NumericMatrix proposal_sd_pairwise,
+                                                                double pairwise_difference_scale,
+                                                                int no_variables,
+                                                                double phi,
+                                                                double target_acceptance_probability,
+                                                                int t,
+                                                                double epsilon_lo,
+                                                                double epsilon_hi,
+                                                                int no_pairwise) {
+// Vectors to store current and proposed states for pairwise differences
+  NumericVector proposed_states(no_groups - 1);
+  NumericVector current_states(no_groups - 1);
+
+  // Loop over all pairwise differences
+  for (int cntr = 0; cntr < no_pairwise; ++cntr) {
+    int variable1 = index(cntr, 1) - 1;
+    int variable2 = index(cntr, 2) - 1;
+    int int_index = pairwise_index(variable1, variable2);
+
+    double log_prob = 0.0;
+
+    // Loop over groups to process current and proposed states
+    for (int h = 1; h < no_groups; h++) {
+      double current_state = pairwise_effects(int_index, h);
+      current_states[h - 1] = current_state;
+
+      double proposed_state = 0.0;
+
+      // Update log probabilities based on the inclusion indicator
+      if (indicator(variable1, variable2) == 1) {
+        // Difference is included
+        log_prob -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
+        log_prob += R::dnorm(current_state, proposed_state, proposal_sd_pairwise(int_index, h), true);
+      } else {
+        // Propose a new state
+        proposed_state = R::rnorm(current_state, proposal_sd_pairwise(int_index, h));
+        log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
+        log_prob -= R::dnorm(proposed_state, current_state, proposal_sd_pairwise(int_index, h), true);
+      }
+
+      proposed_states[h - 1] = proposed_state;
+    }
+
+    // Update log probability for the inclusion indicator
+    if (indicator(variable1, variable2) == 1) {
+      log_prob -= std::log(inclusion_probability_difference(variable1, variable2));
+      log_prob += std::log(1 - inclusion_probability_difference(variable1, variable2));
+    } else {
+      log_prob += std::log(inclusion_probability_difference(variable1, variable2));
+      log_prob -= std::log(1 - inclusion_probability_difference(variable1, variable2));
+    }
+
+    // Compute log pseudo-likelihood ratio
+    log_prob += compare_anova_log_pseudolikelihood_ratio_pairwise_differences(
+      main_effects, main_index, pairwise_effects, pairwise_index, projection, observations,
+      no_groups, group_index, no_categories, independent_thresholds, no_persons, variable1,
+      variable2, proposed_states, current_states, rest_matrix, ordinal_variable, reference_category);
+
+    // Metropolis-Hastings acceptance step
+    double U = R::unif_rand();
+    if (std::log(U) < log_prob) {
+      // Update inclusion indicator
+      indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
+      indicator(variable2, variable1) = indicator(variable1, variable2);
+
+      // Update pairwise effects and rest matrix
+      for (int h = 1; h < no_groups; ++h) {
+        pairwise_effects(int_index, h) = proposed_states[h - 1];
+      }
+
+      // Update residuals in the rest matrix
+      for (int gr = 0; gr < no_groups; ++gr) {
+        double state_difference = 0.0;
+        for (int h = 0; h < no_groups - 1; ++h) {
+          state_difference += (proposed_states[h] - current_states[h]) * projection(gr, h);
+        }
+        for (int person = group_index(gr, 0); person <= group_index(gr, 1); ++person) {
+          int obs1 = observations(person, variable1);
+          int obs2 = observations(person, variable2);
+          rest_matrix(person, variable1) += obs2 * state_difference;
+          rest_matrix(person, variable2) += obs1 * state_difference;
+        }
+      }
+    }
+  }
+}
+
+
+/**
  * Function: compare_anova_metropolis_threshold_regular
  * Purpose: Uses the Metropolis-Hastings algorithm to sample from the full conditional
  *          distribution of overall category threshold parameters for regular ordinal variables.
@@ -1986,8 +2267,9 @@ void compare_anova_metropolis_thresholds_blumecapel_free(NumericMatrix main_effe
  *
  * Steps:
  *   1. Update pairwise interaction parameters using Metropolis-Hastings.
- *   2. Update pairwise differences using Metropolis-Hastings.
- *   3. Update thresholds (main effects) for each variable:
+ *   2. Update the selection of pairwise differences using Metropolis-Hastings (between model).
+ *   3. Update pairwise differences using Metropolis-Hastings (within model).
+ *   4. Update thresholds (main effects) for each variable:
  *       - If `independent_thresholds`, update thresholds separately for each group.
  *       - Otherwise, model group differences in thresholds.
  */
@@ -2023,7 +2305,8 @@ List compare_anova_gibbs_step_gm(NumericMatrix main_effects,
                                  double epsilon_hi,
                                  bool difference_selection,
                                  int no_pairwise,
-                                 int no_variables) {
+                                 int no_variables,
+                                 IntegerMatrix index) {
 
   NumericMatrix proposal_sd_blumecapel_group(no_variables, 2);
 
@@ -2035,7 +2318,19 @@ List compare_anova_gibbs_step_gm(NumericMatrix main_effects,
     ordinal_variable, reference_category, proposal_sd_pairwise,
     interaction_scale, no_variables, phi, target_acceptance_probability, t, epsilon_lo, epsilon_hi);
 
-  // Step 2: Update pairwise differences
+
+  //  Step 2: Update the selection of pairwise differences
+  if(difference_selection == true) {
+    compare_anova_metropolis_pairwise_difference_between_model(
+      inclusion_probability_difference, index, main_effects, pairwise_effects,
+      main_index, pairwise_index, projection, observations, no_groups,
+      group_index, no_categories, independent_thresholds, indicator, no_persons,
+      rest_matrix, ordinal_variable, reference_category, proposal_sd_pairwise,
+      pairwise_difference_scale, no_variables, phi,
+      target_acceptance_probability, t, epsilon_lo, epsilon_hi, no_pairwise);
+  }
+
+  // Step 3: Update pairwise differences
   compare_anova_metropolis_pairwise_difference(
     main_effects, pairwise_effects, main_index, pairwise_index, projection,
     observations, no_groups, group_index, no_categories, independent_thresholds,
@@ -2043,7 +2338,7 @@ List compare_anova_gibbs_step_gm(NumericMatrix main_effects,
     proposal_sd_pairwise, pairwise_difference_scale, no_variables, phi, target_acceptance_probability, t, epsilon_lo,
     epsilon_hi);
 
-  // Step 3: Update thresholds
+  // Step 4: Update thresholds
   for (int variable = 0; variable < no_variables; variable++) {
     if (independent_thresholds) {
       // Independent thresholds: Update separately for each group
@@ -2231,6 +2526,11 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   double epsilon_lo = 1.0 / static_cast<double>(rm_scale);
   double epsilon_hi = 2.0;
 
+  //Randomized index for the pairwise updates ----------------------------------
+  IntegerVector v = seq(0, no_pairwise - 1);
+  IntegerVector order(no_pairwise);
+  IntegerMatrix index(no_pairwise, 3);
+
   // Rest matrix for pseudo-likelihoods
   NumericMatrix rest_matrix(no_persons, no_variables);
 
@@ -2251,6 +2551,18 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
 
     }
     p.increment();
+
+    // Create a random ordering of pairwise effects for updating
+    order = sample(v,
+                   no_pairwise,
+                   false,
+                   R_NilValue);
+
+    for(int cntr = 0; cntr < no_pairwise; cntr++) {
+      index(cntr, 0) = Index(order[cntr], 0);
+      index(cntr, 1) = Index(order[cntr], 1);
+      index(cntr, 2) = Index(order[cntr], 2);
+    }
 
     // Handle missing data if required
     if (na_impute) {
@@ -2281,7 +2593,7 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
       proposal_sd_main, proposal_sd_pairwise, interaction_scale,
       main_difference_scale, pairwise_difference_scale, threshold_alpha,
       threshold_beta, phi, target_acceptance_probability, iteration, epsilon_lo, epsilon_hi,
-      difference_selection, no_pairwise, no_variables);
+      difference_selection, no_pairwise, no_variables, index);
 
     IntegerMatrix indicator_tmp = step_out["indicator"];
     NumericMatrix main_effects_tmp = step_out["main_effects"];
