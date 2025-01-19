@@ -49,7 +49,7 @@ NumericVector group_thresholds_for_variable (int variable,
                                              NumericMatrix main_effects,
                                              IntegerMatrix main_index,
                                              NumericMatrix projection,
-                                             bool independent_thresholds){
+                                             bool independent_thresholds) {
   int vector_length = (ordinal_variable[variable]) ? no_categories(variable, group) : 2;
   NumericVector GroupThresholds(vector_length);
   int base_category_index = main_index(variable, 0);
@@ -251,14 +251,14 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
 
       pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
-      for (int variable = 0; variable < 2; variable++) {
-        int var = (variable == 0) ? variable1 : variable2;
-        int obs = (variable == 0) ? obs_score2 : obs_score1;
+      for (int variable = 1; variable <= 2; variable++) {
+        int var = (variable == 1) ? variable1 : variable2;
+        int obs = (variable == 1) ? obs_score2 : obs_score1;
         double obs_current = obs * current_state;
         double obs_proposed = obs * proposed_state;
 
-        int n_cats = (variable == 0) ? n_cats_v1 : n_cats_v2;
-        NumericVector& GroupThresholds = (variable == 0) ? GroupThresholds_v1 : GroupThresholds_v2;
+        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        NumericVector& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
 
         double rest_score = rest_matrix(person, var) - obs_current;
         double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
@@ -278,10 +278,10 @@ double compare_anova_log_pseudolikelihood_ratio_interaction(NumericMatrix main_e
         } else {
           // Blume-Capel ordinal MRF variable
           for(int cat = 0; cat <= n_cats; cat++) {
-            double exponent = GroupThresholds_v1[0] * cat;
-            exponent += GroupThresholds_v1[1] *
-              (cat - reference_category[variable1]) *
-              (cat - reference_category[variable1]);
+            double exponent = GroupThresholds[0] * cat;
+            exponent += GroupThresholds[1] *
+              (cat - reference_category[var]) *
+              (cat - reference_category[var]);
             exponent += cat * rest_score - bound;
             denominator_prop += std::exp(exponent + cat * obs_proposed);
             denominator_curr += std::exp(exponent + cat * obs_current);
@@ -419,15 +419,15 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
       pseudolikelihood_ratio +=  obs_score1 * obs_score2 * delta_state_group;
 
       // Process each variable
-      for (int var = 1; var <= 2; var++) {
-        int variable = (var == 1) ? variable1 : variable2;
-        int n_cats = (var == 1) ? n_cats_v1 : n_cats_v2;
-        NumericVector& GroupThresholds = (var == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
-        double obs_proposed_p = (var == 1) ? obs_proposed_p1 : obs_proposed_p2;
-        double obs_current_p = (var == 1) ? obs_current_p1 : obs_current_p2;
+      for (int variable = 1; variable <= 2; variable++) {
+        int var = (variable == 1) ? variable1 : variable2;
+        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        NumericVector& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        double obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        double obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
 
         // Calculate rest_score
-        double rest_score = rest_matrix(person, variable) - obs_current_p;
+        double rest_score = rest_matrix(person, var) - obs_current_p;
         double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
         // Initialize denominators
@@ -435,12 +435,12 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
         double denominator_curr = 0.0;
 
         // Compute denominators
-        if (ordinal_variable[variable]) {
+        if (ordinal_variable[var]) {
           // Binary or ordinal MRF variable
           denominator_prop += std::exp(-bound);
           denominator_curr += std::exp(-bound);
 
-          for (int cat = 0; cat < n_cats; ++cat) {
+          for (int cat = 0; cat < n_cats; cat++) {
             int score = cat + 1;
             double exponent = GroupThresholds[cat] + score * rest_score - bound;
             denominator_prop += std::exp(exponent + score * obs_proposed_p);
@@ -448,10 +448,10 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_difference(NumericMatri
           }
         } else {
           // Blume-Capel ordinal MRF variable
-          for (int cat = 0; cat <= n_cats; ++cat) {
+          for (int cat = 0; cat <= n_cats; cat++) {
             double exponent = GroupThresholds[0] * cat +
-              GroupThresholds[1] * (cat - reference_category[variable]) *
-              (cat - reference_category[variable]) +
+              GroupThresholds[1] * (cat - reference_category[var]) *
+              (cat - reference_category[var]) +
               cat * rest_score - bound;
             denominator_prop += std::exp(exponent + cat * obs_proposed_p);
             denominator_curr += std::exp(exponent + cat * obs_current_p);
@@ -523,8 +523,7 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
 
             // Update rest matrix
             for(int gr = 0; gr < no_groups; gr++) {
-              double state_difference = proposed_state - current_state;
-              state_difference *= projection(gr, h - 1);
+              double state_difference = (proposed_state - current_state) * projection(gr, h - 1);
               for(int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
                 double obs1 = observations(person, variable1);
                 double obs2 = observations(person, variable2);
