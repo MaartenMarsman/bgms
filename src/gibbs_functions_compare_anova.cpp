@@ -961,7 +961,7 @@ void compare_anova_metropolis_pairwise_difference_between_model(NumericMatrix in
   NumericVector current_states(no_groups - 1);
 
   // Loop over all pairwise differences
-  for (int cntr = 0; cntr < no_pairwise; ++cntr) {
+  for (int cntr = 0; cntr < no_pairwise; cntr++) {
     int variable1 = index(cntr, 1);
     int variable2 = index(cntr, 2);
     int int_index = pairwise_index(variable1, variable2);
@@ -2492,7 +2492,7 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   int no_variables = observations.ncol();
   int no_persons = observations.nrow();
   int no_main = 1 + main_index(no_variables - 1, 1);
-  int no_pairwise = no_variables * (no_variables - 1) / 2;
+  int no_pairwise = Index.nrow();
 
   // Initialize person-group indicator
   IntegerVector person_group_indicator (no_persons);
@@ -2538,19 +2538,16 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   NumericMatrix out_main(no_main, no_groups);
   NumericMatrix out_pairwise(no_pairwise, no_groups);
   NumericMatrix out_indicator(no_variables, no_variables);
+  std::fill(out_indicator.begin(), out_indicator.end(), 1);
 
   // Progress bar
   Progress p(iter + burnin, display_progress);
 
 
-  // Store the original difference selection input
-  bool enable_difference_selection = difference_selection;
-
-  // Compute the total burn-in duration
-  int total_burnin = burnin * (enable_difference_selection ? 2 : 1);
-
-  // Flag to enable difference selection after the initial burn-in phase
-  difference_selection = false;
+  // For difference selection we use a burnin in two phases
+  bool enable_difference_selection = difference_selection; // Store the original difference selection input
+  int total_burnin = burnin * (enable_difference_selection ? 2 : 1); // Compute the total burn-in duration
+  difference_selection = false; // Flag to enable difference selection after the initial burn-in phase
 
   // Step 2: Gibbs sampling loop
   for (int iteration = 0; iteration < iter + total_burnin; ++iteration) {
@@ -2639,21 +2636,7 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
         }
         double prob = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
                                pairwise_beta_bernoulli_beta + no_pairwise - sumG);
-        std::fill(inclusion_probability_difference.begin(),
-                  inclusion_probability_difference.end(), prob);
-      }
-
-      if (main_difference_prior == "Beta-Bernoulli") {
-        // Update main inclusion probabilities
-        sumG = 0;
-        for (int i = 0; i < no_variables; ++i) {
-          sumG += indicator(i, i);
-        }
-        double prob = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                               main_beta_bernoulli_beta + no_variables - sumG);
-        for (int i = 0; i < no_variables; ++i) {
-          inclusion_probability_difference(i, i) = prob;
-        }
+        std::fill(inclusion_probability_difference.begin(), inclusion_probability_difference.end(), prob);
       }
     }
 
@@ -2672,11 +2655,13 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
             static_cast<double>(iter_adj);
         }
       }
-      for (int i = 0; i < no_variables - 1; ++i) {
-        for (int j = i + 1; j < no_variables; ++j) {
-          out_indicator(i, j) = (out_indicator(i, j) * (iter_adj - 1) + indicator(i, j)) /
-            static_cast<double>(iter_adj);
-          out_indicator(j, i) = out_indicator(i, j);
+      if(difference_selection) {
+        for (int i = 0; i < no_variables - 1; ++i) {
+          for (int j = i + 1; j < no_variables; ++j) {
+            out_indicator(i, j) = (out_indicator(i, j) * (iter_adj - 1) + indicator(i, j)) /
+              static_cast<double>(iter_adj);
+            out_indicator(j, i) = out_indicator(i, j);
+          }
         }
       }
     }
