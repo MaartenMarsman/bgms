@@ -268,10 +268,10 @@ List compare_anova_impute_missing_data(NumericMatrix main_effects,
 
       // Update rest scores
       for(int vertex = 0; vertex < no_variables; vertex++) {
-        int index = pairwise_index(vertex, variable);
-        double GroupInteraction = pairwise_effects(index, 0);
+        int int_index = pairwise_index(vertex, variable);
+        double GroupInteraction = pairwise_effects(int_index, 0);
         for(int h = 0; h < no_groups - 1; h++) {
-          GroupInteraction += projection(gr, h) * pairwise_effects(index, h + 1);
+          GroupInteraction += projection(gr, h) * pairwise_effects(int_index, h + 1);
         }
         rest_matrix(person, vertex) -= old_observation * GroupInteraction;
         rest_matrix(person, vertex) += new_observation * GroupInteraction;
@@ -962,8 +962,8 @@ void compare_anova_metropolis_pairwise_difference_between_model(NumericMatrix in
 
   // Loop over all pairwise differences
   for (int cntr = 0; cntr < no_pairwise; ++cntr) {
-    int variable1 = index(cntr, 1) - 1;
-    int variable2 = index(cntr, 2) - 1;
+    int variable1 = index(cntr, 1);
+    int variable2 = index(cntr, 2);
     int int_index = pairwise_index(variable1, variable2);
 
     double log_prob = 0.0;
@@ -2542,8 +2542,18 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   // Progress bar
   Progress p(iter + burnin, display_progress);
 
+
+  // Store the original difference selection input
+  bool enable_difference_selection = difference_selection;
+
+  // Compute the total burn-in duration
+  int total_burnin = burnin * (enable_difference_selection ? 2 : 1);
+
+  // Flag to enable difference selection after the initial burn-in phase
+  difference_selection = false;
+
   // Step 2: Gibbs sampling loop
-  for (int iteration = 0; iteration < iter + burnin; ++iteration) {
+  for (int iteration = 0; iteration < iter + total_burnin; ++iteration) {
     if (Progress::check_abort()) {
       return List::create(Named("main") = out_main,
                           Named("pairwise") = out_pairwise,
@@ -2551,6 +2561,11 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
 
     }
     p.increment();
+
+    // Enable difference selection at the midpoint of burn-in
+    if (enable_difference_selection && iteration == burnin) {
+      difference_selection = true;
+    }
 
     // Create a random ordering of pairwise effects for updating
     order = sample(v,
@@ -2643,8 +2658,8 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
     }
 
     // Save results after burn-in
-    if (iteration >= burnin) {
-      int iter_adj = iteration - burnin + 1;
+    if (iteration >= total_burnin) {
+      int iter_adj = iteration - total_burnin + 1;
       for (int col = 0; col < no_groups; ++col) {
         for (int row = 0; row < no_main; ++row) {
           out_main(row, col) = (out_main(row, col) * (iter_adj - 1) + main_effects(row, col)) /

@@ -604,8 +604,8 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
   int variable2;
 
   for(int cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1) - 1;
-    variable2 = index(cntr, 2) - 1;
+    variable1 = index(cntr, 1);
+    variable2 = index(cntr, 2);
 
     current_state = interactions(variable1, variable2);
 

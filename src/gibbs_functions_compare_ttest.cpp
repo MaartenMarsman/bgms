@@ -873,8 +873,8 @@ void compare_ttest_metropolis_pairwise_difference_between_model(IntegerVector in
   int variable2;
 
   for(int cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1) - 1;
-    variable2 = index(cntr, 2) - 1;
+    variable1 = index(cntr, 1);
+    variable2 = index(cntr, 2);
 
     current_state = pairwise_difference(variable1, variable2);
 
