@@ -128,6 +128,9 @@ positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \item{dirichlet_alpha}{The shape of the Dirichlet prior on the node-to-block
 allocation probabilities for the Stochastic Block model.}
 
+\item{lambda}{The rate parameter of the zero-truncated Poisson prior on the
+number of cluster for the Stochastic Block model.}
+
 \item{na.action}{How do you want the function to handle missing data? If
 \code{na.action = "listwise"}, listwise deletion is used. If
 \code{na.action = "impute"}, missing data are imputed iteratively during the

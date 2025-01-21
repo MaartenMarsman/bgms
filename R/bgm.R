@@ -133,6 +133,8 @@
 #' \code{beta_bernoulli_beta = 1}.
 #' @param dirichlet_alpha The shape of the Dirichlet prior on the node-to-block
 #' allocation probabilities for the Stochastic Block model.
+#' @param lambda The rate parameter of the zero-truncated Poisson prior on the
+#' number of cluster for the Stochastic Block model.
 #' @param na.action How do you want the function to handle missing data? If
 #' \code{na.action = "listwise"}, listwise deletion is used. If
 #' \code{na.action = "impute"}, missing data are imputed iteratively during the
