@@ -761,8 +761,6 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
  * Inputs:
  *   - main_effects: NumericMatrix of main effects for all variables and groups.
  *   - main_index: IntegerMatrix mapping variables to category indices.
- *   - pairwise_effects: NumericMatrix of pairwise effects for all variable pairs and groups.
- *   - pairwise_index: IntegerMatrix mapping variable pairs to pairwise effect indices.
  *   - projection: NumericMatrix representing group-specific scaling.
  *   - observations: IntegerMatrix of observed data (individuals by variables).
  *   - no_groups: Total number of groups in the analysis.
@@ -790,8 +788,6 @@ void compare_anova_metropolis_pairwise_difference(NumericMatrix main_effects,
  */
 double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatrix main_effects,
                                                                      IntegerMatrix main_index,
-                                                                     NumericMatrix pairwise_effects,
-                                                                     IntegerMatrix pairwise_index,
                                                                      NumericMatrix projection,
                                                                      IntegerMatrix observations,
                                                                      int no_groups,
@@ -853,7 +849,6 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatr
         double obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
         double obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
 
-
         double rest_score = rest_matrix(person, var) - obs_current_p;
         double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
@@ -861,6 +856,9 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatr
 
         // Compute denominators
         if (ordinal_variable[var]) {
+          denominator_prop += std::exp(-bound);
+          denominator_curr += std::exp(-bound);
+
           for (int cat = 0; cat < n_cats; cat++) {
             int score = cat + 1;
             double exponent = GroupThresholds[cat] + rest_score * score - bound;
@@ -999,7 +997,7 @@ void compare_anova_metropolis_pairwise_difference_between_model(NumericMatrix in
 
     // Compute log pseudo-likelihood ratio
     log_prob += compare_anova_log_pseudolikelihood_ratio_pairwise_differences(
-      main_effects, main_index, pairwise_effects, pairwise_index, projection, observations,
+      main_effects, main_index, projection, observations,
       no_groups, group_index, no_categories, independent_thresholds, no_persons, variable1,
       variable2, proposed_states, current_states, rest_matrix, ordinal_variable, reference_category);
 

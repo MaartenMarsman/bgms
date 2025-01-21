@@ -1629,11 +1629,12 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
       # Posterior mean indicators
       if(!save) {
         ind = out$pairwise_difference_indicator
+        diag(ind) = 1.0
         if(!independent_thresholds)
           diag(ind) = out$main_difference_indicator
       } else {
         tmp = colMeans(out$pairwise_difference_indicator)
-        ind = matrix(0, no_variables, no_variables)
+        ind = matrix(1, no_variables, no_variables)
         ind[lower.tri(ind)] = tmp
         ind = ind + t(ind)
         if(!independent_thresholds) {
