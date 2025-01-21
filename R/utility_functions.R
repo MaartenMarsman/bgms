@@ -1,6 +1,7 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom Rdpack reprompt
 #' @importFrom methods hasArg
+#' @importFrom stats dpois
 
 check_model = function(x,
                        variable_type,
