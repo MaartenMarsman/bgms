@@ -69,12 +69,15 @@ print.bgmCompare <- function(x, ...) {
   }
 
   cat(paste0(" Number of variables: ", arguments$no_variables, "\n"))
+  no_groups = length(unique(arguments$group))
   if(arguments$na_impute) {
-    cat(paste0(" Number of cases Group 1: ", arguments$no_cases_gr1, " (missings imputed)\n"))
-    cat(paste0(" Number of cases Group 2: ", arguments$no_cases_gr2, " (missings imputed)\n"))
+    for(group in 1:no_groups) {
+      cat(paste0(" Number of cases Group ", group,": ", arguments$no_cases[group], " (missings imputed)\n"))
+    }
   } else {
-    cat(paste0(" Number of cases Group 1: ", arguments$no_cases_gr1, "\n"))
-    cat(paste0(" Number of cases Group 2: ", arguments$no_cases_gr2, "\n"))
+    for(group in 1:no_groups) {
+      cat(paste0(" Number of cases Group ", group,": ", arguments$no_cases[group],"\n"))
+    }
   }
   if(arguments$save) {
     cat(paste0(" Number of post-burnin MCMC iterations: ", arguments$iter, " (MCMC output saved)\n"))

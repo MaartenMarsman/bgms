@@ -1283,10 +1283,9 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
 
   arguments = list(
-    no_variables = no_variables,
-    no_cases = if (t.test) c(nrow(x), nrow(out$observations_gr2)) else tabulate(group),
-    na.action = na.action, na_impute = na_impute, iter = iter,
-    burnin = burnin, difference_selection = difference_selection,
+    no_variables = no_variables, group = group, no_cases = tabulate(group),
+    na.action = na.action, na_impute = na_impute, iter = iter, burnin = burnin,
+    difference_selection = difference_selection,
     independent_thresholds = independent_thresholds,
     save_main = save_options$save_main,
     save_pairwise = save_options$save_pairwise,
@@ -1484,10 +1483,9 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
 
   save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
   arguments = list(
-    no_variables = no_variables,
-    no_cases = if (t.test) c(nrow(x), nrow(out$observations_gr2)) else tabulate(group),
-    na.action = na.action, na_impute = na_impute, iter = iter,
-    burnin = burnin, difference_selection = difference_selection,
+    no_variables = no_variables, group = group, no_cases = tabulate(group),
+    na.action = na.action, na_impute = na_impute, iter = iter, burnin = burnin,
+    difference_selection = difference_selection,
     independent_thresholds = independent_thresholds,
     save_main = save_options$save_main,
     save_pairwise = save_options$save_pairwise,

@@ -8,11 +8,9 @@ using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
 // List of to do's
-// 1. Add between model moves.
-// 2. Use "index" to vary between-model updates to pairwise effects.
-// 3. Add g prior.
-// 4. Output matrices (resizing based on ``save'' and ``independent_thresholds'')
-// 5. Add "enum" to handle threshold scenarios
+// 1. Add between model moves for main effects.
+// 2. Add g prior.
+// 3. Add "enum" to handle threshold scenarios
 // ----------------------------------------------------------------------------|
 
 /**
