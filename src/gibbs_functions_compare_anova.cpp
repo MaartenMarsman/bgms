@@ -810,7 +810,7 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatr
   double pseudolikelihood_ratio = 0.0;
 
   // Loop over groups
-  for (int gr = 0; gr < no_groups; ++gr) {
+  for (int gr = 0; gr < no_groups; gr++) {
     // Compute thresholds for both variables
     NumericVector GroupThresholds_v1 = group_thresholds_for_variable(
       variable1, ordinal_variable, gr, no_groups, no_categories, main_effects,
@@ -834,7 +834,7 @@ double compare_anova_log_pseudolikelihood_ratio_pairwise_differences(NumericMatr
     int n_cats_v2 = no_categories(variable2, gr);
 
     // Iterate over all individuals in the current group
-    for (int person = group_index(gr, 0); person <= group_index(gr, 1); ++person) {
+    for (int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
       int obs_score1 = observations(person, variable1);
       int obs_score2 = observations(person, variable2);
       double obs_proposed_p1 = obs_score2 * proposed_group_interaction;
@@ -1011,17 +1011,17 @@ void compare_anova_metropolis_pairwise_difference_between_model(NumericMatrix in
       indicator(variable2, variable1) = indicator(variable1, variable2);
 
       // Update pairwise effects and rest matrix
-      for (int h = 1; h < no_groups; ++h) {
+      for (int h = 1; h < no_groups; h++) {
         pairwise_effects(int_index, h) = proposed_states[h - 1];
       }
 
       // Update residuals in the rest matrix
       for (int gr = 0; gr < no_groups; ++gr) {
         double state_difference = 0.0;
-        for (int h = 0; h < no_groups - 1; ++h) {
+        for (int h = 0; h < no_groups - 1; h++) {
           state_difference += (proposed_states[h] - current_states[h]) * projection(gr, h);
         }
-        for (int person = group_index(gr, 0); person <= group_index(gr, 1); ++person) {
+        for (int person = group_index(gr, 0); person <= group_index(gr, 1); person++) {
           int obs1 = observations(person, variable1);
           int obs2 = observations(person, variable2);
           rest_matrix(person, variable1) += obs2 * state_difference;
@@ -2570,7 +2570,6 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
       return List::create(Named("main") = running_average_main,
                           Named("pairwise") = running_average_pairwise,
                           Named("indicator") = running_average_indicator);
-
     }
     p.increment();
 
