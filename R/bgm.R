@@ -116,9 +116,12 @@
 #' when nodes are expected to fall into distinct clusters. The inclusion
 #' probabilities for the edges are defined at the level of the clusters, with a
 #' beta prior for the unknown inclusion probability with shape parameters
-#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, and a Dirichlet
+#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, a Dirichlet
 #' prior on the cluster assignment probabilities with a common concentration
-#' parameter \code{dirichlet_alpha}. The default is
+#' parameter \code{dirichlet_alpha} and a zero-truncated Poisson prior on the
+#' number of clusters with a rate parameter \code{lambda}, indicating the
+#' expected number of clusters.
+#' The default is
 #' \code{edge_prior = "Bernoulli"}.
 #' @param inclusion_probability The prior edge inclusion probability for the
 #' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
@@ -327,7 +330,8 @@ bgm = function(x,
                       inclusion_probability = inclusion_probability,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,
                       beta_bernoulli_beta = beta_bernoulli_beta,
-                      dirichlet_alpha = dirichlet_alpha)
+                      dirichlet_alpha = dirichlet_alpha,
+                      lambda = lambda)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.

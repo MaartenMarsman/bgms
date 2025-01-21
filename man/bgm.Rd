@@ -20,6 +20,7 @@ bgm(
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
   dirichlet_alpha = 1,
+  lambda = 1,
   na.action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
@@ -106,9 +107,12 @@ of allocations as described by @GengEtAl_2019}{bgms}. This model is advantageous
 when nodes are expected to fall into distinct clusters. The inclusion
 probabilities for the edges are defined at the level of the clusters, with a
 beta prior for the unknown inclusion probability with shape parameters
-\code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, and a Dirichlet
+\code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, a Dirichlet
 prior on the cluster assignment probabilities with a common concentration
-parameter \code{dirichlet_alpha}. The default is
+parameter \code{dirichlet_alpha} and a zero-truncated Poisson prior on the
+number of clusters with a rate parameter \code{lambda}, indicating the
+expected number of clusters.
+The default is
 \code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
@@ -161,7 +165,7 @@ elements are returned:
     \item A vector \code{allocations} with the estimated cluster assignments
     of the nodes, calculated using a method proposed by \code{Dahl (2009)} and
     also used by \code{Geng et al. (2019)}.
-    \item A table \code{components} with the estimated posterior probability
+    \item A matrix \code{components} with the estimated posterior probability
     of the number of components (clusters) in the network. These probabilities
     are calculated based on Equation 3.7 in \code{Miller (2018)}, which computes
     the conditional probability of the number of components given the
