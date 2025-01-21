@@ -82,8 +82,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // compare_anova_gibbs_sampler
-List compare_anova_gibbs_sampler(IntegerMatrix observations, IntegerMatrix main_index, IntegerMatrix pairwise_index, NumericMatrix projection, IntegerMatrix no_categories, int no_groups, IntegerMatrix group_index, double interaction_scale, double pairwise_difference_scale, double main_difference_scale, String pairwise_difference_prior, String main_difference_prior, NumericMatrix inclusion_probability_difference, double pairwise_beta_bernoulli_alpha, double pairwise_beta_bernoulli_beta, double main_beta_bernoulli_alpha, double main_beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, List n_cat_obs, List sufficient_blume_capel, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index, LogicalVector ordinal_variable, IntegerVector reference_category, bool independent_thresholds, bool save, bool display_progress, bool difference_selection);
-RcppExport SEXP _bgms_compare_anova_gibbs_sampler(SEXP observationsSEXP, SEXP main_indexSEXP, SEXP pairwise_indexSEXP, SEXP projectionSEXP, SEXP no_categoriesSEXP, SEXP no_groupsSEXP, SEXP group_indexSEXP, SEXP interaction_scaleSEXP, SEXP pairwise_difference_scaleSEXP, SEXP main_difference_scaleSEXP, SEXP pairwise_difference_priorSEXP, SEXP main_difference_priorSEXP, SEXP inclusion_probability_differenceSEXP, SEXP pairwise_beta_bernoulli_alphaSEXP, SEXP pairwise_beta_bernoulli_betaSEXP, SEXP main_beta_bernoulli_alphaSEXP, SEXP main_beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP independent_thresholdsSEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP difference_selectionSEXP) {
+List compare_anova_gibbs_sampler(IntegerMatrix observations, IntegerMatrix main_index, IntegerMatrix pairwise_index, NumericMatrix projection, IntegerMatrix no_categories, int no_groups, IntegerMatrix group_index, double interaction_scale, double pairwise_difference_scale, double main_difference_scale, String pairwise_difference_prior, String main_difference_prior, NumericMatrix inclusion_probability_difference, double pairwise_beta_bernoulli_alpha, double pairwise_beta_bernoulli_beta, double main_beta_bernoulli_alpha, double main_beta_bernoulli_beta, IntegerMatrix Index, int iter, int burnin, List n_cat_obs, List sufficient_blume_capel, double threshold_alpha, double threshold_beta, bool na_impute, IntegerMatrix missing_index, LogicalVector ordinal_variable, IntegerVector reference_category, bool independent_thresholds, bool save_main, bool save_pairwise, bool save_indicator, bool display_progress, bool difference_selection);
+RcppExport SEXP _bgms_compare_anova_gibbs_sampler(SEXP observationsSEXP, SEXP main_indexSEXP, SEXP pairwise_indexSEXP, SEXP projectionSEXP, SEXP no_categoriesSEXP, SEXP no_groupsSEXP, SEXP group_indexSEXP, SEXP interaction_scaleSEXP, SEXP pairwise_difference_scaleSEXP, SEXP main_difference_scaleSEXP, SEXP pairwise_difference_priorSEXP, SEXP main_difference_priorSEXP, SEXP inclusion_probability_differenceSEXP, SEXP pairwise_beta_bernoulli_alphaSEXP, SEXP pairwise_beta_bernoulli_betaSEXP, SEXP main_beta_bernoulli_alphaSEXP, SEXP main_beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP independent_thresholdsSEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP difference_selectionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -116,10 +116,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< LogicalVector >::type ordinal_variable(ordinal_variableSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type reference_category(reference_categorySEXP);
     Rcpp::traits::input_parameter< bool >::type independent_thresholds(independent_thresholdsSEXP);
-    Rcpp::traits::input_parameter< bool >::type save(saveSEXP);
+    Rcpp::traits::input_parameter< bool >::type save_main(save_mainSEXP);
+    Rcpp::traits::input_parameter< bool >::type save_pairwise(save_pairwiseSEXP);
+    Rcpp::traits::input_parameter< bool >::type save_indicator(save_indicatorSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type difference_selection(difference_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(compare_anova_gibbs_sampler(observations, main_index, pairwise_index, projection, no_categories, no_groups, group_index, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, ordinal_variable, reference_category, independent_thresholds, save, display_progress, difference_selection));
+    rcpp_result_gen = Rcpp::wrap(compare_anova_gibbs_sampler(observations, main_index, pairwise_index, projection, no_categories, no_groups, group_index, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, ordinal_variable, reference_category, independent_thresholds, save_main, save_pairwise, save_indicator, display_progress, difference_selection));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -170,7 +172,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 27},
-    {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 32},
+    {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compare_ttest_gibbs_sampler", (DL_FUNC) &_bgms_compare_ttest_gibbs_sampler, 32},
     {NULL, NULL, 0}
 };

@@ -110,9 +110,9 @@ check_model = function(x,
     if(any(reference_category < variable_lower) | any(reference_category > variable_upper)) {
       out_of_range = which(reference_category < variable_lower | reference_category > variable_upper)
       stop(paste0("The Blume-Capel model assumes that the reference category is within the range \n",
-                 "of the observed category scores. This was not the case for variable(s) \n",
-                 paste0(out_of_range, collapse =", "),
-                 "."))
+                  "of the observed category scores. This was not the case for variable(s) \n",
+                  paste0(out_of_range, collapse =", "),
+                  "."))
     }
 
   } else {
@@ -1045,7 +1045,7 @@ compare_reformat_data = function(x,
           max(x[group == g, node])
         })
       }
-     if(!variable_bool[node] & max(no_categories[node, ]) > 10) {
+      if(!variable_bool[node] & max(no_categories[node, ]) > 10) {
         # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
         warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
                        "is a sum over all possible values of the ordinal variable. The range of \n",
@@ -1125,33 +1125,33 @@ compare_reformat_data = function(x,
 #  Detection With Unknown Number of Communities, Journal of the American
 #  Statistical Association, 114:526, 893-905, DOI:10.1080/01621459.2018.1458618
 
-getDahl <- function(cluster_allocations) {
+getDahl = function(cluster_allocations) {
   # Dimensions of the input matrix
-  niters <- nrow(cluster_allocations)  # Number of iterations
-  n <- ncol(cluster_allocations)       # Number of nodes
+  niters = nrow(cluster_allocations)  # Number of iterations
+  n = ncol(cluster_allocations)       # Number of nodes
 
   # Compute membership matrices for each iteration
-  membershipMatrices <- apply(cluster_allocations, 1, function(clusterAssign) {
+  membershipMatrices = apply(cluster_allocations, 1, function(clusterAssign) {
     outer(clusterAssign, clusterAssign, FUN = "==")
   })
 
   # Reshape membershipMatrices into a list of matrices
-  membershipMatrices <- lapply(seq_len(niters), function(i) {
+  membershipMatrices = lapply(seq_len(niters), function(i) {
     matrix(membershipMatrices[, i], n, n)
   })
 
   # Compute the average membership matrix
-  membershipAverage <- Reduce("+", membershipMatrices) / niters
+  membershipAverage = Reduce("+", membershipMatrices) / niters
 
   # Compute squared error for each iteration
-  SqError <- sapply(membershipMatrices, function(x, av) sum((x - av)^2),
-                    av = membershipAverage)
+  SqError = sapply(membershipMatrices, function(x, av) sum((x - av)^2),
+                   av = membershipAverage)
 
   # Find the iteration with the minimum squared error
-  DahlIndex <- which.min(SqError)
+  DahlIndex = which.min(SqError)
 
   # Extract the cluster assignment corresponding to the best iteration
-  DahlAns <- cluster_allocations[DahlIndex, , drop = TRUE]
+  DahlAns = cluster_allocations[DahlIndex, , drop = TRUE]
 
   return(DahlAns)
 }
@@ -1159,18 +1159,628 @@ getDahl <- function(cluster_allocations) {
 
 # A function that computes the cluster posterior probabilities and allocations
 
-summary_SBM <- function(cluster_allocations) {
+summary_SBM = function(cluster_allocations) {
   # Compute the number of unique clusters for each iteration
-  clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
+  clusters = apply(cluster_allocations, 1, function(row) length(unique(row)))
 
   # Compute the posterior probabilities of the actual unique clusters
-  no_clusters <- table(clusters) / length(clusters)
+  no_clusters = table(clusters) / length(clusters)
 
   # Compute the allocations of the nodes based on Dahl's method
-  allocations <- getDahl(cluster_allocations)
+  allocations = getDahl(cluster_allocations)
 
   # Return the results
   return(list(no_clusters = no_clusters,
               allocations = allocations))
 }
 
+
+# Helper function for data checks
+data_check = function(data, name) {
+  if (!inherits(data, c("matrix", "data.frame"))) {
+    stop(paste(name, "must be a matrix or data.frame."))
+  }
+  if (inherits(data, "data.frame")) {
+    data = data.matrix(data)
+  }
+  if (nrow(data) < 2 || ncol(data) < 2) {
+    stop(paste(name, "must have at least 2 rows and 2 columns."))
+  }
+  return(data)
+}
+
+check_positive_integer = function(value, name) {
+  if (!is.numeric(value) || abs(value - round(value)) > .Machine$double.eps || value <= 0) {
+    stop(sprintf("Parameter `%s` must be a positive integer. Got: %s", name, value))
+  }
+}
+
+# Helper function for validating non-negative integers
+check_non_negative_integer = function(value, name) {
+  if (!is.numeric(value) || abs(value - round(value)) > .Machine$double.eps || value < 0) {
+    stop(sprintf("Parameter `%s` must be a non-negative integer. Got: %s", name, value))
+  }
+}
+
+# Helper function for validating logical inputs
+check_logical = function(value, name) {
+  value = as.logical(value)
+  if (is.na(value)) {
+    stop(sprintf("Parameter `%s` must be TRUE or FALSE. Got: %s", name, value))
+  }
+  return(value)
+}
+
+# Helper function for computing `n_cat_obs`
+compute_n_cat_obs = function(x, no_categories, group = NULL) {
+  if (is.null(group)) {  # Two-group design
+    n_cat_obs = matrix(0, nrow = max(no_categories) + 1, ncol = ncol(x))
+    for (variable in seq_len(ncol(x))) {
+      for (category in seq_len(no_categories[variable])) {
+        n_cat_obs[category + 1, variable] = sum(x[, variable] == category)
+      }
+    }
+    return(n_cat_obs)
+  } else {  # Multi-group design
+    n_cat_obs = list()
+    for (g in unique(group)) {
+      n_cat_obs_gr = matrix(0, nrow = max(no_categories[, g]) + 1, ncol = ncol(x))
+      for (variable in seq_len(ncol(x))) {
+        for (category in seq_len(no_categories[variable, g])) {
+          n_cat_obs_gr[category + 1, variable] = sum(x[group == g, variable] == category)
+        }
+      }
+      n_cat_obs[[g]] = n_cat_obs_gr
+    }
+    return(n_cat_obs)
+  }
+}
+
+# Helper function for computing sufficient statistics for Blume-Capel variables
+compute_sufficient_blume_capel = function(x, reference_category, ordinal_variable, group = NULL) {
+  if (is.null(group)) {  # Two-group design
+    sufficient_stats = matrix(0, nrow = 2, ncol = ncol(x))
+    bc_vars = which(!ordinal_variable)
+    for (i in bc_vars) {
+      sufficient_stats[1, i] = sum(x[, i])
+      sufficient_stats[2, i] = sum((x[, i] - reference_category[i]) ^ 2)
+    }
+    return(sufficient_stats)
+  } else {  # Multi-group design
+    sufficient_stats = list()
+    for (g in unique(group)) {
+      sufficient_stats_gr = matrix(0, nrow = 2, ncol = ncol(x))
+      bc_vars = which(!ordinal_variable)
+      for (i in bc_vars) {
+        sufficient_stats_gr[1, i] = sum(x[group == g, i])
+        sufficient_stats_gr[2, i] = sum((x[group == g, i] - reference_category[i]) ^ 2)
+      }
+      sufficient_stats[[g]] = sufficient_stats_gr
+    }
+    return(sufficient_stats)
+  }
+}
+
+# Prepare the output
+prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
+                                     no_variables, no_categories, group, iter,
+                                     data_columnnames, save_options,
+                                     difference_selection, na_action,
+                                     na_impute, variable_type, burnin,
+                                     interaction_scale, threshold_alpha,
+                                     threshold_beta, main_difference_model,
+                                     pairwise_difference_prior,
+                                     main_difference_prior,
+                                     inclusion_probability_difference,
+                                     pairwise_beta_bernoulli_alpha,
+                                     pairwise_beta_bernoulli_beta,
+                                     main_beta_bernoulli_alpha,
+                                     main_beta_bernoulli_beta,
+                                     main_difference_scale,
+                                     pairwise_difference_scale,
+                                     projection) {
+
+  save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
+
+  arguments = list(
+    no_variables = no_variables,
+    no_cases = if (t.test) c(nrow(x), nrow(out$observations_gr2)) else tabulate(group),
+    na.action = na.action, na_impute = na_impute, iter = iter,
+    burnin = burnin, difference_selection = difference_selection,
+    independent_thresholds = independent_thresholds,
+    save_main = save_options$save_main,
+    save_pairwise = save_options$save_pairwise,
+    save_indicator = save_options$save_indicator, save = save,
+    variable_type = variable_type, interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
+    main_difference_model = main_difference_model,
+    pairwise_difference_prior = pairwise_difference_prior,
+    main_difference_prior = main_difference_prior,
+    inclusion_probability_difference = inclusion_probability_difference,
+    pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
+    pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
+    main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
+    main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+    main_difference_scale = main_difference_scale,
+    pairwise_difference_scale = pairwise_difference_scale,
+    version = packageVersion("bgms")
+  )
+
+  # Names for pairwise effects
+  names_bycol = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables)
+  names_byrow = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables, byrow = TRUE)
+  names_comb = matrix(paste0(names_byrow, "-", names_bycol), ncol = no_variables)
+  names_vec = names_comb[lower.tri(names_comb)]
+  names_vec_t = names_comb[lower.tri(names_comb, diag = TRUE)]
+
+  # Prepare output elements
+  results = list()
+
+
+  # Handle output from the new rcpp function (anova)
+  no_groups = length(unique(group))
+  no_main = sum(apply(no_categories, 2, max))
+
+  # Main effects
+  tmp = out$running_average_main
+  if(independent_thresholds) {
+    posterior_mean_main = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp))
+    for(g in 1:no_groups) {
+      posterior_mean_main[, g] = tmp[, g]
+    }
+  } else {
+    posterior_mean_main = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp) + 1)
+    posterior_mean_main[, 1] = tmp[, 1]
+    for (row in 1:nrow(tmp)) {
+      posterior_mean_main[row, -1] = projection %*% tmp[row, -1]
+    }
+  }
+  results$posterior_mean_main = posterior_mean_main
+
+  names_variable_categories = vector(length = nrow(tmp))
+  counter = 0
+  for (v in 1:no_variables) {
+    for (c in 1:max(no_categories[v, ])) {
+      counter = counter + 1
+      names_variable_categories[counter] = paste0(data_columnnames[v], "(", c, ")")
+    }
+  }
+  if(independent_thresholds) {
+    dimnames(results$posterior_mean_main) = list(names_variable_categories, paste0("group_", 1:no_groups))
+  } else {
+    dimnames(results$posterior_mean_main) = list(names_variable_categories, c("overall", paste0("group_", 1:no_groups)))
+  }
+
+  # Pairwise effects
+  tmp = out$running_average_pairwise
+  posterior_mean_pairwise = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp) + 1)
+  posterior_mean_pairwise[, 1] = tmp[, 1]
+  for (row in 1:nrow(tmp)) {
+    posterior_mean_pairwise[row, -1] = projection %*% tmp[row, -1]
+  }
+
+  results$posterior_mean_pairwise = posterior_mean_pairwise
+  dimnames(results$posterior_mean_pairwise) = list(names_vec, c("overall", paste0("group_", 1:no_groups)))
+
+  if (difference_selection && "running_average_indicator" %in% names(out) ) {
+    results$posterior_mean_indicator = out$running_average_indicator
+    dimnames(results$posterior_mean_indicator) = list(data_columnnames,
+                                                      data_columnnames)
+  }
+
+
+  # Handle raw_samples_main
+  if (save_options$save_main && "raw_samples_main" %in% names(out)) {
+    raw_samples_main = out$raw_samples_main
+    col_names = character()  # Vector to store column names
+
+    if(independent_thresholds) {
+      for (gr in 1:no_groups) {
+        for (var in 1:no_variables) {
+          for (cat in 1:max(no_categories[var, ])) {
+            col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(", cat, ")"))
+          }
+        }
+      }
+
+    } else {
+
+      for (gr in 1:no_groups) {
+        if(gr == 1) {
+          for (var in 1:no_variables) {
+            for (cat in 1:max(no_categories[var, ])) {
+              col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(", cat, ")"))
+            }
+          }
+        } else {
+          for (var in 1:no_variables) {
+            for (cat in 1:max(no_categories[var, ])) {
+              col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(", cat, ")"))
+            }
+          }
+        }
+      }
+    }
+
+    dimnames(raw_samples_main) = list(Iter. = 1:nrow(raw_samples_main), col_names)
+    results$raw_samples_main = raw_samples_main
+  }
+
+  # Handle raw_samples_pairwise
+  if (save_options$save_pairwise && "raw_samples_pairwise" %in% names(out)) {
+    col_names = character()  # Vector to store column names
+    for (v1 in 1:(no_variables - 1)) {
+      for (v2 in (v1 + 1):no_variables) {
+        col_names = c(col_names, paste0(data_columnnames[v1], "-", data_columnnames[v2]))
+        for (gr in 2:no_groups) {
+          col_names = c(col_names,
+                        paste0("contrast_#",
+                               gr-1,
+                               "(",
+                               data_columnnames[v1],
+                               "-",
+                               data_columnnames[v2],
+                               ")"))
+        }
+      }
+    }
+
+    dimnames(out$raw_samples_pairwise) = list(Iter. = 1:nrow(out$raw_samples_pairwise), col_names)
+    results$raw_samples_pairwise = out$raw_samples_pairwise
+  }
+
+  # Handle raw_samples_indicator
+  if (difference_selection && save_options$save_indicator && "raw_samples_indicator" %in% names(out)) {
+    if(independent_thresholds) {
+      #
+    } else {
+      col_names = character()  # Vector to store column names
+      for (v1 in 1:(no_variables - 1)) {
+        for (v2 in (v1 + 1):no_variables) {
+          col_names = c(col_names, paste0(data_columnnames[v1], "-", data_columnnames[v2]))
+          for (gr in 2:no_groups) {
+            col_names = c(col_names,
+                          paste0("contrast_#",
+                                 gr-1,
+                                 "(",
+                                 data_columnnames[v1],
+                                 "-",
+                                 data_columnnames[v2],
+                                 ")"))
+          }
+        }
+      }
+      dimnames(out$raw_samples_indicator) = list(Iter. = 1:nrow(out$raw_samples_indicator), col_names)
+    }
+
+    results$raw_samples_indicator = out$raw_samples_indicator
+  }
+
+  # Add arguments to the output
+  results$arguments = arguments
+  class(results) = c("bgmCompare")
+  return(results)
+}
+
+
+# Prepare the output
+prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
+                                         no_variables, no_categories, group, iter,
+                                         data_columnnames, save_options,
+                                         difference_selection, na_action,
+                                         na_impute, variable_type, burnin,
+                                         interaction_scale, threshold_alpha,
+                                         threshold_beta, main_difference_model,
+                                         pairwise_difference_prior,
+                                         main_difference_prior,
+                                         inclusion_probability_difference,
+                                         pairwise_beta_bernoulli_alpha,
+                                         pairwise_beta_bernoulli_beta,
+                                         main_beta_bernoulli_alpha,
+                                         main_beta_bernoulli_beta,
+                                         main_difference_scale,
+                                         pairwise_difference_scale,
+                                         projection) {
+
+  save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
+  arguments = list(
+    no_variables = no_variables,
+    no_cases = if (t.test) c(nrow(x), nrow(out$observations_gr2)) else tabulate(group),
+    na.action = na.action, na_impute = na_impute, iter = iter,
+    burnin = burnin, difference_selection = difference_selection,
+    independent_thresholds = independent_thresholds,
+    save_main = save_options$save_main,
+    save_pairwise = save_options$save_pairwise,
+    save_indicator = save_options$save_indicator, save = save,
+    variable_type = variable_type, interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
+    main_difference_model = main_difference_model,
+    pairwise_difference_prior = pairwise_difference_prior,
+    main_difference_prior = main_difference_prior,
+    inclusion_probability_difference = inclusion_probability_difference,
+    pairwise_beta_bernoulli_alpha = pairwise_beta_bernoulli_alpha,
+    pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
+    main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
+    main_beta_bernoulli_beta = main_beta_bernoulli_beta,
+    main_difference_scale = main_difference_scale,
+    pairwise_difference_scale = pairwise_difference_scale,
+    version = packageVersion("bgms")
+  )
+
+  # Names for pairwise effects
+  names_bycol = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables)
+  names_byrow = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables, byrow = TRUE)
+  names_comb = matrix(paste0(names_byrow, "-", names_bycol), ncol = no_variables)
+  names_vec = names_comb[lower.tri(names_comb)]
+  names_vec_t = names_comb[lower.tri(names_comb, diag = TRUE)]
+
+  # Prepare output elements
+  results = list()
+
+  # Check output format and process accordingly
+  if ("pairwise_difference_indicator" %in% names(out)) {
+    no_groups = 2
+    projection = matrix(c(-0.5, 0.5), nrow = 2, ncol = 1)
+
+    # Posterior mean pairwise effects
+    if(!save) {
+      int = out$interactions
+      int = int[lower.tri(int)]
+      pwd = out$pairwise_difference
+      pwd = pwd [lower.tri(pwd)]
+    } else {
+      int = colMeans(out$interactions)
+      pwd = colMeans(out$pairwise_difference)
+    }
+
+    posterior_mean_pairwise = matrix(0, nrow = length(int), ncol = 3)
+    posterior_mean_pairwise[, 1] = int
+    for (row in 1:length(pwd)) {
+      posterior_mean_pairwise[row, 2] = projection[1] *  pwd[row]
+      posterior_mean_pairwise[row, 3] = projection[2] *  pwd[row]
+    }
+
+    results$posterior_mean_pairwise = posterior_mean_pairwise
+    colnames(results$posterior_mean_pairwise) = c("overall", "group_1", "group_2")
+    rownames(results$posterior_mean_pairwise) = names_vec
+
+    # Posterior mean main effects
+    if(independent_thresholds) {
+      if(!save) {
+        tmpt1 = out$thresholds_gr1
+        tmpt2 = out$thresholds_gr2
+
+        th1 = vector(length=sum(apply(no_categories, 2, max)))
+        th2 = vector(length=sum(apply(no_categories, 2, max)))
+        tel2 = tel1 = 0
+        for(v in 1:no_variables) {
+          for(c in 1:no_categories[v, 1]) {
+            tel1 = tel1 + 1
+            th1 [tel1] = tmpt1[v, c]
+          }
+          for(c in 1:no_categories[v, 2]) {
+            tel2 = tel2 + 1
+            th2 [tel2] = tmpt2[v, c]
+          }
+          tel2 = tel1 = max(c(tel1, tel2))
+        }
+      } else {
+        th1 = colMeans(out$thresholds_gr1)
+        th2 = colMeans(out$thresholds_gr2)
+      }
+
+      counter = 0
+      main_names = vector(length = length(th1))
+      for(v in 1:no_variables) {
+        for(c in 1:max(no_categories[v, ])) {
+          counter = counter + 1
+          main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+        }
+      }
+
+      posterior_mean_main = matrix(0, nrow = length(th1), ncol = 2)
+      posterior_mean_main[, 1] = th1
+      posterior_mean_main[, 2] = th2
+
+      results$posterior_mean_main = posterior_mean_main
+      colnames(results$posterior_mean_main) = c("group_1", "group_2")
+      rownames(results$posterior_mean_main) = main_names
+
+    } else {
+      if(!save) {
+        tmpt = out$thresholds
+        tmpm = out$main_difference
+
+        th = vector(length=sum(apply(no_categories,2,max)))
+        md = vector(length=sum(apply(no_categories,2,max)))
+        counter = 0
+        for(v in 1:no_variables) {
+          for(c in 1:max(no_categories[v, ])) {
+            counter = counter + 1
+            th [counter] = tmpt[v, c]
+            md [counter] = tmpm[v, c]
+          }
+        }
+      } else {
+        th = colMeans(out$thresholds)
+        md = colMeans(out$main_difference)
+      }
+
+      counter = 0
+      main_names = vector(length = length(th))
+      for(v in 1:no_variables) {
+        for(c in 1:max(no_categories[v, ])) {
+          counter = counter + 1
+          main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+        }
+      }
+
+      posterior_mean_main = matrix(0, nrow = length(th), ncol = 3)
+      posterior_mean_main[, 1] = th
+      for (row in 1:length(th)) {
+        posterior_mean_main[row, 2] = projection[1] *  md[row]
+        posterior_mean_main[row, 3] = projection[2] *  md[row]
+      }
+
+      results$posterior_mean_main = posterior_mean_main
+      colnames(results$posterior_mean_main) = c("overall", "group_1", "group_2")
+      rownames(results$posterior_mean_main) = main_names
+    }
+
+    if(difference_selection) {
+      # Posterior mean indicators
+      if(!save) {
+        ind = out$pairwise_difference_indicator
+        if(!independent_thresholds)
+          diag(ind) = out$main_difference_indicator
+      } else {
+        tmp = colMeans(out$pairwise_difference_indicator)
+        ind = matrix(0, no_variables, no_variables)
+        ind[lower.tri(ind)] = tmp
+        ind = ind + t(ind)
+        if(!independent_thresholds) {
+          tmp = colMeans(out$main_difference_indicator)
+          diag(ind) = tmp
+        }
+      }
+
+      results$posterior_mean_indicator = ind
+      colnames(results$posterior_mean_indicator) = data_columnnames
+      rownames(results$posterior_mean_indicator) = data_columnnames
+    }
+
+
+    if(save) {
+      # Raw samples main effects
+      if (save) {
+        if (independent_thresholds) {
+          # Handle thresholds for independent thresholds case
+          raw_samples_main = matrix(NA, nrow = nrow(out$thresholds_gr1),
+                                    ncol = sum(no_categories[, 1] + no_categories[, 2]))
+
+          threshold1_counter = 0  # Separate counter for thresholds
+          threshold2_counter = 0  # Separate counter for thresholds
+          col_counter = 0        # Overall column counter for raw_samples_main
+          col_names = character()  # Vector to store column names
+
+          for (var in 1:no_variables) {
+            for (cat in 1:max(no_categories[var, ])) {
+              # Handle thresholds group 1
+              if(cat <= no_categories[var, 1]) {
+                col_counter = col_counter + 1
+                threshold1_counter = threshold1_counter + 1
+                raw_samples_main[, col_counter] = out$thresholds_gr1[, threshold1_counter]
+                col_names = c(col_names, paste0(data_columnnames[var],"_gr1(", cat, ")"))
+              }
+              # Handle thresholds group 2
+              if(cat <= no_categories[var, 2]) {
+                col_counter = col_counter + 1
+                threshold2_counter = threshold2_counter + 1
+                raw_samples_main[, col_counter] = out$thresholds_gr2[, threshold2_counter]
+                col_names = c(col_names, paste0(data_columnnames[var],"_gr2(", cat, ")"))
+              }
+            }
+          }
+
+          colnames(raw_samples_main) = col_names
+          rownames(raw_samples_main) = paste0("Iter:", seq_len(nrow(raw_samples_main)))
+
+
+
+
+        } else {
+          # Handle thresholds and main differences for non-independent thresholds
+          total_categories = sum(apply(no_categories, 1, max))
+          raw_samples_main = matrix(NA, nrow = nrow(out$thresholds),
+                                    ncol = total_categories * 2) # Thresholds + main differences
+
+          threshold_counter = 0  # Separate counter for thresholds
+          main_diff_counter = 0  # Separate counter for main differences
+          col_counter = 0        # Overall column counter for raw_samples_main
+          col_names = character()  # Vector to store column names
+
+          for (var in 1:no_variables) {
+            for (cat in 1:max(no_categories[var, ])) {
+              # Increment overall column counter
+              col_counter = col_counter + 1
+
+              # Handle thresholds
+              threshold_counter = threshold_counter + 1
+              raw_samples_main[, col_counter] = out$thresholds[, threshold_counter]
+              col_names = c(col_names, paste0(data_columnnames[var],"(", cat, ")"))
+
+              col_counter = col_counter + 1
+              main_diff_counter = main_diff_counter + 1
+              raw_samples_main[, col_counter] = out$main_difference[, main_diff_counter]
+              col_names = c(col_names, paste0("main_difference_", data_columnnames[var], "(", cat, ")"))
+            }
+          }
+
+          colnames(raw_samples_main) = col_names
+          rownames(raw_samples_main) = paste0("Iter:", seq_len(nrow(raw_samples_main)))
+        }
+
+        results$raw_samples_main = raw_samples_main
+      }
+
+      # Raw samples pairwise effects
+      raw_samples_pairwise = cbind(out$interactions, out$pairwise_difference)
+      pairwise_names = unlist(lapply(1:(no_variables - 1), function(v1) {
+        sapply((v1 + 1):no_variables, function(v2) {
+          c(
+            paste0(data_columnnames[v1], "-", data_columnnames[v2]),
+            paste0("pairwise_difference(", data_columnnames[v1], "-", data_columnnames[v2], ")")
+          )
+        })
+      }))
+      colnames(raw_samples_pairwise) = pairwise_names
+      rownames(raw_samples_pairwise) = paste0("Iter:", seq_len(nrow(raw_samples_pairwise)))
+
+      results$raw_samples_pairwise = raw_samples_pairwise
+
+      # Raw samples indicators
+      if(difference_selection) {
+        if(independent_thresholds) {
+          raw_samples_indicator = matrix(0,
+                                         nrow = nrow(out$pairwise_difference_indicator),
+                                         ncol = ncol(out$pairwise_difference_indicator))
+        } else {
+          raw_samples_indicator = matrix(0,
+                                         nrow = nrow(out$pairwise_difference_indicator),
+                                         ncol = ncol(out$pairwise_difference_indicator) +
+                                           ncol(out$main_difference_indicator))
+        }
+
+        for(row in 1:nrow(out$pairwise_difference_indicator)) {
+          tmp.p = out$pairwise_difference_indicator[row, ]
+          ind = matrix(0, no_variables, no_variables)
+          ind[lower.tri(ind)] = tmp.p
+          if(!independent_thresholds){
+            tmp.t = out$main_difference_indicator[row, ]
+            diag(ind) = tmp.t
+          }
+
+          if(!independent_thresholds) {
+            raw_samples_indicator[row, ] = ind[lower.tri(ind, diag = TRUE)]
+          } else {
+            raw_samples_indicator[row, ] = ind[lower.tri(ind)]
+          }
+        }
+
+        if(independent_thresholds) {
+          colnames(raw_samples_indicator) = names_vec
+        } else {
+          colnames(raw_samples_indicator) = names_vec_t
+        }
+        rownames(raw_samples_indicator) = paste0("Iter:", 1:nrow(raw_samples_indicator))
+
+        results$raw_samples_indicator = raw_samples_indicator
+      }
+    }
+  }
+
+  # Add arguments to the output
+  results$arguments = arguments
+  class(results) = c("bgmCompare")
+  return(results)
+}

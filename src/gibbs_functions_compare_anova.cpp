@@ -2484,7 +2484,9 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
                                  LogicalVector ordinal_variable,
                                  IntegerVector reference_category,
                                  bool independent_thresholds,
-                                 bool save = false,
+                                 bool save_main = false,
+                                 bool save_pairwise = false,
+                                 bool save_indicator = false,
                                  bool display_progress = false,
                                  bool difference_selection = true) {
 
@@ -2535,26 +2537,41 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
   NumericMatrix rest_matrix(no_persons, no_variables);
 
   // Output matrices
-  NumericMatrix out_main(no_main, no_groups);
-  NumericMatrix out_pairwise(no_pairwise, no_groups);
-  NumericMatrix out_indicator(no_variables, no_variables);
-  std::fill(out_indicator.begin(), out_indicator.end(), 1);
+  NumericMatrix running_average_main(no_main, no_groups);
+  NumericMatrix running_average_pairwise(no_pairwise, no_groups);
+  NumericMatrix running_average_indicator(no_variables, no_variables);
+  std::fill(running_average_indicator.begin(), running_average_indicator.end(), 1);
 
-  // Progress bar
-  Progress p(iter + burnin, display_progress);
+  // Allocate matrices conditionally to save memory
+  NumericMatrix* raw_samples_main = nullptr;
+  NumericMatrix* raw_samples_pairwise = nullptr;
+  NumericMatrix* raw_samples_indicator = nullptr;
 
+  // Conditionally allocate based on save flags
+  if (save_main) {
+    raw_samples_main = new NumericMatrix(iter, no_main * no_groups);
+  }
+  if (save_pairwise) {
+    raw_samples_pairwise = new NumericMatrix(iter, no_pairwise * no_groups);
+  }
+  if (save_indicator) {
+    raw_samples_indicator = new NumericMatrix(iter, no_pairwise + no_variables);
+  }
 
   // For difference selection we use a burnin in two phases
   bool enable_difference_selection = difference_selection; // Store the original difference selection input
   int total_burnin = burnin * (enable_difference_selection ? 2 : 1); // Compute the total burn-in duration
   difference_selection = false; // Flag to enable difference selection after the initial burn-in phase
 
+  // Progress bar
+  Progress p(iter + total_burnin, display_progress);
+
   // Step 2: Gibbs sampling loop
   for (int iteration = 0; iteration < iter + total_burnin; ++iteration) {
     if (Progress::check_abort()) {
-      return List::create(Named("main") = out_main,
-                          Named("pairwise") = out_pairwise,
-                          Named("indicator") = out_indicator);
+      return List::create(Named("main") = running_average_main,
+                          Named("pairwise") = running_average_pairwise,
+                          Named("indicator") = running_average_indicator);
 
     }
     p.increment();
@@ -2640,34 +2657,80 @@ List compare_anova_gibbs_sampler(IntegerMatrix observations,
       }
     }
 
-    // Save results after burn-in
+    // Save sampled states after burn-in if the respective saving option is enabled
     if (iteration >= total_burnin) {
       int iter_adj = iteration - total_burnin + 1;
       for (int col = 0; col < no_groups; ++col) {
         for (int row = 0; row < no_main; ++row) {
-          out_main(row, col) = (out_main(row, col) * (iter_adj - 1) + main_effects(row, col)) /
+          running_average_main(row, col) = (running_average_main(row, col) * (iter_adj - 1) + main_effects(row, col)) /
             static_cast<double>(iter_adj);
         }
       }
       for (int col = 0; col < no_groups; ++col) {
         for (int row = 0; row < no_pairwise; ++row) {
-          out_pairwise(row, col) = (out_pairwise(row, col) * (iter_adj - 1) + pairwise_effects(row, col)) /
+          running_average_pairwise(row, col) = (running_average_pairwise(row, col) * (iter_adj - 1) + pairwise_effects(row, col)) /
             static_cast<double>(iter_adj);
         }
       }
       if(difference_selection) {
         for (int i = 0; i < no_variables - 1; ++i) {
           for (int j = i + 1; j < no_variables; ++j) {
-            out_indicator(i, j) = (out_indicator(i, j) * (iter_adj - 1) + indicator(i, j)) /
+            running_average_indicator(i, j) = (running_average_indicator(i, j) * (iter_adj - 1) + indicator(i, j)) /
               static_cast<double>(iter_adj);
-            out_indicator(j, i) = out_indicator(i, j);
+            running_average_indicator(j, i) = running_average_indicator(i, j);
+          }
+        }
+      }
+      if(save_main) {
+        int cntr = 0;
+        for (int col = 0; col < no_groups; ++col) {
+          for (int row = 0; row < no_main; ++row) {
+            (*raw_samples_main)(iter_adj - 1, cntr) = main_effects(row, col);
+            cntr++;
+          }
+        }
+      }
+      if(save_pairwise) {
+        int cntr = 0;
+        for (int col = 0; col < no_groups; ++col) {
+          for (int row = 0; row < no_pairwise; ++row) {
+            (*raw_samples_pairwise)(iter_adj - 1, cntr) = pairwise_effects(row, col);
+            cntr++;
+          }
+        }
+      }
+      if(difference_selection) {
+        if(save_indicator) {
+          int cntr = 0;
+          for (int i = 0; i < no_variables - 1; ++i) {
+            for (int j = i + 1; j < no_variables; ++j) {
+              (*raw_samples_indicator)(iter_adj - 1, cntr) = indicator(i, j);
+              cntr++;
+            }
           }
         }
       }
     }
   }
 
-  return List::create(Named("main") = out_main,
-                      Named("pairwise") = out_pairwise,
-                      Named("indicator") = out_indicator);
+  // Compile the output based on saving options
+  List output = List::create(Named("running_average_main") = running_average_main,
+                             Named("running_average_pairwise") = running_average_pairwise,
+                             Named("running_average_indicator") = running_average_indicator);
+
+  // Cleanup at the end
+  if (save_main) {
+    output["raw_samples_main"] = *raw_samples_main;
+    delete raw_samples_main;  // Free allocated memory
+  }
+  if (save_pairwise) {
+    output["raw_samples_pairwise"] = *raw_samples_pairwise;
+    delete raw_samples_pairwise;
+  }
+  if (save_indicator) {
+    output["raw_samples_indicator"] = *raw_samples_indicator;
+    delete raw_samples_indicator;
+  }
+
+  return output;
 }
