@@ -1088,6 +1088,7 @@ compute_p_k_given_t <- function(t,
   }
   # Normalize probabilities
   p_k_given_t <- p_k_given_t / sum(p_k_given_t)
+
   return(p_k_given_t)
 }
 
@@ -1095,6 +1096,7 @@ compute_p_k_given_t <- function(t,
 # A function that computes the posterior probabilities of the
 # number of components K given the cardinality of the partition t
 # and the allocations of the nodes based on Dahl's method
+
 summary_SBM <- function(cluster_allocations,
                         dirichlet_alpha,
                         lambda) {
@@ -1130,7 +1132,6 @@ summary_SBM <- function(cluster_allocations,
   # Compute the allocations of the nodes based on Dahl's method
   allocations <- getDahl(cluster_allocations)
 
-  # Return the results
   return(list(components = components,
               allocations = allocations))
 }
