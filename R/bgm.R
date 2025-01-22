@@ -116,9 +116,12 @@
 #' when nodes are expected to fall into distinct clusters. The inclusion
 #' probabilities for the edges are defined at the level of the clusters, with a
 #' beta prior for the unknown inclusion probability with shape parameters
-#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, and a Dirichlet
+#' \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, a Dirichlet
 #' prior on the cluster assignment probabilities with a common concentration
-#' parameter \code{dirichlet_alpha}. The default is
+#' parameter \code{dirichlet_alpha} and a zero-truncated Poisson prior on the
+#' number of clusters with a rate parameter \code{lambda}, indicating the
+#' expected number of clusters.
+#' The default is
 #' \code{edge_prior = "Bernoulli"}.
 #' @param inclusion_probability The prior edge inclusion probability for the
 #' Bernoulli model. Can be a single probability, or a matrix of \code{p} rows
@@ -130,6 +133,8 @@
 #' \code{beta_bernoulli_beta = 1}.
 #' @param dirichlet_alpha The shape of the Dirichlet prior on the node-to-block
 #' allocation probabilities for the Stochastic Block model.
+#' @param lambda The rate parameter of the zero-truncated Poisson prior on the
+#' number of cluster for the Stochastic Block model.
 #' @param na.action How do you want the function to handle missing data? If
 #' \code{na.action = "listwise"}, listwise deletion is used. If
 #' \code{na.action = "impute"}, missing data are imputed iteratively during the
@@ -147,7 +152,7 @@
 #' The default is \code{TRUE}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list of class
-#' ``bgms'' containing the following matrices with model-averaged quantities:
+#' \code{"bgms"} containing the following matrices with model-averaged quantities:
 #' \itemize{
 #' \item \code{indicator}: A matrix with \code{p} rows and \code{p} columns,
 #' containing the posterior inclusion probabilities of individual edges.
@@ -155,16 +160,23 @@
 #' containing model-averaged posterior means of the pairwise associations.
 #' \item \code{thresholds}: A matrix with \code{p} rows and \code{max(m)}
 #' columns, containing model-averaged category thresholds. In the case of
-#' ``blume-capel'' variables, the first entry is the parameter for the linear
+#' \code{"blume-capel"} variables, the first entry is the parameter for the linear
 #' effect and the second entry is the parameter for the quadratic effect, which
 #' models the offset to the reference category.
-#' \item In the case of
-#' \code{edge_prior = "Stochastic-Block"} two additional elements are returned:
-#' a vector \code{allocations} with the estimated cluster assignments of the nodes and an
-#' table \code{clusters} with the estimated posterior probability of the number
-#' of clusters in the network. The vector of node allocations is calculated using
-#' a method proposed by \insertCite{Dahl2009}{bgms} and also used by
-#' \insertCite{GengEtAl_2019}{bgms}.
+#' \item In the case of \code{edge_prior = "Stochastic-Block"}, two additional
+#' elements are returned:
+#'   \itemize{
+#'     \item A vector \code{allocations} with the estimated cluster assignments
+#'     of the nodes, calculated using a method proposed by \code{Dahl (2009)} and
+#'     also used by \code{Geng et al. (2019)}.
+#'     \item A matrix \code{components} with the estimated posterior probability
+#'     of the number of components (clusters) in the network. These probabilities
+#'     are calculated based on Equation 3.7 in \code{Miller (2018)}, which computes
+#'     the conditional probability of the number of components given the
+#'     number of clusters. The number of clusters is derived from the
+#'     cardinality of the sampled \code{allocations} vector for each iteration of
+#'     the MCMC sampler (see \code{save = TRUE}).
+#'   }
 #' }
 #' If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 #' \itemize{
@@ -180,8 +192,9 @@
 #' \item In the case of
 #' \code{edge_prior = "Stochastic-Block"} a matrix \code{allocations} with the
 #' cluster assignments of the nodes from each iteration is returned. This matrix
-#' can be used to calculate the posterior probability of the number of clusters
-#' by utilizing the \code{summary_SBM(bgm_output[["allocations"]])} function.
+#' can be used to calculate the posterior probability of the number of components
+#' and estimated cluster assignments of the nodes, by and  utilizing the
+#' \code{summary_SBM()} function.
 #' }
 #' Column averages of these matrices provide the model-averaged posterior means.
 #' Except for the \code{allocations} matrix, for which the \code{summary_SBM}
@@ -292,6 +305,7 @@ bgm = function(x,
                beta_bernoulli_alpha = 1,
                beta_bernoulli_beta = 1,
                dirichlet_alpha = 1,
+               lambda = 1,
                na.action = c("listwise", "impute"),
                save = FALSE,
                display_progress = TRUE) {
@@ -318,7 +332,8 @@ bgm = function(x,
                       inclusion_probability = inclusion_probability,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,
                       beta_bernoulli_beta = beta_bernoulli_beta,
-                      dirichlet_alpha = dirichlet_alpha)
+                      dirichlet_alpha = dirichlet_alpha,
+                      lambda = lambda)
 
   # ----------------------------------------------------------------------------
   # The vector variable_type is now coded as boolean.
@@ -444,6 +459,7 @@ bgm = function(x,
                       beta_bernoulli_alpha = beta_bernoulli_alpha,
                       beta_bernoulli_beta = beta_bernoulli_beta,
                       dirichlet_alpha = dirichlet_alpha,
+                      lambda = lambda,
                       Index = Index,
                       iter = iter,
                       burnin = burnin,
@@ -477,6 +493,7 @@ bgm = function(x,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha,
+    lambda = lambda,
     na.action = na.action,
     save = save,
     version = packageVersion("bgms")
@@ -521,13 +538,15 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
 
-        summarySbm <- summary_SBM(cluster_allocations = out$allocations)
+        summarySbm <- summary_SBM(cluster_allocations = out$allocations,
+                                  dirichlet_alpha = dirichlet_alpha,
+                                  lambda = lambda)
 
         output = list(indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
+                      components = summarySbm$components,
                       allocations = summarySbm$allocations,
-                      clusters = summarySbm$no_clusters,
                       arguments = arguments)
       } else {
 

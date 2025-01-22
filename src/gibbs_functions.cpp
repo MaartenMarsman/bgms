@@ -792,6 +792,7 @@ List gibbs_sampler(IntegerMatrix observations,
                    double beta_bernoulli_alpha,
                    double beta_bernoulli_beta,
                    double dirichlet_alpha,
+                   double lambda,
                    IntegerMatrix Index,
                    int iter,
                    int burnin,
@@ -812,7 +813,6 @@ List gibbs_sampler(IntegerMatrix observations,
   int no_interactions = Index.nrow();
   int no_thresholds = sum(no_categories);
   int max_no_categories = max(no_categories);
-  IntegerVector K_values;  // To store sampled K values
 
 
   IntegerVector v = seq(0, no_interactions - 1);
@@ -870,15 +870,14 @@ List gibbs_sampler(IntegerMatrix observations,
   NumericMatrix out_allocations(iter, no_variables);
 
   if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
-    cluster_allocations[0] = 0;
-    cluster_allocations[1] = 1;
-    for(int i = 2; i < no_variables; i++) {
+    // Randomly choose the number of clusters (k) between 1 and no_variables
+    int k = static_cast<int>(R::unif_rand() * no_variables) + 1;
+
+    // Assign each variable to a random cluster
+    for (int i = 0; i < no_variables; i++) {
       double U = R::unif_rand();
-      if(U > 0.5){
-        cluster_allocations[i] = 1;
-      } else {
-        cluster_allocations[i] = 0;
-      }
+      int cluster = static_cast<int>(U * k); // Randomly select a cluster (0 to k-1)
+      cluster_allocations[i] = cluster;
     }
 
     cluster_prob = block_probs_mfm_sbm(cluster_allocations,
@@ -896,7 +895,8 @@ List gibbs_sampler(IntegerMatrix observations,
 
     log_Vn = compute_Vn_mfm_sbm(no_variables,
                                 dirichlet_alpha,
-                                no_variables + 10);
+                                no_variables,
+                                lambda);
   }
 
   //The Gibbs sampler ----------------------------------------------------------

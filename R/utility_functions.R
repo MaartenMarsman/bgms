@@ -1,6 +1,7 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom Rdpack reprompt
 #' @importFrom methods hasArg
+#' @importFrom stats dpois
 
 check_model = function(x,
                        variable_type,
@@ -13,7 +14,8 @@ check_model = function(x,
                        inclusion_probability = 0.5,
                        beta_bernoulli_alpha = 1,
                        beta_bernoulli_beta = 1,
-                       dirichlet_alpha = dirichlet_alpha) {
+                       dirichlet_alpha = dirichlet_alpha,
+                       lambda = lambda) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -187,14 +189,14 @@ check_model = function(x,
     }
     if(edge_prior == "Stochastic-Block") {
       theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0)
-        stop("The scale parameters of the beta and Dirichlet distribution need to be positive.")
-      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha))
-        stop("The scale parameters of the beta and Dirichlet distribution need to be finite.")
+      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0 || lambda <= 0)
+        stop("The scale parameters the beta distrubution, the concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be positive.")
+      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha) || !is.finite(lambda))
+        stop("The scale parameters of the beta distrubution, the concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be finite.")
       if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
-         is.null(dirichlet_alpha) || is.null(dirichlet_alpha))
-        stop("Values for both scale parameters of the beta and Dirichlet distribution need to be specified.")
+         is.null(dirichlet_alpha) || is.null(dirichlet_alpha) || is.null(lambda) || is.null(lambda))
+        stop("Values for both scale parameters of the betathe concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be specified.")
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)
@@ -1013,7 +1015,6 @@ compare_reformat_data = function(x,
 #  Geng, J., Bhattacharya, A., & Pati, D. (2019). Probabilistic Community
 #  Detection With Unknown Number of Communities, Journal of the American
 #  Statistical Association, 114:526, 893-905, DOI:10.1080/01621459.2018.1458618
-
 getDahl <- function(cluster_allocations) {
   # Dimensions of the input matrix
   niters <- nrow(cluster_allocations)  # Number of iterations
@@ -1045,21 +1046,114 @@ getDahl <- function(cluster_allocations) {
   return(DahlAns)
 }
 
+# Calculate the conditional probability of the number of
+# components given the cardinality of a sampled
+# allocation vector based on Equation (3.7) from
+# Miller & Harrison (2018). Mixture Models With a Prior on the Number of
+# Components, Journal of the American Statistical Association, 113:521, 340-356,
+# DOI:10.1080/01621459.2016.1255636
 
-# A function that computes the cluster posterior probabilities and allocations
+compute_p_k_given_t <- function(t,
+                                log_Vn,
+                                dirichlet_alpha,
+                                no_variables,
+                                lambda) {
+  # Define the K_values
+  K_values <- as.numeric(1:no_variables)
 
-summary_SBM <- function(cluster_allocations) {
-  # Compute the number of unique clusters for each iteration
+  # Initialize vector for probabilities
+  p_k_given_t <- numeric(length(K_values))
+
+  # Normalization constant for t
+  log_vn_t <- log_Vn[t]
+
+  # Normalizing factor for the truncated Poisson distribution
+  norm_factor <- 1 - dpois(0, lambda)
+  truncated_poisson_pmf <- dpois(K_values, lambda) / norm_factor
+
+  # Loop through each value of K
+  for (i in seq_along(K_values)) {
+    K <- K_values[i]
+    if (K >= t) {
+      # Falling factorial
+      falling_factorial <- prod(K:(K - t + 1))
+      # Rising factorial
+      rising_factorial <- prod((dirichlet_alpha * K) + 0:(no_variables - 1))
+      # Compute log probability
+      log_p_k <- log(falling_factorial) - log(rising_factorial) + log(truncated_poisson_pmf[i]) - log_vn_t
+      # Convert log probability to probability
+      p_k_given_t[i] <- exp(log_p_k)
+    } else {
+      p_k_given_t[i] <- 0
+    }
+  }
+  # Normalize probabilities
+  p_k_given_t <- p_k_given_t / sum(p_k_given_t)
+
+  return(p_k_given_t)
+}
+
+#' Function for summarizing the block allocation vectors
+#'
+#' This function summarizes the sampled allocation vectors from each iteration
+#' of the Gibbs sampler from the output of  \code{bgm}
+#' when \code{edge_prior = "Stochastic-Block"} and \code{save = TRUE}.
+#'
+#' @param cluster_allocations a matrix of \code{iter} rows and \code{no_variables}
+#' columns containing the sampled cluster allocation vectors from each iteration.
+#' @param dirichlet_alpha the concentration parameter of the Dirichlet prior
+#' @param lambda the Poisson rate parameter
+#' @return Returns a list of two elements: \code{components} and \code{allocations},
+#' containing the posterior probabilties for the number of components (clusters)
+#' and the estimated cluster allocation of the nodes using Dahl's method.
+#' @examples
+#'
+#' # fit a model with the SBM prior
+#' bgm_object <- bgm(Wenchuan[, c(1:5)],
+#'                   edge_prior = "Stochastic-Block",
+#'                   save = TRUE,
+#'                   iter = 1e3)
+#'
+#' s <- summary_SBM(bgm_object$allocations,
+#'                  bgm_object$arguments$dirichlet_alpha,
+#'                  bgm_object$arguments$lambda)
+#'
+#' @export
+summary_SBM <- function(cluster_allocations,
+                        dirichlet_alpha,
+                        lambda) {
+
+  # precompute things
+  no_variables <- ncol(cluster_allocations)
+  log_Vn <- compute_Vn_mfm_sbm(no_variables,
+                               dirichlet_alpha,
+                               no_variables,
+                               lambda)
+  # Compute the number of unique clusters (t) for each iteration
+  # i.e., the cardinality  of the partition z
   clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
+  # Compute the conditional probabilities of the number of clusters
+  # for each row in clusters
+  p_k_given_t <- matrix(NA, nrow = length(clusters), ncol = no_variables)
 
-  # Compute the posterior probabilities of the actual unique clusters
-  no_clusters <- table(clusters) / length(clusters)
+  for (i in 1:length(clusters)) {
+    p_k_given_t[i, ] <- compute_p_k_given_t(clusters[i],
+                                            log_Vn,
+                                            dirichlet_alpha,
+                                            no_variables,
+                                            lambda)
+  }
+  # average across all iterations
+  p_k_given_t <- colMeans(p_k_given_t)
+
+  # make it as a matrix
+  no_components <- 1:no_variables
+  components <- cbind(no_components, p_k_given_t)
+  colnames(components) <- c("no_components", "probability")
 
   # Compute the allocations of the nodes based on Dahl's method
   allocations <- getDahl(cluster_allocations)
 
-  # Return the results
-  return(list(no_clusters = no_clusters,
+  return(list(components = components,
               allocations = allocations))
 }
-
