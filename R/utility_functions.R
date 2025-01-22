@@ -1107,7 +1107,14 @@ compute_p_k_given_t <- function(t,
 #' containing the posterior probabilties for the number of components (clusters)
 #' and the estimated cluster allocation of the nodes using Dahl's method.
 #' @examples
-#' x <- summary_SBM(bgm_object$allocations,
+#'
+#' # fit a model with the SBM prior
+#' bgm_object <- bgm(Wenchuan[, c(1:5)],
+#'                   edge_prior = "Stochastic-Block",
+#'                   save = TRUE,
+#'                   iter = 1e3)
+#'
+#' s <- summary_SBM(bgm_object$allocations,
 #'                  bgm_object$arguments$dirichlet_alpha,
 #'                  bgm_object$arguments$dirichlet_alpha)
 #'
