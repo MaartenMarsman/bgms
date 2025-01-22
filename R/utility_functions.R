@@ -1097,7 +1097,7 @@ compute_p_k_given_t <- function(t,
 # A function that computes the posterior probabilities of the
 # number of components K given the cardinality of the partition t
 # and the allocations of the nodes based on Dahl's method
-
+#' @export
 summary_SBM <- function(cluster_allocations,
                         dirichlet_alpha,
                         lambda) {
