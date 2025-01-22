@@ -1,7 +1,7 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom Rdpack reprompt
 #' @importFrom methods hasArg
-#' importFrom("stats", "dpois")
+#' @importFrom stats dpois
 
 check_model = function(x,
                        variable_type,
@@ -1093,10 +1093,24 @@ compute_p_k_given_t <- function(t,
   return(p_k_given_t)
 }
 
-
-# A function that computes the posterior probabilities of the
-# number of components K given the cardinality of the partition t
-# and the allocations of the nodes based on Dahl's method
+#' Function for summarizing the block allocation vectors
+#'
+#' This function summarizes the sampled allocation vectors from each iteration
+#' of the Gibbs sampler from the output of  \code{bgm}
+#' when \code{edge_prior = "Stochastic-Block"} and \code{save = TRUE}.
+#'
+#' @param cluster_allocations a matrix of \code{iter} rows and \code{no_variables}
+#' columns containing the sampled cluster allocation vectors from each iteration.
+#' @param dirichlet_alpha the concentration parameter of the Dirichlet prior
+#' @param lambda the Poisson rate parameter
+#' @return Returns a list of two elements: \code{components} and \code{allocations},
+#' containing the posterior probabilties for the number of components (clusters)
+#' and the estimated cluster allocation of the nodes using Dahl's method.
+#' @examples
+#' x <- summary_SBM(bgm_object$allocations,
+#'                  bgm_object$arguments$dirichlet_alpha,
+#'                  bgm_object$arguments$dirichlet_alpha)
+#'
 #' @export
 summary_SBM <- function(cluster_allocations,
                         dirichlet_alpha,
