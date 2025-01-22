@@ -34,6 +34,6 @@ bgm_object <- bgm(Wenchuan[, c(1:5)],
 
 s <- summary_SBM(bgm_object$allocations,
                  bgm_object$arguments$dirichlet_alpha,
-                 bgm_object$arguments$dirichlet_alpha)
+                 bgm_object$arguments$lambda)
 
 }

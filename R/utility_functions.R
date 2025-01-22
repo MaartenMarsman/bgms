@@ -1116,7 +1116,7 @@ compute_p_k_given_t <- function(t,
 #'
 #' s <- summary_SBM(bgm_object$allocations,
 #'                  bgm_object$arguments$dirichlet_alpha,
-#'                  bgm_object$arguments$dirichlet_alpha)
+#'                  bgm_object$arguments$lambda)
 #'
 #' @export
 summary_SBM <- function(cluster_allocations,
