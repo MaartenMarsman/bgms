@@ -1263,7 +1263,7 @@ compute_sufficient_blume_capel = function(x, reference_category, ordinal_variabl
 
 # Prepare the output
 prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
-                                     no_variables, no_categories, group, iter,
+                                     num_variables, num_categories, group, iter,
                                      data_columnnames, save_options,
                                      difference_selection, na_action,
                                      na_impute, variable_type, burnin,
@@ -1283,7 +1283,7 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
 
   arguments = list(
-    no_variables = no_variables, group = group, no_cases = tabulate(group),
+    num_variables = num_variables, group = group, num_cases = tabulate(group),
     na.action = na.action, na_impute = na_impute, iter = iter, burnin = burnin,
     difference_selection = difference_selection,
     independent_thresholds = independent_thresholds,
@@ -1306,9 +1306,9 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   )
 
   # Names for pairwise effects
-  names_bycol = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables)
-  names_byrow = matrix(rep(data_columnnames, each = no_variables), ncol = no_variables, byrow = TRUE)
-  names_comb = matrix(paste0(names_byrow, "-", names_bycol), ncol = no_variables)
+  names_bycol = matrix(rep(data_columnnames, each = num_variables), ncol = num_variables)
+  names_byrow = matrix(rep(data_columnnames, each = num_variables), ncol = num_variables, byrow = TRUE)
+  names_comb = matrix(paste0(names_byrow, "-", names_bycol), ncol = num_variables)
   names_vec = names_comb[lower.tri(names_comb)]
   names_vec_t = names_comb[lower.tri(names_comb, diag = TRUE)]
 
@@ -1317,14 +1317,14 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
 
 
   # Handle output from the new rcpp function (anova)
-  no_groups = length(unique(group))
-  no_main = sum(apply(no_categories, 2, max))
+  num_groups = length(unique(group))
+  num_main = sum(apply(num_categories, 2, max))
 
   # Main effects
-  tmp = out$running_average_main
+  tmp = out$posterior_mean_main
   if(independent_thresholds) {
     posterior_mean_main = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp))
-    for(g in 1:no_groups) {
+    for(g in 1:num_groups) {
       posterior_mean_main[, g] = tmp[, g]
     }
   } else {
@@ -1338,20 +1338,20 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
 
   names_variable_categories = vector(length = nrow(tmp))
   counter = 0
-  for (v in 1:no_variables) {
-    for (c in 1:max(no_categories[v, ])) {
+  for (v in 1:num_variables) {
+    for (c in 1:max(num_categories[v, ])) {
       counter = counter + 1
       names_variable_categories[counter] = paste0(data_columnnames[v], "(", c, ")")
     }
   }
   if(independent_thresholds) {
-    dimnames(results$posterior_mean_main) = list(names_variable_categories, paste0("group_", 1:no_groups))
+    dimnames(results$posterior_mean_main) = list(names_variable_categories, paste0("group_", 1:num_groups))
   } else {
-    dimnames(results$posterior_mean_main) = list(names_variable_categories, c("overall", paste0("group_", 1:no_groups)))
+    dimnames(results$posterior_mean_main) = list(names_variable_categories, c("overall", paste0("group_", 1:num_groups)))
   }
 
   # Pairwise effects
-  tmp = out$running_average_pairwise
+  tmp = out$posterior_mean_pairwise
   posterior_mean_pairwise = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp) + 1)
   posterior_mean_pairwise[, 1] = tmp[, 1]
   for (row in 1:nrow(tmp)) {
@@ -1359,24 +1359,24 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   }
 
   results$posterior_mean_pairwise = posterior_mean_pairwise
-  dimnames(results$posterior_mean_pairwise) = list(names_vec, c("overall", paste0("group_", 1:no_groups)))
+  dimnames(results$posterior_mean_pairwise) = list(names_vec, c("overall", paste0("group_", 1:num_groups)))
 
-  if (difference_selection && "running_average_indicator" %in% names(out) ) {
-    results$posterior_mean_indicator = out$running_average_indicator
+  if (difference_selection && "posterior_mean_indicator" %in% names(out) ) {
+    results$posterior_mean_indicator = out$posterior_mean_indicator
     dimnames(results$posterior_mean_indicator) = list(data_columnnames,
                                                       data_columnnames)
   }
 
 
-  # Handle raw_samples_main
-  if (save_options$save_main && "raw_samples_main" %in% names(out)) {
-    raw_samples_main = out$raw_samples_main
+  # Handle main_effect_samples
+  if (save_options$save_main && "main_effect_samples" %in% names(out)) {
+    main_effect_samples = out$main_effect_samples
     col_names = character()  # Vector to store column names
 
     if(independent_thresholds) {
-      for (gr in 1:no_groups) {
-        for (var in 1:no_variables) {
-          for (cat in 1:max(no_categories[var, ])) {
+      for (gr in 1:num_groups) {
+        for (var in 1:num_variables) {
+          for (cat in 1:max(num_categories[var, ])) {
             col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(", cat, ")"))
           }
         }
@@ -1384,16 +1384,16 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
 
     } else {
 
-      for (gr in 1:no_groups) {
+      for (gr in 1:num_groups) {
         if(gr == 1) {
-          for (var in 1:no_variables) {
-            for (cat in 1:max(no_categories[var, ])) {
+          for (var in 1:num_variables) {
+            for (cat in 1:max(num_categories[var, ])) {
               col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(", cat, ")"))
             }
           }
         } else {
-          for (var in 1:no_variables) {
-            for (cat in 1:max(no_categories[var, ])) {
+          for (var in 1:num_variables) {
+            for (cat in 1:max(num_categories[var, ])) {
               col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(", cat, ")"))
             }
           }
@@ -1401,17 +1401,17 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
       }
     }
 
-    dimnames(raw_samples_main) = list(Iter. = 1:nrow(raw_samples_main), col_names)
-    results$raw_samples_main = raw_samples_main
+    dimnames(main_effect_samples) = list(Iter. = 1:nrow(main_effect_samples), col_names)
+    results$main_effect_samples = main_effect_samples
   }
 
-  # Handle raw_samples_pairwise
-  if (save_options$save_pairwise && "raw_samples_pairwise" %in% names(out)) {
+  # Handle pairwise_effect_samples
+  if (save_options$save_pairwise && "pairwise_effect_samples" %in% names(out)) {
     col_names = character()  # Vector to store column names
-    for (v1 in 1:(no_variables - 1)) {
-      for (v2 in (v1 + 1):no_variables) {
+    for (v1 in 1:(num_variables - 1)) {
+      for (v2 in (v1 + 1):num_variables) {
         col_names = c(col_names, paste0(data_columnnames[v1], "-", data_columnnames[v2]))
-        for (gr in 2:no_groups) {
+        for (gr in 2:num_groups) {
           col_names = c(col_names,
                         paste0("contrast_#",
                                gr-1,
@@ -1424,20 +1424,20 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
       }
     }
 
-    dimnames(out$raw_samples_pairwise) = list(Iter. = 1:nrow(out$raw_samples_pairwise), col_names)
-    results$raw_samples_pairwise = out$raw_samples_pairwise
+    dimnames(out$pairwise_effect_samples) = list(Iter. = 1:nrow(out$pairwise_effect_samples), col_names)
+    results$pairwise_effect_samples = out$pairwise_effect_samples
   }
 
-  # Handle raw_samples_indicator
-  if (difference_selection && save_options$save_indicator && "raw_samples_indicator" %in% names(out)) {
+  # Handle inclusion_indicator_samples
+  if (difference_selection && save_options$save_indicator && "inclusion_indicator_samples" %in% names(out)) {
     if(independent_thresholds) {
       #
     } else {
       col_names = character()  # Vector to store column names
-      for (v1 in 1:(no_variables - 1)) {
-        for (v2 in (v1 + 1):no_variables) {
+      for (v1 in 1:(num_variables - 1)) {
+        for (v2 in (v1 + 1):num_variables) {
           col_names = c(col_names, paste0(data_columnnames[v1], "-", data_columnnames[v2]))
-          for (gr in 2:no_groups) {
+          for (gr in 2:num_groups) {
             col_names = c(col_names,
                           paste0("contrast_#",
                                  gr-1,
@@ -1449,10 +1449,10 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
           }
         }
       }
-      dimnames(out$raw_samples_indicator) = list(Iter. = 1:nrow(out$raw_samples_indicator), col_names)
+      dimnames(out$inclusion_indicator_samples) = list(Iter. = 1:nrow(out$inclusion_indicator_samples), col_names)
     }
 
-    results$raw_samples_indicator = out$raw_samples_indicator
+    results$inclusion_indicator_samples = out$inclusion_indicator_samples
   }
 
   # Add arguments to the output
@@ -1654,12 +1654,12 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
       if (save) {
         if (independent_thresholds) {
           # Handle thresholds for independent thresholds case
-          raw_samples_main = matrix(NA, nrow = nrow(out$thresholds_gr1),
+          main_effect_samples = matrix(NA, nrow = nrow(out$thresholds_gr1),
                                     ncol = sum(no_categories[, 1] + no_categories[, 2]))
 
           threshold1_counter = 0  # Separate counter for thresholds
           threshold2_counter = 0  # Separate counter for thresholds
-          col_counter = 0        # Overall column counter for raw_samples_main
+          col_counter = 0        # Overall column counter for main_effect_samples
           col_names = character()  # Vector to store column names
 
           for (var in 1:no_variables) {
@@ -1668,21 +1668,21 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
               if(cat <= no_categories[var, 1]) {
                 col_counter = col_counter + 1
                 threshold1_counter = threshold1_counter + 1
-                raw_samples_main[, col_counter] = out$thresholds_gr1[, threshold1_counter]
+                main_effect_samples[, col_counter] = out$thresholds_gr1[, threshold1_counter]
                 col_names = c(col_names, paste0(data_columnnames[var],"_gr1(", cat, ")"))
               }
               # Handle thresholds group 2
               if(cat <= no_categories[var, 2]) {
                 col_counter = col_counter + 1
                 threshold2_counter = threshold2_counter + 1
-                raw_samples_main[, col_counter] = out$thresholds_gr2[, threshold2_counter]
+                main_effect_samples[, col_counter] = out$thresholds_gr2[, threshold2_counter]
                 col_names = c(col_names, paste0(data_columnnames[var],"_gr2(", cat, ")"))
               }
             }
           }
 
-          colnames(raw_samples_main) = col_names
-          rownames(raw_samples_main) = paste0("Iter:", seq_len(nrow(raw_samples_main)))
+          colnames(main_effect_samples) = col_names
+          rownames(main_effect_samples) = paste0("Iter:", seq_len(nrow(main_effect_samples)))
 
 
 
@@ -1690,12 +1690,12 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
         } else {
           # Handle thresholds and main differences for non-independent thresholds
           total_categories = sum(apply(no_categories, 1, max))
-          raw_samples_main = matrix(NA, nrow = nrow(out$thresholds),
+          main_effect_samples = matrix(NA, nrow = nrow(out$thresholds),
                                     ncol = total_categories * 2) # Thresholds + main differences
 
           threshold_counter = 0  # Separate counter for thresholds
           main_diff_counter = 0  # Separate counter for main differences
-          col_counter = 0        # Overall column counter for raw_samples_main
+          col_counter = 0        # Overall column counter for main_effect_samples
           col_names = character()  # Vector to store column names
 
           for (var in 1:no_variables) {
@@ -1705,25 +1705,25 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
 
               # Handle thresholds
               threshold_counter = threshold_counter + 1
-              raw_samples_main[, col_counter] = out$thresholds[, threshold_counter]
+              main_effect_samples[, col_counter] = out$thresholds[, threshold_counter]
               col_names = c(col_names, paste0(data_columnnames[var],"(", cat, ")"))
 
               col_counter = col_counter + 1
               main_diff_counter = main_diff_counter + 1
-              raw_samples_main[, col_counter] = out$main_difference[, main_diff_counter]
+              main_effect_samples[, col_counter] = out$main_difference[, main_diff_counter]
               col_names = c(col_names, paste0("main_difference_", data_columnnames[var], "(", cat, ")"))
             }
           }
 
-          colnames(raw_samples_main) = col_names
-          rownames(raw_samples_main) = paste0("Iter:", seq_len(nrow(raw_samples_main)))
+          colnames(main_effect_samples) = col_names
+          rownames(main_effect_samples) = paste0("Iter:", seq_len(nrow(main_effect_samples)))
         }
 
-        results$raw_samples_main = raw_samples_main
+        results$main_effect_samples = main_effect_samples
       }
 
       # Raw samples pairwise effects
-      raw_samples_pairwise = cbind(out$interactions, out$pairwise_difference)
+      pairwise_effect_samples = cbind(out$interactions, out$pairwise_difference)
       pairwise_names = unlist(lapply(1:(no_variables - 1), function(v1) {
         sapply((v1 + 1):no_variables, function(v2) {
           c(
@@ -1732,19 +1732,19 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
           )
         })
       }))
-      colnames(raw_samples_pairwise) = pairwise_names
-      rownames(raw_samples_pairwise) = paste0("Iter:", seq_len(nrow(raw_samples_pairwise)))
+      colnames(pairwise_effect_samples) = pairwise_names
+      rownames(pairwise_effect_samples) = paste0("Iter:", seq_len(nrow(pairwise_effect_samples)))
 
-      results$raw_samples_pairwise = raw_samples_pairwise
+      results$pairwise_effect_samples = pairwise_effect_samples
 
       # Raw samples indicators
       if(difference_selection) {
         if(independent_thresholds) {
-          raw_samples_indicator = matrix(0,
+          inclusion_indicator_samples = matrix(0,
                                          nrow = nrow(out$pairwise_difference_indicator),
                                          ncol = ncol(out$pairwise_difference_indicator))
         } else {
-          raw_samples_indicator = matrix(0,
+          inclusion_indicator_samples = matrix(0,
                                          nrow = nrow(out$pairwise_difference_indicator),
                                          ncol = ncol(out$pairwise_difference_indicator) +
                                            ncol(out$main_difference_indicator))
@@ -1760,20 +1760,20 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
           }
 
           if(!independent_thresholds) {
-            raw_samples_indicator[row, ] = ind[lower.tri(ind, diag = TRUE)]
+            inclusion_indicator_samples[row, ] = ind[lower.tri(ind, diag = TRUE)]
           } else {
-            raw_samples_indicator[row, ] = ind[lower.tri(ind)]
+            inclusion_indicator_samples[row, ] = ind[lower.tri(ind)]
           }
         }
 
         if(independent_thresholds) {
-          colnames(raw_samples_indicator) = names_vec
+          colnames(inclusion_indicator_samples) = names_vec
         } else {
-          colnames(raw_samples_indicator) = names_vec_t
+          colnames(inclusion_indicator_samples) = names_vec_t
         }
-        rownames(raw_samples_indicator) = paste0("Iter:", 1:nrow(raw_samples_indicator))
+        rownames(inclusion_indicator_samples) = paste0("Iter:", 1:nrow(inclusion_indicator_samples))
 
-        results$raw_samples_indicator = raw_samples_indicator
+        results$inclusion_indicator_samples = inclusion_indicator_samples
       }
     }
   }

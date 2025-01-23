@@ -425,8 +425,8 @@ bgm = function(x,
     for(variable2 in (variable1 + 1):no_variables) {
       cntr =  cntr + 1
       Index[cntr, 1] = cntr
-      Index[cntr, 2] = variable1
-      Index[cntr, 3] = variable2
+      Index[cntr, 2] = variable1 - 1
+      Index[cntr, 3] = variable2 - 1
     }
   }
 

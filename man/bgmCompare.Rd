@@ -33,7 +33,8 @@ bgmCompare(
   save_main = FALSE,
   save_pairwise = FALSE,
   save_indicator = FALSE,
-  display_progress = TRUE
+  display_progress = TRUE,
+  armadillo = FALSE
 )
 }
 \arguments{
