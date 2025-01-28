@@ -3209,16 +3209,13 @@ List compare_anova_gibbs_sampler(
         }
       }
       if(difference_selection) {
-        for (int i = 0; i < num_variables - 1; ++i) {
+        for (int i = 0; i < num_variables; ++i) {
           for (int j = i; j < num_variables; ++j) {
             posterior_mean_indicator(i, j) = (posterior_mean_indicator(i, j) * (iter_adj - 1) + inclusion_indicator(i, j)) /
               static_cast<double>(iter_adj);
             posterior_mean_indicator(j, i) = posterior_mean_indicator(i, j);
           }
         }
-        int i = num_variables - 1;
-        posterior_mean_indicator(i, i) = (posterior_mean_indicator(i, i) * (iter_adj - 1) + inclusion_indicator(i, i)) /
-          static_cast<double>(iter_adj);
       }
       if(save_main) {
         int cntr = 0;
@@ -3241,7 +3238,7 @@ List compare_anova_gibbs_sampler(
       if(difference_selection) {
         if(save_indicator) {
           int cntr = 0;
-          for (int i = 0; i < num_variables - 1; ++i) {
+          for (int i = 0; i < num_variables; ++i) {
             for (int j = i; j < num_variables; ++j) {
               (*inclusion_indicator_samples)(iter_adj - 1, cntr) = inclusion_indicator(i, j);
               cntr++;

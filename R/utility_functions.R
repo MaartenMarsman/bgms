@@ -1434,19 +1434,9 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
       #
     } else {
       col_names = character()  # Vector to store column names
-      for (v1 in 1:(num_variables - 1)) {
-        for (v2 in (v1 + 1):num_variables) {
+      for (v1 in 1:num_variables) {
+        for (v2 in v1:num_variables) {
           col_names = c(col_names, paste0(data_columnnames[v1], "-", data_columnnames[v2]))
-          for (gr in 2:num_groups) {
-            col_names = c(col_names,
-                          paste0("contrast_#",
-                                 gr-1,
-                                 "(",
-                                 data_columnnames[v1],
-                                 "-",
-                                 data_columnnames[v2],
-                                 ")"))
-          }
         }
       }
       dimnames(out$inclusion_indicator_samples) = list(Iter. = 1:nrow(out$inclusion_indicator_samples), col_names)
@@ -1634,12 +1624,14 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
           diag(ind) = out$main_difference_indicator
       } else {
         tmp = colMeans(out$pairwise_difference_indicator)
-        ind = matrix(1, no_variables, no_variables)
+        ind = matrix(0, no_variables, no_variables)
         ind[lower.tri(ind)] = tmp
         ind = ind + t(ind)
         if(!independent_thresholds) {
           tmp = colMeans(out$main_difference_indicator)
           diag(ind) = tmp
+        } else {
+          diag(ind) = 1.0
         }
       }
 
