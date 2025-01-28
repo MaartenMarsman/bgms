@@ -68,15 +68,15 @@ print.bgmCompare <- function(x, ...) {
     cat("Bayesian Estimation\n")
   }
 
-  cat(paste0(" Number of variables: ", arguments$no_variables, "\n"))
-  no_groups = length(unique(arguments$group))
+  cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
+  num_groups = length(unique(arguments$group))
   if(arguments$na_impute) {
-    for(group in 1:no_groups) {
-      cat(paste0(" Number of cases Group ", group,": ", arguments$no_cases[group], " (missings imputed)\n"))
+    for(group in 1:num_groups) {
+      cat(paste0(" Number of cases Group ", group,": ", arguments$num_cases[group], " (missings imputed)\n"))
     }
   } else {
-    for(group in 1:no_groups) {
-      cat(paste0(" Number of cases Group ", group,": ", arguments$no_cases[group],"\n"))
+    for(group in 1:num_groups) {
+      cat(paste0(" Number of cases Group ", group,": ", arguments$num_cases[group],"\n"))
     }
   }
   if(arguments$save) {

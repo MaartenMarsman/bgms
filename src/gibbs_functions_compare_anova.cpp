@@ -185,26 +185,26 @@ List impute_missing_data_for_anova_model(
   const int max_num_categories = arma::max(arma::vectorise(num_categories));
 
   arma::vec category_response_probabilities(max_num_categories + 1);
-  double exponent, rest_score, cumsum, u;
-  int score, person, variable, new_observation, old_observation;
+  double exponent, rest_score, cumsum, u, GroupInteraction;
+  int score, person, variable, new_observation, old_observation, gr, int_index;
 
   //Impute missing data
   for(int missing = 0; missing < num_missings; missing++) {
     // Identify the observation to impute
     person = missing_data_indices(missing, 0);
     variable = missing_data_indices(missing, 1);
-    const int gr = group_membership[person];
+    gr = group_membership[person];
 
     // Compute thresholds for the variable in the given group
     arma::vec GroupThresholds = compute_group_thresholds(variable,
-                                                                   is_ordinal_variable,
-                                                                   gr,
-                                                                   num_groups,
-                                                                   num_categories,
-                                                                   main_effects,
-                                                                   main_effect_indices,
-                                                                   projection,
-                                                                   independent_thresholds);
+                                                         is_ordinal_variable,
+                                                         gr,
+                                                         num_groups,
+                                                         num_categories,
+                                                         main_effects,
+                                                         main_effect_indices,
+                                                         projection,
+                                                         independent_thresholds);
 
     // Generate a new observation based on the model
     rest_score = residual_matrix(person, variable);
@@ -266,8 +266,8 @@ List impute_missing_data_for_anova_model(
 
       // Update rest scores
       for(int vertex = 0; vertex < num_variables; vertex++) {
-        int int_index = pairwise_effect_indices(vertex, variable);
-        double GroupInteraction = pairwise_effects(int_index, 0);
+        int_index = pairwise_effect_indices(vertex, variable);
+        GroupInteraction = pairwise_effects(int_index, 0);
         for(int h = 0; h < num_groups - 1; h++) {
           GroupInteraction += projection(gr, h) * pairwise_effects(int_index, h + 1);
         }
@@ -331,6 +331,9 @@ double log_pseudolikelihood_ratio_interaction(
   // Compute the difference in interaction states
   double delta_state = 2.0 * (proposed_state - current_state);
   double pseudolikelihood_ratio = 0.0;
+  int n_cats_v1, n_cats_v2, obs_score1, obs_score2, var, obs, n_cats, score;
+  double obs_current, obs_proposed, rest_score, bound, denominator_prop;
+  double denominator_curr, exponent;
 
   // Loop over groups to compute contributions to the pseudo-likelihood ratio
   for(int gr = 0; gr < num_groups; gr++) {
@@ -343,13 +346,13 @@ double log_pseudolikelihood_ratio_interaction(
       variable2, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
       main_effect_indices, projection, independent_thresholds);
 
-    int n_cats_v1 = num_categories(variable1, gr);
-    int n_cats_v2 = num_categories(variable2, gr);
+    n_cats_v1 = num_categories(variable1, gr);
+    n_cats_v2 = num_categories(variable2, gr);
 
     // Loop over individuals in the current group
     for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
-      int obs_score1 = observations(person, variable1);
-      int obs_score2 = observations(person, variable2);
+      obs_score1 = observations(person, variable1);
+      obs_score2 = observations(person, variable2);
 
       // Contribution from the interaction term
       pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
@@ -357,19 +360,19 @@ double log_pseudolikelihood_ratio_interaction(
       // Compute contributions for each variable (variable1 and variable2)
       for (int variable = 1; variable <= 2; variable++) {
         // Assign variable-specific data
-        int var = (variable == 1) ? variable1 : variable2;
-        int obs = (variable == 1) ? obs_score2 : obs_score1;
-        double obs_current = obs * current_state;
-        double obs_proposed = obs * proposed_state;
+        var = (variable == 1) ? variable1 : variable2;
+        obs = (variable == 1) ? obs_score2 : obs_score1;
+        obs_current = obs * current_state;
+        obs_proposed = obs * proposed_state;
 
-        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
-        const arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
 
         // Compute the rest score and bounds
-        double rest_score = residual_matrix(person, var) - obs_current;
-        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
-        double denominator_prop = 0.0;
-        double denominator_curr = 0.0;
+        rest_score = residual_matrix(person, var) - obs_current;
+        bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+        denominator_prop = 0.0;
+        denominator_curr = 0.0;
 
         // Compute pseudo-likelihood terms
         if(is_ordinal_variable[var]) {
@@ -377,15 +380,15 @@ double log_pseudolikelihood_ratio_interaction(
           denominator_prop += std::exp(-bound);
           denominator_curr += std::exp(-bound);
           for(int cat = 0; cat < n_cats; cat++) {
-            int score = cat + 1;
-            double exponent = GroupThresholds[cat] + score * rest_score - bound;
+            score = cat + 1;
+            exponent = GroupThresholds[cat] + score * rest_score - bound;
             denominator_prop += std::exp(exponent + score * obs_proposed);
             denominator_curr += std::exp(exponent + score * obs_current);
           }
         } else {
           // Blume-Capel ordinal MRF variable
           for(int cat = 0; cat <= n_cats; cat++) {
-            double exponent = GroupThresholds[0] * cat;
+            exponent = GroupThresholds[0] * cat;
             exponent += GroupThresholds[1] *
               (cat - baseline_category[var]) *
               (cat - baseline_category[var]);
@@ -462,19 +465,20 @@ void metropolis_interaction(
     double rm_lower_bound,
     double rm_upper_bound
 ) {
-  double log_acceptance_probability;
+  double log_acceptance_probability, current_state, proposed_state, U, state_difference;
   double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);// Precompute Robbins-Monro decay term
+  int int_index, obs1, obs2;
 
   // Iterate over all pairs of variables for interaction updates
   for(int variable1 = 0; variable1 <  num_variables - 1; variable1++) {
     for(int variable2 = variable1 + 1; variable2 <  num_variables; variable2++) {
-      int int_index = pairwise_effect_indices(variable1, variable2);
+      int_index = pairwise_effect_indices(variable1, variable2);
 
       // Retrieve the current state of the interaction parameter
-      double current_state = pairwise_effects(int_index, 0);
+      current_state = pairwise_effects(int_index, 0);
 
       // Propose a new state from a normal density centered at the current state
-      double proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, 0));
+      proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, 0));
 
       // Compute the log pseudo-likelihood ratio for proposed vs. current states
       log_acceptance_probability = log_pseudolikelihood_ratio_interaction(
@@ -488,16 +492,16 @@ void metropolis_interaction(
       log_acceptance_probability -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
       // Metropolis-Hastings acceptance step
-      double U = R::unif_rand();
+      U = R::unif_rand();
       if(std::log(U) < log_acceptance_probability) {
         // Update the interaction parameter
-        double state_difference = proposed_state - current_state;
+        state_difference = proposed_state - current_state;
         pairwise_effects(int_index, 0) = proposed_state;
 
         // Update the residual matrix to reflect the new interaction parameter
         for (int person = 0; person < num_persons; person++) {
-          int obs1 = observations(person, variable1);
-          int obs2 = observations(person, variable2);
+          obs1 = observations(person, variable1);
+          obs2 = observations(person, variable2);
           residual_matrix(person, variable1) += obs2 * state_difference;
           residual_matrix(person, variable2) += obs1 * state_difference;
         }
@@ -563,8 +567,12 @@ double log_pseudolikelihood_ratio_pairwise_difference(
   double pseudolikelihood_ratio = 0.0;
   double delta_state = 2.0 * (proposed_state - current_state); // Change in parameter value
 
-  // Iterate over all groups
-  double denominator_prop, denominator_curr;
+
+  double obs_proposed_p1, obs_current_p1, obs_proposed_p2, obs_current_p2;
+  double obs_proposed_p, obs_current_p, denominator_prop, denominator_curr;
+  double rest_score, bound, P, delta_state_group, exponent;
+
+  int n_cats_v1, n_cats_v2, n_cats, obs_score1, obs_score2, score, var;
 
   // Loop over groups
   for(int gr = 0; gr < num_groups; gr++) {
@@ -578,37 +586,37 @@ double log_pseudolikelihood_ratio_pairwise_difference(
       main_effect_indices, projection, independent_thresholds);
 
     // Scale the delta_state by the projection factor for this group
-    double P = projection(gr, h);
-    double delta_state_group = delta_state * P;
+    P = projection(gr, h);
+    delta_state_group = delta_state * P;
 
     // Cache the number of categories for both variables
-    int n_cats_v1 = num_categories(variable1, gr);
-    int n_cats_v2 = num_categories(variable2, gr);
+    n_cats_v1 = num_categories(variable1, gr);
+    n_cats_v2 = num_categories(variable2, gr);
 
     // Iterate over all individuals in the current group
     for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
       // Cache observation scores and scaled terms
-      int obs_score1 = observations(person, variable1);
-      int obs_score2 = observations(person, variable2);
-      double obs_proposed_p1 = obs_score2 * proposed_state * P;
-      double obs_current_p1 = obs_score2 * current_state * P;
-      double obs_proposed_p2 = obs_score1 * proposed_state * P;
-      double obs_current_p2 = obs_score1 * current_state * P;
+      obs_score1 = observations(person, variable1);
+      obs_score2 = observations(person, variable2);
+      obs_proposed_p1 = obs_score2 * proposed_state * P;
+      obs_current_p1 = obs_score2 * current_state * P;
+      obs_proposed_p2 = obs_score1 * proposed_state * P;
+      obs_current_p2 = obs_score1 * current_state * P;
 
       // Contribution from the interaction term
       pseudolikelihood_ratio +=  obs_score1 * obs_score2 * delta_state_group;
 
       // Process each variable in the interaction pair
       for (int variable = 1; variable <= 2; variable++) {
-        int var = (variable == 1) ? variable1 : variable2;
-        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        var = (variable == 1) ? variable1 : variable2;
+        n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
         arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
-        double obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
-        double obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
+        obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
 
         // Compute the rest score and bound
-        double rest_score = residual_matrix(person, var) - obs_current_p;
-        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+        rest_score = residual_matrix(person, var) - obs_current_p;
+        bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
         // Compute denominators based on whether the variable is ordinal
         if (is_ordinal_variable[var]) {
@@ -616,8 +624,8 @@ double log_pseudolikelihood_ratio_pairwise_difference(
           denominator_prop = std::exp(-bound);
           denominator_curr = std::exp(-bound);
           for (int cat = 0; cat < n_cats; cat++) {
-            int score = cat + 1;
-            double exponent = GroupThresholds[cat] + score * rest_score - bound;
+            score = cat + 1;
+            exponent = GroupThresholds[cat] + score * rest_score - bound;
             denominator_prop += std::exp(exponent + score * obs_proposed_p);
             denominator_curr += std::exp(exponent + score * obs_current_p);
           }
@@ -626,7 +634,7 @@ double log_pseudolikelihood_ratio_pairwise_difference(
           denominator_prop = 0.0;
           denominator_curr = 0.0;
           for (int cat = 0; cat <= n_cats; cat++) {
-            double exponent = GroupThresholds[0] * cat +
+            exponent = GroupThresholds[0] * cat +
               GroupThresholds[1] * (cat - baseline_category[var]) *
               (cat - baseline_category[var]) +
               cat * rest_score - bound;
@@ -707,21 +715,24 @@ void metropolis_pairwise_difference(
     const double rm_upper_bound
 ) {
   double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate); // Precompute Robbins-Monro decay term
+  int int_index, obs1, obs2;
+  double current_state, proposed_state,log_acceptance_probability, U;
+  double state_difference;
 
   // Iterate over all variable pairs
   for(int variable1 = 0; variable1 <  num_variables - 1; variable1++) {
     for(int variable2 = variable1 + 1; variable2 <  num_variables; variable2++) {
       if (inclusion_indicator(variable1, variable2) == 1) {
-        int int_index = pairwise_effect_indices(variable1, variable2);
+        int_index = pairwise_effect_indices(variable1, variable2);
 
         // Iterate over all groups (excluding the reference group)
         for(int h = 1; h < num_groups; h++) {
           // Retrieve the current state and propose a new state
-          double current_state = pairwise_effects(int_index, h);
-          double proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, h));
+          current_state = pairwise_effects(int_index, h);
+          proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, h));
 
           // Compute the log pseudo-likelihood ratio for the proposed vs. current state
-          double log_acceptance_probability = log_pseudolikelihood_ratio_pairwise_difference(
+          log_acceptance_probability = log_pseudolikelihood_ratio_pairwise_difference(
             main_effects, main_effect_indices, projection, observations, num_groups,
             group_indices, num_categories, independent_thresholds, num_persons,
             variable1, variable2, h - 1, proposed_state, current_state,
@@ -732,17 +743,17 @@ void metropolis_pairwise_difference(
           log_acceptance_probability -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
 
           // Metropolis-Hastings acceptance step
-          double U = R::unif_rand();
+          U = R::unif_rand();
           if(std::log(U) < log_acceptance_probability) {
             pairwise_effects(int_index, h) = proposed_state;
 
             // Update the rest matrix to reflect the new pairwise difference
             for(int gr = 0; gr < num_groups; gr++) {
 
-              double state_difference = (proposed_state - current_state) * projection(gr, h - 1);
+              state_difference = (proposed_state - current_state) * projection(gr, h - 1);
               for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
-                int obs1 = observations(person, variable1);
-                int obs2 = observations(person, variable2);
+                obs1 = observations(person, variable1);
+                obs2 = observations(person, variable2);
                 residual_matrix(person, variable1) += obs2 * state_difference;
                 residual_matrix(person, variable2) += obs1 * state_difference;
               }
@@ -2243,6 +2254,415 @@ void metropolis_thresholds_blumecapel_free(
 
 
 /**
+ * Computes the log pseudo-likelihood ratio for a regular ordinal variable
+ * when comparing two models (proposed vs current) for group-level main
+ * difference parameters.
+ *
+ * @param current_main_effects Matrix of current main effects for all categories and groups.
+ * @param proposed_main_effects Matrix of proposed main effects for all categories and groups.
+ * @param projection Matrix of group-specific projection weights.
+ * @param num_groups Number of groups in the data.
+ * @param group_indices Matrix of group start and end indices for individuals.
+ * @param num_categories Matrix of the number of categories per variable and group.
+ * @param num_persons Total number of individuals.
+ * @param residual_matrix Matrix of residual scores for individuals and variables.
+ * @param n_cat_obs List of category observation counts for each group.
+ * @param variable Index of the variable being evaluated.
+ * @return The log pseudo-likelihood ratio comparing the proposed and current models.
+ */
+double log_pseudolikelihood_ratio_main_difference_regular_between_model(
+    const arma::mat& current_main_effects,
+    const arma::mat& proposed_main_effects,
+    const arma::mat& projection,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& n_cat_obs,
+    const int variable
+) {
+  double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
+  int num_cats = num_categories(variable, 0); // Number of categories for the variable
+  arma::vec current_thresholds(num_cats); // Store current thresholds for the group
+  arma::vec proposed_thresholds(num_cats); // Store proposed thresholds for the group
+
+  // Loop over all groups to compute the contribution to the log pseudo-likelihood ratio
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Retrieve group-specific category observation counts
+    arma::imat n_cat_obs_gr = n_cat_obs[gr];
+
+    // Compute category thresholds for each category within the group
+    for(int cat = 0; cat < num_cats; cat++) {
+      // Compute current and proposed category thresholds
+      double current_threshold = current_main_effects(cat, 0);
+      double proposed_threshold = proposed_main_effects(cat, 0);
+      for (int h = 1; h < num_groups; ++h) {
+        current_threshold += projection(gr, h - 1) * current_main_effects(cat, h);
+        proposed_threshold += projection(gr, h - 1) * proposed_main_effects(cat, h);
+      }
+      current_thresholds[cat] = current_threshold;
+      proposed_thresholds[cat] = proposed_threshold;
+
+      // Update the pseudo-likelihood ratio with contributions from the observations
+      double delta_state = proposed_threshold - current_threshold;
+      pseudolikelihood_ratio += delta_state * n_cat_obs_gr(cat + 1, variable);
+    }
+
+    // Loop over individuals within the group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      // Compute the rest score (residual) for the current variable
+      double rest_score = residual_matrix(person, variable);
+
+      // Compute numerical bounds for stability
+      double bound = (rest_score > 0) ? num_cats * rest_score : 0.0;
+
+      // Initialize denominator terms for the proposed and current pseudolikelihoods
+      double denominator_proposed = std::exp(-bound);
+      double denominator_current = std::exp(-bound);
+
+      // Add contributions from each category to the denominators
+      for(int cat = 0; cat < num_cats; cat++) {
+        double exponent = (cat + 1) * rest_score - bound;
+        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
+        denominator_current += std::exp(exponent + current_thresholds[cat]);
+      }
+
+      // Update the pseudo-likelihood ratio with log-likelihood differences
+      pseudolikelihood_ratio -= std::log(denominator_proposed);
+      pseudolikelihood_ratio += std::log(denominator_current);
+    }
+  }
+
+  return pseudolikelihood_ratio; // Return the computed log pseudo-likelihood ratio
+}
+
+
+/**
+ * Perform Metropolis-Hastings sampling for group-level main difference parameters
+ * for regular ordinal variables between models (current vs. proposed).
+ *
+ * @param inclusion_indicator Matrix indicating inclusion for variables.
+ * @param inclusion_probability_difference Matrix of inclusion probabilities for variable differences.
+ * @param main_effects Matrix of current main effects for all variables and groups.
+ * @param main_effect_indices Matrix of indices for main effect parameters.
+ * @param observations Matrix of observations for all individuals and variables.
+ * @param num_groups Number of groups in the model.
+ * @param group_indices Matrix of start and end indices for individuals in each group.
+ * @param num_categories Matrix indicating the number of categories for each variable and group.
+ * @param num_persons Total number of individuals in the dataset.
+ * @param residual_matrix Matrix of residual scores for individuals and variables.
+ * @param n_cat_obs List of category observation counts for each group.
+ * @param prior_threshold_alpha Alpha parameter for prior threshold.
+ * @param prior_threshold_beta Beta parameter for prior threshold.
+ * @param variable Index of the variable being updated.
+ * @param group Index of the group being updated.
+ * @param proposal_sd_main_effects Matrix of proposal standard deviations for main effects.
+ * @param main_difference_scale Scale parameter for the Cauchy prior on main differences.
+ * @param projection Matrix of projection weights for groups.
+ */
+void metropolis_main_difference_regular_between_model(
+    arma::imat& inclusion_indicator,
+    const arma::mat& inclusion_probability_difference,
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& n_cat_obs,
+    const int variable,
+    const arma::mat& proposal_sd_main_effects,
+    const double main_difference_scale,
+    const arma::mat& projection
+) {
+  // Number of rows for this variable's main effects
+  int num_row = main_effect_indices(variable, 1) -  main_effect_indices(variable, 0) + 1;
+  arma::mat proposed_main_effects(num_row, num_groups);
+  arma::mat current_main_effects(num_row, num_groups);
+
+  // Retrieve the current and proposed indicators for inclusion
+  int current_indicator = inclusion_indicator(variable, variable);
+  int proposed_indicator = 1 - current_indicator;
+
+  int main_effect_index = main_effect_indices(variable, 0);
+  int num_cats = num_categories(variable, 0);
+  double log_prob = 0.0;
+
+  // Populate the current and proposed main effects matrices
+  for(int cat = 0; cat < num_cats; cat++) {
+    proposed_main_effects(cat, 0) = main_effects(main_effect_index + cat, 0);
+    current_main_effects(cat, 0) = main_effects(main_effect_index + cat, 0);
+
+    if(current_indicator == 1) {
+      for(int h = 1; h < num_groups; h++) {
+        double proposal_sd = proposal_sd_main_effects(main_effect_index + cat, h);
+        double current_state = main_effects(main_effect_index + cat, h);
+        double proposed_state = 0.0;
+        current_main_effects(cat, h) = current_state;
+        proposed_main_effects(cat, h) = proposed_state;
+
+        // Update log acceptance probability with prior and proposal contributions
+        log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+        log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+      }
+    } else {
+      for(int h = 1; h < num_groups; h++) {
+        double proposal_sd = proposal_sd_main_effects(main_effect_index + cat, h);
+        double current_state = 0.0;
+        double proposed_state = R::rnorm(current_state, proposal_sd);
+        current_main_effects(cat, h) = current_state;
+        proposed_main_effects(cat, h) = proposed_state;
+
+        // Update log acceptance probability with prior and proposal contributions
+        log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+        log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+      }
+    }
+  }
+
+  // Add pseudo-likelihood ratio contribution
+  log_prob += log_pseudolikelihood_ratio_main_difference_regular_between_model(
+    current_main_effects, proposed_main_effects, projection, num_groups,
+    group_indices, num_categories, residual_matrix, n_cat_obs, variable
+  );
+
+  // Add prior inclusion odds contributions
+  if(current_indicator == 1) {
+    log_prob -= std::log(inclusion_probability_difference(variable, variable));
+    log_prob += std::log(1 - inclusion_probability_difference(variable, variable));
+  } else {
+    log_prob += std::log(inclusion_probability_difference(variable, variable));
+    log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
+  }
+
+  // Perform Metropolis-Hastings step
+  double U = R::unif_rand();
+  if(std::log(U) < log_prob) {
+    inclusion_indicator(variable, variable) = proposed_indicator;
+    for(int cat = 0; cat < num_cats; cat++) {
+      for(int h = 1; h < num_groups; h++) {
+        main_effects(main_effect_index + cat, h) = proposed_main_effects(cat, h);
+      }
+    }
+  }
+}
+
+
+double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
+    const arma::mat& current_main_effects,
+    const arma::mat& proposed_main_effects,
+    const arma::mat& projection,
+    const arma::ivec& baseline_category,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const int num_persons,
+    const arma::mat& residual_matrix,
+    const int variable
+) {
+  double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
+  int num_cats = num_categories(variable, 0); // Number of categories for the variable
+  arma::vec current_parameters(2); // Store current parameters for the group
+  arma::vec proposed_parameters(2); // Store proposed parameters for the group
+
+  // Loop over all groups
+  for(int gr = 0; gr < num_groups; gr++) {
+    arma::imat sufficient_statistics = sufficient_blume_capel[gr]; // Group-specific data
+
+    // Compute current and proposed values for the linear Blume-Capel parameter
+    double current_linear = current_main_effects(0, 0);
+    double proposed_linear = proposed_main_effects(0, 0);
+    for (int h = 1; h < num_groups; ++h) {
+      current_linear += projection(gr, h - 1) * current_main_effects(0, h);
+      proposed_linear += projection(gr, h - 1) * proposed_main_effects(0, h);
+    }
+    current_parameters[0] = current_linear;
+    proposed_parameters[0] = proposed_linear;
+    // Add the contribution from delta_state based on observations
+    double delta_state = proposed_linear - current_linear;
+    pseudolikelihood_ratio += delta_state * sufficient_statistics(0, variable);
+
+    // Compute current and proposed values for the quadratic Blume-Capel parameter
+    double current_quadratic = current_main_effects(0, 0);
+    double proposed_quadratic = proposed_main_effects(0, 0);
+    for (int h = 1; h < num_groups; ++h) {
+      current_quadratic += projection(gr, h - 1) * current_main_effects(1, h);
+      proposed_quadratic += projection(gr, h - 1) * proposed_main_effects(1, h);
+    }
+    current_parameters[1] = current_quadratic;
+    proposed_parameters[1] = proposed_quadratic;
+    // Add the contribution from delta_state based on observations
+    delta_state = proposed_quadratic - current_quadratic;
+    pseudolikelihood_ratio += delta_state * sufficient_statistics(1, variable);
+
+    // Precomputed constants for numerator and denominator for each category
+    arma::vec current_denominator_constant (num_cats + 1);
+    arma::vec proposed_denominator_constant (num_cats + 1);
+
+    // Pre-compute terms for all categories in the current group
+    for(int cat = 0; cat <= num_cats; cat++) {
+      // Compute linear and quadratic scores for the current cat
+      int linear_score = cat;
+      int quadratic_score = (cat - baseline_category[variable]) *
+                            (cat - baseline_category[variable]);
+
+      // Initialize numerator and denominator contributions with main effects
+      current_denominator_constant[cat] = current_parameters[0] * linear_score;
+      current_denominator_constant[cat] += current_parameters[1] * quadratic_score;
+      proposed_denominator_constant[cat] = proposed_parameters[0] * linear_score ;
+      proposed_denominator_constant[cat] += proposed_parameters[1] * quadratic_score;
+    }
+
+    // Compute numerical bounds for stability
+    double tmp_den1 = max(current_denominator_constant);
+    double tmp_max = max(proposed_denominator_constant);
+    if(tmp_den1 > tmp_max) {
+      tmp_max = tmp_den1;
+    }
+    double lbound = 0.0;
+    if(tmp_max > 0.0) {
+      lbound = tmp_max;
+    }
+
+    // Loop over all persons in the group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      double rest_score = residual_matrix(person, variable); // Compute residual score
+      double bound = (rest_score > 0) ? lbound + num_cats * rest_score : lbound;
+
+      // Compute the denominators for proposed and current thresholds
+      double denominator_proposed = 0.0;
+      double denominator_current = 0.0;
+
+      // Compute category-specific contributions
+      for(int cat = 0; cat <= num_categories[variable]; cat++) {
+        double exponent = cat * rest_score - bound;
+        denominator_proposed += std::exp(proposed_denominator_constant[cat] + exponent);
+        denominator_current += std::exp(current_denominator_constant[cat] + exponent);
+      }
+
+      // Update the pseudo-likelihood ratio with log-likelihood differences
+      pseudolikelihood_ratio -= std::log(denominator_proposed);
+      pseudolikelihood_ratio += std::log(denominator_current);
+    }
+  }
+
+  return pseudolikelihood_ratio;
+}
+
+void metropolis_main_difference_blume_capel_between_model(
+    arma::imat& inclusion_indicator,
+    const arma::mat& inclusion_probability_difference,
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::ivec& baseline_category,
+    const arma::imat& num_categories,
+    const List& sufficient_blume_capel,
+    const int num_persons,
+    const arma::mat& residual_matrix,
+    const List& n_cat_obs,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const int variable,
+    const arma::mat& proposal_sd_main_effects,
+    const double rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const int t,
+    const double rm_lower_bound,
+    const double rm_upper_bound,
+    const arma::uvec& is_ordinal_variable,
+    const double main_difference_scale,
+    const arma::mat projection
+) {
+  arma::mat proposed_main_effects(2, num_groups);
+  arma::mat current_main_effects(2, num_groups);
+  int current_inclusion_indicator = inclusion_indicator(variable, variable);
+  int proposed_inclusion_indicator = 1 - current_inclusion_indicator;
+  int main_effect_index = main_effect_indices(variable, 0);
+  double log_prob = 0.0;
+
+  proposed_main_effects(0, 0) = main_effects(main_effect_index, 0);
+  current_main_effects(0, 0) = main_effects(main_effect_index, 0);
+  proposed_main_effects(1, 0) = main_effects(main_effect_index + 1, 0);
+  current_main_effects(1, 0) = main_effects(main_effect_index + 1, 0);
+
+  if(inclusion_indicator(variable, variable) == 1) {
+    for(int h = 1; h < num_groups; h++) {
+      // First, the linear parameter
+      double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
+      double current_state = main_effects(main_effect_index, h);
+      double proposed_state = 0.0;
+      current_main_effects(0, h) = current_state;
+      proposed_main_effects(0, h) = proposed_state;
+      //Prior and proposal ratio
+      log_prob -= R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob += R::dnorm(proposed_state, current_state, proposal_sd, true);
+
+      // Second, the quadratic parameter
+      proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
+      current_state = 0.0;
+      proposed_state = R::rnorm(current_state, proposal_sd);
+      current_main_effects(1, h) = current_state;
+      proposed_main_effects(1, h) = proposed_state;
+      //Prior and proposal ratio
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+    }
+  } else {
+    for(int h = 1; h < num_groups; h++) {
+      // First, the linear parameter
+      double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
+      double current_state = 0.0;
+      double proposed_state = R::rnorm(current_state, proposal_sd);
+      current_main_effects(0, h) = current_state;
+      proposed_main_effects(0, h) = proposed_state;
+      //Prior and proposal ratio
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+
+      // Second, the quadratic parameter
+      proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
+      current_state = 0.0;
+      proposed_state = R::rnorm(current_state, proposal_sd);
+      current_main_effects(1, h) = current_state;
+      proposed_main_effects(1, h) = proposed_state;
+      //Prior and proposal ratio
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+    }
+  }
+
+  // Pseudolikelihood ratio
+  log_prob += log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
+    current_main_effects, proposed_main_effects, projection,
+    baseline_category, sufficient_blume_capel, num_groups, group_indices,
+    num_categories, num_persons, residual_matrix, variable);
+
+
+  // Prior odds
+  if(current_inclusion_indicator == 1) {
+    log_prob -= std::log(inclusion_probability_difference(variable, variable));
+    log_prob += std::log(1-inclusion_probability_difference(variable, variable));
+  } else {
+    log_prob += std::log(inclusion_probability_difference(variable, variable));
+    log_prob -= std::log(1-inclusion_probability_difference(variable, variable));
+  }
+
+  double U = R::unif_rand();
+  if(std::log(U) < log_prob) {
+    inclusion_indicator(variable, variable) = proposed_inclusion_indicator;
+    for(int h = 1; h < num_groups; h++) {
+      main_effects(main_effect_index, h) = proposed_main_effects(0, h);
+      main_effects(main_effect_index + 1, h) = proposed_main_effects(1, h);
+    }
+  }
+}
+
+/**
  * Function: gibbs_step_gm
  * Purpose:
  *   Executes a single Gibbs sampling step to update grarm_adaptation_ratecal model parameters
@@ -2395,7 +2815,12 @@ List gibbs_step_gm(
           prior_threshold_alpha, prior_threshold_beta, variable);
 
         if(difference_selection) {
-          //...
+          metropolis_main_difference_regular_between_model(
+            inclusion_indicator, inclusion_probability_difference, main_effects,
+            main_effect_indices, observations, num_groups, group_indices,
+            num_categories, residual_matrix, n_cat_obs, variable,
+            proposal_sd_main_effects, main_difference_scale, projection
+          );
         }
 
         metropolis_main_difference_regular(
@@ -2621,7 +3046,7 @@ List compare_anova_gibbs_sampler(
 
     // Create a random ordering of pairwise effects for updating
     arma::uvec order = arma::randperm(v.n_elem);
-      //sample(v, num_pairwise, false, R_NilValue);
+    //sample(v, num_pairwise, false, R_NilValue);
 
     for(int cntr = 0; cntr < num_pairwise; cntr++) {
       index(cntr, 0) = Index(order[cntr], 0);
@@ -2675,7 +3100,6 @@ List compare_anova_gibbs_sampler(
     proposal_sd_pairwise_effects = proposal_sd_pairwise_tmp;
     proposal_sd_main_effects = proposal_sd_main_tmp;
 
-
     // Update inclusion probabilities
     if (difference_selection) {
       int sumG = 0;
@@ -2710,12 +3134,15 @@ List compare_anova_gibbs_sampler(
       }
       if(difference_selection) {
         for (int i = 0; i < num_variables - 1; ++i) {
-          for (int j = i + 1; j < num_variables; ++j) {
+          for (int j = i; j < num_variables; ++j) {
             posterior_mean_indicator(i, j) = (posterior_mean_indicator(i, j) * (iter_adj - 1) + inclusion_indicator(i, j)) /
               static_cast<double>(iter_adj);
             posterior_mean_indicator(j, i) = posterior_mean_indicator(i, j);
           }
         }
+        int i = num_variables - 1;
+        posterior_mean_indicator(i, i) = (posterior_mean_indicator(i, i) * (iter_adj - 1) + inclusion_indicator(i, i)) /
+          static_cast<double>(iter_adj);
       }
       if(save_main) {
         int cntr = 0;
@@ -2739,7 +3166,7 @@ List compare_anova_gibbs_sampler(
         if(save_indicator) {
           int cntr = 0;
           for (int i = 0; i < num_variables - 1; ++i) {
-            for (int j = i + 1; j < num_variables; ++j) {
+            for (int j = i; j < num_variables; ++j) {
               (*inclusion_indicator_samples)(iter_adj - 1, cntr) = inclusion_indicator(i, j);
               cntr++;
             }

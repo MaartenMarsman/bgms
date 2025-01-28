@@ -301,7 +301,6 @@ bgmCompare = function(x,
       projection
     )
 
-
   } else {
     # Prepare indices for main and pairwise effects
     main_effect_indices <- matrix(NA, nrow = no_variables, ncol = 2)
