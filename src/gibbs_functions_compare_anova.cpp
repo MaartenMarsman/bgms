@@ -2254,21 +2254,24 @@ void metropolis_thresholds_blumecapel_free(
 
 
 /**
- * Computes the log pseudo-likelihood ratio for a regular ordinal variable
- * when comparing two models (proposed vs current) for group-level main
- * difference parameters.
+ * Function: log_pseudolikelihood_ratio_main_difference_regular_between_model
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for regular variables between models
+ *   with and without group-specific main effects in the main difference model.
  *
- * @param current_main_effects Matrix of current main effects for all categories and groups.
- * @param proposed_main_effects Matrix of proposed main effects for all categories and groups.
- * @param projection Matrix of group-specific projection weights.
- * @param num_groups Number of groups in the data.
- * @param group_indices Matrix of group start and end indices for individuals.
- * @param num_categories Matrix of the number of categories per variable and group.
- * @param num_persons Total number of individuals.
- * @param residual_matrix Matrix of residual scores for individuals and variables.
- * @param n_cat_obs List of category observation counts for each group.
- * @param variable Index of the variable being evaluated.
- * @return The log pseudo-likelihood ratio comparing the proposed and current models.
+ * Inputs:
+ *   - current_main_effects: A matrix of current main effects for all variables and groups.
+ *   - proposed_main_effects: A matrix of proposed main effects for all variables and groups.
+ *   - projection: A matrix specifying the projection of group differences.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *
+ * Outputs:
+ *   - Returns the log pseudo-likelihood ratio for the current and proposed main effects.
  */
 double log_pseudolikelihood_ratio_main_difference_regular_between_model(
     const arma::mat& current_main_effects,
@@ -2338,27 +2341,31 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
 
 
 /**
- * Perform Metropolis-Hastings sampling for group-level main difference parameters
- * for regular ordinal variables between models (current vs. proposed).
+ * Function: metropolis_main_difference_regular_between_model
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of main effect differences between models with and without group-specific main effects
+ *   for regular variables.
  *
- * @param inclusion_indicator Matrix indicating inclusion for variables.
- * @param inclusion_probability_difference Matrix of inclusion probabilities for variable differences.
- * @param main_effects Matrix of current main effects for all variables and groups.
- * @param main_effect_indices Matrix of indices for main effect parameters.
- * @param observations Matrix of observations for all individuals and variables.
- * @param num_groups Number of groups in the model.
- * @param group_indices Matrix of start and end indices for individuals in each group.
- * @param num_categories Matrix indicating the number of categories for each variable and group.
- * @param num_persons Total number of individuals in the dataset.
- * @param residual_matrix Matrix of residual scores for individuals and variables.
- * @param n_cat_obs List of category observation counts for each group.
- * @param prior_threshold_alpha Alpha parameter for prior threshold.
- * @param prior_threshold_beta Beta parameter for prior threshold.
- * @param variable Index of the variable being updated.
- * @param group Index of the group being updated.
- * @param proposal_sd_main_effects Matrix of proposal standard deviations for main effects.
- * @param main_difference_scale Scale parameter for the Cauchy prior on main differences.
- * @param projection Matrix of projection weights for groups.
+ * Inputs:
+ *   - inclusion_indicator: A matrix indicating inclusion of main effect differences for variables.
+ *   - inclusion_probability_difference: A matrix of inclusion probabilities for main effects.
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
+ *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
+ *   - projection: A matrix specifying the projection of group differences.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for main effects.
+ *   - Updates the `indicator` matrix to reflect inclusion or exclusion of main effect differences.
  */
 void metropolis_main_difference_regular_between_model(
     arma::imat& inclusion_indicator,
@@ -2449,6 +2456,28 @@ void metropolis_main_difference_regular_between_model(
 }
 
 
+/**
+ * Function: log_pseudolikelihood_ratio_main_difference_blume_capel_between_model
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for the Blume-Capel model between
+ *   proposed and current main effect differences, accounting for linear and quadratic parameters.
+ *
+ * Inputs:
+ *   - current_main_effects: A matrix of current main effects for all variables and groups.
+ *   - proposed_main_effects: A matrix of proposed main effects for all variables and groups.
+ *   - projection: A matrix specifying the projection of group differences.
+ *   - baseline_category: A vector specifying the reference category for each variable.
+ *   - sufficient_blume_capel: A list of matrices containing sufficient statistics for each group.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - variable: Index of the variable being updated.
+ *
+ * Outputs:
+ *   - Returns the log pseudo-likelihood ratio for the current and proposed main effect differences
+ *     for the Blume-Capel model.
+ */
 double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     const arma::mat& current_main_effects,
     const arma::mat& proposed_main_effects,
@@ -2458,20 +2487,25 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     const int num_groups,
     const arma::imat& group_indices,
     const arma::imat& num_categories,
-    const int num_persons,
     const arma::mat& residual_matrix,
     const int variable
 ) {
-  double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
-  int num_cats = num_categories(variable, 0); // Number of categories for the variable
-  arma::vec current_parameters(2); // Store current parameters for the group
-  arma::vec proposed_parameters(2); // Store proposed parameters for the group
+  // Initialize the log pseudo-likelihood ratio
+  double pseudolikelihood_ratio = 0.0;
 
-  // Loop over all groups
+  // Determine the number of categories for the variable
+  int num_cats = num_categories(variable, 0);
+
+  // Storage for current and proposed Blume-Capel parameters
+  arma::vec current_parameters(2); // Linear and quadratic parameters
+  arma::vec proposed_parameters(2); // Linear and quadratic parameters
+
+  // Loop through each group to calculate contributions
   for(int gr = 0; gr < num_groups; gr++) {
-    arma::imat sufficient_statistics = sufficient_blume_capel[gr]; // Group-specific data
+    // Retrieve sufficient statistics for the current group
+    arma::imat sufficient_statistics = sufficient_blume_capel[gr];
 
-    // Compute current and proposed values for the linear Blume-Capel parameter
+    // Compute linear parameters (current and proposed)
     double current_linear = current_main_effects(0, 0);
     double proposed_linear = proposed_main_effects(0, 0);
     for (int h = 1; h < num_groups; ++h) {
@@ -2480,11 +2514,12 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     }
     current_parameters[0] = current_linear;
     proposed_parameters[0] = proposed_linear;
-    // Add the contribution from delta_state based on observations
+
+    // Add contributions from the linear parameters
     double delta_state = proposed_linear - current_linear;
     pseudolikelihood_ratio += delta_state * sufficient_statistics(0, variable);
 
-    // Compute current and proposed values for the quadratic Blume-Capel parameter
+    // Compute quadratic parameters (current and proposed)
     double current_quadratic = current_main_effects(0, 0);
     double proposed_quadratic = proposed_main_effects(0, 0);
     for (int h = 1; h < num_groups; ++h) {
@@ -2493,45 +2528,41 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     }
     current_parameters[1] = current_quadratic;
     proposed_parameters[1] = proposed_quadratic;
-    // Add the contribution from delta_state based on observations
+
+    // Add contributions from the quadratic parameters
     delta_state = proposed_quadratic - current_quadratic;
     pseudolikelihood_ratio += delta_state * sufficient_statistics(1, variable);
 
-    // Precomputed constants for numerator and denominator for each category
+    // Precompute category-specific constants for denominators
     arma::vec current_denominator_constant (num_cats + 1);
     arma::vec proposed_denominator_constant (num_cats + 1);
 
-    // Pre-compute terms for all categories in the current group
     for(int cat = 0; cat <= num_cats; cat++) {
-      // Compute linear and quadratic scores for the current cat
       int linear_score = cat;
       int quadratic_score = (cat - baseline_category[variable]) *
                             (cat - baseline_category[variable]);
 
-      // Initialize numerator and denominator contributions with main effects
       current_denominator_constant[cat] = current_parameters[0] * linear_score;
       current_denominator_constant[cat] += current_parameters[1] * quadratic_score;
       proposed_denominator_constant[cat] = proposed_parameters[0] * linear_score ;
       proposed_denominator_constant[cat] += proposed_parameters[1] * quadratic_score;
     }
 
-    // Compute numerical bounds for stability
-    double tmp_den1 = max(current_denominator_constant);
-    double tmp_max = max(proposed_denominator_constant);
-    if(tmp_den1 > tmp_max) {
-      tmp_max = tmp_den1;
-    }
-    double lbound = 0.0;
-    if(tmp_max > 0.0) {
-      lbound = tmp_max;
+    // Determine numerical bounds for stability
+    double tmp_max_current = arma::max(current_denominator_constant);
+    double tmp_max_proposed = arma::max(proposed_denominator_constant);
+    double lbound = std::max(tmp_max_current, tmp_max_proposed);
+    if(lbound < 0.0) {
+      lbound = 0.0;
     }
 
-    // Loop over all persons in the group
+    // Loop over all individuals in the current group
     for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
-      double rest_score = residual_matrix(person, variable); // Compute residual score
+      // Compute the residual score
+      double rest_score = residual_matrix(person, variable);
       double bound = (rest_score > 0) ? lbound + num_cats * rest_score : lbound;
 
-      // Compute the denominators for proposed and current thresholds
+      // Compute the denominators for the current and proposed states
       double denominator_proposed = 0.0;
       double denominator_current = 0.0;
 
@@ -2542,15 +2573,48 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
         denominator_current += std::exp(current_denominator_constant[cat] + exponent);
       }
 
-      // Update the pseudo-likelihood ratio with log-likelihood differences
+      // Update the pseudo-likelihood ratio
       pseudolikelihood_ratio -= std::log(denominator_proposed);
       pseudolikelihood_ratio += std::log(denominator_current);
     }
   }
 
+  // Return the computed log pseudo-likelihood ratio
   return pseudolikelihood_ratio;
 }
 
+
+/**
+ * Function: metropolis_main_difference_blume_capel_between_model
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of main effect differences for the Blume-Capel model between models with and
+ *   without group-specific main effects.
+ *
+ * Inputs:
+ *   - inclusion_indicator: A matrix indicating inclusion of main effect differences for variables.
+ *   - inclusion_probability_difference: A matrix of inclusion probabilities for main effects.
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - baseline_category: A vector specifying the reference category for each variable.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - sufficient_blume_capel: A list of matrices containing sufficient statistics for each group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
+ *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
+ *   - projection: A matrix specifying the projection of group differences.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for the linear
+ *     and quadratic main effect differences.
+ *   - Updates the `inclusion_indicator` matrix to reflect inclusion or exclusion of
+ *     main effect differences.
+ */
 void metropolis_main_difference_blume_capel_between_model(
     arma::imat& inclusion_indicator,
     const arma::mat& inclusion_probability_difference,
@@ -2562,88 +2626,92 @@ void metropolis_main_difference_blume_capel_between_model(
     const arma::ivec& baseline_category,
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
-    const int num_persons,
     const arma::mat& residual_matrix,
     const List& n_cat_obs,
-    const double prior_threshold_alpha,
-    const double prior_threshold_beta,
     const int variable,
     const arma::mat& proposal_sd_main_effects,
-    const double rm_adaptation_rate,
-    const double target_acceptance_rate,
-    const int t,
-    const double rm_lower_bound,
-    const double rm_upper_bound,
-    const arma::uvec& is_ordinal_variable,
     const double main_difference_scale,
     const arma::mat projection
 ) {
-  arma::mat proposed_main_effects(2, num_groups);
+  // Initialize matrices for current and proposed main effects
+  arma::mat proposed_main_effects(2, num_groups); // Linear and quadratic parameters
   arma::mat current_main_effects(2, num_groups);
+
+  // Retrieve current and proposed inclusion indicators
   int current_inclusion_indicator = inclusion_indicator(variable, variable);
   int proposed_inclusion_indicator = 1 - current_inclusion_indicator;
+
+  // Retrieve the main effect index for the variable
   int main_effect_index = main_effect_indices(variable, 0);
+
+  // Initialize log acceptance probability
   double log_prob = 0.0;
 
-  proposed_main_effects(0, 0) = main_effects(main_effect_index, 0);
+  // Initialize main effects for the base category (shared for both models)
+  proposed_main_effects(0, 0) = main_effects(main_effect_index, 0); // Linear
   current_main_effects(0, 0) = main_effects(main_effect_index, 0);
-  proposed_main_effects(1, 0) = main_effects(main_effect_index + 1, 0);
+  proposed_main_effects(1, 0) = main_effects(main_effect_index + 1, 0); // Quadratic
   current_main_effects(1, 0) = main_effects(main_effect_index + 1, 0);
 
+  // Loop through groups to compute proposed and current values
   if(inclusion_indicator(variable, variable) == 1) {
     for(int h = 1; h < num_groups; h++) {
-      // First, the linear parameter
+      // Linear parameter
       double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
       double current_state = main_effects(main_effect_index, h);
       double proposed_state = 0.0;
       current_main_effects(0, h) = current_state;
       proposed_main_effects(0, h) = proposed_state;
-      //Prior and proposal ratio
+
+      // Add prior and proposal contributions to log acceptance probability
       log_prob -= R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob += R::dnorm(proposed_state, current_state, proposal_sd, true);
 
-      // Second, the quadratic parameter
+      // Quadratic parameter
       proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
       current_state = 0.0;
       proposed_state = R::rnorm(current_state, proposal_sd);
       current_main_effects(1, h) = current_state;
       proposed_main_effects(1, h) = proposed_state;
-      //Prior and proposal ratio
+
+      // Add prior and proposal contributions to log acceptance probability
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
     }
   } else {
     for(int h = 1; h < num_groups; h++) {
-      // First, the linear parameter
+      // Linear parameter
       double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
       double current_state = 0.0;
       double proposed_state = R::rnorm(current_state, proposal_sd);
       current_main_effects(0, h) = current_state;
       proposed_main_effects(0, h) = proposed_state;
-      //Prior and proposal ratio
+
+      // Add prior and proposal contributions to log acceptance probability
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
 
-      // Second, the quadratic parameter
+      // Quadratic parameter
       proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
       current_state = 0.0;
       proposed_state = R::rnorm(current_state, proposal_sd);
       current_main_effects(1, h) = current_state;
       proposed_main_effects(1, h) = proposed_state;
-      //Prior and proposal ratio
+
+      // Add prior and proposal contributions to log acceptance probability
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
     }
   }
 
-  // Pseudolikelihood ratio
+  // Add pseudolikelihood ratio contribution to log acceptance probability
   log_prob += log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     current_main_effects, proposed_main_effects, projection,
     baseline_category, sufficient_blume_capel, num_groups, group_indices,
-    num_categories, num_persons, residual_matrix, variable);
+    num_categories, residual_matrix, variable);
 
 
-  // Prior odds
+  // Add prior odds contribution
   if(current_inclusion_indicator == 1) {
     log_prob -= std::log(inclusion_probability_difference(variable, variable));
     log_prob += std::log(1-inclusion_probability_difference(variable, variable));
@@ -2652,6 +2720,7 @@ void metropolis_main_difference_blume_capel_between_model(
     log_prob -= std::log(1-inclusion_probability_difference(variable, variable));
   }
 
+  // Perform Metropolis-Hastings acceptance step
   double U = R::unif_rand();
   if(std::log(U) < log_prob) {
     inclusion_indicator(variable, variable) = proposed_inclusion_indicator;
@@ -2661,6 +2730,7 @@ void metropolis_main_difference_blume_capel_between_model(
     }
   }
 }
+
 
 /**
  * Function: gibbs_step_gm
@@ -2836,7 +2906,13 @@ List gibbs_step_gm(
           target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
 
         if(difference_selection) {
-          //...
+          metropolis_main_difference_blume_capel_between_model(
+            inclusion_indicator, inclusion_probability_difference, main_effects,
+            main_effect_indices, observations, num_groups, group_indices,
+            baseline_category, num_categories, sufficient_blume_capel,
+            residual_matrix, n_cat_obs, variable, proposal_sd_main_effects,
+            main_difference_scale, projection
+          );
         }
 
         metropolis_main_difference_blumecapel(
