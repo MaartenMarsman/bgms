@@ -1781,6 +1781,7 @@ double log_pseudolikelihood_ratio_main_difference_blumecapel(
 void metropolis_main_difference_blumecapel(
     arma::mat& main_effects,
     const arma::imat& main_effect_indices,
+    const double main_difference_scale,
     const arma::mat& projection,
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
@@ -1789,8 +1790,6 @@ void metropolis_main_difference_blumecapel(
     const arma::imat& group_indices,
     const int variable,
     const arma::ivec& baseline_category,
-    const double prior_threshold_alpha,
-    const double prior_threshold_beta,
     arma::mat& residual_matrix,
     const arma::imat& inclusion_indicator,
     arma::mat& proposal_sd_main_effects,
@@ -1828,9 +1827,8 @@ void metropolis_main_difference_blumecapel(
         residual_matrix, num_categories);
 
       // Add prior contributions to the log probability
-      log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
-      log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-      log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
       // Metropolis-Hastings acceptance step
       U = R::unif_rand();
@@ -1861,9 +1859,8 @@ void metropolis_main_difference_blumecapel(
         residual_matrix, num_categories);
 
       // Add prior contributions to the log probability
-      log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
-      log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
-      log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
       // Metropolis-Hastings acceptance step
       U = R::unif_rand();
@@ -2879,11 +2876,11 @@ List gibbs_step_gm(
         }
 
         metropolis_main_difference_blumecapel(
-          main_effects, main_effect_indices, projection, num_categories, sufficient_blume_capel,
-          num_persons, num_groups, group_indices, variable, baseline_category,
-          prior_threshold_alpha, prior_threshold_beta, residual_matrix, inclusion_indicator,
-          proposal_sd_main_effects, rm_adaptation_rate, target_acceptance_rate, t,
-          rm_lower_bound, rm_upper_bound);
+          main_effects, main_effect_indices, main_difference_scale, projection,
+          num_categories, sufficient_blume_capel, num_persons, num_groups,
+          group_indices, variable, baseline_category, residual_matrix,
+          inclusion_indicator, proposal_sd_main_effects, rm_adaptation_rate,
+          target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
       }
     }
   }
