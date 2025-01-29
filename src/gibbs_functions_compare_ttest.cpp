@@ -132,7 +132,7 @@ List compare_ttest_impute_missing_data(NumericMatrix thresholds_gr1,
       } else {
         //Blume-Capel variable -------------------------------------------------
         cumsum = 0.0;
-        for(int category = 0; category < no_categories_gr2[variable] + 1; category++) {
+        for(int category = 0; category <= no_categories_gr2[variable]; category++) {
           exponent = thresholds_gr2(variable, 0) * category;
           exponent += thresholds_gr2(variable, 1) *
             (category - reference_category[variable]) *

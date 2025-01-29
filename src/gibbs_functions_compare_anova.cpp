@@ -10,14 +10,6 @@
 
 using namespace Rcpp;
 
-
-// ----------------------------------------------------------------------------|
-// List of to do's
-// 1. Add between model moves for main effects.
-// 2. Add g prior.
-// 3. Add "enum" to handle threshold scenarios
-// ----------------------------------------------------------------------------|
-
 /**
  * Function: update_with_robbins_monro
  * Purpose: Performs Robbins-Monro updates for proposal standard deviations.
@@ -88,47 +80,20 @@ arma::vec compute_group_thresholds(
     const arma::mat& projection,
     const bool independent_thresholds
 ) {
-  // Determine the length of the threshold vector based on whether the variable is ordinal
-  int vector_length = (is_ordinal_variable[variable]) ? num_categories(variable, group) : 2;
-  arma::vec GroupThresholds(vector_length);  // Output vector for thresholds
-
   // Base index for accessing main effects for this variable
   int base_category_index = main_effect_indices(variable, 0);
+  int last_category_index = main_effect_indices(variable, 1);
 
   if (!independent_thresholds) {
     // Dependent thresholds: model group differences
-    int n_cats = num_categories(variable, group);
-    if (is_ordinal_variable[variable]) {
-      // Regular binary or ordinal variable
-      arma::vec category_effects = main_effects.rows(base_category_index, base_category_index + n_cats - 1).col(0);
-      arma::mat projection_contributions = projection.row(group) * main_effects.rows(base_category_index, base_category_index + n_cats - 1).cols(1, num_groups - 1).t();
-      GroupThresholds = category_effects + projection_contributions.t();
-    } else {
-      // Blume-Capel ordinal variable
-
-      // Extract the rows corresponding to the two threshold parameters
-      arma::mat threshold_effects = main_effects.submat(base_category_index, 0, base_category_index + 1, 0);
-
-      // Add group-specific contributions for both rows at once
-      threshold_effects += projection.row(group) * main_effects.submat(base_category_index, 1, base_category_index + 1, num_groups - 1).t();
-
-      // Assign the computed group-specific thresholds
-      GroupThresholds[0] = threshold_effects(0, 0);
-      GroupThresholds[1] = threshold_effects(1, 0);
-    }
+    arma::vec GroupThresholds = main_effects.rows(base_category_index, last_category_index).col(0);
+    GroupThresholds += main_effects.rows(base_category_index, last_category_index).cols(1, num_groups - 1) * projection.row(group).t();
+    return GroupThresholds;
   } else {
     // Independent thresholds: compute separately for each group
-    if (is_ordinal_variable[variable]) {
-      // Regular binary or ordinal variable
-      GroupThresholds = main_effects.submat(base_category_index, group, base_category_index + vector_length - 1, group);
-    } else {
-      // Blume-Capel ordinal variable
-      GroupThresholds[0] = main_effects(base_category_index, group);
-      GroupThresholds[1] = main_effects(base_category_index + 1, group);
-    }
+    arma::vec GroupThresholds = main_effects.rows(base_category_index, last_category_index).col(group);
+    return GroupThresholds;
   }
-
-  return GroupThresholds;
 }
 
 
@@ -1443,7 +1408,7 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
     for(int category = 0; category <= num_categories(variable, gr); category++) {
       linear_score = category;
       quadratic_score = (category - baseline_category[variable]) *
-        (category - baseline_category[variable]);
+                        (category - baseline_category[variable]);
 
       // Linear and quadratic contributions for current and proposed states
       constant_numerator[category] = linear_current * linear_score;
@@ -2826,16 +2791,14 @@ List gibbs_step_gm(
     const int num_variables,
     const arma::imat& index
 ) {
-
-  arma::mat proposal_sd_blumecapel_group(num_variables, 2);
-
   // Step 1: Update pairwise interaction parameters
   metropolis_interaction(
     main_effects, pairwise_effects, main_effect_indices,
     pairwise_effect_indices, projection, observations, num_groups, group_indices,
     num_categories, independent_thresholds, num_persons, residual_matrix,
     is_ordinal_variable, baseline_category, proposal_sd_pairwise_effects,
-    interaction_scale, num_variables, rm_adaptation_rate, target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
+    interaction_scale, num_variables, rm_adaptation_rate, target_acceptance_rate,
+    t, rm_lower_bound, rm_upper_bound);
 
 
   //  Step 2: Update the selection of pairwise differences
@@ -2854,8 +2817,8 @@ List gibbs_step_gm(
     main_effects, pairwise_effects, main_effect_indices, pairwise_effect_indices, projection,
     observations, num_groups, group_indices, num_categories, independent_thresholds,
     inclusion_indicator, num_persons, residual_matrix, is_ordinal_variable, baseline_category,
-    proposal_sd_pairwise_effects, pairwise_difference_scale, num_variables, rm_adaptation_rate, target_acceptance_rate, t, rm_lower_bound,
-    rm_upper_bound);
+    proposal_sd_pairwise_effects, pairwise_difference_scale, num_variables, rm_adaptation_rate,
+    target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
 
   // Step 4: Update thresholds
   for (int variable = 0; variable < num_variables; variable++) {
