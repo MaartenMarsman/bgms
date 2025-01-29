@@ -2565,8 +2565,18 @@ List compare_ttest_gibbs_sampler(IntegerMatrix observations_gr1,
   int no_persons_gr1 = observations_gr1.nrow();
   int no_persons_gr2 = observations_gr2.nrow();
   int no_interactions = Index.nrow();
-  int no_thresholds_gr1 = sum(no_categories_gr1);
-  int no_thresholds_gr2 = sum(no_categories_gr2);
+  int no_thresholds_gr1 = 0;
+  int no_thresholds_gr2 = 0;
+  for(int v = 0; v < no_variables; v++) {
+    if(ordinal_variable[v]) {
+      no_thresholds_gr1 += no_categories_gr1[v];
+      no_thresholds_gr2 += no_categories_gr2[v];
+    } else {
+      no_thresholds_gr1 += 2;
+      no_thresholds_gr2 += 2;
+    }
+  }
+
   int max_no_categories_gr1 = max(no_categories_gr1);
   int max_no_categories_gr2 = max(no_categories_gr2);
 
@@ -3005,6 +3015,7 @@ List compare_ttest_gibbs_sampler(IntegerMatrix observations_gr1,
             }
           } else {
             out_thresholds(iteration, cntr_gr1) = thresholds_gr1(variable, 0);
+            cntr_gr1++;
             out_thresholds(iteration, cntr_gr1) = thresholds_gr1(variable, 1);
             cntr_gr1++;
           }
@@ -3017,6 +3028,7 @@ List compare_ttest_gibbs_sampler(IntegerMatrix observations_gr1,
             }
           } else {
             out_thresholds_gr2(iteration, cntr_gr2) = thresholds_gr2(variable, 0);
+            cntr_gr2++;
             out_thresholds_gr2(iteration, cntr_gr2) = thresholds_gr2(variable, 1);
             cntr_gr2++;
           }

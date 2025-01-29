@@ -298,7 +298,8 @@ bgmCompare = function(x,
       main_beta_bernoulli_beta = main_beta_bernoulli_beta,
       main_difference_scale = main_difference_scale,
       pairwise_difference_scale = pairwise_difference_scale,
-      projection
+      projection,
+      is_ordinal_variable = ordinal_variable
     )
 
   } else {
@@ -400,7 +401,8 @@ bgmCompare = function(x,
       main_beta_bernoulli_beta = main_beta_bernoulli_beta,
       main_difference_scale = main_difference_scale,
       pairwise_difference_scale = pairwise_difference_scale,
-      projection
+      projection,
+      is_ordinal_variable = ordinal_variable
     )
   }
 

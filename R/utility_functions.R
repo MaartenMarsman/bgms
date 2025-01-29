@@ -1278,7 +1278,7 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
                                      main_beta_bernoulli_beta,
                                      main_difference_scale,
                                      pairwise_difference_scale,
-                                     projection) {
+                                     projection, is_ordinal_variable) {
 
   save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
 
@@ -1315,10 +1315,9 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   # Prepare output elements
   results = list()
 
-
   # Handle output from the new rcpp function (anova)
   num_groups = length(unique(group))
-  num_main = sum(apply(num_categories, 2, max))
+  num_main = nrow(out$posterior_mean_main)
 
   # Main effects
   tmp = out$posterior_mean_main
@@ -1339,10 +1338,18 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   names_variable_categories = vector(length = nrow(tmp))
   counter = 0
   for (v in 1:num_variables) {
-    for (c in 1:max(num_categories[v, ])) {
+    if(is_ordinal_variable[v]) {
+      for (c in 1:max(num_categories[v, ])) {
+        counter = counter + 1
+        names_variable_categories[counter] = paste0(data_columnnames[v], "(", c, ")")
+      }
+    } else {
       counter = counter + 1
-      names_variable_categories[counter] = paste0(data_columnnames[v], "(", c, ")")
+      names_variable_categories[counter] = paste0(data_columnnames[v], "(linear)")
+      counter = counter + 1
+      names_variable_categories[counter] = paste0(data_columnnames[v], "(quadratic)")
     }
+
   }
   if(independent_thresholds) {
     dimnames(results$posterior_mean_main) = list(names_variable_categories, paste0("group_", 1:num_groups))
@@ -1376,8 +1383,13 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
     if(independent_thresholds) {
       for (gr in 1:num_groups) {
         for (var in 1:num_variables) {
-          for (cat in 1:max(num_categories[var, ])) {
-            col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(", cat, ")"))
+          if(is_ordinal_variable[var]) {
+            for (cat in 1:max(num_categories[var, ])) {
+              col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(", cat, ")"))
+            }
+          } else {
+            col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(linear)"))
+            col_names = c(col_names, paste0(data_columnnames[var],"_gr", gr, "(quadratic)"))
           }
         }
       }
@@ -1387,14 +1399,24 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
       for (gr in 1:num_groups) {
         if(gr == 1) {
           for (var in 1:num_variables) {
-            for (cat in 1:max(num_categories[var, ])) {
-              col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(", cat, ")"))
+            if(is_ordinal_variable[var]) {
+              for (cat in 1:max(num_categories[var, ])) {
+                col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(", cat, ")"))
+              }
+            } else {
+              col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(linear)"))
+              col_names = c(col_names, paste0(data_columnnames[var],"_overall", gr, "(quadratic)"))
             }
           }
         } else {
           for (var in 1:num_variables) {
-            for (cat in 1:max(num_categories[var, ])) {
-              col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(", cat, ")"))
+            if(is_ordinal_variable[var]) {
+              for (cat in 1:max(num_categories[var, ])) {
+                col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(", cat, ")"))
+              }
+            } else {
+              col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(linear)"))
+              col_names = c(col_names, paste0(data_columnnames[var],"_contrast_#", gr-1, "(quadratic)"))
             }
           }
         }
@@ -1469,7 +1491,8 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
                                          main_beta_bernoulli_beta,
                                          main_difference_scale,
                                          pairwise_difference_scale,
-                                         projection) {
+                                         projection,
+                                         is_ordinal_variable) {
 
   save = any(c(save_options$save_main, save_options$save_pairwise, save_options$save_indicator))
   arguments = list(
@@ -1538,17 +1561,30 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
         tmpt1 = out$thresholds_gr1
         tmpt2 = out$thresholds_gr2
 
-        th1 = vector(length=sum(apply(no_categories, 2, max)))
-        th2 = vector(length=sum(apply(no_categories, 2, max)))
+        n_cats = apply(no_categories, 1, max)
+        n_cats[!is_ordinal_variable] = 2
+        th1 = vector(length=sum(n_cats))
+        th2 = vector(length=sum(n_cats))
         tel2 = tel1 = 0
         for(v in 1:no_variables) {
-          for(c in 1:no_categories[v, 1]) {
-            tel1 = tel1 + 1
-            th1 [tel1] = tmpt1[v, c]
-          }
-          for(c in 1:no_categories[v, 2]) {
-            tel2 = tel2 + 1
-            th2 [tel2] = tmpt2[v, c]
+          if(is_ordinal_variable[v]) {
+            for(c in 1:no_categories[v, 1]) {
+              tel1 = tel1 + 1
+              th1 [tel1] = tmpt1[v, c]
+            }
+            for(c in 1:no_categories[v, 2]) {
+              tel2 = tel2 + 1
+              th2 [tel2] = tmpt2[v, c]
+            }
+          } else {
+            for(c in 1:2) {
+              tel1 = tel1 + 1
+              th1 [tel1] = tmpt1[v, c]
+            }
+            for(c in 1:2) {
+              tel2 = tel2 + 1
+              th2 [tel2] = tmpt2[v, c]
+            }
           }
           tel2 = tel1 = max(c(tel1, tel2))
         }
@@ -1560,9 +1596,16 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
       counter = 0
       main_names = vector(length = length(th1))
       for(v in 1:no_variables) {
-        for(c in 1:max(no_categories[v, ])) {
+        if(is_ordinal_variable[v]) {
+          for(c in 1:max(no_categories[v, ])) {
+            counter = counter + 1
+            main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+          }
+        } else {
           counter = counter + 1
-          main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+          main_names[counter] = paste0(data_columnnames[v], "(linear)")
+          counter = counter + 1
+          main_names[counter] = paste0(data_columnnames[v], "(quadratic)")
         }
       }
 
@@ -1579,14 +1622,24 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
         tmpt = out$thresholds
         tmpm = out$main_difference
 
-        th = vector(length=sum(apply(no_categories,2,max)))
-        md = vector(length=sum(apply(no_categories,2,max)))
+        n_cats = apply(no_categories, 1, max)
+        n_cats[!is_ordinal_variable] = 2
+        th = vector(length=sum(n_cats))
+        md = vector(length=sum(n_cats))
         counter = 0
         for(v in 1:no_variables) {
-          for(c in 1:max(no_categories[v, ])) {
-            counter = counter + 1
-            th [counter] = tmpt[v, c]
-            md [counter] = tmpm[v, c]
+          if(is_ordinal_variable[v]) {
+            for(c in 1:max(no_categories[v, ])) {
+              counter = counter + 1
+              th [counter] = tmpt[v, c]
+              md [counter] = tmpm[v, c]
+            }
+          } else {
+            for(c in 1:2) {
+              counter = counter + 1
+              th [counter] = tmpt[v, c]
+              md [counter] = tmpm[v, c]
+            }
           }
         }
       } else {
@@ -1597,9 +1650,16 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
       counter = 0
       main_names = vector(length = length(th))
       for(v in 1:no_variables) {
-        for(c in 1:max(no_categories[v, ])) {
+        if(is_ordinal_variable[v]) {
+          for(c in 1:max(no_categories[v, ])) {
+            counter = counter + 1
+            main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+          }
+        } else {
           counter = counter + 1
-          main_names[counter] = paste0(data_columnnames[v], "(", c, ")")
+          main_names[counter] = paste0(data_columnnames[v], "(linear)")
+          counter = counter + 1
+          main_names[counter] = paste0(data_columnnames[v], "(quadratic)")
         }
       }
 
@@ -1646,8 +1706,19 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
       if (save) {
         if (independent_thresholds) {
           # Handle thresholds for independent thresholds case
+          num_parameters_gr1 = num_parameters_gr2 = 0
+          for(v in 1:no_variables) {
+            if(is_ordinal_variable[v]) {
+              num_parameters_gr1 = num_parameters_gr1 + no_categories[v, 1];
+              num_parameters_gr2 = num_parameters_gr2 + no_categories[v, 2];
+            } else {
+              num_parameters_gr1 = num_parameters_gr1 + 2;
+              num_parameters_gr2 = num_parameters_gr2 + 2;
+            }
+          }
+
           main_effect_samples = matrix(NA, nrow = nrow(out$thresholds_gr1),
-                                    ncol = sum(no_categories[, 1] + no_categories[, 2]))
+                                    ncol = num_parameters_gr1 + num_parameters_gr2)
 
           threshold1_counter = 0  # Separate counter for thresholds
           threshold2_counter = 0  # Separate counter for thresholds
@@ -1655,30 +1726,52 @@ prepare_output_bgmCompare_old = function(out, x, t.test, independent_thresholds,
           col_names = character()  # Vector to store column names
 
           for (var in 1:no_variables) {
-            for (cat in 1:max(no_categories[var, ])) {
+            if(is_ordinal_variable[var]) {
+              for (cat in 1:max(no_categories[var, ])) {
+                # Handle thresholds group 1
+                if(cat <= no_categories[var, 1]) {
+                  col_counter = col_counter + 1
+                  threshold1_counter = threshold1_counter + 1
+                  main_effect_samples[, col_counter] = out$thresholds_gr1[, threshold1_counter]
+                  col_names = c(col_names, paste0(data_columnnames[var],"_gr1(", cat, ")"))
+                }
+                # Handle thresholds group 2
+                if(cat <= no_categories[var, 2]) {
+                  col_counter = col_counter + 1
+                  threshold2_counter = threshold2_counter + 1
+                  main_effect_samples[, col_counter] = out$thresholds_gr2[, threshold2_counter]
+                  col_names = c(col_names, paste0(data_columnnames[var],"_gr2(", cat, ")"))
+                }
+              }
+            } else {
               # Handle thresholds group 1
-              if(cat <= no_categories[var, 1]) {
-                col_counter = col_counter + 1
-                threshold1_counter = threshold1_counter + 1
-                main_effect_samples[, col_counter] = out$thresholds_gr1[, threshold1_counter]
-                col_names = c(col_names, paste0(data_columnnames[var],"_gr1(", cat, ")"))
-              }
+              col_counter = col_counter + 1
+              threshold1_counter = threshold1_counter + 1
+              main_effect_samples[, col_counter] = out$thresholds_gr1[, threshold1_counter]
+              col_names = c(col_names, paste0(data_columnnames[var],"_gr1(linear)"))
+
               # Handle thresholds group 2
-              if(cat <= no_categories[var, 2]) {
-                col_counter = col_counter + 1
-                threshold2_counter = threshold2_counter + 1
-                main_effect_samples[, col_counter] = out$thresholds_gr2[, threshold2_counter]
-                col_names = c(col_names, paste0(data_columnnames[var],"_gr2(", cat, ")"))
-              }
+              col_counter = col_counter + 1
+              threshold2_counter = threshold2_counter + 1
+              main_effect_samples[, col_counter] = out$thresholds_gr2[, threshold2_counter]
+              col_names = c(col_names, paste0(data_columnnames[var],"_gr2(linear)"))
+
+              # Handle thresholds group 1
+              col_counter = col_counter + 1
+              threshold1_counter = threshold1_counter + 1
+              main_effect_samples[, col_counter] = out$thresholds_gr1[, threshold1_counter]
+              col_names = c(col_names, paste0(data_columnnames[var],"_gr1(quadratic)"))
+
+              # Handle thresholds group 2
+              col_counter = col_counter + 1
+              threshold2_counter = threshold2_counter + 1
+              main_effect_samples[, col_counter] = out$thresholds_gr2[, threshold2_counter]
+              col_names = c(col_names, paste0(data_columnnames[var],"_gr2(quadratic)"))
             }
           }
 
           colnames(main_effect_samples) = col_names
           rownames(main_effect_samples) = paste0("Iter:", seq_len(nrow(main_effect_samples)))
-
-
-
-
         } else {
           # Handle thresholds and main differences for non-independent thresholds
           total_categories = sum(apply(no_categories, 1, max))
