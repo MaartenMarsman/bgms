@@ -1729,21 +1729,19 @@ double compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
   double log_prob, rest_score, numerator, denominator, exponent;
   int linear_score, quadratic_score;
 
-
   //----------------------------------------------------------------------------
   //Compute the log acceptance probability -------------------------------------
   //----------------------------------------------------------------------------
 
-  int linear_sufficient = .5 * (sufficient_blume_capel_gr2(0, variable) -
+  double linear_sufficient = .5 * (sufficient_blume_capel_gr2(0, variable) -
                                 sufficient_blume_capel_gr1(0, variable));
-  int quadratic_sufficient = .5 * (sufficient_blume_capel_gr2(1, variable) -
+  double quadratic_sufficient = .5 * (sufficient_blume_capel_gr2(1, variable) -
                                    sufficient_blume_capel_gr1(1, variable));
 
   log_prob = linear_proposed * linear_sufficient;
   log_prob -= linear_current * linear_sufficient;
   log_prob += quadratic_proposed * quadratic_sufficient;
   log_prob -= quadratic_current * quadratic_sufficient;
-
 
   //Precompute common terms for group 1 for computational efficiency -----------
   for(int category = 0; category < no_categories[variable] + 1; category ++) {
@@ -1858,6 +1856,7 @@ double compare_ttest_log_pseudolikelihood_ratio_main_difference_blumecapel(doubl
 // ----------------------------------------------------------------------------|
 void compare_ttest_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
                                                          NumericMatrix main_difference,
+                                                         IntegerMatrix indicator,
                                                          IntegerVector no_categories,
                                                          IntegerMatrix sufficient_blume_capel_gr1,
                                                          IntegerMatrix sufficient_blume_capel_gr2,
@@ -1878,6 +1877,11 @@ void compare_ttest_metropolis_main_difference_blumecapel(NumericMatrix threshold
   double current_state, proposed_state;
   NumericVector constant_numerator (no_categories[variable] + 1);
   NumericVector constant_denominator (no_categories[variable] + 1);
+
+  // Check if the variable is active for sampling
+  if (indicator(variable, variable) == 0) {
+    return; // Skip if variable is inactive
+  }
 
   //---------------------------------------------------------------------------|
   // Adaptive Metropolis for the difference in the linear Blume-Capel parameter
@@ -2023,8 +2027,6 @@ void compare_ttest_metropolis_main_difference_blumecapel_between_model(NumericMa
   double U;
   NumericVector proposed_states(2);
   NumericVector current_states(2);
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
 
   //--------------------------------------------------------------------------
   // Adaptive Metropolis for the difference in Blume-Capel parameters
@@ -2033,10 +2035,8 @@ void compare_ttest_metropolis_main_difference_blumecapel_between_model(NumericMa
   current_states[1] = main_difference(variable, 1);
 
   if(indicator(variable, variable) == 0) {
-    proposed_states[0] = R::rnorm(current_states[0],
-                                  proposal_sd_main_difference(variable, 0));
-    proposed_states[1] = R::rnorm(current_states[1],
-                                  proposal_sd_main_difference(variable, 1));
+    proposed_states[0] = R::rnorm(current_states[0], proposal_sd_main_difference(variable, 0));
+    proposed_states[1] = R::rnorm(current_states[1], proposal_sd_main_difference(variable, 1));
   } else {
     proposed_states[0] = 0.0;
     proposed_states[1] = 0.0;
@@ -2096,8 +2096,8 @@ void compare_ttest_metropolis_main_difference_blumecapel_between_model(NumericMa
     log_prob += std::log(inclusion_probability_difference(variable, variable));
     log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
   } else {
-    log_prob -= log(inclusion_probability_difference(variable, variable));
-    log_prob += log(1 - inclusion_probability_difference(variable, variable));
+    log_prob -= std::log(inclusion_probability_difference(variable, variable));
+    log_prob += std::log(1 - inclusion_probability_difference(variable, variable));
   }
 
   //Metropolis step ------------------------------------------------------------
@@ -2359,6 +2359,7 @@ List compare_ttest_gibbs_step_gm(NumericMatrix thresholds_gr1,
         //Within model move for the differences in category thresholds
         compare_ttest_metropolis_main_difference_blumecapel(thresholds,
                                                             main_difference,
+                                                            indicator,
                                                             no_categories_gr1,
                                                             sufficient_blume_capel_gr1,
                                                             sufficient_blume_capel_gr2,

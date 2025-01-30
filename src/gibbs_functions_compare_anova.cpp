@@ -1408,7 +1408,7 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
     for(int category = 0; category <= num_categories(variable, gr); category++) {
       linear_score = category;
       quadratic_score = (category - baseline_category[variable]) *
-                        (category - baseline_category[variable]);
+        (category - baseline_category[variable]);
 
       // Linear and quadratic contributions for current and proposed states
       constant_numerator[category] = linear_current * linear_score;
@@ -1804,75 +1804,79 @@ void metropolis_main_difference_blumecapel(
   double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate); // Precomputed Robbins-Monro term
 
   // Check if the variable is active for sampling
-  if(inclusion_indicator(variable, variable) == 1) {
+  if (inclusion_indicator(variable, variable) == 0) {
+    return; // Skip if variable is inactive
+  }
 
-    // Loop over the group-specific difference effects
-    for(int h = 1; h < num_groups; h++) {
+  // Loop over the group-specific difference effects
+  for(int h = 1; h < num_groups; h++) {
 
-      // Adaptive Metropolis procedure for the linear Blume-Capel parameter
-      int cat_index = main_effect_indices(variable, 0); // Base index for the variable's categories
-      current_state = main_effects(cat_index, h); // Current value for linear parameter
-      proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, h)); // Propose new value
+    // Adaptive Metropolis procedure for the linear Blume-Capel parameter
+    int cat_index = main_effect_indices(variable, 0); // Base index for the variable's categories
+    current_state = main_effects(cat_index, h); // Current value for linear parameter
+    proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, h)); // Propose new value
 
-      // Compute log pseudo-likelihood ratio for the proposed and current states
-      double linear_current = current_state;
-      double quadratic_current = main_effects(cat_index + 1, h);
-      double linear_proposed = proposed_state;
-      double quadratic_proposed = main_effects(cat_index + 1, h);
+    // Compute log pseudo-likelihood ratio for the proposed and current states
+    double linear_current = current_state;
+    double quadratic_current = main_effects(cat_index + 1, h);
+    double linear_proposed = proposed_state;
+    double quadratic_proposed = main_effects(cat_index + 1, h);
 
-      log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
-        linear_current, quadratic_current, linear_proposed, quadratic_proposed,
-        variable, h - 1, baseline_category, main_effects, main_effect_indices,
-        projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
-        residual_matrix, num_categories);
+    log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
+      linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+      variable, h - 1, baseline_category, main_effects, main_effect_indices,
+      projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
+      residual_matrix, num_categories);
 
-      // Add prior contributions to the log probability
-      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-      log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+    // Add prior contributions to the log probability
+    log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+    log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
 
-      // Metropolis-Hastings acceptance step
-      U = R::unif_rand();
-      if(std::log(U) < log_acceptance_probability) {
-        main_effects(cat_index, h) = proposed_state; // Accept proposed value
-      }
-
-      // Robbins-Monro update for the proposal standard deviation
-      proposal_sd_main_effects(cat_index, h) = update_with_robbins_monro(
-        proposal_sd_main_effects(cat_index, h), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
-        rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
-
-
-      // Adaptive Metropolis procedure for the quadratic Blume-Capel parameter
-      current_state = main_effects(cat_index + 1, h); // Current value for quadratic parameter
-      proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index + 1, h)); // Propose new value
-
-      // Compute log pseudo-likelihood ratio for the proposed and current states
-      linear_current = main_effects(cat_index, h);
-      quadratic_current = current_state;
-      linear_proposed =  main_effects(cat_index, h);
-      quadratic_proposed =  proposed_state;
-
-      log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
-        linear_current, quadratic_current, linear_proposed, quadratic_proposed,
-        variable, h - 1, baseline_category, main_effects, main_effect_indices,
-        projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
-        residual_matrix, num_categories);
-
-      // Add prior contributions to the log probability
-      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-      log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
-
-      // Metropolis-Hastings acceptance step
-      U = R::unif_rand();
-      if(std::log(U) < log_acceptance_probability) {
-        main_effects(cat_index + 1, h) = proposed_state;
-      }
-
-      // Robbins-Monro update for the proposal standard deviation
-      proposal_sd_main_effects(cat_index + 1, h) = update_with_robbins_monro(
-        proposal_sd_main_effects(cat_index + 1, h), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
-        rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
+    // Metropolis-Hastings acceptance step
+    U = R::unif_rand();
+    if(std::log(U) < log_acceptance_probability) {
+      main_effects(cat_index, h) = proposed_state; // Accept proposed value
     }
+
+    // Robbins-Monro update for the proposal standard deviation
+    proposal_sd_main_effects(cat_index, h) = update_with_robbins_monro(
+      proposal_sd_main_effects(cat_index, h), log_acceptance_probability,
+      target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+      exp_neg_log_t_rm_adaptation_rate);
+
+    // Adaptive Metropolis procedure for the quadratic Blume-Capel parameter
+    current_state = main_effects(cat_index + 1, h); // Current value for quadratic parameter
+    proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index + 1, h)); // Propose new value
+
+    // Compute log pseudo-likelihood ratio for the proposed and current states
+    linear_current = main_effects(cat_index, h);
+    quadratic_current = current_state;
+    linear_proposed =  main_effects(cat_index, h);
+    quadratic_proposed =  proposed_state;
+
+    log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
+      linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+      variable, h - 1, baseline_category, main_effects, main_effect_indices,
+      projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
+      residual_matrix, num_categories);
+
+    // Add prior contributions to the log probability
+    log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+    log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+    // Metropolis-Hastings acceptance step
+    U = R::unif_rand();
+    if(std::log(U) < log_acceptance_probability) {
+      main_effects(cat_index + 1, h) = proposed_state;
+    }
+
+    // Robbins-Monro update for the proposal standard deviation
+
+    proposal_sd_main_effects(cat_index + 1, h) = update_with_robbins_monro(
+      proposal_sd_main_effects(cat_index + 1, h), log_acceptance_probability,
+      target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+      exp_neg_log_t_rm_adaptation_rate);
+
   }
 }
 
@@ -2468,32 +2472,17 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
     arma::imat sufficient_statistics = sufficient_blume_capel[gr];
 
     // Compute linear parameters (current and proposed)
-    double current_linear = current_main_effects(0, 0);
-    double proposed_linear = proposed_main_effects(0, 0);
-    for (int h = 1; h < num_groups; ++h) {
-      current_linear += projection(gr, h - 1) * current_main_effects(0, h);
-      proposed_linear += projection(gr, h - 1) * proposed_main_effects(0, h);
-    }
-    current_parameters[0] = current_linear;
-    proposed_parameters[0] = proposed_linear;
+    current_parameters = current_main_effects.col(0);
+    proposed_parameters = proposed_main_effects.col(0);
 
-    // Add contributions from the linear parameters
-    double delta_state = proposed_linear - current_linear;
-    pseudolikelihood_ratio += delta_state * sufficient_statistics(0, variable);
+    current_parameters += current_main_effects.cols(1, num_groups - 1) * projection.row(gr).t();
+    proposed_parameters += proposed_main_effects.cols(1, num_groups - 1) * projection.row(gr).t();
 
-    // Compute quadratic parameters (current and proposed)
-    double current_quadratic = current_main_effects(0, 0);
-    double proposed_quadratic = proposed_main_effects(0, 0);
-    for (int h = 1; h < num_groups; ++h) {
-      current_quadratic += projection(gr, h - 1) * current_main_effects(1, h);
-      proposed_quadratic += projection(gr, h - 1) * proposed_main_effects(1, h);
-    }
-    current_parameters[1] = current_quadratic;
-    proposed_parameters[1] = proposed_quadratic;
-
-    // Add contributions from the quadratic parameters
-    delta_state = proposed_quadratic - current_quadratic;
-    pseudolikelihood_ratio += delta_state * sufficient_statistics(1, variable);
+    // Add contributions from the data
+    pseudolikelihood_ratio += sufficient_statistics(0, variable) *
+      (proposed_parameters[0] - current_parameters[0]);
+    pseudolikelihood_ratio += sufficient_statistics(1, variable) *
+      (proposed_parameters[1] - current_parameters[1]);
 
     // Precompute category-specific constants for denominators
     arma::vec current_denominator_constant (num_cats + 1);
@@ -2506,6 +2495,7 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
 
       current_denominator_constant[cat] = current_parameters[0] * linear_score;
       current_denominator_constant[cat] += current_parameters[1] * quadratic_score;
+
       proposed_denominator_constant[cat] = proposed_parameters[0] * linear_score ;
       proposed_denominator_constant[cat] += proposed_parameters[1] * quadratic_score;
     }
@@ -2529,7 +2519,7 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
       double denominator_current = 0.0;
 
       // Compute category-specific contributions
-      for(int cat = 0; cat <= num_categories[variable]; cat++) {
+      for(int cat = 0; cat <= num_cats; cat++) {
         double exponent = cat * rest_score - bound;
         denominator_proposed += std::exp(proposed_denominator_constant[cat] + exponent);
         denominator_current += std::exp(current_denominator_constant[cat] + exponent);
@@ -2603,64 +2593,55 @@ void metropolis_main_difference_blume_capel_between_model(
   int current_inclusion_indicator = inclusion_indicator(variable, variable);
   int proposed_inclusion_indicator = 1 - current_inclusion_indicator;
 
-  // Retrieve the main effect index for the variable
-  int main_effect_index = main_effect_indices(variable, 0);
+  // Retrieve the row indices (start, stop) for the two blume-capel parameters
+  int start_index = main_effect_indices(variable, 0);
+  int stop_index = start_index + 1;
 
   // Initialize log acceptance probability
   double log_prob = 0.0;
 
   // Initialize main effects for the base category (shared for both models)
-  proposed_main_effects(0, 0) = main_effects(main_effect_index, 0); // Linear
-  current_main_effects(0, 0) = main_effects(main_effect_index, 0);
-  proposed_main_effects(1, 0) = main_effects(main_effect_index + 1, 0); // Quadratic
-  current_main_effects(1, 0) = main_effects(main_effect_index + 1, 0);
+  proposed_main_effects.col(0) = main_effects.rows(start_index, stop_index).col(0);
+  current_main_effects.col(0) = main_effects.rows(start_index, stop_index).col(0);
 
   // Loop through groups to compute proposed and current values
-  if(inclusion_indicator(variable, variable) == 1) {
-    for(int h = 1; h < num_groups; h++) {
-      // Linear parameter
-      double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
-      double current_state = main_effects(main_effect_index, h);
-      double proposed_state = 0.0;
-      current_main_effects(0, h) = current_state;
-      proposed_main_effects(0, h) = proposed_state;
-
-      // Add prior and proposal contributions to log acceptance probability
-      log_prob -= R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-      log_prob += R::dnorm(proposed_state, current_state, proposal_sd, true);
-
-      // Quadratic parameter
-      proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
-      current_state = 0.0;
+  for(int h = 1; h < num_groups; h++) {
+    // Linear parameter
+    double proposal_sd = proposal_sd_main_effects(start_index, h);
+    double current_state = main_effects(start_index, h);
+    double proposed_state = 0.0;
+    if(current_inclusion_indicator == 0) {
       proposed_state = R::rnorm(current_state, proposal_sd);
-      current_main_effects(1, h) = current_state;
-      proposed_main_effects(1, h) = proposed_state;
+    }
 
-      // Add prior and proposal contributions to log acceptance probability
+    current_main_effects(0, h) = current_state;
+    proposed_main_effects(0, h) = proposed_state;
+
+    // Add prior and proposal contributions to log acceptance probability
+    if(current_inclusion_indicator == 1) {
+      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+      log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+    } else {
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
     }
-  } else {
-    for(int h = 1; h < num_groups; h++) {
-      // Linear parameter
-      double proposal_sd = proposal_sd_main_effects(main_effect_index, h);
-      double current_state = 0.0;
-      double proposed_state = R::rnorm(current_state, proposal_sd);
-      current_main_effects(0, h) = current_state;
-      proposed_main_effects(0, h) = proposed_state;
 
-      // Add prior and proposal contributions to log acceptance probability
-      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
-
-      // Quadratic parameter
-      proposal_sd = proposal_sd_main_effects(main_effect_index + 1, h);
-      current_state = 0.0;
+    // Quadratic parameter
+    proposal_sd = proposal_sd_main_effects(stop_index, h);
+    current_state = main_effects(stop_index, h);
+    proposed_state = 0.0;
+    if(current_inclusion_indicator == 0) {
       proposed_state = R::rnorm(current_state, proposal_sd);
-      current_main_effects(1, h) = current_state;
-      proposed_main_effects(1, h) = proposed_state;
+    }
 
-      // Add prior and proposal contributions to log acceptance probability
+    current_main_effects(1, h) = current_state;
+    proposed_main_effects(1, h) = proposed_state;
+
+    // Add prior and proposal contributions to log acceptance probability
+    if(current_inclusion_indicator == 1) {
+      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+      log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+    } else {
       log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
       log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
     }
@@ -2668,10 +2649,9 @@ void metropolis_main_difference_blume_capel_between_model(
 
   // Add pseudolikelihood ratio contribution to log acceptance probability
   log_prob += log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
-    current_main_effects, proposed_main_effects, projection,
-    baseline_category, sufficient_blume_capel, num_groups, group_indices,
-    num_categories, residual_matrix, variable);
-
+    current_main_effects, proposed_main_effects, projection, baseline_category,
+    sufficient_blume_capel, num_groups, group_indices, num_categories,
+    residual_matrix, variable);
 
   // Add prior odds contribution
   if(current_inclusion_indicator == 1) {
@@ -2686,10 +2666,7 @@ void metropolis_main_difference_blume_capel_between_model(
   double U = R::unif_rand();
   if(std::log(U) < log_prob) {
     inclusion_indicator(variable, variable) = proposed_inclusion_indicator;
-    for(int h = 1; h < num_groups; h++) {
-      main_effects(main_effect_index, h) = proposed_main_effects(0, h);
-      main_effects(main_effect_index + 1, h) = proposed_main_effects(1, h);
-    }
+    main_effects.rows(start_index, stop_index).cols(1, num_groups - 1) = proposed_main_effects.cols(1, num_groups - 1);
   }
 }
 
@@ -3112,14 +3089,16 @@ List compare_anova_gibbs_sampler(
 
     // Perform parameter updates
     List step_out = gibbs_step_gm (
-      main_effects, main_effect_indices, pairwise_effects, pairwise_effect_indices, projection,
-      num_categories, observations, num_persons, num_groups, group_indices, n_cat_obs,
-      sufficient_blume_capel, residual_matrix, independent_thresholds, is_ordinal_variable,
+      main_effects, main_effect_indices, pairwise_effects,
+      pairwise_effect_indices, projection, num_categories, observations,
+      num_persons, num_groups, group_indices, n_cat_obs, sufficient_blume_capel,
+      residual_matrix, independent_thresholds, is_ordinal_variable,
       baseline_category, inclusion_indicator, inclusion_probability_difference,
       proposal_sd_main_effects, proposal_sd_pairwise_effects, interaction_scale,
       main_difference_scale, pairwise_difference_scale, prior_threshold_alpha,
-      prior_threshold_beta, rm_adaptation_rate, target_acceptance_rate, iteration, rm_lower_bound, rm_upper_bound,
-      difference_selection, num_pairwise, num_variables, index);
+      prior_threshold_beta, rm_adaptation_rate, target_acceptance_rate,
+      iteration, rm_lower_bound, rm_upper_bound, difference_selection,
+      num_pairwise, num_variables, index);
 
     arma::imat indicator_tmp = step_out["inclusion_indicator"];
     arma::mat main_effects_tmp = step_out["main_effects"];
@@ -3150,6 +3129,19 @@ List compare_anova_gibbs_sampler(
         double prob = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
                                pairwise_beta_bernoulli_beta + num_pairwise - sumG);
         std::fill(inclusion_probability_difference.begin(), inclusion_probability_difference.end(), prob);
+      }
+
+      if(!independent_thresholds && main_difference_prior == "Beta-Bernoulli") {
+        int sumG = 0;
+        for(int i = 0; i < num_variables; i++) {
+          sumG += inclusion_indicator(i, i);
+        }
+        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
+                                      main_beta_bernoulli_beta + num_variables - sumG);
+
+        for(int i = 0; i < num_variables; i++) {
+          inclusion_probability_difference(i, i) = probability;
+        }
       }
     }
 

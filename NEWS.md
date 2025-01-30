@@ -1,3 +1,9 @@
+# bgms 0.1.4.3
+
+bgmCompare now allows for network comparison for two or more groups
+fixed a bug with selecting group differences of blume-capel parameters
+fixed a bug with handling the samples of blume-capel parameters
+
 # bgms 0.1.4.2
 
 Fixed a bug with adjusting the variance of the proposal distributions.
