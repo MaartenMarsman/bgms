@@ -448,28 +448,6 @@ data_check = function(data, name) {
   return(data)
 }
 
-check_positive_integer = function(value, name) {
-  if (!is.numeric(value) || abs(value - round(value)) > .Machine$double.eps || value <= 0) {
-    stop(sprintf("Parameter `%s` must be a positive integer. Got: %s", name, value))
-  }
-}
-
-# Helper function for validating non-negative integers
-check_non_negative_integer = function(value, name) {
-  if (!is.numeric(value) || abs(value - round(value)) > .Machine$double.eps || value < 0) {
-    stop(sprintf("Parameter `%s` must be a non-negative integer. Got: %s", name, value))
-  }
-}
-
-# Helper function for validating logical inputs
-check_logical = function(value, name) {
-  value = as.logical(value)
-  if (is.na(value)) {
-    stop(sprintf("Parameter `%s` must be TRUE or FALSE. Got: %s", name, value))
-  }
-  return(value)
-}
-
 # Helper function for computing `num_obs_categories`
 compute_num_obs_categories = function(x, num_categories, group = NULL) {
   num_obs_categories = list()
