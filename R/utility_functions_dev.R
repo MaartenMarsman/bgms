@@ -1,7 +1,3 @@
-#' @importFrom Rcpp evalCpp
-#' @importFrom Rdpack reprompt
-#' @importFrom methods hasArg
-
 check_compare_model_dev = function(x,
                                    y,
                                    g,
