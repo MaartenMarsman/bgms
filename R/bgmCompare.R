@@ -101,52 +101,41 @@ bgmCompare = function(x,
                       save_indicator = FALSE,
                       display_progress = TRUE) {
 
-  # Validate inputs
-  t.test <- hasArg(y)
-
   # Deprecation warning for save parameter
   if(hasArg(save)) {
     warning("`save` is deprecated. Use `save_main`, `save_pairwise`, or `save_indicator` instead.")
-    save_main <- save_main || save
-    save_pairwise <- save_pairwise || save
-    save_indicator <- save_indicator || save
+    save_main = save_main || save
+    save_pairwise = save_pairwise || save
+    save_indicator = save_indicator || save
   }
 
   # Check and preprocess data
-  x <- data_check(x, "x")
+  x = data_check(x, "x")
   if (hasArg(y)) {
-    y <- data_check(y, "y")
+    y = data_check(y, "y")
     if (ncol(x) != ncol(y)) stop("x and y must have the same number of columns.")
   }
 
-  if(!t.test & !hasArg(g))
+  if(!hasArg(y) & !hasArg(g))
     stop(paste0("For multi-group designs, the bgmCompare function requires input for\n",
                 "either y (group 2 data) or g (group indicator)."))
 
   # Validate group indicators
-  if (!t.test && hasArg(g)) {
+  if (!hasArg(y) && hasArg(g)) {
     g = as.vector(g)
     if (anyNA(g)) stop("g cannot contain missing values.")
     if (length(g) != nrow(x)) stop("Length of g must match number of rows in x.")
-
-    unique_g = unique(g)
-    if(length(unique_g) == 2 && t.test == TRUE) {
-      y = x[g == unique_g[2],]
-      x = x[g == unique_g[1],]
-      t.test = TRUE
-    }
   }
 
   # Model and preprocessing
-  if(t.test == FALSE) #True if either hasArg(y) or length(unique(g)) = 2
+  if(!hasArg(y))
     y = NULL
   if(!hasArg(g))
     g = NULL
 
   model = check_compare_model(
-    x = x, y = y, g = g, ttest = t.test,
-    difference_selection = difference_selection,variable_type = variable_type,
-    reference_category = reference_category,
+    x = x, y = y, g = g, difference_selection = difference_selection,
+    variable_type = variable_type, reference_category = reference_category,
     pairwise_difference_scale = pairwise_difference_scale,
     main_difference_scale = main_difference_scale,
     pairwise_difference_prior = pairwise_difference_prior,
@@ -159,34 +148,37 @@ bgmCompare = function(x,
     pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
     interaction_scale = interaction_scale, threshold_alpha = threshold_alpha,
     threshold_beta = threshold_beta,
-    main_difference_model = main_difference_model)
+    main_difference_model = main_difference_model
+    )
 
-  ordinal_variable <- model$variable_bool
-  reference_category <- model$reference_category
-  independent_thresholds <- (model$main_difference_model == "Free")
+  x = model$x
+  group = model$group
+  ordinal_variable = model$variable_bool
+  reference_category = model$reference_category
+  independent_thresholds = (model$main_difference_model == "Free")
 
   # Check Gibbs input
   check_positive_integer(iter, "iter")
   check_non_negative_integer(burnin, "burnin")
 
   # Check na.action
-  na.action_input <- na.action
-  na.action <- try(match.arg(na.action), silent = TRUE)
+  na.action_input = na.action
+  na.action = try(match.arg(na.action), silent = TRUE)
   if (inherits(na.action, "try-error")) {
     stop(sprintf("Invalid value for `na.action`. Expected 'listwise' or 'impute', got: %s", na.action_input))
   }
 
   # Check save options
-  save_main <- check_logical(save_main, "save_main")
-  save_pairwise <- check_logical(save_pairwise, "save_pairwise")
-  save_indicator <- check_logical(save_indicator, "save_indicator")
+  save_main = check_logical(save_main, "save_main")
+  save_pairwise = check_logical(save_pairwise, "save_pairwise")
+  save_indicator = check_logical(save_indicator, "save_indicator")
 
   # Check display_progress
-  display_progress <- check_logical(display_progress, "display_progress")
+  display_progress = check_logical(display_progress, "display_progress")
 
   ## Format data
-  data <- compare_reformat_data(
-    x = x, y = y, g = g, ttest = t.test,
+  data = compare_reformat_data(
+    x = x, group = group,
     na.action = na.action,
     variable_bool = ordinal_variable,
     reference_category = reference_category,
@@ -194,30 +186,29 @@ bgmCompare = function(x,
   )
 
   x = data$x
-
   group = data$group
-  no_obs_groups = tabulate(group)
+  num_obs_groups = tabulate(group)
   missing_index = data$missing_index
-  no_categories = data$no_categories
+  num_categories = data$num_categories
 
   na_impute = data$na_impute
   reference_category = data$reference_category
-  no_variables = ncol(x)
-  no_interactions = no_variables * (no_variables - 1) / 2
+  num_variables = ncol(x)
+  num_interactions = num_variables * (num_variables - 1) / 2
 
-  # Compute `n_cat_obs`
-  n_cat_obs <- compute_n_cat_obs(x, no_categories, group)
+  # Compute `num_obs_categories`
+  num_obs_categories = compute_num_obs_categories(x, num_categories, group)
 
 
   # Compute sufficient statistics for Blume-Capel variables
-  sufficient_blume_capel <- compute_sufficient_blume_capel(x, reference_category,ordinal_variable, group)
+  sufficient_blume_capel = compute_sufficient_blume_capel(x, reference_category,ordinal_variable, group)
 
 
 # Index vector used to sample interactions in a random order -----------------
-  Index = matrix(0, nrow = no_interactions, ncol = 3)
+  Index = matrix(0, nrow = num_interactions, ncol = 3)
   counter = 0
-  for(variable1 in 1:(no_variables - 1)) {
-    for(variable2 in (variable1 + 1):no_variables) {
+  for(variable1 in 1:(num_variables - 1)) {
+    for(variable2 in (variable1 + 1):num_variables) {
       counter =  counter + 1
       Index[counter, ] = c(counter, variable1 - 1, variable2 - 1)
     }
@@ -225,56 +216,56 @@ bgmCompare = function(x,
 
   # Gibbs sampling
   # Prepare indices for main and pairwise effects
-  main_effect_indices <- matrix(NA, nrow = no_variables, ncol = 2)
-  for (variable in seq_len(no_variables)) {
+  main_effect_indices = matrix(NA, nrow = num_variables, ncol = 2)
+  for (variable in seq_len(num_variables)) {
     if (variable > 1) {
-      main_effect_indices[variable, 1] <- 1 + main_effect_indices[variable - 1, 2]
+      main_effect_indices[variable, 1] = 1 + main_effect_indices[variable - 1, 2]
     } else {
-      main_effect_indices[variable, 1] <- 0  # C++ starts at zero
+      main_effect_indices[variable, 1] = 0  # C++ starts at zero
     }
     if (ordinal_variable[variable]) {
-      main_effect_indices[variable, 2] <- main_effect_indices[variable, 1] + max(no_categories[variable, ]) - 1
+      main_effect_indices[variable, 2] = main_effect_indices[variable, 1] + max(num_categories[variable, ]) - 1
     } else {
-      main_effect_indices[variable, 2] <- main_effect_indices[variable, 1] + 1
+      main_effect_indices[variable, 2] = main_effect_indices[variable, 1] + 1
     }
   }
 
-  pairwise_effect_indices <- matrix(NA, nrow = no_variables, ncol = no_variables)
-  tel <- 0
-  for (v1 in seq_len(no_variables - 1)) {
-    for (v2 in seq((v1 + 1), no_variables)) {
-      pairwise_effect_indices[v1, v2] <- tel
-      pairwise_effect_indices[v2, v1] <- tel
-      tel <- tel + 1  # C++ starts at zero
+  pairwise_effect_indices = matrix(NA, nrow = num_variables, ncol = num_variables)
+  tel = 0
+  for (v1 in seq_len(num_variables - 1)) {
+    for (v2 in seq((v1 + 1), num_variables)) {
+      pairwise_effect_indices[v1, v2] = tel
+      pairwise_effect_indices[v2, v1] = tel
+      tel = tel + 1  # C++ starts at zero
     }
   }
 
   # Compute group-level data
-  num_groups <- length(unique(group))
-  group_indices <- matrix(NA, nrow = num_groups, ncol = 2)
+  num_groups = length(unique(group))
+  group_indices = matrix(NA, nrow = num_groups, ncol = 2)
 
   # Align observations with sorted group
-  observations <- x
-  sorted_group <- sort(group)
+  observations = x
+  sorted_group = sort(group)
   for (g in unique(group)) {
-    observations[which(sorted_group == g), ] <- x[which(group == g), ]
-    group_indices[g, 1] <- min(which(sorted_group == g)) - 1  # C++ starts at zero
-    group_indices[g, 2] <- max(which(sorted_group == g)) - 1  # C++ starts at zero
+    observations[which(sorted_group == g), ] = x[which(group == g), ]
+    group_indices[g, 1] = min(which(sorted_group == g)) - 1  # C++ starts at zero
+    group_indices[g, 2] = max(which(sorted_group == g)) - 1  # C++ starts at zero
   }
 
   # Compute projection matrix for group differences
-  one <- matrix(1, nrow = num_groups, ncol = num_groups)
-  V <- diag(num_groups) - one / num_groups
-  projection <- eigen(V)$vectors[, -num_groups]
+  one = matrix(1, nrow = num_groups, ncol = num_groups)
+  V = diag(num_groups) - one / num_groups
+  projection = eigen(V)$vectors[, -num_groups]
   if (num_groups == 2) {
-    projection <- matrix(projection, ncol = 1) / sqrt(2)
+    projection = matrix(projection, ncol = 1) / sqrt(2)
   }
 
   # Call the Rcpp function
   out = compare_anova_gibbs_sampler(
     observations = observations, main_effect_indices = main_effect_indices,
     pairwise_effect_indices = pairwise_effect_indices, projection = projection,
-    num_categories = no_categories, num_groups = num_groups,
+    num_categories = num_categories, num_groups = num_groups,
     group_indices = group_indices, interaction_scale = interaction_scale,
     pairwise_difference_scale = pairwise_difference_scale,
     main_difference_scale = main_difference_scale,
@@ -285,7 +276,7 @@ bgmCompare = function(x,
     pairwise_beta_bernoulli_beta = pairwise_beta_bernoulli_beta,
     main_beta_bernoulli_alpha = main_beta_bernoulli_alpha,
     main_beta_bernoulli_beta = main_beta_bernoulli_beta, Index = Index,
-    iter = iter, burnin = burnin, n_cat_obs = n_cat_obs,
+    iter = iter, burnin = burnin, num_obs_categories = num_obs_categories,
     sufficient_blume_capel = sufficient_blume_capel,
     prior_threshold_alpha = threshold_alpha,
     prior_threshold_beta = threshold_beta,
@@ -297,12 +288,11 @@ bgmCompare = function(x,
     display_progress = display_progress,
     difference_selection = difference_selection)
 
-
   # Main output handler in the wrapper function
-  output <- prepare_output_bgmCompare(
-    out = out, x = x, t.test = t.test,
-    independent_thresholds = independent_thresholds, num_variables = no_variables,
-    num_categories = if (t.test) cbind(no_categories_gr1, no_categories_gr2) else no_categories,
+  output = prepare_output_bgmCompare(
+    out = out, x = x,
+    independent_thresholds = independent_thresholds, num_variables = num_variables,
+    num_categories = num_categories,
     group = group, iter = iter,
     data_columnnames = if (is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
     save_options = list(save_main = save_main, save_pairwise = save_pairwise,

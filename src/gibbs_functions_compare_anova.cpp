@@ -111,7 +111,7 @@ arma::vec compute_group_thresholds(
  *  - observations: Integer matrix of observed data (individuals x variables), with missing data encoded.
  *  - num_groups: Number of groups in the analysis.
  *  - group_membership: Integer vector mapping individuals to their respective groups.
- *  - n_cat_obs: List of matrices, one per group, recording category frequencies per variable.
+ *  - num_obs_categories: List of matrices, one per group, recording category frequencies per variable.
  *  - sufficient_blume_capel: List of matrices storing sufficient statistics for Blume-Capel variables.
  *  - num_categories: Integer matrix of category counts for each variable and group.
  *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
@@ -123,7 +123,7 @@ arma::vec compute_group_thresholds(
  * Outputs:
  *  - A List containing:
  *    - `observations`: Updated observation matrix with imputed values.
- *    - `n_cat_obs`: Updated list of category counts per group.
+ *    - `num_obs_categories`: Updated list of category counts per group.
  *    - `sufficient_blume_capel`: Updated sufficient statistics for Blume-Capel variables.
  *    - `residual_matrix`: Updated residual effects matrix.
  */
@@ -136,7 +136,7 @@ List impute_missing_data_for_anova_model(
     arma::imat& observations,
     const int num_groups,
     const arma::ivec& group_membership,
-    List& n_cat_obs,
+    List& num_obs_categories,
     List& sufficient_blume_capel,
     const arma::imat& num_categories,
     arma::mat& residual_matrix,
@@ -212,10 +212,12 @@ List impute_missing_data_for_anova_model(
 
       // Update category counts or sufficient statistics
       if(is_ordinal_variable[variable] == true) {
-        arma::imat n_cat_obs_gr = n_cat_obs[gr];
-        n_cat_obs_gr(old_observation, variable)--;
-        n_cat_obs_gr(new_observation, variable)++;
-        n_cat_obs[gr] = n_cat_obs_gr;
+        arma::imat num_obs_categories_gr = num_obs_categories[gr];
+        if(old_observation > 0)
+          num_obs_categories_gr(old_observation, variable)--;
+        if(new_observation > 0)
+        num_obs_categories_gr(new_observation, variable)++;
+        num_obs_categories[gr] = num_obs_categories_gr;
       } else {
         arma::imat sufficient_blume_capel_gr = sufficient_blume_capel[gr];
         sufficient_blume_capel_gr(0, variable) -= old_observation;
@@ -243,7 +245,7 @@ List impute_missing_data_for_anova_model(
   }
 
   return List::create(Named("observations") = observations,
-                      Named("n_cat_obs") = n_cat_obs,
+                      Named("num_obs_categories") = num_obs_categories,
                       Named("sufficient_blume_capel") = sufficient_blume_capel,
                       Named("residual_matrix") = residual_matrix);
 }
@@ -1035,7 +1037,7 @@ void metropolis_pairwise_difference_between_model(
  *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
  *  - num_persons: Total number of individuals in the dataset.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
- *  - n_cat_obs: List of integer matrices, where each matrix tracks the number of observations
+ *  - num_obs_categories: List of integer matrices, where each matrix tracks the number of observations
  *               for each category of a variable in a specific group.
  *  - prior_threshold_alpha: Hyperparameter for the prior distribution of threshold parameters (shape parameter).
  *  - prior_threshold_beta: Hyperparameter for the prior distribution of threshold parameters (rate parameter).
@@ -1054,7 +1056,7 @@ void metropolis_threshold_regular(
     const arma::imat& num_categories,
     const int num_persons,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const double prior_threshold_alpha,
     const double prior_threshold_beta,
     const int variable
@@ -1114,9 +1116,9 @@ void metropolis_threshold_regular(
     double a = prior_threshold_alpha;
     double b = num_persons + prior_threshold_beta;
     for(int gr = 0; gr < num_groups; gr++) {
-      arma::imat n_cat_obs_gr = n_cat_obs[gr];
-      a += n_cat_obs_gr(category + 1, variable); // Update a with observations in the category
-      b -= n_cat_obs_gr(category + 1, variable); // Update b with remaining observations
+      arma::imat num_obs_categories_gr = num_obs_categories[gr];
+      a += num_obs_categories_gr(category, variable); // Update a with observations in the category
+      b -= num_obs_categories_gr(category, variable); // Update b with remaining observations
     }
 
     // Sample from the beta distribution
@@ -1167,7 +1169,7 @@ void metropolis_threshold_regular(
  *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
  *  - num_persons: Total number of individuals in the dataset.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
- *  - n_cat_obs: List of integer matrices tracking the number of observations for each category
+ *  - num_obs_categories: List of integer matrices tracking the number of observations for each category
  *               of a variable in a specific group.
  *  - variable: Index of the variable whose category threshold is being updated.
  *  - category: Index of the specific category threshold being updated for the variable.
@@ -1188,7 +1190,7 @@ double log_pseudolikelihood_ratio_main_difference(
     const arma::imat& num_categories,
     const int num_persons,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const int variable,
     const int category,
     const int h,
@@ -1223,8 +1225,8 @@ double log_pseudolikelihood_ratio_main_difference(
     proposed_thresholds[category] += P * proposed_state;
 
     // Add the contribution from delta_state based on observations
-    arma::imat n_cat_obs_gr = n_cat_obs[gr];
-    pseudolikelihood_ratio += delta_state * P * n_cat_obs_gr(category + 1, variable);
+    arma::imat num_obs_categories_gr = num_obs_categories[gr];
+    pseudolikelihood_ratio += delta_state * P * num_obs_categories_gr(category, variable);
 
     // Loop over all persons in the group
     for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
@@ -1266,7 +1268,7 @@ double log_pseudolikelihood_ratio_main_difference(
  *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
  *  - num_persons: Total number of individuals in the dataset.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
- *  - n_cat_obs: List of integer matrices tracking the number of observations for each category
+ *  - num_obs_categories: List of integer matrices tracking the number of observations for each category
  *               of a variable in a specific group.
  *  - variable: Index of the variable being updated.
  *  - inclusion_indicator: Integer matrix indicating active variables for the analysis.
@@ -1292,7 +1294,7 @@ void metropolis_main_difference_regular(
     const arma::imat& num_categories,
     const int num_persons,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const int variable,
     const arma::imat& inclusion_indicator,
     arma::mat& proposal_sd_main_effects,
@@ -1327,7 +1329,7 @@ void metropolis_main_difference_regular(
       // Compute log pseudo-likelihood ratio for proposed vs current state
       double log_acceptance_probability = log_pseudolikelihood_ratio_main_difference(
         main_effects, main_effect_indices, projection, observations, num_groups,
-        group_indices, num_categories, num_persons, residual_matrix, n_cat_obs,
+        group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
         variable, category, h - 1, proposed_state, current_state);
 
       // Add contributions from the Cauchy prior
@@ -1900,7 +1902,7 @@ void metropolis_main_difference_blumecapel(
  *                    variable and group.
  *   - residual_matrix: A matrix of residual scores for the pseudo-likelihood
  *                  calculations.
- *   - n_cat_obs: A list of matrices containing category-specific counts for
+ *   - num_obs_categories: A list of matrices containing category-specific counts for
  *                each group.
  *   - prior_threshold_alpha: Shape parameter for the prior distribution.
  *   - prior_threshold_beta: Rate parameter for the prior distribution.
@@ -1919,7 +1921,7 @@ void metropolis_thresholds_regular_free(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const double prior_threshold_alpha,
     const double prior_threshold_beta,
     const int variable,
@@ -1930,7 +1932,7 @@ void metropolis_thresholds_regular_free(
   int num_persons = group_indices(group, 1) - group_indices(group, 0) + 1;
 
   // Cache group-specific category observations
-  arma::imat n_cat_obs_gr = n_cat_obs[group];
+  arma::imat num_obs_categories_gr = num_obs_categories[group];
 
   // Base category index for the variable
   int base_cat_index = main_effect_indices(variable, 0);
@@ -1975,8 +1977,8 @@ void metropolis_thresholds_regular_free(
     c /= (num_persons + prior_threshold_alpha + prior_threshold_beta - exp_current * c);
 
     // Propose a new state using the generalized beta-prime distribution
-    double a = n_cat_obs_gr(category + 1, variable) + prior_threshold_alpha;
-    double b = num_persons + prior_threshold_beta - n_cat_obs_gr(category + 1, variable);
+    double a = num_obs_categories_gr(category, variable) + prior_threshold_alpha;
+    double b = num_persons + prior_threshold_beta - num_obs_categories_gr(category, variable);
     double tmp = R::rbeta(a, b);
     double proposed_state = std::log(tmp / ((1 - tmp) * c));
     double exp_proposed = std::exp(proposed_state);
@@ -2030,7 +2032,7 @@ void metropolis_thresholds_regular_free(
  *                             for each group.
  *   - num_persons: Total number of individuals in the dataset.
  *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
- *   - n_cat_obs: A list of matrices containing category-specific counts for
+ *   - num_obs_categories: A list of matrices containing category-specific counts for
  *                each group and variable.
  *   - prior_threshold_alpha: Shape parameter for the prior distribution.
  *   - prior_threshold_beta: Rate parameter for the prior distribution.
@@ -2061,7 +2063,7 @@ void metropolis_thresholds_blumecapel_free(
     const List& sufficient_blume_capel,
     const int num_persons,
     arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const double prior_threshold_alpha,
     const double prior_threshold_beta,
     const int variable,
@@ -2233,7 +2235,7 @@ void metropolis_thresholds_blumecapel_free(
  *   - group_indices: A matrix containing start and end indices for individuals in each group.
  *   - num_categories: A matrix containing the number of categories for each variable and group.
  *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
- *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
  *   - variable: Index of the variable being updated.
  *
  * Outputs:
@@ -2247,7 +2249,7 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const int variable
 ) {
   double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
@@ -2258,7 +2260,7 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
   // Loop over all groups to compute the contribution to the log pseudo-likelihood ratio
   for(int gr = 0; gr < num_groups; gr++) {
     // Retrieve group-specific category observation counts
-    arma::imat n_cat_obs_gr = n_cat_obs[gr];
+    arma::imat num_obs_categories_gr = num_obs_categories[gr];
 
     // Compute category thresholds for each category within the group
     for(int cat = 0; cat < num_cats; cat++) {
@@ -2274,7 +2276,7 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
 
       // Update the pseudo-likelihood ratio with contributions from the observations
       double delta_state = proposed_threshold - current_threshold;
-      pseudolikelihood_ratio += delta_state * n_cat_obs_gr(cat + 1, variable);
+      pseudolikelihood_ratio += delta_state * num_obs_categories_gr(cat, variable);
     }
 
     // Loop over individuals within the group
@@ -2323,7 +2325,7 @@ double log_pseudolikelihood_ratio_main_difference_regular_between_model(
  *   - group_indices: A matrix containing start and end indices for individuals in each group.
  *   - num_categories: A matrix containing the number of categories for each variable and group.
  *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
- *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
  *   - variable: Index of the variable being updated.
  *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
  *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
@@ -2343,7 +2345,7 @@ void metropolis_main_difference_regular_between_model(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const int variable,
     const arma::mat& proposal_sd_main_effects,
     const double main_difference_scale,
@@ -2397,7 +2399,7 @@ void metropolis_main_difference_regular_between_model(
   // Add pseudo-likelihood ratio contribution
   log_prob += log_pseudolikelihood_ratio_main_difference_regular_between_model(
     current_main_effects, proposed_main_effects, projection, num_groups,
-    group_indices, num_categories, residual_matrix, n_cat_obs, variable
+    group_indices, num_categories, residual_matrix, num_obs_categories, variable
   );
 
   // Add prior inclusion odds contributions
@@ -2555,7 +2557,7 @@ double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
  *   - num_categories: A matrix containing the number of categories for each variable and group.
  *   - sufficient_blume_capel: A list of matrices containing sufficient statistics for each group.
  *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
- *   - n_cat_obs: A list of matrices containing category-specific counts for each group and variable.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
  *   - variable: Index of the variable being updated.
  *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
  *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
@@ -2579,7 +2581,7 @@ void metropolis_main_difference_blume_capel_between_model(
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
     const arma::mat& residual_matrix,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const int variable,
     const arma::mat& proposal_sd_main_effects,
     const double main_difference_scale,
@@ -2688,7 +2690,7 @@ void metropolis_main_difference_blume_capel_between_model(
  *   - num_persons: Total number of individuals in the dataset.
  *   - num_groups: Total number of groups.
  *   - group_indices: arma::imat specifying start and end indices for individuals in each group.
- *   - n_cat_obs: List of category-specific counts for each group and variable.
+ *   - num_obs_categories: List of category-specific counts for each group and variable.
  *   - sufficient_blume_capel: List of sufficient statistics for Blume-Capel variables in each group.
  *   - residual_matrix: arma::mat of residual scores used in pseudo-likelihood calculations.
  *   - independent_thresholds: Boolean indicating if thresholds are modeled independently for groups.
@@ -2740,7 +2742,7 @@ List gibbs_step_gm(
     const int num_persons,
     const int num_groups,
     const arma::imat& group_indices,
-    const List& n_cat_obs,
+    const List& num_obs_categories,
     const List& sufficient_blume_capel,
     arma::mat& residual_matrix,
     const bool independent_thresholds,
@@ -2802,13 +2804,13 @@ List gibbs_step_gm(
         if (is_ordinal_variable[variable]) {
           metropolis_thresholds_regular_free(
             main_effects, main_effect_indices, observations, num_groups, group_indices,
-            num_categories, residual_matrix, n_cat_obs, prior_threshold_alpha,
+            num_categories, residual_matrix, num_obs_categories, prior_threshold_alpha,
             prior_threshold_beta, variable, group);
         } else {
           metropolis_thresholds_blumecapel_free(
             main_effects, main_effect_indices, observations, num_groups, group_indices,
             baseline_category, num_categories, sufficient_blume_capel, num_persons,
-            residual_matrix, n_cat_obs, prior_threshold_alpha, prior_threshold_beta, variable,
+            residual_matrix, num_obs_categories, prior_threshold_alpha, prior_threshold_beta, variable,
             group, proposal_sd_main_effects, rm_adaptation_rate, target_acceptance_rate, t,
             rm_lower_bound, rm_upper_bound);
         }
@@ -2818,21 +2820,21 @@ List gibbs_step_gm(
       if (is_ordinal_variable[variable]) {
         metropolis_threshold_regular(
           main_effects, main_effect_indices, projection, observations, num_groups,
-          group_indices, num_categories, num_persons, residual_matrix, n_cat_obs,
+          group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
           prior_threshold_alpha, prior_threshold_beta, variable);
 
         if(difference_selection) {
           metropolis_main_difference_regular_between_model(
             inclusion_indicator, inclusion_probability_difference, main_effects,
             main_effect_indices, observations, num_groups, group_indices,
-            num_categories, residual_matrix, n_cat_obs, variable,
+            num_categories, residual_matrix, num_obs_categories, variable,
             proposal_sd_main_effects, main_difference_scale, projection
           );
         }
 
         metropolis_main_difference_regular(
           main_effects, main_effect_indices, projection, observations, num_groups,
-          group_indices, num_categories, num_persons, residual_matrix, n_cat_obs,
+          group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
           variable, inclusion_indicator, proposal_sd_main_effects, main_difference_scale, rm_adaptation_rate,
           target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
       } else {
@@ -2847,7 +2849,7 @@ List gibbs_step_gm(
             inclusion_indicator, inclusion_probability_difference, main_effects,
             main_effect_indices, observations, num_groups, group_indices,
             baseline_category, num_categories, sufficient_blume_capel,
-            residual_matrix, n_cat_obs, variable, proposal_sd_main_effects,
+            residual_matrix, num_obs_categories, variable, proposal_sd_main_effects,
             main_difference_scale, projection
           );
         }
@@ -2898,7 +2900,7 @@ List gibbs_step_gm(
  *   - Index: arma::imat for randomization during Gibbs sampling iterations.
  *   - iter: Total number of Gibbs sampling iterations.
  *   - burnin: Number of burn-in iterations.
- *   - n_cat_obs: List of category-specific observation counts for each group.
+ *   - num_obs_categories: List of category-specific observation counts for each group.
  *   - sufficient_blume_capel: List of sufficient statistics for Blume-Capel variables by group.
  *   - prior_threshold_alpha: Shape parameter for the threshold prior distribution.
  *   - prior_threshold_beta: Rate parameter for the threshold prior distribution.
@@ -2951,7 +2953,7 @@ List compare_anova_gibbs_sampler(
     const arma::imat& Index,
     const int iter,
     const int burnin,
-    List& n_cat_obs,
+    List& num_obs_categories,
     List& sufficient_blume_capel,
     const double prior_threshold_alpha,
     const double prior_threshold_beta,
@@ -3072,17 +3074,17 @@ List compare_anova_gibbs_sampler(
       List impute_out = impute_missing_data_for_anova_model (
         main_effects, pairwise_effects, main_effect_indices, pairwise_effect_indices,
         projection, observations, num_groups, group_membership,
-        n_cat_obs, sufficient_blume_capel, num_categories, residual_matrix,
+        num_obs_categories, sufficient_blume_capel, num_categories, residual_matrix,
         missing_data_indices, is_ordinal_variable, baseline_category, independent_thresholds);
 
       arma::imat observations_tmp = impute_out["observations"];
-      List n_cat_obs_tmp = impute_out["n_cat_obs"];
+      List num_obs_categories_tmp = impute_out["num_obs_categories"];
       List sufficient_blume_capel_tmp = impute_out["sufficient_blume_capel"];
       arma::mat residual_matrix_tmp = impute_out["residual_matrix"];
 
       // Reassign to original variables
       observations = observations_tmp;
-      n_cat_obs = n_cat_obs_tmp;
+      num_obs_categories = num_obs_categories_tmp;
       sufficient_blume_capel = sufficient_blume_capel_tmp;
       residual_matrix = residual_matrix_tmp;
     }
@@ -3091,7 +3093,7 @@ List compare_anova_gibbs_sampler(
     List step_out = gibbs_step_gm (
       main_effects, main_effect_indices, pairwise_effects,
       pairwise_effect_indices, projection, num_categories, observations,
-      num_persons, num_groups, group_indices, n_cat_obs, sufficient_blume_capel,
+      num_persons, num_groups, group_indices, num_obs_categories, sufficient_blume_capel,
       residual_matrix, independent_thresholds, is_ordinal_variable,
       baseline_category, inclusion_indicator, inclusion_probability_difference,
       proposal_sd_main_effects, proposal_sd_pairwise_effects, interaction_scale,

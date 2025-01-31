@@ -211,7 +211,6 @@ check_model = function(x,
 check_compare_model = function(x,
                                y,
                                g,
-                               ttest,
                                difference_selection,
                                variable_type,
                                reference_category,
@@ -229,6 +228,31 @@ check_compare_model = function(x,
                                threshold_alpha = 0.5,
                                threshold_beta = 0.5,
                                main_difference_model = c("Free", "Collapse", "Constrain")) {
+
+  if(!is.null(g)) {
+    unique_g = unique(g)
+    if(length(unique_g) == 0)
+      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
+                  "no group value."))
+    if(length(unique_g) == 1)
+      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
+                  "only one group value."))
+    if(length(unique_g) == length(g))
+      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
+                  "only unique group values."))
+
+    group = g
+    for(u in unique_g) {
+      group[g == u] = which(unique_g == u)
+    }
+    tab = tabulate(group)
+
+    if(any(tab < 2))
+      stop("One or more groups only had one member in the input g.")
+  } else {
+    group = c(rep.int(1, times = nrow(x)), rep.int(2, times = nrow(y)))
+    x = rbind(x, y)
+  }
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -257,7 +281,7 @@ check_compare_model = function(x,
                   "but not of type ",
                   paste0(variable_input, collapse = ", "), "."))
 
-    no_types = sapply(variable_input, function(type) {
+    num_types = sapply(variable_input, function(type) {
       tmp = try(match.arg(arg = type,
                           choices = c("ordinal", "blume-capel")),
                 silent = TRUE)
@@ -267,7 +291,7 @@ check_compare_model = function(x,
     if(length(variable_type) != ncol(x))
       stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
                   "but not of type ",
-                  paste0(variable_input[no_types], collapse = ", "), "."))
+                  paste0(variable_input[num_types], collapse = ", "), "."))
 
     variable_bool = (variable_type == "ordinal")
   }
@@ -319,15 +343,8 @@ check_compare_model = function(x,
       }
     }
 
-    if(ttest == TRUE) {
-      variable_lower = apply(rbind(apply(x, 2, min, na.rm = TRUE),
-                                   apply(y, 2, min, na.rm = TRUE)), 2, min, na.rm = TRUE)
-      variable_upper = apply(rbind(apply(x, 2, max, na.rm = TRUE),
-                                   apply(y, 2, max, na.rm = TRUE)), 2, max, na.rm = TRUE)
-    } else {
-      variable_lower = apply(x, 2, min, na.rm = TRUE)
-      variable_upper = apply(x, 2, max, na.rm = TRUE)
-    }
+    variable_lower = apply(x, 2, min, na.rm = TRUE)
+    variable_upper = apply(x, 2, max, na.rm = TRUE)
 
     if(any(reference_category < variable_lower) | any(reference_category > variable_upper)) {
       out_of_range = which(reference_category < variable_lower | reference_category > variable_upper)
@@ -511,7 +528,9 @@ check_compare_model = function(x,
     warning(paste0("The option Constrain for the main difference model is deprecated and will be\n",
                    "removed in a future version. Please use the Collapse option."))
 
-  return(list(variable_bool = variable_bool,
+  return(list(x = x,
+              group = group,
+              variable_bool = variable_bool,
               reference_category = reference_category,
               main_difference_prior = main_difference_prior,
               pairwise_difference_prior = pairwise_difference_prior,
@@ -694,38 +713,11 @@ reformat_data = function(x, na.action, variable_bool, reference_category) {
 }
 
 compare_reformat_data = function(x,
-                                 y,
-                                 g,
-                                 ttest,
+                                 group,
                                  na.action,
                                  variable_bool,
                                  reference_category,
                                  main_difference_model) {
-
-  if(ttest == FALSE) {
-    unique_g = unique(g)
-    if(length(unique_g) == 0)
-      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
-                  "no group value."))
-    if(length(unique_g) == 1)
-      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
-                  "only one group value."))
-    if(length(unique_g) == length(g))
-      stop(paste0("The bgmCompare function expects at least two groups, but the input g contains\n",
-                  "only unique group values."))
-
-    group = g
-    for(u in unique_g) {
-      group[g == u] = which(unique_g == u)
-    }
-    tab = tabulate(group)
-
-    if(any(tab < 2))
-      stop("One or more groups only had one member in the input g.")
-  } else {
-    group = NULL
-  }
-
   if(na.action == "listwise") {
     # Check for missing values in x --------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){anyNA(x[row, ])})
@@ -745,228 +737,113 @@ compare_reformat_data = function(x,
               call. = FALSE)
 
     x = x[!missing_values, ]
-    if(ttest == FALSE)
-      group = group[!missing_values]
+    group = group[!missing_values]
 
     if(nrow(x) < 2 || is.null(nrow(x)))
       stop(paste0("After removing missing observations from the input matrix x,\n",
                   "there were less than two rows left in x."))
 
-    if(ttest == TRUE) {
-      # Check for missing values in y --------------------------------------------
-      missing_values = sapply(1:nrow(y), function(row){anyNA(y[row, ])})
-      if(sum(missing_values) == nrow(y))
-        stop(paste0("All rows in y contain at least one missing response.\n",
-                    "You could try option na.action = impute."))
-      if(sum(missing_values) > 1)
-        warning(paste0("There were ",
-                       sum(missing_values),
-                       " rows with missing observations in the input matrix y.\n",
-                       "Since na.action = listwise these rows were excluded from the analysis."),
-                call. = FALSE)
-      if(sum(missing_values) == 1)
-        warning(paste0("There was one row with missing observations in the input matrix y.\n",
-                       "Since na.action = listwise this row was excluded from \n",
-                       "the analysis."),
-                call. = FALSE)
-      y = y[!missing_values, ]
-
-      if(nrow(y) < 2 || is.null(nrow(y)))
-        stop(paste0("After removing missing observations from the input matrix y,\n",
-                    "there were less than two rows left in y."))
-
-    } else {
-      unique_g = unique(group)
-      if(length(unique_g) == length(g))
-        stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
-                    "there were only unique values in the input g left."))
-      if(length(unique_g) == 1)
-        stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
-                    "there was only one value in the input g left."))
-      g = group
-      for(u in unique_g) {
-        group[g == u] = which(unique_g == u)
-      }
-      tab = tabulate(group)
-
-      if(any(tab < 2))
-        stop(paste0("After rows with missing observations were excluded, one or more groups, only \n",
-                    "had one member in the input g."))
+    unique_g = unique(group)
+    if(length(unique_g) == length(group))
+      stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
+                  "there were only unique values in the input g left."))
+    if(length(unique_g) == 1)
+      stop(paste0("After rows with missing observations were excluded, there were no groups, as \n",
+                  "there was only one value in the input g left."))
+    g = group
+    for(u in unique_g) {
+      group[g == u] = which(unique_g == u)
     }
+    tab = tabulate(group)
 
-    missing_index_gr1 = matrix(NA, nrow = 1, ncol = 1)
-    missing_index_gr2 = matrix(NA, nrow = 1, ncol = 1)
+    if(any(tab < 2))
+      stop(paste0("After rows with missing observations were excluded, one or more groups, only \n",
+                  "had one member in the input g."))
+
     missing_index = matrix(NA, nrow = 1, ncol = 1)
     na_impute = FALSE
   } else {
     # Check for missing values in x --------------------------------------------
-    no_missings_gr1 = sum(is.na(x))
-    no_persons_gr1 = nrow(x)
-    no_variables = ncol(x)
-    if(no_missings_gr1 > 0) {
-      missing_index_gr1 = matrix(0, nrow = no_missings_gr1, ncol = 2)
+    num_missings = sum(is.na(x))
+    num_persons = nrow(x)
+    num_variables = ncol(x)
+    if(num_missings > 0) {
+      missing_index = matrix(0, nrow = num_missings, ncol = 2)
       na_impute = TRUE
       cntr = 0
-      for(node in 1:no_variables) {
+      for(node in 1:num_variables) {
         mis = which(is.na(x[, node]))
         if(length(mis) > 0) {
           for(i in 1:length(mis)) {
             cntr = cntr + 1
-            missing_index_gr1[cntr, 1] = mis[i] - 1                             #c++ index starts at 0
-            missing_index_gr1[cntr, 2] = node - 1                               #c++ index starts at 0
-            x[mis[i], node] = sample(x[-mis, node],                             #start value for imputation
-                                     size = 1)
+            missing_index[cntr, 1] = mis[i] - 1                             #c++ index starts at 0
+            missing_index[cntr, 2] = node - 1                               #c++ index starts at 0
+            x[mis[i], node] = sample(x[-mis, node], size = 1)               #start value for imputation
             #This is non-zero if no zeroes are observed (we then collapse over zero below)
           }
         }
       }
     } else {
-      missing_index_gr1 = matrix(NA, nrow = 1, ncol = 1)
-      na_impute = FALSE
-    }
-
-    if(ttest == TRUE) {
-      # Check for missing values in y ------------------------------------------
-      no_missings_gr2 = sum(is.na(y))
-      no_persons_gr2 = nrow(y)
-      no_variables = ncol(y)
-      if(no_missings_gr2 > 0) {
-        missing_index_gr2 = matrix(0, nrow = no_missings_gr2, ncol = 2)
-        na_impute = TRUE
-        cntr = 0
-        for(node in 1:no_variables) {
-          mis = which(is.na(y[, node]))
-          if(length(mis) > 0) {
-            for(i in 1:length(mis)) {
-              cntr = cntr + 1
-              missing_index_gr2[cntr, 1] = mis[i] - 1                           #c++ index starts at zero.
-              missing_index_gr2[cntr, 2] = node                                 #c++ index starts at zero.
-              y[mis[i], node] = sample(y[-mis, node], #start value for imputation
-                                       size = 1)
-              #This is non-zero if no zeroes are observed (we then collapse over zero below)
-            }
-          }
-        }
-      } else {
-        missing_index_gr2 = matrix(NA, nrow = 1, ncol = 1)
-        if(!na_impute) {
-          na_impute = FALSE
-        }
-      }
-      no_missings = NA
-      no_persons = NA
       missing_index = matrix(NA, nrow = 1, ncol = 1)
-    } else {
-      missing_index = missing_index_gr1
-      no_missings = no_missings_gr1
-      no_persons = no_persons_gr1
-      no_missings_gr2 = NA
-      no_persons_gr2 = NA
-      missing_index_gr2 = matrix(NA, nrow = 1, ncol = 1)
+      na_impute = FALSE
     }
   }
 
   check_fail_zero = FALSE
-  no_variables = ncol(x)
-  if(ttest == TRUE) {
-    no_categories = matrix(0,
-                           nrow = no_variables,
-                           ncol = 2)
-  } else {
-    no_categories = matrix(0,
-                           nrow = no_variables,
+  num_variables = ncol(x)
+  num_categories = matrix(0,
+                           nrow = num_variables,
                            ncol = max(group))
-  }
 
-  for(node in 1:no_variables) {
-    unq_vls_x = sort(unique(x[,  node]))
-    mx_vl_x = length(unq_vls_x)
+  for(node in 1:num_variables) {
+    unq_vls = sort(unique(x[,  node]))
+    mx_vls = length(unq_vls)
 
     # Check if observed responses are not all unique ---------------------------
-    if(mx_vl_x == nrow(x))
+    if(mx_vls == nrow(x))
       stop(paste0("Only unique responses observed for variable ",
                   node,
                   " in the matrix x (group 1). We expect >= 1 observations per category."))
-
-    if(ttest == TRUE) {
-      unq_vls_y = sort(unique(y[,  node]))
-      mx_vl_y = length(unq_vls_y)
-
-      if(mx_vl_y == nrow(y))
-        stop(paste0("Only unique responses observed for variable ",
-                    node,
-                    " in the matrix y (group 1). We expect >= 1 observations per category."))
-
-      if(main_difference_model != "Free" & variable_bool[node] == TRUE){
-        if(sum(is.na(match(unq_vls_x, unq_vls_y))) == mx_vl_x)
-          stop(paste0("There is no overlap in response categories between the two groups for variable \n",
-                      node,
-                      ". As a result, bgmCompare cannot estimate a difference between the groups for any \n",
-                      "of its category thresholds. You can run bgmCompare with the option \n",
-                      "main_difference_model = ``Free''."))
-      }
-
-      unq_vls = sort(unique(c(unq_vls_x, unq_vls_y)))
-      mx_vls = max(c(mx_vl_x,mx_vl_y))
-    } else {
-      unq_vls = sort(unique(unq_vls_x))
-      mx_vls = mx_vl_x
-    }
 
     # Recode data --------------------------------------------------------------
     if(variable_bool[node]) {#Regular ordinal variable
       # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
       if(main_difference_model == "Collapse") {
 
-        if(ttest == TRUE) {
-          zx = x[, node]
-          zy = y[, node]
+        observed_scores = matrix(NA,
+                                 nrow = mx_vls,
+                                 ncol = max(group))
 
-          cntr = -1
-          for(value in unq_vls) {
-            #Collapse categories for one group when not observed in the other.
-            if(any(zx == value) & any(zy == value))
-              cntr = cntr + 1
-            x[zx == value, node] = max(0, cntr)
-            y[zy == value, node] = max(0, cntr)
+        for(value in unq_vls) {
+          unique_g = unique(group)
+          for(g in unique_g) {
+            observed_scores[which(unq_vls == value), g] =
+              any(x[group == g, node] == value) * 1
           }
-        } else {
-          observed_scores = matrix(NA,
-                                   nrow = mx_vls,
-                                   ncol = max(group))
-          for(value in unq_vls) {
-            unique_g = unique(group)
-            for(g in unique_g) {
-              observed_scores[which(unq_vls == value), g] =
-                any(x[group == g, node] == value) * 1
-            }
-          }
+        }
 
-          xx = x[, node]
-          cntr = -1
-          for(value in unq_vls) {
-            #Collapse categories when not observed in one or more groups.
-            if(!any(observed_scores[which(unq_vls == value), ] == 0))
-              cntr = cntr + 1
-            x[xx == value, node] = max(0, cntr)
+        xx = x[, node]
+        cntr = -1
+        for(value in unq_vls) {
+          #Collapse categories when not observed in one or more groups.
+          if(sum(observed_scores[which(unq_vls == value), ]) == max(group)) {
+            cntr = cntr + 1 #increment score if category observed in all groups
           }
+          x[xx == value, node] = max(0, cntr)
         }
 
       } else {
-        z = x[, node]
-        cntr = 0
-        for(value in unq_vls) {
-          x[z == value, node] = cntr
-          cntr = cntr + 1
-        }
+        unique_g = unique(group)
+        for(g in unique_g) {
+          x_g = x[group == g,  node]
+          unq_vls_g = sort(unique(x_g))
 
-        if(ttest == TRUE) {
-          z = y[, node]
           cntr = 0
-          for(value in unq_vls) {
-            y[z == value, node] = cntr
+          for(value in unq_vls_g) {
+            x_g[x_g == value] = cntr
             cntr = cntr + 1
           }
+          x[group == g,  node] = x_g
         }
       }
     } else {#Blume-Capel ordinal variable
@@ -988,18 +865,11 @@ compare_reformat_data = function(x,
                       "a single integer value was used for several observed score categories."))
         }
         x[, node] = as.integer(x[, node])
-        if(ttest == TRUE) {
-          y[, node] = as.integer(y[, node])
-        }
       }
 
       mi = min(x[,node])
-      if(ttest == TRUE)
-        mi = min(c(mi, y[, node]))
 
       ma = max(x[,node])
-      if(ttest == TRUE)
-        ma = max(c(ma, y[, node]))
 
       if(reference_category[node] < mi | reference_category[node] > ma)
         stop(paste0(
@@ -1010,8 +880,6 @@ compare_reformat_data = function(x,
       if(mi != 0) {
         reference_category[node] = reference_category[node] - mi
         x[, node] = x[, node] - mi
-        if(ttest == TRUE)
-          y[, node] = y[, node] - mi
 
         if(check_fail_zero == FALSE) {
           check_fail_zero = TRUE
@@ -1021,14 +889,10 @@ compare_reformat_data = function(x,
         }
       }
 
-      if(ttest == TRUE) {
-        check_range = length(unique(c(x[, node], y[, node])))
-      } else {
-        check_range = length(unique(x[, node]))
-      }
+      check_range = length(unique(x[, node]))
 
       if(check_range < 3)
-        stop(paste0("The Blume-Capel is only available for variables with more than one category \n",
+        stop(paste0("The Blume-Capel is only available for variables with more than two categories \n",
                     "observed. There are two or less categories observed for variable ",
                     node,
                     "."))
@@ -1037,46 +901,38 @@ compare_reformat_data = function(x,
 
     # Warn that maximum category value is large --------------------------------
     if(main_difference_model == "Free") {
-      if(ttest == TRUE) {
-        no_categories[node, 1] = max(x[, node])
-        no_categories[node, 2] = max(y[, node])
-      } else {
-        no_categories[node, ] = sapply(1:max(group), function(g) {
-          max(x[group == g, node])
-        })
-      }
-      if(!variable_bool[node] & max(no_categories[node, ]) > 10) {
+
+      num_categories[node, ] = sapply(1:max(group), function(g) {
+        max(x[group == g, node])
+      })
+
+      if(!variable_bool[node] & max(num_categories[node, ]) > 10) {
         # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
         warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
                        "is a sum over all possible values of the ordinal variable. The range of \n",
                        "observed values, possibly after recoding to integers, is assumed to be the \n",
                        "number of possible response categories.  For node ", node,", this range was \n",
-                       "equal to ", max(no_categories[node,]), ", which may cause the analysis to take some \n",
+                       "equal to ", max(num_categories[node,]), ", which may cause the analysis to take some \n",
                        "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
                        "collapse the categories that have no observations between zero and the last \n",
                        "category. This may explain the large discrepancy between the first and last \n",
                        "category values."))
       }
 
-      if(any(no_categories[node, ] == 0))
+      if(any(num_categories[node, ] == 0))
         stop(paste0("Only one value was observed for variable ",
                     node,
                     ", in at least one of the groups."))
     } else {
-      if(ttest == TRUE) {
-        no_categories[node, 1] = max(c(x[, node], y[, node]))
-        no_categories[node, 2] = max(c(x[, node], y[, node]))
-      } else {
-        no_categories[node, ] = max(x[, node])
-      }
+      num_categories[node, ] = max(x[, node])
 
-      if(!variable_bool[node] & max(no_categories[node, ]) > 10) {
+      if(!variable_bool[node] & max(num_categories[node, ]) > 10) {
         # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
         warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
                        "is a sum over all possible values of the ordinal variable. The range of \n",
                        "observed values, possibly after recoding to integers, is assumed to be the \n",
                        "number of possible response categories.  For node ", node,", in group 1, this \n",
-                       "range was equal to ", max(no_categories[node,]), "which may cause the analysis to take some \n",
+                       "range was equal to ", max(num_categories[node,]), "which may cause the analysis to take some \n",
                        "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
                        "collapse the categories that have no observations between zero and the last \n",
                        "category. This may explain the large discrepancy between the first and last \n",
@@ -1085,11 +941,10 @@ compare_reformat_data = function(x,
 
 
       # Check to see if not all responses are in one category --------------------
-      if(any(no_categories[node, ] == 0))
+      if(any(num_categories[node, ] == 0))
         stop(paste0("Only one value was observed for variable ",
                     node,
                     ", in at least one of the groups."))
-
     }
   }
 
@@ -1109,13 +964,10 @@ compare_reformat_data = function(x,
   }
 
   return(list(x = x,
-              y = y,
               group = group,
-              no_categories = no_categories,
+              num_categories = num_categories,
               reference_category = reference_category,
               missing_index = missing_index,
-              missing_index_gr1 = missing_index_gr1,
-              missing_index_gr2 = missing_index_gr2,
               na_impute = na_impute))
 }
 
@@ -1211,29 +1063,20 @@ check_logical = function(value, name) {
   return(value)
 }
 
-# Helper function for computing `n_cat_obs`
-compute_n_cat_obs = function(x, no_categories, group = NULL) {
-  if (is.null(group)) {  # Two-group design
-    n_cat_obs = matrix(0, nrow = max(no_categories) + 1, ncol = ncol(x))
+# Helper function for computing `num_obs_categories`
+compute_num_obs_categories = function(x, num_categories, group = NULL) {
+  num_obs_categories = list()
+  for (g in unique(group)) {
+    num_obs_categories_gr = matrix(0, nrow = max(num_categories[, g]), ncol = ncol(x))
     for (variable in seq_len(ncol(x))) {
-      for (category in seq_len(no_categories[variable])) {
-        n_cat_obs[category + 1, variable] = sum(x[, variable] == category)
+      for (category in seq_len(num_categories[variable, g])) {
+        num_obs_categories_gr[category, variable] = sum(x[group == g, variable] == category)
       }
     }
-    return(n_cat_obs)
-  } else {  # Multi-group design
-    n_cat_obs = list()
-    for (g in unique(group)) {
-      n_cat_obs_gr = matrix(0, nrow = max(no_categories[, g]) + 1, ncol = ncol(x))
-      for (variable in seq_len(ncol(x))) {
-        for (category in seq_len(no_categories[variable, g])) {
-          n_cat_obs_gr[category + 1, variable] = sum(x[group == g, variable] == category)
-        }
-      }
-      n_cat_obs[[g]] = n_cat_obs_gr
-    }
-    return(n_cat_obs)
+    num_obs_categories[[g]] = num_obs_categories_gr
   }
+  return(num_obs_categories)
+
 }
 
 # Helper function for computing sufficient statistics for Blume-Capel variables
@@ -1262,7 +1105,7 @@ compute_sufficient_blume_capel = function(x, reference_category, ordinal_variabl
 }
 
 # Prepare the output
-prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
+prepare_output_bgmCompare = function(out, x, independent_thresholds,
                                      num_variables, num_categories, group, iter,
                                      data_columnnames, save_options,
                                      difference_selection, na_action,
@@ -1322,12 +1165,16 @@ prepare_output_bgmCompare = function(out, x, t.test, independent_thresholds,
   # Main effects
   tmp = out$posterior_mean_main
   if(independent_thresholds) {
-    posterior_mean_main = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp))
+    posterior_mean_main = matrix(NA, nrow = nrow(tmp), ncol = ncol(tmp))
     for(g in 1:num_groups) {
       posterior_mean_main[, g] = tmp[, g]
+
+      #This can probably be done prettier
+      if(any(tmp[,g] == 0))
+        posterior_mean_main[tmp[,g] == 0, g] = NA
     }
   } else {
-    posterior_mean_main = matrix(0, nrow = nrow(tmp), ncol = ncol(tmp) + 1)
+    posterior_mean_main = matrix(NA, nrow = nrow(tmp), ncol = ncol(tmp) + 1)
     posterior_mean_main[, 1] = tmp[, 1]
     for (row in 1:nrow(tmp)) {
       posterior_mean_main[row, -1] = projection %*% tmp[row, -1]
