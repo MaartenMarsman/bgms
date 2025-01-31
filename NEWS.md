@@ -3,7 +3,7 @@
 bgmCompare now allows for network comparison for two or more groups
 fixed a bug with selecting group differences of blume-capel parameters
 fixed a bug with handling the samples of blume-capel parameters
-fixed a bug with handling threshold estimation when missing categories and main_model = "Free" 
+fixed a bug with handling threshold estimation when missing categories and main_model = "Free".
 
 # bgms 0.1.4.2
 
