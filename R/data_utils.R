@@ -1,22 +1,22 @@
 reformat_data = function(x,
-                         na.action,
+                         na_action,
                          variable_bool,
                          reference_category) {
-  if(na.action == "listwise") {
+  if(na_action == "listwise") {
     # Check for missing values ---------------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){anyNA(x[row, ])})
     if(sum(missing_values) == nrow(x))
       stop(paste0("All rows in x contain at least one missing response.\n",
-                  "You could try option na.action = impute."))
+                  "You could try option na_action = impute."))
     if(sum(missing_values) > 1)
       warning(paste0("There were ",
                      sum(missing_values),
                      " rows with missing observations in the input matrix x.\n",
-                     "Since na.action = listwise these rows were excluded from the analysis."),
+                     "Since na_action = listwise these rows were excluded from the analysis."),
               call. = FALSE)
     if(sum(missing_values) == 1)
       warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                     "Since na.action = listwise this row was excluded from \n",
+                     "Since na_action = listwise this row was excluded from \n",
                      "the analysis."),
               call. = FALSE)
     x = x[!missing_values, ]
@@ -177,25 +177,25 @@ reformat_data = function(x,
 
 compare_reformat_data = function(x,
                                  group,
-                                 na.action,
+                                 na_action,
                                  variable_bool,
                                  reference_category,
                                  main_difference_model) {
-  if(na.action == "listwise") {
+  if(na_action == "listwise") {
     # Check for missing values in x --------------------------------------------
     missing_values = sapply(1:nrow(x), function(row){anyNA(x[row, ])})
     if(sum(missing_values) == nrow(x))
       stop(paste0("All rows in x contain at least one missing response.\n",
-                  "You could try option na.action = impute."))
+                  "You could try option na_action = impute."))
     if(sum(missing_values) > 1)
       warning(paste0("There were ",
                      sum(missing_values),
                      " rows with missing observations in the input matrix x.\n",
-                     "Since na.action = listwise these rows were excluded from the analysis."),
+                     "Since na_action = listwise these rows were excluded from the analysis."),
               call. = FALSE)
     if(sum(missing_values) == 1)
       warning(paste0("There was one row with missing observations in the input matrix x.\n",
-                     "Since na.action = listwise this row was excluded from \n",
+                     "Since na_action = listwise this row was excluded from \n",
                      "the analysis."),
               call. = FALSE)
 

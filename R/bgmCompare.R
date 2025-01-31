@@ -51,8 +51,10 @@
 #' @param pairwise_difference_scale Double. Scale parameter for the Cauchy prior on pairwise differences. Default: `1`.
 #' @param main_difference_scale Double. Scale parameter for the Cauchy prior on threshold differences. Default: `1`.
 #' @param pairwise_difference_prior,main_difference_prior Character. Specifies the inclusion probability model (`"Bernoulli"` or `"Beta-Bernoulli"`). Default: `"Bernoulli"`.
+#' @param pairwise_difference_probability A numeric value or a \eqn{p \times p} matrix specifying the prior inclusion probability of a pairwise difference in the Bernoulli model. A single value applies the same probability to all pairs, while a matrix allows for edge-specific probabilities. Defaults to 0.5 (equal prior probability for inclusion and exclusion).
+#' @param main_difference_probability A numeric value or a length-\eqn{p} vector specifying the prior inclusion probability of a threshold difference in the Bernoulli model. A single value applies the same probability to all variables, while a vector allows for variable-specific probabilities. Defaults to 0.5, indicating no prior preference.
 #' @param iter,burnin Integer. Number of Gibbs iterations (`iter`) and burn-in iterations (`burnin`). Defaults: `iter = 1e4`, `burnin = 5e2`.
-#' @param na.action Character. Specifies handling of missing data. `"listwise"` deletes rows with missing values; `"impute"` imputes values during Gibbs sampling. Default: `"listwise"`.
+#' @param na_action Character. Specifies handling of missing data. `"listwise"` deletes rows with missing values; `"impute"` imputes values during Gibbs sampling. Default: `"listwise"`.
 #' @param display_progress Logical. Show progress bar during computation. Default: `TRUE`.
 #' @param threshold_alpha,threshold_beta Double. Shape parameters for the beta-prime prior on nuisance threshold parameters.
 #' @param interaction_scale Double. Scale of the Cauchy prior for nuisance pairwise interactions. Default: `2.5`.
@@ -69,7 +71,9 @@
 #' In addition to the results of the analysis, the output lists some of the
 #' arguments of its call. This is useful for post-processing the results.
 #'
-#' @importFrom utils packageVersion
+#' @importFrom methods hasArg
+#' @importFrom Rcpp evalCpp
+#' @importFrom Rdpack reprompt
 #'
 #' @export
 bgmCompare = function(x,
@@ -94,8 +98,7 @@ bgmCompare = function(x,
                       threshold_beta = 0.5,
                       iter = 1e4,
                       burnin = 5e2,
-                      na.action = c("listwise", "impute"),
-                      save = FALSE,
+                      na_option = c("listwise", "impute"),
                       save_main = FALSE,
                       save_pairwise = FALSE,
                       save_indicator = FALSE,
@@ -161,11 +164,11 @@ bgmCompare = function(x,
   check_positive_integer(iter, "iter")
   check_non_negative_integer(burnin, "burnin")
 
-  # Check na.action
-  na.action_input = na.action
-  na.action = try(match.arg(na.action), silent = TRUE)
-  if (inherits(na.action, "try-error")) {
-    stop(sprintf("Invalid value for `na.action`. Expected 'listwise' or 'impute', got: %s", na.action_input))
+  # Check na_action
+  na_action_input = na_action
+  na_action = try(match.arg(na_action), silent = TRUE)
+  if (inherits(na_action, "try-error")) {
+    stop(sprintf("Invalid value for `na_action`. Expected 'listwise' or 'impute', got: %s", na_action_input))
   }
 
   # Check save options
@@ -179,7 +182,7 @@ bgmCompare = function(x,
   ## Format data
   data = compare_reformat_data(
     x = x, group = group,
-    na.action = na.action,
+    na_action = na_action,
     variable_bool = ordinal_variable,
     reference_category = reference_category,
     main_difference_model = model$main_difference_model
@@ -297,7 +300,7 @@ bgmCompare = function(x,
     data_columnnames = if (is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
     save_options = list(save_main = save_main, save_pairwise = save_pairwise,
                         save_indicator = save_indicator),
-    difference_selection = difference_selection, na_action = na.action,
+    difference_selection = difference_selection, na_action = na_action,
     na_impute = na_impute, variable_type = variable_type, burnin = burnin,
     interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha,

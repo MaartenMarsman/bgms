@@ -1,3 +1,5 @@
+#' @importFrom utils packageVersion
+
 prepare_output_bgmCompare = function(out, x, independent_thresholds,
                                      num_variables, num_categories, group, iter,
                                      data_columnnames, save_options,
@@ -20,7 +22,7 @@ prepare_output_bgmCompare = function(out, x, independent_thresholds,
 
   arguments = list(
     num_variables = num_variables, group = group, num_cases = tabulate(group),
-    na.action = na.action, na_impute = na_impute, iter = iter, burnin = burnin,
+    na_action = na_action, na_impute = na_impute, iter = iter, burnin = burnin,
     difference_selection = difference_selection,
     independent_thresholds = independent_thresholds,
     save_main = save_options$save_main,

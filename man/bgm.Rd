@@ -20,7 +20,7 @@ bgm(
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
   dirichlet_alpha = 1,
-  na.action = c("listwise", "impute"),
+  na_action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
 )
@@ -124,9 +124,9 @@ positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 \item{dirichlet_alpha}{The shape of the Dirichlet prior on the node-to-block
 allocation probabilities for the Stochastic Block model.}
 
-\item{na.action}{How do you want the function to handle missing data? If
-\code{na.action = "listwise"}, listwise deletion is used. If
-\code{na.action = "impute"}, missing data are imputed iteratively during the
+\item{na_action}{How do you want the function to handle missing data? If
+\code{na_action = "listwise"}, listwise deletion is used. If
+\code{na_action = "impute"}, missing data are imputed iteratively during the
 MCMC procedure. Since imputation of missing data can have a negative impact
 on the convergence speed of the MCMC procedure, it is recommended to run the
 MCMC for more iterations. Also, since the numerical routines that search for
@@ -315,6 +315,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.
  #Restore user par() settings
  par(op)
 }
+
 }
 \references{
 \insertAllCited{}

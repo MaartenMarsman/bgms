@@ -1,3 +1,5 @@
+#' @importFrom methods hasArg
+
 check_model = function(x,
                        variable_type,
                        reference_category,

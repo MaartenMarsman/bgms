@@ -27,8 +27,7 @@ bgmCompare(
   threshold_beta = 0.5,
   iter = 10000,
   burnin = 500,
-  na.action = c("listwise", "impute"),
-  save = FALSE,
+  na_option = c("listwise", "impute"),
   save_main = FALSE,
   save_pairwise = FALSE,
   save_indicator = FALSE,
@@ -56,6 +55,10 @@ bgmCompare(
 
 \item{pairwise_difference_prior, main_difference_prior}{Character. Specifies the inclusion probability model (`"Bernoulli"` or `"Beta-Bernoulli"`). Default: `"Bernoulli"`.}
 
+\item{pairwise_difference_probability}{A numeric value or a \eqn{p \times p} matrix specifying the prior inclusion probability of a pairwise difference in the Bernoulli model. A single value applies the same probability to all pairs, while a matrix allows for edge-specific probabilities. Defaults to 0.5 (equal prior probability for inclusion and exclusion).}
+
+\item{main_difference_probability}{A numeric value or a length-\eqn{p} vector specifying the prior inclusion probability of a threshold difference in the Bernoulli model. A single value applies the same probability to all variables, while a vector allows for variable-specific probabilities. Defaults to 0.5, indicating no prior preference.}
+
 \item{pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta}{Double. Shape parameters for the Beta-Bernoulli prior on pairwise differences.}
 
 \item{main_beta_bernoulli_alpha, main_beta_bernoulli_beta}{Double. Shape parameters for the Beta-Bernoulli prior on threshold differences.}
@@ -66,11 +69,11 @@ bgmCompare(
 
 \item{iter, burnin}{Integer. Number of Gibbs iterations (`iter`) and burn-in iterations (`burnin`). Defaults: `iter = 1e4`, `burnin = 5e2`.}
 
-\item{na.action}{Character. Specifies handling of missing data. `"listwise"` deletes rows with missing values; `"impute"` imputes values during Gibbs sampling. Default: `"listwise"`.}
-
 \item{save_main, save_pairwise, save_indicator}{Logical. Enable saving sampled states for `main_effects`, `pairwise_effects`, and `indicator`, respectively. Default: `FALSE`.}
 
 \item{display_progress}{Logical. Show progress bar during computation. Default: `TRUE`.}
+
+\item{na_action}{Character. Specifies handling of missing data. `"listwise"` deletes rows with missing values; `"impute"` imputes values during Gibbs sampling. Default: `"listwise"`.}
 }
 \value{
 A list containing the posterior means and, optionally, sampled states based on the `save_*` options. The returned components include:

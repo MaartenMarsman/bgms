@@ -6,6 +6,7 @@
 #' @param x An object of class \code{bgms}.
 #' @param ... Ignored.
 #'
+#' @importFrom Rdpack reprompt
 #' @export
 print.bgms <- function(x, ...) {
   arguments = extract_arguments(x)
