@@ -10,6 +10,7 @@ fixed a bug with handling threshold estimation when missing categories and main_
 Fixed a bug with adjusting the variance of the proposal distributions.
 Fixed a bug with recoding data under the "collapse" condition.
 When selection = true, we run 2 * burnin iterations instead of 1 * burnin in the burnin phase. This helps ensure that the Markov chain used for estimating the pseudoposterior starts with good parameter values and that proposals are properly calibrated. In rare cases, the Markov chain could get stuck before. The default setting for the burnin is also changed from 1000 to 500.
+Changed the maximum standard deviation of the adaptive proposal from 20 back to 2.
 
 # bgms 0.1.4.1
 
