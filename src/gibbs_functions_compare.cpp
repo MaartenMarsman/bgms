@@ -5,7 +5,6 @@
 #include <progress.hpp>
 #include <progress_bar.hpp>
 
-#include "gibbs_functions.h"
 #include <Rcpp.h>
 
 using namespace Rcpp;
@@ -17,7 +16,6 @@ using namespace Rcpp;
  *  - current_sd: Current standard deviation of the proposal.
  *  - observed_log_acceptance_probability: Log acceptance probability from the Metropolis-Hastings step.
  *  - target_acceptance_rate: Target acceptance rate.
- *  - t: Iteration number.
  *  - rm_adaptation_rate: Robbins-Monro learning rate.
  *  - rm_lower_bound: Minimum allowable standard deviation.
  *  - rm_upper_bound: Maximum allowable standard deviation.
@@ -58,10 +56,8 @@ double update_with_robbins_monro (
  * Purpose: Computes thresholds for a specific variable in a given group.
  * Inputs:
  *  - variable: Index of the variable for which thresholds are computed.
- *  - is_ordinal_variable: Logical vector indicating if variables are ordinal.
  *  - group: Index of the group for which thresholds are computed.
  *  - num_groups: Total number of groups in the analysis.
- *  - num_categories: Matrix of category counts per variable and group.
  *  - main_effects: Matrix of main effects across variables and groups.
  *  - main_effect_indices: Indices for main effect parameters.
  *  - projection: Projection matrix for group-specific scaling.
@@ -71,10 +67,8 @@ double update_with_robbins_monro (
  */
 arma::vec compute_group_thresholds(
     const int variable,
-    const arma::uvec& is_ordinal_variable,
     const int group,
     const int num_groups,
-    const arma::imat& num_categories,
     const arma::mat& main_effects,
     const arma::imat& main_effect_indices,
     const arma::mat& projection,
@@ -161,15 +155,9 @@ List impute_missing_data_for_anova_model(
     gr = group_membership[person];
 
     // Compute thresholds for the variable in the given group
-    arma::vec GroupThresholds = compute_group_thresholds(variable,
-                                                         is_ordinal_variable,
-                                                         gr,
-                                                         num_groups,
-                                                         num_categories,
-                                                         main_effects,
-                                                         main_effect_indices,
-                                                         projection,
-                                                         independent_thresholds);
+    arma::vec GroupThresholds = compute_group_thresholds(
+      variable, gr, num_groups, main_effects,  main_effect_indices, projection,
+      independent_thresholds);
 
     // Generate a new observation based on the model
     rest_score = residual_matrix(person, variable);
@@ -265,7 +253,6 @@ List impute_missing_data_for_anova_model(
  *  - group_indices: Integer matrix containing start and end indices for each group in `observations`.
  *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
  *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
- *  - num_persons: Total number of individuals in the dataset.
  *  - variable1: Index of the first variable involved in the interaction.
  *  - variable2: Index of the second variable involved in the interaction.
  *  - proposed_state: Proposed value for the interaction parameter.
@@ -286,7 +273,6 @@ double log_pseudolikelihood_ratio_interaction(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     const bool independent_thresholds,
-    const int num_persons,
     const int variable1,
     const int variable2,
     const double proposed_state,
@@ -306,12 +292,12 @@ double log_pseudolikelihood_ratio_interaction(
   for(int gr = 0; gr < num_groups; gr++) {
     // Retrieve thresholds for the two variables in the current group
     arma::vec GroupThresholds_v1 = compute_group_thresholds (
-      variable1, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     arma::vec GroupThresholds_v2 = compute_group_thresholds (
-      variable2, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     n_cats_v1 = num_categories(variable1, gr);
     n_cats_v2 = num_categories(variable2, gr);
@@ -397,9 +383,8 @@ double log_pseudolikelihood_ratio_interaction(
  *  - proposal_sd_pairwise_effects: Numeric matrix of proposal standard deviations for pairwise interaction parameters.
  *  - interaction_scale: Scale parameter for the prior distribution of interaction terms.
  *  - num_variables: Total number of variables in the analysis.
- *  - rm_adaptation_rate: Robbins-Monro learning rate for adapting proposal standard deviations.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
  *  - target_acceptance_rate: Target log acceptance rate for the Metropolis-Hastings updates.
- *  - t: Current iteration number in the sampling procedure.
  *  - rm_lower_bound: Lower bound for the proposal standard deviations.
  *  - rm_upper_bound: Upper bound for the proposal standard deviations.
  *
@@ -426,14 +411,12 @@ void metropolis_interaction(
     arma::mat& proposal_sd_pairwise_effects,
     double interaction_scale,
     const int num_variables,
-    double rm_adaptation_rate,
-    double target_acceptance_rate,
-    const int t,
-    double rm_lower_bound,
-    double rm_upper_bound
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
 ) {
   double log_acceptance_probability, current_state, proposed_state, U, state_difference;
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);// Precompute Robbins-Monro decay term
   int int_index, obs1, obs2;
 
   // Iterate over all pairs of variables for interaction updates
@@ -450,8 +433,8 @@ void metropolis_interaction(
       // Compute the log pseudo-likelihood ratio for proposed vs. current states
       log_acceptance_probability = log_pseudolikelihood_ratio_interaction(
         main_effects, main_effect_indices, projection, observations, num_groups,
-        group_indices, num_categories, independent_thresholds, num_persons,
-        variable1, variable2, proposed_state, current_state, residual_matrix,
+        group_indices, num_categories, independent_thresholds, variable1,
+        variable2, proposed_state, current_state, residual_matrix,
         is_ordinal_variable, baseline_category);
 
       // Add prior probabilities for the interaction parameter
@@ -476,8 +459,9 @@ void metropolis_interaction(
 
       // Robbins-Monro update to adapt the proposal standard deviation
       proposal_sd_pairwise_effects(int_index, 0) = update_with_robbins_monro(
-        proposal_sd_pairwise_effects(int_index, 0), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
-        rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
+        proposal_sd_pairwise_effects(int_index, 0), log_acceptance_probability,
+        target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+        exp_neg_log_t_rm_adaptation_rate);
     }
   }
 }
@@ -498,7 +482,6 @@ void metropolis_interaction(
  *  - group_indices: Integer matrix indicating the start and end indices for each group in `observations`.
  *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
  *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
- *  - num_persons: Total number of individuals in the dataset.
  *  - variable1: Index of the first variable in the interaction pair.
  *  - variable2: Index of the second variable in the interaction pair.
  *  - h: Index of the group difference being modeled.
@@ -521,7 +504,6 @@ double log_pseudolikelihood_ratio_pairwise_difference(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     const bool independent_thresholds,
-    const int num_persons,
     const int variable1,
     const int variable2,
     const int h,
@@ -545,12 +527,12 @@ double log_pseudolikelihood_ratio_pairwise_difference(
   for(int gr = 0; gr < num_groups; gr++) {
     // Compute thresholds for both variables in the current group
     arma::vec GroupThresholds_v1 = compute_group_thresholds(
-      variable1, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     arma::vec GroupThresholds_v2 = compute_group_thresholds(
-      variable2, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     // Scale the delta_state by the projection factor for this group
     P = projection(gr, h);
@@ -638,16 +620,14 @@ double log_pseudolikelihood_ratio_pairwise_difference(
  *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
  *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
  *  - inclusion_indicator: Integer matrix indicating whether pairwise differences are included in the model.
- *  - num_persons: Total number of individuals in the dataset.
  *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
  *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal.
  *  - baseline_category: Integer vector indicating the reference categories for Blume-Capel variables.
  *  - proposal_sd_pairwise_effects: Numeric matrix of proposal standard deviations for pairwise interaction parameters.
  *  - pairwise_difference_scale: Scale parameter for the prior distribution of pairwise differences.
  *  - num_variables: Total number of variables in the analysis.
- *  - rm_adaptation_rate: Robbins-Monro learning rate for adapting proposal standard deviations.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term
  *  - target_acceptance_rate: Target log acceptance rate for the Metropolis-Hastings updates.
- *  - t: Current iteration number in the sampling procedure.
  *  - rm_lower_bound: Lower bound for the proposal standard deviations.
  *  - rm_upper_bound: Upper bound for the proposal standard deviations.
  *
@@ -668,20 +648,17 @@ void metropolis_pairwise_difference(
     const arma::imat& num_categories,
     const bool independent_thresholds,
     const arma::imat& inclusion_indicator,
-    const int num_persons,
     arma::mat& residual_matrix,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     arma::mat& proposal_sd_pairwise_effects,
     const double pairwise_difference_scale,
     const int num_variables,
-    const double rm_adaptation_rate,
+    const double exp_neg_log_t_rm_adaptation_rate,
     const double target_acceptance_rate,
-    const int t,
     const double rm_lower_bound,
     const double rm_upper_bound
 ) {
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate); // Precompute Robbins-Monro decay term
   int int_index, obs1, obs2;
   double current_state, proposed_state,log_acceptance_probability, U;
   double state_difference;
@@ -701,9 +678,9 @@ void metropolis_pairwise_difference(
           // Compute the log pseudo-likelihood ratio for the proposed vs. current state
           log_acceptance_probability = log_pseudolikelihood_ratio_pairwise_difference(
             main_effects, main_effect_indices, projection, observations, num_groups,
-            group_indices, num_categories, independent_thresholds, num_persons,
-            variable1, variable2, h - 1, proposed_state, current_state,
-            residual_matrix, is_ordinal_variable, baseline_category);
+            group_indices, num_categories, independent_thresholds, variable1,
+            variable2, h - 1, proposed_state, current_state, residual_matrix,
+            is_ordinal_variable, baseline_category);
 
           // Add prior probabilities for the pairwise difference parameter
           log_acceptance_probability += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
@@ -729,7 +706,8 @@ void metropolis_pairwise_difference(
 
           // Robbins-Monro update for the proposal standard deviation
           proposal_sd_pairwise_effects(int_index, h) = update_with_robbins_monro(
-            proposal_sd_pairwise_effects(int_index, h), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+            proposal_sd_pairwise_effects(int_index, h),
+            log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
             rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
         }
       }
@@ -753,7 +731,6 @@ void metropolis_pairwise_difference(
  *   - group_indices: arma::imat specifying group-wise start and end indices for individuals.
  *   - num_categories: arma::imat containing category counts for each variable and group.
  *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
- *   - num_persons: Total number of individuals in the analysis.
  *   - variable1: Index of the first variable in the pair.
  *   - variable2: Index of the second variable in the pair.
  *   - proposed_states: arma::vec of proposed pairwise difference states for all groups.
@@ -781,7 +758,6 @@ double log_pseudolikelihood_ratio_pairwise_differences(
     const arma::imat& group_indices,
     const arma::imat& num_categories,
     const bool independent_thresholds,
-    const int num_persons,
     const int variable1,
     const int variable2,
     const arma::vec& proposed_states,
@@ -797,12 +773,12 @@ double log_pseudolikelihood_ratio_pairwise_differences(
   for (int gr = 0; gr < num_groups; gr++) {
     // Compute thresholds for both variables
     arma::vec GroupThresholds_v1 = compute_group_thresholds(
-      variable1, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     arma::vec GroupThresholds_v2 = compute_group_thresholds(
-      variable2, is_ordinal_variable, gr, num_groups, num_categories, main_effects,
-      main_effect_indices, projection, independent_thresholds);
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
     // Compute current and proposed group interactions
     double current_group_interaction = 0.0;
@@ -895,19 +871,12 @@ double log_pseudolikelihood_ratio_pairwise_differences(
  *   - num_categories: arma::imat containing category counts for each variable and group.
  *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
  *   - inclusion_indicator: arma::imat indicating active pairwise differences.
- *   - num_persons: Total number of individuals in the analysis.
  *   - residual_matrix: arma::mat of residuals used for pseudo-likelihood calculations.
  *   - is_ordinal_variable: arma::uvec indicating whether variables are ordinal.
  *   - baseline_category: arma::ivec specifying reference categories for each variable.
  *   - proposal_sd_pairwise_effects: arma::mat of proposal standard deviations for pairwise differences.
  *   - pairwise_difference_scale: Double representing the scale of the prior distribution
  *                                for pairwise differences.
- *   - num_variables: Total number of variables in the analysis.
- *   - rm_adaptation_rate: Robbins-Monro learning rate parameter.
- *   - target_acceptance_rate: Target acceptance probability for Metropolis-Hastings updates.
- *   - t: Current iteration number.
- *   - rm_lower_bound: Lower bound for proposal standard deviations.
- *   - rm_upper_bound: Upper bound for proposal standard deviations.
  *   - num_pairwise: Total number of pairwise differences.
  *
  * Outputs:
@@ -928,18 +897,11 @@ void metropolis_pairwise_difference_between_model(
     const arma::imat& num_categories,
     const bool independent_thresholds,
     arma::imat& inclusion_indicator,
-    const int num_persons,
     arma::mat& residual_matrix,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     arma::mat& proposal_sd_pairwise_effects,
     const double pairwise_difference_scale,
-    const int num_variables,
-    const double rm_adaptation_rate,
-    const double target_acceptance_rate,
-    const int t,
-    const double rm_lower_bound,
-    const double rm_upper_bound,
     const int num_pairwise
 ) {
   // Vectors to store current and proposed states for pairwise differences
@@ -987,9 +949,10 @@ void metropolis_pairwise_difference_between_model(
 
     // Compute log pseudo-likelihood ratio
     log_acceptance_probability += log_pseudolikelihood_ratio_pairwise_differences(
-      main_effects, main_effect_indices, projection, observations,
-      num_groups, group_indices, num_categories, independent_thresholds, num_persons, variable1,
-      variable2, proposed_states, current_states, residual_matrix, is_ordinal_variable, baseline_category);
+      main_effects, main_effect_indices, projection, observations, num_groups,
+      group_indices, num_categories, independent_thresholds, variable1,
+      variable2, proposed_states, current_states, residual_matrix,
+      is_ordinal_variable, baseline_category);
 
     // Metropolis-Hastings acceptance step
     double U = R::unif_rand();
@@ -1167,7 +1130,6 @@ void metropolis_threshold_regular(
  *  - num_groups: Total number of groups in the analysis.
  *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
  *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
- *  - num_persons: Total number of individuals in the dataset.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
  *  - num_obs_categories: List of integer matrices tracking the number of observations for each category
  *               of a variable in a specific group.
@@ -1188,7 +1150,6 @@ double log_pseudolikelihood_ratio_main_difference(
     const int num_groups,
     const arma::imat& group_indices,
     const arma::imat& num_categories,
-    const int num_persons,
     const arma::mat& residual_matrix,
     const List& num_obs_categories,
     const int variable,
@@ -1274,9 +1235,8 @@ double log_pseudolikelihood_ratio_main_difference(
  *  - inclusion_indicator: Integer matrix indicating active variables for the analysis.
  *  - proposal_sd_main_effects: Numeric matrix specifying proposal standard deviations for category thresholds.
  *  - main_difference_scale: Scale parameter for the Cauchy prior on threshold differences.
- *  - rm_adaptation_rate: Robbins-Monro learning rate for adaptive proposal standard deviations.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
  *  - target_acceptance_rate: Target log acceptance rate for Metropolis-Hastings updates.
- *  - t: Current iteration number of the sampler.
  *  - rm_lower_bound: Minimum allowable standard deviation for proposals.
  *  - rm_upper_bound: Maximum allowable standard deviation for proposals.
  *
@@ -1292,22 +1252,17 @@ void metropolis_main_difference_regular(
     const int num_groups,
     const arma::imat& group_indices,
     const arma::imat& num_categories,
-    const int num_persons,
     const arma::mat& residual_matrix,
     const List& num_obs_categories,
     const int variable,
     const arma::imat& inclusion_indicator,
     arma::mat& proposal_sd_main_effects,
     const double main_difference_scale,
-    const double rm_adaptation_rate,
+    const double exp_neg_log_t_rm_adaptation_rate,
     const double target_acceptance_rate,
-    const int t,
     const double rm_lower_bound,
     const double rm_upper_bound
 ) {
-  // Precompute Robbins-Monro term
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
-
   // Check if the variable is active
   if (inclusion_indicator(variable, variable) != 1) {
     return; // Skip if variable is inactive
@@ -1329,7 +1284,7 @@ void metropolis_main_difference_regular(
       // Compute log pseudo-likelihood ratio for proposed vs current state
       double log_acceptance_probability = log_pseudolikelihood_ratio_main_difference(
         main_effects, main_effect_indices, projection, observations, num_groups,
-        group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
+        group_indices, num_categories, residual_matrix, num_obs_categories,
         variable, category, h - 1, proposed_state, current_state);
 
       // Add contributions from the Cauchy prior
@@ -1368,7 +1323,6 @@ void metropolis_main_difference_regular(
  *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
  *  - sufficient_blume_capel: List of integer matrices containing sufficient statistics
  *                            for the Blume-Capel model, including linear and quadratic terms.
- *  - num_persons: Total number of individuals in the dataset.
  *  - num_groups: Total number of groups in the analysis.
  *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
@@ -1388,7 +1342,6 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
     const arma::imat& main_effect_indices,
     const arma::mat& projection,
     const List& sufficient_blume_capel,
-    const int num_persons,
     const int num_groups,
     const arma::imat& group_indices,
     const arma::mat& residual_matrix,
@@ -1490,7 +1443,6 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
  *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
  *  - sufficient_blume_capel: List of sufficient statistics for the Blume-Capel model,
  *                            including linear and quadratic terms.
- *  - num_persons: Total number of individuals in the dataset.
  *  - num_groups: Total number of groups in the analysis.
  *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
  *  - variable: Index of the variable for which thresholds are being updated.
@@ -1499,9 +1451,8 @@ double log_pseudolikelihood_ratio_thresholds_blumecapel(
  *  - prior_threshold_beta: Hyperparameter for the Blume-Capel threshold prior distribution.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
  *  - proposal_sd_main_effects: Numeric matrix storing the proposal standard deviations for the parameters.
- *  - rm_adaptation_rate: Robbins-Monro learning rate.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precompute Robbins-Monro decay term.
  *  - target_acceptance_rate: Target log acceptance probability for the MH algorithm.
- *  - t: Current iteration number of the sampler.
  *  - rm_lower_bound: Lower bound for the proposal standard deviation.
  *  - rm_upper_bound: Upper bound for the proposal standard deviation.
  *
@@ -1515,7 +1466,6 @@ void metropolis_threshold_blumecapel(
     const arma::mat& projection,
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
-    const int num_persons,
     const int num_groups,
     const arma::imat& group_indices,
     const int variable,
@@ -1524,15 +1474,11 @@ void metropolis_threshold_blumecapel(
     const double prior_threshold_beta,
     const arma::mat& residual_matrix,
     arma::mat& proposal_sd_main_effects,
-    const double rm_adaptation_rate,
+    const double exp_neg_log_t_rm_adaptation_rate,
     const double target_acceptance_rate,
-    const int t,
     const double rm_lower_bound,
     const double rm_upper_bound
 ) {
-  // Precompute Robbins-Monro adjustment term
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
-
   // Adaptive Metropolis procedure for the linear Blume-Capel model
   int cat_index = main_effect_indices(variable, 0); // Base index for the variable
   double current_state = main_effects(cat_index, 0);
@@ -1547,7 +1493,7 @@ void metropolis_threshold_blumecapel(
   double log_acceptance_probability = log_pseudolikelihood_ratio_thresholds_blumecapel(
     linear_current, quadratic_current, linear_proposed, quadratic_proposed,
     variable, baseline_category, main_effects, main_effect_indices, projection,
-    sufficient_blume_capel, num_persons, num_groups, group_indices, residual_matrix,
+    sufficient_blume_capel, num_groups, group_indices, residual_matrix,
     num_categories);
 
   // Add prior ratio to log acceptance probability
@@ -1579,7 +1525,7 @@ void metropolis_threshold_blumecapel(
   log_acceptance_probability = log_pseudolikelihood_ratio_thresholds_blumecapel(
     linear_current, quadratic_current, linear_proposed, quadratic_proposed,
     variable, baseline_category, main_effects, main_effect_indices, projection,
-    sufficient_blume_capel, num_persons, num_groups, group_indices, residual_matrix,
+    sufficient_blume_capel, num_groups, group_indices, residual_matrix,
     num_categories);
 
   // Add prior ratio to log acceptance probability
@@ -1619,7 +1565,6 @@ void metropolis_threshold_blumecapel(
  *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
  *  - sufficient_blume_capel: List of sufficient statistics for the Blume-Capel model,
  *                            including linear and quadratic terms.
- *  - num_persons: Total number of individuals in the dataset.
  *  - num_groups: Total number of groups in the analysis.
  *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
  *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
@@ -1640,7 +1585,6 @@ double log_pseudolikelihood_ratio_main_difference_blumecapel(
     const arma::imat& main_effect_indices,
     const arma::mat& projection,
     const List& sufficient_blume_capel,
-    const int num_persons,
     const int num_groups,
     const arma::imat& group_indices,
     const arma::mat& residual_matrix,
@@ -1768,9 +1712,8 @@ double log_pseudolikelihood_ratio_main_difference_blumecapel(
  *   - residual_matrix: A matrix of residual scores for the pseudo-likelihood calculation.
  *   - inclusion_indicator: A binary matrix indicating whether a variable is active for sampling.
  *   - proposal_sd_main_effects: A matrix of proposal standard deviations for the main effects.
- *   - rm_adaptation_rate: Robbins-Monro learning rate parameter for adaptive Metropolis-Hastings.
+ *   - exp_neg_log_t_rm_adaptation_rate: Precompute Robbins-Monro decay term.
  *   - target_acceptance_rate: Target acceptance probability for Robbins-Monro.
- *   - t: Current iteration number in the sampling procedure.
  *   - rm_lower_bound: Lower bound for the proposal standard deviation.
  *   - rm_upper_bound: Upper bound for the proposal standard deviation.
  *
@@ -1787,7 +1730,6 @@ void metropolis_main_difference_blumecapel(
     const arma::mat& projection,
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
-    const int num_persons,
     const int num_groups,
     const arma::imat& group_indices,
     const int variable,
@@ -1795,15 +1737,13 @@ void metropolis_main_difference_blumecapel(
     arma::mat& residual_matrix,
     const arma::imat& inclusion_indicator,
     arma::mat& proposal_sd_main_effects,
-    const double rm_adaptation_rate,
+    const double exp_neg_log_t_rm_adaptation_rate,
     const double target_acceptance_rate,
-    const int t,
     const double rm_lower_bound,
     const double rm_upper_bound
 ) {
   double log_acceptance_probability, U; // Log probability and random uniform value for MH step
   double current_state, proposed_state; // Current and proposed parameter values
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate); // Precomputed Robbins-Monro term
 
   // Check if the variable is active for sampling
   if (inclusion_indicator(variable, variable) == 0) {
@@ -1827,7 +1767,7 @@ void metropolis_main_difference_blumecapel(
     log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
       linear_current, quadratic_current, linear_proposed, quadratic_proposed,
       variable, h - 1, baseline_category, main_effects, main_effect_indices,
-      projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
+      projection, sufficient_blume_capel, num_groups, group_indices,
       residual_matrix, num_categories);
 
     // Add prior contributions to the log probability
@@ -1859,7 +1799,7 @@ void metropolis_main_difference_blumecapel(
     log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
       linear_current, quadratic_current, linear_proposed, quadratic_proposed,
       variable, h - 1, baseline_category, main_effects, main_effect_indices,
-      projection, sufficient_blume_capel, num_persons, num_groups, group_indices,
+      projection, sufficient_blume_capel, num_groups, group_indices,
       residual_matrix, num_categories);
 
     // Add prior contributions to the log probability
@@ -2030,7 +1970,6 @@ void metropolis_thresholds_regular_free(
  *                    variable and group.
  *   - sufficient_blume_capel: A list of matrices containing sufficient statistics
  *                             for each group.
- *   - num_persons: Total number of individuals in the dataset.
  *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
  *   - num_obs_categories: A list of matrices containing category-specific counts for
  *                each group and variable.
@@ -2040,7 +1979,7 @@ void metropolis_thresholds_regular_free(
  *   - group: Index of the group being updated.
  *   - proposal_sd_main_effects: A matrix of proposal standard deviations for the
  *                       Metropolis-Hastings updates.
- *   - rm_adaptation_rate: Robbins-Monro learning rate parameter.
+ *   - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
  *   - target_acceptance_rate: Target acceptance rate for
  *                                         Metropolis-Hastings updates.
  *   - t: Current iteration number.
@@ -2061,7 +2000,6 @@ void metropolis_thresholds_blumecapel_free(
     const arma::ivec& baseline_category,
     const arma::imat& num_categories,
     const List& sufficient_blume_capel,
-    const int num_persons,
     arma::mat& residual_matrix,
     const List& num_obs_categories,
     const double prior_threshold_alpha,
@@ -2069,16 +2007,11 @@ void metropolis_thresholds_blumecapel_free(
     const int variable,
     const int group,
     arma::mat& proposal_sd_main_effects,
-    const double rm_adaptation_rate,
+    const double exp_neg_log_t_rm_adaptation_rate,
     const double target_acceptance_rate,
-    const int t,
     const double rm_lower_bound,
     const double rm_upper_bound
 ) {
-
-  // Robbins-Monro term precomputed for efficiency
-  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
-
   // Retrieve sufficient statistics for the current group
   arma::mat sufficient_blume_capel_group = sufficient_blume_capel[group];
 
@@ -2767,34 +2700,40 @@ List gibbs_step_gm(
     const int num_variables,
     const arma::imat& index
 ) {
+  // Precompute the Robbins-Monro decay term
+  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
+
   // Step 1: Update pairwise interaction parameters
   metropolis_interaction(
     main_effects, pairwise_effects, main_effect_indices,
-    pairwise_effect_indices, projection, observations, num_groups, group_indices,
-    num_categories, independent_thresholds, num_persons, residual_matrix,
-    is_ordinal_variable, baseline_category, proposal_sd_pairwise_effects,
-    interaction_scale, num_variables, rm_adaptation_rate, target_acceptance_rate,
-    t, rm_lower_bound, rm_upper_bound);
+    pairwise_effect_indices, projection, observations, num_groups,
+    group_indices, num_categories, independent_thresholds, num_persons,
+    residual_matrix, is_ordinal_variable, baseline_category,
+    proposal_sd_pairwise_effects, interaction_scale, num_variables,
+    exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound);
 
 
   //  Step 2: Update the selection of pairwise differences
   if(difference_selection) {
     metropolis_pairwise_difference_between_model(
       inclusion_probability_difference, index, main_effects, pairwise_effects,
-      main_effect_indices, pairwise_effect_indices, projection, observations, num_groups,
-      group_indices, num_categories, independent_thresholds, inclusion_indicator, num_persons,
-      residual_matrix, is_ordinal_variable, baseline_category, proposal_sd_pairwise_effects,
-      pairwise_difference_scale, num_variables, rm_adaptation_rate,
-      target_acceptance_rate, t, rm_lower_bound, rm_upper_bound, num_pairwise);
+      main_effect_indices, pairwise_effect_indices, projection, observations,
+      num_groups, group_indices, num_categories, independent_thresholds,
+      inclusion_indicator, residual_matrix, is_ordinal_variable,
+      baseline_category, proposal_sd_pairwise_effects,
+      pairwise_difference_scale, num_pairwise);
   }
 
   // Step 3: Update pairwise differences
   metropolis_pairwise_difference(
-    main_effects, pairwise_effects, main_effect_indices, pairwise_effect_indices, projection,
-    observations, num_groups, group_indices, num_categories, independent_thresholds,
-    inclusion_indicator, num_persons, residual_matrix, is_ordinal_variable, baseline_category,
-    proposal_sd_pairwise_effects, pairwise_difference_scale, num_variables, rm_adaptation_rate,
-    target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
+    main_effects, pairwise_effects, main_effect_indices,
+    pairwise_effect_indices, projection, observations, num_groups,
+    group_indices, num_categories, independent_thresholds, inclusion_indicator,
+    residual_matrix, is_ordinal_variable, baseline_category,
+    proposal_sd_pairwise_effects, pairwise_difference_scale, num_variables,
+    exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound);
 
   // Step 4: Update thresholds
   for (int variable = 0; variable < num_variables; variable++) {
@@ -2808,20 +2747,22 @@ List gibbs_step_gm(
             prior_threshold_beta, variable, group);
         } else {
           metropolis_thresholds_blumecapel_free(
-            main_effects, main_effect_indices, observations, num_groups, group_indices,
-            baseline_category, num_categories, sufficient_blume_capel, num_persons,
-            residual_matrix, num_obs_categories, prior_threshold_alpha, prior_threshold_beta, variable,
-            group, proposal_sd_main_effects, rm_adaptation_rate, target_acceptance_rate, t,
-            rm_lower_bound, rm_upper_bound);
+            main_effects, main_effect_indices, observations, num_groups,
+            group_indices, baseline_category, num_categories,
+            sufficient_blume_capel, residual_matrix, num_obs_categories,
+            prior_threshold_alpha, prior_threshold_beta, variable, group,
+            proposal_sd_main_effects, exp_neg_log_t_rm_adaptation_rate,
+            target_acceptance_rate, rm_lower_bound, rm_upper_bound);
         }
       }
     } else {
       // Thresholds modeled with group differences
       if (is_ordinal_variable[variable]) {
         metropolis_threshold_regular(
-          main_effects, main_effect_indices, projection, observations, num_groups,
-          group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
-          prior_threshold_alpha, prior_threshold_beta, variable);
+          main_effects, main_effect_indices, projection, observations,
+          num_groups, group_indices, num_categories, num_persons,
+          residual_matrix, num_obs_categories, prior_threshold_alpha,
+          prior_threshold_beta, variable);
 
         if(difference_selection) {
           metropolis_main_difference_regular_between_model(
@@ -2833,16 +2774,20 @@ List gibbs_step_gm(
         }
 
         metropolis_main_difference_regular(
-          main_effects, main_effect_indices, projection, observations, num_groups,
-          group_indices, num_categories, num_persons, residual_matrix, num_obs_categories,
-          variable, inclusion_indicator, proposal_sd_main_effects, main_difference_scale, rm_adaptation_rate,
-          target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
+          main_effects, main_effect_indices, projection, observations,
+          num_groups, group_indices, num_categories, residual_matrix,
+          num_obs_categories, variable, inclusion_indicator,
+          proposal_sd_main_effects, main_difference_scale,
+          exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate,
+          rm_lower_bound, rm_upper_bound);
       } else {
         metropolis_threshold_blumecapel(
-          main_effects, main_effect_indices, projection, num_categories, sufficient_blume_capel,
-          num_persons, num_groups, group_indices, variable, baseline_category,
-          prior_threshold_alpha, prior_threshold_beta, residual_matrix, proposal_sd_main_effects, rm_adaptation_rate,
-          target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
+          main_effects, main_effect_indices, projection, num_categories,
+          sufficient_blume_capel,num_groups, group_indices, variable,
+          baseline_category, prior_threshold_alpha, prior_threshold_beta,
+          residual_matrix, proposal_sd_main_effects,
+          exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate,
+          rm_lower_bound, rm_upper_bound);
 
         if(difference_selection) {
           metropolis_main_difference_blume_capel_between_model(
@@ -2856,10 +2801,10 @@ List gibbs_step_gm(
 
         metropolis_main_difference_blumecapel(
           main_effects, main_effect_indices, main_difference_scale, projection,
-          num_categories, sufficient_blume_capel, num_persons, num_groups,
-          group_indices, variable, baseline_category, residual_matrix,
-          inclusion_indicator, proposal_sd_main_effects, rm_adaptation_rate,
-          target_acceptance_rate, t, rm_lower_bound, rm_upper_bound);
+          num_categories, sufficient_blume_capel, num_groups, group_indices,
+          variable, baseline_category, residual_matrix, inclusion_indicator,
+          proposal_sd_main_effects, exp_neg_log_t_rm_adaptation_rate,
+          target_acceptance_rate, rm_lower_bound, rm_upper_bound);
       }
     }
   }
