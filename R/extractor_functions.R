@@ -6,6 +6,7 @@
 #' @details Extract results from bgm objects in a safe way. Mainly intended for
 #' developers of packages that build on top of the bgms package.
 #' @keywords internal
+#' @importFrom Rdpack reprompt
 #' @export
 extract_arguments <- function(bgms_object) {
   UseMethod("extract_arguments")

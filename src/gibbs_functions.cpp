@@ -33,8 +33,8 @@ List impute_missing_data(NumericMatrix interactions,
 
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute? ---------------------------------------------
-    person = missing_index(missing, 0) - 1; //R to C++ indexing
-    variable = missing_index(missing, 1) - 1; //R to C++ indexing
+    person = missing_index(missing, 0);
+    variable = missing_index(missing, 1);
 
     //Generate new observation -------------------------------------------------
     rest_score = rest_matrix(person, variable);
@@ -604,8 +604,8 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
   int variable2;
 
   for(int cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1) - 1;
-    variable2 = index(cntr, 2) - 1;
+    variable1 = index(cntr, 1);
+    variable2 = index(cntr, 2);
 
     current_state = interactions(variable1, variable2);
 

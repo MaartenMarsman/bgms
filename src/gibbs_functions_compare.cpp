@@ -1,3201 +1,3171 @@
+// [[Rcpp::depends(RcppArmadillo)]]
+#include <RcppArmadillo.h>
+
 // [[Rcpp::depends(RcppProgress)]]
-#include <Rcpp.h>
 #include <progress.hpp>
 #include <progress_bar.hpp>
-#include "gibbs_functions.h"
+
+#include <Rcpp.h>
+
 using namespace Rcpp;
 
-// ----------------------------------------------------------------------------|
-// Impute missing data for two-samples designs
-// ----------------------------------------------------------------------------|
-List compare_impute_missing_data(NumericMatrix thresholds_gr1,
-                                 NumericMatrix thresholds_gr2,
-                                 NumericMatrix interactions_gr1,
-                                 NumericMatrix interactions_gr2,
-                                 IntegerMatrix observations_gr1,
-                                 IntegerMatrix observations_gr2,
-                                 IntegerMatrix n_cat_obs_gr1,
-                                 IntegerMatrix n_cat_obs_gr2,
-                                 IntegerMatrix sufficient_blume_capel_gr1,
-                                 IntegerMatrix sufficient_blume_capel_gr2,
-                                 IntegerVector no_categories_gr1,
-                                 IntegerVector no_categories_gr2,
-                                 NumericMatrix rest_matrix_gr1,
-                                 NumericMatrix rest_matrix_gr2,
-                                 IntegerMatrix missing_index_gr1,
-                                 IntegerMatrix missing_index_gr2,
-                                 LogicalVector ordinal_variable,
-                                 IntegerVector reference_category) {
-  int no_variables = observations_gr1.ncol();
-  int no_missings_gr1 = missing_index_gr1.nrow();
-  int no_missings_gr2 = missing_index_gr2.nrow();
-  int max_no_categories = max(no_categories_gr1);
-  if(max(no_categories_gr2) > max(no_categories_gr1)) {
-    max_no_categories = max(no_categories_gr2);
-  }
-  NumericVector probabilities(max_no_categories + 1);
-  double exponent, rest_score, cumsum, u;
-  int score, person, variable, new_observation, old_observation;
+/**
+ * Function: update_with_robbins_monro
+ * Purpose: Performs Robbins-Monro updates for proposal standard deviations.
+ * Inputs:
+ *  - current_sd: Current standard deviation of the proposal.
+ *  - observed_log_acceptance_probability: Log acceptance probability from the Metropolis-Hastings step.
+ *  - target_acceptance_rate: Target acceptance rate.
+ *  - rm_adaptation_rate: Robbins-Monro learning rate.
+ *  - rm_lower_bound: Minimum allowable standard deviation.
+ *  - rm_upper_bound: Maximum allowable standard deviation.
+ * Returns:
+ *  - Updated proposal standard deviation, clamped within bounds.
+ */
+double update_with_robbins_monro (
+    const double current_sd,
+    const double observed_log_acceptance_probability,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound,
+    const double rm_weight
+) {
 
-  //Impute missing data (if there are any) for group 1 -------------------------
-  if(no_missings_gr1 > 1) {
-    for(int missing = 0; missing < no_missings_gr1; missing++) {
-      //Which observation to impute? -------------------------------------------
-      person = missing_index_gr1(missing, 0) - 1; //R to C++ indexing
-      variable = missing_index_gr1(missing, 1) - 1; //R to C++ indexing
-
-      //Generate a new observation from the ordinal MRF ------------------------
-      rest_score = rest_matrix_gr1(person, variable);
-      if(ordinal_variable[variable] == true) {
-        //Regular binary or ordinal variable -----------------------------------
-        cumsum = 1.0;
-        probabilities[0] = 1.0;
-        for(int category = 0; category < no_categories_gr1[variable]; category++) {
-          exponent = thresholds_gr1(variable, category);
-          exponent += (category + 1) * rest_score;
-          cumsum += std::exp(exponent);
-          probabilities[category + 1] = cumsum;
-        }
-      } else {
-        //Blume-Capel variable -------------------------------------------------
-        cumsum = 0.0;
-        for(int category = 0; category < no_categories_gr1[variable] + 1; category++) {
-          exponent = thresholds_gr1(variable, 0) * category;
-          exponent += thresholds_gr1(variable, 1) *
-            (category - reference_category[variable]) *
-            (category - reference_category[variable]);
-          exponent += category * rest_score;
-          cumsum += std::exp(exponent);
-          probabilities[category] = cumsum;
-        }
-      }
-      u = cumsum * R::unif_rand();
-      score = 0;
-      while (u > probabilities[score]) {
-        score++;
-      }
-
-      //Update current data with newly generated observation -------------------
-      new_observation = score;
-      old_observation = observations_gr1(person, variable);
-      if(old_observation != new_observation) {
-        //Update raw data ------------------------------------------------------
-        observations_gr1(person, variable) = new_observation;
-
-        //Update pre-computed statistics ---------------------------------------
-        if(ordinal_variable[variable] == true) {
-          //Regular binary or ordinal variable ---------------------------------
-          n_cat_obs_gr1(old_observation, variable)--;
-          n_cat_obs_gr1(new_observation, variable)++;
-        } else {
-          //Blume-Capel variable -----------------------------------------------
-          sufficient_blume_capel_gr1(0, variable) -= old_observation;
-          sufficient_blume_capel_gr1(0, variable) += new_observation;
-          sufficient_blume_capel_gr1(1, variable) -=
-            (old_observation - reference_category[variable]) *
-            (old_observation - reference_category[variable]);
-          sufficient_blume_capel_gr1(1, variable) +=
-            (new_observation - reference_category[variable]) *
-            (new_observation - reference_category[variable]);
-        }
-
-        //Update rest score ----------------------------------------------------
-        for(int vertex = 0; vertex < no_variables; vertex++) {
-          rest_matrix_gr1(person, vertex) -= old_observation *
-            interactions_gr1(vertex, variable);
-          rest_matrix_gr1(person, vertex) += new_observation *
-            interactions_gr1(vertex, variable);
-        }
-      }
-    }
+  // Normalize the acceptance probability
+  double observed_acceptance_probability = 1.0;
+  if(observed_log_acceptance_probability < 0.0) {
+    observed_acceptance_probability = std::exp(observed_log_acceptance_probability);
   }
 
-  //Impute missing data (if there are any) for group 1 -------------------------
-  if(no_missings_gr2 > 1) {
-    for(int missing = 0; missing < no_missings_gr2; missing++) {
-      //Which observation to impute? -------------------------------------------
-      person = missing_index_gr2(missing, 0) - 1; //R to C++ indexing
-      variable = missing_index_gr2(missing, 1) - 1; //R to C++ indexing
+  // Update the proposal standard deviation
+  double update = current_sd +
+    (observed_acceptance_probability - target_acceptance_rate) * rm_weight;
 
-      //Generate a new observation from the ordinal MRF ------------------------
-      rest_score = rest_matrix_gr2(person, variable);
-      if(ordinal_variable[variable] == true) {
-        //Regular binary or ordinal variable -----------------------------------
-        cumsum = 1.0;
-        probabilities[0] = 1.0;
-        for(int category = 0; category < no_categories_gr2[variable]; category++) {
-          exponent = thresholds_gr2(variable, category);
-          exponent += (category + 1) * rest_score;
-          cumsum += std::exp(exponent);
-          probabilities[category + 1] = cumsum;
-        }
-      } else {
-        //Blume-Capel variable -------------------------------------------------
-        cumsum = 0.0;
-        for(int category = 0; category < no_categories_gr2[variable] + 1; category++) {
-          exponent = thresholds_gr2(variable, 0) * category;
-          exponent += thresholds_gr2(variable, 1) *
-            (category - reference_category[variable]) *
-            (category - reference_category[variable]);
-          exponent += category * rest_score;
-          cumsum += std::exp(exponent);
-          probabilities[category] = cumsum;
-        }
-      }
-      u = cumsum * R::unif_rand();
-      score = 0;
-      while (u > probabilities[score]) {
-        score++;
-      }
-
-      //Update current data with newly generated observation -------------------
-      new_observation = score;
-      old_observation = observations_gr2(person, variable);
-      if(old_observation != new_observation) {
-        //Update raw data ------------------------------------------------------
-        observations_gr2(person, variable) = new_observation;
-
-        //Update pre-computed statistics ---------------------------------------
-        if(ordinal_variable[variable] == true) {
-          //Regular binary or ordinal variable ---------------------------------
-          n_cat_obs_gr2(old_observation, variable)--;
-          n_cat_obs_gr2(new_observation, variable)++;
-        } else {
-          //Blume-Capel variable -----------------------------------------------
-          sufficient_blume_capel_gr2(0, variable) -= old_observation;
-          sufficient_blume_capel_gr2(0, variable) += new_observation;
-          sufficient_blume_capel_gr2(1, variable) -=
-            (old_observation - reference_category[variable]) *
-            (old_observation - reference_category[variable]);
-          sufficient_blume_capel_gr2(1, variable) +=
-            (new_observation - reference_category[variable]) *
-            (new_observation - reference_category[variable]);
-        }
-
-        //Update rest score ----------------------------------------------------
-        for(int vertex = 0; vertex < no_variables; vertex++) {
-          rest_matrix_gr2(person, vertex) -= old_observation *
-            interactions_gr2(vertex, variable);
-          rest_matrix_gr2(person, vertex) += new_observation *
-            interactions_gr2(vertex, variable);
-        }
-      }
-    }
+  // Handle NaN cases by resetting to default value
+  if (std::isnan(update)) {
+    update = 1.0; // Default proposal standard deviation
   }
 
-  return List::create(Named("observations_gr1") = observations_gr1,
-                      Named("observations_gr2") = observations_gr2,
-                      Named("n_cat_obs_gr1") = n_cat_obs_gr1,
-                      Named("n_cat_obs_gr2") = n_cat_obs_gr2,
-                      Named("sufficient_blume_capel_gr1") = sufficient_blume_capel_gr1,
-                      Named("sufficient_blume_capel_gr2") = sufficient_blume_capel_gr2,
-                      Named("rest_matrix_gr1") = rest_matrix_gr1,
-                      Named("rest_matrix_gr2") = rest_matrix_gr2);
+  // Clamp the updated standard deviation within bounds
+  return std::clamp(update, rm_lower_bound, rm_upper_bound);
 }
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for an interaction
-//  for the two independent samples design
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_interaction(NumericMatrix thresholds_gr1,
-                                                      NumericMatrix thresholds_gr2,
-                                                      IntegerMatrix observations_gr1,
-                                                      IntegerMatrix observations_gr2,
-                                                      IntegerVector no_categories_gr1,
-                                                      IntegerVector no_categories_gr2,
-                                                      int no_persons_gr1,
-                                                      int no_persons_gr2,
-                                                      int variable1,
-                                                      int variable2,
-                                                      double proposed_state,
-                                                      double current_state,
-                                                      NumericMatrix rest_matrix_gr1,
-                                                      NumericMatrix rest_matrix_gr2,
-                                                      LogicalVector ordinal_variable,
-                                                      IntegerVector reference_category) {
-  double rest_score, bound;
+
+/**
+ * Function: compute_group_thresholds
+ * Purpose: Computes thresholds for a specific variable in a given group.
+ * Inputs:
+ *  - variable: Index of the variable for which thresholds are computed.
+ *  - group: Index of the group for which thresholds are computed.
+ *  - num_groups: Total number of groups in the analysis.
+ *  - main_effects: Matrix of main effects across variables and groups.
+ *  - main_effect_indices: Indices for main effect parameters.
+ *  - projection: Projection matrix for group-specific scaling.
+ *  - independent_thresholds: Whether thresholds are modeled independently.
+ * Outputs:
+ *  - A `arma::vec` containing the computed thresholds for the variable in the group.
+ */
+arma::vec compute_group_thresholds(
+    const int variable,
+    const int group,
+    const int num_groups,
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const bool independent_thresholds
+) {
+  // Base index for accessing main effects for this variable
+  int base_category_index = main_effect_indices(variable, 0);
+  int last_category_index = main_effect_indices(variable, 1);
+
+  if (!independent_thresholds) {
+    // Dependent thresholds: model group differences
+    arma::vec GroupThresholds = main_effects.rows(base_category_index, last_category_index).col(0);
+    GroupThresholds += main_effects.rows(base_category_index, last_category_index).cols(1, num_groups - 1) * projection.row(group).t();
+    return GroupThresholds;
+  } else {
+    // Independent thresholds: compute separately for each group
+    arma::vec GroupThresholds = main_effects.rows(base_category_index, last_category_index).col(group);
+    return GroupThresholds;
+  }
+}
+
+
+/**
+ * Function: impute_missing_data_for_anova_model
+ * Purpose: Imputes missing data for independent samples designs by generating new observations
+ *          based on the model parameters and pseudo-likelihood.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effects across variables and groups.
+ *  - pairwise_effects: Numeric matrix of pairwise interaction effects between variables across groups.
+ *  - main_effect_indices: Integer matrix mapping variable indices to main effect parameters.
+ *  - pairwise_effect_indices: Integer matrix mapping variable pairs to pairwise interaction parameters.
+ *  - projection: Numeric matrix representing group-specific scaling for effects.
+ *  - observations: Integer matrix of observed data (individuals x variables), with missing data encoded.
+ *  - num_groups: Number of groups in the analysis.
+ *  - group_membership: Integer vector mapping individuals to their respective groups.
+ *  - num_obs_categories: List of matrices, one per group, recording category frequencies per variable.
+ *  - sufficient_blume_capel: List of matrices storing sufficient statistics for Blume-Capel variables.
+ *  - num_categories: Integer matrix of category counts for each variable and group.
+ *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
+ *  - missing_data_indices: Integer matrix of indices indicating missing observations (row x column pairs).
+ *  - is_ordinal_variable: Logical vector indicating whether variables are ordinal.
+ *  - baseline_category: Integer vector of reference categories for Blume-Capel variables.
+ *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
+ *
+ * Outputs:
+ *  - A List containing:
+ *    - `observations`: Updated observation matrix with imputed values.
+ *    - `num_obs_categories`: Updated list of category counts per group.
+ *    - `sufficient_blume_capel`: Updated sufficient statistics for Blume-Capel variables.
+ *    - `residual_matrix`: Updated residual effects matrix.
+ */
+List impute_missing_data_for_anova_model(
+    const arma::mat& main_effects,
+    const arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    arma::imat& observations,
+    const int num_groups,
+    const arma::ivec& group_membership,
+    List& num_obs_categories,
+    List& sufficient_blume_capel,
+    const arma::imat& num_categories,
+    arma::mat& residual_matrix,
+    const arma::imat& missing_data_indices,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    bool independent_thresholds
+) {
+  const int num_variables = observations.n_cols;
+  const int num_missings = missing_data_indices.n_rows;
+  const int max_num_categories = arma::max(arma::vectorise(num_categories));
+
+  arma::vec category_response_probabilities(max_num_categories + 1);
+  double exponent, rest_score, cumsum, u, GroupInteraction;
+  int score, person, variable, new_observation, old_observation, gr, int_index;
+
+  //Impute missing data
+  for(int missing = 0; missing < num_missings; missing++) {
+    // Identify the observation to impute
+    person = missing_data_indices(missing, 0);
+    variable = missing_data_indices(missing, 1);
+    gr = group_membership[person];
+
+    // Compute thresholds for the variable in the given group
+    arma::vec GroupThresholds = compute_group_thresholds(
+      variable, gr, num_groups, main_effects,  main_effect_indices, projection,
+      independent_thresholds);
+
+    // Generate a new observation based on the model
+    rest_score = residual_matrix(person, variable);
+    if(is_ordinal_variable[variable] == true) {
+      // For regular binary or ordinal variables
+      cumsum = 1.0;
+      category_response_probabilities[0] = 1.0;
+      for(int category = 1; category <= num_categories(variable, gr); category++) {
+        exponent = GroupThresholds(category - 1);
+        exponent += category * rest_score;
+        cumsum += std::exp(exponent);
+        category_response_probabilities[category] = cumsum;
+      }
+    } else {
+      // For Blume-Capel variables
+      cumsum = 0.0;
+      for(int category = 0; category <= num_categories(variable, gr); category++) {
+        exponent = GroupThresholds[0] * category;
+        exponent += GroupThresholds[1] *
+          (category - baseline_category[variable]) *
+          (category - baseline_category[variable]);
+        exponent += category * rest_score;
+        cumsum += std::exp(exponent);
+        category_response_probabilities[category] = cumsum;
+      }
+    }
+
+    // Sample a new value based on computed probabilities
+    u = cumsum * R::unif_rand();
+    score = 0;
+    while (u > category_response_probabilities[score]) {
+      score++;
+    }
+    new_observation = score;
+    old_observation = observations(person, variable);
+
+    if(old_observation != new_observation) {
+      // Update raw observations
+      observations(person, variable) = new_observation;
+
+      // Update category counts or sufficient statistics
+      if(is_ordinal_variable[variable] == true) {
+        arma::imat num_obs_categories_gr = num_obs_categories[gr];
+        if(old_observation > 0)
+          num_obs_categories_gr(old_observation, variable)--;
+        if(new_observation > 0)
+        num_obs_categories_gr(new_observation, variable)++;
+        num_obs_categories[gr] = num_obs_categories_gr;
+      } else {
+        arma::imat sufficient_blume_capel_gr = sufficient_blume_capel[gr];
+        sufficient_blume_capel_gr(0, variable) -= old_observation;
+        sufficient_blume_capel_gr(0, variable) += new_observation;
+        sufficient_blume_capel_gr(1, variable) -=
+          (old_observation - baseline_category[variable]) *
+          (old_observation - baseline_category[variable]);
+        sufficient_blume_capel_gr(1, variable) +=
+          (new_observation - baseline_category[variable]) *
+          (new_observation - baseline_category[variable]);
+        sufficient_blume_capel[gr] = sufficient_blume_capel_gr;
+      }
+
+      // Update rest scores
+      for(int vertex = 0; vertex < num_variables; vertex++) {
+        int_index = pairwise_effect_indices(vertex, variable);
+        GroupInteraction = pairwise_effects(int_index, 0);
+        for(int h = 0; h < num_groups - 1; h++) {
+          GroupInteraction += projection(gr, h) * pairwise_effects(int_index, h + 1);
+        }
+        residual_matrix(person, vertex) -= old_observation * GroupInteraction;
+        residual_matrix(person, vertex) += new_observation * GroupInteraction;
+      }
+    }
+  }
+
+  return List::create(Named("observations") = observations,
+                      Named("num_obs_categories") = num_obs_categories,
+                      Named("sufficient_blume_capel") = sufficient_blume_capel,
+                      Named("residual_matrix") = residual_matrix);
+}
+
+
+/**
+ * Function: log_pseudolikelihood_ratio_interaction
+ * Purpose: Computes the log pseudo-likelihood ratio for proposed vs. current interaction states
+ *          for a multi-group independent samples design.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effects for variables across groups.
+ *  - main_effect_indices: Integer matrix mapping variables to main effect parameters.
+ *  - projection: Numeric matrix of group-specific scaling factors for interactions.
+ *  - observations: Integer matrix of observed data (individuals x variables).
+ *  - num_groups: Number of groups in the analysis.
+ *  - group_indices: Integer matrix containing start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
+ *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
+ *  - variable1: Index of the first variable involved in the interaction.
+ *  - variable2: Index of the second variable involved in the interaction.
+ *  - proposed_state: Proposed value for the interaction parameter.
+ *  - current_state: Current value of the interaction parameter.
+ *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
+ *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal.
+ *  - baseline_category: Integer vector indicating the reference categories for Blume-Capel variables.
+ *
+ * Outputs:
+ *  - Returns the log pseudo-likelihood ratio for the proposed vs. current interaction states.
+ */
+double log_pseudolikelihood_ratio_interaction(
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    const int variable1,
+    const int variable2,
+    const double proposed_state,
+    const double current_state,
+    const arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category
+) {
+  // Compute the difference in interaction states
+  double delta_state = 2.0 * (proposed_state - current_state);
   double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
+  int n_cats_v1, n_cats_v2, obs_score1, obs_score2, var, obs, n_cats, score;
+  double obs_current, obs_proposed, rest_score, bound, denominator_prop;
+  double denominator_curr, exponent;
 
-  double delta_state = proposed_state - current_state;
+  // Loop over groups to compute contributions to the pseudo-likelihood ratio
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Retrieve thresholds for the two variables in the current group
+    arma::vec GroupThresholds_v1 = compute_group_thresholds (
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
-  // --------------------------------------------------------------------------|
-  // Compute log pseudolikelihood ratio for group 1 ----------------------------
-  // --------------------------------------------------------------------------|
-  for(int person = 0; person < no_persons_gr1; person++) {
-    obs_score1 = observations_gr1(person, variable1);
-    obs_score2 = observations_gr1(person, variable2);
+    arma::vec GroupThresholds_v2 = compute_group_thresholds (
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
-    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
+    n_cats_v1 = num_categories(variable1, gr);
+    n_cats_v2 = num_categories(variable2, gr);
 
-    //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr1(person, variable1) -
-      obs_score2 * current_state;
+    // Loop over individuals in the current group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      obs_score1 = observations(person, variable1);
+      obs_score2 = observations(person, variable2);
 
-    if(rest_score > 0) {
-      bound = no_categories_gr1[variable1] * rest_score;
-    } else {
-      bound = 0.0;
-    }
+      // Contribution from the interaction term
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
 
-    if(ordinal_variable[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr1[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr1(variable1, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr1[variable1] + 1; category++) {
-        exponent = thresholds_gr1(variable1, 0) * category;
-        exponent += thresholds_gr1(variable1, 1) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent += category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
+      // Compute contributions for each variable (variable1 and variable2)
+      for (int variable = 1; variable <= 2; variable++) {
+        // Assign variable-specific data
+        var = (variable == 1) ? variable1 : variable2;
+        obs = (variable == 1) ? obs_score2 : obs_score1;
+        obs_current = obs * current_state;
+        obs_proposed = obs * proposed_state;
 
-    //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr1(person, variable2) -
-      obs_score1 * current_state;
+        n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
 
-    if(rest_score > 0) {
-      bound = no_categories_gr1[variable2] * rest_score;
-    } else {
-      bound = 0.0;
-    }
+        // Compute the rest score and bounds
+        rest_score = residual_matrix(person, var) - obs_current;
+        bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+        denominator_prop = 0.0;
+        denominator_curr = 0.0;
 
-    if(ordinal_variable[variable2] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr1[variable2]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr1(variable2, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score1 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr1[variable2] + 1; category++) {
-        exponent = thresholds_gr1(variable2, 0) * category;
-        exponent += thresholds_gr1(variable2, 1) *
-          (category - reference_category[variable2]) *
-          (category - reference_category[variable2]);
-        exponent +=  category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score1 * current_state);
+        // Compute pseudo-likelihood terms
+        if(is_ordinal_variable[var]) {
+          // Regular binary or ordinal MRF variable
+          denominator_prop += std::exp(-bound);
+          denominator_curr += std::exp(-bound);
+          for(int cat = 0; cat < n_cats; cat++) {
+            score = cat + 1;
+            exponent = GroupThresholds[cat] + score * rest_score - bound;
+            denominator_prop += std::exp(exponent + score * obs_proposed);
+            denominator_curr += std::exp(exponent + score * obs_current);
+          }
+        } else {
+          // Blume-Capel ordinal MRF variable
+          for(int cat = 0; cat <= n_cats; cat++) {
+            exponent = GroupThresholds[0] * cat;
+            exponent += GroupThresholds[1] *
+              (cat - baseline_category[var]) *
+              (cat - baseline_category[var]);
+            exponent += cat * rest_score - bound;
+            denominator_prop += std::exp(exponent + cat * obs_proposed);
+            denominator_curr += std::exp(exponent + cat * obs_current);
+          }
+        }
+
+        // Update the pseudo-likelihood ratio
+        pseudolikelihood_ratio -= std::log(denominator_prop);
+        pseudolikelihood_ratio += std::log(denominator_curr);
       }
     }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
   }
-
-  // --------------------------------------------------------------------------|
-  // Compute log pseudolikelihood ratio for group 2 ----------------------------
-  // --------------------------------------------------------------------------|
-  for(int person = 0; person < no_persons_gr2; person++) {
-    obs_score1 = observations_gr2(person, variable1);
-    obs_score2 = observations_gr2(person, variable2);
-
-    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
-
-    //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable1) - obs_score2 * current_state;
-
-    if(rest_score > 0) {
-      bound = no_categories_gr2[variable1] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    if(ordinal_variable[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr2[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr2(variable1, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr2[variable1] + 1; category++) {
-        exponent = thresholds_gr2(variable1, 0) * category;
-        exponent += thresholds_gr2(variable1, 1) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent += category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-
-    //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable2) - obs_score1 * current_state;
-
-    if(rest_score > 0) {
-      bound = no_categories_gr2[variable2] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    if(ordinal_variable[variable2] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr2[variable2]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr2(variable2, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score1 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr2[variable2] + 1; category++) {
-        exponent = thresholds_gr2(variable2, 0) * category;
-        exponent += thresholds_gr2(variable2, 1) *
-          (category - reference_category[variable2]) *
-          (category - reference_category[variable2]);
-        exponent +=  category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score1 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-  }
-
   return pseudolikelihood_ratio;
 }
 
+/**
+ * Function: metropolis_interaction
+ * Purpose: Uses the Metropolis-Hastings algorithm to sample from the full conditional distribution
+ *          of a pairwise interaction parameter, updating its value and the associated proposal standard deviation.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effects across variables and groups.
+ *  - pairwise_effects: Numeric matrix of pairwise effects across variable pairs and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to main effect parameters.
+ *  - pairwise_effect_indices: Integer matrix mapping variable pairs to pairwise interaction parameters.
+ *  - projection: Numeric matrix representing group-specific scaling factors for interactions.
+ *  - observations: Integer matrix of observed data (individuals x variables).
+ *  - num_groups: Number of groups in the analysis.
+ *  - group_indices: Integer matrix indicating the start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
+ *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
+ *  - num_persons: Total number of individuals in the dataset.
+ *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
+ *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal.
+ *  - baseline_category: Integer vector indicating the reference categories for Blume-Capel variables.
+ *  - proposal_sd_pairwise_effects: Numeric matrix of proposal standard deviations for pairwise interaction parameters.
+ *  - interaction_scale: Scale parameter for the prior distribution of interaction terms.
+ *  - num_variables: Total number of variables in the analysis.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
+ *  - target_acceptance_rate: Target log acceptance rate for the Metropolis-Hastings updates.
+ *  - rm_lower_bound: Lower bound for the proposal standard deviations.
+ *  - rm_upper_bound: Upper bound for the proposal standard deviations.
+ *
+ * Outputs:
+ *  - Updates `pairwise_effects` with new sampled values.
+ *  - Updates `residual_matrix` with adjusted residual effects.
+ *  - Updates `proposal_sd_pairwise_effects` with adjusted proposal standard deviations using Robbins-Monro updates.
+ */
+void metropolis_interaction(
+    const arma::mat& main_effects,
+    arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    const int num_persons,
+    arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    arma::mat& proposal_sd_pairwise_effects,
+    double interaction_scale,
+    const int num_variables,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  double log_acceptance_probability, current_state, proposed_state, U, state_difference;
+  int int_index, obs1, obs2;
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of an overall pairwise
-//  interaction parameter (nuisance)
-// ----------------------------------------------------------------------------|
-void compare_metropolis_interaction(NumericMatrix interactions,
-                                    NumericMatrix thresholds_gr1,
-                                    NumericMatrix thresholds_gr2,
-                                    IntegerMatrix observations_gr1,
-                                    IntegerMatrix observations_gr2,
-                                    IntegerVector no_categories_gr1,
-                                    IntegerVector no_categories_gr2,
-                                    NumericMatrix proposal_sd_interaction,
-                                    double interaction_scale,
-                                    int no_persons_gr1,
-                                    int no_persons_gr2,
-                                    int no_variables,
-                                    NumericMatrix rest_matrix_gr1,
-                                    NumericMatrix rest_matrix_gr2,
-                                    double phi,
-                                    double target_ar,
-                                    int t,
-                                    double epsilon_lo,
-                                    double epsilon_hi,
-                                    LogicalVector ordinal_variable,
-                                    IntegerVector reference_category) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
+  // Iterate over all pairs of variables for interaction updates
+  for(int variable1 = 0; variable1 <  num_variables - 1; variable1++) {
+    for(int variable2 = variable1 + 1; variable2 <  num_variables; variable2++) {
+      int_index = pairwise_effect_indices(variable1, variable2);
 
-  for(int variable1 = 0; variable1 <  no_variables - 1; variable1++) {
-    for(int variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-      current_state = interactions(variable1, variable2);
-      proposed_state = R::rnorm(current_state, proposal_sd_interaction(variable1, variable2));
+      // Retrieve the current state of the interaction parameter
+      current_state = pairwise_effects(int_index, 0);
 
-      log_prob = compare_log_pseudolikelihood_ratio_interaction(thresholds_gr1,
-                                                                thresholds_gr2,
-                                                                observations_gr1,
-                                                                observations_gr2,
-                                                                no_categories_gr1,
-                                                                no_categories_gr2,
-                                                                no_persons_gr1,
-                                                                no_persons_gr2,
-                                                                variable1,
-                                                                variable2,
-                                                                proposed_state,
-                                                                current_state,
-                                                                rest_matrix_gr1,
-                                                                rest_matrix_gr2,
-                                                                ordinal_variable,
-                                                                reference_category);
+      // Propose a new state from a normal density centered at the current state
+      proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, 0));
 
-      log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
-      log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
+      // Compute the log pseudo-likelihood ratio for proposed vs. current states
+      log_acceptance_probability = log_pseudolikelihood_ratio_interaction(
+        main_effects, main_effect_indices, projection, observations, num_groups,
+        group_indices, num_categories, independent_thresholds, variable1,
+        variable2, proposed_state, current_state, residual_matrix,
+        is_ordinal_variable, baseline_category);
 
+      // Add prior probabilities for the interaction parameter
+      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
+      log_acceptance_probability -= R::dcauchy(current_state, 0.0, interaction_scale, true);
+
+      // Metropolis-Hastings acceptance step
       U = R::unif_rand();
-      if(std::log(U) < log_prob) {
-        double state_difference = proposed_state - current_state;
-        interactions(variable1, variable2) = proposed_state;
-        interactions(variable2, variable1) = proposed_state;
+      if(std::log(U) < log_acceptance_probability) {
+        // Update the interaction parameter
+        state_difference = proposed_state - current_state;
+        pairwise_effects(int_index, 0) = proposed_state;
 
-        //Update the matrix of rest scores
-        for(int person = 0; person < no_persons_gr1; person++) {
-          rest_matrix_gr1(person, variable1) += observations_gr1(person, variable2) *
-            state_difference;
-          rest_matrix_gr1(person, variable2) += observations_gr1(person, variable1) *
-            state_difference;
-        }
-        //Update the matrix of rest scores
-        for(int person = 0; person < no_persons_gr2; person++) {
-          rest_matrix_gr2(person, variable1) += observations_gr2(person, variable2) *
-            state_difference;
-          rest_matrix_gr2(person, variable2) += observations_gr2(person, variable1) *
-            state_difference;
+        // Update the residual matrix to reflect the new interaction parameter
+        for (int person = 0; person < num_persons; person++) {
+          obs1 = observations(person, variable1);
+          obs2 = observations(person, variable2);
+          residual_matrix(person, variable1) += obs2 * state_difference;
+          residual_matrix(person, variable2) += obs1 * state_difference;
         }
       }
 
-      if(log_prob > 0) {
-        log_prob = 1.0;
-      } else {
-        log_prob = std::exp(log_prob);
-      }
-
-      double update_proposal_sd =
-        proposal_sd_interaction(variable1, variable2) +
-        (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-      if(std::isnan(update_proposal_sd) == true) {
-        update_proposal_sd = 1.0;
-      }
-
-      update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-      proposal_sd_interaction(variable1, variable2) = update_proposal_sd;
-      proposal_sd_interaction(variable2, variable1) = update_proposal_sd;
+      // Robbins-Monro update to adapt the proposal standard deviation
+      proposal_sd_pairwise_effects(int_index, 0) = update_with_robbins_monro(
+        proposal_sd_pairwise_effects(int_index, 0), log_acceptance_probability,
+        target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+        exp_neg_log_t_rm_adaptation_rate);
     }
   }
 }
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for the difference
-//  in a pairwise interaction for a two independent samples design
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_pairwise_difference(NumericMatrix thresholds_gr1,
-                                                              NumericMatrix thresholds_gr2,
-                                                              IntegerMatrix observations_gr1,
-                                                              IntegerMatrix observations_gr2,
-                                                              IntegerVector no_categories_gr1,
-                                                              IntegerVector no_categories_gr2,
-                                                              int no_persons_gr1,
-                                                              int no_persons_gr2,
-                                                              int variable1,
-                                                              int variable2,
-                                                              double proposed_state,
-                                                              double current_state,
-                                                              NumericMatrix rest_matrix_gr1,
-                                                              NumericMatrix rest_matrix_gr2,
-                                                              LogicalVector ordinal_variable,
-                                                              IntegerVector reference_category) {
-  double rest_score, bound;
+
+/**
+ * Function: log_pseudolikelihood_ratio_pairwise_difference
+ * Purpose: Computes the log pseudo-likelihood ratio for proposed vs. current
+ *          values of a pairwise interaction parameter difference in a multi-group
+ *          independent samples design.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effects for variables across groups.
+ *  - main_effect_indices: Integer matrix mapping variables to main effect parameters.
+ *  - projection: Numeric matrix representing group-specific scaling factors for interactions.
+ *  - observations: Integer matrix of observed data (individuals x variables).
+ *  - num_groups: Number of groups in the analysis.
+ *  - group_indices: Integer matrix indicating the start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
+ *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
+ *  - variable1: Index of the first variable in the interaction pair.
+ *  - variable2: Index of the second variable in the interaction pair.
+ *  - h: Index of the group difference being modeled.
+ *  - proposed_state: Proposed value for the interaction parameter difference.
+ *  - current_state: Current value of the interaction parameter difference.
+ *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
+ *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal.
+ *  - baseline_category: Integer vector indicating the reference categories for Blume-Capel variables.
+ *
+ * Outputs:
+ *  - Returns the log pseudo-likelihood ratio for the proposed vs. current values
+ *    of the pairwise interaction parameter difference.
+ */
+double log_pseudolikelihood_ratio_pairwise_difference(
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    const int variable1,
+    const int variable2,
+    const int h,
+    const double proposed_state,
+    const double current_state,
+    const arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category
+) {
   double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  int score, obs_score1, obs_score2;
+  double delta_state = 2.0 * (proposed_state - current_state); // Change in parameter value
 
-  double delta_state = proposed_state - current_state;
 
-  // --------------------------------------------------------------------------|
-  // Compute log pseudolikelihood ratio for group 1 ----------------------------
-  // --------------------------------------------------------------------------|
-  for(int person = 0; person < no_persons_gr1; person++) {
-    obs_score1 = observations_gr1(person, variable1);
-    obs_score2 = observations_gr1(person, variable2);
+  double obs_proposed_p1, obs_current_p1, obs_proposed_p2, obs_current_p2;
+  double obs_proposed_p, obs_current_p, denominator_prop, denominator_curr;
+  double rest_score, bound, P, delta_state_group, exponent;
 
-    pseudolikelihood_ratio -= obs_score1 * obs_score2 * delta_state;
+  int n_cats_v1, n_cats_v2, n_cats, obs_score1, obs_score2, score, var;
 
-    //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr1(person, variable1) +
-      .5 * obs_score2 * current_state;
+  // Loop over groups
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Compute thresholds for both variables in the current group
+    arma::vec GroupThresholds_v1 = compute_group_thresholds(
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
-    if(rest_score > 0) {
-      bound = no_categories_gr1[variable1] * rest_score;
-    } else {
-      bound = 0.0;
-    }
+    arma::vec GroupThresholds_v2 = compute_group_thresholds(
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
-    if(ordinal_variable[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr1[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr1(variable1, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent - score * .5 * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent - score * .5 * obs_score2 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr1[variable1] + 1; category++) {
-        exponent = thresholds_gr1(variable1, 0) * category;
-        exponent += thresholds_gr1(variable1, 1) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent += category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent - category * .5 * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent - category * .5 * obs_score2 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
+    // Scale the delta_state by the projection factor for this group
+    P = projection(gr, h);
+    delta_state_group = delta_state * P;
 
-    //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr1(person, variable2) +
-      .5 * obs_score1 * current_state;
+    // Cache the number of categories for both variables
+    n_cats_v1 = num_categories(variable1, gr);
+    n_cats_v2 = num_categories(variable2, gr);
 
-    if(rest_score > 0) {
-      bound = no_categories_gr1[variable2] * rest_score;
-    } else {
-      bound = 0.0;
-    }
+    // Iterate over all individuals in the current group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      // Cache observation scores and scaled terms
+      obs_score1 = observations(person, variable1);
+      obs_score2 = observations(person, variable2);
+      obs_proposed_p1 = obs_score2 * proposed_state * P;
+      obs_current_p1 = obs_score2 * current_state * P;
+      obs_proposed_p2 = obs_score1 * proposed_state * P;
+      obs_current_p2 = obs_score1 * current_state * P;
 
-    if(ordinal_variable[variable2] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr1[variable2]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr1(variable2, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent - score * .5 * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent - score * .5 * obs_score1 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr1[variable2] + 1; category++) {
-        exponent = thresholds_gr1(variable2, 0) * category;
-        exponent += thresholds_gr1(variable2, 1) *
-          (category - reference_category[variable2]) *
-          (category - reference_category[variable2]);
-        exponent +=  category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent - category * .5 * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent - category * .5 * obs_score1 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-  }
+      // Contribution from the interaction term
+      pseudolikelihood_ratio +=  obs_score1 * obs_score2 * delta_state_group;
 
-  // --------------------------------------------------------------------------|
-  // Compute log pseudolikelihood ratio for group 2 ----------------------------
-  // --------------------------------------------------------------------------|
-  for(int person = 0; person < no_persons_gr2; person++) {
-    obs_score1 = observations_gr2(person, variable1);
-    obs_score2 = observations_gr2(person, variable2);
+      // Process each variable in the interaction pair
+      for (int variable = 1; variable <= 2; variable++) {
+        var = (variable == 1) ? variable1 : variable2;
+        n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
 
-    pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state;
+        // Compute the rest score and bound
+        rest_score = residual_matrix(person, var) - obs_current_p;
+        bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
 
-    //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable1) -
-      .5 * obs_score2 * current_state;
-
-    if(rest_score > 0) {
-      bound = no_categories_gr2[variable1] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    if(ordinal_variable[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr2[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr2(variable1, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * .5 * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * .5 * obs_score2 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr2[variable1] + 1; category++) {
-        exponent = thresholds_gr2(variable1, 0) * category;
-        exponent += thresholds_gr2(variable1, 1) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent += category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * .5 * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * .5 * obs_score2 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-
-    //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix_gr2(person, variable2) -
-      .5 * obs_score1 * current_state;
-
-    if(rest_score > 0) {
-      bound = no_categories_gr2[variable2] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    if(ordinal_variable[variable2] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(int category = 0; category < no_categories_gr2[variable2]; category++) {
-        score = category + 1;
-        exponent = thresholds_gr2(variable2, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * .5 * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * .5 * obs_score1 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(int category = 0; category < no_categories_gr2[variable2] + 1; category++) {
-        exponent = thresholds_gr2(variable2, 0) * category;
-        exponent += thresholds_gr2(variable2, 1) *
-          (category - reference_category[variable2]) *
-          (category - reference_category[variable2]);
-        exponent+=  category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * .5 * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * .5 * obs_score1 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
-  }
-
-  return pseudolikelihood_ratio;
-}
-
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the active differences
-//  in the pairwise interaction parameters
-// ----------------------------------------------------------------------------|
-void compare_metropolis_pairwise_difference(NumericMatrix pairwise_difference,
-                                            NumericMatrix thresholds_gr1,
-                                            NumericMatrix thresholds_gr2,
-                                            IntegerMatrix observations_gr1,
-                                            IntegerMatrix observations_gr2,
-                                            IntegerVector no_categories_gr1,
-                                            IntegerVector no_categories_gr2,
-                                            IntegerMatrix indicator,
-                                            int no_persons_gr1,
-                                            int no_persons_gr2,
-                                            int no_variables,
-                                            NumericMatrix rest_matrix_gr1,
-                                            NumericMatrix rest_matrix_gr2,
-                                            NumericMatrix proposal_sd_pairwise_difference,
-                                            double pairwise_difference_scale,
-                                            double phi,
-                                            double target_ar,
-                                            int t,
-                                            double epsilon_lo,
-                                            double epsilon_hi,
-                                            LogicalVector ordinal_variable,
-                                            IntegerVector reference_category) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
-
-  for(int variable1 = 0; variable1 <  no_variables - 1; variable1++) {
-    for(int variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-      if(indicator(variable1, variable2) == 1) {
-        current_state = pairwise_difference(variable1, variable2);
-        proposed_state = R::rnorm(current_state, proposal_sd_pairwise_difference(variable1, variable2));
-
-        log_prob = compare_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
-                                                                          thresholds_gr2,
-                                                                          observations_gr1,
-                                                                          observations_gr2,
-                                                                          no_categories_gr1,
-                                                                          no_categories_gr2,
-                                                                          no_persons_gr1,
-                                                                          no_persons_gr2,
-                                                                          variable1,
-                                                                          variable2,
-                                                                          proposed_state,
-                                                                          current_state,
-                                                                          rest_matrix_gr1,
-                                                                          rest_matrix_gr2,
-                                                                          ordinal_variable,
-                                                                          reference_category);
-
-        log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
-        log_prob -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
-
-        U = R::unif_rand();
-        if(std::log(U) < log_prob) {
-          double state_difference = .5 * (proposed_state - current_state);
-          pairwise_difference(variable1, variable2) = proposed_state;
-          pairwise_difference(variable2, variable1) = proposed_state;
-
-          //Update the matrices of rest scores
-          for(int person = 0; person < no_persons_gr1; person++) {
-            rest_matrix_gr1(person, variable1) -= observations_gr1(person, variable2) *
-              state_difference;
-            rest_matrix_gr1(person, variable2) -= observations_gr1(person, variable1) *
-              state_difference;
+        // Compute denominators based on whether the variable is ordinal
+        if (is_ordinal_variable[var]) {
+          // Binary or ordinal MRF variable
+          denominator_prop = std::exp(-bound);
+          denominator_curr = std::exp(-bound);
+          for (int cat = 0; cat < n_cats; cat++) {
+            score = cat + 1;
+            exponent = GroupThresholds[cat] + score * rest_score - bound;
+            denominator_prop += std::exp(exponent + score * obs_proposed_p);
+            denominator_curr += std::exp(exponent + score * obs_current_p);
           }
-          for(int person = 0; person < no_persons_gr2; person++) {
-            rest_matrix_gr2(person, variable1) += observations_gr2(person, variable2) *
-              state_difference;
-            rest_matrix_gr2(person, variable2) += observations_gr2(person, variable1) *
-              state_difference;
+        } else {
+          // Blume-Capel ordinal MRF variable
+          denominator_prop = 0.0;
+          denominator_curr = 0.0;
+          for (int cat = 0; cat <= n_cats; cat++) {
+            exponent = GroupThresholds[0] * cat +
+              GroupThresholds[1] * (cat - baseline_category[var]) *
+              (cat - baseline_category[var]) +
+              cat * rest_score - bound;
+            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
+            denominator_curr += std::exp(exponent + cat * obs_current_p);
           }
         }
 
-        // Update the Robbins-Monro parameters
-        if(log_prob > 0) {
-          log_prob = 1;
-        } else {
-          log_prob = std::exp(log_prob);
-        }
-
-        double update_proposal_sd =
-          proposal_sd_pairwise_difference(variable1, variable2) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-        if(std::isnan(update_proposal_sd) == true) {
-          update_proposal_sd = 1.0;
-        }
-
-        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-        proposal_sd_pairwise_difference(variable1, variable2) = update_proposal_sd;
-        proposal_sd_pairwise_difference(variable2, variable1) = update_proposal_sd;
+        // Update the pseudo-likelihood ratio
+        pseudolikelihood_ratio -= std::log(denominator_prop);
+        pseudolikelihood_ratio += std::log(denominator_curr);
       }
     }
-  }
-}
-
-// ----------------------------------------------------------------------------|
-// Between model MH algorithm for the pairwise differences
-// ----------------------------------------------------------------------------|
-void compare_metropolis_pairwise_difference_between_model(IntegerVector indicator,
-                                                          NumericMatrix inclusion_probability_difference,
-                                                          NumericMatrix pairwise_difference,
-                                                          NumericMatrix thresholds_gr1,
-                                                          NumericMatrix thresholds_gr2,
-                                                          IntegerMatrix observations_gr1,
-                                                          IntegerMatrix observations_gr2,
-                                                          IntegerVector no_categories_gr1,
-                                                          IntegerVector no_categories_gr2,
-                                                          int no_persons_gr1,
-                                                          int no_persons_gr2,
-                                                          int no_interactions,
-                                                          IntegerMatrix index,
-                                                          NumericMatrix rest_matrix_gr1,
-                                                          NumericMatrix rest_matrix_gr2,
-                                                          NumericMatrix proposal_sd_pairwise_difference,
-                                                          double pairwise_difference_scale,
-                                                          double phi,
-                                                          double target_ar,
-                                                          int t,
-                                                          double epsilon_lo,
-                                                          double epsilon_hi,
-                                                          LogicalVector ordinal_variable,
-                                                          IntegerVector reference_category) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
-
-  int variable1;
-  int variable2;
-
-  for(int cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1) - 1;
-    variable2 = index(cntr, 2) - 1;
-
-    current_state = pairwise_difference(variable1, variable2);
-
-    if(indicator(variable1, variable2) == 0) {
-      proposed_state = R::rnorm(current_state, proposal_sd_pairwise_difference(variable1, variable2));
-    } else {
-      proposed_state = 0.0;
-    }
-
-    log_prob = compare_log_pseudolikelihood_ratio_pairwise_difference(thresholds_gr1,
-                                                                      thresholds_gr2,
-                                                                      observations_gr1,
-                                                                      observations_gr2,
-                                                                      no_categories_gr1,
-                                                                      no_categories_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable1,
-                                                                      variable2,
-                                                                      proposed_state,
-                                                                      current_state,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      ordinal_variable,
-                                                                      reference_category);
-
-    if(indicator(variable1, variable2) == 0) {
-      log_prob += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
-      log_prob -= R::dnorm(proposed_state,
-                           current_state,
-                           proposal_sd_pairwise_difference(variable1, variable2),
-                           true);
-
-      log_prob += log(inclusion_probability_difference(variable1, variable2));
-      log_prob -= log(1 - inclusion_probability_difference(variable1, variable2));
-
-    } else {
-      log_prob -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
-      log_prob += R::dnorm(current_state,
-                           proposed_state,
-                           proposal_sd_pairwise_difference(variable1, variable2),
-                           true);
-
-      log_prob -= log(inclusion_probability_difference(variable1, variable2));
-      log_prob += log(1 - inclusion_probability_difference(variable1, variable2));
-    }
-
-    U = R::unif_rand();
-    if(std::log(U) < log_prob) {
-      indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
-      indicator(variable2, variable1) = indicator(variable1, variable2);
-
-      pairwise_difference(variable1, variable2) = proposed_state;
-      pairwise_difference(variable2, variable1) = proposed_state;
-
-      double state_difference = .5 * (proposed_state - current_state);
-
-      //Update the matrices of rest scores
-      for(int person = 0; person < no_persons_gr1; person++) {
-        rest_matrix_gr1(person, variable1) -= observations_gr1(person, variable2) *
-          state_difference;
-        rest_matrix_gr1(person, variable2) -= observations_gr1(person, variable1) *
-          state_difference;
-      }
-      for(int person = 0; person < no_persons_gr2; person++) {
-        rest_matrix_gr2(person, variable1) += observations_gr2(person, variable2) *
-          state_difference;
-        rest_matrix_gr2(person, variable2) += observations_gr2(person, variable1) *
-          state_difference;
-      }
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the overall category
-//  threshold parameters (nuisance) -- regular ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_threshold_regular(NumericMatrix thresholds,
-                                          NumericMatrix main_difference,
-                                          IntegerVector no_categories,
-                                          IntegerMatrix n_cat_obs_gr1,
-                                          IntegerMatrix n_cat_obs_gr2,
-                                          int no_persons_gr1,
-                                          int no_persons_gr2,
-                                          int variable,
-                                          double threshold_alpha,
-                                          double threshold_beta,
-                                          NumericMatrix rest_matrix_gr1,
-                                          NumericMatrix rest_matrix_gr2) {
-  NumericVector g1(no_persons_gr1);
-  NumericVector q1(no_persons_gr1);
-  NumericVector g2(no_persons_gr2);
-  NumericVector q2(no_persons_gr2);
-
-  double log_prob, rest_score;
-  double a, b, c;
-  double tmp;
-  double current_state, proposed_state;
-  double U;
-  double exp_current, exp_proposed;
-  double exponent;
-
-  for(int category = 0; category < no_categories[variable]; category++) {
-    current_state = thresholds(variable, category);
-    exp_current = std::exp(current_state);
-    c = (threshold_alpha + threshold_beta) / (1 + exp_current);
-
-    for(int person = 0; person < no_persons_gr1; person++) {
-      g1[person] = 1.0;
-      q1[person] = 1.0;
-      rest_score = rest_matrix_gr1(person, variable);
-      for(int cat = 0; cat < no_categories[variable]; cat++) {
-        if(cat != category) {
-          exponent = thresholds(variable, cat);
-          exponent -= .5 * main_difference(variable, cat);
-          exponent += (cat + 1) * rest_score;
-          g1[person] += std::exp(exponent);
-        }
-      }
-      exponent = (category + 1) * rest_score;
-      exponent -= .5 * main_difference(variable, category);
-      q1[person] = std::exp(exponent);
-      c +=  q1[person] / (g1[person] + q1[person] * exp_current);
-    }
-    for(int person = 0; person < no_persons_gr2; person++) {
-      g2[person] = 1.0;
-      q2[person] = 1.0;
-      rest_score = rest_matrix_gr2(person, variable);
-      for(int cat = 0; cat < no_categories[variable]; cat++) {
-        if(cat != category) {
-          exponent = thresholds(variable, cat);
-          exponent += .5 * main_difference(variable, cat);
-          exponent += (cat + 1) * rest_score;
-          g2[person] += std::exp(exponent);
-        }
-      }
-      exponent = (category + 1) * rest_score;
-      exponent += .5 * main_difference(variable, category);
-      q2[person] = std::exp(exponent);
-      c +=  q2[person] / (g2[person] + q2[person] * exp_current);
-    }
-    tmp = no_persons_gr1;
-    tmp += no_persons_gr2;
-    tmp += threshold_alpha;
-    tmp += threshold_beta;
-    tmp -= exp_current * c;
-    c = c / tmp;
-
-    //Proposal is generalized beta-prime.
-    a = n_cat_obs_gr1(category + 1, variable);
-    a += n_cat_obs_gr2(category + 1, variable);
-    a += threshold_alpha;
-    b = no_persons_gr1;
-    b += no_persons_gr2;
-    b += threshold_beta;
-    b -= n_cat_obs_gr1(category + 1, variable);
-    b -= n_cat_obs_gr2(category + 1, variable);
-    tmp = R::rbeta(a, b);
-    proposed_state = std::log(tmp / (1  - tmp) / c);
-    exp_proposed = exp(proposed_state);
-
-    //Compute log_acceptance probability for Metropolis.
-    //First, we use g and q above to compute the ratio of pseudolikelihoods
-    log_prob = 0;
-    for(int person = 0; person < no_persons_gr1; person++) {
-      log_prob += std::log(g1[person] + q1[person] * exp_current);
-      log_prob -= std::log(g1[person] + q1[person] * exp_proposed);
-    }
-    for(int person = 0; person < no_persons_gr2; person++) {
-      log_prob += std::log(g2[person] + q2[person] * exp_current);
-      log_prob -= std::log(g2[person] + q2[person] * exp_proposed);
-    }
-
-    //Second, we add the ratio of prior probabilities
-    log_prob -= (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_proposed);
-    log_prob += (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_current);
-    //Third, we add the ratio of proposals
-    log_prob -= (a + b) * std::log(1 + c * exp_current);
-    log_prob += (a + b) * std::log(1 + c * exp_proposed);
-
-    U = std::log(R::unif_rand());
-    if(U < log_prob) {
-      thresholds(variable, category) = proposed_state;
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for a category
-//  threshold difference for the two independent samples design
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_difference(NumericMatrix thresholds,
-                                                          NumericMatrix main_difference,
-                                                          IntegerMatrix n_cat_obs_gr1,
-                                                          IntegerMatrix n_cat_obs_gr2,
-                                                          IntegerVector no_categories,
-                                                          int no_persons_gr1,
-                                                          int no_persons_gr2,
-                                                          int variable,
-                                                          int category,
-                                                          double proposed_state,
-                                                          double current_state,
-                                                          NumericMatrix rest_matrix_gr1,
-                                                          NumericMatrix rest_matrix_gr2) {
-
-  double rest_score, bound;
-  double pseudolikelihood_ratio = 0.0;
-  double denominator_proposed, denominator_current, exponent;
-  int score;
-  double delta_state = proposed_state - current_state;
-
-  NumericVector proposed_thresholds(no_categories[variable]);
-  NumericVector current_thresholds(no_categories[variable]);
-
-  //Pre-compute vector of threshold differences for Group 1:
-  for(int cat = 0; cat < no_categories[variable]; cat++) {
-    current_thresholds[cat] = thresholds(variable, cat);
-    current_thresholds[cat] -= .5 * main_difference(variable, cat);
-    proposed_thresholds[cat] = current_thresholds[cat];
-  }
-  proposed_thresholds[category] = thresholds(variable, category);
-  proposed_thresholds[category] -= .5 * proposed_state;
-
-  //Compute the pseudolikelihood ratio
-  pseudolikelihood_ratio -= delta_state * .5 * n_cat_obs_gr1(category + 1, variable);
-  pseudolikelihood_ratio += delta_state * .5 * n_cat_obs_gr2(category + 1, variable);
-
-  //Compute the contribution for group 1
-  for(int person = 0; person < no_persons_gr1; person++) {
-    rest_score = rest_matrix_gr1(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    denominator_proposed = std::exp(-bound);
-    denominator_current = std::exp(-bound);
-    for(int cat = 0; cat < no_categories[variable]; cat++) {
-      score = cat + 1;
-      exponent = score * rest_score - bound;
-      denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-      denominator_current += std::exp(exponent + current_thresholds[cat]);
-    }
-    pseudolikelihood_ratio -= std::log(denominator_proposed);
-    pseudolikelihood_ratio += std::log(denominator_current);
-  }
-
-  //Pre-compute vector of threshold differences for Group 2:
-  for(int cat = 0; cat < no_categories[variable]; cat++) {
-    current_thresholds[cat] = thresholds(variable, cat);
-    current_thresholds[cat] += .5 * main_difference(variable, cat);
-    proposed_thresholds[cat] = current_thresholds[cat];
-  }
-  proposed_thresholds[category] = thresholds(variable, category);
-  proposed_thresholds[category] += .5 * proposed_state;
-
-  //Compute the contribution for group 2
-  for(int person = 0; person < no_persons_gr2; person++) {
-    rest_score = rest_matrix_gr2(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    denominator_proposed = std::exp(-bound);
-    denominator_current = std::exp(-bound);
-    for(int cat = 0; cat < no_categories[variable]; cat++) {
-      score = cat + 1;
-      exponent = score * rest_score - bound;
-      denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
-      denominator_current += std::exp(exponent + current_thresholds[cat]);
-    }
-
-    pseudolikelihood_ratio -= std::log(denominator_proposed);
-    pseudolikelihood_ratio += std::log(denominator_current);
   }
   return pseudolikelihood_ratio;
 }
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the category threshold
-//  difference parameter -- regular ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_regular(NumericMatrix thresholds,
-                                                NumericMatrix main_difference,
-                                                IntegerMatrix n_cat_obs_gr1,
-                                                IntegerMatrix n_cat_obs_gr2,
-                                                IntegerVector no_categories,
-                                                IntegerMatrix indicator,
-                                                NumericMatrix proposal_sd_main_difference,
-                                                double main_difference_scale,
-                                                int no_persons_gr1,
-                                                int no_persons_gr2,
-                                                int variable,
-                                                NumericMatrix rest_matrix_gr1,
-                                                NumericMatrix rest_matrix_gr2,
-                                                double phi,
-                                                double target_ar,
-                                                int t,
-                                                double epsilon_lo,
-                                                double epsilon_hi) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
 
-  if(indicator(variable, variable) == 1) {
-    for(int category = 0; category < no_categories[variable]; category++) {
-      if(n_cat_obs_gr1(category + 1, variable) * n_cat_obs_gr2(category + 1, variable) > 0) {
+/**
+ * Function: metropolis_pairwise_difference
+ * Purpose: Uses the Metropolis-Hastings algorithm to sample from the full conditional
+ *          distribution of pairwise interaction parameter differences for multiple groups,
+ *          updating their values and the associated proposal standard deviations.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effects across variables and groups.
+ *  - pairwise_effects: Numeric matrix of pairwise interaction parameter differences across groups.
+ *  - main_effect_indices: Integer matrix mapping variables to main effect parameters.
+ *  - pairwise_effect_indices: Integer matrix mapping variable pairs to pairwise interaction parameters.
+ *  - projection: Numeric matrix representing group-specific scaling factors for interactions.
+ *  - observations: Integer matrix of observed data (individuals x variables).
+ *  - num_groups: Number of groups in the analysis.
+ *  - group_indices: Integer matrix indicating the start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix indicating the number of categories for each variable and group.
+ *  - independent_thresholds: Boolean indicating whether thresholds are modeled independently.
+ *  - inclusion_indicator: Integer matrix indicating whether pairwise differences are included in the model.
+ *  - residual_matrix: Numeric matrix of residual effects for pseudo-likelihood calculations.
+ *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal.
+ *  - baseline_category: Integer vector indicating the reference categories for Blume-Capel variables.
+ *  - proposal_sd_pairwise_effects: Numeric matrix of proposal standard deviations for pairwise interaction parameters.
+ *  - pairwise_difference_scale: Scale parameter for the prior distribution of pairwise differences.
+ *  - num_variables: Total number of variables in the analysis.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term
+ *  - target_acceptance_rate: Target log acceptance rate for the Metropolis-Hastings updates.
+ *  - rm_lower_bound: Lower bound for the proposal standard deviations.
+ *  - rm_upper_bound: Upper bound for the proposal standard deviations.
+ *
+ * Outputs:
+ *  - Updates `pairwise_effects` with new sampled values.
+ *  - Updates `residual_matrix` with adjusted residual effects.
+ *  - Updates `proposal_sd_pairwise_effects` with adjusted proposal standard deviations using Robbins-Monro updates.
+ */
+void metropolis_pairwise_difference(
+    const arma::mat& main_effects,
+    arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    const arma::imat& inclusion_indicator,
+    arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    arma::mat& proposal_sd_pairwise_effects,
+    const double pairwise_difference_scale,
+    const int num_variables,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  int int_index, obs1, obs2;
+  double current_state, proposed_state,log_acceptance_probability, U;
+  double state_difference;
 
-        current_state = main_difference(variable, category);
-        proposed_state = R::rnorm(current_state,
-                                  proposal_sd_main_difference(variable, category));
+  // Iterate over all variable pairs
+  for(int variable1 = 0; variable1 <  num_variables - 1; variable1++) {
+    for(int variable2 = variable1 + 1; variable2 <  num_variables; variable2++) {
+      if (inclusion_indicator(variable1, variable2) == 1) {
+        int_index = pairwise_effect_indices(variable1, variable2);
 
-        log_prob = compare_log_pseudolikelihood_ratio_main_difference(thresholds,
-                                                                      main_difference,
-                                                                      n_cat_obs_gr1,
-                                                                      n_cat_obs_gr2,
-                                                                      no_categories,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable,
-                                                                      category,
-                                                                      proposed_state,
-                                                                      current_state,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2);
+        // Iterate over all groups (excluding the reference group)
+        for(int h = 1; h < num_groups; h++) {
+          // Retrieve the current state and propose a new state
+          current_state = pairwise_effects(int_index, h);
+          proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, h));
 
-        log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-        log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+          // Compute the log pseudo-likelihood ratio for the proposed vs. current state
+          log_acceptance_probability = log_pseudolikelihood_ratio_pairwise_difference(
+            main_effects, main_effect_indices, projection, observations, num_groups,
+            group_indices, num_categories, independent_thresholds, variable1,
+            variable2, h - 1, proposed_state, current_state, residual_matrix,
+            is_ordinal_variable, baseline_category);
 
-        U = R::unif_rand();
-        if(std::log(U) < log_prob) {
-          main_difference(variable, category) = proposed_state;
+          // Add prior probabilities for the pairwise difference parameter
+          log_acceptance_probability += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
+          log_acceptance_probability -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
+
+          // Metropolis-Hastings acceptance step
+          U = R::unif_rand();
+          if(std::log(U) < log_acceptance_probability) {
+            pairwise_effects(int_index, h) = proposed_state;
+
+            // Update the rest matrix to reflect the new pairwise difference
+            for(int gr = 0; gr < num_groups; gr++) {
+
+              state_difference = (proposed_state - current_state) * projection(gr, h - 1);
+              for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+                obs1 = observations(person, variable1);
+                obs2 = observations(person, variable2);
+                residual_matrix(person, variable1) += obs2 * state_difference;
+                residual_matrix(person, variable2) += obs1 * state_difference;
+              }
+            }
+          }
+
+          // Robbins-Monro update for the proposal standard deviation
+          proposal_sd_pairwise_effects(int_index, h) = update_with_robbins_monro(
+            proposal_sd_pairwise_effects(int_index, h),
+            log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+            rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
         }
-
-        // Update the Robbins-Monro parameters
-        if(log_prob > 0) {
-          log_prob = 1;
-        } else {
-          log_prob = std::exp(log_prob);
-        }
-
-        double update_proposal_sd =
-          proposal_sd_main_difference(variable, category) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-        if(std::isnan(update_proposal_sd) == true) {
-          update_proposal_sd = 1.0;
-        }
-
-        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-        proposal_sd_main_difference(variable, category) = update_proposal_sd;
-      } else {
-        main_difference(variable, category) = 0.0;
       }
     }
   }
 }
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for a vector of
-// category threshold differences for the two independent samples design
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_differences(NumericMatrix thresholds,
-                                                           IntegerMatrix n_cat_obs_gr1,
-                                                           IntegerMatrix n_cat_obs_gr2,
-                                                           IntegerVector no_categories,
-                                                           int no_persons_gr1,
-                                                           int no_persons_gr2,
-                                                           int variable,
-                                                           NumericVector proposed_states,
-                                                           NumericVector current_states,
-                                                           NumericMatrix rest_matrix_gr1,
-                                                           NumericMatrix rest_matrix_gr2) {
-  double rest_score, bound;
+
+/**
+ * Function: log_pseudolikelihood_ratio_pairwise_differences
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for proposed vs. current pairwise
+ *   difference states in a Bayesian ANOVA.
+ *
+ * Inputs:
+ *   - main_effects: arma::mat of main effects for all variables and groups.
+ *   - main_effect_indices: arma::imat mapping variables to category indices.
+ *   - projection: arma::mat representing group-specific scaling.
+ *   - observations: arma::imat of observed data (individuals by variables).
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: arma::imat specifying group-wise start and end indices for individuals.
+ *   - num_categories: arma::imat containing category counts for each variable and group.
+ *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
+ *   - variable1: Index of the first variable in the pair.
+ *   - variable2: Index of the second variable in the pair.
+ *   - proposed_states: arma::vec of proposed pairwise difference states for all groups.
+ *   - current_states: arma::vec of current pairwise difference states for all groups.
+ *   - residual_matrix: arma::mat of residuals used for pseudo-likelihood calculations.
+ *   - is_ordinal_variable: arma::uvec indicating whether variables are ordinal.
+ *   - baseline_category: arma::ivec specifying reference categories for each variable.
+ *
+ * Outputs:
+ *   - A double representing the log pseudo-likelihood ratio for the proposed
+ *     vs. current states.
+ *
+ * Details:
+ *   - Iterates over all groups and individuals to compute contributions to the
+ *     pseudo-likelihood ratio.
+ *   - Handles ordinal and Blume-Capel variables separately, adjusting for their
+ *     specific modeling requirements.
+ */
+double log_pseudolikelihood_ratio_pairwise_differences(
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    const int variable1,
+    const int variable2,
+    const arma::vec& proposed_states,
+    const arma::vec& current_states,
+    const arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category
+) {
+
   double pseudolikelihood_ratio = 0.0;
-  double denominator_proposed, denominator_current, exponent;
-  int score;
 
-  //Compute the pseudolikelihood ratio
-  for(int category = 0; category < no_categories[variable]; category++) {
-    pseudolikelihood_ratio -= .5 * n_cat_obs_gr1(category + 1, variable) *
-      (proposed_states[category] - current_states[category]);
-    pseudolikelihood_ratio += .5 * n_cat_obs_gr2(category + 1, variable) *
-      (proposed_states[category] - current_states[category]);
-  }
+  // Loop over groups
+  for (int gr = 0; gr < num_groups; gr++) {
+    // Compute thresholds for both variables
+    arma::vec GroupThresholds_v1 = compute_group_thresholds(
+      variable1, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
 
-  //Compute the contribution for group 1
-  for(int person = 0; person < no_persons_gr1; person++) {
-    rest_score = rest_matrix_gr1(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score;
-    } else {
-      bound = 0.0;
+    arma::vec GroupThresholds_v2 = compute_group_thresholds(
+      variable2, gr, num_groups, main_effects, main_effect_indices, projection,
+      independent_thresholds);
+
+    // Compute current and proposed group interactions
+    double current_group_interaction = 0.0;
+    double proposed_group_interaction = 0.0;
+    for (int h = 0; h < num_groups - 1; h++) {
+      current_group_interaction += current_states[h] * projection(gr, h);
+      proposed_group_interaction += proposed_states[h] * projection(gr, h);
     }
+    double delta_state_group = 2.0 * (proposed_group_interaction - current_group_interaction);
 
-    denominator_proposed = std::exp(-bound);
-    denominator_current = std::exp(-bound);
-    for(int category = 0; category < no_categories[variable]; category++) {
-      score = category + 1;
-      exponent = score * rest_score - bound;
-      denominator_proposed += std::exp(exponent +
-        thresholds(variable, category) -
-        .5 * proposed_states[category]);
-      denominator_current += std::exp(exponent +
-        thresholds(variable, category) -
-        .5 * current_states[category]);
+    // Cache the number of categories for both variables
+    int n_cats_v1 = num_categories(variable1, gr);
+    int n_cats_v2 = num_categories(variable2, gr);
+
+    // Iterate over all individuals in the current group
+    for (int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      int obs_score1 = observations(person, variable1);
+      int obs_score2 = observations(person, variable2);
+      double obs_proposed_p1 = obs_score2 * proposed_group_interaction;
+      double obs_current_p1 = obs_score2 * current_group_interaction;
+      double obs_proposed_p2 = obs_score1 * proposed_group_interaction;
+      double obs_current_p2 = obs_score1 * current_group_interaction;
+
+      // Contribution from the interaction term
+      pseudolikelihood_ratio += obs_score1 * obs_score2 * delta_state_group;
+
+      // Process each variable in the interaction pair
+      for (int variable = 1; variable <= 2; variable++) {
+        int var = (variable == 1) ? variable1 : variable2;
+        int n_cats = (variable == 1) ? n_cats_v1 : n_cats_v2;
+        arma::vec& GroupThresholds = (variable == 1) ? GroupThresholds_v1 : GroupThresholds_v2;
+        double obs_proposed_p = (variable == 1) ? obs_proposed_p1 : obs_proposed_p2;
+        double obs_current_p = (variable == 1) ? obs_current_p1 : obs_current_p2;
+
+        double rest_score = residual_matrix(person, var) - obs_current_p;
+        double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+
+        double denominator_curr = 0.0, denominator_prop = 0.0;
+
+        // Compute denominators
+        if (is_ordinal_variable[var]) {
+          denominator_prop += std::exp(-bound);
+          denominator_curr += std::exp(-bound);
+
+          for (int cat = 0; cat < n_cats; cat++) {
+            int score = cat + 1;
+            double exponent = GroupThresholds[cat] + rest_score * score - bound;
+            denominator_curr += std::exp(exponent + score * obs_current_p);
+            denominator_prop += std::exp(exponent + score * obs_proposed_p);
+          }
+        } else {
+          for (int cat = 0; cat <= n_cats; cat++) {
+            double exponent = GroupThresholds[0] * cat +
+              GroupThresholds[1] * (cat - baseline_category[var]) *
+              (cat - baseline_category[var]) +
+              rest_score * cat - bound;
+            denominator_curr += std::exp(exponent + cat * obs_current_p);
+            denominator_prop += std::exp(exponent + cat * obs_proposed_p);
+          }
+        }
+
+        // Update log pseudo-likelihood ratio
+        pseudolikelihood_ratio += std::log(denominator_curr) - std::log(denominator_prop);
+      }
     }
-
-    pseudolikelihood_ratio -= std::log(denominator_proposed);
-    pseudolikelihood_ratio += std::log(denominator_current);
-  }
-
-  //Compute the contribution for group 2
-  for(int person = 0; person < no_persons_gr2; person++) {
-    rest_score = rest_matrix_gr2(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score;
-    } else {
-      bound = 0.0;
-    }
-
-    denominator_proposed = std::exp(-bound);
-    denominator_current = std::exp(-bound);
-    for(int category = 0; category < no_categories[variable]; category++) {
-      score = category + 1;
-      exponent = score * rest_score - bound;
-      denominator_proposed += std::exp(exponent +
-        thresholds(variable, category) +
-        .5 * proposed_states[category]);
-      denominator_current += std::exp(exponent +
-        thresholds(variable, category) +
-        .5 * current_states[category]);
-    }
-
-    pseudolikelihood_ratio -= std::log(denominator_proposed);
-    pseudolikelihood_ratio += std::log(denominator_current);
   }
 
   return pseudolikelihood_ratio;
 }
 
-// ----------------------------------------------------------------------------|
-// Between model MH algorithm for the threshold differences
-//    -- regular ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_regular_between_model(NumericMatrix thresholds,
-                                                              NumericMatrix main_difference,
-                                                              IntegerMatrix n_cat_obs_gr1,
-                                                              IntegerMatrix n_cat_obs_gr2,
-                                                              IntegerVector no_categories,
-                                                              IntegerMatrix indicator,
-                                                              NumericMatrix proposal_sd_main_difference,
-                                                              double main_difference_scale,
-                                                              int no_persons_gr1,
-                                                              int no_persons_gr2,
-                                                              int variable,
-                                                              NumericMatrix rest_matrix_gr1,
-                                                              NumericMatrix rest_matrix_gr2,
-                                                              NumericMatrix inclusion_probability_difference) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
-  int max_no_categories = max(no_categories);
-  NumericVector proposed_states(max_no_categories);
-  NumericVector current_states(max_no_categories);
 
-  log_prob = 0.0;
+/**
+ * Function: metropolis_pairwise_difference_between_model
+ * Purpose:
+ *   Implements a between-model Metropolis-Hastings algorithm to update
+ *   the inclusion inclusion_indicator and pairwise differences for variable pairs.
+ *
+ * Inputs:
+ *   - inclusion_probability_difference: arma::mat of inclusion probabilities
+ *                                       for pairwise differences.
+ *   - index: arma::imat mapping pairwise differences to variable indices.
+ *   - main_effects: arma::mat of main effects for all variables and groups.
+ *   - pairwise_effects: arma::mat of pairwise effects for all variable pairs and groups.
+ *   - main_effect_indices: arma::imat mapping variables to category indices.
+ *   - pairwise_effect_indices: arma::imat mapping variable pairs to pairwise effect indices.
+ *   - projection: arma::mat for group-specific scaling.
+ *   - observations: arma::imat of observed data (individuals by variables).
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: arma::imat specifying group-wise start and end indices for individuals.
+ *   - num_categories: arma::imat containing category counts for each variable and group.
+ *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently.
+ *   - inclusion_indicator: arma::imat indicating active pairwise differences.
+ *   - residual_matrix: arma::mat of residuals used for pseudo-likelihood calculations.
+ *   - is_ordinal_variable: arma::uvec indicating whether variables are ordinal.
+ *   - baseline_category: arma::ivec specifying reference categories for each variable.
+ *   - proposal_sd_pairwise_effects: arma::mat of proposal standard deviations for pairwise differences.
+ *   - pairwise_difference_scale: Double representing the scale of the prior distribution
+ *                                for pairwise differences.
+ *   - num_pairwise: Total number of pairwise differences.
+ *
+ * Outputs:
+ *   - Updates `inclusion_indicator`, `pairwise_effects`, and `residual_matrix` to reflect
+ *     accepted proposals for pairwise differences.
+ */
+void metropolis_pairwise_difference_between_model(
+    const arma::mat& inclusion_probability_difference,
+    const arma::imat& index,
+    const arma::mat& main_effects,
+    arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const bool independent_thresholds,
+    arma::imat& inclusion_indicator,
+    arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    arma::mat& proposal_sd_pairwise_effects,
+    const double pairwise_difference_scale,
+    const int num_pairwise
+) {
+  // Vectors to store current and proposed states for pairwise differences
+  arma::vec proposed_states(num_groups - 1);
+  arma::vec current_states(num_groups - 1);
 
-  for(int category = 0; category < no_categories[variable]; category++) {
-    if(n_cat_obs_gr1(category + 1, variable) * n_cat_obs_gr2(category + 1, variable) > 0) {
+  // Loop over all pairwise differences
+  for (int cntr = 0; cntr < num_pairwise; cntr++) {
+    int variable1 = index(cntr, 1);
+    int variable2 = index(cntr, 2);
+    int int_index = pairwise_effect_indices(variable1, variable2);
 
-      current_state = main_difference(variable, category);
-      current_states[category] = current_state;
+    double log_acceptance_probability = 0.0;
 
-      if(indicator(variable, variable) == 0) {
-        proposed_state = R::rnorm(current_state, proposal_sd_main_difference(variable, category));
-        proposed_states[category] = proposed_state;
-        log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-        log_prob -= R::dnorm(proposed_state,
-                             current_state,
-                             proposal_sd_main_difference(variable, category),
-                             true);
+    // Loop over groups to process current and proposed states
+    for (int h = 1; h < num_groups; h++) {
+      double current_state = pairwise_effects(int_index, h);
+      current_states[h - 1] = current_state;
+
+      double proposed_state = 0.0;
+
+      // Update log probabilities based on the inclusion inclusion_indicator
+      if (inclusion_indicator(variable1, variable2) == 1) {
+        // Difference is included
+        log_acceptance_probability -= R::dcauchy(current_state, 0.0, pairwise_difference_scale, true);
+        log_acceptance_probability += R::dnorm(current_state, proposed_state, proposal_sd_pairwise_effects(int_index, h), true);
       } else {
-        proposed_state = 0.0;
-        proposed_states[category] = proposed_state;
-        log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
-        log_prob += R::dnorm(current_state,
-                             proposed_state,
-                             proposal_sd_main_difference(variable, category),
-                             true);
+        // Propose a new state
+        proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(int_index, h));
+        log_acceptance_probability += R::dcauchy(proposed_state, 0.0, pairwise_difference_scale, true);
+        log_acceptance_probability -= R::dnorm(proposed_state, current_state, proposal_sd_pairwise_effects(int_index, h), true);
       }
-    } else {
-      current_states[category] = 0.0;
-      proposed_states[category] = 0.0;
+
+      proposed_states[h - 1] = proposed_state;
     }
-  }
 
-  if(indicator(variable, variable) == 0) {
-    log_prob += std::log(inclusion_probability_difference(variable, variable));
-    log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
-  } else {
-    log_prob -= log(inclusion_probability_difference(variable, variable));
-    log_prob += log(1 - inclusion_probability_difference(variable, variable));
-  }
+    // Update log probability for the inclusion inclusion_indicator
+    if (inclusion_indicator(variable1, variable2) == 1) {
+      log_acceptance_probability -= std::log(inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability += std::log(1 - inclusion_probability_difference(variable1, variable2));
+    } else {
+      log_acceptance_probability += std::log(inclusion_probability_difference(variable1, variable2));
+      log_acceptance_probability -= std::log(1 - inclusion_probability_difference(variable1, variable2));
+    }
 
-  log_prob += compare_log_pseudolikelihood_ratio_main_differences(thresholds,
-                                                                  n_cat_obs_gr1,
-                                                                  n_cat_obs_gr2,
-                                                                  no_categories,
-                                                                  no_persons_gr1,
-                                                                  no_persons_gr2,
-                                                                  variable,
-                                                                  proposed_states,
-                                                                  current_states,
-                                                                  rest_matrix_gr1,
-                                                                  rest_matrix_gr2);
+    // Compute log pseudo-likelihood ratio
+    log_acceptance_probability += log_pseudolikelihood_ratio_pairwise_differences(
+      main_effects, main_effect_indices, projection, observations, num_groups,
+      group_indices, num_categories, independent_thresholds, variable1,
+      variable2, proposed_states, current_states, residual_matrix,
+      is_ordinal_variable, baseline_category);
 
-  U = R::unif_rand();
-  if(std::log(U) < log_prob) {
-    indicator(variable, variable) = 1 - indicator(variable, variable);
-    for(int category = 0; category < no_categories[variable]; category++) {
-      main_difference(variable, category) = proposed_states[category];
+    // Metropolis-Hastings acceptance step
+    double U = R::unif_rand();
+    if (std::log(U) < log_acceptance_probability) {
+      // Update inclusion inclusion_indicator
+      inclusion_indicator(variable1, variable2) = 1 - inclusion_indicator(variable1, variable2);
+      inclusion_indicator(variable2, variable1) = inclusion_indicator(variable1, variable2);
+
+      // Update pairwise effects and rest matrix
+      for (int h = 1; h < num_groups; h++) {
+        pairwise_effects(int_index, h) = proposed_states[h - 1];
+      }
+
+      // Update residuals in the rest matrix
+      for (int gr = 0; gr < num_groups; ++gr) {
+        double state_difference = 0.0;
+        for (int h = 0; h < num_groups - 1; h++) {
+          state_difference += (proposed_states[h] - current_states[h]) * projection(gr, h);
+        }
+
+        for (int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+          int obs1 = observations(person, variable1);
+          int obs2 = observations(person, variable2);
+          residual_matrix(person, variable1) += obs2 * state_difference;
+          residual_matrix(person, variable2) += obs1 * state_difference;
+        }
+      }
     }
   }
 }
 
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for the two
-// category threshold parameters of the Blume-Capel model
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_thresholds_blumecapel(double linear_current,
-                                                                double quadratic_current,
-                                                                double linear_proposed,
-                                                                double quadratic_proposed,
-                                                                int variable,
-                                                                IntegerVector reference_category,
-                                                                NumericMatrix main_difference,
-                                                                IntegerMatrix sufficient_blume_capel_gr1,
-                                                                IntegerMatrix sufficient_blume_capel_gr2,
-                                                                int no_persons_gr1,
-                                                                int no_persons_gr2,
-                                                                NumericMatrix rest_matrix_gr1,
-                                                                NumericMatrix rest_matrix_gr2,
-                                                                IntegerVector no_categories) {
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
+/**
+ * Function: metropolis_threshold_regular
+ * Purpose: Uses the Metropolis-Hastings algorithm to sample from the full conditional
+ *          distribution of overall category threshold parameters for regular ordinal variables.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix containing the main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - observations: Integer matrix containing the observed data (individuals x variables).
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *  - num_persons: Total number of individuals in the dataset.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - num_obs_categories: List of integer matrices, where each matrix tracks the number of observations
+ *               for each category of a variable in a specific group.
+ *  - prior_threshold_alpha: Hyperparameter for the prior distribution of threshold parameters (shape parameter).
+ *  - prior_threshold_beta: Hyperparameter for the prior distribution of threshold parameters (rate parameter).
+ *  - variable: Index of the variable whose thresholds are being updated.
+ *
+ * Outputs:
+ *  - Updates the `main_effects` matrix with new sampled threshold parameters for the specified variable.
+ */
+void metropolis_threshold_regular(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const int num_persons,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const int variable
+) {
+  arma::vec q(num_persons); // Intermediate storage for pseudo-likelihood calculations
+  arma::vec r(num_persons); // Intermediate storage for pseudo-likelihood calculations
+
+  // Cache the number of categories and main effect index for the variable
+  int n_cats = num_categories(variable, 0); // Number of categories for the variable
+  int cat_index = main_effect_indices(variable, 0); // Index in `main_effects` for this variable
+
+  arma::vec GroupThresholds(n_cats); // Vector to store group-specific thresholds
+
+  // Iterate over each category threshold for the variable
+  for(int category = 0; category < n_cats; category++) {
+    double current_state = main_effects(cat_index + category, 0); // Current state of the threshold
+    double exp_current = std::exp(current_state); // Exponentiated current threshold
+    double c = (prior_threshold_alpha + prior_threshold_beta) / (1 + exp_current); // Initial value for c
+
+    // Compute group-specific thresholds and contributions to `q` and `r`
+    for (int gr = 0; gr < num_groups; gr++) {
+      // Update thresholds for the current group
+      for (int cat = 0; cat < n_cats; cat++) {
+        double threshold = main_effects(cat_index + cat, 0);
+        for (int h = 1; h < num_groups; h++) {
+          threshold += projection(gr, h - 1) * main_effects(cat_index + cat, h);
+        }
+        GroupThresholds[cat] = threshold;
+      }
+
+      // Subtract the current category's base threshold
+      GroupThresholds[category] -= main_effects(cat_index + category, 0);
+
+      // Compute `q` and `r` for each person in the group
+      for (int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+        double rest_score = residual_matrix(person, variable);
+        double q_person = 1.0; // Initialize q for the person
+        for (int cat = 0; cat < n_cats; ++cat) {
+          if (cat != category) {
+            double exponent = GroupThresholds[cat] + (cat + 1) * rest_score;
+            q_person += std::exp(exponent);
+          }
+        }
+        double exponent_r = GroupThresholds[category] + (category + 1) * rest_score;
+        double r_person = std::exp(exponent_r);
+        q[person] = q_person;
+        r[person] = r_person;
+        c += r_person / (q_person + r_person * exp_current);
+      }
+    }
+
+    // Update `c` to include the prior's contribution
+    double tmp = num_persons + prior_threshold_alpha + prior_threshold_beta - exp_current * c;
+    c /= tmp;
+
+    // Generate a proposed state using a generalized beta-prime proposal
+    double a = prior_threshold_alpha;
+    double b = num_persons + prior_threshold_beta;
+    for(int gr = 0; gr < num_groups; gr++) {
+      arma::imat num_obs_categories_gr = num_obs_categories[gr];
+      a += num_obs_categories_gr(category, variable); // Update a with observations in the category
+      b -= num_obs_categories_gr(category, variable); // Update b with remaining observations
+    }
+
+    // Sample from the beta distribution
+    double tmp_beta = R::rbeta(a, b);
+    double proposed_state = std::log(tmp_beta / (1  - tmp_beta) / c);
+    double exp_proposed = std::exp(proposed_state);
+
+    // Compute the log acceptance probability
+    double log_acceptance_probability = 0.0;
+
+    // Compute pseudo-likelihood ratio
+    for (int gr = 0; gr < num_groups; ++gr) {
+      for (int person = group_indices(gr, 0); person <= group_indices(gr, 1); ++person) {
+        log_acceptance_probability += std::log(q[person] + r[person] * exp_current);
+        log_acceptance_probability -= std::log(q[person] + r[person] * exp_proposed);
+      }
+    }
+
+    // Add prior density ratio
+    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_proposed);
+    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_current);
+
+    // Add proposal density ratio
+    log_acceptance_probability -= (a + b) * std::log(1 + c * exp_current);
+    log_acceptance_probability += (a + b) * std::log(1 + c * exp_proposed);
+
+    // Perform Metropolis-Hastings acceptance step
+    double U = std::log(R::unif_rand());
+    if(U < log_acceptance_probability) {
+      main_effects(cat_index + category, 0) = proposed_state; // Accept the proposal
+    }
+  }
+}
+
+
+/**
+ * Function: log_pseudolikelihood_ratio_main_difference
+ * Purpose: Computes the log pseudo-likelihood ratio for a proposed change in
+ *          a category threshold difference for an independent samples design.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix containing the main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - observations: Integer matrix containing the observed data (individuals x variables).
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - num_obs_categories: List of integer matrices tracking the number of observations for each category
+ *               of a variable in a specific group.
+ *  - variable: Index of the variable whose category threshold is being updated.
+ *  - category: Index of the specific category threshold being updated for the variable.
+ *  - h: Index for the projection matrix, corresponding to the group difference.
+ *  - proposed_state: Proposed value for the category threshold difference.
+ *  - current_state: Current value of the category threshold difference.
+ *
+ * Outputs:
+ *  - Returns the log pseudo-likelihood ratio for the proposed versus current state.
+ */
+double log_pseudolikelihood_ratio_main_difference(
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const int variable,
+    const int category,
+    const int h,
+    double proposed_state,
+    double current_state
+) {
+  double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
+  double delta_state = proposed_state - current_state; // Difference between proposed and current states
+  int cat_index = main_effect_indices(variable, 0); // Index for the main effects of the variable
+
+
+  // Loop over all groups
+  for(int gr = 0; gr < num_groups; gr++) {
+    int n_cats = num_categories(variable, gr); // Number of categories for the variable in this group
+    arma::vec current_thresholds(n_cats); // Store current thresholds for the group
+    arma::vec proposed_thresholds(n_cats); // Store proposed thresholds for the group
+    double P = projection(gr, h); // Group-specific projection scaling factor
+
+    // Compute current and proposed thresholds for all categories
+    for(int cat = 0; cat < n_cats; cat++) {
+      int full_cat_index = cat_index + cat;
+      double threshold = main_effects(full_cat_index, 0);
+      for (int hh = 1; hh < num_groups; ++hh) {
+        threshold += projection(gr, hh - 1) * main_effects(full_cat_index, hh);
+      }
+      current_thresholds[cat] = threshold;
+      proposed_thresholds[cat] = threshold;
+    }
+
+    // Adjust the threshold for the specific category
+    proposed_thresholds[category] -= P * current_state;
+    proposed_thresholds[category] += P * proposed_state;
+
+    // Add the contribution from delta_state based on observations
+    arma::imat num_obs_categories_gr = num_obs_categories[gr];
+    pseudolikelihood_ratio += delta_state * P * num_obs_categories_gr(category, variable);
+
+    // Loop over all persons in the group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      double rest_score = residual_matrix(person, variable); // Compute residual score
+      double bound = (rest_score > 0) ? n_cats * rest_score : 0.0;
+
+      // Compute the denominators for proposed and current thresholds
+      double denominator_proposed = std::exp(-bound);
+      double denominator_current = std::exp(-bound);
+      for(int cat = 0; cat < n_cats; cat++) {
+        double exponent = (cat + 1) * rest_score - bound;
+        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
+        denominator_current += std::exp(exponent + current_thresholds[cat]);
+      }
+
+      // Update the pseudo-likelihood ratio with log-likelihood differences
+      pseudolikelihood_ratio -= std::log(denominator_proposed);
+      pseudolikelihood_ratio += std::log(denominator_current);
+    }
+  }
+
+  return pseudolikelihood_ratio;
+}
+
+
+/**
+ * Function: metropolis_main_difference_regular
+ * Purpose: Implements the Metropolis-Hastings (MH) algorithm to sample from
+ *          the full conditional of the category threshold difference parameter
+ *          for regular ordinal variables in an independent samples design.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix containing the main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - observations: Integer matrix containing the observed data (individuals x variables).
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *  - num_persons: Total number of individuals in the dataset.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - num_obs_categories: List of integer matrices tracking the number of observations for each category
+ *               of a variable in a specific group.
+ *  - variable: Index of the variable being updated.
+ *  - inclusion_indicator: Integer matrix indicating active variables for the analysis.
+ *  - proposal_sd_main_effects: Numeric matrix specifying proposal standard deviations for category thresholds.
+ *  - main_difference_scale: Scale parameter for the Cauchy prior on threshold differences.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
+ *  - target_acceptance_rate: Target log acceptance rate for Metropolis-Hastings updates.
+ *  - rm_lower_bound: Minimum allowable standard deviation for proposals.
+ *  - rm_upper_bound: Maximum allowable standard deviation for proposals.
+ *
+ * Outputs:
+ *  - Updates `main_effects` with sampled values for threshold differences.
+ *  - Updates `proposal_sd_main_effects` with adjusted proposal standard deviations using Robbins-Monro updates.
+ */
+void metropolis_main_difference_regular(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const int variable,
+    const arma::imat& inclusion_indicator,
+    arma::mat& proposal_sd_main_effects,
+    const double main_difference_scale,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  // Check if the variable is active
+  if (inclusion_indicator(variable, variable) != 1) {
+    return; // Skip if variable is inactive
+  }
+
+  // Look up and cache the base category index for this variable
+  int base_cat_index = main_effect_indices(variable, 0);
+
+  // Loop over all categories for this variable
+  int n_cats = num_categories(variable, 0);
+  for (int category = 0; category < n_cats; category++) {
+    int cat_index = base_cat_index + category;
+
+    // Loop over groups (starting from h = 1)
+    for (int h = 1; h < num_groups; h++) {
+      double current_state = main_effects(cat_index, h); // Current threshold difference
+      double proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, h)); // Propose a new state
+
+      // Compute log pseudo-likelihood ratio for proposed vs current state
+      double log_acceptance_probability = log_pseudolikelihood_ratio_main_difference(
+        main_effects, main_effect_indices, projection, observations, num_groups,
+        group_indices, num_categories, residual_matrix, num_obs_categories,
+        variable, category, h - 1, proposed_state, current_state);
+
+      // Add contributions from the Cauchy prior
+      log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+      // Metropolis-Hastings acceptance step
+      double U = R::unif_rand();
+      if (std::log(U) < log_acceptance_probability) {
+        main_effects(cat_index, h) = proposed_state; // Accept the proposed state
+      }
+
+      // Robbins-Monro update to the proposal standard deviation
+      proposal_sd_main_effects(cat_index, h) = update_with_robbins_monro(
+        proposal_sd_main_effects(cat_index, h), log_acceptance_probability, target_acceptance_rate,
+        rm_lower_bound, rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
+    }
+  }
+}
+
+
+/**
+ * Function: log_pseudolikelihood_ratio_thresholds_blumecapel
+ * Purpose: Computes the log pseudo-likelihood ratio for proposed versus current
+ *          category threshold parameters in the Blume-Capel model for an independent samples design.
+ *
+ * Inputs:
+ *  - linear_current: Current value of the linear coefficient for the threshold.
+ *  - quadratic_current: Current value of the quadratic coefficient for the threshold.
+ *  - linear_proposed: Proposed value of the linear coefficient for the threshold.
+ *  - quadratic_proposed: Proposed value of the quadratic coefficient for the threshold.
+ *  - variable: Index of the variable for which thresholds are being updated.
+ *  - baseline_category: Integer vector specifying the reference category for each variable.
+ *  - main_effects: Numeric matrix of main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - sufficient_blume_capel: List of integer matrices containing sufficient statistics
+ *                            for the Blume-Capel model, including linear and quadratic terms.
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *
+ * Outputs:
+ *  - Returns the computed log pseudo-likelihood ratio for the proposed versus current parameters.
+ */
+double log_pseudolikelihood_ratio_thresholds_blumecapel(
+    double linear_current,
+    double quadratic_current,
+    double linear_proposed,
+    double quadratic_proposed,
+    const int variable,
+    const arma::ivec& baseline_category,
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::mat& residual_matrix,
+    const arma::imat& num_categories
+) {
+  // Variables for bounds, scores, and likelihood components
   double lbound, bound;
-  double log_prob, rest_score, numerator, denominator, exponent;
+  double rest_score, numerator, denominator, exponent;
+  double pseudolikelihood_ratio = 0.0;
   int linear_score, quadratic_score;
+  int cat_index = main_effect_indices(variable, 0);
 
-  //----------------------------------------------------------------------------
-  //Compute the log acceptance probability -------------------------------------
-  //----------------------------------------------------------------------------
+  // Loop over all groups
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Precompute constant terms for the numerator and denominator
+    arma::vec constant_numerator (num_categories(variable, gr) + 1);
+    arma::vec constant_denominator (num_categories(variable, gr) + 1);
 
-  //Precompute common terms for group 1 for computational efficiency -----------
-  for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    linear_score = category;
-    quadratic_score =
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    for(int category = 0; category <= num_categories(variable, gr); category++) {
+      linear_score = category;
+      quadratic_score = (category - baseline_category[variable]) *
+        (category - baseline_category[variable]);
 
-    constant_numerator[category] = linear_current * linear_score;
-    constant_numerator[category] -= .5 * main_difference(variable, 0) * linear_score;
-    constant_numerator[category] += quadratic_current * quadratic_score;
-    constant_numerator[category] -= .5 * main_difference(variable, 1) * quadratic_score;
+      // Linear and quadratic contributions for current and proposed states
+      constant_numerator[category] = linear_current * linear_score;
+      constant_numerator[category] += quadratic_current * quadratic_score;
+      constant_denominator[category] = linear_proposed * linear_score ;
+      constant_denominator[category] += quadratic_proposed * quadratic_score;
 
-    constant_denominator[category] = linear_proposed * linear_score ;
-    constant_denominator[category] -= .5 * main_difference(variable, 0) * linear_score;
-    constant_denominator[category] += quadratic_proposed * quadratic_score;
-    constant_denominator[category] -= .5 * main_difference(variable, 1) * quadratic_score;
-  }
+      // Add group-specific contributions
+      for(int h = 1; h < num_groups; h++) {
+        double P = projection(gr, h - 1);
+        double m1 =  main_effects(cat_index, h);
+        double m2 =  main_effects(cat_index + 1, h);
+        constant_numerator[category] += P * m1 * linear_score;
+        constant_numerator[category] += P * m2 * quadratic_score;
+        constant_denominator[category] += P * m1 * linear_score;
+        constant_denominator[category] += P * m2 * quadratic_score;
+      }
+    }
 
-  //Precompute bounds for group 1 for numeric stability ------------------------
-  double tmp_num = max(constant_numerator);
-  double tmp_den = max(constant_denominator);
-  if(tmp_num > 0) {
-    if(tmp_num > tmp_den) {
-      lbound = tmp_num;
+    // Precompute bounds for numerical stability
+    double tmp_num = max(constant_numerator);
+    double tmp_den = max(constant_denominator);
+    if(tmp_num > 0) {
+      if(tmp_num > tmp_den) {
+        lbound = tmp_num;
+      } else {
+        lbound = tmp_den;
+      }
     } else {
-      lbound = tmp_den;
+      lbound = 0.0;
     }
-  } else {
-    lbound = 0.0;
+
+    arma::imat sufficient_blume_capel_gr = sufficient_blume_capel[gr];
+
+    // Add contributions from sufficient statistics
+    pseudolikelihood_ratio += sufficient_blume_capel_gr(0, variable) * linear_proposed;
+    pseudolikelihood_ratio += sufficient_blume_capel_gr(1, variable) * quadratic_proposed;
+    pseudolikelihood_ratio -= sufficient_blume_capel_gr(0, variable) * linear_current;
+    pseudolikelihood_ratio -= sufficient_blume_capel_gr(1, variable) * quadratic_current;
+
+    // Loop over individuals in the group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      rest_score = residual_matrix(person, variable);
+      if(rest_score > 0) {
+        bound = num_categories(variable, gr) * rest_score + lbound;
+      } else {
+        bound = lbound;
+      }
+
+      // Compute the likelihood contributions
+      numerator = 0.0;
+      denominator = 0.0;
+      for(int category = 0; category <= num_categories[variable]; category ++) {
+        exponent = category * rest_score - bound;
+        numerator += std::exp(constant_numerator[category] + exponent);
+        denominator += std::exp(constant_denominator[category] + exponent);
+      }
+      pseudolikelihood_ratio += std::log(numerator);
+      pseudolikelihood_ratio -= std::log(denominator);
+    }
   }
 
-  //Compute the log pseudolikelihood ratio for group 1--------------------------
-  log_prob = sufficient_blume_capel_gr1(0, variable) * linear_proposed;
-  log_prob += sufficient_blume_capel_gr1(1, variable) * quadratic_proposed;
-  log_prob -= sufficient_blume_capel_gr1(0, variable) * linear_current;
-  log_prob -= sufficient_blume_capel_gr1(1, variable) * quadratic_current;
-
-  for(int person = 0; person < no_persons_gr1; person++) {
-    rest_score = rest_matrix_gr1(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
-    }
-
-    numerator = 0.0;
-    denominator = 0.0;
-    for(int category = 0; category < no_categories[variable] + 1; category ++) {
-      exponent = category * rest_score - bound;
-      numerator += std::exp(constant_numerator[category] + exponent);
-      denominator += std::exp(constant_denominator[category] + exponent);
-    }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
-  }
-
-  //Precompute common terms for group 2 for computational efficiency -----------
-  for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    linear_score = category;
-    quadratic_score =
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-
-    constant_numerator[category] = linear_current * linear_score ;
-    constant_numerator[category] += .5 * main_difference(variable, 0) * linear_score;
-    constant_numerator[category] += quadratic_current * quadratic_score;
-    constant_numerator[category] += .5 * main_difference(variable, 1) * quadratic_score;
-
-    constant_denominator[category] = linear_proposed * linear_score;
-    constant_denominator[category] += .5 * main_difference(variable, 0) * linear_score;
-    constant_denominator[category] += quadratic_proposed * quadratic_score;
-    constant_denominator[category] += .5 * main_difference(variable, 1) * quadratic_score;
-  }
-
-  //Precompute bounds for group 2 for numeric stability ------------------------
-  tmp_num = max(constant_numerator);
-  tmp_den = max(constant_denominator);
-  if(tmp_num > 0) {
-    if(tmp_num > tmp_den) {
-      lbound = tmp_num;
-    } else {
-      lbound = tmp_den;
-    }
-  } else {
-    lbound = 0.0;
-  }
-
-  //Compute the log pseudolikelihood ratio for group 2--------------------------
-  log_prob += sufficient_blume_capel_gr2(0, variable) * linear_proposed;
-  log_prob += sufficient_blume_capel_gr2(1, variable) * quadratic_proposed;
-  log_prob -= sufficient_blume_capel_gr2(0, variable) * linear_current;
-  log_prob -= sufficient_blume_capel_gr2(1, variable) * quadratic_current;
-
-  for(int person = 0; person < no_persons_gr2; person++) {
-    rest_score = rest_matrix_gr2(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
-    }
-
-    numerator = 0.0;
-    denominator = 0.0;
-    for(int category = 0; category < no_categories[variable] + 1; category ++) {
-      exponent = category * rest_score - bound;
-      numerator += std::exp(constant_numerator[category] + exponent);
-      denominator += std::exp(constant_denominator[category] + exponent);
-    }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
-  }
-
-  return log_prob;
+  return pseudolikelihood_ratio;
 }
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the overall category
-//  threshold parameters (nuisance) -- Blume-Capel ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_threshold_blumecapel(NumericMatrix thresholds,
-                                             NumericMatrix main_difference,
-                                             IntegerVector no_categories,
-                                             IntegerMatrix sufficient_blume_capel_gr1,
-                                             IntegerMatrix sufficient_blume_capel_gr2,
-                                             int no_persons_gr1,
-                                             int no_persons_gr2,
-                                             int variable,
-                                             IntegerVector reference_category,
-                                             double threshold_alpha,
-                                             double threshold_beta,
-                                             NumericMatrix rest_matrix_gr1,
-                                             NumericMatrix rest_matrix_gr2,
-                                             NumericMatrix proposal_sd_blumecapel,
-                                             double phi,
-                                             double target_ar,
-                                             int t,
-                                             double epsilon_lo,
-                                             double epsilon_hi) {
-  double log_prob, U;
-  double current_state, proposed_state;
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
 
-  //----------------------------------------------------------------------------
-  // Adaptive Metropolis for the linear Blume-Capel parameter
-  //----------------------------------------------------------------------------
-  current_state = thresholds(variable, 0);
-  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 0));
+/**
+ * Function: metropolis_threshold_blumecapel
+ * Purpose: Samples from the full conditional distribution of the overall category
+ *          threshold parameters for Blume-Capel ordinal variables using the
+ *          Metropolis-Hastings (MH) algorithm with Robbins-Monro adaptive updates.
+ *
+ * Inputs:
+ *  - main_effects: Numeric matrix of main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *  - sufficient_blume_capel: List of sufficient statistics for the Blume-Capel model,
+ *                            including linear and quadratic terms.
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - variable: Index of the variable for which thresholds are being updated.
+ *  - baseline_category: Integer vector specifying the reference category for each variable.
+ *  - prior_threshold_alpha: Hyperparameter for the Blume-Capel threshold prior distribution.
+ *  - prior_threshold_beta: Hyperparameter for the Blume-Capel threshold prior distribution.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - proposal_sd_main_effects: Numeric matrix storing the proposal standard deviations for the parameters.
+ *  - exp_neg_log_t_rm_adaptation_rate: Precompute Robbins-Monro decay term.
+ *  - target_acceptance_rate: Target log acceptance probability for the MH algorithm.
+ *  - rm_lower_bound: Lower bound for the proposal standard deviation.
+ *  - rm_upper_bound: Upper bound for the proposal standard deviation.
+ *
+ * Outputs:
+ *  - Updates `main_effects` for the linear and quadratic threshold parameters.
+ *  - Updates `proposal_sd_main_effects` with Robbins-Monro adjustments for the proposal standard deviations.
+ */
+void metropolis_threshold_blumecapel(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& num_categories,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const int variable,
+    const arma::ivec& baseline_category,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const arma::mat& residual_matrix,
+    arma::mat& proposal_sd_main_effects,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  // Adaptive Metropolis procedure for the linear Blume-Capel model
+  int cat_index = main_effect_indices(variable, 0); // Base index for the variable
+  double current_state = main_effects(cat_index, 0);
+  double proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, 0));
 
-  //----------------------------------------------------------------------------
-  //Compute the log acceptance probability -------------------------------------
-  //----------------------------------------------------------------------------
+  // Compute log acceptance probability
   double linear_current = current_state;
-  double quadratic_current = thresholds(variable, 1);
+  double quadratic_current = main_effects(cat_index + 1, 0);
   double linear_proposed = proposed_state;
-  double quadratic_proposed = thresholds(variable, 1);
+  double quadratic_proposed = main_effects(cat_index + 1, 0);
 
-  log_prob = compare_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
-                                                                      quadratic_current,
-                                                                      linear_proposed,
-                                                                      quadratic_proposed,
-                                                                      variable,
-                                                                      reference_category,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      no_categories);
+  double log_acceptance_probability = log_pseudolikelihood_ratio_thresholds_blumecapel(
+    linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+    variable, baseline_category, main_effects, main_effect_indices, projection,
+    sufficient_blume_capel, num_groups, group_indices, residual_matrix,
+    num_categories);
 
-  //Compute the prior ratio ----------------------------------------------------
-  log_prob += threshold_alpha * (proposed_state - current_state);
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+  // Add prior ratio to log acceptance probability
+  log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
 
-  //Metropolis step ------------------------------------------------------------
-  U = R::unif_rand();
-  if(std::log(U) < log_prob) {
-    thresholds(variable, 0) = proposed_state;
+  // Perform Metropolis-Hastings acceptance step
+  double U = R::unif_rand();
+  if(std::log(U) < log_acceptance_probability) {
+    main_effects(cat_index, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
+  // Robbins-Monro update for proposal standard deviation
+  proposal_sd_main_effects(cat_index, 0) = update_with_robbins_monro(
+    proposal_sd_main_effects(cat_index, 0), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
 
-  double update_proposal_sd = proposal_sd_blumecapel(variable, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
+  // Adaptive Metropolis procedure for the quadratic Blume-Capel model
+  current_state = main_effects(cat_index + 1, 0);
+  proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index + 1, 0));
 
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_blumecapel(variable, 0) = update_proposal_sd;
-
-  //---------------------------------------------------------------------------|
-  // Adaptive Metropolis for the quadratic Blume-Capel parameter
-  //---------------------------------------------------------------------------|
-  current_state = thresholds(variable, 1);
-  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 1));
-
-  //----------------------------------------------------------------------------
-  //Compute the log acceptance probability -------------------------------------
-  //----------------------------------------------------------------------------
-
-  linear_current = thresholds(variable, 0);
+  // Compute log acceptance probability
+  linear_current = main_effects(cat_index, 0);
   quadratic_current = current_state;
-  linear_proposed = thresholds(variable, 0);
+  linear_proposed =  main_effects(cat_index, 0);
   quadratic_proposed =  proposed_state;
 
-  log_prob = compare_log_pseudolikelihood_ratio_thresholds_blumecapel(linear_current,
-                                                                      quadratic_current,
-                                                                      linear_proposed,
-                                                                      quadratic_proposed,
-                                                                      variable,
-                                                                      reference_category,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      no_categories);
+  log_acceptance_probability = log_pseudolikelihood_ratio_thresholds_blumecapel(
+    linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+    variable, baseline_category, main_effects, main_effect_indices, projection,
+    sufficient_blume_capel, num_groups, group_indices, residual_matrix,
+    num_categories);
 
-  //Compute the prior ratio ----------------------------------------------------
-  log_prob += threshold_alpha * (proposed_state - current_state);
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+  // Add prior ratio to log acceptance probability
+  log_acceptance_probability += prior_threshold_alpha * (proposed_state - current_state);
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
 
-  //Metropolis step ------------------------------------------------------------
+  // Perform Metropolis-Hastings acceptance step
   U = R::unif_rand();
-  if(std::log(U) < log_prob) {
-    thresholds(variable, 1) = proposed_state;
+  if(std::log(U) < log_acceptance_probability) {
+    main_effects(cat_index + 1, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_blumecapel(variable, 1) = update_proposal_sd;
+  // Robbins-Monro update for proposal standard deviation
+  proposal_sd_main_effects(cat_index + 1, 0) = update_with_robbins_monro(
+    proposal_sd_main_effects(cat_index + 1, 0), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
 }
 
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for the two
-// category threshold differences of the Blume-Capel model
-// ----------------------------------------------------------------------------|
-double compare_log_pseudolikelihood_ratio_main_difference_blumecapel(double linear_current,
-                                                                     double quadratic_current,
-                                                                     double linear_proposed,
-                                                                     double quadratic_proposed,
-                                                                     int variable,
-                                                                     IntegerVector reference_category,
-                                                                     NumericMatrix thresholds,
-                                                                     IntegerMatrix sufficient_blume_capel_gr1,
-                                                                     IntegerMatrix sufficient_blume_capel_gr2,
-                                                                     int no_persons_gr1,
-                                                                     int no_persons_gr2,
-                                                                     NumericMatrix rest_matrix_gr1,
-                                                                     NumericMatrix rest_matrix_gr2,
-                                                                     IntegerVector no_categories) {
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
-  double lbound, bound;
-  double log_prob, rest_score, numerator, denominator, exponent;
-  int linear_score, quadratic_score;
+/**
+ * Function: log_pseudolikelihood_ratio_main_difference_blumecapel
+ * Purpose: Computes the log pseudo-likelihood ratio (proposed against current)
+ *          for the differences in two category threshold parameters in the
+ *          Blume-Capel model.
+ *
+ * Inputs:
+ *  - linear_current: Current value of the linear parameter for the Blume-Capel model.
+ *  - quadratic_current: Current value of the quadratic parameter for the Blume-Capel model.
+ *  - linear_proposed: Proposed value of the linear parameter for the Blume-Capel model.
+ *  - quadratic_proposed: Proposed value of the quadratic parameter for the Blume-Capel model.
+ *  - variable: Index of the variable for which thresholds are being updated.
+ *  - h: Index of the group being updated in the multi-group design.
+ *  - baseline_category: Integer vector specifying the reference category for each variable.
+ *  - main_effects: Numeric matrix of main effect parameters for all variables and groups.
+ *  - main_effect_indices: Integer matrix mapping variables to their main effect parameter indices.
+ *  - projection: Numeric matrix specifying group-specific scaling for thresholds.
+ *  - sufficient_blume_capel: List of sufficient statistics for the Blume-Capel model,
+ *                            including linear and quadratic terms.
+ *  - num_groups: Total number of groups in the analysis.
+ *  - group_indices: Integer matrix specifying start and end indices for each group in `observations`.
+ *  - residual_matrix: Numeric matrix storing residual effects for pseudo-likelihood calculations.
+ *  - num_categories: Integer matrix specifying the number of categories for each variable and group.
+ *
+ * Outputs:
+ *  - Returns the computed log pseudo-likelihood ratio.
+ */
+double log_pseudolikelihood_ratio_main_difference_blumecapel(
+    const double linear_current,
+    const double quadratic_current,
+    const double linear_proposed,
+    const double quadratic_proposed,
+    const int variable,
+    const int h,
+    const arma::ivec& baseline_category,
+    const arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::mat& projection,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::mat& residual_matrix,
+    const arma::imat& num_categories
+) {
+  double lbound, bound; // Variables for numerical bounds to ensure stability
+  double rest_score, numerator, denominator, exponent; // Variables for pseudo-likelihood computations
+  double pseudolikelihood_ratio = 0.0; // Accumulated log pseudo-likelihood ratio
+  int linear_score, quadratic_score; // Scores for linear and quadratic terms
+  int cat_index = main_effect_indices(variable, 0); // Base index for variable categories
 
+  // Loop over all groups
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Precomputed constants for numerator and denominator for each category
+    arma::vec constant_numerator (num_categories(variable, gr) + 1);
+    arma::vec constant_denominator (num_categories(variable, gr) + 1);
+    double P = projection(gr, h); // Scaling factor for group-specific adjustments
 
-  //----------------------------------------------------------------------------
-  //Compute the log acceptance probability -------------------------------------
-  //----------------------------------------------------------------------------
+    // Pre-compute terms for all categories in the current group
+    for(int category = 0; category <= num_categories(variable, gr); category++) {
+      // Compute linear and quadratic scores for the current category
+      linear_score = category;
+      quadratic_score = (category - baseline_category[variable]) *
+        (category - baseline_category[variable]);
 
-  int linear_sufficient = .5 * (sufficient_blume_capel_gr2(0, variable) -
-                                sufficient_blume_capel_gr1(0, variable));
-  int quadratic_sufficient = .5 * (sufficient_blume_capel_gr2(1, variable) -
-                                   sufficient_blume_capel_gr1(1, variable));
+      // Initialize numerator and denominator contributions with main effects
+      constant_numerator[category] = main_effects(cat_index, 0) * linear_score;
+      constant_numerator[category] +=  main_effects(cat_index + 1, 0) * quadratic_score;
+      constant_denominator[category] =  main_effects(cat_index, 0) * linear_score ;
+      constant_denominator[category] += main_effects(cat_index + 1, 0) * quadratic_score;
 
-  log_prob = linear_proposed * linear_sufficient;
-  log_prob -= linear_current * linear_sufficient;
-  log_prob += quadratic_proposed * quadratic_sufficient;
-  log_prob -= quadratic_current * quadratic_sufficient;
+      // Add group-specific contributions from projections
+      for(int hh = 1; hh < num_groups; hh++) {
+        double P = projection(gr, hh - 1);
+        double m1 =  main_effects(cat_index, hh);
+        double m2 =  main_effects(cat_index + 1, hh);
+        constant_numerator[category] += P * m1 * linear_score;
+        constant_numerator[category] += P * m2 * quadratic_score;
+        constant_denominator[category] += P * m1 * linear_score;
+        constant_denominator[category] += P * m2 * quadratic_score;
+      }
 
+      // Adjust denominator with proposed changes for this group
+      constant_denominator[category] -= P * main_effects(cat_index, h + 1) * linear_score;
+      constant_denominator[category] -= P * main_effects(cat_index + 1, h + 1) * quadratic_score;
+      constant_denominator[category] += P * linear_proposed * linear_score;
+      constant_denominator[category] += P * quadratic_proposed * quadratic_score;
+    }
 
-  //Precompute common terms for group 1 for computational efficiency -----------
-  for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    linear_score = category;
-    quadratic_score =
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+    // Compute numerical bounds for stability
+    double tmp_num = max(constant_numerator);
+    double tmp_den = max(constant_denominator);
+    if(tmp_num > 0) {
+      if(tmp_num > tmp_den) {
+        lbound = tmp_num;
+      } else {
+        lbound = tmp_den;
+      }
+    } else {
+      lbound = 0.0;
+    }
 
-    constant_numerator[category] = thresholds(variable, 0) * linear_score ;
-    constant_numerator[category] -= .5 * linear_current * linear_score;
-    constant_numerator[category] += thresholds(variable, 1) * quadratic_score;
-    constant_numerator[category] -= .5 * quadratic_current * quadratic_score;
+    // Add contributions from sufficient statistics
+    arma::imat sufficient_blume_capel_gr = sufficient_blume_capel[gr];
+    double sp0 = sufficient_blume_capel_gr(0, variable) * P;
+    double sp1 = sufficient_blume_capel_gr(1, variable) * P;
+    pseudolikelihood_ratio += sp0 * linear_proposed;
+    pseudolikelihood_ratio += sp1 * quadratic_proposed;
+    pseudolikelihood_ratio -= sp0 * linear_current;
+    pseudolikelihood_ratio -= sp1 * quadratic_current;
 
-    constant_denominator[category] = thresholds(variable, 0) * linear_score ;
-    constant_denominator[category] -= .5 * linear_proposed * linear_score;
-    constant_denominator[category] += thresholds(variable, 1) * quadratic_score;
-    constant_denominator[category] -= .5 * quadratic_proposed * quadratic_score;
+    // Process each person in the group to compute pseudo-likelihood terms
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      rest_score = residual_matrix(person, variable);
+      if(rest_score > 0) {
+        bound = num_categories(variable, gr) * rest_score + lbound;
+      } else {
+        bound = lbound;
+      }
+
+      // Initialize numerator and denominator
+      numerator = 0.0;
+      denominator = 0.0;
+
+      // Compute category-specific contributions
+      for(int category = 0; category <= num_categories[variable]; category ++) {
+        exponent = category * rest_score - bound;
+        numerator += std::exp(constant_numerator[category] + exponent);
+        denominator += std::exp(constant_denominator[category] + exponent);
+      }
+
+      // Update the pseudo-likelihood ratio with log probabilities
+      pseudolikelihood_ratio += std::log(numerator);
+      pseudolikelihood_ratio -= std::log(denominator);
+    }
   }
 
-  //Precompute bounds for group 1 for numeric stability ------------------------
-  double tmp_num = max(constant_numerator);
-  double tmp_den = max(constant_denominator);
-  if(tmp_num > 0) {
-    if(tmp_num > tmp_den) {
-      lbound = tmp_num;
+  return pseudolikelihood_ratio; // Return the computed pseudo-likelihood ratio
+}
+
+
+/**
+ * Function: metropolis_main_difference_blumecapel
+ * Purpose:
+ *   Perform Metropolis-Hastings sampling for the full-conditional distribution
+ *   of the group-specific category threshold difference parameters for a Blume-Capel
+ *   ordinal variable in an ANOVA model.
+ *
+ * Inputs:
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - projection: A projection matrix mapping group-specific effects.
+ *   - num_categories: An integer matrix containing the number of categories for
+ *                    each variable across groups.
+ *   - sufficient_blume_capel: A list of sufficient statistics for Blume-Capel
+ *                             variables per group.
+ *   - num_persons: Total number of individuals in the dataset.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing the start and end indices for individuals
+ *                  in each group.
+ *   - variable: Index of the variable being updated.
+ *   - baseline_category: A vector indicating the reference category for each variable.
+ *   - prior_threshold_alpha: Shape parameter of the prior distribution for thresholds.
+ *   - prior_threshold_beta: Rate parameter of the prior distribution for thresholds.
+ *   - residual_matrix: A matrix of residual scores for the pseudo-likelihood calculation.
+ *   - inclusion_indicator: A binary matrix indicating whether a variable is active for sampling.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for the main effects.
+ *   - exp_neg_log_t_rm_adaptation_rate: Precompute Robbins-Monro decay term.
+ *   - target_acceptance_rate: Target acceptance probability for Robbins-Monro.
+ *   - rm_lower_bound: Lower bound for the proposal standard deviation.
+ *   - rm_upper_bound: Upper bound for the proposal standard deviation.
+ *
+ * Outputs:
+ *   - Updates `main_effects` to reflect accepted proposals for the linear and
+ *     quadratic threshold differences.
+ *   - Updates `proposal_sd_main_effects` for the linear and quadratic parameters using
+ *     Robbins-Monro updates.
+ */
+void metropolis_main_difference_blumecapel(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const double main_difference_scale,
+    const arma::mat& projection,
+    const arma::imat& num_categories,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const int variable,
+    const arma::ivec& baseline_category,
+    arma::mat& residual_matrix,
+    const arma::imat& inclusion_indicator,
+    arma::mat& proposal_sd_main_effects,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  double log_acceptance_probability, U; // Log probability and random uniform value for MH step
+  double current_state, proposed_state; // Current and proposed parameter values
+
+  // Check if the variable is active for sampling
+  if (inclusion_indicator(variable, variable) == 0) {
+    return; // Skip if variable is inactive
+  }
+
+  // Loop over the group-specific difference effects
+  for(int h = 1; h < num_groups; h++) {
+
+    // Adaptive Metropolis procedure for the linear Blume-Capel parameter
+    int cat_index = main_effect_indices(variable, 0); // Base index for the variable's categories
+    current_state = main_effects(cat_index, h); // Current value for linear parameter
+    proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, h)); // Propose new value
+
+    // Compute log pseudo-likelihood ratio for the proposed and current states
+    double linear_current = current_state;
+    double quadratic_current = main_effects(cat_index + 1, h);
+    double linear_proposed = proposed_state;
+    double quadratic_proposed = main_effects(cat_index + 1, h);
+
+    log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
+      linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+      variable, h - 1, baseline_category, main_effects, main_effect_indices,
+      projection, sufficient_blume_capel, num_groups, group_indices,
+      residual_matrix, num_categories);
+
+    // Add prior contributions to the log probability
+    log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+    log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+    // Metropolis-Hastings acceptance step
+    U = R::unif_rand();
+    if(std::log(U) < log_acceptance_probability) {
+      main_effects(cat_index, h) = proposed_state; // Accept proposed value
+    }
+
+    // Robbins-Monro update for the proposal standard deviation
+    proposal_sd_main_effects(cat_index, h) = update_with_robbins_monro(
+      proposal_sd_main_effects(cat_index, h), log_acceptance_probability,
+      target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+      exp_neg_log_t_rm_adaptation_rate);
+
+    // Adaptive Metropolis procedure for the quadratic Blume-Capel parameter
+    current_state = main_effects(cat_index + 1, h); // Current value for quadratic parameter
+    proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index + 1, h)); // Propose new value
+
+    // Compute log pseudo-likelihood ratio for the proposed and current states
+    linear_current = main_effects(cat_index, h);
+    quadratic_current = current_state;
+    linear_proposed =  main_effects(cat_index, h);
+    quadratic_proposed =  proposed_state;
+
+    log_acceptance_probability = log_pseudolikelihood_ratio_main_difference_blumecapel(
+      linear_current, quadratic_current, linear_proposed, quadratic_proposed,
+      variable, h - 1, baseline_category, main_effects, main_effect_indices,
+      projection, sufficient_blume_capel, num_groups, group_indices,
+      residual_matrix, num_categories);
+
+    // Add prior contributions to the log probability
+    log_acceptance_probability += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+    log_acceptance_probability -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+
+    // Metropolis-Hastings acceptance step
+    U = R::unif_rand();
+    if(std::log(U) < log_acceptance_probability) {
+      main_effects(cat_index + 1, h) = proposed_state;
+    }
+
+    // Robbins-Monro update for the proposal standard deviation
+
+    proposal_sd_main_effects(cat_index + 1, h) = update_with_robbins_monro(
+      proposal_sd_main_effects(cat_index + 1, h), log_acceptance_probability,
+      target_acceptance_rate, rm_lower_bound, rm_upper_bound,
+      exp_neg_log_t_rm_adaptation_rate);
+
+  }
+}
+
+
+/**
+ * Function: metropolis_thresholds_regular_free
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of threshold parameters for a regular binary or ordinal variable in a
+ *   free-threshold independent samples design.
+ *
+ * Inputs:
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals
+ *                   by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals
+ *                  in each group.
+ *   - num_categories: A matrix containing the number of categories for each
+ *                    variable and group.
+ *   - residual_matrix: A matrix of residual scores for the pseudo-likelihood
+ *                  calculations.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for
+ *                each group.
+ *   - prior_threshold_alpha: Shape parameter for the prior distribution.
+ *   - prior_threshold_beta: Rate parameter for the prior distribution.
+ *   - variable: Index of the variable being updated.
+ *   - group: Index of the group being updated.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for
+ *     threshold parameters.
+ */
+void metropolis_thresholds_regular_free(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const int variable,
+    const int group
+) {
+
+  // Number of persons in the group
+  int num_persons = group_indices(group, 1) - group_indices(group, 0) + 1;
+
+  // Cache group-specific category observations
+  arma::imat num_obs_categories_gr = num_obs_categories[group];
+
+  // Base category index for the variable
+  int base_cat_index = main_effect_indices(variable, 0);
+  int n_cats = num_categories(variable, group);
+
+  // Temporary storage for pseudo-likelihood elements
+  arma::vec q(num_persons);
+  arma::vec r(num_persons);
+
+  // Loop over categories
+  for(int category = 0; category < n_cats; category++) {
+    double current_state = main_effects(base_cat_index + category, group);
+    double exp_current = std::exp(current_state);
+
+    // Initialize scaling factor `c` for the generalized beta-prime proposal
+    double c = (prior_threshold_alpha + prior_threshold_beta) / (1 + exp_current);
+
+    // Compute `q` and `r` for each person in the group
+    for(int person = 0; person < num_persons; person++) {
+      double rest_score = residual_matrix(group_indices(group, 0) + person, variable);
+
+      // Calculate pseudo-likelihood component `q`
+      double q_person = 1.0;
+      for(int cat = 0; cat < n_cats; cat++) {
+        if(cat != category) {
+          q_person += std::exp(main_effects(base_cat_index + cat, group) + (cat + 1) * rest_score);
+        }
+      }
+
+      // Calculate pseudo-likelihood component `r`
+      double r_person = std::exp((category + 1) * rest_score);
+
+      // Store results for each person
+      q[person] = q_person;
+      r[person] = r_person;
+
+      // Update scaling factor `c`
+      c += r_person / (q_person + r_person * exp_current);
+    }
+
+    // Finalize `c` by accounting for prior contributions
+    c /= (num_persons + prior_threshold_alpha + prior_threshold_beta - exp_current * c);
+
+    // Propose a new state using the generalized beta-prime distribution
+    double a = num_obs_categories_gr(category, variable) + prior_threshold_alpha;
+    double b = num_persons + prior_threshold_beta - num_obs_categories_gr(category, variable);
+    double tmp = R::rbeta(a, b);
+    double proposed_state = std::log(tmp / ((1 - tmp) * c));
+    double exp_proposed = std::exp(proposed_state);
+
+
+    // Compute the log acceptance probability
+    double log_acceptance_probability = 0.0;
+
+    // Add pseudo-likelihood ratio contributions
+    for (int person = 0; person < num_persons; ++person) {
+      log_acceptance_probability += std::log(q[person] + r[person] * exp_current);
+      log_acceptance_probability -= std::log(q[person] + r[person] * exp_proposed);
+    }
+
+    // Add prior ratio contributions
+    log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_proposed);
+    log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + exp_current);
+
+    // Add proposal ratio contributions
+    log_acceptance_probability -= (a + b) * std::log(1 + c * exp_current);
+    log_acceptance_probability += (a + b) * std::log(1 + c * exp_proposed);
+
+    // Perform the Metropolis-Hastings acceptance step
+    double U = std::log(R::unif_rand());
+    if(U < log_acceptance_probability) {
+      // Update the main effects matrix if the proposal is accepted
+      main_effects(base_cat_index + category, group) = proposed_state;
+    }
+  }
+}
+
+/**
+ * Function: metropolis_thresholds_blumecapel_free
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of the threshold parameters (linear and quadratic) for a Blume-Capel ordinal
+ *   variable in a free-threshold independent samples design.
+ *
+ * Inputs:
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals
+ *                   by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals
+ *                  in each group.
+ *   - baseline_category: A vector specifying the reference category for each variable.
+ *   - num_categories: A matrix containing the number of categories for each
+ *                    variable and group.
+ *   - sufficient_blume_capel: A list of matrices containing sufficient statistics
+ *                             for each group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for
+ *                each group and variable.
+ *   - prior_threshold_alpha: Shape parameter for the prior distribution.
+ *   - prior_threshold_beta: Rate parameter for the prior distribution.
+ *   - variable: Index of the variable being updated.
+ *   - group: Index of the group being updated.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for the
+ *                       Metropolis-Hastings updates.
+ *   - exp_neg_log_t_rm_adaptation_rate: Precomputed Robbins-Monro decay term.
+ *   - target_acceptance_rate: Target acceptance rate for
+ *                                         Metropolis-Hastings updates.
+ *   - t: Current iteration number.
+ *   - rm_lower_bound: Lower bound for Robbins-Monro updates to proposal standard deviations.
+ *   - rm_upper_bound: Upper bound for Robbins-Monro updates to proposal standard deviations.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for
+ *     the linear and quadratic threshold parameters.
+ *   - Adjusts the `proposal_sd_main_effects` matrix using Robbins-Monro adaptive updates.
+ */
+void metropolis_thresholds_blumecapel_free(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::ivec& baseline_category,
+    const arma::imat& num_categories,
+    const List& sufficient_blume_capel,
+    arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const int variable,
+    const int group,
+    arma::mat& proposal_sd_main_effects,
+    const double exp_neg_log_t_rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const double rm_lower_bound,
+    const double rm_upper_bound
+) {
+  // Retrieve sufficient statistics for the current group
+  arma::mat sufficient_blume_capel_group = sufficient_blume_capel[group];
+
+  // Preallocate vectors for constants used in likelihood calculations
+  arma::vec constant_numerator(num_categories(variable, group) + 1);
+  arma::vec constant_denominator(num_categories(variable, group) + 1);
+
+  // Adaptive Metropolis procedure for the linear Blume-Capel parameter
+  int cat_index = main_effect_indices(variable, 0);
+  double current_state = main_effects(cat_index, group);
+  double proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index, group));
+
+  // Difference between proposed and current state
+  double difference = proposed_state - current_state;
+
+  // Precompute constants for likelihood ratio calculation
+  for(int category = 0; category <= num_categories(variable, group); category ++) {
+    double exponent = main_effects(cat_index + 1, group) *
+      (category - baseline_category[variable]) *
+      (category - baseline_category[variable]);
+    constant_numerator[category] = current_state * category + exponent;
+    constant_denominator[category] = proposed_state * category + exponent;
+  }
+
+  // Precompute bounds for numerical stability
+  double tmp_n = max(constant_numerator);
+  double tmp_d = max(constant_denominator);
+  double lbound = 0.0;
+  if(tmp_n > 0) {
+    if(tmp_n > tmp_d) {
+      lbound = tmp_n;
     } else {
-      lbound = tmp_den;
+      lbound = tmp_d;
+    }
+  }
+
+  // Initialize log acceptance probability with prior contribution
+  double log_acceptance_probability = prior_threshold_alpha * difference;
+  log_acceptance_probability += sufficient_blume_capel_group(0, variable) * difference;
+
+  // Loop over individuals in the group to compute likelihood ratio
+  for(int person = group_indices(group, 0); person <= group_indices(group, 1); person++) {
+    double rest_score = residual_matrix(person, variable);
+    double bound = lbound;
+    if(rest_score > 0) {
+      bound += num_categories(variable, group) * rest_score;
+    }
+
+    // Compute likelihood numerator and denominator
+    double numerator = std::exp(constant_numerator[0] - bound);
+    double denominator = std::exp(constant_denominator[0] - bound);
+    for(int score = 1; score <= num_categories(variable, group); score++) {
+      double exponent = score * rest_score - bound;
+      numerator += std::exp(constant_numerator[score] + exponent);
+      denominator += std::exp(constant_denominator[score] + exponent);
+    }
+    log_acceptance_probability += std::log(numerator);
+    log_acceptance_probability -= std::log(denominator);
+  }
+
+  // Add prior ratio to log acceptance probability
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+
+  // Metropolis acceptance step
+  double U = R::unif_rand();
+  if(std::log(U) < log_acceptance_probability) {
+    main_effects(cat_index, group) = proposed_state;
+  }
+
+  // Robbins-Monro adaptive update for proposal standard deviation
+  proposal_sd_main_effects(cat_index, group) = update_with_robbins_monro(
+    proposal_sd_main_effects(cat_index, group), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
+
+
+  // Adaptive Metropolis procedure for the quadratic Blume-Capel parameter
+  current_state = main_effects(cat_index + 1, group);
+  proposed_state = R::rnorm(current_state, proposal_sd_main_effects(cat_index + 1, group));
+  difference = proposed_state - current_state;
+
+  // Recompute constants for quadratic term
+  for(int category = 0; category <= num_categories(variable, group); category ++) {
+    double exponent = main_effects(cat_index, group) * category;
+    int score = (category - baseline_category[variable]) *
+      (category - baseline_category[variable]);
+
+    constant_numerator[category] = current_state * score + exponent;
+    constant_denominator[category] = proposed_state * score + exponent;
+  }
+
+  tmp_n = max(constant_numerator);
+  tmp_d = max(constant_denominator);
+  if(tmp_n > 0) {
+    if(tmp_n > tmp_d) {
+      lbound = tmp_n;
+    } else {
+      lbound = tmp_d;
     }
   } else {
     lbound = 0.0;
   }
 
-  //Compute the log pseudolikelihood ratio for group 1--------------------------
-  for(int person = 0; person < no_persons_gr1; person++) {
-    rest_score = rest_matrix_gr1(person, variable);
+  log_acceptance_probability = prior_threshold_alpha * difference;
+  log_acceptance_probability += sufficient_blume_capel_group(1, variable) * difference;
+
+  // Loop over individuals to compute likelihood ratio for quadratic term
+  for(int person = group_indices(group, 0); person <= group_indices(group, 1); person++) {
+    double rest_score = residual_matrix(person, variable);
+    double bound = lbound;
     if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
+      bound += num_categories[variable] * rest_score;
     }
 
-    numerator = 0.0;
-    denominator = 0.0;
-    for(int category = 0; category < no_categories[variable] + 1; category ++) {
-      exponent = category * rest_score - bound;
-      numerator += std::exp(constant_numerator[category] + exponent);
-      denominator += std::exp(constant_denominator[category] + exponent);
+    double numerator = std::exp(constant_numerator[0] - bound);
+    double denominator = std::exp(constant_denominator[0] - bound);
+
+    for(int score = 1; score <= num_categories(variable, group); score ++) {
+      double exponent = score * rest_score - bound;
+      numerator += std::exp(constant_numerator[score] + exponent);
+      denominator += std::exp(constant_denominator[score] + exponent);
     }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
+
+    log_acceptance_probability += std::log(numerator);
+    log_acceptance_probability -= std::log(denominator);
+  }
+  log_acceptance_probability += (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(current_state));
+  log_acceptance_probability -= (prior_threshold_alpha + prior_threshold_beta) * std::log(1 + std::exp(proposed_state));
+
+  U = R::unif_rand();
+  if(std::log(U) < log_acceptance_probability) {
+    main_effects(cat_index + 1, group) = proposed_state;
   }
 
-  //Precompute common terms for group 2 for computational efficiency -----------
-  for(int category = 0; category < no_categories[variable] + 1; category ++) {
-    linear_score = category;
-    quadratic_score =
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
+  // Robbins-Monro update for the proposal standard deviation
+  proposal_sd_main_effects(cat_index + 1, group) = update_with_robbins_monro(
+    proposal_sd_main_effects(cat_index + 1, group), log_acceptance_probability, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound, exp_neg_log_t_rm_adaptation_rate);
 
-    constant_numerator[category] = thresholds(variable, 0) * linear_score ;
-    constant_numerator[category] += .5 * linear_current * linear_score;
-    constant_numerator[category] += thresholds(variable, 1) * quadratic_score;
-    constant_numerator[category] += .5 * quadratic_current * quadratic_score;
-
-    constant_denominator[category] = thresholds(variable, 0) * linear_score ;
-    constant_denominator[category] += .5 * linear_proposed * linear_score;
-    constant_denominator[category] += thresholds(variable, 1) * quadratic_score;
-    constant_denominator[category] += .5 * quadratic_proposed * quadratic_score;
-  }
-
-  //Precompute bounds for group 2 for numeric stability ------------------------
-  tmp_num = max(constant_numerator);
-  tmp_den = max(constant_denominator);
-  if(tmp_num > 0) {
-    if(tmp_num > tmp_den) {
-      lbound = tmp_num;
-    } else {
-      lbound = tmp_den;
-    }
-  } else {
-    lbound = 0.0;
-  }
-
-  //Compute the log pseudolikelihood ratio for group 2--------------------------
-  for(int person = 0; person < no_persons_gr2; person++) {
-    rest_score = rest_matrix_gr2(person, variable);
-    if(rest_score > 0) {
-      bound = no_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
-    }
-
-    numerator = 0.0;
-    denominator = 0.0;
-    for(int category = 0; category < no_categories[variable] + 1; category ++) {
-      exponent = category * rest_score - bound;
-      numerator += std::exp(constant_numerator[category] + exponent);
-      denominator += std::exp(constant_denominator[category] + exponent);
-    }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
-  }
-
-  return log_prob;
 }
 
 
+/**
+ * Function: log_pseudolikelihood_ratio_main_difference_regular_between_model
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for regular variables between models
+ *   with and without group-specific main effects in the main difference model.
+ *
+ * Inputs:
+ *   - current_main_effects: A matrix of current main effects for all variables and groups.
+ *   - proposed_main_effects: A matrix of proposed main effects for all variables and groups.
+ *   - projection: A matrix specifying the projection of group differences.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *
+ * Outputs:
+ *   - Returns the log pseudo-likelihood ratio for the current and proposed main effects.
+ */
+double log_pseudolikelihood_ratio_main_difference_regular_between_model(
+    const arma::mat& current_main_effects,
+    const arma::mat& proposed_main_effects,
+    const arma::mat& projection,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const int variable
+) {
+  double pseudolikelihood_ratio = 0.0; // Initialize the log pseudo-likelihood ratio
+  int num_cats = num_categories(variable, 0); // Number of categories for the variable
+  arma::vec current_thresholds(num_cats); // Store current thresholds for the group
+  arma::vec proposed_thresholds(num_cats); // Store proposed thresholds for the group
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the category threshold
-//  difference parameters-- Blume-Capel ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_blumecapel(NumericMatrix thresholds,
-                                                   NumericMatrix main_difference,
-                                                   IntegerVector no_categories,
-                                                   IntegerMatrix sufficient_blume_capel_gr1,
-                                                   IntegerMatrix sufficient_blume_capel_gr2,
-                                                   int no_persons_gr1,
-                                                   int no_persons_gr2,
-                                                   int variable,
-                                                   IntegerVector reference_category,
-                                                   double main_difference_scale,
-                                                   NumericMatrix rest_matrix_gr1,
-                                                   NumericMatrix rest_matrix_gr2,
-                                                   NumericMatrix proposal_sd_main_difference,
-                                                   double phi,
-                                                   double target_ar,
-                                                   int t,
-                                                   double epsilon_lo,
-                                                   double epsilon_hi) {
-  double log_prob, U;
-  double current_state, proposed_state;
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
+  // Loop over all groups to compute the contribution to the log pseudo-likelihood ratio
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Retrieve group-specific category observation counts
+    arma::imat num_obs_categories_gr = num_obs_categories[gr];
 
-  //---------------------------------------------------------------------------|
-  // Adaptive Metropolis for the difference in the linear Blume-Capel parameter
-  //---------------------------------------------------------------------------|
-  current_state = main_difference(variable, 0);
-  proposed_state = R::rnorm(current_state,
-                            proposal_sd_main_difference(variable, 0));
+    // Compute category thresholds for each category within the group
+    for(int cat = 0; cat < num_cats; cat++) {
+      // Compute current and proposed category thresholds
+      double current_threshold = current_main_effects(cat, 0);
+      double proposed_threshold = proposed_main_effects(cat, 0);
+      for (int h = 1; h < num_groups; ++h) {
+        current_threshold += projection(gr, h - 1) * current_main_effects(cat, h);
+        proposed_threshold += projection(gr, h - 1) * proposed_main_effects(cat, h);
+      }
+      current_thresholds[cat] = current_threshold;
+      proposed_thresholds[cat] = proposed_threshold;
 
-  //----------------------------------------------------------------------------
-  //Compute the log acceptance probability -------------------------------------
-  //----------------------------------------------------------------------------
+      // Update the pseudo-likelihood ratio with contributions from the observations
+      double delta_state = proposed_threshold - current_threshold;
+      pseudolikelihood_ratio += delta_state * num_obs_categories_gr(cat, variable);
+    }
 
-  double linear_current = current_state;
-  double quadratic_current = main_difference(variable, 1);
-  double linear_proposed = proposed_state;
-  double quadratic_proposed = main_difference(variable, 1);
+    // Loop over individuals within the group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      // Compute the rest score (residual) for the current variable
+      double rest_score = residual_matrix(person, variable);
 
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
+      // Compute numerical bounds for stability
+      double bound = (rest_score > 0) ? num_cats * rest_score : 0.0;
 
-  //Compute the prior ratio ---------------------------------------------------
-  log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+      // Initialize denominator terms for the proposed and current pseudolikelihoods
+      double denominator_proposed = std::exp(-bound);
+      double denominator_current = std::exp(-bound);
 
-  //Metropolis step ------------------------------------------------------------
-  U = R::unif_rand();
-  if(std::log(U) < log_prob) {
-    main_difference(variable, 0) = proposed_state;
+      // Add contributions from each category to the denominators
+      for(int cat = 0; cat < num_cats; cat++) {
+        double exponent = (cat + 1) * rest_score - bound;
+        denominator_proposed += std::exp(exponent + proposed_thresholds[cat]);
+        denominator_current += std::exp(exponent + current_thresholds[cat]);
+      }
+
+      // Update the pseudo-likelihood ratio with log-likelihood differences
+      pseudolikelihood_ratio -= std::log(denominator_proposed);
+      pseudolikelihood_ratio += std::log(denominator_current);
+    }
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  double update_proposal_sd = proposal_sd_main_difference(variable, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_main_difference(variable, 0) = update_proposal_sd;
-
-
-  //----------------------------------------------------------------------------
-  // Adaptive Metropolis for the difference in quadratic Blume-Capel parameter
-  //----------------------------------------------------------------------------
-  current_state = main_difference(variable, 1);
-  proposed_state = R::rnorm(current_state,
-                            proposal_sd_main_difference(variable, 1));
-
-  //----------------------------------------------------------------------------
-  // Compute the log acceptance probability ------------------------------------
-  //----------------------------------------------------------------------------
-
-  linear_current = main_difference(variable, 0);
-  quadratic_current = current_state;
-  linear_proposed = main_difference(variable, 0);
-  quadratic_proposed = proposed_state;
-
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
-
-  //Compute the prior ratio -------------------------------------------------
-  log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
-  log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
-
-  //Metropolis step ------------------------------------------------------------
-  U = R::unif_rand();
-  if(std::log(U) < log_prob) {
-    main_difference(variable, 1) = proposed_state;
-  }
-
-  //Robbins-Monro update of the proposal variance ----------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  update_proposal_sd = proposal_sd_main_difference(variable, 1) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-
-  proposal_sd_main_difference(variable, 1) = update_proposal_sd;
+  return pseudolikelihood_ratio; // Return the computed log pseudo-likelihood ratio
 }
 
 
-// ----------------------------------------------------------------------------|
-// Between model MH algorithm for the threshold differences
-//    -- blume capel ordinal variable
-// ----------------------------------------------------------------------------|
-void compare_metropolis_main_difference_blumecapel_between_model(NumericMatrix thresholds,
-                                                                 NumericMatrix main_difference,
-                                                                 IntegerMatrix sufficient_blume_capel_gr1,
-                                                                 IntegerMatrix sufficient_blume_capel_gr2,
-                                                                 IntegerVector no_categories,
-                                                                 IntegerMatrix indicator,
-                                                                 NumericMatrix proposal_sd_main_difference,
-                                                                 double main_difference_scale,
-                                                                 int no_persons_gr1,
-                                                                 int no_persons_gr2,
-                                                                 int variable,
-                                                                 NumericMatrix rest_matrix_gr1,
-                                                                 NumericMatrix rest_matrix_gr2,
-                                                                 NumericMatrix inclusion_probability_difference,
-                                                                 IntegerVector reference_category) {
-  double log_prob;
-  double U;
-  NumericVector proposed_states(2);
-  NumericVector current_states(2);
-  NumericVector constant_numerator (no_categories[variable] + 1);
-  NumericVector constant_denominator (no_categories[variable] + 1);
+/**
+ * Function: metropolis_main_difference_regular_between_model
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of main effect differences between models with and without group-specific main effects
+ *   for regular variables.
+ *
+ * Inputs:
+ *   - inclusion_indicator: A matrix indicating inclusion of main effect differences for variables.
+ *   - inclusion_probability_difference: A matrix of inclusion probabilities for main effects.
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
+ *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
+ *   - projection: A matrix specifying the projection of group differences.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for main effects.
+ *   - Updates the `indicator` matrix to reflect inclusion or exclusion of main effect differences.
+ */
+void metropolis_main_difference_regular_between_model(
+    arma::imat& inclusion_indicator,
+    const arma::mat& inclusion_probability_difference,
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const int variable,
+    const arma::mat& proposal_sd_main_effects,
+    const double main_difference_scale,
+    const arma::mat& projection
+) {
+  // Number of rows for this variable's main effects
+  int num_row = main_effect_indices(variable, 1) -  main_effect_indices(variable, 0) + 1;
+  arma::mat proposed_main_effects(num_row, num_groups);
+  arma::mat current_main_effects(num_row, num_groups);
 
-  //--------------------------------------------------------------------------
-  // Adaptive Metropolis for the difference in Blume-Capel parameters
-  //--------------------------------------------------------------------------
-  current_states[0] = main_difference(variable, 0);
-  current_states[1] = main_difference(variable, 1);
+  // Retrieve the current and proposed indicators for inclusion
+  int current_indicator = inclusion_indicator(variable, variable);
+  int proposed_indicator = 1 - current_indicator;
 
-  if(indicator(variable, variable) == 0) {
-    proposed_states[0] = R::rnorm(current_states[0],
-                                  proposal_sd_main_difference(variable, 0));
-    proposed_states[1] = R::rnorm(current_states[1],
-                                  proposal_sd_main_difference(variable, 1));
-  } else {
-    proposed_states[0] = 0.0;
-    proposed_states[1] = 0.0;
+  int main_effect_index = main_effect_indices(variable, 0);
+  int num_cats = num_categories(variable, 0);
+  double log_prob = 0.0;
+
+  // Populate the current and proposed main effects matrices
+  for(int cat = 0; cat < num_cats; cat++) {
+    proposed_main_effects(cat, 0) = main_effects(main_effect_index + cat, 0);
+    current_main_effects(cat, 0) = main_effects(main_effect_index + cat, 0);
+
+    if(current_indicator == 1) {
+      for(int h = 1; h < num_groups; h++) {
+        double proposal_sd = proposal_sd_main_effects(main_effect_index + cat, h);
+        double current_state = main_effects(main_effect_index + cat, h);
+        double proposed_state = 0.0;
+        current_main_effects(cat, h) = current_state;
+        proposed_main_effects(cat, h) = proposed_state;
+
+        // Update log acceptance probability with prior and proposal contributions
+        log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+        log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+      }
+    } else {
+      for(int h = 1; h < num_groups; h++) {
+        double proposal_sd = proposal_sd_main_effects(main_effect_index + cat, h);
+        double current_state = 0.0;
+        double proposed_state = R::rnorm(current_state, proposal_sd);
+        current_main_effects(cat, h) = current_state;
+        proposed_main_effects(cat, h) = proposed_state;
+
+        // Update log acceptance probability with prior and proposal contributions
+        log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+        log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+      }
+    }
   }
 
-  //--------------------------------------------------------------------------
-  // Compute the log acceptance probability ----------------------------------
-  //--------------------------------------------------------------------------
+  // Add pseudo-likelihood ratio contribution
+  log_prob += log_pseudolikelihood_ratio_main_difference_regular_between_model(
+    current_main_effects, proposed_main_effects, projection, num_groups,
+    group_indices, num_categories, residual_matrix, num_obs_categories, variable
+  );
 
-  double linear_current = current_states[0];
-  double quadratic_current = current_states[1];
-  double linear_proposed = proposed_states[0];
-  double quadratic_proposed = proposed_states[1];
-
-  log_prob = compare_log_pseudolikelihood_ratio_main_difference_blumecapel(linear_current,
-                                                                           quadratic_current,
-                                                                           linear_proposed,
-                                                                           quadratic_proposed,
-                                                                           variable,
-                                                                           reference_category,
-                                                                           thresholds,
-                                                                           sufficient_blume_capel_gr1,
-                                                                           sufficient_blume_capel_gr2,
-                                                                           no_persons_gr1,
-                                                                           no_persons_gr2,
-                                                                           rest_matrix_gr1,
-                                                                           rest_matrix_gr2,
-                                                                           no_categories);
-
-  //Compute the parameter prior and proposal ratios ----------------------------
-  if(indicator(variable, variable) == 0) {
-    log_prob += R::dcauchy(proposed_states[0], 0.0, main_difference_scale, true);
-    log_prob += R::dcauchy(proposed_states[1], 0.0, main_difference_scale, true);
-    log_prob -= R::dnorm(proposed_states[0],
-                         current_states[0],
-                         proposal_sd_main_difference(variable, 0),
-                         true);
-    log_prob -= R::dnorm(proposed_states[1],
-                         current_states[1],
-                         proposal_sd_main_difference(variable, 1),
-                         true);
+  // Add prior inclusion odds contributions
+  if(current_indicator == 1) {
+    log_prob -= std::log(inclusion_probability_difference(variable, variable));
+    log_prob += std::log(1 - inclusion_probability_difference(variable, variable));
   } else {
-    log_prob -= R::dcauchy(current_states[0], 0.0, main_difference_scale, true);
-    log_prob -= R::dcauchy(current_states[1], 0.0, main_difference_scale, true);
-    log_prob += R::dnorm(current_states[0],
-                         proposed_states[0],
-                         proposal_sd_main_difference(variable, 0),
-                         true);
-    log_prob += R::dnorm(current_states[1],
-                         proposed_states[1],
-                         proposal_sd_main_difference(variable, 1),
-                         true);
-  }
-
-  //Compute the prior inclusion ratios -----------------------------------------
-  if(indicator(variable, variable) == 0) {
     log_prob += std::log(inclusion_probability_difference(variable, variable));
     log_prob -= std::log(1 - inclusion_probability_difference(variable, variable));
-  } else {
-    log_prob -= log(inclusion_probability_difference(variable, variable));
-    log_prob += log(1 - inclusion_probability_difference(variable, variable));
   }
 
-  //Metropolis step ------------------------------------------------------------
-  U = R::unif_rand();
+  // Perform Metropolis-Hastings step
+  double U = R::unif_rand();
   if(std::log(U) < log_prob) {
-    indicator(variable, variable) = 1 - indicator(variable, variable);
-    main_difference(variable, 0) = proposed_states[0];
-    main_difference(variable, 1) = proposed_states[1];
+    inclusion_indicator(variable, variable) = proposed_indicator;
+    for(int cat = 0; cat < num_cats; cat++) {
+      for(int h = 1; h < num_groups; h++) {
+        main_effects(main_effect_index + cat, h) = proposed_main_effects(cat, h);
+      }
+    }
   }
 }
 
-// ----------------------------------------------------------------------------|
-// A Gibbs step for graphical model parameters for Bayesian parameter comparison
-// ----------------------------------------------------------------------------|
-List compare_gibbs_step_gm(NumericMatrix thresholds_gr1,
-                           NumericMatrix thresholds_gr2,
-                           NumericMatrix interactions_gr1,
-                           NumericMatrix interactions_gr2,
-                           IntegerMatrix indicator,
-                           NumericMatrix inclusion_probability_difference,
-                           IntegerMatrix observations_gr1,
-                           IntegerMatrix observations_gr2,
-                           IntegerVector no_categories_gr1,
-                           IntegerVector no_categories_gr2,
-                           int no_persons_gr1,
-                           int no_persons_gr2,
-                           int no_variables,
-                           IntegerMatrix n_cat_obs_gr1,
-                           IntegerMatrix n_cat_obs_gr2,
-                           IntegerMatrix sufficient_blume_capel_gr1,
-                           IntegerMatrix sufficient_blume_capel_gr2,
-                           NumericMatrix rest_matrix_gr1,
-                           NumericMatrix rest_matrix_gr2,
-                           NumericMatrix proposal_sd_interaction,
-                           NumericMatrix proposal_sd_main_difference,
-                           NumericMatrix proposal_sd_pairwise_difference,
-                           NumericMatrix proposal_sd_blumecapel_gr1,
-                           NumericMatrix proposal_sd_blumecapel_gr2,
-                           double interaction_scale,
-                           double main_difference_scale,
-                           double pairwise_difference_scale,
-                           double threshold_alpha,
-                           double threshold_beta,
-                           double phi,
-                           double target_ar,
-                           int t,
-                           double epsilon_lo,
-                           double epsilon_hi,
-                           LogicalVector ordinal_variable,
-                           IntegerVector reference_category,
-                           bool independent_thresholds,
-                           bool difference_selection,
-                           int no_interactions,
-                           IntegerMatrix index) {
 
-  NumericMatrix thresholds(no_variables, max(no_categories_gr1));
-  NumericMatrix main_difference(no_variables, max(no_categories_gr1));
-  NumericMatrix interactions(no_interactions, no_interactions);
-  NumericMatrix pairwise_difference(no_interactions, no_interactions);
-  if(independent_thresholds == false) {
-    for(int variable = 0; variable < no_variables; variable++) {
-      if(ordinal_variable[variable] == true) {
-        for(int category = 0; category < no_categories_gr1[variable]; category++) {
-          main_difference(variable, category) =
-            thresholds_gr2(variable, category) -
-            thresholds_gr1(variable, category);
+/**
+ * Function: log_pseudolikelihood_ratio_main_difference_blume_capel_between_model
+ * Purpose:
+ *   Computes the log pseudo-likelihood ratio for the Blume-Capel model between
+ *   proposed and current main effect differences, accounting for linear and quadratic parameters.
+ *
+ * Inputs:
+ *   - current_main_effects: A matrix of current main effects for all variables and groups.
+ *   - proposed_main_effects: A matrix of proposed main effects for all variables and groups.
+ *   - projection: A matrix specifying the projection of group differences.
+ *   - baseline_category: A vector specifying the reference category for each variable.
+ *   - sufficient_blume_capel: A list of matrices containing sufficient statistics for each group.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - variable: Index of the variable being updated.
+ *
+ * Outputs:
+ *   - Returns the log pseudo-likelihood ratio for the current and proposed main effect differences
+ *     for the Blume-Capel model.
+ */
+double log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
+    const arma::mat& current_main_effects,
+    const arma::mat& proposed_main_effects,
+    const arma::mat& projection,
+    const arma::ivec& baseline_category,
+    const List& sufficient_blume_capel,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::imat& num_categories,
+    const arma::mat& residual_matrix,
+    const int variable
+) {
+  // Initialize the log pseudo-likelihood ratio
+  double pseudolikelihood_ratio = 0.0;
 
-          thresholds(variable, category) =
-            .5 * thresholds_gr2(variable, category) +
-            .5 * thresholds_gr1(variable, category);
-        }
-      } else {
-        main_difference(variable, 0) =
-          thresholds_gr2(variable, 0) -
-          thresholds_gr1(variable, 0);
+  // Determine the number of categories for the variable
+  int num_cats = num_categories(variable, 0);
 
-        thresholds(variable, 0) =
-          .5 * thresholds_gr2(variable, 0) +
-          .5 * thresholds_gr1(variable, 0);
+  // Storage for current and proposed Blume-Capel parameters
+  arma::vec current_parameters(2); // Linear and quadratic parameters
+  arma::vec proposed_parameters(2); // Linear and quadratic parameters
 
-        main_difference(variable, 1) =
-          thresholds_gr2(variable, 1) -
-          thresholds_gr1(variable, 1);
+  // Loop through each group to calculate contributions
+  for(int gr = 0; gr < num_groups; gr++) {
+    // Retrieve sufficient statistics for the current group
+    arma::imat sufficient_statistics = sufficient_blume_capel[gr];
 
-        thresholds(variable, 1) =
-          .5 * thresholds_gr2(variable, 1) +
-          .5 * thresholds_gr1(variable, 1);
+    // Compute linear parameters (current and proposed)
+    current_parameters = current_main_effects.col(0);
+    proposed_parameters = proposed_main_effects.col(0);
+
+    current_parameters += current_main_effects.cols(1, num_groups - 1) * projection.row(gr).t();
+    proposed_parameters += proposed_main_effects.cols(1, num_groups - 1) * projection.row(gr).t();
+
+    // Add contributions from the data
+    pseudolikelihood_ratio += sufficient_statistics(0, variable) *
+      (proposed_parameters[0] - current_parameters[0]);
+    pseudolikelihood_ratio += sufficient_statistics(1, variable) *
+      (proposed_parameters[1] - current_parameters[1]);
+
+    // Precompute category-specific constants for denominators
+    arma::vec current_denominator_constant (num_cats + 1);
+    arma::vec proposed_denominator_constant (num_cats + 1);
+
+    for(int cat = 0; cat <= num_cats; cat++) {
+      int linear_score = cat;
+      int quadratic_score = (cat - baseline_category[variable]) *
+                            (cat - baseline_category[variable]);
+
+      current_denominator_constant[cat] = current_parameters[0] * linear_score;
+      current_denominator_constant[cat] += current_parameters[1] * quadratic_score;
+
+      proposed_denominator_constant[cat] = proposed_parameters[0] * linear_score ;
+      proposed_denominator_constant[cat] += proposed_parameters[1] * quadratic_score;
+    }
+
+    // Determine numerical bounds for stability
+    double tmp_max_current = arma::max(current_denominator_constant);
+    double tmp_max_proposed = arma::max(proposed_denominator_constant);
+    double lbound = std::max(tmp_max_current, tmp_max_proposed);
+    if(lbound < 0.0) {
+      lbound = 0.0;
+    }
+
+    // Loop over all individuals in the current group
+    for(int person = group_indices(gr, 0); person <= group_indices(gr, 1); person++) {
+      // Compute the residual score
+      double rest_score = residual_matrix(person, variable);
+      double bound = (rest_score > 0) ? lbound + num_cats * rest_score : lbound;
+
+      // Compute the denominators for the current and proposed states
+      double denominator_proposed = 0.0;
+      double denominator_current = 0.0;
+
+      // Compute category-specific contributions
+      for(int cat = 0; cat <= num_cats; cat++) {
+        double exponent = cat * rest_score - bound;
+        denominator_proposed += std::exp(proposed_denominator_constant[cat] + exponent);
+        denominator_current += std::exp(current_denominator_constant[cat] + exponent);
       }
-    }
-  }
-  for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
-    for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
-      pairwise_difference(variable1, variable2) =
-        interactions_gr2(variable1, variable2) -
-        interactions_gr1(variable1, variable2);
 
-      interactions(variable1, variable2) =
-        .5 * interactions_gr1(variable1, variable2) +
-        .5 * interactions_gr2(variable1, variable2);
-
-      pairwise_difference(variable2, variable1) =
-        pairwise_difference(variable1, variable2);
-
-      interactions(variable2, variable1) =
-        interactions(variable1, variable2);
+      // Update the pseudo-likelihood ratio
+      pseudolikelihood_ratio -= std::log(denominator_proposed);
+      pseudolikelihood_ratio += std::log(denominator_current);
     }
   }
 
-  //Between model move for differences in interaction parameters
-  if(difference_selection == true) {
-    compare_metropolis_pairwise_difference_between_model(indicator,
-                                                         inclusion_probability_difference,
-                                                         pairwise_difference,
-                                                         thresholds_gr1,
-                                                         thresholds_gr2,
-                                                         observations_gr1,
-                                                         observations_gr2,
-                                                         no_categories_gr1,
-                                                         no_categories_gr2,
-                                                         no_persons_gr1,
-                                                         no_persons_gr2,
-                                                         no_interactions,
-                                                         index,
-                                                         rest_matrix_gr1,
-                                                         rest_matrix_gr2,
-                                                         proposal_sd_pairwise_difference,
-                                                         pairwise_difference_scale,
-                                                         phi,
-                                                         target_ar,
-                                                         t,
-                                                         epsilon_lo,
-                                                         epsilon_hi,
-                                                         ordinal_variable,
-                                                         reference_category);
+  // Return the computed log pseudo-likelihood ratio
+  return pseudolikelihood_ratio;
+}
+
+
+/**
+ * Function: metropolis_main_difference_blume_capel_between_model
+ * Purpose:
+ *   Performs Metropolis-Hastings sampling for the full-conditional distribution
+ *   of main effect differences for the Blume-Capel model between models with and
+ *   without group-specific main effects.
+ *
+ * Inputs:
+ *   - inclusion_indicator: A matrix indicating inclusion of main effect differences for variables.
+ *   - inclusion_probability_difference: A matrix of inclusion probabilities for main effects.
+ *   - main_effects: A matrix of main effects for all variables and groups.
+ *   - main_effect_indices: An integer matrix mapping variables to their category indices.
+ *   - observations: An integer matrix containing observed data for individuals by variables.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: A matrix containing start and end indices for individuals in each group.
+ *   - baseline_category: A vector specifying the reference category for each variable.
+ *   - num_categories: A matrix containing the number of categories for each variable and group.
+ *   - sufficient_blume_capel: A list of matrices containing sufficient statistics for each group.
+ *   - residual_matrix: A matrix of residual scores for pseudo-likelihood calculations.
+ *   - num_obs_categories: A list of matrices containing category-specific counts for each group and variable.
+ *   - variable: Index of the variable being updated.
+ *   - proposal_sd_main_effects: A matrix of proposal standard deviations for Metropolis-Hastings updates.
+ *   - main_difference_scale: Scale parameter for the Cauchy prior on main differences.
+ *   - projection: A matrix specifying the projection of group differences.
+ *
+ * Outputs:
+ *   - Updates the `main_effects` matrix to reflect accepted proposals for the linear
+ *     and quadratic main effect differences.
+ *   - Updates the `inclusion_indicator` matrix to reflect inclusion or exclusion of
+ *     main effect differences.
+ */
+void metropolis_main_difference_blume_capel_between_model(
+    arma::imat& inclusion_indicator,
+    const arma::mat& inclusion_probability_difference,
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& observations,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const arma::ivec& baseline_category,
+    const arma::imat& num_categories,
+    const List& sufficient_blume_capel,
+    const arma::mat& residual_matrix,
+    const List& num_obs_categories,
+    const int variable,
+    const arma::mat& proposal_sd_main_effects,
+    const double main_difference_scale,
+    const arma::mat projection
+) {
+  // Initialize matrices for current and proposed main effects
+  arma::mat proposed_main_effects(2, num_groups); // Linear and quadratic parameters
+  arma::mat current_main_effects(2, num_groups);
+
+  // Retrieve current and proposed inclusion indicators
+  int current_inclusion_indicator = inclusion_indicator(variable, variable);
+  int proposed_inclusion_indicator = 1 - current_inclusion_indicator;
+
+  // Retrieve the row indices (start, stop) for the two blume-capel parameters
+  int start_index = main_effect_indices(variable, 0);
+  int stop_index = start_index + 1;
+
+  // Initialize log acceptance probability
+  double log_prob = 0.0;
+
+  // Initialize main effects for the base category (shared for both models)
+  proposed_main_effects.col(0) = main_effects.rows(start_index, stop_index).col(0);
+  current_main_effects.col(0) = main_effects.rows(start_index, stop_index).col(0);
+
+  // Loop through groups to compute proposed and current values
+  for(int h = 1; h < num_groups; h++) {
+    // Linear parameter
+    double proposal_sd = proposal_sd_main_effects(start_index, h);
+    double current_state = main_effects(start_index, h);
+    double proposed_state = 0.0;
+    if(current_inclusion_indicator == 0) {
+      proposed_state = R::rnorm(current_state, proposal_sd);
+    }
+
+    current_main_effects(0, h) = current_state;
+    proposed_main_effects(0, h) = proposed_state;
+
+    // Add prior and proposal contributions to log acceptance probability
+    if(current_inclusion_indicator == 1) {
+      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+      log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+    } else {
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+    }
+
+    // Quadratic parameter
+    proposal_sd = proposal_sd_main_effects(stop_index, h);
+    current_state = main_effects(stop_index, h);
+    proposed_state = 0.0;
+    if(current_inclusion_indicator == 0) {
+      proposed_state = R::rnorm(current_state, proposal_sd);
+    }
+
+    current_main_effects(1, h) = current_state;
+    proposed_main_effects(1, h) = proposed_state;
+
+    // Add prior and proposal contributions to log acceptance probability
+    if(current_inclusion_indicator == 1) {
+      log_prob -= R::dcauchy(current_state, 0.0, main_difference_scale, true);
+      log_prob += R::dnorm(current_state, proposed_state, proposal_sd, true);
+    } else {
+      log_prob += R::dcauchy(proposed_state, 0.0, main_difference_scale, true);
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd, true);
+    }
   }
 
-  //Within model move for differences in interaction parameters
-  compare_metropolis_pairwise_difference(pairwise_difference,
-                                         thresholds_gr1,
-                                         thresholds_gr2,
-                                         observations_gr1,
-                                         observations_gr2,
-                                         no_categories_gr1,
-                                         no_categories_gr2,
-                                         indicator,
-                                         no_persons_gr1,
-                                         no_persons_gr2,
-                                         no_variables,
-                                         rest_matrix_gr1,
-                                         rest_matrix_gr2,
-                                         proposal_sd_pairwise_difference,
-                                         pairwise_difference_scale,
-                                         phi,
-                                         target_ar,
-                                         t,
-                                         epsilon_lo,
-                                         epsilon_hi,
-                                         ordinal_variable,
-                                         reference_category);
+  // Add pseudolikelihood ratio contribution to log acceptance probability
+  log_prob += log_pseudolikelihood_ratio_main_difference_blume_capel_between_model(
+    current_main_effects, proposed_main_effects, projection, baseline_category,
+    sufficient_blume_capel, num_groups, group_indices, num_categories,
+    residual_matrix, variable);
 
-  //Within model move for the pairwise interaction parameters
-  compare_metropolis_interaction(interactions,
-                                 thresholds_gr1,
-                                 thresholds_gr2,
-                                 observations_gr1,
-                                 observations_gr2,
-                                 no_categories_gr1,
-                                 no_categories_gr2,
-                                 proposal_sd_interaction,
-                                 interaction_scale,
-                                 no_persons_gr1,
-                                 no_persons_gr2,
-                                 no_variables,
-                                 rest_matrix_gr1,
-                                 rest_matrix_gr2,
-                                 phi,
-                                 target_ar,
-                                 t,
-                                 epsilon_lo,
-                                 epsilon_hi,
-                                 ordinal_variable,
-                                 reference_category);
-
-  //Update threshold parameters
-  if(independent_thresholds == false) {
-    for(int variable = 0; variable < no_variables; variable++) {
-      if(ordinal_variable[variable] == true) {
-        if(difference_selection == true) {
-          //Between model move for the differences in category thresholds
-          compare_metropolis_main_difference_regular_between_model(thresholds,
-                                                                   main_difference,
-                                                                   n_cat_obs_gr1,
-                                                                   n_cat_obs_gr2,
-                                                                   no_categories_gr1,
-                                                                   indicator,
-                                                                   proposal_sd_main_difference,
-                                                                   main_difference_scale,
-                                                                   no_persons_gr1,
-                                                                   no_persons_gr2,
-                                                                   variable,
-                                                                   rest_matrix_gr1,
-                                                                   rest_matrix_gr2,
-                                                                   inclusion_probability_difference);
-        }
-
-        //Within model move for the differences in category thresholds
-        compare_metropolis_main_difference_regular(thresholds,
-                                                   main_difference,
-                                                   n_cat_obs_gr1,
-                                                   n_cat_obs_gr2,
-                                                   no_categories_gr1,
-                                                   indicator,
-                                                   proposal_sd_main_difference,
-                                                   main_difference_scale,
-                                                   no_persons_gr1,
-                                                   no_persons_gr2,
-                                                   variable,
-                                                   rest_matrix_gr1,
-                                                   rest_matrix_gr2,
-                                                   phi,
-                                                   target_ar,
-                                                   t,
-                                                   epsilon_lo,
-                                                   epsilon_hi);
-
-        //Within model move for the main category thresholds
-        compare_metropolis_threshold_regular(thresholds,
-                                             main_difference,
-                                             no_categories_gr1,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             no_persons_gr1,
-                                             no_persons_gr2,
-                                             variable,
-                                             threshold_alpha,
-                                             threshold_beta,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2);
-      } else {
-        //Between model move for the differences in category thresholds
-        if(difference_selection == true) {
-          compare_metropolis_main_difference_blumecapel_between_model(thresholds,
-                                                                      main_difference,
-                                                                      sufficient_blume_capel_gr1,
-                                                                      sufficient_blume_capel_gr2,
-                                                                      no_categories_gr1,
-                                                                      indicator,
-                                                                      proposal_sd_main_difference,
-                                                                      main_difference_scale,
-                                                                      no_persons_gr1,
-                                                                      no_persons_gr2,
-                                                                      variable,
-                                                                      rest_matrix_gr1,
-                                                                      rest_matrix_gr2,
-                                                                      inclusion_probability_difference,
-                                                                      reference_category);
-        }
-
-        //Within model move for the differences in category thresholds
-        compare_metropolis_main_difference_blumecapel(thresholds,
-                                                      main_difference,
-                                                      no_categories_gr1,
-                                                      sufficient_blume_capel_gr1,
-                                                      sufficient_blume_capel_gr2,
-                                                      no_persons_gr1,
-                                                      no_persons_gr2,
-                                                      variable,
-                                                      reference_category,
-                                                      main_difference_scale,
-                                                      rest_matrix_gr1,
-                                                      rest_matrix_gr2,
-                                                      proposal_sd_main_difference,
-                                                      phi,
-                                                      target_ar,
-                                                      t,
-                                                      epsilon_lo,
-                                                      epsilon_hi);
-
-        //Within model move for the main category thresholds
-        compare_metropolis_threshold_blumecapel(thresholds,
-                                                main_difference,
-                                                no_categories_gr1,
-                                                sufficient_blume_capel_gr1,
-                                                sufficient_blume_capel_gr2,
-                                                no_persons_gr1,
-                                                no_persons_gr2,
-                                                variable,
-                                                reference_category,
-                                                threshold_alpha,
-                                                threshold_beta,
-                                                rest_matrix_gr1,
-                                                rest_matrix_gr2,
-                                                proposal_sd_blumecapel_gr1,
-                                                phi,
-                                                target_ar,
-                                                t,
-                                                epsilon_lo,
-                                                epsilon_hi);
-      }
-    }
+  // Add prior odds contribution
+  if(current_inclusion_indicator == 1) {
+    log_prob -= std::log(inclusion_probability_difference(variable, variable));
+    log_prob += std::log(1-inclusion_probability_difference(variable, variable));
   } else {
-    for(int variable = 0; variable < no_variables; variable++) {
-      if(ordinal_variable[variable] == true) {
-        //Within model move for the main category thresholds
-        metropolis_thresholds_regular(thresholds_gr1,
-                                      observations_gr1,
-                                      no_categories_gr1,
-                                      n_cat_obs_gr1,
-                                      no_persons_gr1,
-                                      variable,
-                                      threshold_alpha,
-                                      threshold_beta,
-                                      rest_matrix_gr1);
-
-        //Within model move for the main category thresholds
-        metropolis_thresholds_regular(thresholds_gr2,
-                                      observations_gr2,
-                                      no_categories_gr2,
-                                      n_cat_obs_gr2,
-                                      no_persons_gr2,
-                                      variable,
-                                      threshold_alpha,
-                                      threshold_beta,
-                                      rest_matrix_gr2);
-      } else {
-        metropolis_thresholds_blumecapel(thresholds_gr1,
-                                         observations_gr1,
-                                         no_categories_gr1,
-                                         sufficient_blume_capel_gr1,
-                                         no_persons_gr1,
-                                         variable,
-                                         reference_category,
-                                         threshold_alpha,
-                                         threshold_beta,
-                                         rest_matrix_gr1,
-                                         proposal_sd_blumecapel_gr1,
-                                         phi,
-                                         target_ar,
-                                         t,
-                                         epsilon_lo,
-                                         epsilon_hi);
-
-        metropolis_thresholds_blumecapel(thresholds_gr2,
-                                         observations_gr2,
-                                         no_categories_gr2,
-                                         sufficient_blume_capel_gr2,
-                                         no_persons_gr2,
-                                         variable,
-                                         reference_category,
-                                         threshold_alpha,
-                                         threshold_beta,
-                                         rest_matrix_gr2,
-                                         proposal_sd_blumecapel_gr2,
-                                         phi,
-                                         target_ar,
-                                         t,
-                                         epsilon_lo,
-                                         epsilon_hi);
-      }
-    }
+    log_prob += std::log(inclusion_probability_difference(variable, variable));
+    log_prob -= std::log(1-inclusion_probability_difference(variable, variable));
   }
 
-  if(independent_thresholds == false) {
-    for(int variable = 0; variable < no_variables; variable++) {
-      if(ordinal_variable[variable] == true) {
-        for(int category = 0; category < no_categories_gr1[variable]; category++) {
-          thresholds_gr1(variable, category) =
-            thresholds(variable, category) -
-            .5 * main_difference(variable, category);
-
-          thresholds_gr2(variable, category) =
-            thresholds(variable, category) +
-            .5 * main_difference(variable, category);
-        }
-      } else {
-        thresholds_gr1(variable, 0) =
-          thresholds(variable, 0) -
-          .5 * main_difference(variable, 0);
-
-        thresholds_gr2(variable, 0) =
-          thresholds(variable, 0) +
-          .5 * main_difference(variable, 0);
-
-        thresholds_gr1(variable, 1) =
-          thresholds(variable, 1) -
-          .5 * main_difference(variable, 1);
-
-        thresholds_gr2(variable, 1) =
-          thresholds(variable, 1) +
-          .5 * main_difference(variable, 1);
-      }
-    }
+  // Perform Metropolis-Hastings acceptance step
+  double U = R::unif_rand();
+  if(std::log(U) < log_prob) {
+    inclusion_indicator(variable, variable) = proposed_inclusion_indicator;
+    main_effects.rows(start_index, stop_index).cols(1, num_groups - 1) = proposed_main_effects.cols(1, num_groups - 1);
   }
-
-  for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
-    for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
-      interactions_gr1(variable1, variable2) =
-        interactions(variable1, variable2) -
-        .5 * pairwise_difference(variable1, variable2);
-
-      interactions_gr2(variable1, variable2) =
-        interactions(variable1, variable2) +
-        .5 * pairwise_difference(variable1, variable2);
-
-      interactions_gr1(variable2, variable1) =
-        interactions_gr1(variable1, variable2);
-
-      interactions_gr2(variable2, variable1) =
-        interactions_gr2(variable1, variable2);
-    }
-  }
-
-  return List::create(Named("indicator") = indicator,
-                      Named("interactions_gr1") = interactions_gr1,
-                      Named("interactions_gr2") = interactions_gr2,
-                      Named("thresholds_gr1") = thresholds_gr1,
-                      Named("thresholds_gr2") = thresholds_gr2,
-                      Named("rest_matrix_gr1") = rest_matrix_gr1,
-                      Named("rest_matrix_gr2") = rest_matrix_gr2,
-                      Named("proposal_sd_interaction") = proposal_sd_interaction,
-                      Named("proposal_sd_pairwise_difference") = proposal_sd_pairwise_difference,
-                      Named("proposal_sd_main_difference") = proposal_sd_main_difference,
-                      Named("proposal_sd_blumecapel_gr1") = proposal_sd_blumecapel_gr1,
-                      Named("proposal_sd_blumecapel_gr2") = proposal_sd_blumecapel_gr2);
 }
 
-// ----------------------------------------------------------------------------|
-// The Gibbs sampler for Bayesian parameter comparisons
-// ----------------------------------------------------------------------------|
-// [[Rcpp::export]]
-List compare_gibbs_sampler(IntegerMatrix observations_gr1,
-                           IntegerMatrix observations_gr2,
-                           IntegerVector no_categories_gr1,
-                           IntegerVector no_categories_gr2,
-                           double interaction_scale,
-                           double pairwise_difference_scale,
-                           double main_difference_scale,
-                           String pairwise_difference_prior,
-                           String main_difference_prior,
-                           NumericMatrix inclusion_probability_difference,
-                           double pairwise_beta_bernoulli_alpha,
-                           double pairwise_beta_bernoulli_beta,
-                           double main_beta_bernoulli_alpha,
-                           double main_beta_bernoulli_beta,
-                           IntegerMatrix Index,
-                           int iter,
-                           int burnin,
-                           IntegerMatrix n_cat_obs_gr1,
-                           IntegerMatrix n_cat_obs_gr2,
-                           IntegerMatrix sufficient_blume_capel_gr1,
-                           IntegerMatrix sufficient_blume_capel_gr2,
-                           double threshold_alpha,
-                           double threshold_beta,
-                           bool na_impute,
-                           IntegerMatrix missing_index_gr1,
-                           IntegerMatrix missing_index_gr2,
-                           LogicalVector ordinal_variable,
-                           IntegerVector reference_category,
-                           bool independent_thresholds,
-                           bool save = false,
-                           bool display_progress = false,
-                           bool difference_selection = true) {
-  int cntr;
-  int no_variables = observations_gr1.ncol();
-  int no_persons_gr1 = observations_gr1.nrow();
-  int no_persons_gr2 = observations_gr2.nrow();
-  int no_interactions = Index.nrow();
-  int no_thresholds_gr1 = sum(no_categories_gr1);
-  int no_thresholds_gr2 = sum(no_categories_gr2);
-  int max_no_categories_gr1 = max(no_categories_gr1);
-  int max_no_categories_gr2 = max(no_categories_gr2);
 
-  // Matrices with model parameters --------------------------------------------
-  NumericMatrix interactions_gr1(no_variables, no_variables);
-  NumericMatrix interactions_gr2(no_variables, no_variables);
-  NumericMatrix thresholds_gr1(no_variables, max_no_categories_gr1);
-  NumericMatrix thresholds_gr2(no_variables, max_no_categories_gr2);
-  IntegerMatrix indicator(no_variables, no_variables);
-  std::fill(indicator.begin(), indicator.end(), 1.0);
+/**
+ * Function: gibbs_step_gm
+ * Purpose:
+ *   Executes a single Gibbs sampling step to update grarm_adaptation_ratecal model parameters
+ *   for a Bayesian parameter comparison across multiple groups.
+ *
+ * Inputs:
+ *   - main_effects: arma::mat containing the main effects across variables and groups.
+ *   - main_effect_indices: arma::imat mapping variables to their corresponding category indices.
+ *   - pairwise_effects: arma::mat for pairwise effects between variables.
+ *   - pairwise_effect_indices: arma::imat mapping variable pairs to their indices in `pairwise_effects`.
+ *   - projection: arma::mat representing the group-specific scaling projection.
+ *   - num_categories: arma::imat containing the number of categories for each variable and group.
+ *   - observations: arma::imat with observed data for individuals by variables.
+ *   - num_persons: Total number of individuals in the dataset.
+ *   - num_groups: Total number of groups.
+ *   - group_indices: arma::imat specifying start and end indices for individuals in each group.
+ *   - num_obs_categories: List of category-specific counts for each group and variable.
+ *   - sufficient_blume_capel: List of sufficient statistics for Blume-Capel variables in each group.
+ *   - residual_matrix: arma::mat of residual scores used in pseudo-likelihood calculations.
+ *   - independent_thresholds: Boolean indicating if thresholds are modeled independently for groups.
+ *   - is_ordinal_variable: arma::uvec indicating if variables are ordinal.
+ *   - baseline_category: arma::ivec specifying reference categories for each variable.
+ *   - inclusion_indicator: arma::imat indicating active pairwise and main differences.
+ *   - inclusion_probability_difference: arma::mat for inclusion probabilities of pairwise differences.
+ *   - proposal_sd_main_effects: arma::mat of proposal standard deviations for main effects.
+ *   - proposal_sd_pairwise_effects: arma::mat of proposal standard deviations for pairwise effects.
+ *   - interaction_scale: Scale parameter for pairwise interaction priors.
+ *   - main_difference_scale: Scale parameter for main difference priors.
+ *   - pairwise_difference_scale: Scale parameter for pairwise difference priors.
+ *   - prior_threshold_alpha: Shape parameter for the threshold prior distribution.
+ *   - prior_threshold_beta: Rate parameter for the threshold prior distribution.
+ *   - rm_adaptation_rate: Robbins-Monro learning rate parameter.
+ *   - target_acceptance_rate: Target acceptance probability for Metropolis-Hastings updates.
+ *   - t: Current iteration number.
+ *   - rm_lower_bound: Lower bound for Robbins-Monro updates.
+ *   - rm_upper_bound: Upper bound for Robbins-Monro updates.
+ *   - difference_selection: Boolean indicating whether to perform difference selection.
+ *   - num_pairwise: Total number of pairwise effects.
+ *   - num_variables: Total number of variables in the analysis.
+ *
+ * Outputs:
+ *   - Updated model parameters, including:
+ *       - `inclusion_indicator`: Updated inclusion indicators for pairwise differences.
+ *       - `main_effects`: Updated main effects matrix.
+ *       - `pairwise_effects`: Updated pairwise effects matrix.
+ *       - `residual_matrix`: Updated residual scores.
+ *       - `proposal_sd_main_effects`: Updated proposal standard deviations for main effects.
+ *       - `proposal_sd_pairwise_effects`: Updated proposal standard deviations for pairwise effects.
+ *
+ * Steps:
+ *   1. Update pairwise interaction parameters using Metropolis-Hastings.
+ *   2. Update the selection of pairwise differences using Metropolis-Hastings (between model).
+ *   3. Update pairwise differences using Metropolis-Hastings (within model).
+ *   4. Update thresholds (main effects) for each variable:
+ *       - If `independent_thresholds`, update thresholds separately for each group.
+ *       - Otherwise, model group differences in thresholds.
+ */
+List gibbs_step_gm(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    arma::mat& pairwise_effects,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& num_categories,
+    const arma::imat& observations,
+    const int num_persons,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const List& num_obs_categories,
+    const List& sufficient_blume_capel,
+    arma::mat& residual_matrix,
+    const bool independent_thresholds,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    arma::imat& inclusion_indicator,
+    const arma::mat& inclusion_probability_difference,
+    arma::mat& proposal_sd_main_effects,
+    arma::mat& proposal_sd_pairwise_effects,
+    const double interaction_scale,
+    const double main_difference_scale,
+    const double pairwise_difference_scale,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const double rm_adaptation_rate,
+    const double target_acceptance_rate,
+    const int t,
+    const double rm_lower_bound,
+    const double rm_upper_bound,
+    const bool difference_selection,
+    const int num_pairwise,
+    const int num_variables,
+    const arma::imat& index
+) {
+  // Precompute the Robbins-Monro decay term
+  double exp_neg_log_t_rm_adaptation_rate = std::exp(-std::log(t) * rm_adaptation_rate);
 
-  // Matrices with standard deviations for adaptive Metropolis -----------------
-  NumericMatrix proposal_sd_main_difference(no_variables, max_no_categories_gr1);
-  NumericMatrix proposal_sd_interaction(no_variables, no_variables);
-  NumericMatrix proposal_sd_pairwise_difference(no_variables, no_variables);
-  NumericMatrix proposal_sd_blumecapel_gr1(no_variables, 2);
-  NumericMatrix proposal_sd_blumecapel_gr2(no_variables, 2);
+  // Step 1: Update pairwise interaction parameters
+  metropolis_interaction(
+    main_effects, pairwise_effects, main_effect_indices,
+    pairwise_effect_indices, projection, observations, num_groups,
+    group_indices, num_categories, independent_thresholds, num_persons,
+    residual_matrix, is_ordinal_variable, baseline_category,
+    proposal_sd_pairwise_effects, interaction_scale, num_variables,
+    exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound);
 
-  std::fill(proposal_sd_main_difference.begin(), proposal_sd_main_difference.end(), 1.0);
-  std::fill(proposal_sd_interaction.begin(), proposal_sd_interaction.end(), 1.0);
-  std::fill(proposal_sd_pairwise_difference.begin(), proposal_sd_pairwise_difference.end(), 1.0);
-  std::fill(proposal_sd_blumecapel_gr1.begin(), proposal_sd_blumecapel_gr1.end(), 1.0);
-  std::fill(proposal_sd_blumecapel_gr2.begin(), proposal_sd_blumecapel_gr2.end(), 1.0);
 
-  //Parameters for the Robbins-Monro approach for adaptive Metropolis ----------
-  double phi = 0.75;
-  double target_ar = 0.234;
-  double epsilon_lo = 1.0 / static_cast<double>(no_persons_gr1);
-  if(no_persons_gr1 > no_persons_gr2) {
-    epsilon_lo = 1.0 / static_cast<double>(no_persons_gr2);
+  //  Step 2: Update the selection of pairwise differences
+  if(difference_selection) {
+    metropolis_pairwise_difference_between_model(
+      inclusion_probability_difference, index, main_effects, pairwise_effects,
+      main_effect_indices, pairwise_effect_indices, projection, observations,
+      num_groups, group_indices, num_categories, independent_thresholds,
+      inclusion_indicator, residual_matrix, is_ordinal_variable,
+      baseline_category, proposal_sd_pairwise_effects,
+      pairwise_difference_scale, num_pairwise);
   }
-  double epsilon_hi = 2.0;
+
+  // Step 3: Update pairwise differences
+  metropolis_pairwise_difference(
+    main_effects, pairwise_effects, main_effect_indices,
+    pairwise_effect_indices, projection, observations, num_groups,
+    group_indices, num_categories, independent_thresholds, inclusion_indicator,
+    residual_matrix, is_ordinal_variable, baseline_category,
+    proposal_sd_pairwise_effects, pairwise_difference_scale, num_variables,
+    exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate, rm_lower_bound,
+    rm_upper_bound);
+
+  // Step 4: Update thresholds
+  for (int variable = 0; variable < num_variables; variable++) {
+    if (independent_thresholds) {
+      // Independent thresholds: Update separately for each group
+      for (int group = 0; group < num_groups; ++group) {
+        if (is_ordinal_variable[variable]) {
+          metropolis_thresholds_regular_free(
+            main_effects, main_effect_indices, observations, num_groups, group_indices,
+            num_categories, residual_matrix, num_obs_categories, prior_threshold_alpha,
+            prior_threshold_beta, variable, group);
+        } else {
+          metropolis_thresholds_blumecapel_free(
+            main_effects, main_effect_indices, observations, num_groups,
+            group_indices, baseline_category, num_categories,
+            sufficient_blume_capel, residual_matrix, num_obs_categories,
+            prior_threshold_alpha, prior_threshold_beta, variable, group,
+            proposal_sd_main_effects, exp_neg_log_t_rm_adaptation_rate,
+            target_acceptance_rate, rm_lower_bound, rm_upper_bound);
+        }
+      }
+    } else {
+      // Thresholds modeled with group differences
+      if (is_ordinal_variable[variable]) {
+        metropolis_threshold_regular(
+          main_effects, main_effect_indices, projection, observations,
+          num_groups, group_indices, num_categories, num_persons,
+          residual_matrix, num_obs_categories, prior_threshold_alpha,
+          prior_threshold_beta, variable);
+
+        if(difference_selection) {
+          metropolis_main_difference_regular_between_model(
+            inclusion_indicator, inclusion_probability_difference, main_effects,
+            main_effect_indices, observations, num_groups, group_indices,
+            num_categories, residual_matrix, num_obs_categories, variable,
+            proposal_sd_main_effects, main_difference_scale, projection
+          );
+        }
+
+        metropolis_main_difference_regular(
+          main_effects, main_effect_indices, projection, observations,
+          num_groups, group_indices, num_categories, residual_matrix,
+          num_obs_categories, variable, inclusion_indicator,
+          proposal_sd_main_effects, main_difference_scale,
+          exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate,
+          rm_lower_bound, rm_upper_bound);
+      } else {
+        metropolis_threshold_blumecapel(
+          main_effects, main_effect_indices, projection, num_categories,
+          sufficient_blume_capel,num_groups, group_indices, variable,
+          baseline_category, prior_threshold_alpha, prior_threshold_beta,
+          residual_matrix, proposal_sd_main_effects,
+          exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate,
+          rm_lower_bound, rm_upper_bound);
+
+        if(difference_selection) {
+          metropolis_main_difference_blume_capel_between_model(
+            inclusion_indicator, inclusion_probability_difference, main_effects,
+            main_effect_indices, observations, num_groups, group_indices,
+            baseline_category, num_categories, sufficient_blume_capel,
+            residual_matrix, num_obs_categories, variable, proposal_sd_main_effects,
+            main_difference_scale, projection
+          );
+        }
+
+        metropolis_main_difference_blumecapel(
+          main_effects, main_effect_indices, main_difference_scale, projection,
+          num_categories, sufficient_blume_capel, num_groups, group_indices,
+          variable, baseline_category, residual_matrix, inclusion_indicator,
+          proposal_sd_main_effects, exp_neg_log_t_rm_adaptation_rate,
+          target_acceptance_rate, rm_lower_bound, rm_upper_bound);
+      }
+    }
+  }
+
+  // Return updated parameters
+  return List::create(Named("inclusion_indicator") = inclusion_indicator,
+                      Named("main_effects") = main_effects,
+                      Named("pairwise_effects") = pairwise_effects,
+                      Named("residual_matrix") = residual_matrix,
+                      Named("proposal_sd_main_effects") = proposal_sd_main_effects,
+                      Named("proposal_sd_pairwise_effects") = proposal_sd_pairwise_effects);
+}
+
+/**
+ * Function: compare_anova_gibbs_sampler
+ * Purpose:
+ *   Executes the Gibbs sampling process for Bayesian parameter comparisons across multiple groups.
+ *   Updates main effects, pairwise effects, thresholds, and inclusion probabilities iteratively.
+ *
+ * Inputs:
+ *   - observations: arma::imat of observed data (individuals by variables).
+ *   - main_effect_indices: arma::imat mapping variables to their category indices.
+ *   - pairwise_effect_indices: arma::imat mapping variable pairs to pairwise effect indices.
+ *   - projection: arma::mat representing group-specific scaling.
+ *   - num_categories: arma::imat containing category counts for each variable and group.
+ *   - num_groups: Total number of groups in the analysis.
+ *   - group_indices: arma::imat specifying group-wise start and end indices for individuals.
+ *   - interaction_scale: Scale parameter for pairwise interaction priors.
+ *   - pairwise_difference_scale: Scale parameter for pairwise difference priors.
+ *   - main_difference_scale: Scale parameter for main difference priors.
+ *   - pairwise_difference_prior: Type of prior for pairwise differences (e.g., "Beta-Bernoulli").
+ *   - main_difference_prior: Type of prior for main differences (e.g., "Beta-Bernoulli").
+ *   - inclusion_probability_difference: arma::mat for inclusion probabilities of differences.
+ *   - pairwise_beta_bernoulli_alpha: Alpha parameter for Beta-Bernoulli prior on pairwise differences.
+ *   - pairwise_beta_bernoulli_beta: Beta parameter for Beta-Bernoulli prior on pairwise differences.
+ *   - main_beta_bernoulli_alpha: Alpha parameter for Beta-Bernoulli prior on main differences.
+ *   - main_beta_bernoulli_beta: Beta parameter for Beta-Bernoulli prior on main differences.
+ *   - Index: arma::imat for randomization during Gibbs sampling iterations.
+ *   - iter: Total number of Gibbs sampling iterations.
+ *   - burnin: Number of burn-in iterations.
+ *   - num_obs_categories: List of category-specific observation counts for each group.
+ *   - sufficient_blume_capel: List of sufficient statistics for Blume-Capel variables by group.
+ *   - prior_threshold_alpha: Shape parameter for the threshold prior distribution.
+ *   - prior_threshold_beta: Rate parameter for the threshold prior distribution.
+ *   - na_impute: Boolean flag indicating whether to impute missing data.
+ *   - missing_data_indices: arma::imat of indices for missing data entries.
+ *   - is_ordinal_variable: arma::uvec indicating whether variables are ordinal.
+ *   - baseline_category: arma::ivec specifying reference categories for each variable.
+ *   - independent_thresholds: Boolean flag for whether thresholds are modeled independently across groups.
+ *   - save: Boolean flag for saving results during Gibbs sampling (default: false).
+ *   - display_progress: Boolean flag for displaying a progress bar during sampling (default: false).
+ *   - difference_selection: Boolean flag for whether to perform difference selection (default: true).
+ *
+ * Outputs:
+ *   - A List containing:
+ *       - `main`: Matrix of updated main effects after sampling.
+ *       - `pairwise`: Matrix of updated pairwise effects after sampling.
+ *       - `inclusion_indicator`: Matrix of updated inclusion probabilities after sampling.
+ *
+ * Steps:
+ *   1. Initialize matrices for main effects, pairwise effects, inclusion probabilities, and residuals.
+ *   2. Iterate through burn-in and sampling iterations:
+ *       a. Impute missing data if `na_impute` is true.
+ *       b. Perform parameter updates via Gibbs sampling using helper functions for:
+ *           - Pairwise interaction parameters.
+ *           - Pairwise differences.
+ *           - Thresholds (either independent or grouped).
+ *       c. Update inclusion probabilities if difference selection is enabled.
+ *       d. Save running averages of parameters after burn-in.
+ *   3. Return the updated parameters.
+ */
+// [[Rcpp::export]]
+List compare_anova_gibbs_sampler(
+    arma::imat& observations,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::mat& projection,
+    const arma::imat& num_categories,
+    const int num_groups,
+    const arma::imat& group_indices,
+    const double interaction_scale,
+    const double pairwise_difference_scale,
+    const double main_difference_scale,
+    const String& pairwise_difference_prior,
+    const String& main_difference_prior,
+    arma::mat& inclusion_probability_difference,
+    const double pairwise_beta_bernoulli_alpha,
+    const double pairwise_beta_bernoulli_beta,
+    const double main_beta_bernoulli_alpha,
+    const double main_beta_bernoulli_beta,
+    const arma::imat& Index,
+    const int iter,
+    const int burnin,
+    List& num_obs_categories,
+    List& sufficient_blume_capel,
+    const double prior_threshold_alpha,
+    const double prior_threshold_beta,
+    const bool na_impute,
+    const arma::imat& missing_data_indices,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const bool independent_thresholds,
+    const bool save_main = false,
+    const bool save_pairwise = false,
+    const bool save_indicator = false,
+    const bool display_progress = false,
+    bool difference_selection = true
+) {
+
+  // Step 1: Initialize parameters and helper matrices
+  int num_variables = observations.n_cols;
+  int num_persons = observations.n_rows;
+  int num_main = 1 + main_effect_indices(num_variables - 1, 1);
+  int num_pairwise = Index.n_rows;
+
+  // Initialize person-group inclusion_indicator
+  arma::ivec group_membership (num_persons);
+  for(int group = 0; group < num_groups; group++) {
+    for(int person = group_indices(group, 0); person < group_indices(group, 1) + 1; person++) {
+      group_membership[person] = group;
+    }
+  }
+
+  // Initialize model parameters
+  arma::mat main_effects(num_main, num_groups);
+  arma::mat pairwise_effects(num_pairwise, num_groups);
+  arma::imat inclusion_indicator(num_variables, num_variables);
+  std::fill(inclusion_indicator.begin(), inclusion_indicator.end(), 1);
+
+  // Adaptive Metropolis proposal standard deviations
+  arma::mat proposal_sd_main_effects(num_main, num_groups);
+  arma::mat proposal_sd_pairwise_effects(num_pairwise, num_groups);
+  std::fill(proposal_sd_main_effects.begin(), proposal_sd_main_effects.end(), 1.0);
+  std::fill(proposal_sd_pairwise_effects.begin(), proposal_sd_pairwise_effects.end(), 1.0);
+
+  // Robbins-Monro parameters
+  double rm_adaptation_rate = 0.75, target_acceptance_rate = 0.234;
+  int rm_scale = group_indices(0, 1) - group_indices(0, 0);
+  for(int gr = 1; gr < num_groups; gr++) {
+    int tmp = group_indices(gr, 1) - group_indices(gr, 0);
+    if(tmp > rm_scale)
+      rm_scale = tmp;
+  }
+
+  double rm_lower_bound = 1.0 / static_cast<double>(rm_scale);
+  double rm_upper_bound = 2.0;
 
   //Randomized index for the pairwise updates ----------------------------------
-  IntegerVector v = seq(0, no_interactions - 1);
-  IntegerVector order(no_interactions);
-  IntegerMatrix index(no_interactions, 3);
+  arma::ivec v = seq(0, num_pairwise - 1);
+  arma::ivec order(num_pairwise);
+  arma::imat index(num_pairwise, 3);
 
-  //Output matrices (resizing based on ``save'' and ``independent_thresholds'')
-  int nrow = no_variables;
-  int ncol_edges = no_variables;
-  int ncol_thresholds_gr1 = max_no_categories_gr1;
-  int ncol_thresholds_gr2 = max_no_categories_gr2;
-  int ncol_main_difference = max_no_categories_gr1;
+  // Rest matrix for pseudo-likelihoods
+  arma::mat residual_matrix(num_persons, num_variables);
 
-  if(save == true) {
-    nrow = iter;
-    ncol_edges = no_interactions;
-    ncol_thresholds_gr1 = no_thresholds_gr1;
-    ncol_thresholds_gr2 = no_thresholds_gr2;
-    ncol_main_difference = no_thresholds_gr1;
+  // Output matrices
+  arma::mat posterior_mean_main(num_main, num_groups);
+  arma::mat posterior_mean_pairwise(num_pairwise, num_groups);
+  arma::mat posterior_mean_indicator(num_variables, num_variables);
+  std::fill(posterior_mean_indicator.begin(), posterior_mean_indicator.end(), 1);
+
+  // Allocate matrices conditionally to save memory
+  arma::mat* main_effect_samples = nullptr;
+  arma::mat* pairwise_effect_samples = nullptr;
+  arma::mat* inclusion_indicator_samples = nullptr;
+
+  // Conditionally allocate based on save flags
+  if (save_main) {
+    main_effect_samples = new arma::mat(iter, num_main * num_groups);
   }
-  NumericMatrix out_interactions(nrow, ncol_edges);
-  NumericMatrix out_pairwise_difference(nrow, ncol_edges);
-  NumericMatrix out_indicator_pairwise_difference(nrow, ncol_edges);
-
-  int nrow_main_difference = nrow;
-  int nrow_thresholds_gr2 = nrow;
-  if(independent_thresholds == true) {
-    ncol_main_difference = 1;
-    nrow_main_difference = 1;
-  } else {
-    ncol_thresholds_gr2 = 1;
-    nrow_thresholds_gr2 = 1;
+  if (save_pairwise) {
+    pairwise_effect_samples = new arma::mat(iter, num_pairwise * num_groups);
   }
-  NumericMatrix out_thresholds(nrow, ncol_thresholds_gr1);
-  NumericMatrix out_main_difference(nrow_main_difference, ncol_main_difference);
-  NumericMatrix out_thresholds_gr2(nrow_thresholds_gr2, ncol_thresholds_gr2);
-
-  int ncol = no_variables;
-  if(save == false) {
-    nrow = 1;
+  if (save_indicator) {
+    inclusion_indicator_samples = new arma::mat(iter, num_pairwise + num_variables);
   }
-  if(independent_thresholds == true) {
-    nrow = 1;
-    ncol = 1;
-  }
-  NumericMatrix out_indicator_main_difference(nrow, ncol);
 
-  //These matrices will contain the rest scores in the pseudolikelihoods -------
-  NumericMatrix rest_matrix_gr1(no_persons_gr1, no_variables);
-  NumericMatrix rest_matrix_gr2(no_persons_gr2, no_variables);
+  // For difference selection we use a burnin in two phases
+  bool enable_difference_selection = difference_selection; // Store the original difference selection input
+  int total_burnin = burnin * (enable_difference_selection ? 2 : 1); // Compute the total burn-in duration
+  difference_selection = false; // Flag to enable difference selection after the initial burn-in phase
 
-  //The Gibbs sampler ----------------------------------------------------------
-  //First, we do burn-in iterations---------------------------------------------
+  // Progress bar
+  Progress p(iter + total_burnin, display_progress);
 
-  //When difference_selection = true we do 2 * burnin iterations. The first
-  // burnin iterations without selection to ensure good starting values, and
-  // proposal calibration. The second burnin iterations with selection.
-
-  int first_burnin = burnin;
-  int second_burnin = 0;
-  if(difference_selection == true)
-    second_burnin = burnin;
-  bool input_difference_selection = difference_selection;
-  difference_selection = false;
-
-  //Progress bar ---------------------------------------------------------------
-  Progress p(iter + first_burnin + second_burnin, display_progress);
-
-  for(int iteration = 0; iteration < first_burnin + second_burnin; iteration++) {
-    if(iteration >= first_burnin) {
-      difference_selection = input_difference_selection;
-    }
+  // Step 2: Gibbs sampling loop
+  for (int iteration = 0; iteration < iter + total_burnin; ++iteration) {
     if (Progress::check_abort()) {
-      if(independent_thresholds == true) {
-        return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                            Named("interactions") = out_interactions,
-                            Named("thresholds_gr1") = out_thresholds,
-                            Named("thresholds_gr2") = out_thresholds_gr2,
-                            Named("pairwise_difference") = out_pairwise_difference);
-      } else {
-        return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                            Named("main_difference_indicator") = out_indicator_main_difference,
-                            Named("interactions") = out_interactions,
-                            Named("thresholds") = out_thresholds,
-                            Named("pairwise_difference") = out_pairwise_difference,
-                            Named("main_difference") = out_main_difference);
-      }
+      return List::create(Named("main") = posterior_mean_main,
+                          Named("pairwise") = posterior_mean_pairwise,
+                          Named("inclusion_indicator") = posterior_mean_indicator);
     }
     p.increment();
 
-    //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_interactions,
-                   false,
-                   R_NilValue);
+    // Enable difference selection at the midpoint of burn-in
+    if (enable_difference_selection && iteration == burnin) {
+      difference_selection = true;
+    }
 
-    for(int cntr = 0; cntr < no_interactions; cntr++) {
+    // Create a random ordering of pairwise effects for updating
+    arma::uvec order = arma::randperm(v.n_elem);
+    //sample(v, num_pairwise, false, R_NilValue);
+
+    for(int cntr = 0; cntr < num_pairwise; cntr++) {
       index(cntr, 0) = Index(order[cntr], 0);
       index(cntr, 1) = Index(order[cntr], 1);
       index(cntr, 2) = Index(order[cntr], 2);
     }
 
-    if(na_impute == true) {
-      List out = compare_impute_missing_data(thresholds_gr1,
-                                             thresholds_gr2,
-                                             interactions_gr1,
-                                             interactions_gr2,
-                                             observations_gr1,
-                                             observations_gr2,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             sufficient_blume_capel_gr1,
-                                             sufficient_blume_capel_gr2,
-                                             no_categories_gr1,
-                                             no_categories_gr2,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2,
-                                             missing_index_gr1,
-                                             missing_index_gr2,
-                                             ordinal_variable,
-                                             reference_category);
+    // Handle missing data if required
+    if (na_impute) {
+      List impute_out = impute_missing_data_for_anova_model (
+        main_effects, pairwise_effects, main_effect_indices, pairwise_effect_indices,
+        projection, observations, num_groups, group_membership,
+        num_obs_categories, sufficient_blume_capel, num_categories, residual_matrix,
+        missing_data_indices, is_ordinal_variable, baseline_category, independent_thresholds);
 
-      IntegerMatrix observations_gr1 = out["observations_gr1"];
-      IntegerMatrix observations_gr2 = out["observations_gr2"];
-      IntegerMatrix n_cat_obs_gr1 = out["n_cat_obs_gr1"];
-      IntegerMatrix n_cat_obs_gr2 = out["n_cat_obs_gr2"];
-      IntegerMatrix sufficient_blume_capel_gr1 = out["sufficient_blume_capel_gr1"];
-      IntegerMatrix sufficient_blume_capel_gr2 = out["sufficient_blume_capel_gr2"];
-      NumericMatrix rest_matrix_gr1 = out["rest_matrix_gr1"];
-      NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
+      arma::imat observations_tmp = impute_out["observations"];
+      List num_obs_categories_tmp = impute_out["num_obs_categories"];
+      List sufficient_blume_capel_tmp = impute_out["sufficient_blume_capel"];
+      arma::mat residual_matrix_tmp = impute_out["residual_matrix"];
+
+      // Reassign to original variables
+      observations = observations_tmp;
+      num_obs_categories = num_obs_categories_tmp;
+      sufficient_blume_capel = sufficient_blume_capel_tmp;
+      residual_matrix = residual_matrix_tmp;
     }
 
-    List out = compare_gibbs_step_gm(thresholds_gr1,
-                                     thresholds_gr2,
-                                     interactions_gr1,
-                                     interactions_gr2,
-                                     indicator,
-                                     inclusion_probability_difference,
-                                     observations_gr1,
-                                     observations_gr2,
-                                     no_categories_gr1,
-                                     no_categories_gr2,
-                                     no_persons_gr1,
-                                     no_persons_gr2,
-                                     no_variables,
-                                     n_cat_obs_gr1,
-                                     n_cat_obs_gr2,
-                                     sufficient_blume_capel_gr1,
-                                     sufficient_blume_capel_gr2,
-                                     rest_matrix_gr1,
-                                     rest_matrix_gr2,
-                                     proposal_sd_interaction,
-                                     proposal_sd_main_difference,
-                                     proposal_sd_pairwise_difference,
-                                     proposal_sd_blumecapel_gr1,
-                                     proposal_sd_blumecapel_gr2,
-                                     interaction_scale,
-                                     main_difference_scale,
-                                     pairwise_difference_scale,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     phi,
-                                     target_ar,
-                                     iteration,
-                                     epsilon_lo,
-                                     epsilon_hi,
-                                     ordinal_variable,
-                                     reference_category,
-                                     independent_thresholds,
-                                     difference_selection,
-                                     no_interactions,
-                                     index);
+    // Perform parameter updates
+    List step_out = gibbs_step_gm (
+      main_effects, main_effect_indices, pairwise_effects,
+      pairwise_effect_indices, projection, num_categories, observations,
+      num_persons, num_groups, group_indices, num_obs_categories, sufficient_blume_capel,
+      residual_matrix, independent_thresholds, is_ordinal_variable,
+      baseline_category, inclusion_indicator, inclusion_probability_difference,
+      proposal_sd_main_effects, proposal_sd_pairwise_effects, interaction_scale,
+      main_difference_scale, pairwise_difference_scale, prior_threshold_alpha,
+      prior_threshold_beta, rm_adaptation_rate, target_acceptance_rate,
+      iteration, rm_lower_bound, rm_upper_bound, difference_selection,
+      num_pairwise, num_variables, index);
 
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix interactions_gr1 = out["interactions_gr1"];
-    NumericMatrix interactions_gr2 = out["interactions_gr2"];
-    NumericMatrix thresholds_gr1 = out["thresholds_gr1"];
-    NumericMatrix thresholds_gr2 = out["thresholds_gr2"];
-    NumericMatrix rest_matrix_gr1 = out["rest_matrix_gr1"];
-    NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
-    NumericMatrix proposal_sd_interaction = out["proposal_sd_interaction"];
-    NumericMatrix proposal_sd_pairwise_difference = out["proposal_sd_pairwise_difference"];
-    NumericMatrix proposal_sd_main_difference = out["proposal_sd_main_difference"];
-    NumericMatrix proposal_sd_blumecapel_gr1 = out["proposal_sd_blumecapel_gr1"];
-    NumericMatrix proposal_sd_blumecapel_gr2 = out["proposal_sd_blumecapel_gr2"];
+    arma::imat indicator_tmp = step_out["inclusion_indicator"];
+    arma::mat main_effects_tmp = step_out["main_effects"];
+    arma::mat pairwise_effects_tmp = step_out["pairwise_effects"];
+    arma::mat residual_matrix_tmp = step_out["residual_matrix"];
+    arma::mat proposal_sd_pairwise_tmp = step_out["proposal_sd_pairwise_effects"];
+    arma::mat proposal_sd_main_tmp = step_out["proposal_sd_main_effects"];
 
-    if(difference_selection == true) {
-      if(pairwise_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            sumG += indicator(i, j);
+    // Update matrices from Gibbs step output
+    inclusion_indicator = indicator_tmp;
+    main_effects = main_effects_tmp;
+    pairwise_effects = pairwise_effects_tmp;
+    residual_matrix = residual_matrix_tmp;
+    proposal_sd_pairwise_effects = proposal_sd_pairwise_tmp;
+    proposal_sd_main_effects = proposal_sd_main_tmp;
+
+    // Update inclusion probabilities
+    if (difference_selection) {
+      int sumG = 0;
+
+      if (pairwise_difference_prior == "Beta-Bernoulli") {
+        // Update pairwise inclusion probabilities
+        for (int i = 0; i < num_variables - 1; ++i) {
+          for (int j = i + 1; j < num_variables; ++j) {
+            sumG += inclusion_indicator(i, j);
           }
         }
-        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                      pairwise_beta_bernoulli_beta + no_interactions - sumG);
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            inclusion_probability_difference(i, j) = probability;
-            inclusion_probability_difference(j, i) = probability;
-          }
-        }
+        double prob = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
+                               pairwise_beta_bernoulli_beta + num_pairwise - sumG);
+        std::fill(inclusion_probability_difference.begin(), inclusion_probability_difference.end(), prob);
       }
 
-      if(main_difference_prior == "Beta-Bernoulli") {
+      if(!independent_thresholds && main_difference_prior == "Beta-Bernoulli") {
         int sumG = 0;
-        for(int i = 0; i < no_variables; i++) {
-          sumG += indicator(i, i);
+        for(int i = 0; i < num_variables; i++) {
+          sumG += inclusion_indicator(i, i);
         }
         double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                      main_beta_bernoulli_beta + no_variables - sumG);
+                                      main_beta_bernoulli_beta + num_variables - sumG);
 
-        for(int i = 0; i < no_variables; i++) {
-          inclusion_probability_difference(i, i) = probability;
-        }
-      }
-    }
-  }
-  //To ensure that difference_selection is reinstated to the input value -------
-  difference_selection = input_difference_selection;
-
-  //The post burn-in iterations ------------------------------------------------
-  for(int iteration = 0; iteration < iter; iteration++) {
-    if (Progress::check_abort()) {
-      if(independent_thresholds == true) {
-        return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                            Named("interactions") = out_interactions,
-                            Named("thresholds_gr1") = out_thresholds,
-                            Named("thresholds_gr2") = out_thresholds_gr2,
-                            Named("pairwise_difference") = out_pairwise_difference);
-      } else {
-        return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                            Named("main_difference_indicator") = out_indicator_main_difference,
-                            Named("interactions") = out_interactions,
-                            Named("thresholds") = out_thresholds,
-                            Named("pairwise_difference") = out_pairwise_difference,
-                            Named("main_difference") = out_main_difference);
-      }
-    }
-    p.increment();
-
-    //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_interactions,
-                   false,
-                   R_NilValue);
-
-    for(int cntr = 0; cntr < no_interactions; cntr++) {
-      index(cntr, 0) = Index(order[cntr], 0);
-      index(cntr, 1) = Index(order[cntr], 1);
-      index(cntr, 2) = Index(order[cntr], 2);
-    }
-
-    if(na_impute == true) {
-      List out = compare_impute_missing_data(thresholds_gr1,
-                                             thresholds_gr2,
-                                             interactions_gr1,
-                                             interactions_gr2,
-                                             observations_gr1,
-                                             observations_gr2,
-                                             n_cat_obs_gr1,
-                                             n_cat_obs_gr2,
-                                             sufficient_blume_capel_gr1,
-                                             sufficient_blume_capel_gr2,
-                                             no_categories_gr1,
-                                             no_categories_gr2,
-                                             rest_matrix_gr1,
-                                             rest_matrix_gr2,
-                                             missing_index_gr1,
-                                             missing_index_gr2,
-                                             ordinal_variable,
-                                             reference_category);
-
-      IntegerMatrix observations_gr1 = out["observations_gr1"];
-      IntegerMatrix observations_gr2 = out["observations_gr2"];
-      IntegerMatrix n_cat_obs_gr1 = out["n_cat_obs_gr1"];
-      IntegerMatrix n_cat_obs_gr2 = out["n_cat_obs_gr2"];
-      IntegerMatrix sufficient_blume_capel_gr1 = out["sufficient_blume_capel_gr1"];
-      IntegerMatrix sufficient_blume_capel_gr2 = out["sufficient_blume_capel_gr2"];
-      NumericMatrix rest_matrix_gr1 = out["rest_matrix_gr1"];
-      NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
-    }
-
-    List out = compare_gibbs_step_gm(thresholds_gr1,
-                                     thresholds_gr2,
-                                     interactions_gr1,
-                                     interactions_gr2,
-                                     indicator,
-                                     inclusion_probability_difference,
-                                     observations_gr1,
-                                     observations_gr2,
-                                     no_categories_gr1,
-                                     no_categories_gr2,
-                                     no_persons_gr1,
-                                     no_persons_gr2,
-                                     no_variables,
-                                     n_cat_obs_gr1,
-                                     n_cat_obs_gr2,
-                                     sufficient_blume_capel_gr1,
-                                     sufficient_blume_capel_gr2,
-                                     rest_matrix_gr1,
-                                     rest_matrix_gr2,
-                                     proposal_sd_interaction,
-                                     proposal_sd_main_difference,
-                                     proposal_sd_pairwise_difference,
-                                     proposal_sd_blumecapel_gr1,
-                                     proposal_sd_blumecapel_gr2,
-                                     interaction_scale,
-                                     main_difference_scale,
-                                     pairwise_difference_scale,
-                                     threshold_alpha,
-                                     threshold_beta,
-                                     phi,
-                                     target_ar,
-                                     iteration,
-                                     epsilon_lo,
-                                     epsilon_hi,
-                                     ordinal_variable,
-                                     reference_category,
-                                     independent_thresholds,
-                                     difference_selection,
-                                     no_interactions,
-                                     index);
-
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix interactions_gr1 = out["interactions_gr1"];
-    NumericMatrix interactions_gr2 = out["interactions_gr2"];
-    NumericMatrix thresholds_gr1 = out["thresholds_gr1"];
-    NumericMatrix thresholds_gr2 = out["thresholds_gr2"];
-    NumericMatrix rest_matrix_gr1 = out["rest_matrix_gr1"];
-    NumericMatrix rest_matrix_gr2 = out["rest_matrix_gr2"];
-    NumericMatrix proposal_sd_interaction = out["proposal_sd_interaction"];
-    NumericMatrix proposal_sd_pairwise_difference = out["proposal_sd_pairwise_difference"];
-    NumericMatrix proposal_sd_main_difference = out["proposal_sd_main_difference"];
-    NumericMatrix proposal_sd_blumecapel_gr1 = out["proposal_sd_blumecapel_gr1"];
-    NumericMatrix proposal_sd_blumecapel_gr2 = out["proposal_sd_blumecapel_gr2"];
-
-
-    if(difference_selection == true) {
-      if(pairwise_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            sumG += indicator(i, j);
-          }
-        }
-        double probability = R::rbeta(pairwise_beta_bernoulli_alpha + sumG,
-                                      pairwise_beta_bernoulli_beta + no_interactions - sumG);
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            inclusion_probability_difference(i, j) = probability;
-            inclusion_probability_difference(j, i) = probability;
-          }
-        }
-      }
-
-      if(main_difference_prior == "Beta-Bernoulli") {
-        int sumG = 0;
-        for(int i = 0; i < no_variables; i++) {
-          sumG += indicator(i, i);
-        }
-        double probability = R::rbeta(main_beta_bernoulli_alpha + sumG,
-                                      main_beta_bernoulli_beta + no_variables - sumG);
-
-        for(int i = 0; i < no_variables; i++) {
+        for(int i = 0; i < num_variables; i++) {
           inclusion_probability_difference(i, i) = probability;
         }
       }
     }
 
-    //Output -------------------------------------------------------------------
-    if(save == true) {
-      //Save raw samples -------------------------------------------------------
-      cntr = 0;
-      for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
-        for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
-          double pairwise_difference =
-            interactions_gr2(variable1, variable2) -
-            interactions_gr1(variable1, variable2);
-          double interaction =
-            interactions_gr1(variable1, variable2) +
-            .5 * pairwise_difference;
-
-          out_indicator_pairwise_difference(iteration, cntr) =
-            indicator(variable1, variable2);
-          out_interactions(iteration, cntr) = interaction;
-          out_pairwise_difference(iteration, cntr) = pairwise_difference;
-          cntr++;
+    // Save sampled states after burn-in if the respective saving option is enabled
+    if (iteration >= total_burnin) {
+      int iter_adj = iteration - total_burnin + 1;
+      for (int col = 0; col < num_groups; ++col) {
+        for (int row = 0; row < num_main; ++row) {
+          posterior_mean_main(row, col) = (posterior_mean_main(row, col) * (iter_adj - 1) + main_effects(row, col)) /
+            static_cast<double>(iter_adj);
         }
       }
-
-      if(independent_thresholds == true) {
-        int cntr_gr1 = 0;
-        int cntr_gr2 = 0;
-        for(int variable = 0; variable < no_variables; variable++) {
-          if(ordinal_variable[variable] == true) {
-            for(int category = 0; category < no_categories_gr1[variable]; category++) {
-              out_thresholds(iteration, cntr_gr1) = thresholds_gr1(variable, category);
-              cntr_gr1++;
-            }
-          } else {
-            out_thresholds(iteration, cntr_gr1) = thresholds_gr1(variable, 0);
-            out_thresholds(iteration, cntr_gr1) = thresholds_gr1(variable, 1);
-            cntr_gr1++;
-          }
+      for (int col = 0; col < num_groups; ++col) {
+        for (int row = 0; row < num_pairwise; ++row) {
+          posterior_mean_pairwise(row, col) = (posterior_mean_pairwise(row, col) * (iter_adj - 1) + pairwise_effects(row, col)) /
+            static_cast<double>(iter_adj);
         }
-        for(int variable = 0; variable < no_variables; variable++) {
-          if(ordinal_variable[variable] == true) {
-            for(int category = 0; category < no_categories_gr2[variable]; category++) {
-              out_thresholds_gr2(iteration, cntr_gr2) = thresholds_gr2(variable, category);
-              cntr_gr2++;
-            }
-          } else {
-            out_thresholds_gr2(iteration, cntr_gr2) = thresholds_gr2(variable, 0);
-            out_thresholds_gr2(iteration, cntr_gr2) = thresholds_gr2(variable, 1);
-            cntr_gr2++;
-          }
-        }
-      } else {
-        cntr = 0;
-        for(int variable = 0; variable < no_variables; variable++) {
-          if(ordinal_variable[variable] == true) {
-            out_indicator_main_difference(iteration, variable) =
-              indicator(variable, variable);
-            for(int category = 0; category < no_categories_gr1[variable]; category++) {
-              double main_difference =
-                thresholds_gr2(variable, category) -
-                thresholds_gr1(variable, category);
-              double threshold =
-                .5 * thresholds_gr2(variable, category) +
-                .5 * thresholds_gr1(variable, category);
-
-              out_thresholds(iteration, cntr) = threshold;
-              out_main_difference(iteration, cntr) = main_difference;
-              cntr++;
-            }
-          } else {
-            double main_difference =
-              thresholds_gr2(variable, 0) -
-              thresholds_gr1(variable, 0);
-            double threshold =
-              .5 * thresholds_gr2(variable, 0) +
-              .5 * thresholds_gr1(variable, 0);
-
-              out_thresholds(iteration, cntr) = threshold;
-              out_main_difference(iteration, cntr) = main_difference;
-              cntr++;
-
-              main_difference =
-                thresholds_gr2(variable, 1) -
-                thresholds_gr1(variable, 1);
-              threshold =
-                .5 * thresholds_gr2(variable, 1) +
-                .5 * thresholds_gr1(variable, 1);
-
-              out_thresholds(iteration, cntr) = threshold;
-              out_main_difference(iteration, cntr) = main_difference;
-              cntr++;
+      }
+      if(difference_selection) {
+        for (int i = 0; i < num_variables; ++i) {
+          for (int j = i; j < num_variables; ++j) {
+            posterior_mean_indicator(i, j) = (posterior_mean_indicator(i, j) * (iter_adj - 1) + inclusion_indicator(i, j)) /
+              static_cast<double>(iter_adj);
+            posterior_mean_indicator(j, i) = posterior_mean_indicator(i, j);
           }
         }
       }
-
-    } else {
-      //Compute running averages -----------------------------------------------
-      for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
-        for(int variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
-          double pairwise_difference =
-            interactions_gr2(variable1, variable2) -
-            interactions_gr1(variable1, variable2);
-          double interaction =
-            interactions_gr1(variable1, variable2) +
-            .5 * pairwise_difference;
-
-          out_indicator_pairwise_difference(variable1, variable2) *= iteration;
-          out_indicator_pairwise_difference(variable1, variable2) += indicator(variable1, variable2);
-          out_indicator_pairwise_difference(variable1, variable2) /= iteration + 1;
-          out_indicator_pairwise_difference(variable2, variable1) = out_indicator_pairwise_difference(variable1, variable2);
-
-          out_interactions(variable1, variable2) *= iteration;
-          out_interactions(variable1, variable2) += interaction;
-          out_interactions(variable1, variable2) /= iteration + 1;
-          out_interactions(variable2, variable1) = out_interactions(variable1, variable2);
-
-          out_pairwise_difference(variable1, variable2) *= iteration;
-          out_pairwise_difference(variable1, variable2) += pairwise_difference;
-          out_pairwise_difference(variable1, variable2) /= iteration + 1;
-          out_pairwise_difference(variable2, variable1) = out_pairwise_difference(variable1, variable2);
-        }
-      }
-
-      if(independent_thresholds == true) {
-        for(int variable = 0; variable < no_variables; variable++) {
-          if(ordinal_variable[variable] == true) {
-            for(int category = 0; category < no_categories_gr1[variable]; category++) {
-              out_thresholds(variable, category) *= iteration;
-              out_thresholds(variable, category) += thresholds_gr1(variable, category);
-              out_thresholds(variable, category) /= iteration + 1;
-            }
-            for(int category = 0; category < no_categories_gr2[variable]; category++) {
-              out_thresholds_gr2(variable, category) *= iteration;
-              out_thresholds_gr2(variable, category) += thresholds_gr2(variable, category);
-              out_thresholds_gr2(variable, category) /= iteration + 1;
-            }
-          } else {
-            out_thresholds(variable, 0) *= iteration;
-            out_thresholds(variable, 0) += thresholds_gr1(variable, 0);
-            out_thresholds(variable, 0) /= iteration + 1;
-            out_thresholds(variable, 1) *= iteration;
-            out_thresholds(variable, 1) += thresholds_gr1(variable, 1);
-            out_thresholds(variable, 1) /= iteration + 1;
-
-            out_thresholds_gr2(variable, 0) *= iteration;
-            out_thresholds_gr2(variable, 0) += thresholds_gr2(variable, 0);
-            out_thresholds_gr2(variable, 0) /= iteration + 1;
-            out_thresholds_gr2(variable, 1) *= iteration;
-            out_thresholds_gr2(variable, 1) += thresholds_gr2(variable, 1);
-            out_thresholds_gr2(variable, 1) /= iteration + 1;
+      if(save_main) {
+        int cntr = 0;
+        for (int col = 0; col < num_groups; ++col) {
+          for (int row = 0; row < num_main; ++row) {
+            (*main_effect_samples)(iter_adj - 1, cntr) = main_effects(row, col);
+            cntr++;
           }
         }
-      } else {
-        for(int variable = 0; variable < no_variables; variable++) {
-          if(ordinal_variable[variable] == true) {
-            for(int category = 0; category < no_categories_gr1[variable]; category++) {
-              double main_difference =
-                thresholds_gr2(variable, category) -
-                thresholds_gr1(variable, category);
-              double threshold =
-                .5 * thresholds_gr1(variable, category) +
-                .5 * thresholds_gr2(variable, category);
-
-              out_thresholds(variable, category) *= iteration;
-              out_thresholds(variable, category) += threshold;
-              out_thresholds(variable, category) /= iteration + 1;
-
-              out_main_difference(variable, category) *= iteration;
-              out_main_difference(variable, category) += main_difference;
-              out_main_difference(variable, category) /= iteration + 1;
-
-              out_indicator_main_difference(0, variable) *= iteration;
-              out_indicator_main_difference(0, variable) += indicator(variable, variable);
-              out_indicator_main_difference(0, variable) /= iteration + 1;
+      }
+      if(save_pairwise) {
+        int cntr = 0;
+        for (int col = 0; col < num_groups; ++col) {
+          for (int row = 0; row < num_pairwise; ++row) {
+            (*pairwise_effect_samples)(iter_adj - 1, cntr) = pairwise_effects(row, col);
+            cntr++;
+          }
+        }
+      }
+      if(difference_selection) {
+        if(save_indicator) {
+          int cntr = 0;
+          for (int i = 0; i < num_variables; ++i) {
+            for (int j = i; j < num_variables; ++j) {
+              (*inclusion_indicator_samples)(iter_adj - 1, cntr) = inclusion_indicator(i, j);
+              cntr++;
             }
-          } else {
-            double main_difference =
-              thresholds_gr2(variable, 0) -
-              thresholds_gr1(variable, 0);
-            double threshold =
-              .5 * thresholds_gr1(variable, 0) +
-              .5 * thresholds_gr2(variable, 0);
-
-            out_thresholds(variable, 0) *= iteration;
-            out_thresholds(variable, 0) += threshold;
-            out_thresholds(variable, 0) /= iteration + 1;
-            out_main_difference(variable, 0) *= iteration;
-            out_main_difference(variable, 0) += main_difference;
-            out_main_difference(variable, 0) /= iteration + 1;
-
-            main_difference =
-              thresholds_gr2(variable, 1) -
-              thresholds_gr1(variable, 1);
-            threshold =
-              .5 * thresholds_gr1(variable, 1) +
-              .5 * thresholds_gr2(variable, 1);
-
-            out_thresholds(variable, 1) *= iteration;
-            out_thresholds(variable, 1) += threshold;
-            out_thresholds(variable, 1) /= iteration + 1;
-
-            out_main_difference(variable, 1) *= iteration;
-            out_main_difference(variable, 1) += main_difference;
-            out_main_difference(variable, 1) /= iteration + 1;
-
-            out_indicator_main_difference(0, variable) *= iteration;
-            out_indicator_main_difference(0, variable) += indicator(variable, variable);
-            out_indicator_main_difference(0, variable) /= iteration + 1;
           }
         }
       }
     }
   }
 
-  if(independent_thresholds == true) {
-    return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                        Named("interactions") = out_interactions,
-                        Named("thresholds_gr1") = out_thresholds,
-                        Named("thresholds_gr2") = out_thresholds_gr2,
-                        Named("pairwise_difference") = out_pairwise_difference);
-  } else {
-    return List::create(Named("pairwise_difference_indicator") = out_indicator_pairwise_difference,
-                        Named("main_difference_indicator") = out_indicator_main_difference,
-                        Named("interactions") = out_interactions,
-                        Named("thresholds") = out_thresholds,
-                        Named("pairwise_difference") = out_pairwise_difference,
-                        Named("main_difference") = out_main_difference);
+  // Compile the output based on saving options
+  List output = List::create(Named("posterior_mean_main") = posterior_mean_main,
+                             Named("posterior_mean_pairwise") = posterior_mean_pairwise,
+                             Named("posterior_mean_indicator") = posterior_mean_indicator);
+
+  // Cleanup at the end
+  if (save_main) {
+    output["main_effect_samples"] = *main_effect_samples;
+    delete main_effect_samples;  // Free allocated memory
   }
+  if (save_pairwise) {
+    output["pairwise_effect_samples"] = *pairwise_effect_samples;
+    delete pairwise_effect_samples;
+  }
+  if (save_indicator) {
+    output["inclusion_indicator_samples"] = *inclusion_indicator_samples;
+    delete inclusion_indicator_samples;
+  }
+
+  return output;
 }
