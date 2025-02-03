@@ -11,7 +11,7 @@ mixed binary and ordinal variables."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">bgms</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,7 @@ mixed binary and ordinal variables.</p>
 <span>  beta_bernoulli_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  beta_bernoulli_beta <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  dirichlet_alpha <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  na.action <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"listwise"</span>, <span class="st">"impute"</span><span class="op">)</span>,</span>
+<span>  na_action <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"listwise"</span>, <span class="st">"impute"</span><span class="op">)</span>,</span>
 <span>  save <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  display_progress <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -196,10 +196,10 @@ positive numbers. Defaults to <code>beta_bernoulli_alpha = 1</code> and
 allocation probabilities for the Stochastic Block model.</p></dd>
 
 
-<dt id="arg-na-action">na.action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>
+<dt id="arg-na-action">na_action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>
 <dd><p>How do you want the function to handle missing data? If
-<code>na.action = "listwise"</code>, listwise deletion is used. If
-<code>na.action = "impute"</code>, missing data are imputed iteratively during the
+<code>na_action = "listwise"</code>, listwise deletion is used. If
+<code>na_action = "impute"</code>, missing data are imputed iteratively during the
 MCMC procedure. Since imputation of missing data can have a negative impact
 on the convergence speed of the MCMC procedure, it is recommended to run the
 MCMC for more iterations. Also, since the numerical routines that search for
@@ -316,7 +316,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
 <span class="r-in"><span> <span class="co"># 1e5 iterations.</span></span></span>
 <span class="r-in"><span> <span class="va">fit</span> <span class="op">=</span> <span class="fu">bgm</span><span class="op">(</span>x <span class="op">=</span> <span class="va">Wenchuan</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>There were 18 rows with missing observations in the input matrix x.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> Since na.action = listwise these rows were excluded from the analysis.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> Since na_action = listwise these rows were excluded from the analysis.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span> <span class="co">#------------------------------------------------------------------------------|</span></span></span>
@@ -393,6 +393,7 @@ included); the Bernoulli prior and the Beta-Bernoulli prior.</p>
 <span class="r-in"><span> <span class="co">#Restore user par() settings</span></span></span>
 <span class="r-in"><span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
