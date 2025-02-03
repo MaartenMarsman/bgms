@@ -60,6 +60,7 @@
 #' @param interaction_scale Double. Scale of the Cauchy prior for nuisance pairwise interactions. Default: `2.5`.
 #' @param main_beta_bernoulli_alpha,main_beta_bernoulli_beta Double. Shape parameters for the Beta-Bernoulli prior on threshold differences.
 #' @param pairwise_beta_bernoulli_alpha,pairwise_beta_bernoulli_beta Double. Shape parameters for the Beta-Bernoulli prior on pairwise differences.
+#' @param save Logical. If true, sampled states for all parameters are returned. Deprecated.
 #'
 #' @return A list containing the posterior means and, optionally, sampled states based on the `save_*` options. The returned components include:
 #' - `posterior_mean_main`, `posterior_mean_pairwise`, and `posterior_mean_indicator` for posterior means.
@@ -99,6 +100,7 @@ bgmCompare = function(x,
                       iter = 1e4,
                       burnin = 5e2,
                       na_action = c("listwise", "impute"),
+                      save = FALSE,
                       save_main = FALSE,
                       save_pairwise = FALSE,
                       save_indicator = FALSE,

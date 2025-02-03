@@ -434,6 +434,28 @@ bgm = function(x,
     }
   }
 
+  #Preparing the output --------------------------------------------------------
+  arguments = list(
+    no_variables = no_variables,
+    no_cases = nrow(x),
+    na_impute = na_impute,
+    variable_type = variable_type,
+    iter = iter,
+    burnin = burnin,
+    interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha,
+    threshold_beta = threshold_beta,
+    edge_selection = edge_selection,
+    edge_prior = edge_prior,
+    inclusion_probability = theta,
+    beta_bernoulli_alpha = beta_bernoulli_alpha ,
+    beta_bernoulli_beta =  beta_bernoulli_beta,
+    dirichlet_alpha = dirichlet_alpha,
+    na_action = na_action,
+    save = save,
+    version = packageVersion("bgms")
+  )
+
   #The Metropolis within Gibbs sampler -----------------------------------------
   out = gibbs_sampler(observations = x,
                       indicator = indicator,
@@ -462,29 +484,6 @@ bgm = function(x,
                       save = save,
                       display_progress = display_progress,
                       edge_selection = edge_selection)
-
-
-  #Preparing the output --------------------------------------------------------
-  arguments = list(
-    no_variables = no_variables,
-    no_cases = nrow(x),
-    na_impute = na_impute,
-    variable_type = variable_type,
-    iter = iter,
-    burnin = burnin,
-    interaction_scale = interaction_scale,
-    threshold_alpha = threshold_alpha,
-    threshold_beta = threshold_beta,
-    edge_selection = edge_selection,
-    edge_prior = edge_prior,
-    inclusion_probability = theta,
-    beta_bernoulli_alpha = beta_bernoulli_alpha ,
-    beta_bernoulli_beta =  beta_bernoulli_beta,
-    dirichlet_alpha = dirichlet_alpha,
-    na_action = na_action,
-    save = save,
-    version = packageVersion("bgms")
-  )
 
   if(save == FALSE) {
     if(edge_selection == TRUE) {
