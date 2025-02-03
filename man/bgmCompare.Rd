@@ -28,6 +28,7 @@ bgmCompare(
   iter = 10000,
   burnin = 500,
   na_action = c("listwise", "impute"),
+  save = FALSE,
   save_main = FALSE,
   save_pairwise = FALSE,
   save_indicator = FALSE,
@@ -70,6 +71,8 @@ bgmCompare(
 \item{iter, burnin}{Integer. Number of Gibbs iterations (`iter`) and burn-in iterations (`burnin`). Defaults: `iter = 1e4`, `burnin = 5e2`.}
 
 \item{na_action}{Character. Specifies handling of missing data. `"listwise"` deletes rows with missing values; `"impute"` imputes values during Gibbs sampling. Default: `"listwise"`.}
+
+\item{save}{Logical. If true, sampled states for all parameters are returned. Deprecated.}
 
 \item{save_main, save_pairwise, save_indicator}{Logical. Enable saving sampled states for `main_effects`, `pairwise_effects`, and `indicator`, respectively. Default: `FALSE`.}
 
