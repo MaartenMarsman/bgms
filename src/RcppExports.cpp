@@ -46,8 +46,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler
-List gibbs_sampler(IntegerMatrix& observations, IntegerMatrix& indicator, NumericMatrix& interactions, NumericMatrix& thresholds, const IntegerVector& no_categories, const double interaction_scale, NumericMatrix& proposal_sd, NumericMatrix& proposal_sd_blumecapel, const String& edge_prior, NumericMatrix& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const IntegerMatrix& Index, const int iter, const int burnin, IntegerMatrix& n_cat_obs, IntegerMatrix& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const IntegerMatrix& missing_index, const LogicalVector& variable_bool, const IntegerVector& reference_category, const bool save, const bool display_progress, bool edge_selection);
-RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
+List gibbs_sampler(IntegerMatrix& observations, IntegerMatrix& indicator, NumericMatrix& interactions, NumericMatrix& thresholds, const IntegerVector& no_categories, const double interaction_scale, NumericMatrix& proposal_sd, NumericMatrix& proposal_sd_blumecapel, const String& edge_prior, NumericMatrix& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const IntegerMatrix& Index, const int iter, const int burnin, IntegerMatrix& n_cat_obs, IntegerMatrix& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const IntegerMatrix& missing_index, const LogicalVector& variable_bool, const IntegerVector& reference_category, const bool save, const bool display_progress, bool edge_selection);
+RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -64,6 +64,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_alpha(beta_bernoulli_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta(beta_bernoulli_betaSEXP);
     Rcpp::traits::input_parameter< const double >::type dirichlet_alpha(dirichlet_alphaSEXP);
+    Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
     Rcpp::traits::input_parameter< const IntegerMatrix& >::type Index(IndexSEXP);
     Rcpp::traits::input_parameter< const int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
@@ -78,7 +79,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, indicator, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, indicator, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -126,12 +127,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_Vn_mfm_sbm
+NumericVector compute_Vn_mfm_sbm(int no_variables, double dirichlet_alpha, int t_max, double lambda);
+RcppExport SEXP _bgms_compute_Vn_mfm_sbm(SEXP no_variablesSEXP, SEXP dirichlet_alphaSEXP, SEXP t_maxSEXP, SEXP lambdaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type no_variables(no_variablesSEXP);
+    Rcpp::traits::input_parameter< double >::type dirichlet_alpha(dirichlet_alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type t_max(t_maxSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, t_max, lambda));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
-    {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 27},
+    {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 28},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
+    {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}
 };
 

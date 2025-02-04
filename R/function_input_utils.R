@@ -33,7 +33,8 @@ check_model = function(x,
                        inclusion_probability = 0.5,
                        beta_bernoulli_alpha = 1,
                        beta_bernoulli_beta = 1,
-                       dirichlet_alpha = dirichlet_alpha) {
+                       dirichlet_alpha = dirichlet_alpha,
+                       lambda = lambda) {
 
   #Check variable type input ---------------------------------------------------
   if(length(variable_type) == 1) {
@@ -207,14 +208,14 @@ check_model = function(x,
     }
     if(edge_prior == "Stochastic-Block") {
       theta = matrix(0.5, nrow = ncol(x), ncol = ncol(x))
-      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0)
+      if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0 || lambda <= 0)
         stop("The scale parameters of the beta and Dirichlet distribution need to be positive.")
-      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha))
-        stop("The scale parameters of the beta and Dirichlet distribution need to be finite.")
+      if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha) || !is.finite(lambda))
+        stop("The scale parameters of the beta distrubution, the concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be finite.")
       if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
-         is.null(dirichlet_alpha) || is.null(dirichlet_alpha))
-        stop("Values for both scale parameters of the beta and Dirichlet distribution need to be specified.")
+         is.null(dirichlet_alpha) || is.null(dirichlet_alpha) || is.null(lambda) || is.null(lambda))
+        stop("Values for both scale parameters of the betathe concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be specified.")
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)

@@ -82,9 +82,11 @@ NumericMatrix add_row_col_block_prob_matrix(NumericMatrix X,
 // ----------------------------------------------------------------------------|
 // Compute partition coefficient for the MFM - SBM
 // ----------------------------------------------------------------------------|
+// [[Rcpp::export]]
 NumericVector compute_Vn_mfm_sbm(int no_variables,
                                  double dirichlet_alpha,
-                                 int t_max) {
+                                 int t_max,
+                                 double lambda) {
   NumericVector log_Vn(t_max);
   double r;
   double tmp;
@@ -100,6 +102,10 @@ NumericVector compute_Vn_mfm_sbm(int no_variables,
         tmp -= std::log(dirichlet_alpha * k + n);
       }
       tmp -= std::lgamma(k + 1);
+
+      // Add the poisson term
+      double log_norm_factor = log(1.0 - exp(R::dpois(0, lambda, true)));
+      tmp += R::dpois(k-1, lambda, true) - log_norm_factor;
 
       // Compute the maximum between r and tmp
       if (tmp > r) {
@@ -227,7 +233,11 @@ IntegerVector block_allocations_mfm_sbm(IntegerVector cluster_assign,
   double loglike;
   double logmarg;
 
-  for(int node = 0; node < no_variables; node++) {
+  // Generate a randomized order using Rcpp's sample function
+  IntegerVector indices = sample(no_variables, no_variables);
+
+  for (int idx = 0; idx < no_variables; ++idx) {
+    int node = indices[idx] - 1; // Convert to zero-based index
     old = cluster_assign[node];
 
     IntegerVector cluster_size = table_cpp(cluster_assign);
