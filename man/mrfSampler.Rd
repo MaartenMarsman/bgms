@@ -123,4 +123,5 @@ x = mrfSampler(no_states = 1e3,
                thresholds = Thresholds,
                variable_type = c("b","b","o","b","o"),
                reference_category = 2)
+
 }

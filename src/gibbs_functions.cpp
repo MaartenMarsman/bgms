@@ -8,16 +8,18 @@ using namespace Rcpp;
 // ----------------------------------------------------------------------------|
 // Impute missing data from full-conditional
 // ----------------------------------------------------------------------------|
-List impute_missing_data(NumericMatrix interactions,
-                         NumericMatrix thresholds,
-                         IntegerMatrix observations,
-                         IntegerMatrix n_cat_obs,
-                         IntegerMatrix sufficient_blume_capel,
-                         IntegerVector no_categories,
-                         NumericMatrix rest_matrix,
-                         IntegerMatrix missing_index,
-                         LogicalVector variable_bool,
-                         IntegerVector reference_category) {
+List impute_missing_data(
+    const NumericMatrix& interactions,
+    const NumericMatrix& thresholds,
+    IntegerMatrix& observations,
+    IntegerMatrix& n_cat_obs,
+    IntegerMatrix& sufficient_blume_capel,
+    const IntegerVector& no_categories,
+    NumericMatrix& rest_matrix,
+    const IntegerMatrix& missing_index,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category
+) {
 
   int no_variables = observations.ncol();
   int no_missings = missing_index.nrow();
@@ -33,8 +35,8 @@ List impute_missing_data(NumericMatrix interactions,
 
   for(int missing = 0; missing < no_missings; missing++) {
     //Which observation to impute? ---------------------------------------------
-    person = missing_index(missing, 0) - 1; //R to C++ indexing
-    variable = missing_index(missing, 1) - 1; //R to C++ indexing
+    person = missing_index(missing, 0);
+    variable = missing_index(missing, 1);
 
     //Generate new observation -------------------------------------------------
     rest_score = rest_matrix(person, variable);
@@ -119,15 +121,17 @@ List impute_missing_data(NumericMatrix interactions,
 // MH algorithm to sample from the full-conditional of the threshold parameters
 //   for a regular binary or ordinal variable
 // ----------------------------------------------------------------------------|
-void metropolis_thresholds_regular(NumericMatrix thresholds,
-                                   IntegerMatrix observations,
-                                   IntegerVector no_categories,
-                                   IntegerMatrix n_cat_obs,
-                                   int no_persons,
-                                   int variable,
-                                   double threshold_alpha,
-                                   double threshold_beta,
-                                   NumericMatrix rest_matrix) {
+void metropolis_thresholds_regular(
+    NumericMatrix& thresholds,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const IntegerMatrix& n_cat_obs,
+    const int no_persons,
+    const int variable,
+    const double threshold_alpha,
+    const double threshold_beta,
+    const NumericMatrix& rest_matrix
+) {
 
   NumericVector g(no_persons);
   NumericVector q(no_persons);
@@ -193,22 +197,24 @@ void metropolis_thresholds_regular(NumericMatrix thresholds,
 // Adaptive Metropolis algorithm to sample from the full-conditional of the
 //   threshold parameters for a Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
-void metropolis_thresholds_blumecapel(NumericMatrix thresholds,
-                                      IntegerMatrix observations,
-                                      IntegerVector no_categories,
-                                      IntegerMatrix sufficient_blume_capel,
-                                      int no_persons,
-                                      int variable,
-                                      IntegerVector reference_category,
-                                      double threshold_alpha,
-                                      double threshold_beta,
-                                      NumericMatrix rest_matrix,
-                                      NumericMatrix proposal_sd_blumecapel,
-                                      double phi,
-                                      double target_ar,
-                                      int t,
-                                      double epsilon_lo,
-                                      double epsilon_hi) {
+void metropolis_thresholds_blumecapel(
+    NumericMatrix& thresholds,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const IntegerMatrix& sufficient_blume_capel,
+    const int no_persons,
+    const int variable,
+    const IntegerVector& reference_category,
+    const double threshold_alpha,
+    const double threshold_beta,
+    const NumericMatrix& rest_matrix,
+    NumericMatrix& proposal_sd_blumecapel,
+    const double phi,
+    const double target_ar,
+    const int t,
+    const double epsilon_lo,
+    const double epsilon_hi
+) {
 
   double log_prob, U;
   double current_state, proposed_state, difference;
@@ -380,18 +386,20 @@ void metropolis_thresholds_blumecapel(NumericMatrix thresholds,
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 // ----------------------------------------------------------------------------|
-double log_pseudolikelihood_ratio(NumericMatrix interactions,
-                                  NumericMatrix thresholds,
-                                  IntegerMatrix observations,
-                                  IntegerVector no_categories,
-                                  int no_persons,
-                                  int variable1,
-                                  int variable2,
-                                  double proposed_state,
-                                  double current_state,
-                                  NumericMatrix rest_matrix,
-                                  LogicalVector variable_bool,
-                                  IntegerVector reference_category) {
+double log_pseudolikelihood_ratio(
+    const NumericMatrix& interactions,
+    const NumericMatrix& thresholds,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const int no_persons,
+    const int variable1,
+    const int variable2,
+    const double proposed_state,
+    const double current_state,
+    const NumericMatrix& rest_matrix,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category
+) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
   double denominator_prop, denominator_curr, exponent;
@@ -498,23 +506,25 @@ double log_pseudolikelihood_ratio(NumericMatrix interactions,
 // MH algorithm to sample from the full-conditional of the active interaction
 //  parameters for Bayesian edge selection
 // ----------------------------------------------------------------------------|
-void metropolis_interactions(NumericMatrix interactions,
-                             NumericMatrix thresholds,
-                             IntegerMatrix indicator,
-                             IntegerMatrix observations,
-                             IntegerVector no_categories,
-                             NumericMatrix proposal_sd,
-                             double interaction_scale,
-                             int no_persons,
-                             int no_variables,
-                             NumericMatrix rest_matrix,
-                             double phi,
-                             double target_ar,
-                             int t,
-                             double epsilon_lo,
-                             double epsilon_hi,
-                             LogicalVector variable_bool,
-                             IntegerVector reference_category) {
+void metropolis_interactions(
+    NumericMatrix& interactions,
+    const NumericMatrix& thresholds,
+    const IntegerMatrix& indicator,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    NumericMatrix& proposal_sd,
+    const double interaction_scale,
+    const int no_persons,
+    const int no_variables,
+    NumericMatrix& rest_matrix,
+    const double phi,
+    const double target_ar,
+    const int t,
+    const double epsilon_lo,
+    const double epsilon_hi,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category
+) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -581,20 +591,22 @@ void metropolis_interactions(NumericMatrix interactions,
 // MH algorithm to sample from the full-conditional of an edge + interaction
 //  pair for Bayesian edge selection
 // ----------------------------------------------------------------------------|
-void metropolis_edge_interaction_pair(NumericMatrix interactions,
-                                      NumericMatrix thresholds,
-                                      IntegerMatrix indicator,
-                                      IntegerMatrix observations,
-                                      IntegerVector no_categories,
-                                      NumericMatrix proposal_sd,
-                                      double interaction_scale,
-                                      IntegerMatrix index,
-                                      int no_interactions,
-                                      int no_persons,
-                                      NumericMatrix rest_matrix,
-                                      NumericMatrix theta,
-                                      LogicalVector variable_bool,
-                                      IntegerVector reference_category) {
+void metropolis_edge_interaction_pair(
+    NumericMatrix& interactions,
+    const NumericMatrix& thresholds,
+    IntegerMatrix& indicator,
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const NumericMatrix& proposal_sd,
+    const double interaction_scale,
+    const IntegerMatrix& index,
+    const int no_interactions,
+    const int no_persons,
+    NumericMatrix& rest_matrix,
+    const NumericMatrix& theta,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category
+) {
   double proposed_state;
   double current_state;
   double log_prob;
@@ -604,8 +616,8 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
   int variable2;
 
   for(int cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1) - 1;
-    variable2 = index(cntr, 2) - 1;
+    variable1 = index(cntr, 1);
+    variable2 = index(cntr, 2);
 
     current_state = interactions(variable1, variable2);
 
@@ -670,34 +682,36 @@ void metropolis_edge_interaction_pair(NumericMatrix interactions,
 // ----------------------------------------------------------------------------|
 // A Gibbs step for graphical model parameters for Bayesian edge selection
 // ----------------------------------------------------------------------------|
-List gibbs_step_gm(IntegerMatrix observations,
-                   IntegerVector no_categories,
-                   double interaction_scale,
-                   NumericMatrix proposal_sd,
-                   NumericMatrix proposal_sd_blumecapel,
-                   IntegerMatrix index,
-                   IntegerMatrix n_cat_obs,
-                   IntegerMatrix sufficient_blume_capel,
-                   double threshold_alpha,
-                   double threshold_beta,
-                   int no_persons,
-                   int no_variables,
-                   int no_interactions,
-                   int no_thresholds,
-                   int max_no_categories,
-                   IntegerMatrix indicator,
-                   NumericMatrix interactions,
-                   NumericMatrix thresholds,
-                   NumericMatrix rest_matrix,
-                   NumericMatrix theta,
-                   double phi,
-                   double target_ar,
-                   int t,
-                   double epsilon_lo,
-                   double epsilon_hi,
-                   LogicalVector variable_bool,
-                   IntegerVector reference_category,
-                   bool edge_selection) {
+List gibbs_step_gm(
+    const IntegerMatrix& observations,
+    const IntegerVector& no_categories,
+    const double interaction_scale,
+    NumericMatrix& proposal_sd,
+    NumericMatrix& proposal_sd_blumecapel,
+    const IntegerMatrix& index,
+    const IntegerMatrix& n_cat_obs,
+    const IntegerMatrix& sufficient_blume_capel,
+    const double threshold_alpha,
+    const double threshold_beta,
+    const int no_persons,
+    const int no_variables,
+    const int no_interactions,
+    const int no_thresholds,
+    const int max_no_categories,
+    IntegerMatrix& indicator,
+    NumericMatrix& interactions,
+    NumericMatrix& thresholds,
+    NumericMatrix& rest_matrix,
+    const NumericMatrix& theta,
+    const  double phi,
+    const double target_ar,
+    const int t,
+    const double epsilon_lo,
+    const double epsilon_hi,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category,
+    const bool edge_selection
+) {
 
   if(edge_selection == true) {
     //Between model move (update edge indicators and interaction parameters)
@@ -779,33 +793,35 @@ List gibbs_step_gm(IntegerMatrix observations,
 // The Gibbs sampler for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
-List gibbs_sampler(IntegerMatrix observations,
-                   IntegerMatrix indicator,
-                   NumericMatrix interactions,
-                   NumericMatrix thresholds,
-                   IntegerVector no_categories,
-                   double interaction_scale,
-                   NumericMatrix proposal_sd,
-                   NumericMatrix proposal_sd_blumecapel,
-                   String edge_prior,
-                   NumericMatrix theta,
-                   double beta_bernoulli_alpha,
-                   double beta_bernoulli_beta,
-                   double dirichlet_alpha,
-                   IntegerMatrix Index,
-                   int iter,
-                   int burnin,
-                   IntegerMatrix n_cat_obs,
-                   IntegerMatrix sufficient_blume_capel,
-                   double threshold_alpha,
-                   double threshold_beta,
-                   bool na_impute,
-                   IntegerMatrix missing_index,
-                   LogicalVector variable_bool,
-                   IntegerVector reference_category,
-                   bool save = false,
-                   bool display_progress = false,
-                   bool edge_selection = true) {
+List gibbs_sampler(
+    IntegerMatrix& observations,
+    IntegerMatrix& indicator,
+    NumericMatrix& interactions,
+    NumericMatrix& thresholds,
+    const IntegerVector& no_categories,
+    const double interaction_scale,
+    NumericMatrix& proposal_sd,
+    NumericMatrix& proposal_sd_blumecapel,
+    const String& edge_prior,
+    NumericMatrix& theta,
+    const double beta_bernoulli_alpha,
+    const double beta_bernoulli_beta,
+    const double dirichlet_alpha,
+    const IntegerMatrix& Index,
+    const int iter,
+    const int burnin,
+    IntegerMatrix& n_cat_obs,
+    IntegerMatrix& sufficient_blume_capel,
+    const double threshold_alpha,
+    const double threshold_beta,
+    const bool na_impute,
+    const IntegerMatrix& missing_index,
+    const LogicalVector& variable_bool,
+    const IntegerVector& reference_category,
+    const bool save = false,
+    const bool display_progress = false,
+    bool edge_selection = true
+) {
   int cntr;
   int no_variables = observations.ncol();
   int no_persons = observations.nrow();

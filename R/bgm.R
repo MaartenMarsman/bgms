@@ -130,9 +130,9 @@
 #' \code{beta_bernoulli_beta = 1}.
 #' @param dirichlet_alpha The shape of the Dirichlet prior on the node-to-block
 #' allocation probabilities for the Stochastic Block model.
-#' @param na.action How do you want the function to handle missing data? If
-#' \code{na.action = "listwise"}, listwise deletion is used. If
-#' \code{na.action = "impute"}, missing data are imputed iteratively during the
+#' @param na_action How do you want the function to handle missing data? If
+#' \code{na_action = "listwise"}, listwise deletion is used. If
+#' \code{na_action = "impute"}, missing data are imputed iteratively during the
 #' MCMC procedure. Since imputation of missing data can have a negative impact
 #' on the convergence speed of the MCMC procedure, it is recommended to run the
 #' MCMC for more iterations. Also, since the numerical routines that search for
@@ -276,7 +276,11 @@
 #'  #Restore user par() settings
 #'  par(op)
 #' }
+#'
 #' @importFrom utils packageVersion
+#' @importFrom Rcpp evalCpp
+#' @importFrom Rdpack reprompt
+#'
 #' @export
 bgm = function(x,
                variable_type = "ordinal",
@@ -292,7 +296,7 @@ bgm = function(x,
                beta_bernoulli_alpha = 1,
                beta_bernoulli_beta = 1,
                dirichlet_alpha = 1,
-               na.action = c("listwise", "impute"),
+               na_action = c("listwise", "impute"),
                save = FALSE,
                display_progress = TRUE) {
 
@@ -342,12 +346,12 @@ bgm = function(x,
   if(burnin <= 0)
     stop("Parameter ``burnin'' needs to be a positive integer.")
 
-  #Check na.action -------------------------------------------------------------
-  na.action_input = na.action
-  na.action = try(match.arg(na.action), silent = TRUE)
-  if(inherits(na.action, what = "try-error"))
-    stop(paste0("The na.action argument should equal listwise or impute, not ",
-                na.action_input,
+  #Check na_action -------------------------------------------------------------
+  na_action_input = na_action
+  na_action = try(match.arg(na_action), silent = TRUE)
+  if(inherits(na_action, what = "try-error"))
+    stop(paste0("The na_action argument should equal listwise or impute, not ",
+                na_action_input,
                 "."))
   #Check save ------------------------------------------------------------------
   save_input = save
@@ -364,7 +368,7 @@ bgm = function(x,
 
   #Format the data input -------------------------------------------------------
   data = reformat_data(x = x,
-                       na.action = na.action,
+                       na_action = na_action,
                        variable_bool = variable_bool,
                        reference_category = reference_category)
   x = data$x
@@ -425,10 +429,32 @@ bgm = function(x,
     for(variable2 in (variable1 + 1):no_variables) {
       cntr =  cntr + 1
       Index[cntr, 1] = cntr
-      Index[cntr, 2] = variable1
-      Index[cntr, 3] = variable2
+      Index[cntr, 2] = variable1 - 1
+      Index[cntr, 3] = variable2 - 1
     }
   }
+
+  #Preparing the output --------------------------------------------------------
+  arguments = list(
+    no_variables = no_variables,
+    no_cases = nrow(x),
+    na_impute = na_impute,
+    variable_type = variable_type,
+    iter = iter,
+    burnin = burnin,
+    interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha,
+    threshold_beta = threshold_beta,
+    edge_selection = edge_selection,
+    edge_prior = edge_prior,
+    inclusion_probability = theta,
+    beta_bernoulli_alpha = beta_bernoulli_alpha ,
+    beta_bernoulli_beta =  beta_bernoulli_beta,
+    dirichlet_alpha = dirichlet_alpha,
+    na_action = na_action,
+    save = save,
+    version = packageVersion("bgms")
+  )
 
   #The Metropolis within Gibbs sampler -----------------------------------------
   out = gibbs_sampler(observations = x,
@@ -458,29 +484,6 @@ bgm = function(x,
                       save = save,
                       display_progress = display_progress,
                       edge_selection = edge_selection)
-
-
-  #Preparing the output --------------------------------------------------------
-  arguments = list(
-    no_variables = no_variables,
-    no_cases = nrow(x),
-    na_impute = na_impute,
-    variable_type = variable_type,
-    iter = iter,
-    burnin = burnin,
-    interaction_scale = interaction_scale,
-    threshold_alpha = threshold_alpha,
-    threshold_beta = threshold_beta,
-    edge_selection = edge_selection,
-    edge_prior = edge_prior,
-    inclusion_probability = theta,
-    beta_bernoulli_alpha = beta_bernoulli_alpha ,
-    beta_bernoulli_beta =  beta_bernoulli_beta,
-    dirichlet_alpha = dirichlet_alpha,
-    na.action = na.action,
-    save = save,
-    version = packageVersion("bgms")
-  )
 
   if(save == FALSE) {
     if(edge_selection == TRUE) {
