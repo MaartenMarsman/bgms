@@ -449,6 +449,14 @@ bgm = function(x,
   }
 
   #Preparing the output --------------------------------------------------------
+
+  # define the prior inclusion probability
+  if(edge_prior == "Bernoulli"){
+    inclusion_probability = theta
+  } else {
+    inclusion_probability = beta_bernoulli_alpha / (beta_bernoulli_alpha + beta_bernoulli_beta)
+  }
+
   arguments = list(
     no_variables = no_variables,
     no_cases = nrow(x),
@@ -461,7 +469,7 @@ bgm = function(x,
     threshold_beta = threshold_beta,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
-    inclusion_probability = theta,
+    inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha,
