@@ -166,11 +166,11 @@ models the offset to the reference category.
 elements are returned:
   \itemize{
     \item A vector \code{allocations} with the estimated cluster assignments
-    of the nodes, calculated using a method proposed by \code{Dahl (2009)} and
-    also used by \code{Geng et al. (2019)}.
+    of the nodes, calculated using a method proposed by \insertCite{@Dahl2009}{bgms} and
+    also used by \insertCite{@GengEtAl_2019}{bgms}.
     \item A matrix \code{components} with the estimated posterior probability
     of the number of components (clusters) in the network. These probabilities
-    are calculated based on Equation 3.7 in \code{Miller (2018)}, which computes
+    are calculated based on Equation 3.7 in \insertCite{@miller2018mixture}{bgms}, which computes
     the conditional probability of the number of components given the
     number of clusters. The number of clusters is derived from the
     cardinality of the sampled \code{allocations} vector for each iteration of
