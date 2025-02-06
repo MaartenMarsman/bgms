@@ -807,6 +807,7 @@ List gibbs_sampler(
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
     const double dirichlet_alpha,
+    const double lambda,
     const IntegerMatrix& Index,
     const int iter,
     const int burnin,
@@ -912,7 +913,8 @@ List gibbs_sampler(
 
     log_Vn = compute_Vn_mfm_sbm(no_variables,
                                 dirichlet_alpha,
-                                no_variables + 10);
+                                no_variables + 10,
+                                lambda);
   }
 
   //The Gibbs sampler ----------------------------------------------------------

@@ -20,6 +20,7 @@ bgm(
   beta_bernoulli_alpha = 1,
   beta_bernoulli_beta = 1,
   dirichlet_alpha = 1,
+  lambda = 1,
   na_action = c("listwise", "impute"),
   save = FALSE,
   display_progress = TRUE
@@ -108,7 +109,10 @@ probabilities for the edges are defined at the level of the clusters, with a
 beta prior for the unknown inclusion probability with shape parameters
 \code{beta_bernoulli_alpha} and \code{beta_bernoulli_beta}, and a Dirichlet
 prior on the cluster assignment probabilities with a common concentration
-parameter \code{dirichlet_alpha}. The default is
+parameter \code{dirichlet_alpha} and a zero-truncated Poisson prior on the
+number of clusters with a rate parameter \code{lambda}, indicating the
+expected number of clusters.
+The default is
 \code{edge_prior = "Bernoulli"}.}
 
 \item{inclusion_probability}{The prior edge inclusion probability for the
@@ -123,6 +127,9 @@ positive numbers. Defaults to \code{beta_bernoulli_alpha = 1} and
 
 \item{dirichlet_alpha}{The shape of the Dirichlet prior on the node-to-block
 allocation probabilities for the Stochastic Block model.}
+
+\item{lambda}{The rate parameter of the zero-truncated Poisson prior on the
+number of cluster for the Stochastic Block model.}
 
 \item{na_action}{How do you want the function to handle missing data? If
 \code{na_action = "listwise"}, listwise deletion is used. If
@@ -155,13 +162,20 @@ columns, containing model-averaged category thresholds. In the case of
 ``blume-capel'' variables, the first entry is the parameter for the linear
 effect and the second entry is the parameter for the quadratic effect, which
 models the offset to the reference category.
-\item In the case of
-\code{edge_prior = "Stochastic-Block"} two additional elements are returned:
-a vector \code{allocations} with the estimated cluster assignments of the nodes and an
-table \code{clusters} with the estimated posterior probability of the number
-of clusters in the network. The vector of node allocations is calculated using
-a method proposed by \insertCite{Dahl2009}{bgms} and also used by
-\insertCite{GengEtAl_2019}{bgms}.
+\item In the case of \code{edge_prior = "Stochastic-Block"}, two additional
+elements are returned:
+  \itemize{
+    \item A vector \code{allocations} with the estimated cluster assignments
+    of the nodes, calculated using a method proposed by \insertCite{@Dahl2009}{bgms} and
+    also used by \insertCite{@GengEtAl_2019}{bgms}.
+    \item A matrix \code{components} with the estimated posterior probability
+    of the number of components (clusters) in the network. These probabilities
+    are calculated based on Equation 3.7 in \insertCite{@miller2018mixture}{bgms}, which computes
+    the conditional probability of the number of components given the
+    number of clusters. The number of clusters is derived from the
+    cardinality of the sampled \code{allocations} vector for each iteration of
+    the MCMC sampler (see \code{save = TRUE}).
+  }
 }
 If \code{save = TRUE}, the result is a list of class ``bgms'' containing:
 \itemize{
@@ -178,7 +192,7 @@ the Gibbs sampler for the category thresholds.
 \code{edge_prior = "Stochastic-Block"} a matrix \code{allocations} with the
 cluster assignments of the nodes from each iteration is returned. This matrix
 can be used to calculate the posterior probability of the number of clusters
-by utilizing the \code{summary_SBM(bgm_output[["allocations"]])} function.
+by utilizing the \code{summary_SBM} function.
 }
 Column averages of these matrices provide the model-averaged posterior means.
 Except for the \code{allocations} matrix, for which the \code{summary_SBM}
