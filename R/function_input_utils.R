@@ -211,11 +211,11 @@ check_model = function(x,
       if(beta_bernoulli_alpha <= 0 || beta_bernoulli_beta <= 0 || dirichlet_alpha <= 0 || lambda <= 0)
         stop("The scale parameters of the beta and Dirichlet distribution need to be positive.")
       if(!is.finite(beta_bernoulli_alpha) || !is.finite(beta_bernoulli_beta) || !is.finite(dirichlet_alpha) || !is.finite(lambda))
-        stop("The scale parameters of the beta distribution, the concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be finite.")
+        stop("The scale parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, and the rate parameter of the Poisson distribution need to be finite.")
       if(is.na(beta_bernoulli_alpha) || is.na(beta_bernoulli_beta) ||
          is.null(beta_bernoulli_alpha) || is.null(beta_bernoulli_beta) ||
          is.null(dirichlet_alpha) || is.null(dirichlet_alpha) || is.null(lambda) || is.null(lambda))
-        stop("Values for both scale parameters of the betathe concentration parameter of the Dirichlet distribution and the rate parameter of the Poisson distribution need to be specified.")
+        stop("Values for both scale parameters of the beta distribution, the concentration parameter of the Dirichlet distribution, and the rate parameter of the Poisson distribution need to be specified.")
     }
   } else {
     theta = matrix(0.5, nrow = 1, ncol = 1)

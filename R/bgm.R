@@ -449,14 +449,6 @@ bgm = function(x,
   }
 
   #Preparing the output --------------------------------------------------------
-
-  # define the prior inclusion probability
-  if(edge_prior == "Bernoulli"){
-    inclusion_probability = theta
-  } else {
-    inclusion_probability = beta_bernoulli_alpha / (beta_bernoulli_alpha + beta_bernoulli_beta)
-  }
-
   arguments = list(
     no_variables = no_variables,
     no_cases = nrow(x),
@@ -469,7 +461,7 @@ bgm = function(x,
     threshold_beta = threshold_beta,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
-    inclusion_probability = inclusion_probability,
+    inclusion_probability = theta,
     beta_bernoulli_alpha = beta_bernoulli_alpha ,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha,
@@ -548,7 +540,7 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
 
-        summarySbm <- summary_SBM(cluster_allocations = out$allocations,
+        summarySbm = summary_SBM(cluster_allocations = out$allocations,
                                   dirichlet_alpha = dirichlet_alpha,
                                   lambda = lambda)
 

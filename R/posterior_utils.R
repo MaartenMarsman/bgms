@@ -43,42 +43,42 @@ getDahl = function(cluster_allocations) {
 # Components, Journal of the American Statistical Association, 113:521, 340-356,
 # DOI:10.1080/01621459.2016.1255636
 
-compute_p_k_given_t <- function(t,
+compute_p_k_given_t = function(t,
                                 log_Vn,
                                 dirichlet_alpha,
                                 no_variables,
                                 lambda) {
   # Define the K_values
-  K_values <- as.numeric(1:no_variables)
+  K_values = as.numeric(1:no_variables)
 
   # Initialize vector for probabilities
-  p_k_given_t <- numeric(length(K_values))
+  p_k_given_t = numeric(length(K_values))
 
   # Normalization constant for t
-  log_vn_t <- log_Vn[t]
+  log_vn_t = log_Vn[t]
 
   # Normalizing factor for the truncated Poisson distribution
-  norm_factor <- 1 - dpois(0, lambda)
-  truncated_poisson_pmf <- dpois(K_values, lambda) / norm_factor
+  norm_factor = 1 - dpois(0, lambda)
+  truncated_poisson_pmf = dpois(K_values, lambda) / norm_factor
 
   # Loop through each value of K
   for (i in seq_along(K_values)) {
-    K <- K_values[i]
+    K = K_values[i]
     if (K >= t) {
       # Falling factorial
-      falling_factorial <- prod(K:(K - t + 1))
+      falling_factorial = prod(K:(K - t + 1))
       # Rising factorial
-      rising_factorial <- prod((dirichlet_alpha * K) + 0:(no_variables - 1))
+      rising_factorial = prod((dirichlet_alpha * K) + 0:(no_variables - 1))
       # Compute log probability
-      log_p_k <- log(falling_factorial) - log(rising_factorial) + log(truncated_poisson_pmf[i]) - log_vn_t
+      log_p_k = log(falling_factorial) - log(rising_factorial) + log(truncated_poisson_pmf[i]) - log_vn_t
       # Convert log probability to probability
-      p_k_given_t[i] <- exp(log_p_k)
+      p_k_given_t[i] = exp(log_p_k)
     } else {
-      p_k_given_t[i] <- 0
+      p_k_given_t[i] = 0
     }
   }
   # Normalize probabilities
-  p_k_given_t <- p_k_given_t / sum(p_k_given_t)
+  p_k_given_t = p_k_given_t / sum(p_k_given_t)
 
   return(p_k_given_t)
 }
@@ -99,51 +99,51 @@ compute_p_k_given_t <- function(t,
 #' @examples
 #'
 #' # fit a model with the SBM prior
-#' bgm_object <- bgm(Wenchuan[, c(1:5)],
+#' bgm_object = bgm(Wenchuan[, c(1:5)],
 #'                   edge_prior = "Stochastic-Block",
 #'                   save = TRUE,
 #'                   iter = 1e3)
 #'
-#' s <- summary_SBM(bgm_object$allocations,
+#' s = summary_SBM(bgm_object$allocations,
 #'                  bgm_object$arguments$dirichlet_alpha,
 #'                  bgm_object$arguments$lambda)
 #'
 #' @export
 
-summary_SBM <- function(cluster_allocations,
+summary_SBM = function(cluster_allocations,
                         dirichlet_alpha,
                         lambda) {
 
   # precompute things
-  no_variables <- ncol(cluster_allocations)
-  log_Vn <- compute_Vn_mfm_sbm(no_variables,
+  no_variables = ncol(cluster_allocations)
+  log_Vn = compute_Vn_mfm_sbm(no_variables,
                                dirichlet_alpha,
                                no_variables + 10,
                                lambda)
   # Compute the number of unique clusters (t) for each iteration
   # i.e., the cardinality  of the partition z
-  clusters <- apply(cluster_allocations, 1, function(row) length(unique(row)))
+  clusters = apply(cluster_allocations, 1, function(row) length(unique(row)))
   # Compute the conditional probabilities of the number of clusters
   # for each row in clusters
-  p_k_given_t <- matrix(NA, nrow = length(clusters), ncol = no_variables)
+  p_k_given_t = matrix(NA, nrow = length(clusters), ncol = no_variables)
 
   for (i in 1:length(clusters)) {
-    p_k_given_t[i, ] <- compute_p_k_given_t(clusters[i],
+    p_k_given_t[i, ] = compute_p_k_given_t(clusters[i],
                                             log_Vn,
                                             dirichlet_alpha,
                                             no_variables,
                                             lambda)
   }
   # average across all iterations
-  p_k_given_t <- colMeans(p_k_given_t)
+  p_k_given_t = colMeans(p_k_given_t)
 
   # make it as a matrix
-  no_components <- 1:no_variables
-  components <- cbind(no_components, p_k_given_t)
-  colnames(components) <- c("no_components", "probability")
+  no_components = 1:no_variables
+  components = cbind(no_components, p_k_given_t)
+  colnames(components) = c("no_components", "probability")
 
   # Compute the allocations of the nodes based on Dahl's method
-  allocations <- getDahl(cluster_allocations)
+  allocations = getDahl(cluster_allocations)
 
   return(list(components = components,
               allocations = allocations))
