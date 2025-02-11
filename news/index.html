@@ -38,7 +38,21 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.4.3" id="bgms-0143">bgms 0.1.4.3<a class="anchor" aria-label="anchor" href="#bgms-0143"></a></h2>
-<p>bgmCompare now allows for network comparison for two or more groups fixed a bug with selecting group differences of blume-capel parameters fixed a bug with handling the samples of blume-capel parameters fixed a bug with handling threshold estimation when missing categories and main_model = “Free”.</p>
+<div class="section level3">
+<h3 id="new-features-0-1-4-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-4-3"></a></h3>
+<ul><li>The bgmCompare function now allows for network comparison for two or more groups.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-0-1-4-3">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-4-3"></a></h3>
+<ul><li>The bgm function with the “Stochastic-Block” prior can now also return the sampled allocations and block probabilities, and sample and return the number of blocks.</li>
+<li>The underlying R and c++ functions received a massive update to improve their efficiency and maintainance.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-1-4-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-4-3"></a></h3>
+<ul><li>Fixed a bug in the bgmCompare function with selecting group differences of blume-capel parameters. Parameter differences that were not selected and should be fixed to zero were still updated.</li>
+<li>Fixed a bug in the bgmCompare function with handling the samples of blume-capel parameters. Output was not properly stored.</li>
+<li>Fixed a bug in the bgmCompare function with handling threshold estimation when missing categories and main_model = “Free”. The sufficient statistics and number of categories were not computed correctly.</li>
+</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.4.2" id="bgms-0142">bgms 0.1.4.2<a class="anchor" aria-label="anchor" href="#bgms-0142"></a></h2><p class="text-muted">CRAN release: 2024-12-05</p>
