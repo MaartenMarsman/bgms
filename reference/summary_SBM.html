@@ -80,14 +80,14 @@ and the estimated cluster allocation of the nodes using Dahl's method.</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># fit a model with the SBM prior</span></span></span>
-<span class="r-in"><span><span class="va">bgm_object</span> <span class="op">&lt;-</span> <span class="fu"><a href="bgm.html">bgm</a></span><span class="op">(</span><span class="va">Wenchuan</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span><span class="va">bgm_object</span> <span class="op">=</span> <span class="fu"><a href="bgm.html">bgm</a></span><span class="op">(</span><span class="va">Wenchuan</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span><span class="op">]</span>,</span></span>
 <span class="r-in"><span>                  edge_prior <span class="op">=</span> <span class="st">"Stochastic-Block"</span>,</span></span>
 <span class="r-in"><span>                  save <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>                  iter <span class="op">=</span> <span class="fl">1e3</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>There were 7 rows with missing observations in the input matrix x.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> Since na_action = listwise these rows were excluded from the analysis.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu">summary_SBM</span><span class="op">(</span><span class="va">bgm_object</span><span class="op">$</span><span class="va">allocations</span>,</span></span>
+<span class="r-in"><span><span class="va">s</span> <span class="op">=</span> <span class="fu">summary_SBM</span><span class="op">(</span><span class="va">bgm_object</span><span class="op">$</span><span class="va">allocations</span>,</span></span>
 <span class="r-in"><span>                 <span class="va">bgm_object</span><span class="op">$</span><span class="va">arguments</span><span class="op">$</span><span class="va">dirichlet_alpha</span>,</span></span>
 <span class="r-in"><span>                 <span class="va">bgm_object</span><span class="op">$</span><span class="va">arguments</span><span class="op">$</span><span class="va">lambda</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
