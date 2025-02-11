@@ -3,6 +3,7 @@
 ## New features
 
 * The bgmCompare function now allows for network comparison for two or more groups.
+* The new summary_sbm function can be used to summarize the output from the bgm function with the "Stochastic-Block" prior. 
 
 ## Other changes
 
