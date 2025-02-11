@@ -3,7 +3,6 @@
 #  Geng, J., Bhattacharya, A., & Pati, D. (2019). Probabilistic Community
 #  Detection With Unknown Number of Communities, Journal of the American
 #  Statistical Association, 114:526, 893-905, DOI:10.1080/01621459.2018.1458618
-
 getDahl = function(cluster_allocations) {
   # Dimensions of the input matrix
   niters = nrow(cluster_allocations)  # Number of iterations
@@ -42,7 +41,7 @@ getDahl = function(cluster_allocations) {
 # Miller & Harrison (2018). Mixture Models With a Prior on the Number of
 # Components, Journal of the American Statistical Association, 113:521, 340-356,
 # DOI:10.1080/01621459.2016.1255636
-
+#' @importFrom stats dpois
 compute_p_k_given_t = function(t,
                                 log_Vn,
                                 dirichlet_alpha,
@@ -109,7 +108,6 @@ compute_p_k_given_t = function(t,
 #'                  bgm_object$arguments$lambda)
 #'
 #' @export
-
 summary_SBM = function(cluster_allocations,
                         dirichlet_alpha,
                         lambda) {
