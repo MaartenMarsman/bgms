@@ -4,7 +4,7 @@ bibentry(
   bibtype = "manual",
   title    = "bgms: Bayesian analysis of networks of binary and/or ordinal variables",
   author   = "Maarten Marsman and Karoline Huth and Nikola Sekulovski and Don van den Bergh",
-  year     = "2024",
+  year     = "2025",
   url      = "https://CRAN.R-project.org/package=bgms",
   note     = "R package version 0.1.4.3",
   textVersion = "Marsman, M., Huth, K., Sekulovski, N., & van den Bergh, D. (2024). bgms: Bayesian analysis of networks of binary and/or ordinal variables. https://CRAN.R-project.org/package=bgms"

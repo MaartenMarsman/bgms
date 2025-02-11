@@ -1,9 +1,19 @@
 # bgms 0.1.4.3
 
-bgmCompare now allows for network comparison for two or more groups
-fixed a bug with selecting group differences of blume-capel parameters
-fixed a bug with handling the samples of blume-capel parameters
-fixed a bug with handling threshold estimation when missing categories and main_model = "Free".
+## New features
+
+* The bgmCompare function now allows for network comparison for two or more groups.
+
+## Other changes
+
+* The bgm function with the "Stochastic-Block" prior can now also return the sampled allocations and block probabilities, and sample and return the number of blocks.
+* The underlying R and c++ functions received a massive update to improve their efficiency and maintainance.
+
+## Bug fixes
+
+* Fixed a bug in the bgmCompare function with selecting group differences of blume-capel parameters. Parameter differences that were not selected and should be fixed to zero were still updated.
+* Fixed a bug in the bgmCompare function with handling the samples of blume-capel parameters. Output was not properly stored.
+* Fixed a bug in the bgmCompare function with handling threshold estimation when missing categories and main_model = "Free". The sufficient statistics and number of categories were not computed correctly.
 
 # bgms 0.1.4.2
 
