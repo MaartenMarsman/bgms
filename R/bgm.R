@@ -539,33 +539,29 @@ bgm = function(x,
 
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
+        output = list(
+          indicator = indicator, interactions = interactions,
+          thresholds = thresholds, allocations = out$allocations,
+          arguments = arguments)
+        class(output) = "bgms"
+        summary_Sbm = summarySBM(output)
 
-        summarySbm = summary_SBM(cluster_allocations = out$allocations,
-                                  dirichlet_alpha = dirichlet_alpha,
-                                  lambda = lambda)
-
-        output = list(indicator = indicator,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      components = summarySbm$components,
-                      allocations = summarySbm$allocations,
-                      arguments = arguments)
+        output$components = summary_Sbm$components
+        output$allocations = summary_Sbm$allocations
       } else {
 
-        output = list(indicator = indicator,
-                           interactions = interactions,
-                           thresholds = thresholds,
-                           arguments = arguments)
+        output = list(
+          indicator = indicator, interactions = interactions,
+          thresholds = thresholds, arguments = arguments)
         }
 
     } else {
-      output = list(interactions = interactions,
-                    thresholds = thresholds,
-                    arguments = arguments)
+      output = list(
+        interactions = interactions, thresholds = thresholds,
+        arguments = arguments)
     }
 
     class(output) = "bgms"
-    return(output)
   } else {
     if(edge_selection == TRUE) {
       indicator = out$indicator
@@ -614,7 +610,6 @@ bgm = function(x,
                       allocations = out$allocations,
                       arguments = arguments)
       } else {
-
         output = list(indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
@@ -626,6 +621,6 @@ bgm = function(x,
                     arguments = arguments)
     }
     class(output) = "bgms"
-    return(output)
   }
+  return(output)
 }
