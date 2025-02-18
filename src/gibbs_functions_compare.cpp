@@ -2931,14 +2931,11 @@ List compare_anova_gibbs_sampler(
   // Initialize model parameters
   arma::mat main_effects(num_main, num_groups);
   arma::mat pairwise_effects(num_pairwise, num_groups);
-  arma::imat inclusion_indicator(num_variables, num_variables);
-  std::fill(inclusion_indicator.begin(), inclusion_indicator.end(), 1);
+  arma::imat inclusion_indicator(num_variables, num_variables,arma::fill::ones);
 
   // Adaptive Metropolis proposal standard deviations
-  arma::mat proposal_sd_main_effects(num_main, num_groups);
-  arma::mat proposal_sd_pairwise_effects(num_pairwise, num_groups);
-  std::fill(proposal_sd_main_effects.begin(), proposal_sd_main_effects.end(), 1.0);
-  std::fill(proposal_sd_pairwise_effects.begin(), proposal_sd_pairwise_effects.end(), 1.0);
+  arma::mat proposal_sd_main_effects(num_main, num_groups,arma::fill::ones);
+  arma::mat proposal_sd_pairwise_effects(num_pairwise, num_groups,arma::fill::ones);
 
   // Robbins-Monro parameters
   double rm_adaptation_rate = 0.75, target_acceptance_rate = 0.234;
@@ -2963,8 +2960,7 @@ List compare_anova_gibbs_sampler(
   // Output matrices
   arma::mat posterior_mean_main(num_main, num_groups);
   arma::mat posterior_mean_pairwise(num_pairwise, num_groups);
-  arma::mat posterior_mean_indicator(num_variables, num_variables);
-  std::fill(posterior_mean_indicator.begin(), posterior_mean_indicator.end(), 1);
+  arma::mat posterior_mean_indicator(num_variables, num_variables, arma::fill::ones);
 
   // Allocate matrices conditionally to save memory
   arma::mat* main_effect_samples = nullptr;
