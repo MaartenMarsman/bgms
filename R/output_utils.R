@@ -114,6 +114,9 @@ prepare_output_bgmCompare = function(out, x, independent_thresholds,
     results$posterior_mean_indicator = out$posterior_mean_indicator
     dimnames(results$posterior_mean_indicator) = list(data_columnnames,
                                                       data_columnnames)
+    if(main_difference_model == "Free"){
+      diag(results$posterior_mean_indicator) <- NA
+    } 
   }
 
 
