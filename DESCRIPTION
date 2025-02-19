@@ -6,6 +6,8 @@ Date: 2025-02-11
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-5309-7502")),
+    person("Giuseppe", "Arena", role = "ctb",
+           comment = c(ORCID = "0000-0001-5204-3326")),
     person("Karoline", "Huth", role = "ctb",
            comment = c(ORCID = "0000-0002-0662-1591")),
     person("Nikola", "Sekulovski", role = "ctb",
