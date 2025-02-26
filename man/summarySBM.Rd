@@ -4,10 +4,14 @@
 \alias{summarySBM}
 \title{Function for summarizing the sampled cluster allocation vectors}
 \usage{
-summarySBM(bgm_object)
+summarySBM(bgm_object, estimation = FALSE)
 }
 \arguments{
 \item{bgm_object}{A fit object created by the bgm function.}
+
+\item{estimation}{A logical value indicating whether the function is used
+within bgms for calculating the posterior probabilities of the number of
+clusters or by the user. This argument should always be set to FALSE.}
 }
 \value{
 Returns a list of two elements: \code{components} and \code{allocations},
