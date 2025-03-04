@@ -545,7 +545,7 @@ bgm = function(x,
           arguments = arguments)
         class(output) = "bgms"
         summary_Sbm = summarySBM(output,
-                                 estimation = TRUE)
+                                 internal_call = TRUE)
 
         output$components = summary_Sbm$components
         output$allocations = summary_Sbm$allocations

@@ -92,9 +92,9 @@ compute_p_k_given_t = function(
 #' number of clusters.
 #'
 #' @param bgm_object A fit object created by the bgm function.
-#' @param estimation A logical value indicating whether the function is used
+#' @param internal_call A logical value indicating whether the function is used
 #' within bgms for calculating the posterior probabilities of the number of
-#' clusters or by the user. This argument should always be set to FALSE.
+#' clusters or by the user. This argument is always set to FALSE.
 #' @return Returns a list of two elements: \code{components} and \code{allocations},
 #' containing the posterior probabilities for the number of components (clusters)
 #' and the estimated cluster allocation of the nodes using Dahl's method.
@@ -111,14 +111,14 @@ compute_p_k_given_t = function(
 #' @export
 summarySBM = function(
     bgm_object,
-    estimation = FALSE) {
+    internal_call = FALSE) {
 
   arguments = extract_arguments(bgm_object)
 
   if(arguments$edge_prior != "Stochastic-Block")
     stop('The bgm function must be run with edge_prior = "Stochastic-Block".')
 
-  if(arguments$save == FALSE && estimation == FALSE)
+  if(arguments$save == FALSE && internal_call == FALSE)
     stop('The bgm function must be run with save = TRUE.')
 
   cluster_allocations = bgm_object$allocations
