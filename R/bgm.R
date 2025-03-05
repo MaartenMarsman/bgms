@@ -544,7 +544,8 @@ bgm = function(x,
           thresholds = thresholds, allocations = out$allocations,
           arguments = arguments)
         class(output) = "bgms"
-        summary_Sbm = summarySBM(output)
+        summary_Sbm = summarySBM(output,
+                                 internal_call = TRUE)
 
         output$components = summary_Sbm$components
         output$allocations = summary_Sbm$allocations
