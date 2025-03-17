@@ -95,7 +95,7 @@ analysis of the ordinal Markov random field. *Psychometrika*.
 Marsman, M., Waldorp, L. J., Sekulovski, N., & Haslbeck, J. M. B. (2024). 
 A Bayesian independent samples *t* test for parameter differences in networks 
 of binary and ordinal Variables. 
-*Retrieved from <https://doi.org/10.1017/psy.2024.4>*. (OSF preprint.)
+*Retrieved from <https://osf.io/preprints/osf/f4pk9>*. (OSF preprint.)
 
 </div>
 
