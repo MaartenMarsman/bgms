@@ -3002,7 +3002,6 @@ List compare_anova_gibbs_sampler(
 
     // Create a random ordering of pairwise effects for updating
     arma::uvec order = arma::randperm(v.n_elem);
-    //sample(v, num_pairwise, false, R_NilValue);
 
     for(int cntr = 0; cntr < num_pairwise; cntr++) {
       index(cntr, 0) = Index(order[cntr], 0);
