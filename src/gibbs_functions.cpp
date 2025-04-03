@@ -1,3 +1,6 @@
+// [[Rcpp::depends(RcppArmadillo)]]
+#include <RcppArmadillo.h>
+
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
@@ -5,116 +8,127 @@
 #include <progress_bar.hpp>
 using namespace Rcpp;
 
-// ----------------------------------------------------------------------------|
-// Impute missing data from full-conditional
-// ----------------------------------------------------------------------------|
+/**
+ * Function: impute_missing_data
+ * Purpose:
+ *   Imputes missing observations for a graphical model with ordinal and Blume-Capel variables
+ *   using their full conditional pseudo-posterior distributions.
+ *
+ * Inputs:
+ *   - interactions: Pairwise interaction matrix between variables.
+ *   - thresholds: Threshold parameters for ordinal or Blume-Capel variables.
+ *   - observations: Matrix of observed data (individuals x variables), updated in-place.
+ *   - num_obs_categories: Matrix of counts for each category per variable (for ordinal variables).
+ *   - sufficient_blume_capel: Sufficient statistics (linear and squared sums) for BC variables.
+ *   - num_categories: Number of categories per variable.
+ *   - residual_matrix: Matrix of linear predictors excluding the current variable, updated in-place.
+ *   - missing_index: Matrix of (row, variable) indices for missing observations.
+ *   - is_ordinal_variable: Indicator vector specifying whether a variable is ordinal or Blume-Capel.
+ *   - reference_category: Reference category used in Blume-Capel variables.
+ *
+ * Outputs:
+ *   - A List with updated:
+ *     - `observations`: Imputed observation matrix.
+ *     - `num_obs_categories`: Updated category counts (ordinal only).
+ *     - `sufficient_blume_capel`: Updated sufficient statistics for BC variables.
+ *     - `residual_matrix`: Updated pseudo-likelihood contributions.
+ */
 List impute_missing_data(
-    const NumericMatrix& interactions,
-    const NumericMatrix& thresholds,
-    IntegerMatrix& observations,
-    IntegerMatrix& num_obs_categories,
-    IntegerMatrix& sufficient_blume_capel,
-    const IntegerVector& num_categories,
-    NumericMatrix& rest_matrix,
-    const IntegerMatrix& missing_index,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category
+    const arma::mat& interactions,
+    const arma::mat& thresholds,
+    arma::imat& observations,
+    arma::imat& num_obs_categories,
+    arma::imat& sufficient_blume_capel,
+    const arma::ivec& num_categories,
+    arma::mat& residual_matrix,
+    const arma::imat& missing_index,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
 ) {
 
-  int no_variables = observations.ncol();
-  int no_missings = missing_index.nrow();
-  int max_num_categories = 0;
-  for(int variable = 0; variable < no_variables; variable++) {
-    if(num_categories[variable] > max_num_categories) {
-      max_num_categories = num_categories[variable];
-    }
-  }
-  NumericVector probabilities(max_num_categories + 1);
-  double exponent, rest_score, cumsum, u;
-  int score, person, variable, new_observation, old_observation;
+  const int num_variables = observations.n_cols;
+  const int num_missings = missing_index.n_rows;
+  const int max_num_categories = num_categories.max();
 
-  for(int missing = 0; missing < no_missings; missing++) {
-    //Which observation to impute? ---------------------------------------------
-    person = missing_index(missing, 0);
-    variable = missing_index(missing, 1);
+  arma::vec probabilities(max_num_categories + 1);
 
-    //Generate new observation -------------------------------------------------
-    rest_score = rest_matrix(person, variable);
+  // Loop over all missing values
+  for(int miss = 0; miss < num_missings; miss++) {
+    // Identify the observation to impute
+    const int person = missing_index(miss, 0);
+    const int variable = missing_index(miss, 1);
 
-    //Two distinct (ordinal) variable types ------------------------------------
-    if(variable_bool[variable] == true) {
+    const double rest_score = residual_matrix(person, variable);
+    const int num_cats = num_categories[variable];
+    const bool is_ordinal = is_ordinal_variable[variable];
 
-      //Regular binary or ordinal MRF variable ---------------------------------
-      cumsum = 1.0;
+    double cumsum = 0.0;
+
+    // Generate a new observation based on the model
+    if(is_ordinal) {
+      // For regular binary or ordinal variables
+      cumsum += 1.0;
       probabilities[0] = 1.0;
-      for(int category = 0; category < num_categories[variable]; category++) {
-        exponent = thresholds(variable, category);
-        exponent += (category + 1) * rest_score;
+      for(int category = 0; category < num_cats; category++) {
+        int score = category + 1;
+        double exponent = thresholds(variable, category) + score * rest_score;
         cumsum += std::exp(exponent);
-        probabilities[category + 1] = cumsum;
+        probabilities[score] = cumsum;
       }
-
     } else {
-
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      exponent = thresholds(variable, 1) *
-        reference_category[variable] *
-        reference_category[variable];
+      // For Blume-Capel variables
+      const int ref = reference_category[variable];
+      double exponent = thresholds(variable, 1) * ref * ref;
+      cumsum = std::exp(exponent);
       cumsum = std::exp(exponent);
       probabilities[0] = cumsum;
-      for(int category = 0; category < num_categories[variable]; category++) {
-        exponent = thresholds(variable, 0) * (category + 1);
-        exponent += thresholds(variable, 1) *
-          (category + 1 - reference_category[variable]) *
-          (category + 1 - reference_category[variable]);
-        exponent += (category + 1) * rest_score;
+      for(int category = 0; category < num_cats; category++) {
+        int score = category + 1;
+        int centered = score - ref;
+        exponent = thresholds(variable, 0) * score +
+          thresholds(variable, 1) * centered * centered +
+          score * rest_score;
         cumsum += std::exp(exponent);
-        probabilities[category + 1] = cumsum;
+        probabilities[score] = cumsum;
       }
     }
 
-    u = cumsum * R::unif_rand();
-    score = 0;
-    while (u > probabilities[score]) {
-      score++;
-    }
+    // Sample a new value based on computed probabilities
+    double u = cumsum * R::unif_rand();
+    int sampled_score = 0;
+    while (u > probabilities[sampled_score]) sampled_score++;
 
-    //Update observations
-    new_observation = score;
-    old_observation = observations(person, variable);
-    if(old_observation != new_observation) {
-      observations(person, variable) = new_observation;
-      if(variable_bool[variable] == true) {
-        //Regular binary or ordinal MRF variable -------------------------------
-        num_obs_categories(old_observation, variable)--;
-        num_obs_categories(new_observation, variable)++;
+    int new_obs = sampled_score;
+    int old_obs = observations(person, variable);
+    if(old_obs != new_obs) {
+      // Update raw observations
+      observations(person, variable) = new_obs;
+
+      // Update category counts or sufficient statistics
+      if(is_ordinal) {
+        num_obs_categories(old_obs, variable)--;
+        num_obs_categories(new_obs, variable)++;
       } else {
-        //Regular binary or ordinal MRF variable -------------------------------
-        sufficient_blume_capel(0, variable) -= old_observation;
-        sufficient_blume_capel(0, variable) += new_observation;
-        sufficient_blume_capel(1, variable) -=
-          (old_observation - reference_category[variable]) *
-          (old_observation - reference_category[variable]);
+        const int ref = reference_category[variable];
+        sufficient_blume_capel(0, variable) += (new_obs - old_obs);
         sufficient_blume_capel(1, variable) +=
-          (new_observation - reference_category[variable]) *
-          (new_observation - reference_category[variable]);
+          (new_obs - ref) * (new_obs - ref) -
+          (old_obs - ref) * (old_obs - ref);
       }
 
-      for(int vertex = 0; vertex < no_variables; vertex++) {
-        //interactions(i, i) = 0
-        rest_matrix(person, vertex) -= old_observation *
-          interactions(vertex, variable);
-        rest_matrix(person, vertex) += new_observation *
-          interactions(vertex, variable);
+      // Update rest scores
+      for(int v = 0; v < num_variables; v++) {
+        double delta = (new_obs - old_obs) * interactions(v, variable);
+        residual_matrix(person, v) += delta;
       }
     }
   }
 
-  return List::create(Named("observations") = observations,
-                      Named("num_obs_categories") = num_obs_categories,
-                      Named("sufficient_blume_capel") =
-                        sufficient_blume_capel,
-                        Named("rest_matrix") = rest_matrix);
+  return List::create(
+    Named("observations") = observations,
+    Named("num_obs_categories") = num_obs_categories,
+    Named("sufficient_blume_capel") = sufficient_blume_capel,
+    Named("residual_matrix") = residual_matrix);
 }
 
 // ----------------------------------------------------------------------------|
@@ -122,19 +136,19 @@ List impute_missing_data(
 //   for a regular binary or ordinal variable
 // ----------------------------------------------------------------------------|
 void metropolis_thresholds_regular(
-    NumericMatrix& thresholds,
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
-    const IntegerMatrix& num_obs_categories,
+    arma::mat& thresholds,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& num_obs_categories,
     const int no_persons,
     const int variable,
     const double threshold_alpha,
     const double threshold_beta,
-    const NumericMatrix& rest_matrix
+    const arma::mat& residual_matrix
 ) {
 
-  NumericVector g(no_persons);
-  NumericVector q(no_persons);
+  arma::vec g(no_persons);
+  arma::vec q(no_persons);
 
   double log_prob, rest_score;
   double a, b, c;
@@ -150,7 +164,7 @@ void metropolis_thresholds_regular(
     for(int person = 0; person < no_persons; person++) {
       g[person] = 1.0;
       q[person] = 1.0;
-      rest_score = rest_matrix(person, variable);
+      rest_score = residual_matrix(person, variable);
       for(int cat = 0; cat < num_categories[variable]; cat++) {
         if(cat != category) {
           g[person] += std::exp(thresholds(variable, cat) +
@@ -198,17 +212,17 @@ void metropolis_thresholds_regular(
 //   threshold parameters for a Blume-Capel ordinal variable
 // ----------------------------------------------------------------------------|
 void metropolis_thresholds_blumecapel(
-    NumericMatrix& thresholds,
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
-    const IntegerMatrix& sufficient_blume_capel,
+    arma::mat& thresholds,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& sufficient_blume_capel,
     const int no_persons,
     const int variable,
-    const IntegerVector& reference_category,
+    const arma::ivec& reference_category,
     const double threshold_alpha,
     const double threshold_beta,
-    const NumericMatrix& rest_matrix,
-    NumericMatrix& proposal_sd_blumecapel,
+    const arma::mat& residual_matrix,
+    arma::mat& proposal_sd_blumecapel,
     const double phi,
     const double target_ar,
     const int t,
@@ -220,8 +234,8 @@ void metropolis_thresholds_blumecapel(
   double current_state, proposed_state, difference;
   double numerator, denominator;
   double lbound, bound, exponent, rest_score;
-  NumericVector constant_numerator (num_categories[variable] + 1);
-  NumericVector constant_denominator (num_categories[variable] + 1);
+  arma::vec constant_numerator (num_categories[variable] + 1);
+  arma::vec constant_denominator (num_categories[variable] + 1);
 
   //----------------------------------------------------------------------------
   //Adaptive Metropolis for the linear Blume-Capel parameter
@@ -256,7 +270,7 @@ void metropolis_thresholds_blumecapel(
   log_prob += sufficient_blume_capel(0, variable) * difference;
 
   for(int person = 0; person < no_persons; person++) {
-    rest_score = rest_matrix(person, variable);
+    rest_score = residual_matrix(person, variable);
     if(rest_score > 0) {
       bound = num_categories[variable] * rest_score + lbound;
     } else {
@@ -335,7 +349,7 @@ void metropolis_thresholds_blumecapel(
   log_prob += sufficient_blume_capel(1, variable) * difference;
 
   for(int person = 0; person < no_persons; person++) {
-    rest_score = rest_matrix(person, variable);
+    rest_score = residual_matrix(person, variable);
     if(rest_score > 0) {
       bound = num_categories[variable] * rest_score + lbound;
     } else {
@@ -386,19 +400,19 @@ void metropolis_thresholds_blumecapel(
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
 // ----------------------------------------------------------------------------|
-double log_pseudolikelihood_ratio(
-    const NumericMatrix& interactions,
-    const NumericMatrix& thresholds,
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
+double log_pseudolikelihood_ratio_interaction(
+    const arma::mat& interactions,
+    const arma::mat& thresholds,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
     const int no_persons,
     const int variable1,
     const int variable2,
     const double proposed_state,
     const double current_state,
-    const NumericMatrix& rest_matrix,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category
+    const arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
 ) {
   double rest_score, bound;
   double pseudolikelihood_ratio = 0.0;
@@ -414,7 +428,7 @@ double log_pseudolikelihood_ratio(
     pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
 
     //variable 1 log pseudolikelihood ratio
-    rest_score = rest_matrix(person, variable1) -
+    rest_score = residual_matrix(person, variable1) -
       obs_score2 * interactions(variable2, variable1);
 
     if(rest_score > 0) {
@@ -423,7 +437,7 @@ double log_pseudolikelihood_ratio(
       bound = 0.0;
     }
 
-    if(variable_bool[variable1] == true) {
+    if(is_ordinal_variable[variable1] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
       denominator_prop = std::exp(-bound);
       denominator_curr = std::exp(-bound);
@@ -457,7 +471,7 @@ double log_pseudolikelihood_ratio(
     pseudolikelihood_ratio += std::log(denominator_curr);
 
     //variable 2 log pseudolikelihood ratio
-    rest_score = rest_matrix(person, variable2) -
+    rest_score = residual_matrix(person, variable2) -
       obs_score1 * interactions(variable1, variable2);
 
     if(rest_score > 0) {
@@ -466,7 +480,7 @@ double log_pseudolikelihood_ratio(
       bound = 0.0;
     }
 
-    if(variable_bool[variable2] == true) {
+    if(is_ordinal_variable[variable2] == true) {
       //Regular binary or ordinal MRF variable ---------------------------------
       denominator_prop = std::exp(-bound);
       denominator_curr = std::exp(-bound);
@@ -507,23 +521,23 @@ double log_pseudolikelihood_ratio(
 //  parameters for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 void metropolis_interactions(
-    NumericMatrix& interactions,
-    const NumericMatrix& thresholds,
-    const IntegerMatrix& indicator,
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
-    NumericMatrix& proposal_sd,
+    arma::mat& interactions,
+    const arma::mat& thresholds,
+    const arma::imat& indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    arma::mat& proposal_sd,
     const double interaction_scale,
     const int no_persons,
     const int no_variables,
-    NumericMatrix& rest_matrix,
+    arma::mat& residual_matrix,
     const double phi,
     const double target_ar,
     const int t,
     const double epsilon_lo,
     const double epsilon_hi,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
 ) {
   double proposed_state;
   double current_state;
@@ -536,18 +550,18 @@ void metropolis_interactions(
         current_state = interactions(variable1, variable2);
         proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
 
-        log_prob = log_pseudolikelihood_ratio(interactions,
-                                              thresholds,
-                                              observations,
-                                              num_categories,
-                                              no_persons,
-                                              variable1,
-                                              variable2,
-                                              proposed_state,
-                                              current_state,
-                                              rest_matrix,
-                                              variable_bool,
-                                              reference_category);
+        log_prob = log_pseudolikelihood_ratio_interaction(interactions,
+                                                          thresholds,
+                                                          observations,
+                                                          num_categories,
+                                                          no_persons,
+                                                          variable1,
+                                                          variable2,
+                                                          proposed_state,
+                                                          current_state,
+                                                          residual_matrix,
+                                                          is_ordinal_variable,
+                                                          reference_category);
         log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
         log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
@@ -559,9 +573,9 @@ void metropolis_interactions(
 
           //Update the matrix of rest scores
           for(int person = 0; person < no_persons; person++) {
-            rest_matrix(person, variable1) += observations(person, variable2) *
+            residual_matrix(person, variable1) += observations(person, variable2) *
               state_diff;
-            rest_matrix(person, variable2) += observations(person, variable1) *
+            residual_matrix(person, variable2) += observations(person, variable1) *
               state_diff;
           }
         }
@@ -592,20 +606,20 @@ void metropolis_interactions(
 //  pair for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 void metropolis_edge_interaction_pair(
-    NumericMatrix& interactions,
-    const NumericMatrix& thresholds,
-    IntegerMatrix& indicator,
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
-    const NumericMatrix& proposal_sd,
+    arma::mat& interactions,
+    const arma::mat& thresholds,
+    arma::imat& indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::mat& proposal_sd,
     const double interaction_scale,
-    const IntegerMatrix& index,
+    const arma::imat& index,
     const int no_interactions,
     const int no_persons,
-    NumericMatrix& rest_matrix,
-    const NumericMatrix& theta,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category
+    arma::mat& residual_matrix,
+    const arma::mat& theta,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
 ) {
   double proposed_state;
   double current_state;
@@ -627,18 +641,18 @@ void metropolis_edge_interaction_pair(
       proposed_state = 0.0;
     }
 
-    log_prob = log_pseudolikelihood_ratio(interactions,
-                                          thresholds,
-                                          observations,
-                                          num_categories,
-                                          no_persons,
-                                          variable1,
-                                          variable2,
-                                          proposed_state,
-                                          current_state,
-                                          rest_matrix,
-                                          variable_bool,
-                                          reference_category);
+    log_prob = log_pseudolikelihood_ratio_interaction(interactions,
+                                                      thresholds,
+                                                      observations,
+                                                      num_categories,
+                                                      no_persons,
+                                                      variable1,
+                                                      variable2,
+                                                      proposed_state,
+                                                      current_state,
+                                                      residual_matrix,
+                                                      is_ordinal_variable,
+                                                      reference_category);
 
     if(indicator(variable1, variable2) == 0) {
       log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
@@ -670,9 +684,9 @@ void metropolis_edge_interaction_pair(
 
       //Update the matrix of rest scores ---------------------------------------
       for(int person = 0; person < no_persons; person++) {
-        rest_matrix(person, variable1) += observations(person, variable2) *
+        residual_matrix(person, variable1) += observations(person, variable2) *
           state_diff;
-        rest_matrix(person, variable2) += observations(person, variable1) *
+        residual_matrix(person, variable2) += observations(person, variable1) *
           state_diff;
       }
     }
@@ -683,14 +697,14 @@ void metropolis_edge_interaction_pair(
 // A Gibbs step for graphical model parameters for Bayesian edge selection
 // ----------------------------------------------------------------------------|
 List gibbs_step_gm(
-    const IntegerMatrix& observations,
-    const IntegerVector& num_categories,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
     const double interaction_scale,
-    NumericMatrix& proposal_sd,
-    NumericMatrix& proposal_sd_blumecapel,
-    const IntegerMatrix& index,
-    const IntegerMatrix& num_obs_categories,
-    const IntegerMatrix& sufficient_blume_capel,
+    arma::mat& proposal_sd,
+    arma::mat& proposal_sd_blumecapel,
+    const arma::imat& index,
+    const arma::imat& num_obs_categories,
+    const arma::imat& sufficient_blume_capel,
     const double threshold_alpha,
     const double threshold_beta,
     const int no_persons,
@@ -698,18 +712,18 @@ List gibbs_step_gm(
     const int no_interactions,
     const int no_thresholds,
     const int max_num_categories,
-    IntegerMatrix& indicator,
-    NumericMatrix& interactions,
-    NumericMatrix& thresholds,
-    NumericMatrix& rest_matrix,
-    const NumericMatrix& theta,
+    arma::imat& indicator,
+    arma::mat& interactions,
+    arma::mat& thresholds,
+    arma::mat& residual_matrix,
+    const arma::mat& theta,
     const  double phi,
     const double target_ar,
     const int t,
     const double epsilon_lo,
     const double epsilon_hi,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
     const bool edge_selection
 ) {
 
@@ -725,9 +739,9 @@ List gibbs_step_gm(
                                      index,
                                      no_interactions,
                                      no_persons,
-                                     rest_matrix,
+                                     residual_matrix,
                                      theta,
-                                     variable_bool,
+                                     is_ordinal_variable,
                                      reference_category);
   }
 
@@ -741,18 +755,18 @@ List gibbs_step_gm(
                           interaction_scale,
                           no_persons,
                           no_variables,
-                          rest_matrix,
+                          residual_matrix,
                           phi,
                           target_ar,
                           t,
                           epsilon_lo,
                           epsilon_hi,
-                          variable_bool,
+                          is_ordinal_variable,
                           reference_category);
 
   //Update threshold parameters
   for(int variable = 0; variable < no_variables; variable++) {
-    if(variable_bool[variable] == true) {
+    if(is_ordinal_variable[variable] == true) {
       metropolis_thresholds_regular(thresholds,
                                     observations,
                                     num_categories,
@@ -761,7 +775,7 @@ List gibbs_step_gm(
                                     variable,
                                     threshold_alpha,
                                     threshold_beta,
-                                    rest_matrix);
+                                    residual_matrix);
     } else {
       metropolis_thresholds_blumecapel(thresholds,
                                        observations,
@@ -772,7 +786,7 @@ List gibbs_step_gm(
                                        reference_category,
                                        threshold_alpha,
                                        threshold_beta,
-                                       rest_matrix,
+                                       residual_matrix,
                                        proposal_sd_blumecapel,
                                        phi,
                                        target_ar,
@@ -785,7 +799,7 @@ List gibbs_step_gm(
   return List::create(Named("indicator") = indicator,
                       Named("interactions") = interactions,
                       Named("thresholds") = thresholds,
-                      Named("rest_matrix") = rest_matrix,
+                      Named("residual_matrix") = residual_matrix,
                       Named("proposal_sd") = proposal_sd);
 }
 
@@ -794,47 +808,47 @@ List gibbs_step_gm(
 // ----------------------------------------------------------------------------|
 // [[Rcpp::export]]
 List gibbs_sampler(
-    IntegerMatrix& observations,
-    IntegerMatrix& indicator,
-    NumericMatrix& interactions,
-    NumericMatrix& thresholds,
-    const IntegerVector& num_categories,
+    arma::imat& observations,
+    arma::imat& indicator,
+    arma::mat& interactions,
+    arma::mat& thresholds,
+    const arma::ivec& num_categories,
     const double interaction_scale,
-    NumericMatrix& proposal_sd,
-    NumericMatrix& proposal_sd_blumecapel,
+    arma::mat& proposal_sd,
+    arma::mat& proposal_sd_blumecapel,
     const String& edge_prior,
-    NumericMatrix& theta,
+    arma::mat& theta,
     const double beta_bernoulli_alpha,
     const double beta_bernoulli_beta,
     const double dirichlet_alpha,
     const double lambda,
-    const IntegerMatrix& Index,
+    const arma::imat& Index,
     const int iter,
     const int burnin,
-    IntegerMatrix& num_obs_categories,
-    IntegerMatrix& sufficient_blume_capel,
+    arma::imat& num_obs_categories,
+    arma::imat& sufficient_blume_capel,
     const double threshold_alpha,
     const double threshold_beta,
     const bool na_impute,
-    const IntegerMatrix& missing_index,
-    const LogicalVector& variable_bool,
-    const IntegerVector& reference_category,
+    const arma::imat& missing_index,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
     const bool save = false,
     const bool display_progress = false,
     bool edge_selection = true
 ) {
   int cntr;
-  int no_variables = observations.ncol();
-  int no_persons = observations.nrow();
-  int no_interactions = Index.nrow();
+  int no_variables = observations.n_cols;
+  int no_persons = observations.n_rows;
+  int no_interactions = Index.n_rows;
   int no_thresholds = sum(num_categories);
   int max_num_categories = max(num_categories);
-  IntegerVector K_values;  // To store sampled K values
+  arma::ivec K_values;  // To store sampled K values
 
 
-  IntegerVector v = seq(0, no_interactions - 1);
-  IntegerVector order(no_interactions);
-  IntegerMatrix index(no_interactions, 3);
+  arma::ivec v = seq(0, no_interactions - 1);
+  arma::ivec order(no_interactions);
+  arma::imat index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
   double phi = 0.75;
@@ -853,8 +867,8 @@ List gibbs_sampler(
     ncol_thresholds = no_thresholds;
   }
 
-  NumericMatrix out_pairwise_effects(nrow, ncol_edges);
-  NumericMatrix out_main_effects(nrow, ncol_thresholds);
+  arma::mat out_pairwise_effects(nrow, ncol_edges);
+  arma::mat out_main_effects(nrow, ncol_thresholds);
 
   if(edge_selection == false) {
     for(int variable1 = 0; variable1 < no_variables - 1; variable1++) {
@@ -866,56 +880,56 @@ List gibbs_sampler(
     nrow = 1;
     ncol_edges = 1;
   }
-  NumericMatrix out_indicator(nrow, ncol_edges);
+  arma::mat out_indicator(nrow, ncol_edges);
 
-  NumericMatrix rest_matrix(no_persons, no_variables);
+  arma::mat residual_matrix(no_persons, no_variables);
   for(int variable1 = 0; variable1 < no_variables; variable1++) {
     for(int person = 0; person < no_persons; person++) {
       for(int variable2 = 0; variable2 < no_variables; variable2++) {
-        rest_matrix(person, variable1) +=
+        residual_matrix(person, variable1) +=
           observations(person, variable2) * interactions(variable2, variable1);
       }
     }
   }
 
   //Variable declaration edge prior
-  IntegerVector cluster_allocations(no_variables);
-  NumericMatrix cluster_prob(1, 1);
-  NumericVector log_Vn(1);
+  arma::ivec cluster_allocations(no_variables);
+  arma::mat cluster_prob(1, 1);
+  arma::vec log_Vn(1);
 
   // store the allocation indices for each iteration
-  NumericMatrix out_allocations(iter, no_variables);
+  arma::mat out_allocations(iter, no_variables);
 
-  if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
-    cluster_allocations[0] = 0;
-    cluster_allocations[1] = 1;
-    for(int i = 2; i < no_variables; i++) {
-      double U = R::unif_rand();
-      if(U > 0.5){
-        cluster_allocations[i] = 1;
-      } else {
-        cluster_allocations[i] = 0;
-      }
-    }
-
-    cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                       indicator,
-                                       no_variables,
-                                       beta_bernoulli_alpha,
-                                       beta_bernoulli_beta);
-
-    for(int i = 0; i < no_variables - 1; i++) {
-      for(int j = i + 1; j < no_variables; j++) {
-        theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-        theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-      }
-    }
-
-    log_Vn = compute_Vn_mfm_sbm(no_variables,
-                                dirichlet_alpha,
-                                no_variables + 10,
-                                lambda);
-  }
+  // if(edge_prior == "Stochastic-Block") { // Initial Configuration of the cluster allocations
+  //   cluster_allocations[0] = 0;
+  //   cluster_allocations[1] = 1;
+  //   for(int i = 2; i < no_variables; i++) {
+  //     double U = R::unif_rand();
+  //     if(U > 0.5){
+  //       cluster_allocations[i] = 1;
+  //     } else {
+  //       cluster_allocations[i] = 0;
+  //     }
+  //   }
+  //
+  //   cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+  //                                      indicator,
+  //                                      no_variables,
+  //                                      beta_bernoulli_alpha,
+  //                                      beta_bernoulli_beta);
+  //
+  //   for(int i = 0; i < no_variables - 1; i++) {
+  //     for(int j = i + 1; j < no_variables; j++) {
+  //       theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+  //       theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+  //     }
+  //   }
+  //
+  //   log_Vn = compute_Vn_mfm_sbm(no_variables,
+  //                               dirichlet_alpha,
+  //                               no_variables + 10,
+  //                               lambda);
+  // }
 
   //The Gibbs sampler ----------------------------------------------------------
   //First, we do burn-in iterations---------------------------------------------
@@ -946,11 +960,8 @@ List gibbs_sampler(
     p.increment();
 
     //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_interactions,
-                   false,
-                   R_NilValue);
+    // Create a random ordering of pairwise effects for updating
+    arma::uvec order = arma::randperm(v.n_elem);
 
     for(int cntr = 0; cntr < no_interactions; cntr++) {
       index(cntr, 0) = Index(order[cntr], 0);
@@ -965,15 +976,15 @@ List gibbs_sampler(
                                      num_obs_categories,
                                      sufficient_blume_capel,
                                      num_categories,
-                                     rest_matrix,
+                                     residual_matrix,
                                      missing_index,
-                                     variable_bool,
+                                     is_ordinal_variable,
                                      reference_category);
 
-      IntegerMatrix observations = out["observations"];
-      IntegerMatrix num_obs_categories = out["num_obs_categories"];
-      IntegerMatrix sufficient_blume_capel = out["sufficient_blume_capel"];
-      NumericMatrix rest_matrix = out["rest_matrix"];
+      arma::imat observations = out["observations"];
+      arma::imat num_obs_categories = out["num_obs_categories"];
+      arma::imat sufficient_blume_capel = out["sufficient_blume_capel"];
+      arma::mat residual_matrix = out["residual_matrix"];
     }
 
     List out = gibbs_step_gm(observations,
@@ -994,22 +1005,22 @@ List gibbs_sampler(
                              indicator,
                              interactions,
                              thresholds,
-                             rest_matrix,
+                             residual_matrix,
                              theta,
                              phi,
                              target_ar,
                              iteration + 1,
                              epsilon_lo,
                              epsilon_hi,
-                             variable_bool,
+                             is_ordinal_variable,
                              reference_category,
                              edge_selection);
 
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-    NumericMatrix proposal_sd = out["proposal_sd"];
+    arma::imat indicator = out["indicator"];
+    arma::mat interactions = out["interactions"];
+    arma::mat thresholds = out["thresholds"];
+    arma::mat residual_matrix = out["residual_matrix"];
+    arma::mat proposal_sd = out["proposal_sd"];
 
     if(edge_selection == true) {
       if(edge_prior == "Beta-Bernoulli") {
@@ -1029,30 +1040,30 @@ List gibbs_sampler(
           }
         }
       }
-      if(edge_prior == "Stochastic-Block") {
-        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
-                                                        no_variables,
-                                                        log_Vn,
-                                                        cluster_prob,
-                                                        indicator,
-                                                        dirichlet_alpha,
-                                                        beta_bernoulli_alpha,
-                                                        beta_bernoulli_beta);
-
-
-        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           indicator,
-                                           no_variables,
-                                           beta_bernoulli_alpha,
-                                           beta_bernoulli_beta);
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-            theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-          }
-        }
-      }
+      // if(edge_prior == "Stochastic-Block") {
+      //   cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
+      //                                                   no_variables,
+      //                                                   log_Vn,
+      //                                                   cluster_prob,
+      //                                                   indicator,
+      //                                                   dirichlet_alpha,
+      //                                                   beta_bernoulli_alpha,
+      //                                                   beta_bernoulli_beta);
+      //
+      //
+      //   cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+      //                                      indicator,
+      //                                      no_variables,
+      //                                      beta_bernoulli_alpha,
+      //                                      beta_bernoulli_beta);
+      //
+      //   for(int i = 0; i < no_variables - 1; i++) {
+      //     for(int j = i + 1; j < no_variables; j++) {
+      //       theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+      //       theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+      //     }
+      //   }
+      // }
     }
   }
   //To ensure that edge_selection is reinstated to the input value -------------
@@ -1079,11 +1090,8 @@ List gibbs_sampler(
     p.increment();
 
     //Update interactions and model (between model move) -----------------------
-    //Use a random order to update the edge - interaction pairs ----------------
-    order = sample(v,
-                   no_interactions,
-                   false,
-                   R_NilValue);
+    // Create a random ordering of pairwise effects for updating
+    arma::uvec order = arma::randperm(v.n_elem);
 
     for(int cntr = 0; cntr < no_interactions; cntr++) {
       index(cntr, 0) = Index(order[cntr], 0);
@@ -1098,15 +1106,15 @@ List gibbs_sampler(
                                      num_obs_categories,
                                      sufficient_blume_capel,
                                      num_categories,
-                                     rest_matrix,
+                                     residual_matrix,
                                      missing_index,
-                                     variable_bool,
+                                     is_ordinal_variable,
                                      reference_category);
 
-      IntegerMatrix observations = out["observations"];
-      IntegerMatrix num_obs_categories = out["num_obs_categories"];
-      IntegerMatrix sufficient_blume_capel = out["sufficient_blume_capel"];
-      NumericMatrix rest_matrix = out["rest_matrix"];
+      arma::imat observations = out["observations"];
+      arma::imat num_obs_categories = out["num_obs_categories"];
+      arma::imat sufficient_blume_capel = out["sufficient_blume_capel"];
+      arma::mat residual_matrix = out["residual_matrix"];
     }
 
     List out = gibbs_step_gm(observations,
@@ -1127,22 +1135,22 @@ List gibbs_sampler(
                              indicator,
                              interactions,
                              thresholds,
-                             rest_matrix,
+                             residual_matrix,
                              theta,
                              phi,
                              target_ar,
                              iteration + 1,
                              epsilon_lo,
                              epsilon_hi,
-                             variable_bool,
+                             is_ordinal_variable,
                              reference_category,
                              edge_selection);
 
-    IntegerMatrix indicator = out["indicator"];
-    NumericMatrix interactions = out["interactions"];
-    NumericMatrix thresholds = out["thresholds"];
-    NumericMatrix rest_matrix = out["rest_matrix"];
-    NumericMatrix proposal_sd = out["proposal_sd"];
+    arma::imat indicator = out["indicator"];
+    arma::mat interactions = out["interactions"];
+    arma::mat thresholds = out["thresholds"];
+    arma::mat residual_matrix = out["residual_matrix"];
+    arma::mat proposal_sd = out["proposal_sd"];
 
     if(edge_selection == true) {
       if(edge_prior == "Beta-Bernoulli") {
@@ -1162,31 +1170,31 @@ List gibbs_sampler(
           }
         }
       }
-      if(edge_prior == "Stochastic-Block") {
-        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
-                                                        no_variables,
-                                                        log_Vn,
-                                                        cluster_prob,
-                                                        indicator,
-                                                        dirichlet_alpha,
-                                                        beta_bernoulli_alpha,
-                                                        beta_bernoulli_beta);
-
-
-        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           indicator,
-                                           no_variables,
-                                           beta_bernoulli_alpha,
-                                           beta_bernoulli_beta);
-
-
-        for(int i = 0; i < no_variables - 1; i++) {
-          for(int j = i + 1; j < no_variables; j++) {
-            theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-            theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
-          }
-        }
-      }
+      // if(edge_prior == "Stochastic-Block") {
+      //   cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
+      //                                                   no_variables,
+      //                                                   log_Vn,
+      //                                                   cluster_prob,
+      //                                                   indicator,
+      //                                                   dirichlet_alpha,
+      //                                                   beta_bernoulli_alpha,
+      //                                                   beta_bernoulli_beta);
+      //
+      //
+      //   cluster_prob = block_probs_mfm_sbm(cluster_allocations,
+      //                                      indicator,
+      //                                      no_variables,
+      //                                      beta_bernoulli_alpha,
+      //                                      beta_bernoulli_beta);
+      //
+      //
+      //   for(int i = 0; i < no_variables - 1; i++) {
+      //     for(int j = i + 1; j < no_variables; j++) {
+      //       theta(i, j) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+      //       theta(j, i) = cluster_prob(cluster_allocations[i], cluster_allocations[j]);
+      //     }
+      //   }
+      // }
     }
 
 
@@ -1205,7 +1213,7 @@ List gibbs_sampler(
       }
       cntr = 0;
       for(int variable = 0; variable < no_variables; variable++) {
-        if(variable_bool[variable] == true) {
+        if(is_ordinal_variable[variable] == true) {
           for(int category = 0; category < num_categories[variable]; category++) {
             out_main_effects(iteration, cntr) = thresholds(variable, category);
             cntr++;
@@ -1234,7 +1242,7 @@ List gibbs_sampler(
           out_pairwise_effects(variable2, variable1) = out_pairwise_effects(variable1, variable2);
         }
 
-        if(variable_bool[variable1] == true) {
+        if(is_ordinal_variable[variable1] == true) {
           for(int category = 0; category < num_categories[variable1]; category++) {
             out_main_effects(variable1, category) *= iteration;
             out_main_effects(variable1, category) += thresholds(variable1, category);
@@ -1249,7 +1257,7 @@ List gibbs_sampler(
           out_main_effects(variable1, 1) /= iteration + 1;
         }
       }
-      if(variable_bool[no_variables - 1] == true) {
+      if(is_ordinal_variable[no_variables - 1] == true) {
         for(int category = 0; category < num_categories[no_variables - 1]; category++) {
           out_main_effects(no_variables - 1, category) *= iteration;
           out_main_effects(no_variables - 1, category) += thresholds(no_variables - 1, category);
@@ -1273,17 +1281,17 @@ List gibbs_sampler(
 
   if(edge_selection == true) {
     if(edge_prior == "Stochastic-Block"){
-    return List::create(Named("indicator") = out_indicator,
-                        Named("pairwise_effects") = out_pairwise_effects,
-                        Named("main_effects") = out_main_effects,
-                        Named("allocations") = out_allocations);
+      return List::create(Named("indicator") = out_indicator,
+                          Named("pairwise_effects") = out_pairwise_effects,
+                          Named("main_effects") = out_main_effects,
+                          Named("allocations") = out_allocations);
     } else {
       return List::create(Named("indicator") = out_indicator,
                           Named("pairwise_effects") = out_pairwise_effects,
                           Named("main_effects") = out_main_effects);
     }
   } else {
-      return List::create(Named("pairwise_effects") = out_pairwise_effects,
-                          Named("main_effects") = out_main_effects);
+    return List::create(Named("pairwise_effects") = out_pairwise_effects,
+                        Named("main_effects") = out_main_effects);
   }
 }
