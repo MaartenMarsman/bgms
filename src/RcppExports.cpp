@@ -46,8 +46,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler
-List gibbs_sampler(IntegerMatrix& observations, IntegerMatrix& indicator, NumericMatrix& interactions, NumericMatrix& thresholds, const IntegerVector& no_categories, const double interaction_scale, NumericMatrix& proposal_sd, NumericMatrix& proposal_sd_blumecapel, const String& edge_prior, NumericMatrix& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const IntegerMatrix& Index, const int iter, const int burnin, IntegerMatrix& n_cat_obs, IntegerMatrix& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const IntegerMatrix& missing_index, const LogicalVector& variable_bool, const IntegerVector& reference_category, const bool save, const bool display_progress, bool edge_selection);
-RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP no_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP n_cat_obsSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
+List gibbs_sampler(IntegerMatrix& observations, IntegerMatrix& indicator, NumericMatrix& interactions, NumericMatrix& thresholds, const IntegerVector& num_categories, const double interaction_scale, NumericMatrix& proposal_sd, NumericMatrix& proposal_sd_blumecapel, const String& edge_prior, NumericMatrix& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const IntegerMatrix& Index, const int iter, const int burnin, IntegerMatrix& num_obs_categories, IntegerMatrix& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const IntegerMatrix& missing_index, const LogicalVector& variable_bool, const IntegerVector& reference_category, const bool save, const bool display_progress, bool edge_selection);
+RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP variable_boolSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -55,7 +55,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerMatrix& >::type indicator(indicatorSEXP);
     Rcpp::traits::input_parameter< NumericMatrix& >::type interactions(interactionsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix& >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type no_categories(no_categoriesSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
     Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
     Rcpp::traits::input_parameter< NumericMatrix& >::type proposal_sd(proposal_sdSEXP);
     Rcpp::traits::input_parameter< NumericMatrix& >::type proposal_sd_blumecapel(proposal_sd_blumecapelSEXP);
@@ -68,7 +68,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const IntegerMatrix& >::type Index(IndexSEXP);
     Rcpp::traits::input_parameter< const int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
-    Rcpp::traits::input_parameter< IntegerMatrix& >::type n_cat_obs(n_cat_obsSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix& >::type num_obs_categories(num_obs_categoriesSEXP);
     Rcpp::traits::input_parameter< IntegerMatrix& >::type sufficient_blume_capel(sufficient_blume_capelSEXP);
     Rcpp::traits::input_parameter< const double >::type threshold_alpha(threshold_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type threshold_beta(threshold_betaSEXP);
@@ -79,7 +79,52 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, indicator, interactions, thresholds, no_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, n_cat_obs, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection));
+    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, variable_bool, reference_category, save, display_progress, edge_selection));
+    return rcpp_result_gen;
+END_RCPP
+}
+// log_pseudolikelihood
+double log_pseudolikelihood(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerMatrix& observations, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat);
+RcppExport SEXP _bgms_log_pseudolikelihood(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
+    Rcpp::traits::input_parameter< const IntegerMatrix& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
+    rcpp_result_gen = Rcpp::wrap(log_pseudolikelihood(thresholds, rest_matrix, observations, num_categories, num_obs_cat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gradient_regular_thresholds_pseudolikelihood
+NumericVector gradient_regular_thresholds_pseudolikelihood(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat);
+RcppExport SEXP _bgms_gradient_regular_thresholds_pseudolikelihood(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
+    rcpp_result_gen = Rcpp::wrap(gradient_regular_thresholds_pseudolikelihood(thresholds, rest_matrix, num_categories, num_obs_cat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gradient_thresholds_pseudoposterior
+NumericVector gradient_thresholds_pseudoposterior(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat, const double threshold_alpha, const double threshold_beta);
+RcppExport SEXP _bgms_gradient_thresholds_pseudoposterior(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
+    Rcpp::traits::input_parameter< const double >::type threshold_alpha(threshold_alphaSEXP);
+    Rcpp::traits::input_parameter< const double >::type threshold_beta(threshold_betaSEXP);
+    rcpp_result_gen = Rcpp::wrap(gradient_thresholds_pseudoposterior(thresholds, rest_matrix, num_categories, num_obs_cat, threshold_alpha, threshold_beta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -146,6 +191,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 28},
+    {"_bgms_log_pseudolikelihood", (DL_FUNC) &_bgms_log_pseudolikelihood, 5},
+    {"_bgms_gradient_regular_thresholds_pseudolikelihood", (DL_FUNC) &_bgms_gradient_regular_thresholds_pseudolikelihood, 4},
+    {"_bgms_gradient_thresholds_pseudoposterior", (DL_FUNC) &_bgms_gradient_thresholds_pseudoposterior, 6},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}

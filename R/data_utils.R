@@ -32,14 +32,14 @@ reformat_data = function(x,
     na_impute = FALSE
   } else {
     # Check for missing values -------------------------------------------------
-    no_missings = sum(is.na(x))
-    no_persons = nrow(x)
-    no_variables = ncol(x)
-    if(no_missings > 0) {
-      missing_index = matrix(0, nrow = no_missings, ncol = 2)
+    num_missings = sum(is.na(x))
+    num_persons = nrow(x)
+    num_variables = ncol(x)
+    if(num_missings > 0) {
+      missing_index = matrix(0, nrow = num_missings, ncol = 2)
       na_impute = TRUE
       cntr = 0
-      for(node in 1:no_variables) {
+      for(node in 1:num_variables) {
         mis = which(is.na(x[, node]))
         if(length(mis) > 0) {
           for(i in 1:length(mis)) {
@@ -59,9 +59,9 @@ reformat_data = function(x,
   }
 
   check_fail_zero = FALSE
-  no_variables = ncol(x)
-  no_categories = vector(length = no_variables)
-  for(node in 1:no_variables) {
+  num_variables = ncol(x)
+  num_categories = vector(length = num_variables)
+  for(node in 1:num_variables) {
     unq_vls = sort(unique(x[,  node]))
     mx_vl = max(unq_vls)
 
@@ -130,14 +130,14 @@ reformat_data = function(x,
     }
 
     # Warn that maximum category value is large --------------------------------
-    no_categories[node] = max(x[,node])
-    if(!variable_bool[node] & no_categories[node] > 10) {
+    num_categories[node] = max(x[,node])
+    if(!variable_bool[node] & num_categories[node] > 10) {
       # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
       warning(paste0("In the (pseudo) likelihood of Blume-Capel variables, the normalization constant \n",
                      "is a sum over all possible values of the ordinal variable. The range of \n",
                      "observed values, possibly after recoding to integers, is assumed to be the \n",
                      "number of possible response categories.  For node ", node,", this range was \n",
-                     "equal to ", no_categories[node], "which may cause the analysis to take some \n",
+                     "equal to ", num_categories[node], "which may cause the analysis to take some \n",
                      "time to run. Note that for the Blume-Capel model, the bgm function does not \n",
                      "collapse the categories that have no observations between zero and the last \n",
                      "category. This may explain the large discrepancy between the first and last \n",
@@ -145,7 +145,7 @@ reformat_data = function(x,
     }
 
     # Check to see if not all responses are in one category --------------------
-    if(no_categories[node] == 0)
+    if(num_categories[node] == 0)
       stop(paste0("Only one value [",
                   unq_vls,
                   "] was observed for variable ",
@@ -169,7 +169,7 @@ reformat_data = function(x,
   }
 
   return(list(x = x,
-              no_categories = no_categories,
+              num_categories = num_categories,
               reference_category = reference_category,
               missing_index = missing_index,
               na_impute = na_impute))

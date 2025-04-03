@@ -386,45 +386,45 @@ bgm = function(x,
                        variable_bool = variable_bool,
                        reference_category = reference_category)
   x = data$x
-  no_categories = data$no_categories
+  num_categories = data$num_categories
   missing_index = data$missing_index
   na_impute = data$na_impute
   reference_category = data$reference_category
 
-  no_variables = ncol(x)
-  no_interactions = no_variables * (no_variables - 1) / 2
-  no_thresholds = sum(no_categories)
+  num_variables = ncol(x)
+  num_interactions = num_variables * (num_variables - 1) / 2
+  num_thresholds = sum(num_categories)
 
   #Specify the variance of the (normal) proposal distribution ------------------
   proposal_sd = matrix(1,
-                       nrow = no_variables,
-                       ncol = no_variables)
+                       nrow = num_variables,
+                       ncol = num_variables)
   proposal_sd_blumecapel = matrix(1,
-                                  nrow = no_variables,
+                                  nrow = num_variables,
                                   ncol = 2)
 
   # Starting value of model matrix ---------------------------------------------
   indicator = matrix(1,
-                 nrow = no_variables,
-                 ncol = no_variables)
+                 nrow = num_variables,
+                 ncol = num_variables)
 
 
   #Starting values of interactions and thresholds (posterior mode) -------------
-  interactions = matrix(0, nrow = no_variables, ncol = no_variables)
-  thresholds = matrix(0, nrow = no_variables, ncol = max(no_categories))
+  interactions = matrix(0, nrow = num_variables, ncol = num_variables)
+  thresholds = matrix(0, nrow = num_variables, ncol = max(num_categories))
 
   #Precompute the number of observations per category for each variable --------
-  n_cat_obs = matrix(0,
-                     nrow = max(no_categories) + 1,
-                     ncol = no_variables)
-  for(variable in 1:no_variables) {
-    for(category in 0:no_categories[variable]) {
-      n_cat_obs[category + 1, variable] = sum(x[, variable] == category)
+  num_obs_categories = matrix(0,
+                     nrow = max(num_categories) + 1,
+                     ncol = num_variables)
+  for(variable in 1:num_variables) {
+    for(category in 0:num_categories[variable]) {
+      num_obs_categories[category + 1, variable] = sum(x[, variable] == category)
     }
   }
 
   #Precompute the sufficient statistics for the two Blume-Capel parameters -----
-  sufficient_blume_capel = matrix(0, nrow = 2, ncol = no_variables)
+  sufficient_blume_capel = matrix(0, nrow = 2, ncol = num_variables)
   if(any(!variable_bool)) {
     # Ordinal (variable_bool == TRUE) or Blume-Capel (variable_bool == FALSE)
     bc_vars = which(!variable_bool)
@@ -436,11 +436,11 @@ bgm = function(x,
 
   # Index vector used to sample interactions in a random order -----------------
   Index = matrix(0,
-                 nrow = no_variables * (no_variables - 1) / 2,
+                 nrow = num_variables * (num_variables - 1) / 2,
                  ncol = 3)
   cntr = 0
-  for(variable1 in 1:(no_variables - 1)) {
-    for(variable2 in (variable1 + 1):no_variables) {
+  for(variable1 in 1:(num_variables - 1)) {
+    for(variable2 in (variable1 + 1):num_variables) {
       cntr =  cntr + 1
       Index[cntr, 1] = cntr
       Index[cntr, 2] = variable1 - 1
@@ -450,8 +450,8 @@ bgm = function(x,
 
   #Preparing the output --------------------------------------------------------
   arguments = list(
-    no_variables = no_variables,
-    no_cases = nrow(x),
+    num_variables = num_variables,
+    num_cases = nrow(x),
     na_impute = na_impute,
     variable_type = variable_type,
     iter = iter,
@@ -476,7 +476,7 @@ bgm = function(x,
                       indicator = indicator,
                       interactions = interactions,
                       thresholds = thresholds,
-                      no_categories  = no_categories,
+                      num_categories  = num_categories,
                       interaction_scale = interaction_scale,
                       proposal_sd = proposal_sd,
                       proposal_sd_blumecapel = proposal_sd_blumecapel,
@@ -489,7 +489,7 @@ bgm = function(x,
                       Index = Index,
                       iter = iter,
                       burnin = burnin,
-                      n_cat_obs = n_cat_obs,
+                      num_obs_categories = num_obs_categories,
                       sufficient_blume_capel = sufficient_blume_capel,
                       threshold_alpha = threshold_alpha,
                       threshold_beta = threshold_beta,
@@ -505,34 +505,34 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       indicator = out$indicator
     }
-    interactions = out$interactions
-    tresholds = out$thresholds
+    pairwise_effects = out$pairwise_effects
+    main_effects = out$main_effects
 
     if(is.null(colnames(x))){
-      data_columnnames = paste0("variable ", 1:no_variables)
-      colnames(interactions) = data_columnnames
-      rownames(interactions) = data_columnnames
+      data_columnnames = paste0("variable ", 1:num_variables)
+      colnames(pairwise_effects) = data_columnnames
+      rownames(pairwise_effects) = data_columnnames
       if(edge_selection == TRUE) {
         colnames(indicator) = data_columnnames
         rownames(indicator) = data_columnnames
       }
-      rownames(thresholds) = data_columnnames
+      rownames(main_effects) = data_columnnames
     } else {
       data_columnnames <- colnames(x)
-      colnames(interactions) = data_columnnames
-      rownames(interactions) = data_columnnames
+      colnames(pairwise_effects) = data_columnnames
+      rownames(pairwise_effects) = data_columnnames
       if(edge_selection == TRUE) {
         colnames(indicator) = data_columnnames
         rownames(indicator) = data_columnnames
       }
-      rownames(thresholds) = data_columnnames
+      rownames(main_effects) = data_columnnames
     }
 
     if(any(variable_bool)) {
-      colnames(thresholds) = paste0("category ", 1:max(no_categories))
+      colnames(main_effects) = paste0("category ", 1:max(num_categories))
     } else {
-      thresholds = thresholds[, 1:2]
-      colnames(thresholds) = c("linear", "quadratic")
+      main_effects = main_effects[, 1:2]
+      colnames(main_effects) = c("linear", "quadratic")
     }
 
     arguments$data_columnnames = data_columnnames
@@ -540,8 +540,8 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
         output = list(
-          indicator = indicator, interactions = interactions,
-          thresholds = thresholds, allocations = out$allocations,
+          indicator = indicator, pairwise_effects = pairwise_effects,
+          main_effects = main_effects, allocations = out$allocations,
           arguments = arguments)
         class(output) = "bgms"
         summary_Sbm = summarySBM(output,
@@ -552,13 +552,13 @@ bgm = function(x,
       } else {
 
         output = list(
-          indicator = indicator, interactions = interactions,
-          thresholds = thresholds, arguments = arguments)
+          indicator = indicator, pairwise_effects = pairwise_effects,
+          main_effects = main_effects, arguments = arguments)
         }
 
     } else {
       output = list(
-        interactions = interactions, thresholds = thresholds,
+        pairwise_effects = pairwise_effects, main_effects = main_effects,
         arguments = arguments)
     }
 
@@ -567,8 +567,8 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       indicator = out$indicator
     }
-    interactions = out$interactions
-    thresholds = out$thresholds
+    pairwise_effects = out$pairwise_effects
+    main_effects = out$main_effects
 
     if(is.null(colnames(x))){
       data_columnnames <- 1:ncol(x)
@@ -584,41 +584,41 @@ bgm = function(x,
     if(edge_selection == TRUE) {
       colnames(indicator) = names_vec
     }
-    colnames(interactions) = names_vec
-    names = character(length = sum(no_categories))
+    colnames(pairwise_effects) = names_vec
+    names = character(length = sum(num_categories))
     cntr = 0
-    for(variable in 1:no_variables) {
-      for(category in 1:no_categories[variable]) {
+    for(variable in 1:num_variables) {
+      for(category in 1:num_categories[variable]) {
         cntr = cntr + 1
         names[cntr] = paste0("threshold(",variable, ", ",category,")")
       }
     }
-    colnames(thresholds) = names
+    colnames(main_effects) = names
 
     if(edge_selection == TRUE) {
       dimnames(indicator) = list(Iter. = 1:iter, colnames(indicator))
     }
-    dimnames(interactions) = list(Iter. = 1:iter, colnames(interactions))
-    dimnames(thresholds) = list(Iter. = 1:iter, colnames(thresholds))
+    dimnames(pairwise_effects) = list(Iter. = 1:iter, colnames(pairwise_effects))
+    dimnames(main_effects) = list(Iter. = 1:iter, colnames(main_effects))
 
     arguments$data_columnnames = data_columnnames
 
     if(edge_selection == TRUE) {
       if(edge_prior == "Stochastic-Block"){
         output = list(indicator = indicator,
-                      interactions = interactions,
-                      thresholds = thresholds,
+                      pairwise_effects = pairwise_effects,
+                      main_effects = main_effects,
                       allocations = out$allocations,
                       arguments = arguments)
       } else {
         output = list(indicator = indicator,
-                      interactions = interactions,
-                      thresholds = thresholds,
+                      pairwise_effects = pairwise_effects,
+                      main_effects = main_effects,
                       arguments = arguments)
       }
     } else {
-      output = list(interactions = interactions,
-                    thresholds = thresholds,
+      output = list(pairwise_effects = pairwise_effects,
+                    main_effects = main_effects,
                     arguments = arguments)
     }
     class(output) = "bgms"

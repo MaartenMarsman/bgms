@@ -63,7 +63,7 @@ check_model = function(x,
                   "but not of type ",
                   paste0(variable_input, collapse = ", "), "."))
 
-    no_types = sapply(variable_input, function(type) {
+    num_types = sapply(variable_input, function(type) {
       tmp = try(match.arg(arg = type,
                           choices = c("ordinal", "blume-capel")),
                 silent = TRUE)
@@ -73,7 +73,7 @@ check_model = function(x,
     if(length(variable_type) != ncol(x))
       stop(paste0("The bgm function supports variables of type ordinal and blume-capel, \n",
                   "but not of type ",
-                  paste0(variable_input[no_types], collapse = ", "), "."))
+                  paste0(variable_input[num_types], collapse = ", "), "."))
 
     variable_bool = (variable_type == "ordinal")
   }

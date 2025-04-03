@@ -95,9 +95,9 @@ extract_posterior_inclusion_probabilities.bgms <- function(bgms_object) {
 
   if(arguments$save) {
     edge_means = colMeans(bgms_object$indicator)
-    no_variables = arguments$no_variables
+    num_variables = arguments$num_variables
 
-    posterior_inclusion_probabilities = matrix(0, no_variables, no_variables)
+    posterior_inclusion_probabilities = matrix(0, num_variables, num_variables)
     posterior_inclusion_probabilities[lower.tri(posterior_inclusion_probabilities)] = edge_means
     posterior_inclusion_probabilities = posterior_inclusion_probabilities +
       t(posterior_inclusion_probabilities)
@@ -125,9 +125,9 @@ extract_posterior_inclusion_probabilities.bgmCompare <- function(bgms_object) {
 
   if(arguments$save) {
     pairwise_difference_means = colMeans(bgms_object$pairwise_difference_indicator)
-    no_variables = arguments$no_variables
+    num_variables = arguments$num_variables
 
-    posterior_inclusion_probabilities = matrix(0, no_variables, no_variables)
+    posterior_inclusion_probabilities = matrix(0, num_variables, num_variables)
     posterior_inclusion_probabilities[lower.tri(posterior_inclusion_probabilities)] = pairwise_difference_means
     posterior_inclusion_probabilities = posterior_inclusion_probabilities +
       t(posterior_inclusion_probabilities)
@@ -215,7 +215,7 @@ extract_indicator_priors.bgmCompare <- function(bgms_object) {
 extract_pairwise_interactions <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  return(bgms_object$interactions)
+  return(bgms_object$pairwise_effects)
 }
 
 #' @rdname extractor_functions
@@ -223,7 +223,7 @@ extract_pairwise_interactions <- function(bgms_object) {
 extract_category_thresholds <- function(bgms_object) {
   arguments = extract_arguments(bgms_object)
 
-  return(bgms_object$thresholds)
+  return(bgms_object$main_effects)
 }
 
 #' @rdname extractor_functions
