@@ -311,7 +311,8 @@ bgm = function(x,
                lambda = 1,
                na_action = c("listwise", "impute"),
                save = FALSE,
-               display_progress = TRUE) {
+               display_progress = TRUE,
+               mala = FALSE) {
 
   #Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
@@ -499,7 +500,8 @@ bgm = function(x,
                       reference_category = reference_category,
                       save = save,
                       display_progress = display_progress,
-                      edge_selection = edge_selection)
+                      edge_selection = edge_selection,
+                      mala = mala)
 
   if(save == FALSE) {
     if(edge_selection == TRUE) {

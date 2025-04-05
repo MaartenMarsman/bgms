@@ -9,20 +9,8 @@ sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interact
     .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, variable_type, reference_category, iter)
 }
 
-gibbs_sampler <- function(observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save = FALSE, display_progress = FALSE, edge_selection = TRUE) {
-    .Call(`_bgms_gibbs_sampler`, observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save, display_progress, edge_selection)
-}
-
-log_pseudolikelihood <- function(thresholds, rest_matrix, observations, num_categories, num_obs_cat) {
-    .Call(`_bgms_log_pseudolikelihood`, thresholds, rest_matrix, observations, num_categories, num_obs_cat)
-}
-
-gradient_regular_thresholds_pseudolikelihood <- function(thresholds, rest_matrix, num_categories, num_obs_cat) {
-    .Call(`_bgms_gradient_regular_thresholds_pseudolikelihood`, thresholds, rest_matrix, num_categories, num_obs_cat)
-}
-
-gradient_thresholds_pseudoposterior <- function(thresholds, rest_matrix, num_categories, num_obs_cat, threshold_alpha = 1.0, threshold_beta = 1.0) {
-    .Call(`_bgms_gradient_thresholds_pseudoposterior`, thresholds, rest_matrix, num_categories, num_obs_cat, threshold_alpha, threshold_beta)
+gibbs_sampler <- function(observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save = FALSE, display_progress = FALSE, edge_selection = TRUE, mala = FALSE) {
+    .Call(`_bgms_gibbs_sampler`, observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save, display_progress, edge_selection, mala)
 }
 
 compare_anova_gibbs_sampler <- function(observations, main_effect_indices, pairwise_effect_indices, projection, num_categories, num_groups, group_indices, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, prior_threshold_alpha, prior_threshold_beta, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, independent_thresholds, save_main = FALSE, save_pairwise = FALSE, save_indicator = FALSE, display_progress = FALSE, difference_selection = TRUE) {
