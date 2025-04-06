@@ -566,7 +566,6 @@ void adamala_thresholds (
       -1.0 / (2.0 * step_size * step_size) * arma::dot(flat_current - mu_current,
                                  flat_current - mu_current);
 
-
   double log_accept_ratio =
     log_post_proposed - log_post_current +
     log_q_current_given_proposed - log_q_proposed_given_current;
