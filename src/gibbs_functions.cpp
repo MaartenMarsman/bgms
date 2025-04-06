@@ -199,16 +199,17 @@ double log_pseudoposterior_thresholds (
     } else {
       // Contribution from thresholds × suff.stat. + prior
       for (int parameter = 0; parameter < 2; parameter++) {
-        int suf_stat = sufficient_blume_capel(parameter, variable);
-        log_pp += thresholds(variable, parameter) * (suf_stat + threshold_alpha);
-        log_pp -= std::log(1.0 + std::exp(thresholds(variable, parameter))) * (threshold_alpha + threshold_beta);
+        log_pp += thresholds(variable, parameter) *
+          (sufficient_blume_capel(parameter, variable) + threshold_alpha);
+        log_pp -= std::log(1.0 + std::exp(thresholds(variable, parameter))) *
+          (threshold_alpha + threshold_beta);
       }
 
       const int ref = reference_category(variable);
       double exp0 = std::exp(thresholds(variable, 1) * ref * ref);
 
       // Contribution from normalization constants over all persons
-      for (int person = 0; person < num_persons; ++person) {
+      for (int person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
         double denom = exp0 * std::exp(-bound);
@@ -216,9 +217,9 @@ double log_pseudoposterior_thresholds (
         // Compute unnormalized category probabilities
         for (int category = 0; category < num_cats; category++) {
           int score = category + 1;
-          int centered = score - ref;
+          int centered_sq = (score - ref) * (score - ref);
           double exponent = thresholds(variable, 0) * score +
-            thresholds(variable, 1) * centered * centered +
+            thresholds(variable, 1) * centered_sq +
             score * rest_score - bound;
           denom += std::exp(exponent);
         }
@@ -496,10 +497,9 @@ arma::mat unflatten_thresholds(
  *   - threshold_alpha: Logistic-Beta prior shape (default 1.0)
  *   - threshold_beta: Logistic-Beta prior shape (default 1.0)
  *
- * Outputs:
- *   - List with:
- *       - `theta_proposed`: proposed vector
- *       - `log_accept_ratio`: log acceptance ratio (for MH)
+ * Updates:
+ *       - `thresholds''
+ *       - `step_size`
  */
 void adamala_thresholds (
     arma::mat& thresholds,
@@ -532,7 +532,6 @@ void adamala_thresholds (
   arma::mat thresholds_proposed = unflatten_thresholds (
       flat_proposed, num_categories, is_ordinal_variable);
 
-
   // Compute log-posterior values
   double log_post_current = log_pseudoposterior_thresholds (
     thresholds, residual_matrix, num_categories, num_obs_categories,
@@ -559,12 +558,12 @@ void adamala_thresholds (
 
   // Log-proposal densities
   double log_q_proposed_given_current =
-    -1.0 / (2.0 * step_size * step_size) * arma::dot(flat_proposed - mu_proposed,
-                                 flat_proposed - mu_proposed);
+    -1.0 / (2.0 * step_size * step_size) *
+    arma::dot(flat_proposed - mu_proposed, flat_proposed - mu_proposed);
 
-    double log_q_current_given_proposed =
-      -1.0 / (2.0 * step_size * step_size) * arma::dot(flat_current - mu_current,
-                                 flat_current - mu_current);
+  double log_q_current_given_proposed =
+      -1.0 / (2.0 * step_size * step_size) *
+      arma::dot(flat_current - mu_current, flat_current - mu_current);
 
   double log_accept_ratio =
     log_post_proposed - log_post_current +
@@ -1314,7 +1313,7 @@ List gibbs_sampler(
   arma::imat index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
-  double step_size = 0.1;
+  double step_size = 0.05;
   double phi = 0.75;
   double target_ar = 0.234;
   double epsilon_lo = 1.0 / static_cast<double>(no_persons);
