@@ -46,16 +46,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_sampler
-List gibbs_sampler(arma::imat& observations, arma::imat& indicator, arma::mat& interactions, arma::mat& thresholds, const arma::ivec& num_categories, const double interaction_scale, arma::mat& proposal_sd, arma::mat& proposal_sd_blumecapel, const String& edge_prior, arma::mat& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::imat& Index, const int iter, const int burnin, arma::imat& num_obs_categories, arma::imat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::imat& missing_index, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const bool save, const bool display_progress, bool edge_selection, bool mala);
+List gibbs_sampler(arma::umat& observations, arma::umat& indicator, arma::mat& interactions, arma::mat& thresholds, const arma::uvec& num_categories, const double interaction_scale, arma::mat& proposal_sd, arma::mat& proposal_sd_blumecapel, const String& edge_prior, arma::mat& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::umat& Index, const arma::uword iter, const arma::uword burnin, arma::umat& num_obs_categories, arma::umat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::umat& missing_index, const arma::uvec& is_ordinal_variable, const arma::uvec& reference_category, const bool save, const bool display_progress, bool edge_selection, bool mala);
 RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP malaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::imat& >::type observations(observationsSEXP);
-    Rcpp::traits::input_parameter< arma::imat& >::type indicator(indicatorSEXP);
+    Rcpp::traits::input_parameter< arma::umat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< arma::umat& >::type indicator(indicatorSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type interactions(interactionsSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type num_categories(num_categoriesSEXP);
     Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type proposal_sd(proposal_sdSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type proposal_sd_blumecapel(proposal_sd_blumecapelSEXP);
@@ -65,17 +65,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_beta(beta_bernoulli_betaSEXP);
     Rcpp::traits::input_parameter< const double >::type dirichlet_alpha(dirichlet_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type Index(IndexSEXP);
-    Rcpp::traits::input_parameter< const int >::type iter(iterSEXP);
-    Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
-    Rcpp::traits::input_parameter< arma::imat& >::type num_obs_categories(num_obs_categoriesSEXP);
-    Rcpp::traits::input_parameter< arma::imat& >::type sufficient_blume_capel(sufficient_blume_capelSEXP);
+    Rcpp::traits::input_parameter< const arma::umat& >::type Index(IndexSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type iter(iterSEXP);
+    Rcpp::traits::input_parameter< const arma::uword >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< arma::umat& >::type num_obs_categories(num_obs_categoriesSEXP);
+    Rcpp::traits::input_parameter< arma::umat& >::type sufficient_blume_capel(sufficient_blume_capelSEXP);
     Rcpp::traits::input_parameter< const double >::type threshold_alpha(threshold_alphaSEXP);
     Rcpp::traits::input_parameter< const double >::type threshold_beta(threshold_betaSEXP);
     Rcpp::traits::input_parameter< const bool >::type na_impute(na_imputeSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type missing_index(missing_indexSEXP);
+    Rcpp::traits::input_parameter< const arma::umat& >::type missing_index(missing_indexSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type reference_category(reference_categorySEXP);
     Rcpp::traits::input_parameter< const bool >::type save(saveSEXP);
     Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
@@ -129,14 +129,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_Vn_mfm_sbm
-NumericVector compute_Vn_mfm_sbm(int no_variables, double dirichlet_alpha, int t_max, double lambda);
+arma::vec compute_Vn_mfm_sbm(arma::uword no_variables, double dirichlet_alpha, arma::uword t_max, double lambda);
 RcppExport SEXP _bgms_compute_Vn_mfm_sbm(SEXP no_variablesSEXP, SEXP dirichlet_alphaSEXP, SEXP t_maxSEXP, SEXP lambdaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type no_variables(no_variablesSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type no_variables(no_variablesSEXP);
     Rcpp::traits::input_parameter< double >::type dirichlet_alpha(dirichlet_alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type t_max(t_maxSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type t_max(t_maxSEXP);
     Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
     rcpp_result_gen = Rcpp::wrap(compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, t_max, lambda));
     return rcpp_result_gen;

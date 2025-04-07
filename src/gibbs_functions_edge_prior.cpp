@@ -1,5 +1,7 @@
-
 #include <RcppArmadillo.h>
+
+#include <Rcpp.h>
+using namespace Rcpp;
 
 // ----------------------------------------------------------------------------|
 // The c++ code below is based on the R code accompanying the paper:
@@ -234,7 +236,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
   double logmarg;
 
   // Generate a randomized order using Rcpp's sample function
-  arma::vec indices = sample(no_variables, no_variables);
+  arma::ivec indices = Rcpp::sample(no_variables, no_variables);
 
   for (arma::uword idx = 0; idx < no_variables; ++idx) {
     arma::uword node = indices(idx) - 1; // Convert to zero-based index
