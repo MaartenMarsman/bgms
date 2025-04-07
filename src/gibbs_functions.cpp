@@ -198,25 +198,22 @@ double log_pseudoposterior_thresholds (
       }
     } else {
       // Contribution from thresholds × suff.stat. + prior
-      for (arma::uword parameter = 0; parameter < 2; parameter++) {
-        log_pp += thresholds(variable, parameter) *
-          (sufficient_blume_capel(parameter, variable) + threshold_alpha);
-        log_pp -= std::log(1.0 + std::exp(thresholds(variable, parameter))) *
-          (threshold_alpha + threshold_beta);
-      }
+      log_pp += thresholds(variable, 0) * (sufficient_blume_capel(0, variable) + threshold_alpha);
+      log_pp -= std::log(1.0 + std::exp(thresholds(variable, 0))) * (threshold_alpha + threshold_beta);
+      log_pp += thresholds(variable, 1) * (sufficient_blume_capel(1, variable) + threshold_alpha);
+      log_pp -= std::log(1.0 + std::exp(thresholds(variable, 1))) * (threshold_alpha + threshold_beta);
 
       const arma::uword ref = reference_category(variable);
-      double exp0 = std::exp(thresholds(variable, 1) * ref * ref);
 
       // Contribution from normalization constants over all persons
       for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
-        double denom = exp0 * std::exp(-bound);
+        double denom = 0.0;
 
         // Compute unnormalized category probabilities
-        for (arma::uword category = 0; category < num_cats; category++) {
-          arma::uword score = category + 1;
+        for (arma::uword category = 0; category < num_cats + 1; category++) {
+          arma::uword score = category;
           arma::uword centered_sq = (score - ref) * (score - ref);
           double exponent = thresholds(variable, 0) * score +
             thresholds(variable, 1) * centered_sq +
@@ -1312,7 +1309,7 @@ List gibbs_sampler(
   arma::umat index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
-  double step_size = 0.05;
+  double step_size = 0.01;
   double phi = 0.75;
   double target_ar = 0.234;
   double epsilon_lo = 1.0 / static_cast<double>(no_persons);
