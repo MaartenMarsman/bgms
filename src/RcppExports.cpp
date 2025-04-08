@@ -83,51 +83,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// log_pseudolikelihood
-double log_pseudolikelihood(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerMatrix& observations, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat);
-RcppExport SEXP _bgms_log_pseudolikelihood(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
-    Rcpp::traits::input_parameter< const IntegerMatrix& >::type observations(observationsSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
-    rcpp_result_gen = Rcpp::wrap(log_pseudolikelihood(thresholds, rest_matrix, observations, num_categories, num_obs_cat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// gradient_regular_thresholds_pseudolikelihood
-NumericVector gradient_regular_thresholds_pseudolikelihood(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat);
-RcppExport SEXP _bgms_gradient_regular_thresholds_pseudolikelihood(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
-    rcpp_result_gen = Rcpp::wrap(gradient_regular_thresholds_pseudolikelihood(thresholds, rest_matrix, num_categories, num_obs_cat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// gradient_thresholds_pseudoposterior
-NumericVector gradient_thresholds_pseudoposterior(const NumericMatrix& thresholds, const NumericMatrix& rest_matrix, const IntegerVector& num_categories, const IntegerMatrix& num_obs_cat, const double threshold_alpha, const double threshold_beta);
-RcppExport SEXP _bgms_gradient_thresholds_pseudoposterior(SEXP thresholdsSEXP, SEXP rest_matrixSEXP, SEXP num_categoriesSEXP, SEXP num_obs_catSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type thresholds(thresholdsSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type rest_matrix(rest_matrixSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const IntegerMatrix& >::type num_obs_cat(num_obs_catSEXP);
-    Rcpp::traits::input_parameter< const double >::type threshold_alpha(threshold_alphaSEXP);
-    Rcpp::traits::input_parameter< const double >::type threshold_beta(threshold_betaSEXP);
-    rcpp_result_gen = Rcpp::wrap(gradient_thresholds_pseudoposterior(thresholds, rest_matrix, num_categories, num_obs_cat, threshold_alpha, threshold_beta));
-    return rcpp_result_gen;
-END_RCPP
-}
 // compare_anova_gibbs_sampler
 List compare_anova_gibbs_sampler(arma::imat& observations, const arma::imat& main_effect_indices, const arma::imat& pairwise_effect_indices, const arma::mat& projection, const arma::imat& num_categories, const int num_groups, const arma::imat& group_indices, const double interaction_scale, const double pairwise_difference_scale, const double main_difference_scale, const String& pairwise_difference_prior, const String& main_difference_prior, arma::mat& inclusion_probability_difference, const double pairwise_beta_bernoulli_alpha, const double pairwise_beta_bernoulli_beta, const double main_beta_bernoulli_alpha, const double main_beta_bernoulli_beta, const arma::imat& Index, const int iter, const int burnin, List& num_obs_categories, List& sufficient_blume_capel, const double prior_threshold_alpha, const double prior_threshold_beta, const bool na_impute, const arma::imat& missing_data_indices, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const bool independent_thresholds, const bool save_main, const bool save_pairwise, const bool save_indicator, const bool display_progress, bool difference_selection);
 RcppExport SEXP _bgms_compare_anova_gibbs_sampler(SEXP observationsSEXP, SEXP main_effect_indicesSEXP, SEXP pairwise_effect_indicesSEXP, SEXP projectionSEXP, SEXP num_categoriesSEXP, SEXP num_groupsSEXP, SEXP group_indicesSEXP, SEXP interaction_scaleSEXP, SEXP pairwise_difference_scaleSEXP, SEXP main_difference_scaleSEXP, SEXP pairwise_difference_priorSEXP, SEXP main_difference_priorSEXP, SEXP inclusion_probability_differenceSEXP, SEXP pairwise_beta_bernoulli_alphaSEXP, SEXP pairwise_beta_bernoulli_betaSEXP, SEXP main_beta_bernoulli_alphaSEXP, SEXP main_beta_bernoulli_betaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP prior_threshold_alphaSEXP, SEXP prior_threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_data_indicesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP independent_thresholdsSEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP difference_selectionSEXP) {
@@ -173,14 +128,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_Vn_mfm_sbm
-NumericVector compute_Vn_mfm_sbm(int no_variables, double dirichlet_alpha, int t_max, double lambda);
+arma::vec compute_Vn_mfm_sbm(arma::uword no_variables, double dirichlet_alpha, arma::uword t_max, double lambda);
 RcppExport SEXP _bgms_compute_Vn_mfm_sbm(SEXP no_variablesSEXP, SEXP dirichlet_alphaSEXP, SEXP t_maxSEXP, SEXP lambdaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type no_variables(no_variablesSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type no_variables(no_variablesSEXP);
     Rcpp::traits::input_parameter< double >::type dirichlet_alpha(dirichlet_alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type t_max(t_maxSEXP);
+    Rcpp::traits::input_parameter< arma::uword >::type t_max(t_maxSEXP);
     Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
     rcpp_result_gen = Rcpp::wrap(compute_Vn_mfm_sbm(no_variables, dirichlet_alpha, t_max, lambda));
     return rcpp_result_gen;
@@ -191,9 +146,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
     {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 28},
-    {"_bgms_log_pseudolikelihood", (DL_FUNC) &_bgms_log_pseudolikelihood, 5},
-    {"_bgms_gradient_regular_thresholds_pseudolikelihood", (DL_FUNC) &_bgms_gradient_regular_thresholds_pseudolikelihood, 4},
-    {"_bgms_gradient_thresholds_pseudoposterior", (DL_FUNC) &_bgms_gradient_thresholds_pseudoposterior, 6},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}
