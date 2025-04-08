@@ -237,7 +237,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
   arma::uvec indices = arma::randperm(no_variables); //arma::randperm() Generate a vector with a random permutation of integers from 0 to no_variables-1  
 
   for (arma::uword idx = 0; idx < no_variables; ++idx) {
-    arma::uword node = indices(idx) - 1; // Convert to zero-based index
+    arma::uword node = indices(idx);
     old = cluster_assign(node);
 
     arma::uvec cluster_size = table_cpp(cluster_assign);
