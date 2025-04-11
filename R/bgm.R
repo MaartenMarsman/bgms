@@ -193,7 +193,7 @@
 #' \code{edge_prior = "Stochastic-Block"} a matrix \code{allocations} with the
 #' cluster assignments of the nodes from each iteration is returned. This matrix
 #' can be used to calculate the posterior probability of the number of clusters
-#' by utilizing the \code{summary_SBM} function.
+#' by utilizing the \code{summarySBM} function.
 #' }
 #' Column averages of these matrices provide the model-averaged posterior means.
 #' Except for the \code{allocations} matrix, for which the \code{summary_SBM}
