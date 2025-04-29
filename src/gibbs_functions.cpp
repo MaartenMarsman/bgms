@@ -790,10 +790,7 @@ void metropolis_thresholds_regular (
 }
 
 
-// ----------------------------------------------------------------------------|
-// Adaptive Metropolis algorithm to sample from the full-conditional of the
-//   threshold parameters for a Blume-Capel ordinal variable
-// ----------------------------------------------------------------------------|
+
 void metropolis_thresholds_blumecapel(
     arma::mat& thresholds,
     const arma::umat& observations,
@@ -812,173 +809,121 @@ void metropolis_thresholds_blumecapel(
     const double epsilon_lo,
     const double epsilon_hi
 ) {
-
   double log_prob, U;
   double current_state, proposed_state, difference;
   double numerator, denominator;
   double lbound, bound, exponent, rest_score;
-  arma::vec constant_numerator (num_categories[variable] + 1);
-  arma::vec constant_denominator (num_categories[variable] + 1);
+  const arma::uword num_cats = num_categories(variable);
 
-  //----------------------------------------------------------------------------
-  //Adaptive Metropolis for the linear Blume-Capel parameter
-  //----------------------------------------------------------------------------
+  arma::vec constant_numerator(num_cats + 1);
+  arma::vec constant_denominator(num_cats + 1);
+
+  // --- Linear parameter update ---
   current_state = thresholds(variable, 0);
   proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 0));
-
-  //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
-  for(arma::uword category = 0; category < num_categories[variable] + 1; category ++) {
+  for (arma::uword cat = 0; cat <= num_cats; cat++) {
     exponent = thresholds(variable, 1) *
-      (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-    constant_numerator[category] = current_state * category + exponent;
-    constant_denominator[category] = proposed_state * category + exponent;
-  }
-  double tmp_n = max(constant_numerator);
-  double tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
-    } else {
-      lbound = tmp_d;
-    }
-  } else {
-    lbound = 0.0;
+      std::pow(static_cast<int>(cat) - static_cast<int>(reference_category(variable)), 2);
+    constant_numerator(cat) = current_state * cat + exponent;
+    constant_denominator(cat) = proposed_state * cat + exponent;
   }
 
-  //Compute the log acceptance probability -------------------------------------
-  log_prob = threshold_alpha * difference;
-  log_prob += sufficient_blume_capel(0, variable) * difference;
+  double tmp_n = constant_numerator.max();
+  double tmp_d = constant_denominator.max();
+  lbound = (tmp_n > 0 || tmp_d > 0) ? std::max(tmp_n, tmp_d) : 0.0;
 
-  for(arma::uword person = 0; person < no_persons; person++) {
+  log_prob = threshold_alpha * difference +
+    static_cast<double>(sufficient_blume_capel(0, variable)) * difference;
+
+  for (arma::uword person = 0; person < no_persons; person++) {
     rest_score = residual_matrix(person, variable);
-    if(rest_score > 0) {
-      bound = num_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
+    bound = (rest_score > 0) ? num_cats * rest_score + lbound : lbound;
+
+    numerator = std::exp(constant_numerator(0) - bound);
+    denominator = std::exp(constant_denominator(0) - bound);
+
+    for (arma::uword cat = 0; cat < num_cats; cat++) {
+      exponent = (cat + 1) * rest_score - bound;
+      numerator += std::exp(constant_numerator(cat + 1) + exponent);
+      denominator += std::exp(constant_denominator(cat + 1) + exponent);
     }
-    numerator = std::exp(constant_numerator[0] - bound);
-    denominator = std::exp(constant_denominator[0] - bound);
-    for(arma::uword category = 0; category < num_categories[variable]; category ++) {
-      exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
-    }
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
+
+    log_prob += std::log(numerator) - std::log(denominator);
   }
 
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+  log_prob += (threshold_alpha + threshold_beta) * (
+    std::log(1 + std::exp(current_state)) -
+      std::log(1 + std::exp(proposed_state)));
 
   U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if (std::log(U) < log_prob) {
     thresholds(variable, 0) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
+  double acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
+  double updated_sd = proposal_sd_blumecapel(variable, 0) +
+    (acc_prob - target_ar) * std::exp(-std::log(t) * phi);
+  if (std::isnan(updated_sd)) updated_sd = 1.0;
+  proposal_sd_blumecapel(variable, 0) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
 
-  double update_proposal_sd = proposal_sd_blumecapel(variable, 0) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-  proposal_sd_blumecapel(variable, 0) = update_proposal_sd;
-
-  //----------------------------------------------------------------------------
-  //Adaptive Metropolis for the quadratic Blume-Capel parameter
-  //----------------------------------------------------------------------------
+  // --- Quadratic parameter update ---
   current_state = thresholds(variable, 1);
   proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 1));
-
-  //Precompute terms for the log acceptance probability ------------------------
   difference = proposed_state - current_state;
 
-  for(arma::uword category = 0; category < num_categories[variable] + 1; category ++) {
-    exponent = thresholds(variable, 0) * category;
-    arma::uword score = (category - reference_category[variable]) *
-      (category - reference_category[variable]);
-
-    constant_numerator[category] = current_state * score + exponent;
-    constant_denominator[category] = proposed_state * score + exponent;
+  for (arma::uword cat = 0; cat <= num_cats; cat++) {
+    int centered = static_cast<int>(cat) - static_cast<int>(reference_category(variable));
+    exponent = thresholds(variable, 0) * cat;
+    constant_numerator(cat) = current_state * centered * centered + exponent;
+    constant_denominator(cat) = proposed_state * centered * centered + exponent;
   }
 
-  tmp_n = max(constant_numerator);
-  tmp_d = max(constant_denominator);
-  if(tmp_n > 0) {
-    if(tmp_n > tmp_d) {
-      lbound = tmp_n;
-    } else {
-      lbound = tmp_d;
-    }
-  } else {
-    lbound = 0.0;
-  }
+  tmp_n = constant_numerator.max();
+  tmp_d = constant_denominator.max();
+  lbound = (tmp_n > 0 || tmp_d > 0) ? std::max(tmp_n, tmp_d) : 0.0;
 
-  //Compute the log acceptance probability -------------------------------------
-  log_prob = threshold_alpha * difference;
-  log_prob += sufficient_blume_capel(1, variable) * difference;
+  log_prob = threshold_alpha * difference +
+    static_cast<double>(sufficient_blume_capel(1, variable)) * difference;
 
-  for(arma::uword person = 0; person < no_persons; person++) {
+  for (arma::uword person = 0; person < no_persons; person++) {
     rest_score = residual_matrix(person, variable);
-    if(rest_score > 0) {
-      bound = num_categories[variable] * rest_score + lbound;
-    } else {
-      bound = lbound;
+    bound = (rest_score > 0) ? num_cats * rest_score + lbound : lbound;
+
+    numerator = std::exp(constant_numerator(0) - bound);
+    denominator = std::exp(constant_denominator(0) - bound);
+
+    for (arma::uword cat = 0; cat < num_cats; cat++) {
+      exponent = (cat + 1) * rest_score - bound;
+      numerator += std::exp(constant_numerator(cat + 1) + exponent);
+      denominator += std::exp(constant_denominator(cat + 1) + exponent);
     }
 
-    numerator = std::exp(constant_numerator[0] - bound);
-    denominator = std::exp(constant_denominator[0] - bound);
-
-    for(arma::uword category = 0; category < num_categories[variable]; category ++) {
-      exponent = (category + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator[category + 1] + exponent);
-      denominator += std::exp(constant_denominator[category + 1] + exponent);
-    }
-
-    log_prob += std::log(numerator);
-    log_prob -= std::log(denominator);
+    log_prob += std::log(numerator) - std::log(denominator);
   }
-  log_prob += (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(current_state));
-  log_prob -= (threshold_alpha + threshold_beta) *
-    std::log(1 + std::exp(proposed_state));
+
+  log_prob += (threshold_alpha + threshold_beta) * (
+    std::log(1 + std::exp(current_state)) -
+      std::log(1 + std::exp(proposed_state)));
 
   U = R::unif_rand();
-  if(std::log(U) < log_prob) {
+  if (std::log(U) < log_prob) {
     thresholds(variable, 1) = proposed_state;
   }
 
-  //Robbins-Monro update of the proposal variance ------------------------------
-  if(log_prob > 0) {
-    log_prob = 1;
-  } else {
-    log_prob = std::exp(log_prob);
-  }
-
-  update_proposal_sd = proposal_sd_blumecapel(variable, 1) +
-    (log_prob - target_ar) * std::exp(-log(t) * phi);
-
-  if(std::isnan(update_proposal_sd) == true) {
-    update_proposal_sd = 1.0;
-  }
-
-  update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-  proposal_sd_blumecapel(variable, 1) = update_proposal_sd;
-
+  acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
+  updated_sd = proposal_sd_blumecapel(variable, 1) +
+    (acc_prob - target_ar) * std::exp(-std::log(t) * phi);
+  if (std::isnan(updated_sd)) updated_sd = 1.0;
+  proposal_sd_blumecapel(variable, 1) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
 }
+
+
+
+
+
+
 
 // ----------------------------------------------------------------------------|
 // The log pseudolikelihood ratio [proposed against current] for an interaction
