@@ -131,7 +131,7 @@ inline arma::uword count_threshold_parameters(
 
   const arma::uword num_variables = num_categories.n_elem;
 
-  for (arma::uword variable = 0; variable < num_variables; ++variable) {
+  for (arma::uword variable = 0; variable < num_variables; variable++) {
     total_parameters += is_ordinal_variable(variable) ? num_categories(variable) : 2;
   }
 
@@ -168,10 +168,10 @@ arma::vec flatten_thresholds(
 
   arma::uword offset = 0;
 
-  for (arma::uword var = 0; var < thresholds.n_rows; ++var) {
+  for (arma::uword var = 0; var < thresholds.n_rows; var++) {
     const arma::uword num_cats = is_ordinal_variable(var) ? num_categories(var) : 2;
 
-    for (arma::uword j = 0; j < num_cats; ++j) {
+    for (arma::uword j = 0; j < num_cats; j++) {
       flattened(offset++) = thresholds(var, j);
     }
   }
@@ -212,10 +212,10 @@ arma::mat unflatten_thresholds(
 
   arma::uword offset = 0;
 
-  for (arma::uword var = 0; var < num_variables; ++var) {
+  for (arma::uword var = 0; var < num_variables; var++) {
     const arma::uword num_cats = is_ordinal_variable(var) ? num_categories(var) : 2;
 
-    for (arma::uword j = 0; j < num_cats; ++j) {
+    for (arma::uword j = 0; j < num_cats; j++) {
       thresholds(var, j) = flat_vector(offset++);
     }
   }
@@ -270,7 +270,7 @@ List impute_missing_data (
 
   arma::vec category_probabilities(max_num_categories + 1);
 
-  for (arma::uword miss = 0; miss < num_missings; ++miss) {
+  for (arma::uword miss = 0; miss < num_missings; miss++) {
     const arma::uword person = missing_index(miss, 0);
     const arma::uword variable = missing_index(miss, 1);
 
@@ -284,7 +284,7 @@ List impute_missing_data (
       // Compute cumulative unnormalized probabilities for ordinal variable
       cumsum = 1.0;
       category_probabilities[0] = cumsum;
-      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
         const arma::uword score = cat + 1;
         const double exponent = thresholds(variable, cat) + score * rest_score;
         cumsum += std::exp(exponent);
@@ -297,7 +297,7 @@ List impute_missing_data (
       cumsum = std::exp(thresholds(variable, 1) * ref * ref);
       category_probabilities[0] = cumsum;
 
-      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
         const arma::uword score = cat + 1;
         const arma::sword centered = static_cast<arma::sword>(score) - static_cast<arma::sword>(ref);
         const double exponent =
@@ -313,7 +313,7 @@ List impute_missing_data (
     const double u = R::unif_rand() * cumsum;
     arma::uword sampled_score = 0;
     while (u > category_probabilities[sampled_score]) {
-      ++sampled_score;
+      sampled_score++;
     }
 
     const arma::uword new_value = sampled_score;
@@ -338,7 +338,7 @@ List impute_missing_data (
       }
 
       // Update residuals across all variables
-      for (arma::uword v = 0; v < num_variables; ++v) {
+      for (arma::uword v = 0; v < num_variables; v++) {
         const double delta_score = (static_cast<double>(new_value) - old_value) * interactions(v, variable);
         residual_matrix(person, v) += delta_score;
       }
@@ -394,12 +394,12 @@ double log_pseudoposterior_thresholds (
 
   double log_posterior = 0.0;
 
-  for (arma::uword variable = 0; variable < num_variables; ++variable) {
+  for (arma::uword variable = 0; variable < num_variables; variable++) {
     const arma::uword num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
       // Ordinal variable: likelihood + prior contributions
-      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
         log_posterior += thresholds(variable, cat) *
           (num_obs_categories(cat + 1, variable) + threshold_alpha);
 
@@ -407,12 +407,12 @@ double log_pseudoposterior_thresholds (
           (threshold_alpha + threshold_beta);
       }
 
-      for (arma::uword person = 0; person < num_persons; ++person) {
+      for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
 
         double denominator = std::exp(-bound);
-        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        for (arma::uword cat = 0; cat < num_cats; cat++) {
           const double exponent = thresholds(variable, cat) + (cat + 1) * rest_score - bound;
           denominator += std::exp(exponent);
         }
@@ -434,12 +434,12 @@ double log_pseudoposterior_thresholds (
 
       const arma::uword ref = reference_category(variable);
 
-      for (arma::uword person = 0; person < num_persons; ++person) {
+      for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
 
         double denominator = 0.0;
-        for (arma::uword cat = 0; cat <= num_cats; ++cat) {
+        for (arma::uword cat = 0; cat <= num_cats; cat++) {
           const double centered = static_cast<arma::sword>(cat) - static_cast<arma::sword>(ref);
           const double exponent =
             thresholds(variable, 0) * cat +
@@ -501,37 +501,37 @@ arma::vec gradient_thresholds_pseudoposterior(
 
   arma::uword offset = 0;  // Tracks position in the flat gradient vector
 
-  for (arma::uword variable = 0; variable < num_variables; ++variable) {
+  for (arma::uword variable = 0; variable < num_variables; variable++) {
     const arma::uword num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
       // Gradient for ordinal variables
-      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
         gradient(offset + cat) = static_cast<double>(num_obs_categories(cat + 1, variable));
       }
       const double max_threshold = thresholds.row(variable).max();
 
-      for (arma::uword person = 0; person < num_persons; ++person) {
+      for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = max_threshold + num_cats * rest_score;
 
         double denominator = std::exp(-bound);
         arma::vec numerators(num_cats, arma::fill::zeros);
 
-        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        for (arma::uword cat = 0; cat < num_cats; cat++) {
           const double exponent = thresholds(variable, cat) + (cat + 1) * rest_score - bound;
           numerators(cat) = std::exp(exponent);
           denominator += numerators(cat);
         }
 
         // Subtract expected counts
-        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        for (arma::uword cat = 0; cat < num_cats; cat++) {
           gradient(offset + cat) -= numerators(cat) / denominator;
         }
       }
 
       // Add prior contributions (logistic-Beta)
-      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
         const double theta = thresholds(variable, cat);
         const double p = 1.0 / (1.0 + std::exp(-theta));
         gradient(offset + cat) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
@@ -548,7 +548,7 @@ arma::vec gradient_thresholds_pseudoposterior(
       gradient(offset) = static_cast<double>(sufficient_blume_capel(0, variable)); // sum(x)
       gradient(offset + 1) = static_cast<double>(sufficient_blume_capel(1, variable)); // sum((x - ref)^2)
 
-      for (arma::uword person = 0; person < num_persons; ++person) {
+      for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
 
@@ -556,7 +556,7 @@ arma::vec gradient_thresholds_pseudoposterior(
         double sum_linear = 0.0;
         double sum_quad = ref * ref * std::exp(threshold_quad * ref * ref - bound);
 
-        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        for (arma::uword cat = 0; cat < num_cats; cat++) {
           const arma::uword score = cat + 1;
           const arma::sword centered = static_cast<arma::sword>(score) - static_cast<arma::sword>(ref);
           const double exponent = threshold_linear * score + threshold_quad * centered * centered + score * rest_score - bound;
@@ -573,7 +573,7 @@ arma::vec gradient_thresholds_pseudoposterior(
       }
 
       // Add prior contributions (logistic-Beta)
-      for (arma::uword param = 0; param < 2; ++param) {
+      for (arma::uword param = 0; param < 2; param++) {
         const double theta = thresholds(variable, param);
         const double p = 1.0 / (1.0 + std::exp(-theta));
         gradient(offset + param) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
@@ -697,10 +697,30 @@ void adamala_thresholds(
 }
 
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the threshold parameters
-//   for a regular binary or ordinal variable
-// ----------------------------------------------------------------------------|
+/**
+ * Function: metropolis_thresholds_regular
+ * Purpose:
+ *   Performs a Metropolis-Hastings update for threshold parameters of ordinal variables.
+ *   Each threshold is updated one at a time using a generalized beta-prime proposal,
+ *   with acceptance determined by the pseudo-likelihood and logistic-Beta prior.
+ *
+ * Inputs:
+ *   - thresholds: Matrix of threshold parameters [variables × categories]; updated in-place.
+ *   - observations: Matrix of observed scores [persons × variables].
+ *   - num_categories: Vector of number of categories per variable.
+ *   - num_obs_categories: Matrix of counts per (category, variable).
+ *   - no_persons: Number of individuals in the data.
+ *   - variable: Index of the variable being updated.
+ *   - threshold_alpha: Alpha parameter of the logistic-Beta prior.
+ *   - threshold_beta: Beta parameter of the logistic-Beta prior.
+ *   - residual_matrix: Matrix of linear predictors excluding current variable.
+ *
+ * Outputs:
+ *   - Updates `thresholds(variable, category)` in-place for each category of the specified variable.
+ *
+ * Usage:
+ *   - Called during Gibbs updates when using non-gradient MH threshold proposals.
+ */
 void metropolis_thresholds_regular (
     arma::mat& thresholds,
     const arma::umat& observations,
@@ -712,66 +732,63 @@ void metropolis_thresholds_regular (
     const double threshold_beta,
     const arma::mat& residual_matrix
 ) {
-
   arma::vec g(no_persons);
   arma::vec q(no_persons);
 
-  double log_prob, rest_score;
-  double a, b, c;
-  double tmp;
-  double current_state, proposed_state;
-  double U;
-  double exp_current, exp_proposed;
+  for (arma::uword category = 0; category < num_categories[variable]; category++) {
+    double current = thresholds(variable, category);
+    double exp_current = std::exp(current);
+    double c = (threshold_alpha + threshold_beta) / (1 + exp_current);
 
-  for(arma::uword category = 0; category < num_categories[variable]; category++) {
-    current_state = thresholds(variable, category);
-    exp_current = std::exp(current_state);
-    c = (threshold_alpha + threshold_beta) / (1 + exp_current);
-    for(arma::uword person = 0; person < no_persons; person++) {
-      g[person] = 1.0;
-      q[person] = 1.0;
-      rest_score = residual_matrix(person, variable);
-      for(arma::uword cat = 0; cat < num_categories[variable]; cat++) {
-        if(cat != category) {
-          g[person] += std::exp(thresholds(variable, cat) +
-            (cat + 1) * rest_score);
+    // Compute proposal scaling constant `c`
+    for (arma::uword person = 0; person < no_persons; person++) {
+      double rest_score = residual_matrix(person, variable);
+      double denom = 1.0;  // base of sum (g)
+      double numer = std::exp((category + 1) * rest_score);  // q
+
+      for (arma::uword cat = 0; cat < num_categories[variable]; cat++) {
+        if (cat != category) {
+          denom += std::exp(thresholds(variable, cat) + (cat + 1) * rest_score);
         }
       }
-      q[person] = std::exp((category + 1) * rest_score);
-      c +=  q[person] / (g[person] + q[person] * exp_current);
+
+      g[person] = denom;
+      q[person] = numer;
+      c += q[person] / (g[person] + q[person] * exp_current);
     }
-    c = c / ((no_persons + threshold_alpha + threshold_beta) -
+
+    c /= ((no_persons + threshold_alpha + threshold_beta) -
       exp_current * c);
 
-    //Proposal is generalized beta-prime.
-    a = num_obs_categories(category + 1, variable) + threshold_alpha;
-    b = no_persons + threshold_beta - num_obs_categories(category + 1, variable);
-    tmp = R::rbeta(a, b);
-    proposed_state = std::log(tmp / (1  - tmp) / c);
-    exp_proposed = exp(proposed_state);
+    // Sample from generalized beta-prime proposal
+    double a = num_obs_categories(category + 1, variable) + threshold_alpha;
+    double b = no_persons + threshold_beta - num_obs_categories(category + 1, variable);
+    double tmp = R::rbeta(a, b);
+    double proposed = std::log(tmp / (1.0 - tmp) / c);
+    double exp_proposed = std::exp(proposed);
 
-    //Compute log_acceptance probability for Metropolis.
-    //First, we use g and q above to compute the ratio of pseudolikelihoods
-    log_prob = 0;
-    for(arma::uword person = 0; person < no_persons; person++) {
+    // Compute MH acceptance probability
+    double log_prob = 0.0;
+    for (arma::uword person = 0; person < no_persons; person++) {
       log_prob += std::log(g[person] + q[person] * exp_current);
       log_prob -= std::log(g[person] + q[person] * exp_proposed);
     }
-    //Second, we add the ratio of prior probabilities
-    log_prob -= (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_proposed);
-    log_prob += (threshold_alpha + threshold_beta) *
-      std::log(1 + exp_current);
-    //Third, we add the ratio of proposals
+
+    // Add prior ratio (logistic-Beta)
+    log_prob -= (threshold_alpha + threshold_beta) * std::log(1 + exp_proposed);
+    log_prob += (threshold_alpha + threshold_beta) * std::log(1 + exp_current);
+
+    // Add proposal ratio (generalized beta-prime)
     log_prob -= (a + b) * std::log(1 + c * exp_current);
     log_prob += (a + b) * std::log(1 + c * exp_proposed);
 
-    U = std::log(R::unif_rand());
-    if(U < log_prob) {
-      thresholds(variable, category) = proposed_state;
+    // Metropolis step
+    if (std::log(R::unif_rand()) < log_prob) {
+      thresholds(variable, category) = proposed;
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------|
 // Adaptive Metropolis algorithm to sample from the full-conditional of the
