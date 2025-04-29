@@ -554,7 +554,7 @@ arma::vec gradient_thresholds_pseudoposterior(
 
         double denominator = std::exp(threshold_quad * ref * ref - bound);
         double sum_linear = 0.0;
-        double sum_quad = ref * ref * std::exp(threshold_quad * ref * ref - bound);
+        double sum_quad = ref * ref * denominator;
 
         for (arma::uword cat = 0; cat < num_cats; cat++) {
           const arma::uword score = cat + 1;
