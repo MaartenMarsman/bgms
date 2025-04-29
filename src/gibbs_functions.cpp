@@ -8,30 +8,249 @@
 #include <progress_bar.hpp>
 using namespace Rcpp;
 
+
+/**
+ * Function: dual_averaging_update
+ * Purpose:
+ *   Adapts the log step size in MCMC (e.g., MALA or HMC) using the dual averaging algorithm.
+ *   This method adjusts the step size toward a target acceptance probability using an exponentially
+ *   weighted average of the acceptance error. The adaptation is based on the algorithm described in:
+ *
+ *     Hoffman, M. D., & Gelman, A. (2014).
+ *     The No-U-Turn Sampler: Adaptively Setting Path Lengths in Hamiltonian Monte Carlo.
+ *     JMLR, 15(1), 1593–1623.
+ *
+ * Inputs:
+ *   - acceptance_probability: The acceptance rate at the current iteration.
+ *   - iteration: The current iteration number (starting from 1).
+ *   - state: Vector of length 3, representing the dual averaging state. Updated in-place.
+ *       - state[0] = log_step_size (current)
+ *       - state[1] = log_step_size_avg (running average)
+ *       - state[2] = acceptance_error_avg (running avg of acceptance error)
+ *   - log_step_size_target: Desired log step size target (typically log(10 * initial_step_size)).
+ *   - stabilization_offset: Constant to reduce adaptation sensitivity early on (e.g., 10).
+ *
+ * Outputs:
+ *   - Updates the `state` vector in-place.
+ *
+ * Usage:
+ *   - Used inside the adaptive Metropolis-adjusted Langevin algorithm (MALA) for updating threshold parameters.
+ *   - Called during the burn-in phase inside `adamala_thresholds()` to adaptively tune the step size.
+ */
+inline void dual_averaging_update(
+    const double acceptance_probability,
+    const arma::uword iteration,
+    arma::vec& state,
+    const double log_step_size_target,
+    const arma::uword stabilization_offset
+) {
+  double& log_step_size = state[0];
+  double& log_step_size_avg = state[1];
+  double& acceptance_error_avg = state[2];
+
+  const double target_acceptance = 0.574;
+  const double gamma = 0.05;
+  const double kappa = 0.75;
+
+  const double acceptance_error = target_acceptance - acceptance_probability;
+  const double iter_scaled = static_cast<double>(iteration);
+
+  // Update running average of acceptance error
+  acceptance_error_avg =
+    (1.0 - 1.0 / (iter_scaled + stabilization_offset)) * acceptance_error_avg +
+    (1.0 / (iter_scaled + stabilization_offset)) * acceptance_error;
+
+  // Update log step size
+  log_step_size = log_step_size_target - std::sqrt(iter_scaled) / gamma * acceptance_error_avg;
+
+  // Update running average of log step size
+  const double weight = std::pow(iter_scaled, -kappa);
+  log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
+}
+
+
+/**
+ * Function: robbins_monro_update
+ * Purpose:
+ *   Performs a Robbins-Monro update to adapt the step size during MCMC after burn-in.
+ *   The step size is adjusted toward the target acceptance rate based on the observed
+ *   acceptance probability using a stochastic approximation method.
+ *
+ * Inputs:
+ *   - acceptance_probability: Observed acceptance probability at the current iteration.
+ *   - iteration: Current iteration number (starting from 1).
+ *   - step_size: Current step size (epsilon), updated in-place.
+ *
+ * Outputs:
+ *   - Updates `step_size` in-place based on the Robbins-Monro stochastic approximation.
+ *
+ * Usage:
+ *   - Used after burn-in in the adaptive Metropolis-adjusted Langevin algorithm (MALA)
+ *     for tuning threshold parameters.
+ *   - Called inside `adamala_thresholds()` once burn-in is complete.
+ */
+inline void robbins_monro_update(
+    const double acceptance_probability,
+    const arma::uword iteration,
+    double& step_size
+) {
+  const double target_acceptance = 0.574; // Standard target acceptance for MALA
+  const double learning_rate = 0.01;       // Robbins-Monro learning rate constant
+
+  const double acceptance_error = acceptance_probability - target_acceptance;
+
+  double log_step_size = std::log(step_size);
+  log_step_size += learning_rate * acceptance_error / std::sqrt(static_cast<double>(iteration));
+
+  step_size = std::exp(log_step_size);
+}
+
+
+/**
+ * Function: count_threshold_parameters
+ * Purpose:
+ *   Computes the total number of threshold parameters across all variables,
+ *   accounting for both regular ordinal and Blume-Capel models.
+ *
+ * Inputs:
+ *   - num_categories: Vector of the number of categories for each variable.
+ *   - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
+ *
+ * Outputs:
+ *   - Returns the total number of threshold parameters as a scalar `arma::uword`.
+ *
+ * Usage:
+ *   - Used to allocate and organize threshold parameter vectors for adaptive updates
+ *     (e.g., flattening/unflattening threshold matrices for MALA updates).
+ */
+inline arma::uword count_threshold_parameters(
+    const arma::uvec& num_categories,
+    const arma::uvec& is_ordinal_variable
+) {
+  arma::uword total_parameters = 0;
+
+  const arma::uword num_variables = num_categories.n_elem;
+
+  for (arma::uword variable = 0; variable < num_variables; ++variable) {
+    total_parameters += is_ordinal_variable(variable) ? num_categories(variable) : 2;
+  }
+
+  return total_parameters;
+}
+
+
+/**
+ * Function: flatten_thresholds
+ * Purpose:
+ *   Converts a matrix of threshold parameters into a flat vector for optimization,
+ *   respecting the structure of ordinal vs. Blume-Capel variables.
+ *
+ * Inputs:
+ *   - thresholds: Matrix of threshold parameters [variables × categories].
+ *   - num_categories: Vector of the number of categories for each variable.
+ *   - is_ordinal_variable: Logical vector indicating if a variable is ordinal (1) or Blume-Capel (0).
+ *
+ * Outputs:
+ *   - Returns a flat vector of all threshold parameters, in order:
+ *       - Ordinal variables: one value per category (length = num_categories[var])
+ *       - Blume-Capel variables: exactly two values (linear and quadratic)
+ *
+ * Usage:
+ *   - Used when preparing thresholds for MALA proposals or storing samples.
+ */
+arma::vec flatten_thresholds(
+    const arma::mat& thresholds,
+    const arma::uvec& num_categories,
+    const arma::uvec& is_ordinal_variable
+) {
+  const arma::uword total_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
+  arma::vec flattened(total_parameters);
+
+  arma::uword offset = 0;
+
+  for (arma::uword var = 0; var < thresholds.n_rows; ++var) {
+    const arma::uword num_cats = is_ordinal_variable(var) ? num_categories(var) : 2;
+
+    for (arma::uword j = 0; j < num_cats; ++j) {
+      flattened(offset++) = thresholds(var, j);
+    }
+  }
+
+  return flattened;
+}
+
+
+/**
+ * Function: unflatten_thresholds
+ * Purpose:
+ *   Reconstructs a threshold matrix from a flat vector of parameters,
+ *   reversing the operation of `flatten_thresholds`.
+ *
+ * Inputs:
+ *   - flat_vector: Vector containing all threshold parameters in a flattened form.
+ *   - num_categories: Vector of the number of categories per variable.
+ *   - is_ordinal_variable: Logical vector indicating if a variable is ordinal (1) or Blume-Capel (0).
+ *
+ * Outputs:
+ *   - Returns a matrix of thresholds [variables × max(num_categories)], with unused entries (if any) uninitialized.
+ *     Each row contains:
+ *       - Ordinal: num_categories[var] entries
+ *       - Blume-Capel: 2 entries (linear and quadratic thresholds)
+ *
+ * Usage:
+ *   - Used to convert parameter vectors (e.g., from MALA or sampling storage) back to structured threshold matrices.
+ */
+arma::mat unflatten_thresholds(
+    const arma::vec& flat_vector,
+    const arma::uvec& num_categories,
+    const arma::uvec& is_ordinal_variable
+) {
+  const arma::uword num_variables = num_categories.n_elem;
+  const arma::uword max_categories = num_categories.max();
+
+  arma::mat thresholds(num_variables, max_categories); // May contain unused entries
+
+  arma::uword offset = 0;
+
+  for (arma::uword var = 0; var < num_variables; ++var) {
+    const arma::uword num_cats = is_ordinal_variable(var) ? num_categories(var) : 2;
+
+    for (arma::uword j = 0; j < num_cats; ++j) {
+      thresholds(var, j) = flat_vector(offset++);
+    }
+  }
+
+  return thresholds;
+}
+
+
 /**
  * Function: impute_missing_data
  * Purpose:
- *   Imputes missing observations for a graphical model with ordinal and Blume-Capel variables
+ *   Imputes missing values in a graphical model with ordinal and Blume-Capel variables,
  *   using their full conditional pseudo-posterior distributions.
  *
  * Inputs:
- *   - interactions: Pairwise interaction matrix between variables.
- *   - thresholds: Threshold parameters for ordinal or Blume-Capel variables.
- *   - observations: Matrix of observed data (individuals x variables), updated in-place.
- *   - num_obs_categories: Matrix of counts for each category per variable (for ordinal variables).
- *   - sufficient_blume_capel: Sufficient statistics (linear and squared sums) for BC variables.
- *   - num_categories: Number of categories per variable.
- *   - residual_matrix: Matrix of linear predictors excluding the current variable, updated in-place.
- *   - missing_index: Matrix of (row, variable) indices for missing observations.
- *   - is_ordinal_variable: Indicator vector specifying whether a variable is ordinal or Blume-Capel.
- *   - reference_category: Reference category used in Blume-Capel variables.
+ *   - interactions: Matrix of pairwise interaction weights between variables.
+ *   - thresholds: Threshold parameters for each variable (linear and quadratic).
+ *   - observations: Matrix of observed values (individuals × variables); updated in-place.
+ *   - num_obs_categories: Category count matrix for ordinal variables [category × variable]; updated in-place.
+ *   - sufficient_blume_capel: Sufficient statistics for BC variables [2 × variable]; updated in-place.
+ *   - num_categories: Vector of the number of categories for each variable.
+ *   - residual_matrix: Linear predictors excluding the current variable; updated in-place.
+ *   - missing_index: Matrix of (row, col) indices of missing values.
+ *   - is_ordinal_variable: Indicator for whether a variable is ordinal (1) or Blume-Capel (0).
+ *   - reference_category: Reference (centering) category for each Blume-Capel variable.
  *
  * Outputs:
  *   - A List with updated:
- *     - `observations`: Imputed observation matrix.
- *     - `num_obs_categories`: Updated category counts (ordinal only).
- *     - `sufficient_blume_capel`: Updated sufficient statistics for BC variables.
- *     - `residual_matrix`: Updated pseudo-likelihood contributions.
+ *       - `observations`: Updated observation matrix.
+ *       - `num_obs_categories`: Updated category counts (ordinal only).
+ *       - `sufficient_blume_capel`: Updated sufficient statistics (BC only).
+ *       - `residual_matrix`: Updated pseudo-likelihood residuals.
+ *
+ * Usage:
+ *   - Called within the Gibbs sampler during missing data imputation steps.
  */
 List impute_missing_data (
     const arma::mat& interactions,
@@ -45,81 +264,83 @@ List impute_missing_data (
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category
 ) {
-
   const arma::uword num_variables = observations.n_cols;
   const arma::uword num_missings = missing_index.n_rows;
   const arma::uword max_num_categories = num_categories.max();
 
-  arma::vec probabilities(max_num_categories + 1);
+  arma::vec category_probabilities(max_num_categories + 1);
 
-  // Loop over all missing values
-  for(arma::uword miss = 0; miss < num_missings; miss++) {
-    // Identify the observation to impute
+  for (arma::uword miss = 0; miss < num_missings; ++miss) {
     const arma::uword person = missing_index(miss, 0);
     const arma::uword variable = missing_index(miss, 1);
 
     const double rest_score = residual_matrix(person, variable);
-    const arma::uword num_cats = num_categories[variable];
-    const bool is_ordinal = is_ordinal_variable[variable];
+    const arma::uword num_cats = num_categories(variable);
+    const bool is_ordinal = is_ordinal_variable(variable);
 
     double cumsum = 0.0;
 
-    // Generate a new observation based on the model
-    if(is_ordinal) {
-      // For regular binary or ordinal variables
-      cumsum += 1.0;
-      probabilities[0] = 1.0;
-      for(arma::uword category = 0; category < num_cats; category++) {
-        arma::uword score = category + 1;
-        double exponent = thresholds(variable, category) + score * rest_score;
+    if (is_ordinal) {
+      // Compute cumulative unnormalized probabilities for ordinal variable
+      cumsum = 1.0;
+      category_probabilities[0] = cumsum;
+      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        const arma::uword score = cat + 1;
+        const double exponent = thresholds(variable, cat) + score * rest_score;
         cumsum += std::exp(exponent);
-        probabilities[score] = cumsum;
+        category_probabilities[score] = cumsum;
       }
     } else {
-      // For Blume-Capel variables
-      const arma::uword ref = reference_category[variable];
-      double exponent = thresholds(variable, 1) * ref * ref;
-      cumsum = std::exp(exponent);
-      cumsum = std::exp(exponent);
-      probabilities[0] = cumsum;
-      for(arma::uword category = 0; category < num_cats; category++) {
-        arma::uword score = category + 1;
-        arma::uword centered = score - ref;
-        exponent = thresholds(variable, 0) * score +
+      // Compute probabilities for Blume-Capel variable
+      const arma::uword ref = reference_category(variable);
+
+      cumsum = std::exp(thresholds(variable, 1) * ref * ref);
+      category_probabilities[0] = cumsum;
+
+      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        const arma::uword score = cat + 1;
+        const arma::sword centered = static_cast<arma::sword>(score) - static_cast<arma::sword>(ref);
+        const double exponent =
+          thresholds(variable, 0) * score +
           thresholds(variable, 1) * centered * centered +
           score * rest_score;
         cumsum += std::exp(exponent);
-        probabilities[score] = cumsum;
+        category_probabilities[score] = cumsum;
       }
     }
 
-    // Sample a new value based on computed probabilities
-    double u = cumsum * R::unif_rand();
+    // Sample from categorical distribution via inverse transform
+    const double u = R::unif_rand() * cumsum;
     arma::uword sampled_score = 0;
-    while (u > probabilities[sampled_score]) sampled_score++;
+    while (u > category_probabilities[sampled_score]) {
+      ++sampled_score;
+    }
 
-    arma::uword new_obs = sampled_score;
-    arma::uword old_obs = observations(person, variable);
-    if(old_obs != new_obs) {
-      // Update raw observations
-      observations(person, variable) = new_obs;
+    const arma::uword new_value = sampled_score;
+    const arma::uword old_value = observations(person, variable);
 
-      // Update category counts or sufficient statistics
-      if(is_ordinal) {
-        num_obs_categories(old_obs, variable)--;
-        num_obs_categories(new_obs, variable)++;
+    if (new_value != old_value) {
+      // Update observation matrix
+      observations(person, variable) = new_value;
+
+      if (is_ordinal) {
+        num_obs_categories(old_value, variable)--;
+        num_obs_categories(new_value, variable)++;
       } else {
-        const arma::uword ref = reference_category[variable];
-        sufficient_blume_capel(0, variable) += (new_obs - old_obs);
-        sufficient_blume_capel(1, variable) +=
-          (new_obs - ref) * (new_obs - ref) -
-          (old_obs - ref) * (old_obs - ref);
+        const arma::sword ref = reference_category(variable);
+        const arma::sword delta = static_cast<arma::sword>(new_value) - static_cast<arma::sword>(old_value);
+        const arma::sword delta_sq =
+          (new_value - ref) * (new_value - ref) -
+          (old_value - ref) * (old_value - ref);
+
+        sufficient_blume_capel(0, variable) += delta;
+        sufficient_blume_capel(1, variable) += delta_sq;
       }
 
-      // Update rest scores
-      for(arma::uword v = 0; v < num_variables; v++) {
-        double delta = (new_obs - old_obs) * interactions(v, variable);
-        residual_matrix(person, v) += delta;
+      // Update residuals across all variables
+      for (arma::uword v = 0; v < num_variables; ++v) {
+        const double delta_score = (static_cast<double>(new_value) - old_value) * interactions(v, variable);
+        residual_matrix(person, v) += delta_score;
       }
     }
   }
@@ -128,28 +349,34 @@ List impute_missing_data (
     Named("observations") = observations,
     Named("num_obs_categories") = num_obs_categories,
     Named("sufficient_blume_capel") = sufficient_blume_capel,
-    Named("residual_matrix") = residual_matrix);
+    Named("residual_matrix") = residual_matrix
+  );
 }
 
 
 /**
  * Function: log_pseudoposterior_thresholds
  * Purpose:
- *   Compute the log pseudoposterior contribution from threshold parameters
- *   in the omrf with logistic-Beta prior contributions.
- *
- * The model assumes that each threshold parameter has a prior of the form:
- *   logit^{-1}(theta) ~ Beta(alpha, beta)
+ *   Computes the log pseudo-posterior for threshold parameters in a graphical model
+ *   combining contributions from the data likelihood and logistic-Beta priors.
+ *   Supports both regular ordinal and Blume-Capel variables.
  *
  * Inputs:
- *   - thresholds: Threshold parameter matrix (variables x categories)
- *   - residual_matrix: Linear predictors excluding the current variable (persons x variables)
- *   - num_categories: Number of score levels for each variable
- *   - num_obs_categories: Count matrix of observations per category (category x variable)
- *   - threshold_alpha: Prior shape parameter alpha (default = 1.0)
- *   - threshold_beta: Prior shape parameter beta (default = 1.0) *
- * Output:
- *   - Scalar log-pseudo-likelihood (double)
+ *   - thresholds: Matrix of threshold parameters [variables × categories].
+ *   - residual_matrix: Matrix of residual predictors (individuals × variables).
+ *   - num_categories: Vector of the number of score levels for each variable.
+ *   - num_obs_categories: Matrix of observed category counts [category × variable].
+ *   - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel variables [2 × variable].
+ *   - reference_category: Vector of reference (centering) categories for each variable.
+ *   - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
+ *   - threshold_alpha: Hyperparameter alpha for logistic-Beta prior (default = 1.0).
+ *   - threshold_beta: Hyperparameter beta for logistic-Beta prior (default = 1.0).
+ *
+ * Outputs:
+ *   - Returns the total log pseudo-posterior (data likelihood + priors) as a scalar `double`.
+ *
+ * Usage:
+ *   - Called inside `adamala_thresholds()` and Metropolis updates for thresholds.
  */
 double log_pseudoposterior_thresholds (
     const arma::mat& thresholds,
@@ -164,122 +391,98 @@ double log_pseudoposterior_thresholds (
 ) {
   const arma::uword num_variables = residual_matrix.n_cols;
   const arma::uword num_persons = residual_matrix.n_rows;
-  double log_pp = 0.0;
 
-  // Loop over each variable
-  for (arma::uword variable = 0; variable < num_variables; variable++) {
+  double log_posterior = 0.0;
+
+  for (arma::uword variable = 0; variable < num_variables; ++variable) {
     const arma::uword num_cats = num_categories(variable);
 
-    if (is_ordinal_variable[variable]) {
-      // Contribution from thresholds × counts + prior
-      for (arma::uword category = 0; category < num_cats; category++) {
-        log_pp += thresholds(variable, category) *
-          (num_obs_categories(category + 1, variable) + threshold_alpha);
-        log_pp -= std::log(1.0 + std::exp(thresholds(variable, category))) *
+    if (is_ordinal_variable(variable)) {
+      // Ordinal variable: likelihood + prior contributions
+      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        log_posterior += thresholds(variable, cat) *
+          (num_obs_categories(cat + 1, variable) + threshold_alpha);
+
+        log_posterior -= std::log1p(std::exp(thresholds(variable, cat))) *
           (threshold_alpha + threshold_beta);
       }
 
-      // Contribution from normalization constants over all persons
-      for (arma::uword person = 0; person < num_persons; person++) {
+      for (arma::uword person = 0; person < num_persons; ++person) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
-        double denom = std::exp(-bound);
 
-        // Compute unnormalized category probabilities
-        for (arma::uword category = 0; category < num_cats; category++) {
-          arma::uword score = category + 1;
-          double exponent = thresholds(variable, category) + score * rest_score - bound;
-          denom += std::exp(exponent);
+        double denominator = std::exp(-bound);
+        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+          const double exponent = thresholds(variable, cat) + (cat + 1) * rest_score - bound;
+          denominator += std::exp(exponent);
         }
 
-        // Subtract log-normalizer
-        log_pp -= bound;
-        log_pp -= std::log(denom);
+        log_posterior -= bound + std::log(denominator);
       }
+
     } else {
-      // Contribution from thresholds × suff.stat. + prior
-      log_pp += thresholds(variable, 0) * (sufficient_blume_capel(0, variable) + threshold_alpha);
-      log_pp -= std::log(1.0 + std::exp(thresholds(variable, 0))) * (threshold_alpha + threshold_beta);
-      log_pp += thresholds(variable, 1) * (sufficient_blume_capel(1, variable) + threshold_alpha);
-      log_pp -= std::log(1.0 + std::exp(thresholds(variable, 1))) * (threshold_alpha + threshold_beta);
+      // Blume-Capel variable: likelihood + prior contributions
+      log_posterior += thresholds(variable, 0) *
+        (sufficient_blume_capel(0, variable) + threshold_alpha);
+      log_posterior -= std::log1p(std::exp(thresholds(variable, 0))) *
+        (threshold_alpha + threshold_beta);
+
+      log_posterior += thresholds(variable, 1) *
+        (sufficient_blume_capel(1, variable) + threshold_alpha);
+      log_posterior -= std::log1p(std::exp(thresholds(variable, 1))) *
+        (threshold_alpha + threshold_beta);
 
       const arma::uword ref = reference_category(variable);
 
-      // Contribution from normalization constants over all persons
-      for (arma::uword person = 0; person < num_persons; person++) {
+      for (arma::uword person = 0; person < num_persons; ++person) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
-        double denom = 0.0;
 
-        // Compute unnormalized category probabilities
-        for (arma::uword category = 0; category < num_cats + 1; category++) {
-          arma::uword score = category;
-          arma::uword centered_sq = (score - ref) * (score - ref);
-          double exponent = thresholds(variable, 0) * score +
-            thresholds(variable, 1) * centered_sq +
-            score * rest_score - bound;
-          denom += std::exp(exponent);
+        double denominator = 0.0;
+        for (arma::uword cat = 0; cat <= num_cats; ++cat) {
+          const double centered = static_cast<arma::sword>(cat) - static_cast<arma::sword>(ref);
+          const double exponent =
+            thresholds(variable, 0) * cat +
+            thresholds(variable, 1) * centered * centered +
+            cat * rest_score - bound;
+          denominator += std::exp(exponent);
         }
 
-        // Subtract log-normalizer
-        log_pp -= bound;
-        log_pp -= std::log(denom);
+        log_posterior -= bound + std::log(denominator);
       }
     }
   }
 
-  return log_pp;
-}
-
-
-/**
- * Function: count_threshold_parameters
- * Purpose:
- *   Compute the total number of threshold parameters across all variables,
- *   accounting for a mixture of regular ordinal and Blume-Capel models.
- *
- * For each variable:
- *   - If ordinal: uses `num_categories[var]` thresholds (for non-zero categories)
- *   - If Blume-Capel: uses exactly 2 parameters (linear + quadratic)
- *
- * Inputs:
- *   - num_categories: Vector of category counts per variable
- *   - is_ordinal_variable: Logical vector (TRUE for ordinal, FALSE for Blume-Capel)
- *
- * Output:
- *   - Total number of threshold parameters across all variables
- */
-arma::uword count_threshold_parameters(const arma::uvec& num_categories,
-                               const arma::uvec& is_ordinal_variable) {
-  arma::uword count = 0;
-  for (arma::uword variable = 0; variable < num_categories.n_elem; variable++) {
-    count += is_ordinal_variable[variable] ? num_categories[variable] : 2;
-  }
-  return count;
+  return log_posterior;
 }
 
 
 /**
  * Function: gradient_thresholds_pseudoposterior
  * Purpose:
- *   Compute the gradient of the pseudo-posterior with respect to threshold parameters
- *   in an ordinal MRF model, including both pseudolikelihood and logistic-Beta prior contributions.
- *
- * The model assumes that each threshold parameter has a prior of the form:
- *   logit^{-1}(theta) ~ Beta(alpha, beta)
+ *   Computes the gradient of the log pseudo-posterior with respect to threshold parameters
+ *   for both ordinal and Blume-Capel variables. Includes contributions from:
+ *     - Data likelihood (pseudo-likelihood)
+ *     - Beta-Prime priors on exponentially transformed thresholds
  *
  * Inputs:
- *   - thresholds: Threshold matrix [variables x categories]
- *   - residual_matrix: Linear predictors excluding the variable [persons x variables]
- *   - num_categories: Vector of number of categories per variable [variables]
- *   - num_obs_categories: Count matrix for observed categories [categories x variables]
- *   - threshold_alpha: Prior shape parameter alpha (default = 1.0)
- *   - threshold_beta: Prior shape parameter beta (default = 1.0)
+ *   - thresholds: Matrix of current threshold parameters [variables × categories].
+ *   - residual_matrix: Matrix of residual predictors (individuals × variables).
+ *   - num_categories: Vector of the number of categories for each variable.
+ *   - num_obs_categories: Matrix of observed category counts [category × variable].
+ *   - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel variables [2 × variable].
+ *   - reference_category: Vector of reference categories for Blume-Capel centering.
+ *   - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
+ *   - threshold_alpha: Hyperparameter alpha for logistic-Beta prior (default = 1.0).
+ *   - threshold_beta: Hyperparameter beta for logistic-Beta prior (default = 1.0).
  *
- * Output:
- *   - A vector of gradients (one per threshold parameter)
+ * Outputs:
+ *   - Returns a vector of gradients, ordered according to the flattened threshold vector.
+ *
+ * Usage:
+ *   - Used during adaptive MALA proposals for threshold parameters (e.g., in `adamala_thresholds`).
  */
-arma::vec gradient_thresholds_pseudoposterior (
+arma::vec gradient_thresholds_pseudoposterior(
     const arma::mat& thresholds,
     const arma::mat& residual_matrix,
     const arma::uvec& num_categories,
@@ -293,97 +496,87 @@ arma::vec gradient_thresholds_pseudoposterior (
   const arma::uword num_variables = residual_matrix.n_cols;
   const arma::uword num_persons = residual_matrix.n_rows;
 
-  // Total number of threshold parameters (sum over variables)
-  arma::uword num_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
-  arma::vec gradient(num_parameters, arma::fill::zeros);
+  const arma::uword total_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
+  arma::vec gradient(total_parameters, arma::fill::zeros);
 
   arma::uword offset = 0;  // Tracks position in the flat gradient vector
 
-  // Loop over each variable
-  for (arma::uword variable = 0; variable < num_variables; variable++) {
+  for (arma::uword variable = 0; variable < num_variables; ++variable) {
     const arma::uword num_cats = num_categories(variable);
 
-    if(is_ordinal_variable[variable]) {
-
-      // Initialize gradient with data contribution (counts)
-      for (arma::uword category = 0; category < num_cats; category++) {
-        gradient[offset + category] = num_obs_categories(category + 1, variable);
+    if (is_ordinal_variable(variable)) {
+      // Gradient for ordinal variables
+      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        gradient(offset + cat) = static_cast<double>(num_obs_categories(cat + 1, variable));
       }
-
-      // Numerical bound for stability (max threshold + max score * rest_score)
       const double max_threshold = thresholds.row(variable).max();
 
-      for (arma::uword person = 0; person < num_persons; person++) {
+      for (arma::uword person = 0; person < num_persons; ++person) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = max_threshold + num_cats * rest_score;
 
-        double denom = std::exp(-bound);
-        arma::vec numerators(num_cats);
+        double denominator = std::exp(-bound);
+        arma::vec numerators(num_cats, arma::fill::zeros);
 
-        for (arma::uword category = 0; category < num_cats; category++) {
-          arma::uword score = category + 1;
-          double exponent = thresholds(variable, category) + score * rest_score - bound;
-          numerators(category) = std::exp(exponent);
-          denom += numerators(category);
+        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+          const double exponent = thresholds(variable, cat) + (cat + 1) * rest_score - bound;
+          numerators(cat) = std::exp(exponent);
+          denominator += numerators(cat);
         }
 
-        // Subtract expected (soft) counts
-        for (arma::uword category = 0; category < num_cats; category++) {
-          gradient[offset + category] -= numerators[category] / denom;
+        // Subtract expected counts
+        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+          gradient(offset + cat) -= numerators(cat) / denominator;
         }
       }
 
-      // Prior contribution: logistic-Beta gradient
-      for (arma::uword category = 0; category < num_cats; category++) {
-        const double theta = thresholds(variable, category);
+      // Add prior contributions (logistic-Beta)
+      for (arma::uword cat = 0; cat < num_cats; ++cat) {
+        const double theta = thresholds(variable, cat);
         const double p = 1.0 / (1.0 + std::exp(-theta));
-        gradient(offset + category) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
+        gradient(offset + cat) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
-      // Move to next parameter block
       offset += num_cats;
+
     } else {
+      // Gradient for Blume-Capel variables
       const arma::uword ref = reference_category(variable);
-      double threshold0 = thresholds(variable, 0);
-      double threshold1 = thresholds(variable, 1);
+      const double threshold_linear = thresholds(variable, 0);
+      const double threshold_quad = thresholds(variable, 1);
 
-      // Initialize with sufficient statistics
-      gradient(offset) = sufficient_blume_capel(0, variable);  // sum x
-      gradient(offset + 1) = sufficient_blume_capel(1, variable);  // sum (x - ref)^2
+      gradient(offset) = static_cast<double>(sufficient_blume_capel(0, variable)); // sum(x)
+      gradient(offset + 1) = static_cast<double>(sufficient_blume_capel(1, variable)); // sum((x - ref)^2)
 
-      double exp0 = std::exp(threshold1 * ref * ref);
-      for (arma::uword person = 0; person < num_persons; person++) {
+      for (arma::uword person = 0; person < num_persons; ++person) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
-        double denom = exp0 * std::exp(-bound);
 
-        double sum_threshold0 = 0.0;
-        double sum_threshold1 = ref * ref * exp0 * std::exp(-bound);// centered squared term
+        double denominator = std::exp(threshold_quad * ref * ref - bound);
+        double sum_linear = 0.0;
+        double sum_quad = ref * ref * std::exp(threshold_quad * ref * ref - bound);
 
-        for (arma::uword category = 0; category < num_cats; category++) {
-          arma::uword score = category + 1;
-          arma::uword centered_sq = (score - ref) * (score - ref);
-          double exponent = threshold0 * score +
-            threshold1 * centered_sq +
-            score * rest_score - bound;
-          double weight = std::exp(exponent); //unnormalized probability
+        for (arma::uword cat = 0; cat < num_cats; ++cat) {
+          const arma::uword score = cat + 1;
+          const arma::sword centered = static_cast<arma::sword>(score) - static_cast<arma::sword>(ref);
+          const double exponent = threshold_linear * score + threshold_quad * centered * centered + score * rest_score - bound;
+          const double weight = std::exp(exponent);
 
-          sum_threshold0 += weight * score;
-          sum_threshold1 += weight * centered_sq;
+          sum_linear += weight * score;
+          sum_quad += weight * centered * centered;
 
-          denom += weight;
+          denominator += weight;
         }
 
-        // Subtract expected values (soft counts)
-        gradient(offset) -= sum_threshold0 / denom;
-        gradient(offset + 1) -= sum_threshold1 / denom;
+        gradient(offset) -= sum_linear / denominator;
+        gradient(offset + 1) -= sum_quad / denominator;
       }
 
-      // Add logistic-Beta prior gradient
-      for (arma::uword parameter = 0; parameter < 2; parameter++) {
-        double threshold = thresholds(variable, parameter);
-        double p = 1.0 / (1.0 + std::exp(-threshold));
-        gradient(offset + parameter) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
+      // Add prior contributions (logistic-Beta)
+      for (arma::uword param = 0; param < 2; ++param) {
+        const double theta = thresholds(variable, param);
+        const double p = 1.0 / (1.0 + std::exp(-theta));
+        gradient(offset + param) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
       offset += 2;
@@ -395,187 +588,114 @@ arma::vec gradient_thresholds_pseudoposterior (
 
 
 /**
- * Function: flatten_thresholds
+ * Function: adamala_thresholds
  * Purpose:
- *   Flattens a matrix of threshold parameters arma::uwordo a 1D vector, extracting only
- *   the active threshold parameters for each variable based on model type.
- *
- * For each variable:
- *   - If ordinal: extracts `num_categories[var]` thresholds
- *   - If Blume-Capel: extracts the first 2 columns (θ₀ and θ₁)
+ *   Performs Metropolis-adjusted Langevin algorithm (MALA) updates for threshold parameters
+ *   using either dual-averaging (during burn-in) or Robbins-Monro (post burn-in) step size adaptation.
+ *   Supports both ordinal and Blume-Capel variables.
  *
  * Inputs:
- *   - thresholds: Matrix of threshold values [num_variables x max_columns]
- *   - num_categories: Vector of active categories per variable [num_variables]
- *   - is_ordinal_variable: Logical vector indicating if variable is ordinal
+ *   - thresholds: Matrix of current threshold parameters [variables × categories]; updated in-place.
+ *   - step_size: Step size used in MALA (adapted over time); updated in-place.
+ *   - residual_matrix: Linear predictors excluding the variable; used in gradient calculations.
+ *   - num_categories: Vector of number of categories per variable.
+ *   - num_obs_categories: Matrix of observed category counts [category × variable].
+ *   - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel variables [2 × variable].
+ *   - reference_category: Vector of reference (centering) category per variable.
+ *   - is_ordinal_variable: Logical vector indicating ordinal (1) or Blume-Capel (0).
+ *   - t: Current iteration number (starts from 1).
+ *   - burnin: Number of burn-in iterations.
+ *   - dual_averaging_state: Vector of length 3 [log_step_size, log_step_size_avg, acceptance_error_avg]; updated in-place.
+ *   - threshold_alpha: Hyperparameter alpha for logistic-Beta prior.
+ *   - threshold_beta: Hyperparameter beta for logistic-Beta prior.
  *
- * Output:
- *   - A flat vector of threshold parameters [sum over active parameters]
+ * Outputs:
+ *   - Updates `thresholds`, `step_size`, and `dual_averaging_state` in-place.
+ *
+ * Usage:
+ *   - Called within the Gibbs sampler for adaptive threshold updates during and after burn-in.
  */
-arma::vec flatten_thresholds(const arma::mat& thresholds,
-                             const arma::uvec& num_categories,
-                             const arma::uvec& is_ordinal_variable) {
-  arma::uword num_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
-  arma::vec flat(num_parameters);
-
-  arma::uword offset = 0;
-  for (arma::uword variable = 0; variable < thresholds.n_rows; variable++) {
-    if (is_ordinal_variable[variable]) {
-      arma::uword num_cats = num_categories(variable);
-      flat.subvec(offset, offset + num_cats - 1) =
-        thresholds.row(variable).cols(0, num_cats - 1).t();
-      offset += num_cats;
-    } else {
-      // Blume-Capel: always take first two columns
-      flat.subvec(offset, offset + 1) =
-        thresholds.row(variable).cols(0, 1).t();
-      offset += 2;
-    }
-  }
-  return flat;
-}
-
-
-/**
- * Function: unflatten_thresholds
- * Purpose:
- *   Reconstructs a threshold matrix from a flat vector by writing back
- *   values based on the number of active parameters per variable.
- *
- * For each variable:
- *   - If ordinal: writes `num_categories[var]` values arma::uwordo row
- *   - If Blume-Capel: writes two values arma::uwordo first two columns
- *
- * Inputs:
- *   - flat: Flattened threshold vector [sum of active parameters]
- *   - num_categories: Vector of active categories per variable
- *   - is_ordinal_variable: Logical vector indicating ordinal vs. BC model
- *   - thresholds_out: Matrix to populate with threshold values (in-place)
- *
- * Notes:
- *   - Caller must ensure that `thresholds_out` has proper shape.
- */
-arma::mat unflatten_thresholds(
-    const arma::vec& flat,
-    const arma::uvec& num_categories,
-    const arma::uvec& is_ordinal_variable) {
-
-  arma::mat unflat(num_categories.n_elem, num_categories.max());
-
-  arma::uword offset = 0;
-  for (arma::uword variable = 0; variable < num_categories.n_elem; variable++) {
-    if (is_ordinal_variable[variable]) {
-      arma::uword num_cats = num_categories(variable);
-      unflat.row(variable).cols(0, num_cats - 1) =
-        flat.subvec(offset, offset + num_cats - 1).t();
-      offset += num_cats;
-    } else {
-      // Blume-Capel: always write to first two columns
-      unflat.row(variable).cols(0, 1) =
-        flat.subvec(offset, offset + 1).t();
-      offset += 2;
-    }
-  }
-  return unflat;
-}
-
-
-/**
- * Propose a new threshold vector using MALA (Metropolis-adjusted Langevin Algorithm)
- * with adaptive step size.
- *
- * Inputs:
- *   - theta_current: Current parameter vector (flattened thresholds)
- *   - thresholds: Threshold matrix [variables x categories]
- *   - residual_matrix: Linear predictors [persons x variables]
- *   - num_categories: Vector of number of categories per variable
- *   - num_obs_categories: Observation count matrix
- *   - step_size: MALA step size (controls scale of proposal)
- *   - threshold_alpha: Logistic-Beta prior shape (default 1.0)
- *   - threshold_beta: Logistic-Beta prior shape (default 1.0)
- *
- * Updates:
- *       - `thresholds''
- *       - `step_size`
- */
-void adamala_thresholds (
+void adamala_thresholds(
     arma::mat& thresholds,
+    double& step_size,
     const arma::mat& residual_matrix,
     const arma::uvec& num_categories,
     const arma::umat& num_obs_categories,
     const arma::umat& sufficient_blume_capel,
     const arma::uvec& reference_category,
     const arma::uvec& is_ordinal_variable,
-    double& step_size,
     const arma::uword t,
-    const double threshold_alpha = 1.0,
-    const double threshold_beta = 1.0
+    const arma::uword burnin,
+    arma::vec& dual_averaging_state,
+    const double log_step_size_target,
+    const double threshold_alpha,
+    const double threshold_beta
 ) {
-  // Flatten current threshold matrix and compute gradient
-  arma::vec flat_current = flatten_thresholds(thresholds, num_categories, is_ordinal_variable);
-  arma::vec grad_current = gradient_thresholds_pseudoposterior(
+  // Flatten thresholds for vector-based updates
+  arma::vec flat_theta = flatten_thresholds(thresholds, num_categories, is_ordinal_variable);
+
+  // Compute gradient and log-posterior
+  arma::vec grad = gradient_thresholds_pseudoposterior(
     thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  // MALA proposal step
-  arma::vec noise = arma::randn(flat_current.n_elem);
-  arma::vec flat_proposed = flat_current +
-    0.5 * step_size * step_size * grad_current +
-    step_size * noise;
-
-  // Reconstruct proposed threshold matrix
-  arma::mat thresholds_proposed = unflatten_thresholds (
-      flat_proposed, num_categories, is_ordinal_variable);
-
-  // Compute log-posterior values
-  double log_post_current = log_pseudoposterior_thresholds (
+  const double log_post_current = log_pseudoposterior_thresholds(
     thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  double log_post_proposed = log_pseudoposterior_thresholds (
-    thresholds_proposed, residual_matrix, num_categories, num_obs_categories,
+  const double sqrt_step = std::sqrt(step_size);
+
+  // Propose new parameters using Langevin dynamics
+  arma::vec proposal = flat_theta + 0.5 * step_size * grad + sqrt_step * arma::randn(flat_theta.n_elem);
+  arma::mat proposed_thresholds = unflatten_thresholds(proposal, num_categories, is_ordinal_variable);
+
+  // Compute log-posterior at proposal
+  const double log_post_proposal = log_pseudoposterior_thresholds(
+    proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  // Compute gradient at proposed poarma::uword for asymmetric proposal correction
-  arma::vec grad_proposed = gradient_thresholds_pseudoposterior (
-    thresholds_proposed, residual_matrix, num_categories, num_obs_categories,
+  // Compute proposal transition densities (log q(x | x'))
+  arma::vec grad_proposal = gradient_thresholds_pseudoposterior(
+    proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  // Proposal means
-  arma::vec mu_proposed = flat_current + 0.5 * step_size * step_size * grad_current;
-  arma::vec mu_current = flat_proposed + 0.5 * step_size * step_size * grad_proposed;
+  const arma::vec forward_mean = flat_theta + 0.5 * step_size * grad;
+  const arma::vec backward_mean = proposal + 0.5 * step_size * grad_proposal;
 
-  // Log-proposal densities
-  double log_q_proposed_given_current =
-    -1.0 / (2.0 * step_size * step_size) *
-    arma::dot(flat_proposed - mu_proposed, flat_proposed - mu_proposed);
+  const double log_forward = -0.5 / step_size * arma::accu(arma::square(proposal - forward_mean));
+  const double log_backward = -0.5 / step_size * arma::accu(arma::square(flat_theta - backward_mean));
 
-  double log_q_current_given_proposed =
-      -1.0 / (2.0 * step_size * step_size) *
-      arma::dot(flat_current - mu_current, flat_current - mu_current);
+  // Metropolis-Hastings acceptance probability
+  const double log_acceptance = log_post_proposal + log_backward - log_post_current - log_forward;
 
-  double log_accept_ratio =
-    log_post_proposed - log_post_current +
-    log_q_current_given_proposed - log_q_proposed_given_current;
-
-  if(std::log(R::runif(0, 1)) < log_accept_ratio) {
-    thresholds = thresholds_proposed;
+  if (std::log(R::unif_rand()) < log_acceptance) {
+    thresholds = proposed_thresholds;
+    flat_theta = proposal;  // Accepted proposal becomes current
   }
 
-  // Adaptive step size update (Robbins-Monro)
-  double acc_prob = (log_accept_ratio > 0) ? 1.0 : std::exp(log_accept_ratio);
-  double log_step_size = std::log(step_size) + (acc_prob - 0.574) * std::exp(-0.75 * std::log(t));
-  step_size = std::exp(log_step_size);
-  step_size = std::clamp(step_size, 0.005, 5.0);
+  // Step size adaptation
+  const double accept_prob = std::min(1.0, std::exp(log_acceptance));
+
+  if (t <= burnin) {
+    // Dual averaging during burn-in
+    dual_averaging_update (
+      accept_prob, t, dual_averaging_state, log_step_size_target, 10
+    );
+    step_size = std::exp(dual_averaging_state[1]);
+  } else {
+    // Robbins-Monro after burn-in
+    robbins_monro_update(accept_prob, t - burnin, step_size);
+  }
 }
+
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of the threshold parameters
@@ -1165,14 +1285,17 @@ List gibbs_step_gm(
     const arma::mat& theta,
     const  double phi,
     const double target_ar,
-    const arma::uword t,
     const double epsilon_lo,
     const double epsilon_hi,
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category,
     const bool edge_selection,
-    const bool mala = false,
-    double step_size = 0.1
+    double& step_size,
+    const arma::uword t,
+    arma::vec& dual_averaging_state,
+    const double log_step_size_target,
+    const arma::uword burnin_iters,
+    const bool mala = false
 ) {
 
   if(edge_selection == true) {
@@ -1214,11 +1337,13 @@ List gibbs_step_gm(
 
   //Update threshold parameters
   if(mala) {
-    adamala_thresholds (
-      thresholds, residual_matrix, num_categories, num_obs_categories,
-      sufficient_blume_capel, reference_category, is_ordinal_variable,
-      step_size, t, threshold_alpha, threshold_beta
+    adamala_thresholds(
+      thresholds, step_size, residual_matrix, num_categories, num_obs_categories,
+      sufficient_blume_capel, reference_category, is_ordinal_variable, t,
+      burnin_iters, dual_averaging_state, log_step_size_target,
+      threshold_alpha, threshold_beta
     );
+
   } else {
     for(arma::uword variable = 0; variable < no_variables; variable++) {
       if(is_ordinal_variable[variable] == true) {
@@ -1251,8 +1376,6 @@ List gibbs_step_gm(
       }
     }
   }
-
-
 
   return List::create(Named("indicator") = indicator,
                       Named("interactions") = interactions,
@@ -1309,11 +1432,18 @@ List gibbs_sampler(
   arma::umat index(no_interactions, 3);
 
   //Parameters of adaptive proposals -------------------------------------------
-  double step_size = 0.01;
+  double initial_step_size = 0.01;
+  double step_size = initial_step_size;
+  double log_step_size_target = std::log(10.0 * initial_step_size);
   double phi = 0.75;
   double target_ar = 0.234;
   double epsilon_lo = 1.0 / static_cast<double>(no_persons);
   double epsilon_hi = 2.0;
+  arma::vec dual_averaging_state = arma::zeros<arma::vec>(3);
+  // Indexes:
+  // [0] = log_step_size
+  // [1] = log_step_size_avg
+  // [2] = acceptance_error_avg
 
   //The resizing based on ``save'' could probably be prettier ------------------
   arma::uword nrow = no_variables;
@@ -1371,11 +1501,9 @@ List gibbs_sampler(
       }
     }
 
-    cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                       indicator,
-                                       no_variables,
-                                       beta_bernoulli_alpha,
-                                       beta_bernoulli_beta);
+    cluster_prob = block_probs_mfm_sbm (
+      cluster_allocations, indicator, no_variables, beta_bernoulli_alpha,
+      beta_bernoulli_beta);
 
     for(arma::uword i = 0; i < no_variables - 1; i++) {
       for(arma::uword j = i + 1; j < no_variables; j++) {
@@ -1384,10 +1512,8 @@ List gibbs_sampler(
       }
     }
 
-    log_Vn = compute_Vn_mfm_sbm(no_variables,
-                                dirichlet_alpha,
-                                no_variables + 10,
-                                lambda);
+    log_Vn = compute_Vn_mfm_sbm (
+      no_variables, dirichlet_alpha, no_variables + 10, lambda);
   }
 
   //The Gibbs sampler ----------------------------------------------------------
@@ -1403,6 +1529,8 @@ List gibbs_sampler(
     second_burnin = burnin;
   bool input_edge_selection = edge_selection;
   edge_selection = false;
+  arma::uword burnin_iters = first_burnin + second_burnin;
+
 
   //Progress bar ---------------------------------------------------------------
   Progress p(iter + first_burnin + second_burnin, display_progress);
@@ -1429,16 +1557,10 @@ List gibbs_sampler(
     }
 
     if(na_impute == true) {
-      List out = impute_missing_data(interactions,
-                                     thresholds,
-                                     observations,
-                                     num_obs_categories,
-                                     sufficient_blume_capel,
-                                     num_categories,
-                                     residual_matrix,
-                                     missing_index,
-                                     is_ordinal_variable,
-                                     reference_category);
+      List out = impute_missing_data (
+        interactions, thresholds, observations, num_obs_categories,
+        sufficient_blume_capel, num_categories, residual_matrix,
+        missing_index, is_ordinal_variable, reference_category);
 
       arma::umat observations = out["observations"];
       arma::umat num_obs_categories = out["num_obs_categories"];
@@ -1446,36 +1568,15 @@ List gibbs_sampler(
       arma::mat residual_matrix = out["residual_matrix"];
     }
 
-    List out = gibbs_step_gm(observations,
-                             num_categories,
-                             interaction_scale,
-                             proposal_sd,
-                             proposal_sd_blumecapel,
-                             index,
-                             num_obs_categories,
-                             sufficient_blume_capel,
-                             threshold_alpha,
-                             threshold_beta,
-                             no_persons,
-                             no_variables,
-                             no_interactions,
-                             no_thresholds,
-                             max_num_categories,
-                             indicator,
-                             interactions,
-                             thresholds,
-                             residual_matrix,
-                             theta,
-                             phi,
-                             target_ar,
-                             iteration + 1,
-                             epsilon_lo,
-                             epsilon_hi,
-                             is_ordinal_variable,
-                             reference_category,
-                             edge_selection,
-                             mala,
-                             step_size);
+    List out = gibbs_step_gm (
+      observations, num_categories, interaction_scale, proposal_sd,
+      proposal_sd_blumecapel, index, num_obs_categories, sufficient_blume_capel,
+      threshold_alpha, threshold_beta, no_persons,  no_variables,
+      no_interactions, no_thresholds, max_num_categories, indicator,
+      interactions, thresholds, residual_matrix, theta, phi, target_ar,
+      epsilon_lo, epsilon_hi, is_ordinal_variable,
+      reference_category, edge_selection, step_size, iteration + 1,
+      dual_averaging_state, log_step_size_target, burnin_iters, mala);
 
     arma::umat indicator = out["indicator"];
     arma::mat interactions = out["interactions"];
@@ -1502,21 +1603,13 @@ List gibbs_sampler(
         }
       }
       if(edge_prior == "Stochastic-Block") {
-        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
-                                                        no_variables,
-                                                        log_Vn,
-                                                        cluster_prob,
-                                                        indicator,
-                                                        dirichlet_alpha,
-                                                        beta_bernoulli_alpha,
-                                                        beta_bernoulli_beta);
+        cluster_allocations = block_allocations_mfm_sbm (
+          cluster_allocations, no_variables, log_Vn, cluster_prob, indicator,
+          dirichlet_alpha, beta_bernoulli_alpha, beta_bernoulli_beta);
 
-
-        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           indicator,
-                                           no_variables,
-                                           beta_bernoulli_alpha,
-                                           beta_bernoulli_beta);
+        cluster_prob = block_probs_mfm_sbm (
+          cluster_allocations, indicator, no_variables, beta_bernoulli_alpha,
+          beta_bernoulli_beta);
 
         for(arma::uword i = 0; i < no_variables - 1; i++) {
           for(arma::uword j = i + 1; j < no_variables; j++) {
@@ -1561,16 +1654,10 @@ List gibbs_sampler(
     }
 
     if(na_impute == true) {
-      List out = impute_missing_data(interactions,
-                                     thresholds,
-                                     observations,
-                                     num_obs_categories,
-                                     sufficient_blume_capel,
-                                     num_categories,
-                                     residual_matrix,
-                                     missing_index,
-                                     is_ordinal_variable,
-                                     reference_category);
+      List out = impute_missing_data (
+        interactions, thresholds, observations, num_obs_categories,
+        sufficient_blume_capel, num_categories, residual_matrix,
+        missing_index, is_ordinal_variable, reference_category);
 
       arma::umat observations = out["observations"];
       arma::umat num_obs_categories = out["num_obs_categories"];
@@ -1578,36 +1665,15 @@ List gibbs_sampler(
       arma::mat residual_matrix = out["residual_matrix"];
     }
 
-    List out = gibbs_step_gm(observations,
-                             num_categories,
-                             interaction_scale,
-                             proposal_sd,
-                             proposal_sd_blumecapel,
-                             index,
-                             num_obs_categories,
-                             sufficient_blume_capel,
-                             threshold_alpha,
-                             threshold_beta,
-                             no_persons,
-                             no_variables,
-                             no_interactions,
-                             no_thresholds,
-                             max_num_categories,
-                             indicator,
-                             interactions,
-                             thresholds,
-                             residual_matrix,
-                             theta,
-                             phi,
-                             target_ar,
-                             iteration + 1,
-                             epsilon_lo,
-                             epsilon_hi,
-                             is_ordinal_variable,
-                             reference_category,
-                             edge_selection,
-                             mala,
-                             step_size);
+    List out = gibbs_step_gm (
+      observations, num_categories, interaction_scale, proposal_sd,
+      proposal_sd_blumecapel, index, num_obs_categories, sufficient_blume_capel,
+      threshold_alpha, threshold_beta, no_persons,  no_variables,
+      no_interactions, no_thresholds, max_num_categories, indicator,
+      interactions, thresholds, residual_matrix, theta, phi, target_ar,
+      epsilon_lo, epsilon_hi, is_ordinal_variable,
+      reference_category, edge_selection, step_size, iteration + 1,
+      dual_averaging_state, log_step_size_target, burnin_iters, mala);
 
     arma::umat indicator = out["indicator"];
     arma::mat interactions = out["interactions"];
@@ -1634,22 +1700,13 @@ List gibbs_sampler(
         }
       }
       if(edge_prior == "Stochastic-Block") {
-        cluster_allocations = block_allocations_mfm_sbm(cluster_allocations,
-                                                        no_variables,
-                                                        log_Vn,
-                                                        cluster_prob,
-                                                        indicator,
-                                                        dirichlet_alpha,
-                                                        beta_bernoulli_alpha,
-                                                        beta_bernoulli_beta);
+        cluster_allocations = block_allocations_mfm_sbm (
+          cluster_allocations, no_variables, log_Vn, cluster_prob, indicator,
+          dirichlet_alpha, beta_bernoulli_alpha, beta_bernoulli_beta);
 
-
-        cluster_prob = block_probs_mfm_sbm(cluster_allocations,
-                                           indicator,
-                                           no_variables,
-                                           beta_bernoulli_alpha,
-                                           beta_bernoulli_beta);
-
+        cluster_prob = block_probs_mfm_sbm (
+          cluster_allocations, indicator, no_variables, beta_bernoulli_alpha,
+          beta_bernoulli_beta);
 
         for(arma::uword i = 0; i < no_variables - 1; i++) {
           for(arma::uword j = i + 1; j < no_variables; j++) {
