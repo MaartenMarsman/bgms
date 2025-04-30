@@ -37,7 +37,7 @@ using namespace Rcpp;
  *   - Used inside the adaptive Metropolis-adjusted Langevin algorithm (MALA) for updating threshold parameters.
  *   - Called during the burn-in phase inside `adamala_thresholds()` to adaptively tune the step size.
  */
-inline void dual_averaging_update(
+inline void dual_averaging_update (
     const double acceptance_probability,
     const arma::uword iteration,
     arma::vec& state,
@@ -52,90 +52,87 @@ inline void dual_averaging_update(
   const double gamma = 0.05;
   const double kappa = 0.75;
 
-  const double acceptance_error = target_acceptance - acceptance_probability;
-  const double iter_scaled = static_cast<double>(iteration);
+  const double iter_double = static_cast<double>(iteration);
+  const double adjusted_iter = iter_double + static_cast<double>(stabilization_offset);
+  const double error = target_acceptance - acceptance_probability;
 
   // Update running average of acceptance error
-  acceptance_error_avg =
-    (1.0 - 1.0 / (iter_scaled + stabilization_offset)) * acceptance_error_avg +
-    (1.0 / (iter_scaled + stabilization_offset)) * acceptance_error;
+  acceptance_error_avg = (1.0 - 1.0 / adjusted_iter) * acceptance_error_avg +
+    1.0 / adjusted_iter * error;
 
   // Update log step size
-  log_step_size = log_step_size_target - std::sqrt(iter_scaled) / gamma * acceptance_error_avg;
+  log_step_size = log_step_size_target - std::sqrt(iter_double) / gamma * acceptance_error_avg;
 
   // Update running average of log step size
-  const double weight = std::pow(iter_scaled, -kappa);
+  const double weight = std::pow(iter_double, -kappa);
   log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
 }
 
 
 /**
- * Function: robbins_monro_update
- * Purpose:
- *   Performs a Robbins-Monro update to adapt the step size during MCMC after burn-in.
- *   The step size is adjusted toward the target acceptance rate based on the observed
- *   acceptance probability using a stochastic approximation method.
+ * Robbins-Monro update of the step size for MALA proposals using exponential decay.
  *
- * Inputs:
- *   - acceptance_probability: Observed acceptance probability at the current iteration.
- *   - iteration: Current iteration number (starting from 1).
- *   - step_size: Current step size (epsilon), updated in-place.
+ * This function adapts the step size on the log scale to target a specific
+ * acceptance probability. It uses a Robbins-Monro rule with polynomially
+ * decaying learning rate:
  *
- * Outputs:
- *   - Updates `step_size` in-place based on the Robbins-Monro stochastic approximation.
+ *     log(step_size) ← log(step_size) + (accept_prob - target) * t^{-phi}
  *
- * Usage:
- *   - Used after burn-in in the adaptive Metropolis-adjusted Langevin algorithm (MALA)
- *     for tuning threshold parameters.
- *   - Called inside `adamala_thresholds()` once burn-in is complete.
+ * This ensures diminishing adaptation over time and avoids instability
+ * in later iterations. The target acceptance rate (0.574) is optimal
+ * for MALA under typical assumptions.
+ *
+ * Parameters:
+ *  - acceptance_probability: Observed acceptance rate at the current iteration.
+ *  - iteration: Current iteration count (starts at 1).
+ *  - step_size: The current step size (updated in-place).
+ *
+ * Notes:
+ *  - phi is fixed at 0.75 (typical value for stable decay).
+ *  - This version assumes the step size is always positive.
  */
 inline void robbins_monro_update(
     const double acceptance_probability,
     const arma::uword iteration,
     double& step_size
 ) {
-  const double target_acceptance = 0.574; // Standard target acceptance for MALA
-  const double learning_rate = 0.01;       // Robbins-Monro learning rate constant
-
-  const double acceptance_error = acceptance_probability - target_acceptance;
+  const double target_acceptance = 0.574;
+  const double phi = 0.75;
+  const double error = acceptance_probability - target_acceptance;
+  const double decay = std::pow(static_cast<double>(iteration), -phi);
 
   double log_step_size = std::log(step_size);
-  log_step_size += learning_rate * acceptance_error / std::sqrt(static_cast<double>(iteration));
+  log_step_size += error * decay;
 
   step_size = std::exp(log_step_size);
 }
 
-
 /**
- * Function: count_threshold_parameters
- * Purpose:
- *   Computes the total number of threshold parameters across all variables,
- *   accounting for both regular ordinal and Blume-Capel models.
+ * Counts the total number of threshold parameters across all variables.
  *
- * Inputs:
- *   - num_categories: Vector of the number of categories for each variable.
- *   - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
+ * Ordinal variables contribute one threshold per category.
+ * Blume-Capel variables contribute two parameters (linear and quadratic).
  *
- * Outputs:
- *   - Returns the total number of threshold parameters as a scalar `arma::uword`.
+ * Parameters:
+ *  - num_categories: Vector of category counts per variable.
+ *  - is_ordinal_variable: Boolean vector indicating which variables are ordinal.
  *
- * Usage:
- *   - Used to allocate and organize threshold parameter vectors for adaptive updates
- *     (e.g., flattening/unflattening threshold matrices for MALA updates).
+ * Returns:
+ *  - Total number of threshold parameters to be estimated.
  */
 inline arma::uword count_threshold_parameters(
     const arma::uvec& num_categories,
     const arma::uvec& is_ordinal_variable
 ) {
-  arma::uword total_parameters = 0;
-
-  const arma::uword num_variables = num_categories.n_elem;
-
-  for (arma::uword variable = 0; variable < num_variables; variable++) {
-    total_parameters += is_ordinal_variable(variable) ? num_categories(variable) : 2;
+  arma::uword n_params = 0;
+  for (arma::uword variable = 0; variable < num_categories.n_elem; variable++) {
+    if (is_ordinal_variable(variable)) {
+      n_params += num_categories(variable);
+    } else {
+      n_params += 2; // linear + quadratic for Blume-Capel
+    }
   }
-
-  return total_parameters;
+  return n_params;
 }
 
 
@@ -163,8 +160,8 @@ arma::vec flatten_thresholds(
     const arma::uvec& num_categories,
     const arma::uvec& is_ordinal_variable
 ) {
-  const arma::uword total_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
-  arma::vec flattened(total_parameters);
+  const arma::uword num_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
+  arma::vec flattened(num_parameters);
 
   arma::uword offset = 0;
 
@@ -398,13 +395,11 @@ double log_pseudoposterior_thresholds (
     const arma::uword num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
-      // Ordinal variable: likelihood + prior contributions
+      // Regular ordinal variable
       for (arma::uword cat = 0; cat < num_cats; cat++) {
-        log_posterior += thresholds(variable, cat) *
-          (num_obs_categories(cat + 1, variable) + threshold_alpha);
-
-        log_posterior -= std::log1p(std::exp(thresholds(variable, cat))) *
-          (threshold_alpha + threshold_beta);
+        const double theta = thresholds(variable, cat);
+        log_posterior += theta * (num_obs_categories(cat + 1, variable) + threshold_alpha);
+        log_posterior -= std::log1p(std::exp(theta)) * (threshold_alpha + threshold_beta);
       }
 
       for (arma::uword person = 0; person < num_persons; person++) {
@@ -421,29 +416,28 @@ double log_pseudoposterior_thresholds (
       }
 
     } else {
-      // Blume-Capel variable: likelihood + prior contributions
-      log_posterior += thresholds(variable, 0) *
-        (sufficient_blume_capel(0, variable) + threshold_alpha);
-      log_posterior -= std::log1p(std::exp(thresholds(variable, 0))) *
-        (threshold_alpha + threshold_beta);
+      // Blume-Capel variable
+      const double theta_lin = thresholds(variable, 0);
+      const double theta_quad = thresholds(variable, 1);
 
-      log_posterior += thresholds(variable, 1) *
-        (sufficient_blume_capel(1, variable) + threshold_alpha);
-      log_posterior -= std::log1p(std::exp(thresholds(variable, 1))) *
-        (threshold_alpha + threshold_beta);
+      log_posterior += theta_lin * (sufficient_blume_capel(0, variable) + threshold_alpha);
+      log_posterior -= std::log1p(std::exp(theta_lin)) * (threshold_alpha + threshold_beta);
 
-      const arma::uword ref = reference_category(variable);
+      log_posterior += theta_quad * (sufficient_blume_capel(1, variable) + threshold_alpha);
+      log_posterior -= std::log1p(std::exp(theta_quad)) * (threshold_alpha + threshold_beta);
+
+      const int ref = static_cast<int>(reference_category(variable));
 
       for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
 
         double denominator = 0.0;
-        for (arma::uword cat = 0; cat <= num_cats; cat++) {
-          const int centered = static_cast<int>(cat) - static_cast<int>(ref);
+        for (int cat = 0; cat <= num_cats; cat++) {
+          const int centered = cat - ref;
           const double exponent =
-            thresholds(variable, 0) * cat +
-            thresholds(variable, 1) * centered * centered +
+            theta_lin * cat +
+            theta_quad * centered * centered +
             cat * rest_score - bound;
           denominator += std::exp(exponent);
         }
@@ -458,29 +452,24 @@ double log_pseudoposterior_thresholds (
 
 
 /**
- * Function: gradient_thresholds_pseudoposterior
- * Purpose:
- *   Computes the gradient of the log pseudo-posterior with respect to threshold parameters
- *   for both ordinal and Blume-Capel variables. Includes contributions from:
- *     - Data likelihood (pseudo-likelihood)
- *     - Beta-Prime priors on exponentially transformed thresholds
+ * Computes the gradient of the log pseudo-posterior with respect to threshold parameters.
  *
- * Inputs:
- *   - thresholds: Matrix of current threshold parameters [variables × categories].
- *   - residual_matrix: Matrix of residual predictors (individuals × variables).
- *   - num_categories: Vector of the number of categories for each variable.
- *   - num_obs_categories: Matrix of observed category counts [category × variable].
- *   - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel variables [2 × variable].
- *   - reference_category: Vector of reference categories for Blume-Capel centering.
- *   - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
- *   - threshold_alpha: Hyperparameter alpha for logistic-Beta prior (default = 1.0).
- *   - threshold_beta: Hyperparameter beta for logistic-Beta prior (default = 1.0).
+ * Supports both ordinal and Blume-Capel variables. The gradient includes:
+ *   - Data pseudo-likelihood contribution (via expected counts)
+ *   - Logistic-Beta prior contributions on the transformed thresholds
  *
- * Outputs:
- *   - Returns a vector of gradients, ordered according to the flattened threshold vector.
+ * Parameters:
+ *  - thresholds: [variables × categories] matrix of current threshold parameters.
+ *  - residual_matrix: [persons × variables] matrix of residual scores.
+ *  - num_categories: Vector with number of score levels per variable.
+ *  - num_obs_categories: [category × variable] matrix of observed category counts.
+ *  - sufficient_blume_capel: [2 × variable] matrix of sufficient stats.
+ *  - reference_category: Reference (centering) category per variable.
+ *  - is_ordinal_variable: 1 = ordinal, 0 = Blume-Capel.
+ *  - threshold_alpha, threshold_beta: Hyperparameters for the logistic-Beta prior.
  *
- * Usage:
- *   - Used during adaptive MALA proposals for threshold parameters (e.g., in `adamala_thresholds`).
+ * Returns:
+ *  - A vector containing gradients, flattened to match threshold vector layout.
  */
 arma::vec gradient_thresholds_pseudoposterior(
     const arma::mat& thresholds,
@@ -495,42 +484,40 @@ arma::vec gradient_thresholds_pseudoposterior(
 ) {
   const arma::uword num_variables = residual_matrix.n_cols;
   const arma::uword num_persons = residual_matrix.n_rows;
+  const arma::uword num_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
 
-  const arma::uword total_parameters = count_threshold_parameters(num_categories, is_ordinal_variable);
-  arma::vec gradient(total_parameters, arma::fill::zeros);
-
-  arma::uword offset = 0;  // Tracks position in the flat gradient vector
+  arma::vec gradient(num_parameters, arma::fill::zeros);
+  arma::uword offset = 0;
 
   for (arma::uword variable = 0; variable < num_variables; variable++) {
     const arma::uword num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
-      // Gradient for ordinal variables
-      for (arma::uword cat = 0; cat < num_cats; cat++) {
-        gradient(offset + cat) = static_cast<double>(num_obs_categories(cat + 1, variable));
-      }
+      // Ordinal variable
       const double max_threshold = thresholds.row(variable).max();
+
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
+        gradient(offset + cat) = num_obs_categories(cat + 1, variable);
+      }
 
       for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = max_threshold + num_cats * rest_score;
 
-        double denominator = std::exp(-bound);
+        double denom = std::exp(-bound);
         arma::vec numerators(num_cats, arma::fill::zeros);
 
         for (arma::uword cat = 0; cat < num_cats; cat++) {
           const double exponent = thresholds(variable, cat) + (cat + 1) * rest_score - bound;
           numerators(cat) = std::exp(exponent);
-          denominator += numerators(cat);
+          denom += numerators(cat);
         }
 
-        // Subtract expected counts
         for (arma::uword cat = 0; cat < num_cats; cat++) {
-          gradient(offset + cat) -= numerators(cat) / denominator;
+          gradient(offset + cat) -= numerators(cat) / denom;
         }
       }
 
-      // Add prior contributions (logistic-Beta)
       for (arma::uword cat = 0; cat < num_cats; cat++) {
         const double theta = thresholds(variable, cat);
         const double p = 1.0 / (1.0 + std::exp(-theta));
@@ -540,43 +527,46 @@ arma::vec gradient_thresholds_pseudoposterior(
       offset += num_cats;
 
     } else {
-      // Gradient for Blume-Capel variables
-      const arma::uword ref = reference_category(variable);
-      const double threshold_linear = thresholds(variable, 0);
-      const double threshold_quad = thresholds(variable, 1);
+      // Blume-Capel variable
+      const int ref = static_cast<int>(reference_category(variable));
+      const double theta_lin = thresholds(variable, 0);
+      const double theta_quad = thresholds(variable, 1);
 
-      gradient(offset) = static_cast<double>(sufficient_blume_capel(0, variable)); // sum(x)
-      gradient(offset + 1) = static_cast<double>(sufficient_blume_capel(1, variable)); // sum((x - ref)^2)
+      gradient(offset)     = sufficient_blume_capel(0, variable);
+      gradient(offset + 1) = sufficient_blume_capel(1, variable);
 
       for (arma::uword person = 0; person < num_persons; person++) {
         const double rest_score = residual_matrix(person, variable);
         const double bound = num_cats * rest_score;
 
-        double denominator = std::exp(threshold_quad * ref * ref - bound);
-        double sum_linear = 0.0;
-        double sum_quad = ref * ref * denominator;
+        double denom = std::exp(theta_quad * ref * ref - bound);
+        double sum_lin = 0.0;
+        double sum_quad = ref * ref * denom;
 
         for (arma::uword cat = 0; cat < num_cats; cat++) {
           const arma::uword score = cat + 1;
-          const arma::sword centered = static_cast<arma::sword>(score) - static_cast<arma::sword>(ref);
-          const double exponent = threshold_linear * score + threshold_quad * centered * centered + score * rest_score - bound;
-          const double weight = std::exp(exponent);
+          const int centered = static_cast<int>(score) - ref;
 
-          sum_linear += weight * score;
+          const double exponent =
+            theta_lin * score +
+            theta_quad * centered * centered +
+            score * rest_score - bound;
+
+          const double weight = std::exp(exponent);
+          sum_lin += weight * score;
           sum_quad += weight * centered * centered;
 
-          denominator += weight;
+          denom += weight;
         }
 
-        gradient(offset) -= sum_linear / denominator;
-        gradient(offset + 1) -= sum_quad / denominator;
+        gradient(offset)     -= sum_lin / denom;
+        gradient(offset + 1) -= sum_quad / denom;
       }
 
-      // Add prior contributions (logistic-Beta)
-      for (arma::uword param = 0; param < 2; param++) {
-        const double theta = thresholds(variable, param);
+      for (arma::uword i = 0; i < 2; i++) {
+        const double theta = thresholds(variable, i);
         const double p = 1.0 / (1.0 + std::exp(-theta));
-        gradient(offset + param) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
+        gradient(offset + i) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
       offset += 2;
@@ -588,34 +578,28 @@ arma::vec gradient_thresholds_pseudoposterior(
 
 
 /**
- * Function: adamala_thresholds
- * Purpose:
- *   Performs Metropolis-adjusted Langevin algorithm (MALA) updates for threshold parameters
- *   using either dual-averaging (during burn-in) or Robbins-Monro (post burn-in) step size adaptation.
- *   Supports both ordinal and Blume-Capel variables.
+ * Performs a MALA (Metropolis-adjusted Langevin Algorithm) update of threshold parameters
+ * with adaptive step size tuning. Supports both ordinal and Blume-Capel variables.
  *
- * Inputs:
- *   - thresholds: Matrix of current threshold parameters [variables × categories]; updated in-place.
- *   - step_size: Step size used in MALA (adapted over time); updated in-place.
- *   - residual_matrix: Linear predictors excluding the variable; used in gradient calculations.
- *   - num_categories: Vector of number of categories per variable.
- *   - num_obs_categories: Matrix of observed category counts [category × variable].
- *   - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel variables [2 × variable].
- *   - reference_category: Vector of reference (centering) category per variable.
- *   - is_ordinal_variable: Logical vector indicating ordinal (1) or Blume-Capel (0).
- *   - t: Current iteration number (starts from 1).
- *   - burnin: Number of burn-in iterations.
- *   - dual_averaging_state: Vector of length 3 [log_step_size, log_step_size_avg, acceptance_error_avg]; updated in-place.
- *   - threshold_alpha: Hyperparameter alpha for logistic-Beta prior.
- *   - threshold_beta: Hyperparameter beta for logistic-Beta prior.
+ * During burn-in, step size is adapted using dual averaging. After burn-in,
+ * Robbins-Monro is used.
  *
- * Outputs:
- *   - Updates `thresholds`, `step_size`, and `dual_averaging_state` in-place.
- *
- * Usage:
- *   - Called within the Gibbs sampler for adaptive threshold updates during and after burn-in.
+ * Parameters:
+ *  - thresholds: [variables × max_categories] matrix of current thresholds (updated in-place).
+ *  - step_size: MALA step size (updated in-place).
+ *  - residual_matrix: [persons × variables] matrix of residual scores.
+ *  - num_categories: Number of categories per variable.
+ *  - num_obs_categories: Count of observed categories [category × variable].
+ *  - sufficient_blume_capel: Sufficient stats for BC variables [2 × variable].
+ *  - reference_category: Reference category for centering.
+ *  - is_ordinal_variable: Indicator for ordinal (1) or Blume-Capel (0) per variable.
+ *  - t: Current iteration.
+ *  - burnin: Number of burn-in iterations.
+ *  - dual_averaging_state: [log_eps, log_eps_bar, H_bar] vector (updated in-place).
+ *  - log_step_size_target: Target log step size (typically log(10 * ε₀)).
+ *  - threshold_alpha, threshold_beta: Hyperparameters for logistic-Beta prior.
  */
-void adamala_thresholds(
+void adamala_thresholds (
     arma::mat& thresholds,
     double& step_size,
     const arma::mat& residual_matrix,
@@ -631,10 +615,10 @@ void adamala_thresholds(
     const double threshold_alpha,
     const double threshold_beta
 ) {
-  // Flatten thresholds for vector-based updates
+  // Flatten parameters
   arma::vec flat_theta = flatten_thresholds(thresholds, num_categories, is_ordinal_variable);
 
-  // Compute gradient and log-posterior
+  // Evaluate current gradient and log posterior
   arma::vec grad = gradient_thresholds_pseudoposterior(
     thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
@@ -647,51 +631,51 @@ void adamala_thresholds(
     threshold_alpha, threshold_beta
   );
 
+  // Propose new theta
   const double sqrt_step = std::sqrt(step_size);
-
-  // Propose new parameters using Langevin dynamics
   arma::vec proposal = flat_theta + 0.5 * step_size * grad + sqrt_step * arma::randn(flat_theta.n_elem);
   arma::mat proposed_thresholds = unflatten_thresholds(proposal, num_categories, is_ordinal_variable);
 
-  // Compute log-posterior at proposal
+  // Evaluate proposal log posterior and gradient
   const double log_post_proposal = log_pseudoposterior_thresholds(
     proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  // Compute proposal transition densities (log q(x | x'))
   arma::vec grad_proposal = gradient_thresholds_pseudoposterior(
     proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
+  // Compute forward and backward proposal densities
   const arma::vec forward_mean = flat_theta + 0.5 * step_size * grad;
   const arma::vec backward_mean = proposal + 0.5 * step_size * grad_proposal;
 
   const double log_forward = -0.5 / step_size * arma::accu(arma::square(proposal - forward_mean));
   const double log_backward = -0.5 / step_size * arma::accu(arma::square(flat_theta - backward_mean));
 
-  // Metropolis-Hastings acceptance probability
+  // Metropolis acceptance probability
   const double log_acceptance = log_post_proposal + log_backward - log_post_current - log_forward;
 
+  // Accept/reject
   if (std::log(R::unif_rand()) < log_acceptance) {
     thresholds = proposed_thresholds;
-    flat_theta = proposal;  // Accepted proposal becomes current
+    flat_theta = proposal;
   }
 
-  // Step size adaptation
+  // Compute acceptance probability (bounded at 1)
   const double accept_prob = std::min(1.0, std::exp(log_acceptance));
 
+  // Adapt step size
   if (t <= burnin) {
-    // Dual averaging during burn-in
-    dual_averaging_update (
-      accept_prob, t, dual_averaging_state, log_step_size_target, 10
+    dual_averaging_update(
+      accept_prob, t, dual_averaging_state,
+      log_step_size_target, 10
     );
     step_size = std::exp(dual_averaging_state[1]);
   } else {
-    // Robbins-Monro after burn-in
     robbins_monro_update(accept_prob, t - burnin, step_size);
   }
 }
