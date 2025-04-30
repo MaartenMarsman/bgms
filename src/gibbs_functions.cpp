@@ -775,6 +775,30 @@ void metropolis_thresholds_regular (
 
 
 
+/**
+ * Performs a Metropolis update of the Blume-Capel threshold parameters for a single variable.
+ *
+ * For each Blume-Capel variable, both the linear and quadratic threshold parameters
+ * are updated in turn using a log pseudo-likelihood and logistic-Beta prior.
+ *
+ * Step sizes are adapted with Robbins-Monro based on the observed acceptance probability.
+ *
+ * Parameters:
+ *  - thresholds: [variables × 2] matrix of threshold parameters (linear and quadratic).
+ *  - observations: [persons × variables] (not used directly, passed for consistency).
+ *  - num_categories: Vector of number of categories per variable.
+ *  - sufficient_blume_capel: [2 × variables] matrix of sufficient statistics.
+ *  - no_persons: Number of observations.
+ *  - variable: Index of the variable being updated.
+ *  - reference_category: Vector of reference categories per variable.
+ *  - threshold_alpha, threshold_beta: Prior hyperparameters.
+ *  - residual_matrix: [persons × variables] matrix of rest scores.
+ *  - proposal_sd_blumecapel: [variables × 2] proposal SD matrix (updated in-place).
+ *  - phi: Robbins-Monro decay rate.
+ *  - target_ar: Target acceptance rate.
+ *  - t: Current iteration (starting at 1).
+ *  - epsilon_lo, epsilon_hi: Bounds on proposal SD.
+ */
 void metropolis_thresholds_blumecapel(
     arma::mat& thresholds,
     const arma::umat& observations,
@@ -793,122 +817,106 @@ void metropolis_thresholds_blumecapel(
     const double epsilon_lo,
     const double epsilon_hi
 ) {
-  double log_prob, U;
-  double current_state, proposed_state, difference;
-  double numerator, denominator;
-  double lbound, bound, exponent, rest_score;
   const arma::uword num_cats = num_categories(variable);
+  const int ref = static_cast<int>(reference_category(variable));
 
-  arma::vec constant_numerator(num_cats + 1);
-  arma::vec constant_denominator(num_cats + 1);
+  // Helper lambda to update either the linear (0) or quadratic (1) threshold
+  auto update_parameter = [&](arma::uword param_index) {
+    const double current = thresholds(variable, param_index);
+    const double proposed = R::rnorm(current, proposal_sd_blumecapel(variable, param_index));
+    const double diff = proposed - current;
 
-  // --- Linear parameter update ---
-  current_state = thresholds(variable, 0);
-  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 0));
-  difference = proposed_state - current_state;
+    arma::vec numer_current(num_cats + 1), numer_proposed(num_cats + 1);
 
-  for (arma::uword cat = 0; cat <= num_cats; cat++) {
-    exponent = thresholds(variable, 1) *
-      std::pow(static_cast<int>(cat) - static_cast<int>(reference_category(variable)), 2);
-    constant_numerator(cat) = current_state * cat + exponent;
-    constant_denominator(cat) = proposed_state * cat + exponent;
-  }
-
-  double tmp_n = constant_numerator.max();
-  double tmp_d = constant_denominator.max();
-  lbound = (tmp_n > 0 || tmp_d > 0) ? std::max(tmp_n, tmp_d) : 0.0;
-
-  log_prob = threshold_alpha * difference +
-    static_cast<double>(sufficient_blume_capel(0, variable)) * difference;
-
-  for (arma::uword person = 0; person < no_persons; person++) {
-    rest_score = residual_matrix(person, variable);
-    bound = (rest_score > 0) ? num_cats * rest_score + lbound : lbound;
-
-    numerator = std::exp(constant_numerator(0) - bound);
-    denominator = std::exp(constant_denominator(0) - bound);
-
-    for (arma::uword cat = 0; cat < num_cats; cat++) {
-      exponent = (cat + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator(cat + 1) + exponent);
-      denominator += std::exp(constant_denominator(cat + 1) + exponent);
+    for (arma::uword cat = 0; cat <= num_cats; cat++) {
+      const int centered = static_cast<int>(cat) - ref;
+      if (param_index == 0) { // linear update
+        double quad_term = thresholds(variable, 1) * (centered * centered);
+        numer_current(cat) = current * cat + quad_term;
+        numer_proposed(cat) = proposed * cat + quad_term;
+      } else { // quadratic update
+        double lin_term = thresholds(variable, 0) * cat;
+        numer_current(cat) = current * (centered * centered) + lin_term;
+        numer_proposed(cat) = proposed * (centered * centered) + lin_term;
+      }
     }
 
-    log_prob += std::log(numerator) - std::log(denominator);
-  }
+    const double max_curr = numer_current.max();
+    const double max_prop = numer_proposed.max();
+    const double lbound = (max_curr > 0 || max_prop > 0) ? std::max(max_curr, max_prop) : 0.0;
 
-  log_prob += (threshold_alpha + threshold_beta) * (
-    std::log(1 + std::exp(current_state)) -
-      std::log(1 + std::exp(proposed_state)));
+    double log_prob = threshold_alpha * diff +
+      static_cast<double>(sufficient_blume_capel(param_index, variable)) * diff;
 
-  U = R::unif_rand();
-  if (std::log(U) < log_prob) {
-    thresholds(variable, 0) = proposed_state;
-  }
+    for (arma::uword person = 0; person < no_persons; person++) {
+      const double rest_score = residual_matrix(person, variable);
+      const double bound = (rest_score > 0) ? num_cats * rest_score + lbound : lbound;
 
-  double acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
-  double updated_sd = proposal_sd_blumecapel(variable, 0) +
-    (acc_prob - target_ar) * std::exp(-std::log(t) * phi);
-  if (std::isnan(updated_sd)) updated_sd = 1.0;
-  proposal_sd_blumecapel(variable, 0) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
+      double denom_curr = std::exp(numer_current(0) - bound);
+      double denom_prop = std::exp(numer_proposed(0) - bound);
 
-  // --- Quadratic parameter update ---
-  current_state = thresholds(variable, 1);
-  proposed_state = R::rnorm(current_state, proposal_sd_blumecapel(variable, 1));
-  difference = proposed_state - current_state;
+      for (arma::uword cat = 0; cat < num_cats; cat++) {
+        const double score_term = (cat + 1) * rest_score - bound;
+        denom_curr += std::exp(numer_current(cat + 1) + score_term);
+        denom_prop += std::exp(numer_proposed(cat + 1) + score_term);
+      }
 
-  for (arma::uword cat = 0; cat <= num_cats; cat++) {
-    int centered = static_cast<int>(cat) - static_cast<int>(reference_category(variable));
-    exponent = thresholds(variable, 0) * cat;
-    constant_numerator(cat) = current_state * centered * centered + exponent;
-    constant_denominator(cat) = proposed_state * centered * centered + exponent;
-  }
-
-  tmp_n = constant_numerator.max();
-  tmp_d = constant_denominator.max();
-  lbound = (tmp_n > 0 || tmp_d > 0) ? std::max(tmp_n, tmp_d) : 0.0;
-
-  log_prob = threshold_alpha * difference +
-    static_cast<double>(sufficient_blume_capel(1, variable)) * difference;
-
-  for (arma::uword person = 0; person < no_persons; person++) {
-    rest_score = residual_matrix(person, variable);
-    bound = (rest_score > 0) ? num_cats * rest_score + lbound : lbound;
-
-    numerator = std::exp(constant_numerator(0) - bound);
-    denominator = std::exp(constant_denominator(0) - bound);
-
-    for (arma::uword cat = 0; cat < num_cats; cat++) {
-      exponent = (cat + 1) * rest_score - bound;
-      numerator += std::exp(constant_numerator(cat + 1) + exponent);
-      denominator += std::exp(constant_denominator(cat + 1) + exponent);
+      log_prob += std::log(denom_curr) - std::log(denom_prop);
     }
 
-    log_prob += std::log(numerator) - std::log(denominator);
-  }
+    // Prior ratio
+    log_prob += (threshold_alpha + threshold_beta) * (
+      std::log1p(std::exp(current)) - std::log1p(std::exp(proposed))
+    );
 
-  log_prob += (threshold_alpha + threshold_beta) * (
-    std::log(1 + std::exp(current_state)) -
-      std::log(1 + std::exp(proposed_state)));
+    // Metropolis accept/reject
+    const double logu = std::log(R::unif_rand());
+    if (logu < log_prob) {
+      thresholds(variable, param_index) = proposed;
+    }
 
-  U = R::unif_rand();
-  if (std::log(U) < log_prob) {
-    thresholds(variable, 1) = proposed_state;
-  }
+    // Robbins-Monro adaptation
+    double acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
+    double updated_sd = proposal_sd_blumecapel(variable, param_index) +
+      (acc_prob - target_ar) * std::pow(static_cast<double>(t), -phi);
 
-  acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
-  updated_sd = proposal_sd_blumecapel(variable, 1) +
-    (acc_prob - target_ar) * std::exp(-std::log(t) * phi);
-  if (std::isnan(updated_sd)) updated_sd = 1.0;
-  proposal_sd_blumecapel(variable, 1) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
+    if (std::isnan(updated_sd)) updated_sd = 1.0;
+
+    proposal_sd_blumecapel(variable, param_index) =
+      std::clamp(updated_sd, epsilon_lo, epsilon_hi);
+  };
+
+  // Update both parameters
+  update_parameter(0); // linear
+  update_parameter(1); // quadratic
 }
 
 
 
 
-// ----------------------------------------------------------------------------|
-// The log pseudolikelihood ratio [proposed against current] for an interaction
-// ----------------------------------------------------------------------------|
+
+/**
+ * Computes the log pseudo-likelihood ratio between a proposed and current value
+ * of an interaction parameter between two variables.
+ *
+ * This is used in Metropolis-Hastings updates for interaction parameters.
+ *
+ * Parameters:
+ *  - interactions: [V × V] matrix of interaction parameters.
+ *  - thresholds: [V × max_categories] matrix of threshold parameters.
+ *  - observations: [N × V] matrix of observed scores (integer encoded).
+ *  - num_categories: Number of categories per variable.
+ *  - no_persons: Number of observations (rows in observations matrix).
+ *  - variable1, variable2: Indices of the two interacting variables.
+ *  - proposed_state: Proposed new interaction value.
+ *  - current_state: Current interaction value.
+ *  - residual_matrix: [N × V] matrix of residual scores (linear predictors).
+ *  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Centering category per variable (for Blume-Capel).
+ *
+ * Returns:
+ *  - The log pseudo-likelihood ratio: log p(y | β_proposed) - log p(y | β_current)
+ */
 double log_pseudolikelihood_ratio_interaction(
     const arma::mat& interactions,
     const arma::mat& thresholds,
@@ -923,112 +931,112 @@ double log_pseudolikelihood_ratio_interaction(
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category
 ) {
-  double rest_score, bound;
-  double pseudolikelihood_ratio = 0.0;
-  double denominator_prop, denominator_curr, exponent;
-  arma::uword score, obs_score1, obs_score2;
+  double log_ratio = 0.0;
+  const double delta = proposed_state - current_state;
 
-  double delta_state = proposed_state - current_state;
+  for (arma::uword person = 0; person < no_persons; person++) {
+    const arma::uword score1 = observations(person, variable1);
+    const arma::uword score2 = observations(person, variable2);
 
-  for(arma::uword person = 0; person < no_persons; person++) {
-    obs_score1 = observations(person, variable1);
-    obs_score2 = observations(person, variable2);
+    // Linear interaction contribution to likelihood
+    log_ratio += 2.0 * score1 * score2 * delta;
 
-    pseudolikelihood_ratio += 2 * obs_score1 * obs_score2 * delta_state;
+    // Variable 1: log-likelihood change
+    {
+      double rest_score = residual_matrix(person, variable1) - score2 * current_state;
+      double bound = rest_score > 0 ? num_categories(variable1) * rest_score : 0.0;
 
-    //variable 1 log pseudolikelihood ratio
-    rest_score = residual_matrix(person, variable1) -
-      obs_score2 * interactions(variable2, variable1);
 
-    if(rest_score > 0) {
-      bound = num_categories[variable1] * rest_score;
-    } else {
-      bound = 0.0;
+      double denom_current = 0.0;
+      double denom_proposed = 0.0;
+
+      if (is_ordinal_variable(variable1)) {
+        denom_current += std::exp(-bound);
+        denom_proposed += std::exp(-bound);
+        for (arma::uword cat = 0; cat < num_categories(variable1); cat++) {
+          const double exponent = thresholds(variable1, cat) + (cat + 1) * rest_score;
+          denom_current += std::exp(exponent + (cat + 1) * score2 * current_state - bound);
+          denom_proposed += std::exp(exponent + (cat + 1) * score2 * proposed_state - bound);
+        }
+      } else {
+        const arma::uword ref = reference_category(variable1);
+        for (arma::uword cat = 0; cat <= num_categories(variable1); cat++) {
+          const int centered = static_cast<int>(cat) - static_cast<int>(ref);
+          const double exponent =
+            thresholds(variable1, 0) * cat +
+            thresholds(variable1, 1) * centered * centered +
+            cat * rest_score - bound;
+          denom_current += std::exp(exponent + cat * score2 * current_state);
+          denom_proposed += std::exp(exponent + cat * score2 * proposed_state);
+        }
+      }
+
+      log_ratio += std::log(denom_current) - std::log(denom_proposed);
     }
 
-    if(is_ordinal_variable[variable1] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(arma::uword category = 0; category < num_categories[variable1]; category++) {
-        score = category + 1;
-        exponent = thresholds(variable1, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score2 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(arma::uword category = 0; category < num_categories[variable1] + 1; category++) {
-        exponent = thresholds(variable1, 0) * category;
-        exponent += thresholds(variable1, 1) *
-          (category - reference_category[variable1]) *
-          (category - reference_category[variable1]);
-        exponent+= category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score2 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score2 * current_state);
-      }
-    }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
+    // Variable 2: log-likelihood change (symmetric)
+    {
+      double rest_score = residual_matrix(person, variable2) - score1 * current_state;
+      double bound = rest_score > 0 ? num_categories(variable2) * rest_score : 0.0;
 
-    //variable 2 log pseudolikelihood ratio
-    rest_score = residual_matrix(person, variable2) -
-      obs_score1 * interactions(variable1, variable2);
+      double denom_current = 0.0;
+      double denom_proposed = 0.0;
 
-    if(rest_score > 0) {
-      bound = num_categories[variable2] * rest_score;
-    } else {
-      bound = 0.0;
-    }
+      if (is_ordinal_variable(variable2)) {
+        denom_current += std::exp(-bound);
+        denom_proposed += std::exp(-bound);
+        for (arma::uword cat = 0; cat < num_categories(variable2); cat++) {
+          const double exponent = thresholds(variable2, cat) + (cat + 1) * rest_score;
+          denom_current += std::exp(exponent + (cat + 1) * score1 * current_state - bound);
+          denom_proposed += std::exp(exponent + (cat + 1) * score1 * proposed_state - bound);
+        }
+      } else {
+        const arma::uword ref = reference_category(variable2);
+        for (arma::uword cat = 0; cat <= num_categories(variable2); cat++) {
+          const int centered = static_cast<int>(cat) - static_cast<int>(ref);
+          const double exponent =
+            thresholds(variable2, 0) * cat +
+            thresholds(variable2, 1) * centered * centered +
+            cat * rest_score - bound;
+          denom_current += std::exp(exponent + cat * score1 * current_state);
+          denom_proposed += std::exp(exponent + cat * score1 * proposed_state);
+        }
+      }
 
-    if(is_ordinal_variable[variable2] == true) {
-      //Regular binary or ordinal MRF variable ---------------------------------
-      denominator_prop = std::exp(-bound);
-      denominator_curr = std::exp(-bound);
-      for(arma::uword category = 0; category < num_categories[variable2]; category++) {
-        score = category + 1;
-        exponent = thresholds(variable2, category) +
-          score * rest_score -
-          bound;
-        denominator_prop +=
-          std::exp(exponent + score * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + score * obs_score1 * current_state);
-      }
-    } else {
-      //Blume-Capel ordinal MRF variable ---------------------------------------
-      denominator_prop = 0.0;
-      denominator_curr = 0.0;
-      for(arma::uword category = 0; category < num_categories[variable2] + 1; category++) {
-        exponent = thresholds(variable2, 0) * category;
-        exponent += thresholds(variable2, 1) *
-          (category - reference_category[variable2]) *
-          (category - reference_category[variable2]);
-        exponent+=  category * rest_score - bound;
-        denominator_prop +=
-          std::exp(exponent + category * obs_score1 * proposed_state);
-        denominator_curr +=
-          std::exp(exponent + category * obs_score1 * current_state);
-      }
+      log_ratio += std::log(denom_current) - std::log(denom_proposed);
     }
-    pseudolikelihood_ratio -= std::log(denominator_prop);
-    pseudolikelihood_ratio += std::log(denominator_curr);
   }
-  return pseudolikelihood_ratio;
+
+  return log_ratio;
 }
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of the active interaction
-//  parameters for Bayesian edge selection
-// ----------------------------------------------------------------------------|
+
+
+/**
+ * Performs Metropolis-Hastings updates for all active pairwise interaction parameters.
+ *
+ * For each pair (i, j) where `indicator(i, j) == 1`, a proposal is drawn and
+ * accepted or rejected based on the pseudo-likelihood ratio and Cauchy prior.
+ * The proposal SD is adapted using Robbins-Monro updates.
+ *
+ * Parameters:
+ *  - interactions: [V × V] symmetric matrix of current interaction values (updated in-place).
+ *  - thresholds: [V × max_categories] matrix of threshold parameters.
+ *  - indicator: [V × V] binary matrix indicating active interactions.
+ *  - observations: [N × V] matrix of observed category scores.
+ *  - num_categories: Vector of category counts per variable.
+ *  - proposal_sd: [V × V] matrix of proposal standard deviations (updated).
+ *  - interaction_scale: Scale parameter for the Cauchy prior.
+ *  - no_persons: Number of observations.
+ *  - no_variables: Number of variables (V).
+ *  - residual_matrix: [N × V] matrix of current residual scores (updated on acceptance).
+ *  - phi: Robbins-Monro adaptation decay exponent.
+ *  - target_ar: Target acceptance rate (e.g., 0.234).
+ *  - t: Current iteration (starting from 1).
+ *  - epsilon_lo, epsilon_hi: Bounds on adapted proposal SDs.
+ *  - is_ordinal_variable: Vector indicating ordinal (1) vs. Blume-Capel (0).
+ *  - reference_category: Reference category per variable for BC modeling.
+ */
 void metropolis_interactions(
     arma::mat& interactions,
     const arma::mat& thresholds,
@@ -1048,67 +1056,49 @@ void metropolis_interactions(
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category
 ) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
+  for (arma::uword variable1 = 0; variable1 < no_variables - 1; variable1++) {
+    for (arma::uword variable2 = variable1 + 1; variable2 < no_variables; variable2++) {
+      if (indicator(variable1, variable2) == 1) {
+        const double current_state = interactions(variable1, variable2);
+        const double proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
 
-  for(arma::uword variable1 = 0; variable1 <  no_variables - 1; variable1++) {
-    for(arma::uword variable2 = variable1 + 1; variable2 <  no_variables; variable2++) {
-      if(indicator(variable1, variable2) == 1) {
-        current_state = interactions(variable1, variable2);
-        proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
+        double log_prob = log_pseudolikelihood_ratio_interaction(
+          interactions, thresholds, observations, num_categories, no_persons,
+          variable1, variable2, proposed_state, current_state,
+          residual_matrix, is_ordinal_variable, reference_category
+        );
 
-        log_prob = log_pseudolikelihood_ratio_interaction(interactions,
-                                                          thresholds,
-                                                          observations,
-                                                          num_categories,
-                                                          no_persons,
-                                                          variable1,
-                                                          variable2,
-                                                          proposed_state,
-                                                          current_state,
-                                                          residual_matrix,
-                                                          is_ordinal_variable,
-                                                          reference_category);
+        // Add log-prior difference (Cauchy prior)
         log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
         log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
-        U = R::unif_rand();
-        if(std::log(U) < log_prob) {
+        // Accept/reject
+        const double U = R::unif_rand();
+        if (std::log(U) < log_prob) {
           double state_diff = proposed_state - current_state;
           interactions(variable1, variable2) = proposed_state;
           interactions(variable2, variable1) = proposed_state;
 
-          //Update the matrix of rest scores
-          for(arma::uword person = 0; person < no_persons; person++) {
-            residual_matrix(person, variable1) += observations(person, variable2) *
-              state_diff;
-            residual_matrix(person, variable2) += observations(person, variable1) *
-              state_diff;
+          // Update residual matrix
+          for (arma::uword person = 0; person < no_persons; person++) {
+            residual_matrix(person, variable1) += observations(person, variable2) * state_diff;
+            residual_matrix(person, variable2) += observations(person, variable1) * state_diff;
           }
         }
 
-        if(log_prob > 0) {
-          log_prob = 1;
-        } else {
-          log_prob = std::exp(log_prob);
-        }
+        // Robbins-Monro update of proposal SD
+        double acc_prob = (log_prob > 0.0) ? 1.0 : std::exp(log_prob);
+        double updated_sd = proposal_sd(variable1, variable2) +
+          (acc_prob - target_ar) * std::pow(static_cast<double>(t), -phi);
 
-        double update_proposal_sd = proposal_sd(variable1, variable2) +
-          (log_prob - target_ar) * std::exp(-log(t) * phi);
+        if (std::isnan(updated_sd)) updated_sd = 1.0;
 
-        if(std::isnan(update_proposal_sd) == true) {
-          update_proposal_sd = 1.0;
-        }
-
-        update_proposal_sd = std::clamp(update_proposal_sd, epsilon_lo, epsilon_hi);
-        proposal_sd(variable1, variable2) = update_proposal_sd;
-
+        proposal_sd(variable1, variable2) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
       }
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------|
 // MH algorithm to sample from the full-conditional of an edge + interaction
