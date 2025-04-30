@@ -1100,10 +1100,34 @@ void metropolis_interactions(
 }
 
 
-// ----------------------------------------------------------------------------|
-// MH algorithm to sample from the full-conditional of an edge + interaction
-//  pair for Bayesian edge selection
-// ----------------------------------------------------------------------------|
+/**
+ * Performs Metropolis-Hastings updates for edge inclusion/exclusion in a Bayesian graphical model.
+ *
+ * For each pair of variables, this function proposes either:
+ *  - Adding an edge (if currently absent), drawing a new interaction value
+ *  - Removing an edge (if currently present), setting interaction to zero
+ *
+ * The proposal is accepted or rejected based on:
+ *  - The pseudo-likelihood ratio
+ *  - The prior ratio (edge prior × interaction prior)
+ *  - Proposal symmetry corrections (Gaussian vs. point-mass)
+ *
+ * Parameters:
+ *  - interactions: [V × V] symmetric matrix of interaction parameters (updated).
+ *  - thresholds: [V × max_categories] matrix of thresholds.
+ *  - indicator: [V × V] binary matrix of edge inclusion (updated).
+ *  - observations: [N × V] matrix of category observations.
+ *  - num_categories: Vector of category counts per variable.
+ *  - proposal_sd: [V × V] matrix of interaction proposal standard deviations.
+ *  - interaction_scale: Scale for the Cauchy prior.
+ *  - index: [E × 3] matrix of interaction index triplets (i, j, ...).
+ *  - no_interactions: Number of interaction pairs.
+ *  - no_persons: Number of observations.
+ *  - residual_matrix: [N × V] matrix of linear predictors (updated on acceptance).
+ *  - theta: [V × V] matrix of edge inclusion probabilities from prior model (e.g., SBM).
+ *  - is_ordinal_variable: 1 if ordinal, 0 if Blume-Capel.
+ *  - reference_category: Vector of centering category per variable.
+ */
 void metropolis_edge_interaction_pair(
     arma::mat& interactions,
     const arma::mat& thresholds,
@@ -1120,77 +1144,55 @@ void metropolis_edge_interaction_pair(
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category
 ) {
-  double proposed_state;
-  double current_state;
-  double log_prob;
-  double U;
+  for (arma::uword cntr = 0; cntr < no_interactions; cntr++) {
+    const arma::uword variable1 = index(cntr, 1);
+    const arma::uword variable2 = index(cntr, 2);
 
-  arma::uword variable1;
-  arma::uword variable2;
+    const double current_state = interactions(variable1, variable2);
+    double proposed_state;
 
-  for(arma::uword cntr = 0; cntr < no_interactions; cntr ++) {
-    variable1 = index(cntr, 1);
-    variable2 = index(cntr, 2);
-
-    current_state = interactions(variable1, variable2);
-
-    if(indicator(variable1, variable2) == 0) {
+    bool proposing_addition = (indicator(variable1, variable2) == 0);
+    if (proposing_addition) {
       proposed_state = R::rnorm(current_state, proposal_sd(variable1, variable2));
     } else {
       proposed_state = 0.0;
     }
 
-    log_prob = log_pseudolikelihood_ratio_interaction(interactions,
-                                                      thresholds,
-                                                      observations,
-                                                      num_categories,
-                                                      no_persons,
-                                                      variable1,
-                                                      variable2,
-                                                      proposed_state,
-                                                      current_state,
-                                                      residual_matrix,
-                                                      is_ordinal_variable,
-                                                      reference_category);
+    double log_prob = log_pseudolikelihood_ratio_interaction(
+      interactions, thresholds, observations, num_categories, no_persons,
+      variable1, variable2, proposed_state, current_state,
+      residual_matrix, is_ordinal_variable, reference_category
+    );
 
-    if(indicator(variable1, variable2) == 0) {
+    if (proposing_addition) {
+      // Prior and proposal corrections for proposing an addition
       log_prob += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
-      log_prob -= R::dnorm(proposed_state,
-                           current_state,
-                           proposal_sd(variable1, variable2),
-                           true);
-
-      log_prob += log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
+      log_prob -= R::dnorm(proposed_state, current_state, proposal_sd(variable1, variable2), true);
+      log_prob += std::log(theta(variable1, variable2)) - std::log(1.0 - theta(variable1, variable2));
     } else {
+      // Prior and proposal corrections for proposing a removal
       log_prob -= R::dcauchy(current_state, 0.0, interaction_scale, true);
-      log_prob += R::dnorm(current_state,
-                           proposed_state,
-                           proposal_sd(variable1, variable2),
-                           true);
-
-      log_prob -= log(theta(variable1, variable2) / (1 - theta(variable1, variable2)));
+      log_prob += R::dnorm(current_state, proposed_state, proposal_sd(variable1, variable2), true);
+      log_prob -= std::log(theta(variable1, variable2)) - std::log(1.0 - theta(variable1, variable2));
     }
 
-    U = R::unif_rand();
-    if(std::log(U) < log_prob) {
+    if (std::log(R::unif_rand()) < log_prob) {
       indicator(variable1, variable2) = 1 - indicator(variable1, variable2);
-      indicator(variable2, variable1) = 1 - indicator(variable2, variable1);
+      indicator(variable2, variable1) = indicator(variable1, variable2);
 
       interactions(variable1, variable2) = proposed_state;
       interactions(variable2, variable1) = proposed_state;
 
-      double state_diff = proposed_state - current_state;
+      const double state_diff = proposed_state - current_state;
 
-      //Update the matrix of rest scores ---------------------------------------
-      for(arma::uword person = 0; person < no_persons; person++) {
-        residual_matrix(person, variable1) += observations(person, variable2) *
-          state_diff;
-        residual_matrix(person, variable2) += observations(person, variable1) *
-          state_diff;
+      for (arma::uword person = 0; person < no_persons; person++) {
+        residual_matrix(person, variable1) += observations(person, variable2) * state_diff;
+        residual_matrix(person, variable2) += observations(person, variable1) * state_diff;
       }
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------|
 // A Gibbs step for graphical model parameters for Bayesian edge selection
