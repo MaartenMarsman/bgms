@@ -440,7 +440,7 @@ double log_pseudoposterior_thresholds (
 
         double denominator = 0.0;
         for (arma::uword cat = 0; cat <= num_cats; cat++) {
-          const double centered = static_cast<arma::sword>(cat) - static_cast<arma::sword>(ref);
+          const int centered = static_cast<int>(cat) - static_cast<int>(ref);
           const double exponent =
             thresholds(variable, 0) * cat +
             thresholds(variable, 1) * centered * centered +
@@ -918,9 +918,6 @@ void metropolis_thresholds_blumecapel(
   if (std::isnan(updated_sd)) updated_sd = 1.0;
   proposal_sd_blumecapel(variable, 1) = std::clamp(updated_sd, epsilon_lo, epsilon_hi);
 }
-
-
-
 
 
 
