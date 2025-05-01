@@ -40,11 +40,11 @@ using namespace Rcpp;
 inline void update_step_size_with_dual_averaging (
     const double acceptance_probability,
     const arma::uword iteration,
-    arma::vec& state,
-    const arma::uword stabilization_offset
+    arma::vec& state
 ) {
   const double initial_step_size = 0.01;
   const double target_log_step_size = std::log(10.0 * initial_step_size);
+  const arma::uword stabilization_offset = 10;
 
   double& log_step_size = state[0];
   double& log_step_size_avg = state[1];
@@ -68,8 +68,6 @@ inline void update_step_size_with_dual_averaging (
   // Update running average of log step size
   const double weight = std::pow(iter_double, -kappa);
   log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
-
-  Rcout << "log_step_size: " << log_step_size << "\n";
 }
 
 
@@ -694,9 +692,8 @@ void update_thresholds_with_adaptive_mala (
   // Adapt step size
   if (iteration <= burnin) {
     update_step_size_with_dual_averaging(
-      accept_prob, iteration, dual_averaging_state, 10
-    );
-    step_size_mala = std::exp(dual_averaging_state[1]);
+      accept_prob, iteration, dual_averaging_state);
+    step_size_mala = std::exp(dual_averaging_state[0]);
   } else {
     update_step_size_with_robbins_monro(accept_prob, iteration - burnin, step_size_mala);
   }
