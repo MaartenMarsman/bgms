@@ -35,6 +35,7 @@ prepare_output_bgm = function (
   col_names[] <- paste0("category ", seq_along(col_names))
   # Override first two if only Blume-Capel variables exist
   if (all(!is_ordinal_variable)) {
+    results$posterior_mean_main = results$posterior_mean_main[, 1:2]
     col_names <- c("linear", "quadratic")
   } else if (any(!is_ordinal_variable)) {
     # If mixed, prefix first two with dual meaning

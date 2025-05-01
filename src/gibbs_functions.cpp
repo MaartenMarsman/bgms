@@ -28,7 +28,6 @@ using namespace Rcpp;
  *       - state[0] = log_step_size (current)
  *       - state[1] = log_step_size_avg (running average)
  *       - state[2] = acceptance_error_avg (running avg of acceptance error)
- *   - target_log_step_size: Desired log step size target (typically log(10 * initial_step_size)).
  *   - stabilization_offset: Constant to reduce adaptation sensitivity early on (e.g., 10).
  *
  * Outputs:
@@ -42,9 +41,11 @@ inline void update_step_size_with_dual_averaging (
     const double acceptance_probability,
     const arma::uword iteration,
     arma::vec& state,
-    const double target_log_step_size,
     const arma::uword stabilization_offset
 ) {
+  const double initial_step_size = 0.01;
+  const double target_log_step_size = std::log(10.0 * initial_step_size);
+
   double& log_step_size = state[0];
   double& log_step_size_avg = state[1];
   double& acceptance_error_avg = state[2];
@@ -67,6 +68,8 @@ inline void update_step_size_with_dual_averaging (
   // Update running average of log step size
   const double weight = std::pow(iter_double, -kappa);
   log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
+
+  Rcout << "log_step_size: " << log_step_size << "\n";
 }
 
 
@@ -222,9 +225,6 @@ arma::mat reconstruct_threshold_matrix(
  * Inputs:
  *  - current_sd: Current standard deviation of the proposal.
  *  - observed_log_acceptance_probability: Log acceptance probability from the Metropolis-Hastings step.
- *  - target_acceptance_rate: Target acceptance rate (e.g. 0.234 or 0.574).
- *  - rm_lower_bound: Minimum allowable standard deviation.
- *  - rm_upper_bound: Maximum allowable standard deviation.
  *  - rm_weight: Robbins-Monro adaptation weight (e.g. iteration^{-0.75}).
  *
  * Returns:
@@ -233,11 +233,12 @@ arma::mat reconstruct_threshold_matrix(
 inline double update_proposal_sd_with_robbins_monro (
     const double current_sd,
     const double observed_log_acceptance_probability,
-    const double target_acceptance_rate,
-    const double rm_lower_bound,
-    const double rm_upper_bound,
     const double rm_weight
 ) {
+  const double target_acceptance = 0.234;
+  const double rm_lower_bound = 0.001;
+  const double rm_upper_bound = 2.0;
+
   // Normalize the acceptance probability
   double observed_acceptance_probability = 1.0;
   if (observed_log_acceptance_probability < 0.0) {
@@ -246,7 +247,7 @@ inline double update_proposal_sd_with_robbins_monro (
 
   // Robbins-Monro update step
   double updated_sd = current_sd +
-    (observed_acceptance_probability - target_acceptance_rate) * rm_weight;
+    (observed_acceptance_probability - target_acceptance) * rm_weight;
 
   // Handle NaNs robustly
   if (std::isnan(updated_sd)) {
@@ -634,7 +635,6 @@ void update_thresholds_with_adaptive_mala (
     const arma::uword iteration,
     const arma::uword burnin,
     arma::vec& dual_averaging_state,
-    const double target_log_step_size,
     const double threshold_alpha,
     const double threshold_beta
 ) {
@@ -694,8 +694,7 @@ void update_thresholds_with_adaptive_mala (
   // Adapt step size
   if (iteration <= burnin) {
     update_step_size_with_dual_averaging(
-      accept_prob, iteration, dual_averaging_state,
-      target_log_step_size, 10
+      accept_prob, iteration, dual_averaging_state, 10
     );
     step_size_mala = std::exp(dual_averaging_state[1]);
   } else {
@@ -838,10 +837,7 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
     const double threshold_beta,
     const arma::mat& residual_matrix,
     arma::mat& proposal_sd_blumecapel,
-    const double exp_neg_log_t_rm_adaptation_rate,
-    const double target_acceptance_rate_mh,
-    const double rm_lower_bound,
-    const double rm_upper_bound
+    const double exp_neg_log_t_rm_adaptation_rate
 ) {
   const arma::uword num_cats = num_categories(variable);
   const int ref = static_cast<int>(reference_category(variable));
@@ -903,13 +899,9 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
 
     // Robbins-Monro adaptation
     proposal_sd_blumecapel(variable, param_index) =
-      update_proposal_sd_with_robbins_monro(
+      update_proposal_sd_with_robbins_monro (
         proposal_sd_blumecapel(variable, param_index),
-        log_acceptance_probability,
-        target_acceptance_rate_mh,
-        rm_lower_bound,
-        rm_upper_bound,
-        exp_neg_log_t_rm_adaptation_rate
+        log_acceptance_probability, exp_neg_log_t_rm_adaptation_rate
       );
   };
 
@@ -1082,9 +1074,6 @@ void update_interactions_with_adaptive_metropolis (
     const arma::uword num_variables,
     arma::mat& residual_matrix,
     const double exp_neg_log_t_rm_adaptation_rate,
-    const double target_acceptance_rate_mh,
-    const double rm_lower_bound,
-    const double rm_upper_bound,
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category
 ) {
@@ -1121,8 +1110,7 @@ void update_interactions_with_adaptive_metropolis (
         // Robbins-Monro update
         proposal_sd_pairwise_effects(variable1, variable2) =
           update_proposal_sd_with_robbins_monro (proposal_sd_pairwise_effects(variable1, variable2),
-          log_acceptance_probability, target_acceptance_rate_mh, rm_lower_bound, rm_upper_bound,
-          exp_neg_log_t_rm_adaptation_rate
+          log_acceptance_probability, exp_neg_log_t_rm_adaptation_rate
         );
       }
     }
@@ -1301,16 +1289,12 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::mat& residual_matrix,
     const arma::mat& theta,
     const double rm_decay_rate,
-    const double target_acceptance_rate_mh,
-    const double rm_lower_bound,
-    const double rm_upper_bound,
     const arma::uvec& is_ordinal_variable,
     const arma::uvec& reference_category,
     const bool edge_selection,
     double& step_size_mala,
     const arma::uword iteration,
     arma::vec& dual_averaging_state,
-    const double target_log_step_size,
     const arma::uword total_burnin,
     const bool use_mala_for_main_effects
 ) {
@@ -1333,8 +1317,7 @@ void gibbs_update_step_for_graphical_model_parameters (
     pairwise_effects, main_effects, inclusion_indicator, observations,
     num_categories, proposal_sd_pairwise_effects, interaction_scale,
     num_persons, num_variables, residual_matrix,
-    exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate_mh, rm_lower_bound,
-    rm_upper_bound, is_ordinal_variable, reference_category
+    exp_neg_log_t_rm_adaptation_rate, is_ordinal_variable, reference_category
   );
 
   //Update threshold parameters
@@ -1343,7 +1326,7 @@ void gibbs_update_step_for_graphical_model_parameters (
       main_effects, step_size_mala, residual_matrix, num_categories,
       num_obs_categories, sufficient_blume_capel, reference_category,
       is_ordinal_variable, iteration, total_burnin, dual_averaging_state,
-      target_log_step_size, threshold_alpha, threshold_beta
+      threshold_alpha, threshold_beta
     );
   } else {
     for (arma::uword variable = 0; variable < num_variables; ++variable) {
@@ -1358,8 +1341,7 @@ void gibbs_update_step_for_graphical_model_parameters (
           main_effects, observations, num_categories, sufficient_blume_capel,
           num_persons, variable, reference_category, threshold_alpha,
           threshold_beta, residual_matrix, proposal_sd_main_effects,
-          exp_neg_log_t_rm_adaptation_rate, target_acceptance_rate_mh,
-          rm_lower_bound, rm_upper_bound
+          exp_neg_log_t_rm_adaptation_rate
         );
       }
     }
@@ -1485,16 +1467,9 @@ List run_gibbs_sampler_for_bgm (
   arma::mat proposal_sd_pairwise_effects(num_variables, num_variables, arma::fill::ones);
 
   // Adaptive step size and proposal tuning
-  const double initial_step_size = 0.01;
-  double step_size_mala = initial_step_size;
-  const double target_log_step_size = std::log(10.0 * initial_step_size);
+  double step_size_mala = 0.01;
   arma::vec dual_averaging_state(3, arma::fill::zeros);  // [log_eps, log_eps_avg, H_bar]
-
-  const double target_acceptance_rate_mh = 0.234;
-
   const double decay_rate_robins_monro = 0.75;
-  const double rm_lower_bound = 1.0 / static_cast<double>(num_persons);
-  const double rm_upper_bound = 2.0;
 
   // Edge update indexing
   arma::uvec v = arma::regspace<arma::uvec>(0, num_pairwise - 1);
@@ -1581,10 +1556,9 @@ List run_gibbs_sampler_for_bgm (
       num_obs_categories, sufficient_blume_capel, threshold_alpha,
       threshold_beta, num_persons, num_variables, num_pairwise, num_main,
       max_num_categories, inclusion_indicator, pairwise_effects, main_effects,
-      residual_matrix, theta, decay_rate_robins_monro, target_acceptance_rate_mh,
-      rm_lower_bound, rm_upper_bound, is_ordinal_variable, reference_category,
-      edge_selection, step_size_mala, iteration, dual_averaging_state,
-      target_log_step_size, total_burnin, use_mala_for_main_effects
+      residual_matrix, theta, decay_rate_robins_monro, is_ordinal_variable,
+      reference_category, edge_selection, step_size_mala, iteration,
+      dual_averaging_state, total_burnin, use_mala_for_main_effects
     );
 
 
