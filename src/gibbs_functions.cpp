@@ -378,62 +378,83 @@ double log_pseudoposterior_thresholds(
 ) {
   const int num_variables = residual_matrix.n_cols;
   const int num_persons = residual_matrix.n_rows;
-
   double log_posterior = 0.0;
+
+  auto log_beta_prior = [&](double theta) {
+    return theta * threshold_alpha - std::log1p(std::exp(theta)) * (threshold_alpha + threshold_beta);
+  };
 
   for (int variable = 0; variable < num_variables; ++variable) {
     const int num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
-      // Regular ordinal variable
+      // Prior contribution + sufficient statistic
       for (int cat = 0; cat < num_cats; ++cat) {
         const double theta = main_effects(variable, cat);
-        log_posterior += theta * (num_obs_categories(cat + 1, variable) + threshold_alpha);
-        log_posterior -= std::log1p(std::exp(theta)) * (threshold_alpha + threshold_beta);
+        log_posterior += theta * num_obs_categories(cat + 1, variable);
+        log_posterior += log_beta_prior(theta);
       }
 
-      for (int person = 0; person < num_persons; ++person) {
-        const double rest_score = residual_matrix(person, variable);
-        const double bound = num_cats * rest_score;
-
-        double denom = std::exp(-bound);
-        for (int cat = 0; cat < num_cats; ++cat) {
-          const double exponent = main_effects(variable, cat) + (cat + 1) * rest_score - bound;
-          denom += std::exp(exponent);
-        }
-
-        log_posterior -= bound + std::log(denom);
+      // Vectorized likelihood contribution
+      arma::vec rest_score = residual_matrix.col(variable);
+      arma::vec bound = num_cats * rest_score;
+      arma::vec denom = arma::exp(-bound);
+      arma::vec theta = main_effects.row(variable).cols(0, num_cats - 1).t();
+      for (int cat = 0; cat < num_cats; cat++) {
+        arma::vec exponent = theta(cat) + (cat + 1) * rest_score - bound;
+        denom += arma::exp(exponent);
       }
+      log_posterior -= arma::accu(bound + arma::log(denom));
+      // [original] Non-vectorized likelihood contribution
+      // for (int person = 0; person < num_persons; ++person) {
+      //   const double rest_score = residual_matrix(person, variable);
+      //   const double bound = num_cats * rest_score;
+      //   double denom = std::exp(-bound);
+      //   for (int cat = 0; cat < num_cats; ++cat) {
+      //     const double exponent = main_effects(variable, cat) + (cat + 1) * rest_score - bound;
+      //     denom += std::exp(exponent);
+      //   }
+      //   log_posterior -= bound + std::log(denom);
+      // }
 
     } else {
-      // Blume-Capel variable
       const double theta_lin = main_effects(variable, 0);
       const double theta_quad = main_effects(variable, 1);
-
-      log_posterior += theta_lin * (sufficient_blume_capel(0, variable) + threshold_alpha);
-      log_posterior -= std::log1p(std::exp(theta_lin)) * (threshold_alpha + threshold_beta);
-
-      log_posterior += theta_quad * (sufficient_blume_capel(1, variable) + threshold_alpha);
-      log_posterior -= std::log1p(std::exp(theta_quad)) * (threshold_alpha + threshold_beta);
-
       const int ref = reference_category(variable);
 
-      for (int person = 0; person < num_persons; ++person) {
-        const double rest_score = residual_matrix(person, variable);
-        const double bound = num_cats * rest_score;
+      // Prior contribution + sufficient statistic
+      log_posterior += theta_lin * sufficient_blume_capel(0, variable);
+      log_posterior += log_beta_prior(theta_lin);
+      log_posterior += theta_quad * sufficient_blume_capel(1, variable);
+      log_posterior += log_beta_prior(theta_quad);;
 
-        double denom = 0.0;
-        for (int cat = 0; cat <= num_cats; ++cat) {
-          const int centered = cat - ref;
-          const double exponent =
-            theta_lin * cat +
-            theta_quad * centered * centered +
-            cat * rest_score - bound;
-          denom += std::exp(exponent);
-        }
-
-        log_posterior -= bound + std::log(denom);
+      // Vectorized likelihood contribution
+      arma::vec rest_score = residual_matrix.col(variable);
+      arma::vec bound = num_cats * rest_score;
+      arma::vec denom = arma::zeros<arma::vec>(num_persons);
+      for (int cat = 0; cat <= num_cats; cat++) {
+        int centered = cat - ref;
+        double quad_term = theta_quad * centered * centered;
+        double lin_term = theta_lin * cat;
+        arma::vec exponent = lin_term + quad_term + cat * rest_score - bound;
+        denom += arma::exp(exponent);
       }
+      log_posterior -= arma::accu(bound + arma::log(denom));
+      // [original] Non-vectorized likelihood contribution
+      // for (int person = 0; person < num_persons; ++person) {
+      //   const double rest_score = residual_matrix(person, variable);
+      //   const double bound = num_cats * rest_score;
+      //   double denom = 0.0;
+      //   for (int cat = 0; cat <= num_cats; ++cat) {
+      //     const int centered = cat - ref;
+      //     const double exponent =
+      //       theta_lin * cat +
+      //       theta_quad * centered * centered +
+      //       cat * rest_score - bound;
+      //     denom += std::exp(exponent);
+      //   }
+      //   log_posterior -= bound + std::log(denom);
+      // }
     }
   }
 
@@ -483,33 +504,43 @@ arma::vec gradient_log_pseudoposterior_thresholds(
     const int num_cats = num_categories(variable);
 
     if (is_ordinal_variable(variable)) {
-      const double max_theta = main_effects.row(variable).max();
-
-      for (int cat = 0; cat < num_cats; ++cat) {
+      for (int cat = 0; cat < num_cats; cat++) {
         gradient(offset + cat) = num_obs_categories(cat + 1, variable);
       }
 
-      for (int person = 0; person < num_persons; ++person) {
-        const double rest_score = residual_matrix(person, variable);
-        const double bound = max_theta + num_cats * rest_score;
-
-        double denom = std::exp(-bound);
-        arma::vec numerators(num_cats, arma::fill::zeros);
-
-        for (int cat = 0; cat < num_cats; ++cat) {
-          const double exponent = main_effects(variable, cat) + (cat + 1) * rest_score - bound;
-          numerators(cat) = std::exp(exponent);
-          denom += numerators(cat);
-        }
-
-        for (int cat = 0; cat < num_cats; ++cat) {
-          gradient(offset + cat) -= numerators(cat) / denom;
-        }
+      // Vectorized computation of expected category counts
+      arma::vec rest_score = residual_matrix.col(variable);
+      arma::vec theta = main_effects.row(variable).cols(0, num_cats - 1).t();
+      arma::vec bound = theta.max() + num_cats * rest_score;
+      arma::mat exponents(num_persons, num_cats);
+      for (int cat = 0; cat < num_cats; cat++) {
+        exponents.col(cat) = theta(cat) + (cat + 1) * rest_score - bound;
       }
+      arma::mat probs = arma::exp(exponents);
+      arma::vec denom = arma::sum(probs, 1) + arma::exp(-bound);
+      for (int cat = 0; cat < num_cats; cat++) {
+        arma::vec normalized = probs.col(cat) / denom;
+        gradient(offset + cat) += -arma::accu(normalized);
+      }
+      // [original] Non-vectorized computation of expected category counts
+      // const double max_theta = main_effects.row(variable).max();
+      // for (int person = 0; person < num_persons; ++person) {
+      //   const double rest_score = residual_matrix(person, variable);
+      //   const double bound = max_theta + num_cats * rest_score;
+      //   double denom = std::exp(-bound);
+      //   arma::vec numerators(num_cats, arma::fill::zeros);
+      //   for (int cat = 0; cat < num_cats; ++cat) {
+      //     const double exponent = main_effects(variable, cat) + (cat + 1) * rest_score - bound;
+      //     numerators(cat) = std::exp(exponent);
+      //     denom += numerators(cat);
+      //   }
+      //   for (int cat = 0; cat < num_cats; ++cat) {
+      //     gradient(offset + cat) -= numerators(cat) / denom;
+      //   }
+      // }
 
-      for (int cat = 0; cat < num_cats; ++cat) {
-        const double theta = main_effects(variable, cat);
-        const double p = 1.0 / (1.0 + std::exp(-theta));
+      for (int cat = 0; cat < num_cats; cat++) {
+        const double p = 1.0 / (1.0 + std::exp(-theta(cat)));
         gradient(offset + cat) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
@@ -521,35 +552,50 @@ arma::vec gradient_log_pseudoposterior_thresholds(
       const double theta_lin = main_effects(variable, 0);
       const double theta_quad = main_effects(variable, 1);
 
-      gradient(offset)     = sufficient_blume_capel(0, variable);
+      gradient(offset) = sufficient_blume_capel(0, variable);
       gradient(offset + 1) = sufficient_blume_capel(1, variable);
 
-      for (int person = 0; person < num_persons; ++person) {
-        const double rest_score = residual_matrix(person, variable);
-        const double bound = num_cats * rest_score;
-
-        double denom = std::exp(theta_quad * ref * ref - bound);
-        double sum_lin = 0.0;
-        double sum_quad = ref * ref * denom;
-
-        for (int cat = 0; cat < num_cats; ++cat) {
-          const int score = cat + 1;
-          const int centered = score - ref;
-
-          const double exponent =
-            theta_lin * score +
-            theta_quad * centered * centered +
-            score * rest_score - bound;
-
-          const double weight = std::exp(exponent);
-          sum_lin  += weight * score;
-          sum_quad += weight * centered * centered;
-          denom    += weight;
-        }
-
-        gradient(offset)     -= sum_lin / denom;
-        gradient(offset + 1) -= sum_quad / denom;
+      // Vectorized computation of expected statistics
+      arma::vec rest_score = residual_matrix.col(variable);
+      arma::vec bound = num_cats * rest_score;
+      arma::vec denom = arma::exp(theta_quad * ref * ref - bound);
+      arma::vec sum_lin(num_persons, arma::fill::zeros);
+      arma::vec sum_quad = ref * ref * denom;
+      for (int cat = 0; cat < num_cats; cat++) {
+        int score = cat + 1;
+        int centered = score - ref;
+        double lin_term = theta_lin * score;
+        double quad_term = theta_quad * centered * centered;
+        arma::vec exponent = lin_term + quad_term + score * rest_score - bound;
+        arma::vec weight = arma::exp(exponent);
+        sum_lin += weight * score;
+        sum_quad += weight * centered * centered;
+        denom += weight;
       }
+      gradient(offset) -= arma::accu(sum_lin / denom);
+      gradient(offset + 1) -= arma::accu(sum_quad / denom);
+      // [original] Non-vectorized computation of expected statistics
+      // for (int person = 0; person < num_persons; person++) {
+      //   const double rest_score = residual_matrix(person, variable);
+      //   const double bound = num_cats * rest_score;
+      //   double denom = std::exp(theta_quad * ref * ref - bound);
+      //   double sum_lin = 0.0;
+      //   double sum_quad = ref * ref * denom;
+      //   for (int cat = 0; cat < num_cats; cat++) {
+      //     const int score = cat + 1;
+      //     const int centered = score - ref;
+      //     const double exponent =
+      //       theta_lin * score +
+      //       theta_quad * centered * centered +
+      //       score * rest_score - bound;
+      //     const double weight = std::exp(exponent);
+      //     sum_lin += weight * score;
+      //     sum_quad += weight * centered * centered;
+      //     denom += weight;
+      //   }
+      //   gradient(offset) -= sum_lin / denom;
+      //   gradient(offset + 1) -= sum_quad / denom;
+      // }
 
       for (int i = 0; i < 2; ++i) {
         const double theta = main_effects(variable, i);
@@ -591,7 +637,7 @@ arma::vec gradient_log_pseudoposterior_thresholds(
  *  - step_size_mala
  *  - dual_averaging_state
  */
-void update_thresholds_with_adaptive_mala(
+void update_thresholds_with_adaptive_mala (
     arma::mat& main_effects,
     double& step_size_mala,
     const arma::mat& residual_matrix,
@@ -606,51 +652,56 @@ void update_thresholds_with_adaptive_mala(
     const double threshold_alpha,
     const double threshold_beta
 ) {
-  arma::vec flat_theta = vectorize_thresholds(main_effects, num_categories, is_ordinal_variable);
-
-  arma::vec grad = gradient_log_pseudoposterior_thresholds(
+  // --- Step 1: Flatten current parameters and compute gradient & posterior
+  arma::vec flat_theta = vectorize_thresholds (
+    main_effects, num_categories, is_ordinal_variable
+  );
+  arma::vec grad = gradient_log_pseudoposterior_thresholds (
+    main_effects, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+  const double log_post_current = log_pseudoposterior_thresholds (
     main_effects, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  const double log_post_current = log_pseudoposterior_thresholds(
-    main_effects, residual_matrix, num_categories, num_obs_categories,
-    sufficient_blume_capel, reference_category, is_ordinal_variable,
-    threshold_alpha, threshold_beta
-  );
-
+  // --- Step 2: Propose new parameters using MALA
   const double sqrt_step = std::sqrt(step_size_mala);
   arma::vec proposal = flat_theta + 0.5 * step_size_mala * grad + sqrt_step * arma::randn(flat_theta.n_elem);
-  arma::mat proposed_thresholds = reconstruct_threshold_matrix(proposal, num_categories, is_ordinal_variable);
+  arma::mat proposed_thresholds = reconstruct_threshold_matrix (
+    proposal, num_categories, is_ordinal_variable
+  );
 
-  const double log_post_proposal = log_pseudoposterior_thresholds(
+  // --- Step 3: Evaluate proposed state
+  const double log_post_proposal = log_pseudoposterior_thresholds (
+    proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+  arma::vec grad_proposal = gradient_log_pseudoposterior_thresholds (
     proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
     sufficient_blume_capel, reference_category, is_ordinal_variable,
     threshold_alpha, threshold_beta
   );
 
-  arma::vec grad_proposal = gradient_log_pseudoposterior_thresholds(
-    proposed_thresholds, residual_matrix, num_categories, num_obs_categories,
-    sufficient_blume_capel, reference_category, is_ordinal_variable,
-    threshold_alpha, threshold_beta
-  );
-
+  // --- Step 4: Compute forward and backward proposal densities
   const arma::vec forward_mean = flat_theta + 0.5 * step_size_mala * grad;
   const arma::vec backward_mean = proposal + 0.5 * step_size_mala * grad_proposal;
 
   const double log_forward = -0.5 / step_size_mala * arma::accu(arma::square(proposal - forward_mean));
   const double log_backward = -0.5 / step_size_mala * arma::accu(arma::square(flat_theta - backward_mean));
-  const double log_acceptance = log_post_proposal + log_backward - log_post_current - log_forward;
 
-  // Accept proposal
+  // --- Step 5: Accept/reject
+  const double log_acceptance = log_post_proposal + log_backward - log_post_current - log_forward;
   if (std::log(R::unif_rand()) < log_acceptance) {
     main_effects = proposed_thresholds;
-    flat_theta = proposal;
   }
 
   const double accept_prob = std::min(1.0, std::exp(log_acceptance));
 
+  // --- Step 6: Adapt step size
   if (iteration <= burnin) {
     update_step_size_with_dual_averaging(accept_prob, iteration, dual_averaging_state);
     step_size_mala = std::exp(dual_averaging_state[0]);
@@ -768,12 +819,12 @@ void update_regular_thresholds_with_metropolis(
  *  - main_effects (for the given variable)
  *  - proposal_sd_blumecapel
  */
-void update_blumecapel_thresholds_with_adaptive_metropolis(
+void update_blumecapel_thresholds_with_adaptive_metropolis (
     arma::mat& main_effects,
     const arma::imat& observations,
     const arma::ivec& num_categories,
     const arma::imat& sufficient_blume_capel,
-    const int no_persons,
+    const int num_persons,
     const int variable,
     const arma::ivec& reference_category,
     const double threshold_alpha,
@@ -785,71 +836,83 @@ void update_blumecapel_thresholds_with_adaptive_metropolis(
   const int num_cats = num_categories(variable);
   const int ref = reference_category(variable);
 
-  auto update_parameter = [&](int param_index) {
-    const double current = main_effects(variable, param_index);
-    const double proposed = R::rnorm(current, proposal_sd_blumecapel(variable, param_index));
-    const double diff = proposed - current;
+  // --- Define helper for prior contribution
+  auto log_beta_prior_diff = [&](double curr, double prop) {
+    return (threshold_alpha + threshold_beta) *
+      (std::log1p(std::exp(curr)) - std::log1p(std::exp(prop)));
+  };
+
+  // --- Update each threshold parameter: 0 = linear, 1 = quadratic
+  for (int param = 0; param < 2; param++) {
+    double& proposal_sd = proposal_sd_blumecapel(variable, param);
+    double current = main_effects(variable, param);
+    double proposed = R::rnorm(current, proposal_sd);
+    double diff = proposed - current;
 
     arma::vec numer_current(num_cats + 1);
     arma::vec numer_proposed(num_cats + 1);
 
-    for (int cat = 0; cat <= num_cats; ++cat) {
-      const int centered = cat - ref;
-
-      if (param_index == 0) {
-        double quad_term = main_effects(variable, 1) * (centered * centered);
-        numer_current(cat) = current * cat + quad_term;
-        numer_proposed(cat) = proposed * cat + quad_term;
+    // --- Step 1: Construct numerators for softmax (for all categories)
+    for (int cat = 0; cat <= num_cats; cat++) {
+      int centered = cat - ref;
+      if (param == 0) {
+        // Linear update
+        double quad = main_effects(variable, 1) * centered * centered;
+        numer_current(cat) = current * cat + quad;
+        numer_proposed(cat) = proposed * cat + quad;
       } else {
-        double lin_term = main_effects(variable, 0) * cat;
-        numer_current(cat) = current * (centered * centered) + lin_term;
-        numer_proposed(cat) = proposed * (centered * centered) + lin_term;
+        // Quadratic update
+        double lin = main_effects(variable, 0) * cat;
+        numer_current(cat) = current * centered * centered + lin;
+        numer_proposed(cat) = proposed * centered * centered + lin;
       }
     }
 
-    const double max_curr = numer_current.max();
-    const double max_prop = numer_proposed.max();
-    const double lbound = (max_curr > 0.0 || max_prop > 0.0) ? std::max(max_curr, max_prop) : 0.0;
+    // --- Step 2: Compute lbound for numerical stability
+    double max_curr = numer_current.max();
+    double max_prop = numer_proposed.max();
+    double lbound = (max_curr > 0.0 || max_prop > 0.0) ? std::max(max_curr, max_prop) : 0.0;
 
-    double log_accept = threshold_alpha * diff +
-      static_cast<double>(sufficient_blume_capel(param_index, variable)) * diff;
-
-    for (int person = 0; person < no_persons; ++person) {
-      const double rest_score = residual_matrix(person, variable);
-      const double bound = (rest_score > 0.0) ? num_cats * rest_score + lbound : lbound;
-
-      double denom_curr = std::exp(numer_current(0) - bound);
-      double denom_prop = std::exp(numer_proposed(0) - bound);
-
-      for (int cat = 0; cat < num_cats; ++cat) {
-        const double score_term = (cat + 1) * rest_score - bound;
-        denom_curr += std::exp(numer_current(cat + 1) + score_term);
-        denom_prop += std::exp(numer_proposed(cat + 1) + score_term);
-      }
-
-      log_accept += std::log(denom_curr) - std::log(denom_prop);
+    // --- Step 3: Likelihood ratio
+    double log_accept = diff * (threshold_alpha + sufficient_blume_capel(param, variable));
+    // Vectorized likelihood ratio
+    arma::vec rest_score = residual_matrix.col(variable);
+    arma::vec bound = arma::max(rest_score, arma::zeros<arma::vec>(num_persons)) * num_cats + lbound;
+    arma::vec denom_curr = arma::exp(numer_current(0) - bound);
+    arma::vec denom_prop = arma::exp(numer_proposed(0) - bound);
+    for (int cat = 0; cat < num_cats; cat++) {
+      arma::vec score_term = (cat + 1) * rest_score - bound;
+      denom_curr += arma::exp(numer_current(cat + 1) + score_term);
+      denom_prop += arma::exp(numer_proposed(cat + 1) + score_term);
     }
+    log_accept += arma::accu(arma::log(denom_curr) - arma::log(denom_prop));
+    // [original] Non-vectorized likelihood ratio
+    // for (int person = 0; person < num_persons; person++) {
+    //   double rest_score = residual_matrix(person, variable);
+    //   double bound = (rest_score > 0.0) ? num_cats * rest_score + lbound : lbound;
+    //   double denom_curr = std::exp(numer_current(0) - bound);
+    //   double denom_prop = std::exp(numer_proposed(0) - bound);
+    //   for (int cat = 0; cat < num_cats; cat++) {
+    //     double score_term = (cat + 1) * rest_score - bound;
+    //     denom_curr += std::exp(numer_current(cat + 1) + score_term);
+    //     denom_prop += std::exp(numer_proposed(cat + 1) + score_term);
+    //   }
+    //   log_accept += std::log(denom_curr) - std::log(denom_prop);
+    // }
 
-    // Prior ratio (logistic-Beta)
-    log_accept += (threshold_alpha + threshold_beta) *
-      (std::log1p(std::exp(current)) - std::log1p(std::exp(proposed)));
+    // --- Step 4: Add prior ratio
+    log_accept += log_beta_prior_diff(current, proposed);
 
-    // Metropolis step
+    // --- Step 5: Metropolis accept/reject
     if (std::log(R::unif_rand()) < log_accept) {
-      main_effects(variable, param_index) = proposed;
+      main_effects(variable, param) = proposed;
     }
 
-    // Robbins-Monro adaptation
-    proposal_sd_blumecapel(variable, param_index) =
-      update_proposal_sd_with_robbins_monro(
-        proposal_sd_blumecapel(variable, param_index),
-        log_accept,
-        exp_neg_log_t_rm_adaptation_rate
-      );
-  };
-
-  update_parameter(0); // linear
-  update_parameter(1); // quadratic
+    // --- Step 6: Robbins-Monro proposal adaptation
+    proposal_sd = update_proposal_sd_with_robbins_monro (
+      proposal_sd, log_accept, exp_neg_log_t_rm_adaptation_rate
+    );
+  }
 }
 
 
