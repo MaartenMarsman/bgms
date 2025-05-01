@@ -22,11 +22,11 @@ print.bgms <- function(x, ...) {
     cat("Bayesian Estimation\n")
   }
 
-  cat(paste0(" Number of variables: ", arguments$no_variables, "\n"))
+  cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
   if(arguments$na_impute) {
-    cat(paste0(" Number of cases: ", arguments$no_cases, " (missings imputed)\n"))
+    cat(paste0(" Number of cases: ", arguments$num_cases, " (missings imputed)\n"))
   } else {
-    cat(paste0(" Number of cases: ", arguments$no_cases, "\n"))
+    cat(paste0(" Number of cases: ", arguments$num_cases, "\n"))
   }
   if(arguments$save) {
     cat(paste0(" Number of post-burnin MCMC iterations: ", arguments$iter, " (MCMC output saved)\n"))

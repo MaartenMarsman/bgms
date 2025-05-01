@@ -144,9 +144,11 @@
 #' the mode of the posterior do not have an imputation option, the bgm function
 #' will automatically switch to \code{interaction_prior = "Cauchy"} and
 #' \code{adaptive = TRUE}.
-#' @param save Should the function collect and return all samples from the Gibbs
-#' sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
-#' posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.
+#' @param save_main,save_pairwise,save_indicator Logical. Enable saving sampled
+#' states for `main_effects`, `pairwise_effects`, and `indicator`, respectively.
+#' Default: `FALSE`.
+#' @param save Logical. If true, sampled states for all parameters are returned.
+#' Deprecated.
 #' @param display_progress Should the function show a progress bar
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 #' The default is \code{TRUE}.
@@ -311,8 +313,25 @@ bgm = function(x,
                lambda = 1,
                na_action = c("listwise", "impute"),
                save = FALSE,
+               save_main = FALSE,
+               save_pairwise = FALSE,
+               save_indicator = FALSE,
                display_progress = TRUE,
                mala = FALSE) {
+
+  # Deprecation warning for save parameter
+  if(hasArg(save)) {
+    warning("`save` is deprecated. Use `save_main`, `save_pairwise`, or `save_indicator` instead.")
+    save_main = save_main || save
+    save_pairwise = save_pairwise || save
+    save_indicator = save_indicator || save
+  }
+
+  # Check save options
+  save_main = check_logical(save_main, "save_main")
+  save_pairwise = check_logical(save_pairwise, "save_pairwise")
+  save_indicator = check_logical(save_indicator, "save_indicator")
+
 
   #Check data input ------------------------------------------------------------
   if(!inherits(x, what = "matrix") && !inherits(x, what = "data.frame"))
@@ -396,14 +415,6 @@ bgm = function(x,
   num_interactions = num_variables * (num_variables - 1) / 2
   num_thresholds = sum(num_categories)
 
-  #Specify the variance of the (normal) proposal distribution ------------------
-  proposal_sd = matrix(1,
-                       nrow = num_variables,
-                       ncol = num_variables)
-  proposal_sd_blumecapel = matrix(1,
-                                  nrow = num_variables,
-                                  ncol = 2)
-
   # Starting value of model matrix ---------------------------------------------
   indicator = matrix(1,
                  nrow = num_variables,
@@ -449,181 +460,40 @@ bgm = function(x,
     }
   }
 
-  #Preparing the output --------------------------------------------------------
-  arguments = list(
-    num_variables = num_variables,
-    num_cases = nrow(x),
-    na_impute = na_impute,
-    variable_type = variable_type,
-    iter = iter,
-    burnin = burnin,
-    interaction_scale = interaction_scale,
-    threshold_alpha = threshold_alpha,
-    threshold_beta = threshold_beta,
-    edge_selection = edge_selection,
-    edge_prior = edge_prior,
-    inclusion_probability = theta,
-    beta_bernoulli_alpha = beta_bernoulli_alpha ,
-    beta_bernoulli_beta =  beta_bernoulli_beta,
-    dirichlet_alpha = dirichlet_alpha,
-    lambda = lambda,
-    na_action = na_action,
-    save = save,
-    version = packageVersion("bgms")
+  # Call the Rcpp function
+  out = run_gibbs_sampler_for_bgm (
+    observations = x, num_categories = num_categories,
+    interaction_scale = interaction_scale, edge_prior = edge_prior,
+    theta = theta, beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda, Index = Index,
+    iter = iter, burnin = burnin, num_obs_categories = num_obs_categories,
+    sufficient_blume_capel = sufficient_blume_capel,
+    threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
+    na_impute = na_impute, missing_index = missing_index,
+    is_ordinal_variable = variable_bool,
+    reference_category = reference_category, save_main = save_main,
+    save_pairwise = save_pairwise, save_indicator = save_indicator,
+    display_progress = display_progress, edge_selection = edge_selection,
+    use_mala_for_main_effects = mala
   )
 
-  #The Metropolis within Gibbs sampler -----------------------------------------
-  out = gibbs_sampler(observations = x,
-                      indicator = indicator,
-                      interactions = interactions,
-                      thresholds = thresholds,
-                      num_categories  = num_categories,
-                      interaction_scale = interaction_scale,
-                      proposal_sd = proposal_sd,
-                      proposal_sd_blumecapel = proposal_sd_blumecapel,
-                      edge_prior = edge_prior,
-                      theta = theta,
-                      beta_bernoulli_alpha = beta_bernoulli_alpha,
-                      beta_bernoulli_beta = beta_bernoulli_beta,
-                      dirichlet_alpha = dirichlet_alpha,
-                      lambda = lambda,
-                      Index = Index,
-                      iter = iter,
-                      burnin = burnin,
-                      num_obs_categories = num_obs_categories,
-                      sufficient_blume_capel = sufficient_blume_capel,
-                      threshold_alpha = threshold_alpha,
-                      threshold_beta = threshold_beta,
-                      na_impute = na_impute,
-                      missing_index = missing_index,
-                      is_ordinal_variable = variable_bool,
-                      reference_category = reference_category,
-                      save = save,
-                      display_progress = display_progress,
-                      edge_selection = edge_selection,
-                      mala = mala)
+  # Main output handler in the wrapper function
+  output = prepare_output_bgm (
+    out = out, x = x, num_categories = num_categories, iter = iter,
+    data_columnnames = if (is.null(colnames(x))) paste0("Variable ", seq_len(ncol(x))) else colnames(x),
+    is_ordinal_variable = variable_bool,
+    save_options = list(save_main = save_main, save_pairwise = save_pairwise,
+    save_indicator = save_indicator),
+    burnin = burnin, interaction_scale = interaction_scale,
+    threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
+    na_action = na_action, na_impute = na_impute,
+    edge_selection = edge_selection, edge_prior = edge_prior, theta = theta,
+    beta_bernoulli_alpha = beta_bernoulli_alpha,
+    beta_bernoulli_beta = beta_bernoulli_beta,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
+    variable_type = variable_type
+  )
 
-  if(save == FALSE) {
-    if(edge_selection == TRUE) {
-      indicator = out$indicator
-    }
-    pairwise_effects = out$pairwise_effects
-    main_effects = out$main_effects
-
-    if(is.null(colnames(x))){
-      data_columnnames = paste0("variable ", 1:num_variables)
-      colnames(pairwise_effects) = data_columnnames
-      rownames(pairwise_effects) = data_columnnames
-      if(edge_selection == TRUE) {
-        colnames(indicator) = data_columnnames
-        rownames(indicator) = data_columnnames
-      }
-      rownames(main_effects) = data_columnnames
-    } else {
-      data_columnnames <- colnames(x)
-      colnames(pairwise_effects) = data_columnnames
-      rownames(pairwise_effects) = data_columnnames
-      if(edge_selection == TRUE) {
-        colnames(indicator) = data_columnnames
-        rownames(indicator) = data_columnnames
-      }
-      rownames(main_effects) = data_columnnames
-    }
-
-    if(any(variable_bool)) {
-      colnames(main_effects) = paste0("category ", 1:max(num_categories))
-    } else {
-      main_effects = main_effects[, 1:2]
-      colnames(main_effects) = c("linear", "quadratic")
-    }
-
-    arguments$data_columnnames = data_columnnames
-
-    if(edge_selection == TRUE) {
-      if(edge_prior == "Stochastic-Block"){
-        output = list(
-          indicator = indicator, pairwise_effects = pairwise_effects,
-          main_effects = main_effects, allocations = out$allocations,
-          arguments = arguments)
-        class(output) = "bgms"
-        summary_Sbm = summarySBM(output,
-                                 internal_call = TRUE)
-
-        output$components = summary_Sbm$components
-        output$allocations = summary_Sbm$allocations
-      } else {
-
-        output = list(
-          indicator = indicator, pairwise_effects = pairwise_effects,
-          main_effects = main_effects, arguments = arguments)
-        }
-
-    } else {
-      output = list(
-        pairwise_effects = pairwise_effects, main_effects = main_effects,
-        arguments = arguments)
-    }
-
-    class(output) = "bgms"
-  } else {
-    if(edge_selection == TRUE) {
-      indicator = out$indicator
-    }
-    pairwise_effects = out$pairwise_effects
-    main_effects = out$main_effects
-
-    if(is.null(colnames(x))){
-      data_columnnames <- 1:ncol(x)
-    } else {
-      data_columnnames <- colnames(x)
-    }
-    p <- ncol(x)
-    names_bycol <- matrix(rep(data_columnnames, each = p), ncol = p)
-    names_byrow <- matrix(rep(data_columnnames, each = p), ncol = p, byrow = T)
-    names_comb <- matrix(paste0(names_byrow, "-", names_bycol), ncol = p)
-    names_vec <- names_comb[lower.tri(names_comb)]
-
-    if(edge_selection == TRUE) {
-      colnames(indicator) = names_vec
-    }
-    colnames(pairwise_effects) = names_vec
-    names = character(length = sum(num_categories))
-    cntr = 0
-    for(variable in 1:num_variables) {
-      for(category in 1:num_categories[variable]) {
-        cntr = cntr + 1
-        names[cntr] = paste0("threshold(",variable, ", ",category,")")
-      }
-    }
-    colnames(main_effects) = names
-
-    if(edge_selection == TRUE) {
-      dimnames(indicator) = list(Iter. = 1:iter, colnames(indicator))
-    }
-    dimnames(pairwise_effects) = list(Iter. = 1:iter, colnames(pairwise_effects))
-    dimnames(main_effects) = list(Iter. = 1:iter, colnames(main_effects))
-
-    arguments$data_columnnames = data_columnnames
-
-    if(edge_selection == TRUE) {
-      if(edge_prior == "Stochastic-Block"){
-        output = list(indicator = indicator,
-                      pairwise_effects = pairwise_effects,
-                      main_effects = main_effects,
-                      allocations = out$allocations,
-                      arguments = arguments)
-      } else {
-        output = list(indicator = indicator,
-                      pairwise_effects = pairwise_effects,
-                      main_effects = main_effects,
-                      arguments = arguments)
-      }
-    } else {
-      output = list(pairwise_effects = pairwise_effects,
-                    main_effects = main_effects,
-                    arguments = arguments)
-    }
-    class(output) = "bgms"
-  }
   return(output)
 }

@@ -45,20 +45,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// gibbs_sampler
-List gibbs_sampler(arma::umat& observations, arma::umat& indicator, arma::mat& interactions, arma::mat& thresholds, const arma::uvec& num_categories, const double interaction_scale, arma::mat& proposal_sd, arma::mat& proposal_sd_blumecapel, const String& edge_prior, arma::mat& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::umat& Index, const arma::uword iter, const arma::uword burnin, arma::umat& num_obs_categories, arma::umat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::umat& missing_index, const arma::uvec& is_ordinal_variable, const arma::uvec& reference_category, const bool save, const bool display_progress, bool edge_selection, bool mala);
-RcppExport SEXP _bgms_gibbs_sampler(SEXP observationsSEXP, SEXP indicatorSEXP, SEXP interactionsSEXP, SEXP thresholdsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP proposal_sdSEXP, SEXP proposal_sd_blumecapelSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP saveSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP malaSEXP) {
+// run_gibbs_sampler_for_bgm
+List run_gibbs_sampler_for_bgm(arma::umat& observations, const arma::uvec& num_categories, const double interaction_scale, const String& edge_prior, arma::mat& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::umat& Index, const arma::uword iter, const arma::uword burnin, arma::umat& num_obs_categories, arma::umat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::umat& missing_index, const arma::uvec& is_ordinal_variable, const arma::uvec& reference_category, const bool save_main, const bool save_pairwise, const bool save_indicator, const bool display_progress, bool edge_selection, bool use_mala_for_main_effects);
+RcppExport SEXP _bgms_run_gibbs_sampler_for_bgm(SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP use_mala_for_main_effectsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::umat& >::type observations(observationsSEXP);
-    Rcpp::traits::input_parameter< arma::umat& >::type indicator(indicatorSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type interactions(interactionsSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type thresholds(thresholdsSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type num_categories(num_categoriesSEXP);
     Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type proposal_sd(proposal_sdSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type proposal_sd_blumecapel(proposal_sd_blumecapelSEXP);
     Rcpp::traits::input_parameter< const String& >::type edge_prior(edge_priorSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type theta(thetaSEXP);
     Rcpp::traits::input_parameter< const double >::type beta_bernoulli_alpha(beta_bernoulli_alphaSEXP);
@@ -76,11 +71,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::umat& >::type missing_index(missing_indexSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
     Rcpp::traits::input_parameter< const arma::uvec& >::type reference_category(reference_categorySEXP);
-    Rcpp::traits::input_parameter< const bool >::type save(saveSEXP);
+    Rcpp::traits::input_parameter< const bool >::type save_main(save_mainSEXP);
+    Rcpp::traits::input_parameter< const bool >::type save_pairwise(save_pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type save_indicator(save_indicatorSEXP);
     Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
-    Rcpp::traits::input_parameter< bool >::type mala(malaSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_sampler(observations, indicator, interactions, thresholds, num_categories, interaction_scale, proposal_sd, proposal_sd_blumecapel, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save, display_progress, edge_selection, mala));
+    Rcpp::traits::input_parameter< bool >::type use_mala_for_main_effects(use_mala_for_main_effectsSEXP);
+    rcpp_result_gen = Rcpp::wrap(run_gibbs_sampler_for_bgm(observations, num_categories, interaction_scale, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, use_mala_for_main_effects));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -146,7 +143,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
-    {"_bgms_gibbs_sampler", (DL_FUNC) &_bgms_gibbs_sampler, 29},
+    {"_bgms_run_gibbs_sampler_for_bgm", (DL_FUNC) &_bgms_run_gibbs_sampler_for_bgm, 26},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {NULL, NULL, 0}
