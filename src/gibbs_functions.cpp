@@ -27,7 +27,7 @@ using namespace Rcpp;
  * Modifies:
  *  - `state` vector in-place to update the log step size parameters.
  */
-inline void update_step_size_with_dual_averaging(
+inline void update_step_size_with_dual_averaging (
     const double acceptance_probability,
     const int iteration,
     arma::vec& state
@@ -69,7 +69,7 @@ inline void update_step_size_with_dual_averaging(
  *  - Uses a fixed target acceptance of 0.574 (optimal for MALA).
  *  - Decay rate is 0.75 for stable adaptation.
  */
-inline void update_step_size_with_robbins_monro(
+inline void update_step_size_with_robbins_monro (
     const double acceptance_probability,
     const int iteration,
     double& step_size_mala
@@ -143,7 +143,7 @@ inline double update_proposal_sd_with_robbins_monro (
  * Returns:
  *  - Total number of main effect parameters to estimate.
  */
-inline int count_num_main_effects(
+inline int count_num_main_effects (
     const arma::ivec& num_categories,
     const arma::uvec& is_ordinal_variable
 ) {
@@ -172,7 +172,7 @@ inline int count_num_main_effects(
  *    Ordinal: one parameter per category;
  *    Blume-Capel: two parameters (linear and quadratic).
  */
-arma::vec vectorize_thresholds(
+arma::vec vectorize_thresholds (
     const arma::mat& main_effects,
     const arma::ivec& num_categories,
     const arma::uvec& is_ordinal_variable
@@ -208,7 +208,7 @@ arma::vec vectorize_thresholds(
  *  - A matrix of main effect parameters, with each row corresponding to a variable.
  *    Entries beyond the actual number of parameters per variable are zero-filled.
  */
-arma::mat reconstruct_threshold_matrix(
+arma::mat reconstruct_threshold_matrix (
     const arma::vec& vector,
     const arma::ivec& num_categories,
     const arma::uvec& is_ordinal_variable
@@ -365,7 +365,7 @@ void impute_missing_values_for_graphical_model (
  * Returns:
  *  - Scalar log pseudo-posterior.
  */
-double log_pseudoposterior_thresholds(
+double log_pseudoposterior_thresholds (
     const arma::mat& main_effects,
     const arma::mat& residual_matrix,
     const arma::ivec& num_categories,
@@ -416,7 +416,6 @@ double log_pseudoposterior_thresholds(
       //   }
       //   log_posterior -= bound + std::log(denom);
       // }
-
     } else {
       const double theta_lin = main_effects(variable, 0);
       const double theta_quad = main_effects(variable, 1);
@@ -482,7 +481,7 @@ double log_pseudoposterior_thresholds(
  * Returns:
  *  - A flat gradient vector in the same order as vectorized thresholds.
  */
-arma::vec gradient_log_pseudoposterior_thresholds(
+arma::vec gradient_log_pseudoposterior_thresholds (
     const arma::mat& main_effects,
     const arma::mat& residual_matrix,
     const arma::ivec& num_categories,
@@ -731,7 +730,7 @@ void update_thresholds_with_adaptive_mala (
  * Modifies:
  *  - main_effects (only for the specified variable)
  */
-void update_regular_thresholds_with_metropolis(
+void update_regular_thresholds_with_metropolis (
     arma::mat& main_effects,
     const arma::imat& observations,
     const arma::ivec& num_categories,
@@ -918,25 +917,115 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
 
 
 /**
- * Function: log_pseudolikelihood_ratio_interaction
+ * Function: compute_log_likelihood_ratio_for_variable
  *
- * Computes the log pseudo-likelihood ratio between a proposed and current interaction value.
+ * Computes the log pseudo-likelihood ratio contribution for a single variable,
+ * comparing a proposed vs. current interaction value. This is used to evaluate
+ * Metropolis-Hastings updates to a pairwise interaction parameter.
+ *
+ * The function is vectorized over persons and supports both ordinal and
+ * Blume-Capel variables.
  *
  * Inputs:
- *  - pairwise_effects: Current matrix of pairwise interaction parameters.
- *  - main_effects: Matrix of threshold parameters.
- *  - observations: Matrix of category scores.
- *  - num_categories: Number of categories per variable.
- *  - no_persons: Number of observations.
- *  - variable1, variable2: Indices of the interacting variables.
- *  - proposed_state: Proposed new value for the interaction.
- *  - current_state: Current value of the interaction.
- *  - residual_matrix: Residual scores matrix.
- *  - is_ordinal_variable: Logical vector indicating which variables are ordinal.
- *  - reference_category: Reference category per variable (Blume-Capel).
+ *  - variable: Index of the variable whose likelihood contribution is evaluated.
+ *  - interacting_score: Vector of category scores for the interacting variable (one per person).
+ *  - proposed_state: Proposed interaction value.
+ *  - current_state: Current interaction value.
+ *  - main_effects: Matrix of threshold parameters [variables × categories].
+ *  - num_categories: Vector with number of categories per variable.
+ *  - residual_matrix: Current matrix of residual predictors (one column per variable).
+ *  - observations: Data matrix of categorical scores (only used for row count).
+ *  - is_ordinal_variable: Logical vector (1 if ordinal, 0 if Blume-Capel).
+ *  - reference_category: Reference category per variable (for BC variables).
  *
  * Returns:
- *  - log p(y | β_proposed) - log p(y | β_current)
+ *  - The total log pseudo-likelihood ratio for the given variable, summed over all persons.
+ */
+double compute_log_likelihood_ratio_for_variable (
+    int variable,
+    const arma::ivec& interacting_score,
+    double proposed_state,
+    double current_state,
+    const arma::mat& main_effects,
+    const arma::ivec& num_categories,
+    const arma::mat& residual_matrix,
+    const arma::imat& observations,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
+) {
+  // Convert integer interaction scores to floating point for vector math
+  arma::vec interaction = arma::conv_to<arma::vec>::from(interacting_score);
+
+  const int num_persons = residual_matrix.n_rows;
+  const int num_cats = num_categories(variable);
+
+  // Compute person-wise residual scores, adjusted for current interaction
+  arma::vec rest_scores = residual_matrix.col(variable) - interaction * current_state;
+
+  // Bound term for numerical stability in softmax normalization
+  arma::vec bounds = arma::max(rest_scores, arma::zeros<arma::vec>(num_persons)) * num_cats;
+
+  // Denominator terms for current and proposed interaction values
+  arma::vec denom_curr = arma::zeros(num_persons);
+  arma::vec denom_prop = arma::zeros(num_persons);
+
+  if (is_ordinal_variable(variable)) {
+    denom_curr += arma::exp(-bounds);
+    denom_prop += arma::exp(-bounds);
+
+    // Add contributions from each ordinal category
+    for (int cat = 0; cat < num_cats; cat++) {
+      arma::vec exponent = main_effects(variable, cat) + (cat + 1) * rest_scores;
+      denom_curr += arma::exp(exponent + (cat + 1) * interaction * current_state - bounds);
+      denom_prop += arma::exp(exponent + (cat + 1) * interaction * proposed_state - bounds);
+    }
+
+  } else {
+    const int ref = reference_category(variable);
+    for (int cat = 0; cat <= num_cats; cat++) {
+      int centered = cat - ref;
+      double quad_term = main_effects(variable, 1) * centered * centered;
+      double lin_term = main_effects(variable, 0) * cat;
+      arma::vec exponent = lin_term + quad_term + cat * rest_scores - bounds;
+
+      denom_curr += arma::exp(exponent + cat * interaction * current_state);
+      denom_prop += arma::exp(exponent + cat * interaction * proposed_state);
+    }
+  }
+
+  // Total likelihood difference
+  return arma::accu(arma::log(denom_curr) - arma::log(denom_prop));
+}
+
+
+
+/**
+ * Function: log_pseudolikelihood_ratio_interaction
+ *
+ * Computes the change in log pseudo-likelihood when a pairwise interaction parameter
+ * between two variables is updated from a current value to a proposed value.
+ *
+ * This function evaluates:
+ *  1. The direct contribution of the interaction to the joint linear predictor.
+ *  2. The change in pseudo-likelihood for each affected variable (via softmax terms),
+ *     accounting for the influence of the interaction on their respective rest scores.
+ *
+ * Inputs:
+ *  - pairwise_effects: Current matrix of pairwise interaction parameters [V × V].
+ *  - main_effects: Matrix of main effect (threshold) parameters [V × max_categories].
+ *  - observations: Integer matrix of observed category scores [N × V].
+ *  - num_categories: Vector of category counts per variable [V].
+ *  - no_persons: Number of individuals (rows in the data).
+ *  - variable1, variable2: Indices of the two interacting variables (0-based).
+ *  - proposed_state: Proposed new interaction weight.
+ *  - current_state: Current interaction weight.
+ *  - residual_matrix: Matrix of residual linear predictors [N × V].
+ *  - is_ordinal_variable: Logical vector indicating whether each variable is ordinal (1) or BC (0).
+ *  - reference_category: Vector of reference categories per variable (used for BC variables).
+ *
+ * Returns:
+ *  - The log pseudo-likelihood ratio:
+ *      log p(y | β_proposed) - log p(y | β_current)
  */
 double log_pseudolikelihood_ratio_interaction(
     const arma::mat& pairwise_effects,
@@ -955,85 +1044,110 @@ double log_pseudolikelihood_ratio_interaction(
   double log_ratio = 0.0;
   const double delta = proposed_state - current_state;
 
-  for (int person = 0; person < no_persons; ++person) {
-    const int score1 = observations(person, variable1);
-    const int score2 = observations(person, variable2);
+  // Extract score vectors for both variables across all persons
+  arma::ivec score1 = observations.col(variable1);
+  arma::ivec score2 = observations.col(variable2);
 
-    log_ratio += 2.0 * score1 * score2 * delta;
+  // (1) Direct interaction contribution to the linear predictor:
+  //     Δβ × ∑(score1_i × score2_i) for all persons i
+  log_ratio += 2.0 * arma::dot(score1, score2) * delta;
 
-    // ---- Variable 1 contribution ----
-    {
-      double rest_score = residual_matrix(person, variable1) - score2 * current_state;
-      double bound = rest_score > 0.0 ? num_categories(variable1) * rest_score : 0.0;
+  // (2) Change in pseudo-likelihood for variable1 due to the update in its interaction with variable2
+  log_ratio += compute_log_likelihood_ratio_for_variable (
+    variable1, score2, proposed_state, current_state, main_effects,
+    num_categories, residual_matrix, observations, is_ordinal_variable,
+    reference_category
+  );
 
-      double denom_curr = 0.0;
-      double denom_prop = 0.0;
-
-      if (is_ordinal_variable(variable1)) {
-        denom_curr += std::exp(-bound);
-        denom_prop += std::exp(-bound);
-
-        for (int cat = 0; cat < num_categories(variable1); ++cat) {
-          double exponent = main_effects(variable1, cat) + (cat + 1) * rest_score;
-          denom_curr += std::exp(exponent + (cat + 1) * score2 * current_state - bound);
-          denom_prop += std::exp(exponent + (cat + 1) * score2 * proposed_state - bound);
-        }
-      } else {
-        const int ref = reference_category(variable1);
-
-        for (int cat = 0; cat <= num_categories(variable1); ++cat) {
-          const int centered = cat - ref;
-          const double exponent =
-            main_effects(variable1, 0) * cat +
-            main_effects(variable1, 1) * centered * centered +
-            cat * rest_score - bound;
-
-          denom_curr += std::exp(exponent + cat * score2 * current_state);
-          denom_prop += std::exp(exponent + cat * score2 * proposed_state);
-        }
-      }
-
-      log_ratio += std::log(denom_curr) - std::log(denom_prop);
-    }
-
-    // ---- Variable 2 contribution ----
-    {
-      double rest_score = residual_matrix(person, variable2) - score1 * current_state;
-      double bound = rest_score > 0.0 ? num_categories(variable2) * rest_score : 0.0;
-
-      double denom_curr = 0.0;
-      double denom_prop = 0.0;
-
-      if (is_ordinal_variable(variable2)) {
-        denom_curr += std::exp(-bound);
-        denom_prop += std::exp(-bound);
-
-        for (int cat = 0; cat < num_categories(variable2); ++cat) {
-          double exponent = main_effects(variable2, cat) + (cat + 1) * rest_score;
-          denom_curr += std::exp(exponent + (cat + 1) * score1 * current_state - bound);
-          denom_prop += std::exp(exponent + (cat + 1) * score1 * proposed_state - bound);
-        }
-      } else {
-        const int ref = reference_category(variable2);
-
-        for (int cat = 0; cat <= num_categories(variable2); ++cat) {
-          const int centered = cat - ref;
-          const double exponent =
-            main_effects(variable2, 0) * cat +
-            main_effects(variable2, 1) * centered * centered +
-            cat * rest_score - bound;
-
-          denom_curr += std::exp(exponent + cat * score1 * current_state);
-          denom_prop += std::exp(exponent + cat * score1 * proposed_state);
-        }
-      }
-
-      log_ratio += std::log(denom_curr) - std::log(denom_prop);
-    }
-  }
+  // (3) Symmetric change for variable2 due to its interaction with variable1
+  log_ratio += compute_log_likelihood_ratio_for_variable (
+    variable2, score1, proposed_state, current_state, main_effects,
+    num_categories, residual_matrix, observations, is_ordinal_variable,
+    reference_category
+  );
 
   return log_ratio;
 }
+// [original] Non-vectorized version of log_pseudolikelihood_ratio_interaction
+// double log_pseudolikelihood_ratio_interaction (
+//     const arma::mat& pairwise_effects,
+//     const arma::mat& main_effects,
+//     const arma::imat& observations,
+//     const arma::ivec& num_categories,
+//     const int no_persons,
+//     const int variable1,
+//     const int variable2,
+//     const double proposed_state,
+//     const double current_state,
+//     const arma::mat& residual_matrix,
+//     const arma::uvec& is_ordinal_variable,
+//     const arma::ivec& reference_category
+// ) {
+//   double log_ratio = 0.0;
+//   const double delta = proposed_state - current_state;
+//   for (int person = 0; person < no_persons; person++) {
+//     const int score1 = observations(person, variable1);
+//     const int score2 = observations(person, variable2);
+//     log_ratio += 2.0 * score1 * score2 * delta;
+//     // ---- Variable 1 contribution ----
+//     {
+//       double rest_score = residual_matrix(person, variable1) - score2 * current_state;
+//       double bound = rest_score > 0.0 ? num_categories(variable1) * rest_score : 0.0;
+//       double denom_curr = 0.0;
+//       double denom_prop = 0.0;
+//       if (is_ordinal_variable(variable1)) {
+//         denom_curr += std::exp(-bound);
+//         denom_prop += std::exp(-bound);
+//         for (int cat = 0; cat < num_categories(variable1); ++cat) {
+//           double exponent = main_effects(variable1, cat) + (cat + 1) * rest_score;
+//           denom_curr += std::exp(exponent + (cat + 1) * score2 * current_state - bound);
+//           denom_prop += std::exp(exponent + (cat + 1) * score2 * proposed_state - bound);
+//         }
+//       } else {
+//         const int ref = reference_category(variable1);
+//         for (int cat = 0; cat <= num_categories(variable1); ++cat) {
+//           const int centered = cat - ref;
+//           const double exponent =
+//             main_effects(variable1, 0) * cat +
+//             main_effects(variable1, 1) * centered * centered +
+//             cat * rest_score - bound;
+//           denom_curr += std::exp(exponent + cat * score2 * current_state);
+//           denom_prop += std::exp(exponent + cat * score2 * proposed_state);
+//         }
+//       }
+//       log_ratio += std::log(denom_curr) - std::log(denom_prop);
+//     }
+//     // ---- Variable 2 contribution ----
+//     {
+//       double rest_score = residual_matrix(person, variable2) - score1 * current_state;
+//       double bound = rest_score > 0.0 ? num_categories(variable2) * rest_score : 0.0;
+//       double denom_curr = 0.0;
+//       double denom_prop = 0.0;
+//       if (is_ordinal_variable(variable2)) {
+//         denom_curr += std::exp(-bound);
+//         denom_prop += std::exp(-bound);
+//         for (int cat = 0; cat < num_categories(variable2); ++cat) {
+//           double exponent = main_effects(variable2, cat) + (cat + 1) * rest_score;
+//           denom_curr += std::exp(exponent + (cat + 1) * score1 * current_state - bound);
+//           denom_prop += std::exp(exponent + (cat + 1) * score1 * proposed_state - bound);
+//         }
+//       } else {
+//         const int ref = reference_category(variable2);
+//         for (int cat = 0; cat <= num_categories(variable2); ++cat) {
+//           const int centered = cat - ref;
+//           const double exponent =
+//             main_effects(variable2, 0) * cat +
+//             main_effects(variable2, 1) * centered * centered +
+//             cat * rest_score - bound;
+//           denom_curr += std::exp(exponent + cat * score1 * current_state);
+//           denom_prop += std::exp(exponent + cat * score1 * proposed_state);
+//         }
+//       }
+//       log_ratio += std::log(denom_curr) - std::log(denom_prop);
+//     }
+//   }
+//   return log_ratio;
+// }
 
 
 
