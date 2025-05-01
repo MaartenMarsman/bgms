@@ -11,18 +11,21 @@ using namespace Rcpp;
 
 
 /**
- * Function: update_step_size_with_dual_averaging
- * Purpose:
- *   Adapts the log step size in MCMC (e.g., MALA) using the dual averaging algorithm,
- *   targeting a fixed acceptance rate.
+ * Adapts the log step size using dual averaging during MCMC burn-in.
+ *
+ * Implements the dual averaging algorithm to adaptively update the MALA step size
+ * toward a target acceptance rate. Only used during burn-in.
  *
  * Inputs:
- *   - acceptance_probability: Acceptance probability at the current iteration.
- *   - iteration: Current iteration (starting from 1).
- *   - state: Length-3 vector (log_step_size, log_step_size_avg, acceptance_error_avg), updated in-place.
+ *  - acceptance_probability: Observed acceptance rate at the current iteration.
+ *  - iteration: Current iteration number (starting from 1).
+ *  - state: Vector of length 3, modified in-place:
+ *      * state[0] = current log step size
+ *      * state[1] = running average of log step size
+ *      * state[2] = running average of acceptance error
  *
- * Usage:
- *   - Used inside MALA to adapt the step size during burn-in.
+ * Modifies:
+ *  - `state` vector in-place to update the log step size parameters.
  */
 inline void update_step_size_with_dual_averaging(
     const double acceptance_probability,
@@ -160,8 +163,8 @@ inline int count_num_main_effects(
  * Respects the structure of ordinal vs. Blume-Capel variables.
  *
  * Inputs:
- *  - main_effects: Matrix of main effect parameters [variables × categories].
- *  - num_categories: Vector of category counts per variable.
+ *  - main_effects: Matrix of main effect parameters.
+ *  - num_categories: Category count per variable.
  *  - is_ordinal_variable: Logical vector indicating ordinal (1) or Blume-Capel (0).
  *
  * Returns:
@@ -202,8 +205,8 @@ arma::vec vectorize_thresholds(
  *  - is_ordinal_variable: Logical vector (1 for ordinal, 0 for Blume-Capel).
  *
  * Returns:
- *  - A matrix [variables × max(num_categories)] of threshold parameters.
- *    Unused entries may remain zero.
+ *  - A matrix of main effect parameters, with each row corresponding to a variable.
+ *    Entries beyond the actual number of parameters per variable are zero-filled.
  */
 arma::mat reconstruct_threshold_matrix(
     const arma::vec& vector,
@@ -348,17 +351,16 @@ void impute_missing_values_for_graphical_model (
  * Function: log_pseudoposterior_thresholds
  *
  * Computes the log pseudo-posterior for all main effect parameters.
- * Combines data likelihood and logistic-Beta priors.
  *
  * Inputs:
- *  - main_effects: Matrix of threshold parameters [variables × categories].
- *  - residual_matrix: Matrix of residual predictors.
- *  - num_categories: Vector of number of score levels per variable.
- *  - num_obs_categories: Matrix of observed category counts.
- *  - sufficient_blume_capel: Matrix of sufficient stats for Blume-Capel variables [2 × variable].
- *  - reference_category: Vector of reference categories per variable.
+ *  - main_effects: Matrix of threshold parameters.
+ *  - residual_matrix: Residual scores for each observation and variable.
+ *  - num_categories: Number of categories per variable.
+ *  - num_obs_categories: Observed category count matrix.
+ *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
+ *  - reference_category: Reference category per variable (for Blume-Capel).
  *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
- *  - threshold_alpha, threshold_beta: Hyperparameters for logistic-Beta prior.
+ *  - threshold_alpha, threshold_beta: Prior hyperparameters.
  *
  * Returns:
  *  - Scalar log pseudo-posterior.
@@ -447,12 +449,12 @@ double log_pseudoposterior_thresholds(
  * Includes both data likelihood and logistic-Beta prior components.
  *
  * Inputs:
- *  - main_effects: Matrix of threshold parameters [variables × categories].
- *  - residual_matrix: Matrix of residual predictors.
- *  - num_categories: Vector of category counts per variable.
- *  - num_obs_categories: Matrix of observed category counts [category × variable].
- *  - sufficient_blume_capel: Matrix of sufficient statistics [2 × variable].
- *  - reference_category: Reference category per variable.
+ *  - main_effects: Matrix of threshold parameters.
+ *  - residual_matrix: Residual scores for each observation and variable.
+ *  - num_categories: Number of categories per variable.
+ *  - num_obs_categories: Observed category count matrix.
+ *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
+ *  - reference_category: Reference category per variable (for Blume-Capel).
  *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
  *  - threshold_alpha, threshold_beta: Prior hyperparameters.
  *
@@ -571,18 +573,23 @@ arma::vec gradient_log_pseudoposterior_thresholds(
  * Applies dual averaging during burn-in and Robbins-Monro afterward.
  *
  * Inputs:
- *  - main_effects: Matrix of thresholds (updated in-place).
- *  - step_size_mala: Current MALA step size (updated in-place).
- *  - residual_matrix: Matrix of residuals.
- *  - num_categories: Vector of category counts per variable.
- *  - num_obs_categories: Matrix of observed category counts.
- *  - sufficient_blume_capel: Matrix of sufficient statistics for Blume-Capel.
- *  - reference_category: Reference category vector.
- *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = BC).
+ *  - main_effects: Matrix of threshold parameters (updated in-place).
+ *  - step_size_mala: MALA step size (updated in-place).
+ *  - residual_matrix: Residual scores for each observation and variable.
+ *  - num_categories: Number of categories per variable.
+ *  - num_obs_categories: Observed category count matrix.
+ *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
+ *  - reference_category: Reference category per variable (for Blume-Capel).
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
  *  - iteration: Current iteration number.
- *  - burnin: Burn-in duration.
- *  - dual_averaging_state: Dual averaging tracker [log_eps, log_eps_avg, H_bar].
+ *  - burnin: Total number of burn-in iterations.
+ *  - dual_averaging_state: Dual averaging state vector [log_eps, log_eps_avg, H_bar] (updated in-place).
  *  - threshold_alpha, threshold_beta: Prior hyperparameters.
+ *
+ * Modifies:
+ *  - main_effects
+ *  - step_size_mala
+ *  - dual_averaging_state
  */
 void update_thresholds_with_adaptive_mala(
     arma::mat& main_effects,
@@ -667,8 +674,11 @@ void update_thresholds_with_adaptive_mala(
  *  - num_obs_categories: Count matrix of observed scores.
  *  - no_persons: Number of individuals.
  *  - variable: Index of the variable being updated.
- *  - threshold_alpha, threshold_beta: Logistic-Beta prior hyperparameters.
- *  - residual_matrix: Matrix of residual predictors.
+ *  - threshold_alpha, threshold_beta: Prior hyperparameters.
+ *  - residual_matrix: Residual scores for each observation and variable.
+ *
+ * Modifies:
+ *  - main_effects (only for the specified variable)
  */
 void update_regular_thresholds_with_metropolis(
     arma::mat& main_effects,
@@ -742,17 +752,21 @@ void update_regular_thresholds_with_metropolis(
  * (linear and quadratic) for a single variable, with Robbins-Monro tuning.
  *
  * Inputs:
- *  - main_effects: Matrix of threshold parameters [variables × 2] (updated in-place).
+ *  - main_effects: Matrix of threshold parameters (updated in-place).
  *  - observations: Matrix of categorical scores.
- *  - num_categories: Vector of category counts.
- *  - sufficient_blume_capel: Matrix of sufficient stats [2 × variables].
- *  - no_persons: Number of individuals.
- *  - variable: Variable index (0-based).
- *  - reference_category: Vector of reference categories.
+ *  - num_categories: Number of categories per variable.
+ *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
+ *  - no_persons: Number of observations.
+ *  - variable: Index of the variable being updated.
+ *  - reference_category: Reference category per variable.
  *  - threshold_alpha, threshold_beta: Prior hyperparameters.
- *  - residual_matrix: Matrix of residuals.
- *  - proposal_sd_blumecapel: Matrix of proposal SDs [variables × 2] (updated).
+ *  - residual_matrix: Residual scores.
+ *  - proposal_sd_blumecapel: Matrix of proposal SDs for each variable (updated in-place).
  *  - exp_neg_log_t_rm_adaptation_rate: Robbins-Monro adaptation weight.
+ *
+ * Modifies:
+ *  - main_effects (for the given variable)
+ *  - proposal_sd_blumecapel
  */
 void update_blumecapel_thresholds_with_adaptive_metropolis(
     arma::mat& main_effects,
@@ -846,17 +860,17 @@ void update_blumecapel_thresholds_with_adaptive_metropolis(
  * Computes the log pseudo-likelihood ratio between a proposed and current interaction value.
  *
  * Inputs:
- *  - pairwise_effects: Matrix of interaction values [V × V].
- *  - main_effects: Matrix of threshold parameters [V × max_categories].
+ *  - pairwise_effects: Current matrix of pairwise interaction parameters.
+ *  - main_effects: Matrix of threshold parameters.
  *  - observations: Matrix of category scores.
- *  - num_categories: Vector of category counts per variable.
- *  - no_persons: Number of individuals.
+ *  - num_categories: Number of categories per variable.
+ *  - no_persons: Number of observations.
  *  - variable1, variable2: Indices of the interacting variables.
- *  - proposed_state: Proposed value for the interaction.
- *  - current_state: Current interaction value.
- *  - residual_matrix: Matrix of linear predictors.
- *  - is_ordinal_variable: Logical vector indicating variable types.
- *  - reference_category: Vector of reference categories for BC variables.
+ *  - proposed_state: Proposed new value for the interaction.
+ *  - current_state: Current value of the interaction.
+ *  - residual_matrix: Residual scores matrix.
+ *  - is_ordinal_variable: Logical vector indicating which variables are ordinal.
+ *  - reference_category: Reference category per variable (Blume-Capel).
  *
  * Returns:
  *  - log p(y | β_proposed) - log p(y | β_current)
@@ -969,19 +983,24 @@ double log_pseudolikelihood_ratio_interaction(
  * If accepted, updates the interaction matrix and residual matrix.
  *
  * Inputs:
- *  - pairwise_effects: Matrix of current interaction parameters [V × V].
- *  - main_effects: Matrix of main effect parameters.
- *  - inclusion_indicator: Binary inclusion matrix [V × V].
+ *  - pairwise_effects: Current matrix of interaction parameters (updated in-place).
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - inclusion_indicator: Binary matrix indicating active interactions.
  *  - observations: Matrix of category scores.
- *  - num_categories: Vector of category counts.
- *  - proposal_sd_pairwise_effects: Matrix of proposal standard deviations [V × V].
- *  - interaction_scale: Cauchy prior scale.
+ *  - num_categories: Number of categories per variable.
+ *  - proposal_sd_pairwise_effects: Matrix of proposal standard deviations (updated in-place).
+ *  - interaction_scale: Scale parameter for the Cauchy prior.
  *  - num_persons: Number of observations.
  *  - num_variables: Number of variables.
- *  - residual_matrix: Matrix of residual predictors (updated in-place).
- *  - exp_neg_log_t_rm_adaptation_rate: Robbins-Monro weight.
- *  - is_ordinal_variable: Logical vector.
- *  - reference_category: Vector of reference categories.
+ *  - residual_matrix: Matrix of residual scores (updated in-place).
+ *  - exp_neg_log_t_rm_adaptation_rate: Robbins-Monro adaptation weight.
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Reference category per variable (Blume-Capel).
+ *
+ * Modifies:
+ *  - pairwise_effects
+ *  - residual_matrix
+ *  - proposal_sd_pairwise_effects
  */
 void update_interactions_with_adaptive_metropolis(
     arma::mat& pairwise_effects,
@@ -1045,20 +1064,25 @@ void update_interactions_with_adaptive_metropolis(
  * Metropolis-Hastings update of pairwise inclusion indicators for a predefined set of edges.
  *
  * Inputs:
- *  - pairwise_effects: Matrix of interaction weights [V × V] (updated).
- *  - main_effects: Matrix of main effect parameters.
- *  - indicator: Matrix of inclusion flags [V × V] (updated).
- *  - observations: Matrix of category scores [N × V].
- *  - num_categories: Vector of category counts per variable.
- *  - proposal_sd: Matrix of proposal SDs for pairwise effects [V × V].
- *  - interaction_scale: Scale for the Cauchy prior.
- *  - index: Edge index matrix [E × 3] of interaction pairs.
- *  - no_interactions: Number of edge pairs.
- *  - no_persons: Number of individuals.
- *  - residual_matrix: Matrix of residual predictors (updated).
- *  - theta: Matrix of inclusion probabilities under prior.
- *  - is_ordinal_variable: Logical vector for variable type.
- *  - reference_category: Vector of reference categories.
+ *  - pairwise_effects: Matrix of interaction weights (updated in-place).
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - indicator: Matrix of edge inclusion flags (updated in-place).
+ *  - observations: Matrix of category scores.
+ *  - num_categories: Number of categories per variable.
+ *  - proposal_sd: Matrix of proposal standard deviations for pairwise effects.
+ *  - interaction_scale: Scale parameter for the Cauchy prior.
+ *  - index: List of interaction pairs to update.
+ *  - no_interactions: Number of interaction pairs.
+ *  - no_persons: Number of observations.
+ *  - residual_matrix: Residual scores matrix (updated in-place).
+ *  - theta: Matrix of prior inclusion probabilities.
+ *  - is_ordinal_variable: Logical vector indicating variable type.
+ *  - reference_category: Reference category per variable (Blume-Capel).
+ *
+ * Modifies:
+ *  - indicator
+ *  - pairwise_effects
+ *  - residual_matrix
  */
 void update_indicator_interaction_pair_with_metropolis(
     arma::mat& pairwise_effects,
@@ -1127,8 +1151,28 @@ void update_indicator_interaction_pair_with_metropolis(
 /**
  * Function: gibbs_update_step_for_graphical_model_parameters
  *
- * Executes a full Gibbs update for all graphical model parameters.
- * Handles edge selection, interaction parameters, and main effects.
+ * Performs a single Gibbs update step for all graphical model parameters.
+ *
+ * This step updates:
+ *  - Main effects (threshold parameters), using either MALA or Metropolis-Hastings
+ *  - Pairwise interaction parameters using adaptive Metropolis-Hastings
+ *  - Edge inclusion indicators (if edge selection is enabled)
+ *
+ * Adaptive tuning is applied via Robbins-Monro and dual averaging where applicable.
+ *
+ * Inputs:
+ *  - All model parameters, update indices, residuals, and proposal SDs.
+ *  - Current iteration and burn-in info for adaptive tuning.
+ *  - Logical flags for edge selection and MALA usage.
+ *
+ * Modifies:
+ *  - main_effects
+ *  - pairwise_effects
+ *  - inclusion_indicator (if edge selection is active)
+ *  - residual_matrix
+ *  - proposal_sd_main_effects
+ *  - proposal_sd_pairwise_effects
+ *  - step_size_mala and dual_averaging_state (if MALA is used)
  */
 void gibbs_update_step_for_graphical_model_parameters(
     const arma::imat& observations,
@@ -1215,49 +1259,47 @@ void gibbs_update_step_for_graphical_model_parameters(
 /**
  * Function: run_gibbs_sampler_for_bgm
  *
- * Runs the Gibbs sampling algorithm for a Markov random field model with
- * ordinal and/or Blume-Capel variables, including optional edge selection.
+ * Runs the full Gibbs sampling algorithm for a graphical model with ordinal
+ * and/or Blume-Capel variables, including optional edge selection and imputation.
  *
- * The sampler alternates between updating:
- * - Main effects (threshold parameters) using MALA or Metropolis
- * - Pairwise interactions using adaptive Metropolis-Hastings
- * - Inclusion indicators (edges) if edge selection is enabled
- * - Imputation of missing values if applicable
+ * Each iteration updates:
+ *  - Main effects (thresholds) using MALA or Metropolis-Hastings
+ *  - Pairwise interactions using adaptive Metropolis-Hastings
+ *  - Edge inclusion indicators (if edge selection is enabled)
+ *  - Missing values (if imputation is enabled)
  *
- * Adaptive tuning of proposal distributions is performed using Robbins-Monro or dual averaging.
+ * Proposal distributions are tuned adaptively using Robbins-Monro and dual averaging.
  *
  * Inputs:
- *  - observations: data matrix with categorical scores.
- *  - num_categories: number of categories per variable.
- *  - interaction_scale: scale of Cauchy prior for pairwise interactions.
- *  - proposal_sd: initial proposal SDs for pairwise effects.
- *  - proposal_sd_blumecapel: initial proposal SDs for Blume-Capel main effects.
- *  - edge_prior: prior type ("Bernoulli", "Beta-Bernoulli", "Stochastic-Block").
- *  - theta: matrix of inclusion probabilities under the edge prior.
- *  - beta_bernoulli_alpha, beta_bernoulli_beta: shape parameters for Beta-Bernoulli prior.
- *  - dirichlet_alpha, lambda: parameters for the SBM prior (if used).
- *  - Index: list of interaction indices (row id, i, j).
- *  - iter, burnin: number of sampling and burn-in iterations.
- *  - num_obs_categories: counts of observed categories.
- *  - sufficient_blume_capel: sufficient stats for Blume-Capel updates.
- *  - threshold_alpha, threshold_beta: prior hyperparameters for main effects.
- *  - na_impute: whether to impute missing values.
- *  - missing_index: matrix of (i, j) missing locations.
- *  - is_ordinal_variable: indicator for ordinal vs. Blume-Capel variables.
- *  - reference_category: reference categories for Blume-Capel variables.
- *  - save_main, save_pairwise, save_indicator: flags to store MCMC samples.
- *  - display_progress: whether to show progress bar.
- *  - use_mala_for_main_effects: use MALA for threshold updates.
+ *  - observations: Matrix of categorical scores (with possible missing entries).
+ *  - num_categories: Number of categories per variable.
+ *  - interaction_scale: Scale of the Cauchy prior for pairwise effects.
+ *  - edge_prior: Prior type: "Bernoulli", "Beta-Bernoulli", or "Stochastic-Block".
+ *  - theta: Matrix of inclusion probabilities under the edge prior.
+ *  - beta_bernoulli_alpha, beta_bernoulli_beta: Beta prior parameters (if applicable).
+ *  - dirichlet_alpha, lambda: Parameters for the Stochastic Block Model prior.
+ *  - Index: Matrix of interaction edge indices.
+ *  - iter, burnin: Number of MCMC iterations and burn-in iterations.
+ *  - num_obs_categories: Observed score counts by category.
+ *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
+ *  - threshold_alpha, threshold_beta: Hyperparameters for the main effect priors.
+ *  - na_impute: Whether to impute missing values.
+ *  - missing_index: Matrix of missing (row, col) positions.
+ *  - is_ordinal_variable: Logical indicator for ordinal (1) vs. Blume-Capel (0).
+ *  - reference_category: Reference category per variable (for Blume-Capel).
+ *  - save_main, save_pairwise, save_indicator: Whether to save MCMC samples.
+ *  - display_progress: Show progress bar during sampling.
+ *  - use_mala_for_main_effects: If TRUE, uses MALA; otherwise Metropolis.
  *
  * Returns:
- *  - A List containing posterior mean estimates:
- *      * "main": average thresholds
- *      * "pairwise": average interaction weights
- *      * "inclusion_indicator": average edge inclusion matrix
- *  - If sampling is enabled:
+ *  - A List with:
+ *      * "main": Posterior mean of main effects
+ *      * "pairwise": Posterior mean of pairwise effects
+ *      * "inclusion_indicator": Posterior mean of edge indicators
+ *  - If enabled:
  *      * "main_samples", "pairwise_samples", "inclusion_indicator_samples"
- *  - If edge_prior is SBM:
- *      * "allocations": sampled cluster assignments over iterations
+ *  - If SBM prior is used:
+ *      * "allocations": Cluster membership per iteration
  */
 // [[Rcpp::export]]
 List run_gibbs_sampler_for_bgm(
