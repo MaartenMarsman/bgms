@@ -1194,38 +1194,46 @@ void update_interactions_with_adaptive_metropolis(
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& reference_category
 ) {
-  for (int variable1 = 0; variable1 < num_variables - 1; ++variable1) {
-    for (int variable2 = variable1 + 1; variable2 < num_variables; ++variable2) {
+  for (int variable1 = 0; variable1 < num_variables - 1; variable1++) {
+    for (int variable2 = variable1 + 1; variable2 < num_variables; variable2++) {
       if (inclusion_indicator(variable1, variable2) == 1) {
+        // Sample proposal from Gaussian centered at current state
         const double current_state = pairwise_effects(variable1, variable2);
         const double proposed_state = R::rnorm(current_state, proposal_sd_pairwise_effects(variable1, variable2));
 
+        // Compute log acceptance ratio: data + prior
         double log_acceptance = log_pseudolikelihood_ratio_interaction(
           pairwise_effects, main_effects, observations, num_categories, num_persons,
           variable1, variable2, proposed_state, current_state,
           residual_matrix, is_ordinal_variable, reference_category
         );
 
-        // Prior ratio (Cauchy)
+        // Add symmetric Cauchy prior ratio
         log_acceptance += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
         log_acceptance -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
+        // Accept proposal with MH step
         if (std::log(R::unif_rand()) < log_acceptance) {
           const double delta = proposed_state - current_state;
+
+          // Update effect matrix symmetrically
           pairwise_effects(variable1, variable2) = proposed_state;
           pairwise_effects(variable2, variable1) = proposed_state;
 
-          for (int person = 0; person < num_persons; ++person) {
-            residual_matrix(person, variable1) += observations(person, variable2) * delta;
-            residual_matrix(person, variable2) += observations(person, variable1) * delta;
-          }
+          // Vectorized update of residual matrix for both variables
+          residual_matrix.col(variable1) += arma::conv_to<arma::vec>::from(observations.col(variable2)) * delta;
+          residual_matrix.col(variable2) += arma::conv_to<arma::vec>::from(observations.col(variable1)) * delta;
+          // [original] Non-vectorized update of residual matrix
+          // for (int person = 0; person < num_persons; person++) {
+          //   residual_matrix(person, variable1) += observations(person, variable2) * delta;
+          //   residual_matrix(person, variable2) += observations(person, variable1) * delta;
+          // }
         }
 
-        // Robbins-Monro proposal SD update
+        // Robbins-Monro adaptation of proposal SD
         proposal_sd_pairwise_effects(variable1, variable2) =
-          update_proposal_sd_with_robbins_monro(
-            proposal_sd_pairwise_effects(variable1, variable2),
-            log_acceptance,
+          update_proposal_sd_with_robbins_monro (
+            proposal_sd_pairwise_effects(variable1, variable2), log_acceptance,
             exp_neg_log_t_rm_adaptation_rate
           );
       }
@@ -1261,7 +1269,7 @@ void update_interactions_with_adaptive_metropolis(
  *  - pairwise_effects
  *  - residual_matrix
  */
-void update_indicator_interaction_pair_with_metropolis(
+void update_indicator_interaction_pair_with_metropolis (
     arma::mat& pairwise_effects,
     const arma::mat& main_effects,
     arma::imat& indicator,
@@ -1282,29 +1290,33 @@ void update_indicator_interaction_pair_with_metropolis(
     const int variable2 = index(cntr, 2);
 
     const double current_state = pairwise_effects(variable1, variable2);
-    double proposed_state;
 
-    bool proposing_addition = (indicator(variable1, variable2) == 0);
-    proposed_state = proposing_addition
-    ? R::rnorm(current_state, proposal_sd(variable1, variable2))
-      : 0.0;
+    // Propose a new state: either add a new edge or remove an existing one
+    const bool proposing_addition = (indicator(variable1, variable2) == 0);
+    const double proposed_state = proposing_addition ? R::rnorm(current_state, proposal_sd(variable1, variable2)) : 0.0;
 
-    double log_accept = log_pseudolikelihood_ratio_interaction(
+    // Compute log pseudo-likelihood ratio
+    double log_accept = log_pseudolikelihood_ratio_interaction (
       pairwise_effects, main_effects, observations, num_categories, no_persons,
-      variable1, variable2, proposed_state, current_state,
-      residual_matrix, is_ordinal_variable, reference_category
+      variable1, variable2, proposed_state, current_state, residual_matrix,
+      is_ordinal_variable, reference_category
     );
+
+    // Add prior ratio and proposal correction
+    const double theta_ij = theta(variable1, variable2);
+    const double sd = proposal_sd(variable1, variable2);
 
     if (proposing_addition) {
       log_accept += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
-      log_accept -= R::dnorm(proposed_state, current_state, proposal_sd(variable1, variable2), true);
-      log_accept += std::log(theta(variable1, variable2)) - std::log(1.0 - theta(variable1, variable2));
+      log_accept -= R::dnorm(proposed_state, current_state, sd, true);
+      log_accept += std::log(theta_ij) - std::log(1.0 - theta_ij);
     } else {
       log_accept -= R::dcauchy(current_state, 0.0, interaction_scale, true);
-      log_accept += R::dnorm(current_state, proposed_state, proposal_sd(variable1, variable2), true);
-      log_accept -= std::log(theta(variable1, variable2)) - std::log(1.0 - theta(variable1, variable2));
+      log_accept += R::dnorm(current_state, proposed_state, sd, true);
+      log_accept -= std::log(theta_ij) - std::log(1.0 - theta_ij);
     }
 
+    // Metropolis-Hastings accept step
     if (std::log(R::unif_rand()) < log_accept) {
       const int updated_indicator = 1 - indicator(variable1, variable2);
       indicator(variable1, variable2) = updated_indicator;
@@ -1315,10 +1327,14 @@ void update_indicator_interaction_pair_with_metropolis(
 
       const double delta = proposed_state - current_state;
 
-      for (int person = 0; person < no_persons; ++person) {
-        residual_matrix(person, variable1) += observations(person, variable2) * delta;
-        residual_matrix(person, variable2) += observations(person, variable1) * delta;
-      }
+      // Vectorized residual update
+      residual_matrix.col(variable1) += arma::conv_to<arma::vec>::from(observations.col(variable2)) * delta;
+      residual_matrix.col(variable2) += arma::conv_to<arma::vec>::from(observations.col(variable1)) * delta;
+      // [original] Non-vectorized residual update
+      // for (int person = 0; person < no_persons; ++person) {
+      //   residual_matrix(person, variable1) += observations(person, variable2) * delta;
+      //   residual_matrix(person, variable2) += observations(person, variable1) * delta;
+      // }
     }
   }
 }
@@ -1328,30 +1344,55 @@ void update_indicator_interaction_pair_with_metropolis(
 /**
  * Function: gibbs_update_step_for_graphical_model_parameters
  *
- * Performs a single Gibbs update step for all graphical model parameters.
+ * Performs a single iteration of the Gibbs sampler for a graphical model.
  *
- * This step updates:
- *  - Main effects (threshold parameters), using either MALA or Metropolis-Hastings
- *  - Pairwise interaction parameters using adaptive Metropolis-Hastings
- *  - Edge inclusion indicators (if edge selection is enabled)
+ * This update step includes:
+ *  - Edge inclusion updates (if selection is enabled)
+ *  - Pairwise interaction parameter updates via Metropolis-Hastings
+ *  - Main effect (threshold) updates using MALA or Metropolis
  *
- * Adaptive tuning is applied via Robbins-Monro and dual averaging where applicable.
+ * Proposal standard deviations are adapted using Robbins-Monro or dual averaging.
  *
  * Inputs:
- *  - All model parameters, update indices, residuals, and proposal SDs.
- *  - Current iteration and burn-in info for adaptive tuning.
- *  - Logical flags for edge selection and MALA usage.
+ *  - observations: Matrix of observed categorical scores.
+ *  - num_categories: Vector of category counts per variable.
+ *  - interaction_scale: Scale for the Cauchy prior on interactions.
+ *  - proposal_sd_pairwise_effects: Matrix of proposal SDs for pairwise parameters (updated in-place).
+ *  - proposal_sd_main_effects: Matrix of proposal SDs for main effect parameters (updated in-place).
+ *  - update_index: Edge index list to use for edge selection.
+ *  - num_obs_categories: Matrix of observed category counts.
+ *  - sufficient_blume_capel: Sufficient statistics for BC parameters.
+ *  - threshold_alpha, threshold_beta: Hyperparameters for threshold priors.
+ *  - num_persons: Number of observations.
+ *  - num_variables: Number of variables.
+ *  - num_pairwise: Number of candidate interaction pairs.
+ *  - num_main: Number of main effect parameters.
+ *  - max_categories: Maximum number of categories across variables.
+ *  - inclusion_indicator: Symmetric matrix of active edges (updated in-place).
+ *  - pairwise_effects: Matrix of interaction parameters (updated in-place).
+ *  - main_effects: Matrix of main effect parameters (updated in-place).
+ *  - residual_matrix: Matrix of residuals (updated in-place).
+ *  - theta: Matrix of prior inclusion probabilities.
+ *  - rm_decay_rate: Robbins-Monro decay rate.
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Reference categories for BC variables.
+ *  - edge_selection: Whether to update inclusion indicators this iteration.
+ *  - step_size_mala: MALA step size (updated if MALA is active).
+ *  - iteration: Current iteration number.
+ *  - dual_averaging_state: Vector of dual averaging state [log_eps, log_eps_avg, H_bar] (updated).
+ *  - total_burnin: Total number of burn-in iterations.
+ *  - use_mala_for_main_effects: Whether to use MALA for main effects.
  *
- * Modifies:
- *  - main_effects
+ * Updates (in-place):
+ *  - inclusion_indicator
  *  - pairwise_effects
- *  - inclusion_indicator (if edge selection is active)
+ *  - main_effects
  *  - residual_matrix
+ *  - step_size_mala
  *  - proposal_sd_main_effects
  *  - proposal_sd_pairwise_effects
- *  - step_size_mala and dual_averaging_state (if MALA is used)
  */
-void gibbs_update_step_for_graphical_model_parameters(
+void gibbs_update_step_for_graphical_model_parameters (
     const arma::imat& observations,
     const arma::ivec& num_categories,
     const double interaction_scale,
@@ -1382,10 +1423,11 @@ void gibbs_update_step_for_graphical_model_parameters(
     const int total_burnin,
     const bool use_mala_for_main_effects
 ) {
+  // Robbins-Monro learning rate (e.g., iteration^-0.75)
   const double exp_neg_log_t_rm_adaptation_rate =
     std::exp(-std::log(static_cast<double>(iteration)) * rm_decay_rate);
 
-  // 1. Update inclusion indicators (edge selection)
+  // Step 1: Edge selection via MH indicator updates (if enabled)
   if (edge_selection) {
     update_indicator_interaction_pair_with_metropolis(
       pairwise_effects, main_effects, inclusion_indicator, observations,
@@ -1395,7 +1437,7 @@ void gibbs_update_step_for_graphical_model_parameters(
     );
   }
 
-  // 2. Update interaction parameters
+  // Step 2: Update interaction weights for active edges
   update_interactions_with_adaptive_metropolis(
     pairwise_effects, main_effects, inclusion_indicator, observations,
     num_categories, proposal_sd_pairwise_effects, interaction_scale,
@@ -1403,7 +1445,7 @@ void gibbs_update_step_for_graphical_model_parameters(
     exp_neg_log_t_rm_adaptation_rate, is_ordinal_variable, reference_category
   );
 
-  // 3. Update main effect (threshold) parameters
+  // Step 3: Update main effect (threshold) parameters
   if (use_mala_for_main_effects) {
     update_thresholds_with_adaptive_mala(
       main_effects, step_size_mala, residual_matrix, num_categories,
@@ -1436,47 +1478,47 @@ void gibbs_update_step_for_graphical_model_parameters(
 /**
  * Function: run_gibbs_sampler_for_bgm
  *
- * Runs the full Gibbs sampling algorithm for a graphical model with ordinal
- * and/or Blume-Capel variables, including optional edge selection and imputation.
+ * Runs the full Gibbs sampler for a graphical model with ordinal and/or Blume-Capel variables.
+ * Optionally performs edge selection using a Beta-Bernoulli or Stochastic Block prior.
  *
- * Each iteration updates:
- *  - Main effects (thresholds) using MALA or Metropolis-Hastings
- *  - Pairwise interactions using adaptive Metropolis-Hastings
- *  - Edge inclusion indicators (if edge selection is enabled)
- *  - Missing values (if imputation is enabled)
- *
- * Proposal distributions are tuned adaptively using Robbins-Monro and dual averaging.
+ * During each iteration, the algorithm:
+ *  - Updates missing values (if imputation enabled)
+ *  - Updates main effects (thresholds) via MALA or Metropolis-Hastings
+ *  - Updates interaction parameters via Metropolis-Hastings
+ *  - Updates inclusion indicators if edge selection is active
+ *  - Adapts proposal variances using Robbins-Monro
+ *  - Saves MCMC samples or updates running averages
  *
  * Inputs:
- *  - observations: Matrix of categorical scores (with possible missing entries).
+ *  - observations: Imputed categorical data.
  *  - num_categories: Number of categories per variable.
- *  - interaction_scale: Scale of the Cauchy prior for pairwise effects.
- *  - edge_prior: Prior type: "Bernoulli", "Beta-Bernoulli", or "Stochastic-Block".
- *  - theta: Matrix of inclusion probabilities under the edge prior.
- *  - beta_bernoulli_alpha, beta_bernoulli_beta: Beta prior parameters (if applicable).
- *  - dirichlet_alpha, lambda: Parameters for the Stochastic Block Model prior.
- *  - Index: Matrix of interaction edge indices.
- *  - iter, burnin: Number of MCMC iterations and burn-in iterations.
- *  - num_obs_categories: Observed score counts by category.
+ *  - interaction_scale: Scale for Cauchy prior on pairwise interactions.
+ *  - edge_prior: Type of edge prior ("Beta-Bernoulli" or "Stochastic-Block").
+ *  - theta: Matrix of edge inclusion probabilities (updated if SBM/Beta-Bernoulli).
+ *  - beta_bernoulli_alpha, beta_bernoulli_beta: Beta prior parameters for edge inclusion.
+ *  - dirichlet_alpha, lambda: SBM prior parameters.
+ *  - Index: Matrix of pairwise edge indices (E × 3).
+ *  - iter: Number of post-burn-in iterations.
+ *  - burnin: Number of burn-in iterations.
+ *  - num_obs_categories: Category counts for each variable.
  *  - sufficient_blume_capel: Sufficient statistics for Blume-Capel variables.
- *  - threshold_alpha, threshold_beta: Hyperparameters for the main effect priors.
+ *  - threshold_alpha, threshold_beta: Prior parameters for logistic-Beta.
  *  - na_impute: Whether to impute missing values.
- *  - missing_index: Matrix of missing (row, col) positions.
- *  - is_ordinal_variable: Logical indicator for ordinal (1) vs. Blume-Capel (0).
- *  - reference_category: Reference category per variable (for Blume-Capel).
+ *  - missing_index: List of missing value locations.
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Reference category for centering (for Blume-Capel).
  *  - save_main, save_pairwise, save_indicator: Whether to save MCMC samples.
  *  - display_progress: Show progress bar during sampling.
- *  - use_mala_for_main_effects: If TRUE, uses MALA; otherwise Metropolis.
+ *  - edge_selection: Whether to enable edge selection during burn-in.
+ *  - use_mala_for_main_effects: Use MALA updates for thresholds if true.
  *
  * Returns:
- *  - A List with:
- *      * "main": Posterior mean of main effects
- *      * "pairwise": Posterior mean of pairwise effects
- *      * "inclusion_indicator": Posterior mean of edge indicators
- *  - If enabled:
- *      * "main_samples", "pairwise_samples", "inclusion_indicator_samples"
- *  - If SBM prior is used:
- *      * "allocations": Cluster membership per iteration
+ *  - List containing:
+ *    - "main": Posterior mean of main effects
+ *    - "pairwise": Posterior mean of interaction effects
+ *    - "inclusion_indicator": Posterior mean of inclusion matrix
+ *    - (optional) "main_samples", "pairwise_samples", "inclusion_indicator_samples"
+ *    - (optional) "allocations": Cluster allocations (if SBM used)
  */
 // [[Rcpp::export]]
 List run_gibbs_sampler_for_bgm(
