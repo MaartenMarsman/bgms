@@ -28,11 +28,11 @@ using namespace Rcpp;
  *  - `state` vector in-place to update the log step size parameters.
  */
 inline void update_step_size_with_dual_averaging (
+    const double initial_step_size,
     const double acceptance_probability,
     const int iteration,
     arma::vec& state
 ) {
-  constexpr double initial_step_size = 0.01;
   const double target_log_step_size = std::log(10.0 * initial_step_size);
   constexpr int stabilization_offset = 10;
 
@@ -597,6 +597,153 @@ arma::vec gradient_log_pseudoposterior_thresholds (
 
 
 /**
+ * Function: find_reasonable_initial_step_size_mala_thresholds
+ *
+ * Heuristically finds an initial step size for MALA using a strategy
+ * from Hoffman & Gelman (2014). The step size is doubled or halved (in log-space)
+ * until the Metropolis-Hastings acceptance probability crosses the target threshold.
+ *
+ * This initialization ensures the sampler starts within a reasonable efficiency range.
+ *
+ * Based on:
+ *  - Hoffman, M.D. & Gelman, A. (2014). The No-U-Turn Sampler...
+ *    Journal of Machine Learning Research, 15, 1593–1623. (Algorithm 4)
+ *
+ * Inputs:
+ *  - main_effects: Threshold matrix at initial point.
+ *  - residual_matrix: Current residual predictor matrix.
+ *  - num_categories, num_obs_categories: Category structure for variables.
+ *  - sufficient_blume_capel, reference_category: Blume-Capel configuration.
+ *  - is_ordinal_variable: Logical vector (0 = BC, 1 = Ordinal).
+ *  - threshold_alpha, threshold_beta: Logistic-Beta prior hyperparameters.
+ *
+ * Returns:
+ *  - A scalar step size (positive double) tuned for target acceptance ~0.574.
+ *
+ * Notes:
+ *  - Falls back to step size = 0.01 if search diverges.
+ *  - Initial value is 0.1, adjusted via log-scale exploration.
+ */
+double find_reasonable_initial_step_size_mala_thresholds (
+    arma::mat main_effects,
+    const arma::mat& residual_matrix,
+    const arma::ivec& num_categories,
+    const arma::imat& num_obs_categories,
+    const arma::imat& sufficient_blume_capel,
+    const arma::ivec& reference_category,
+    const arma::uvec& is_ordinal_variable,
+    const double threshold_alpha,
+    const double threshold_beta
+) {
+  double initial_step_size = 0.1;
+  constexpr double target_acceptance = 0.574;
+  constexpr int max_attempts = 20;
+  constexpr double max_log_step = 10.0;
+
+  double log_step_size = std::log(initial_step_size);
+
+  // Compute initial log posterior and gradient at current state
+  arma::vec flat_theta = vectorize_thresholds (
+    main_effects, num_categories, is_ordinal_variable);
+  arma::vec grad = gradient_log_pseudoposterior_thresholds (
+    main_effects, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+  const double log_post_current = log_pseudoposterior_thresholds (
+    main_effects, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+
+  int direction = 0;
+  double accept_prob = 0.0;
+
+  // Propose initial MALA move and compute acceptance probability
+  double step_size = std::exp(log_step_size);
+  double sqrt_step = std::sqrt(step_size);
+  arma::vec proposal = flat_theta + 0.5 * step_size * grad + sqrt_step * arma::randn(flat_theta.n_elem);
+  arma::mat proposed = reconstruct_threshold_matrix (
+    proposal, num_categories, is_ordinal_variable
+  );
+
+  double log_post_proposed = log_pseudoposterior_thresholds (
+    proposed, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+  arma::vec grad_prop = gradient_log_pseudoposterior_thresholds (
+    proposed, residual_matrix, num_categories, num_obs_categories,
+    sufficient_blume_capel, reference_category, is_ordinal_variable,
+    threshold_alpha, threshold_beta
+  );
+
+  arma::vec forward = flat_theta + 0.5 * step_size * grad;
+  arma::vec backward = proposal + 0.5 * step_size * grad_prop;
+
+  double log_fwd = -0.5 / step_size * arma::accu(arma::square(proposal - forward));
+  double log_bwd = -0.5 / step_size * arma::accu(arma::square(flat_theta - backward));
+  double log_accept = log_post_proposed + log_bwd - log_post_current - log_fwd;
+
+  // Determine whether to increase or decrease the step size
+  accept_prob = std::min(1.0, std::exp(log_accept));
+  if (std::abs(accept_prob - target_acceptance) < 0.1) {
+    return std::exp(log_step_size);
+  }
+  direction = (accept_prob > target_acceptance) ? 1 : -1;
+
+
+  // Loop: double or halve the step size until the acceptance crosses the target
+  for (int attempt = 0; attempt < max_attempts; attempt++) {
+    log_step_size += direction * 1.0;
+    double step_size = std::exp(log_step_size);
+    double sqrt_step = std::sqrt(step_size);
+
+    arma::vec proposal = flat_theta + 0.5 * step_size * grad + sqrt_step * arma::randn(flat_theta.n_elem);
+    arma::mat proposed = reconstruct_threshold_matrix (
+      proposal, num_categories, is_ordinal_variable
+    );
+
+    double log_post_proposed = log_pseudoposterior_thresholds (
+      proposed, residual_matrix, num_categories, num_obs_categories,
+      sufficient_blume_capel, reference_category, is_ordinal_variable,
+      threshold_alpha, threshold_beta
+    );
+    arma::vec grad_prop = gradient_log_pseudoposterior_thresholds (
+      proposed, residual_matrix, num_categories, num_obs_categories,
+      sufficient_blume_capel, reference_category, is_ordinal_variable,
+      threshold_alpha, threshold_beta
+    );
+
+    arma::vec forward = flat_theta + 0.5 * step_size * grad;
+    arma::vec backward = proposal + 0.5 * step_size * grad_prop;
+
+    double log_fwd = -0.5 / step_size * arma::accu (arma::square(proposal - forward));
+    double log_bwd = -0.5 / step_size * arma::accu (arma::square(flat_theta - backward));
+    double log_accept = log_post_proposed + log_bwd - log_post_current - log_fwd;
+
+    double new_accept_prob = std::min(1.0, std::exp(log_accept));
+
+    // Exit loop early if acceptance crosses target in opposite direction
+    if ((direction == 1 && new_accept_prob < target_acceptance) ||
+        (direction == -1 && new_accept_prob > target_acceptance)) {
+      break;
+    }
+
+    accept_prob = new_accept_prob;
+
+    // Safety fallback to prevent runaway step sizes
+    if (std::abs(log_step_size) > max_log_step) {
+      Rcpp::Rcout << "Warning: Step size search failed. Falling back to default (0.01)." << std::endl;
+      return 0.01;
+    }
+  }
+  return std::exp(log_step_size);
+}
+
+
+
+/**
  * Function: update_thresholds_with_adaptive_mala
  *
  * Performs a MALA update of threshold parameters with adaptive step size tuning.
@@ -634,7 +781,8 @@ void update_thresholds_with_adaptive_mala (
     const int burnin,
     arma::vec& dual_averaging_state,
     const double threshold_alpha,
-    const double threshold_beta
+    const double threshold_beta,
+    const double initial_step_size_mala
 ) {
   // --- Step 1: Flatten current parameters and compute gradient & posterior
   arma::vec flat_theta = vectorize_thresholds (
@@ -687,7 +835,8 @@ void update_thresholds_with_adaptive_mala (
 
   // --- Step 6: Adapt step size
   if (iteration <= burnin) {
-    update_step_size_with_dual_averaging(accept_prob, iteration, dual_averaging_state);
+    update_step_size_with_dual_averaging (
+        initial_step_size_mala, accept_prob, iteration, dual_averaging_state);
     step_size_mala = std::exp(dual_averaging_state[0]);
   } else {
     update_step_size_with_robbins_monro(accept_prob, iteration - burnin, step_size_mala);
@@ -1319,7 +1468,8 @@ void gibbs_update_step_for_graphical_model_parameters (
     const int iteration,
     arma::vec& dual_averaging_state,
     const int total_burnin,
-    const bool use_mala_for_main_effects
+    const bool use_mala_for_main_effects,
+    const double initial_step_size_mala
 ) {
   // Robbins-Monro learning rate (e.g., iteration^-0.75)
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -1349,7 +1499,7 @@ void gibbs_update_step_for_graphical_model_parameters (
       main_effects, step_size_mala, residual_matrix, num_categories,
       num_obs_categories, sufficient_blume_capel, reference_category,
       is_ordinal_variable, iteration, total_burnin, dual_averaging_state,
-      threshold_alpha, threshold_beta
+      threshold_alpha, threshold_beta, initial_step_size_mala
     );
   } else {
     for (int variable = 0; variable < num_variables; variable++) {
@@ -1447,20 +1597,26 @@ List run_gibbs_sampler_for_bgm (
     bool edge_selection = true,
     bool use_mala_for_main_effects = false
 ) {
+  // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
   const int num_persons = observations.n_rows;
   const int max_num_categories = num_categories.max();
   const int num_pairwise = Index.n_rows;
 
+  // Initialize model parameter matrices
   arma::mat main_effects(num_variables, max_num_categories, arma::fill::zeros);
   arma::mat pairwise_effects(num_variables, num_variables, arma::fill::zeros);
   arma::imat inclusion_indicator(num_variables, num_variables, arma::fill::ones);
 
+  // Posterior mean accumulators
   arma::mat posterior_mean_main(num_variables, max_num_categories, arma::fill::zeros);
   arma::mat posterior_mean_pairwise(num_variables, num_variables, arma::fill::zeros);
   arma::mat posterior_mean_indicator(num_variables, num_variables, arma::fill::zeros);
+
+  // Residuals used in pseudo-likelihood computation
   arma::mat residual_matrix(num_persons, num_variables, arma::fill::zeros);
 
+  // Allocate optional storage for MCMC samples
   const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
   arma::mat* main_effect_samples = nullptr;
   arma::mat* pairwise_effect_samples = nullptr;
@@ -1470,23 +1626,26 @@ List run_gibbs_sampler_for_bgm (
   if (save_pairwise) pairwise_effect_samples = new arma::mat(iter, num_pairwise);
   if (save_indicator) indicator_samples = new arma::imat(iter, num_pairwise);
 
+  // Initialize proposal SDs and MALA tracking
   arma::mat proposal_sd_blumecapel(num_main, 2, arma::fill::ones);
   arma::mat proposal_sd_pairwise_effects(num_variables, num_variables, arma::fill::ones);
-
   double step_size_mala = 0.01;
   arma::vec dual_averaging_state(3, arma::fill::zeros);
   const double decay_rate_robins_monro = 0.75;
 
+  // Edge update shuffling setup
   arma::uvec v = arma::regspace<arma::uvec>(0, num_pairwise - 1);
   arma::uvec order(num_pairwise);
   arma::imat index(num_pairwise, 3);
 
+  // SBM-specific structures
   arma::uvec K_values;
   arma::uvec cluster_allocations(num_variables);
   arma::mat cluster_prob(1, 1);
   arma::vec log_Vn(1);
   arma::imat out_allocations(iter, num_variables);
 
+  // --- Initialize SBM prior if applicable
   if (edge_prior == "Stochastic-Block") {
     cluster_allocations[0] = 0;
     cluster_allocations[1] = 1;
@@ -1509,12 +1668,39 @@ List run_gibbs_sampler_for_bgm (
     log_Vn = compute_Vn_mfm_sbm(num_variables, dirichlet_alpha, num_variables + 10, lambda);
   }
 
+  // --- Set up total number of iterations (burn-in + sampling)
   bool enable_edge_selection = edge_selection;
-  const int total_burnin = burnin * (enable_edge_selection ? 2 : 1);
+  int total_burnin = burnin * (enable_edge_selection ? 2 : 1);
+  const int warmup_iterations = (use_mala_for_main_effects ? 25 : 0);
+  total_burnin += warmup_iterations;
   edge_selection = false;
   const int total_iter = total_burnin + iter;
   Progress p(total_iter, display_progress);
 
+  // --- Optional MALA warmup stage (step size tuning only)
+  double initial_step_size_mala = 0.01;
+  if (use_mala_for_main_effects) {
+    if (na_impute) {
+      impute_missing_values_for_graphical_model(
+        pairwise_effects, main_effects, observations, num_obs_categories,
+        sufficient_blume_capel, num_categories, residual_matrix,
+        missing_index, is_ordinal_variable, reference_category
+      );
+    }
+
+    // Warmup phase for MALA: find initial step size (per Hoffman & Gelman, 2014)
+    // Uses one MALA step to tune the log step size before dual averaging.
+    initial_step_size_mala = find_reasonable_initial_step_size_mala_thresholds (
+      main_effects, residual_matrix, num_categories, num_obs_categories,
+      sufficient_blume_capel, reference_category, is_ordinal_variable,
+      threshold_alpha, threshold_beta
+    );
+
+    step_size_mala = initial_step_size_mala;
+    dual_averaging_state[0] = std::log(step_size_mala);
+  }
+
+  // --- Main Gibbs sampling loop
   for (int iteration = 0; iteration < total_iter; iteration++) {
     if (Progress::check_abort()) {
       return List::create(
@@ -1525,13 +1711,16 @@ List run_gibbs_sampler_for_bgm (
     }
     p.increment();
 
+    // Re-enable edge selection halfway through burn-in
     if (enable_edge_selection && iteration == burnin) edge_selection = true;
 
+    // Shuffle update order of edge indices
     order = arma::randperm(num_pairwise);
     for (int i = 0; i < num_pairwise; i++) {
       index.row(i) = Index.row(order(i));
     }
 
+    // Optional imputation
     if (na_impute) {
       impute_missing_values_for_graphical_model(
         pairwise_effects, main_effects, observations, num_obs_categories,
@@ -1540,6 +1729,7 @@ List run_gibbs_sampler_for_bgm (
       );
     }
 
+    // Main Gibbs update step for parameters
     gibbs_update_step_for_graphical_model_parameters(
       observations, num_categories, interaction_scale,
       proposal_sd_pairwise_effects, proposal_sd_blumecapel, index,
@@ -1548,9 +1738,11 @@ List run_gibbs_sampler_for_bgm (
       max_num_categories, inclusion_indicator, pairwise_effects, main_effects,
       residual_matrix, theta, decay_rate_robins_monro, is_ordinal_variable,
       reference_category, edge_selection, step_size_mala, iteration,
-      dual_averaging_state, total_burnin, use_mala_for_main_effects
+      dual_averaging_state, total_burnin, use_mala_for_main_effects,
+      initial_step_size_mala
     );
 
+    // --- Update edge probabilities under the prior (if edge selection is active)
     if (edge_selection) {
       if (edge_prior == "Beta-Bernoulli") {
         int num_edges_included = 0;
@@ -1588,9 +1780,11 @@ List run_gibbs_sampler_for_bgm (
       }
     }
 
+    // --- Save samples and update posterior means
     if (iteration >= total_burnin) {
       int iter_adj = iteration - total_burnin + 1;
 
+      // Running posterior means
       posterior_mean_main = (posterior_mean_main * (iter_adj - 1) + main_effects) / iter_adj;
       posterior_mean_pairwise = (posterior_mean_pairwise * (iter_adj - 1) + pairwise_effects) / iter_adj;
 
@@ -1629,6 +1823,7 @@ List run_gibbs_sampler_for_bgm (
     }
   }
 
+  // --- Final output
   List out = List::create(
     Named("main") = posterior_mean_main,
     Named("pairwise") = posterior_mean_pairwise,
