@@ -623,7 +623,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
  *  - Uses log-space doubling/halving; returns 0.01 if the search fails.
  *  - Assumes Euclidean (identity) preconditioning.
  */
-double find_reasonable_initial_step_size_mala_thresholds(
+double find_reasonable_initial_step_size_mala_thresholds (
     arma::mat main_effects,
     const arma::mat& residual_matrix,
     const arma::ivec& num_categories,
@@ -1163,6 +1163,501 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
 
 
 /**
+ * Function: gradient_log_pseudoposterior_interactions
+ *
+ * Computes the gradient of the log pseudoposterior with respect to the
+ * active interaction parameters. This is used in MALA updates of the
+ * pairwise interaction matrix.
+ *
+ * Inputs:
+ *  - pairwise_effects: Symmetric matrix of interaction parameters [V × V].
+ *  - main_effects: Matrix of main effect (threshold) parameters [V × max_categories].
+ *  - observations: Matrix of ordinal and Blume-Capel scores (row = individual, col = variable).
+ *  - num_categories: Vector of number of categories per variable.
+ *  - inclusion_indicator: Symmetric binary matrix indicating which interactions are active.
+ *  - is_ordinal_variable: Logical vector indicating ordinal (1) or Blume-Capel (0) variables.
+ *  - reference_category: Vector of reference categories for BC variables.
+ *  - interaction_scale: Cauchy prior scale on interaction weights.
+ *
+ * Returns:
+ *  - Gradient vector for all pairwise interactions (in upper-triangle order).
+ */
+/**
+ * Computes the gradient of the log pseudo-posterior for all active pairwise interaction effects.
+ */
+arma::vec gradient_log_pseudoposterior_interactions (
+    const arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& inclusion_indicator,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+  const int num_variables = observations.n_cols;
+  const int num_observations = observations.n_rows;
+  const int num_interactions = (num_variables * (num_variables - 1)) / 2;
+
+  arma::vec gradient (num_interactions, arma::fill::zeros);
+  int interaction_index = -1;
+
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      interaction_index++;
+
+      if (inclusion_indicator (var1, var2) == 0)
+        continue;
+
+      // Convert observed scores to integer vectors
+      const arma::ivec responses_var1 = arma::conv_to<arma::ivec>::from (observations.col (var1));
+      const arma::ivec responses_var2 = arma::conv_to<arma::ivec>::from (observations.col (var2));
+
+
+      // First-order gradient term from complete data
+      gradient (interaction_index) = 2.0 * arma::dot (responses_var1, responses_var2);
+
+      // --- Contribution from variable var1
+      int num_categories_var1 = num_categories (var1);
+      arma::vec rest_scores = observations * pairwise_effects.col (var1);
+      arma::vec numerator = arma::zeros (num_observations);
+      arma::vec denominator = arma::zeros (num_observations);
+      arma::vec bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var1;
+
+      if (is_ordinal_variable (var1)) {
+        denominator += arma::exp ( -bounds );
+        for (int category = 0; category < num_categories_var1; category++) {
+          arma::vec exponent = main_effects (var1, category) + (category + 1) * rest_scores - bounds;
+          arma::vec weight = arma::exp (exponent);
+          denominator += weight;
+          numerator += (category + 1) * responses_var2 % weight;
+        }
+      } else {
+        const int ref_cat = reference_category (var1);
+        for (int category = 0; category <= num_categories_var1; category++) {
+          int centered_cat = category - ref_cat;
+          double lin_term = main_effects (var1, 0) * category;
+          double quad_term = main_effects (var1, 1) * centered_cat * centered_cat;
+          arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
+          arma::vec weight = arma::exp (exponent);
+          denominator += weight;
+          numerator += category * responses_var2 % weight;
+        }
+      }
+
+      gradient (interaction_index) -= arma::accu (numerator / denominator);
+
+      // --- Contribution from variable var2
+      int num_categories_var2 = num_categories (var2);
+      rest_scores = observations * pairwise_effects.col (var2);
+      numerator.zeros ();
+      denominator.zeros ();
+      bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var2;
+
+      if (is_ordinal_variable (var2)) {
+        denominator += arma::exp ( -bounds );
+        for (int category = 0; category < num_categories_var2; category++) {
+          arma::vec exponent = main_effects (var2, category) + (category + 1) * rest_scores - bounds;
+          arma::vec weight = arma::exp (exponent);
+          denominator += weight;
+          numerator += (category + 1) * responses_var1 % weight;
+        }
+      } else {
+        const int ref_cat = reference_category (var2);
+        for (int category = 0; category <= num_categories_var2; category++) {
+          int centered_cat = category - ref_cat;
+          double lin_term = main_effects (var2, 0) * category;
+          double quad_term = main_effects (var2, 1) * centered_cat * centered_cat;
+          arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
+          arma::vec weight = arma::exp (exponent);
+          denominator += weight;
+          numerator += category * responses_var1 % weight;
+        }
+      }
+
+      gradient (interaction_index) -= arma::accu (numerator / denominator);
+
+      // ---- Gradient contribution from Cauchy prior
+      const double effect = pairwise_effects (var1, var2);
+      gradient (interaction_index) -= 2.0 * effect / (effect * effect + interaction_scale * interaction_scale);
+    }
+  }
+
+  return gradient;
+}
+
+
+
+/**
+ * Function: log_pseudoposterior_interactions
+ *
+ * Computes the log of the pseudoposterior distribution over interaction parameters.
+ * Includes:
+ *  - The pairwise quadratic sufficient statistic: trace(X * B * Xᵗ)
+ *  - The (unnormalized) nodewise log-likelihood contributions
+ *  - The log Cauchy prior for included interaction terms
+ *
+ * Inputs:
+ *  - pairwise_effects: Symmetric matrix of interaction parameters.
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - observations: Matrix of ordinal and BC scores.
+ *  - num_categories: Vector of number of categories for each variable.
+ *  - inclusion_indicator: Binary matrix indicating active interactions.
+ *  - is_ordinal_variable: Logical vector: 1 = ordinal, 0 = Blume-Capel.
+ *  - reference_category: Reference category index per variable (for BC).
+ *  - interaction_scale: Cauchy prior scale for interaction terms.
+ *
+ * Returns:
+ *  - Scalar log pseudoposterior (double)
+ */
+double log_pseudoposterior_interactions (
+    const arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& inclusion_indicator,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+  const int num_variables = observations.n_cols;
+  const int num_observations = observations.n_rows;
+
+  // Convert to double matrix for trace calculation
+  arma::mat real_observations = arma::conv_to<arma::mat>::from (observations);
+
+  // Leading term: trace(X * B * X^T)
+  double log_pseudo_likelihood = arma::trace (real_observations * pairwise_effects * real_observations.t ());
+
+  for (int var = 0; var < num_variables; var++) {
+    int num_categories_var = num_categories (var);
+
+    // Compute rest score: contribution from other variables
+    arma::vec rest_scores = observations * pairwise_effects.col (var);
+    arma::vec bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var;
+    arma::vec denominator = arma::zeros (num_observations);
+
+    if (is_ordinal_variable (var)) {
+      // Ordinal variable: denominator includes exp(-bounds) + exp over categories
+      denominator += arma::exp ( -bounds );
+      for (int category = 0; category < num_categories_var; category++) {
+        arma::vec exponent = main_effects (var, category) + (category + 1) * rest_scores - bounds;
+        denominator += arma::exp (exponent);
+      }
+    } else {
+      // Binary/categorical variable: quadratic + linear term
+      const int ref_cat = reference_category (var);
+      for (int category = 0; category <= num_categories_var; category++) {
+        int centered_cat = category - ref_cat;
+        double lin_term = main_effects (var, 0) * category;
+        double quad_term = main_effects (var, 1) * centered_cat * centered_cat;
+        arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
+        denominator += arma::exp (exponent);
+      }
+    }
+
+    // Subtract log partition function and bounds adjustment
+    log_pseudo_likelihood -= arma::accu (arma::log (denominator));
+    log_pseudo_likelihood -= arma::accu (bounds);
+  }
+
+  // Add Cauchy prior terms for included pairwise effects
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      if (inclusion_indicator (var1, var2) == 1) {
+        log_pseudo_likelihood += R::dcauchy (pairwise_effects (var1, var2), 0.0, interaction_scale, true);
+      }
+    }
+  }
+
+  return log_pseudo_likelihood;
+}
+
+
+
+/**
+ * Function: find_reasonable_initial_step_size_mala_interactions
+ *
+ * Heuristically selects an initial step size for MALA updates of the interaction parameters
+ * by adapting the acceptance rate toward a target value (~0.574).
+ *
+ * Inputs:
+ *  - pairwise_effects: Matrix of pairwise interaction parameters.
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - observations: Matrix of categorical scores.
+ *  - num_categories: Number of categories per variable.
+ *  - inclusion_indicator: Symmetric binary matrix of active interactions.
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Vector of reference categories (for BC variables).
+ *  - interaction_scale: Prior scale for Cauchy prior on interactions.
+ *
+ * Returns:
+ *  - A positive step size value that gives roughly 0.574 acceptance rate.
+ */
+double find_reasonable_initial_step_size_mala_interactions (
+    arma::mat pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& inclusion_indicator,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+  const double target_acceptance = 0.574;
+  const double initial_step_size = 0.1;
+  const int max_attempts = 20;
+
+  const int num_variables = pairwise_effects.n_rows;
+  const int num_interactions = (num_variables * (num_variables - 1)) / 2;
+
+  double log_step_size = std::log (initial_step_size);
+
+  // --- Step 1: Extract current interaction state as vector
+  arma::vec current_state (num_interactions, arma::fill::zeros);
+  int interaction_index = -1;
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      interaction_index++;
+      if (inclusion_indicator (var1, var2) == 1) {
+        current_state (interaction_index) = pairwise_effects (var1, var2);
+      }
+    }
+  }
+
+  // --- Step 2: Evaluate gradient and posterior at current state
+  arma::vec gradient = gradient_log_pseudoposterior_interactions (
+    pairwise_effects, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category,
+    interaction_scale
+  );
+
+  double log_post_current = log_pseudoposterior_interactions (
+    pairwise_effects, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category,
+    interaction_scale
+  );
+
+  int direction = 0;
+  double accept_prob = 0.0;
+
+  // --- Step 3: Exponential step-size search loop
+  for (int attempt = 0; attempt < max_attempts; attempt++) {
+    double step_size = std::exp (log_step_size);
+
+    // Generate Langevin proposal
+    arma::vec noise = arma::randn<arma::vec> (num_interactions);
+    arma::vec proposal = current_state +
+      0.5 * step_size * gradient + std::sqrt (step_size) * noise;
+
+    // Rebuild symmetric proposal matrix
+    arma::mat proposal_matrix = pairwise_effects;
+    interaction_index = -1;
+    for (int var1 = 0; var1 < num_variables - 1; var1++) {
+      for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+        interaction_index++;
+        if (inclusion_indicator (var1, var2) == 1) {
+          proposal_matrix (var1, var2) = proposal (interaction_index);
+          proposal_matrix (var2, var1) = proposal (interaction_index);
+        }
+      }
+    }
+
+    // Evaluate posterior and gradient at proposed state
+    double log_post_proposal = log_pseudoposterior_interactions (
+      proposal_matrix, main_effects, observations, num_categories,
+      inclusion_indicator, is_ordinal_variable, reference_category,
+      interaction_scale
+    );
+
+    arma::vec gradient_prop = gradient_log_pseudoposterior_interactions (
+      proposal_matrix, main_effects, observations, num_categories,
+      inclusion_indicator, is_ordinal_variable, reference_category,
+      interaction_scale
+    );
+
+    // Compute log proposal densities
+    arma::vec forward = current_state + 0.5 * step_size * gradient;
+    arma::vec backward = proposal + 0.5 * step_size * gradient_prop;
+
+    double log_q_forward = -0.5 / step_size * arma::accu (arma::square (proposal - forward));
+    double log_q_reverse = -0.5 / step_size * arma::accu (arma::square (current_state - backward));
+
+    double log_accept = log_post_proposal + log_q_reverse - log_post_current - log_q_forward;
+    accept_prob = std::min (1.0, std::exp (log_accept));
+
+    // --- Step 4: Decide direction based on first attempt
+    if (attempt == 0) {
+      direction = (accept_prob > target_acceptance) ? 1 : -1;
+    } else {
+      if ((direction == 1 && accept_prob < target_acceptance) ||
+          (direction == -1 && accept_prob > target_acceptance)) {
+        break;
+      }
+    }
+
+    // Adjust log step size in chosen direction
+    log_step_size += direction;
+  }
+
+  return std::exp (log_step_size);
+}
+
+
+
+
+/**
+ * Function: update_interactions_with_mala
+ *
+ * Performs a blockwise MALA update of the interaction parameters using a fixed
+ * or adaptive step size. Uses full-length vectors over all pairwise interactions,
+ * with inactive elements set to zero.
+ *
+ * Inputs:
+ *  - pairwise_effects: Symmetric matrix of interaction parameters (updated in-place).
+ *  - residual_matrix: Residual matrix (updated in-place if proposal accepted).
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - observations: Matrix of observed scores.
+ *  - num_categories: Vector of number of categories per variable.
+ *  - inclusion_indicator: Binary matrix indicating active interactions.
+ *  - is_ordinal_variable: Logical vector: 1 = ordinal, 0 = Blume-Capel.
+ *  - reference_category: Vector of reference categories for BC variables.
+ *  - interaction_scale: Scale parameter for Cauchy prior on interactions.
+ *  - step_size_interactions: Current step size (updated if adaptive).
+ *  - initial_step_size_interactions: Initial step size used during dual averaging.
+ *  - iteration: Current MCMC iteration (0-based).
+ *  - total_burnin: Total number of burn-in iterations.
+ *  - dual_averaging_state: Vector (length 3) tracking dual averaging state.
+ *
+ * Modifies:
+ *  - pairwise_effects
+ *  - residual_matrix
+ *  - step_size_interactions (if in burn-in or adaptation phase)
+ *  - dual_averaging_state (during burn-in)
+ */
+void update_interactions_with_mala (
+    arma::mat& pairwise_effects,
+    arma::mat& residual_matrix,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::imat& inclusion_indicator,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale,
+    double& step_size_interactions,
+    const double initial_step_size_interactions,
+    const int iteration,
+    const int total_burnin,
+    arma::vec& dual_averaging_state
+) {
+  const int num_variables = pairwise_effects.n_rows;
+  const int num_interactions = (num_variables * (num_variables - 1)) / 2;
+
+  // --- Flatten current interaction matrix to vector
+  arma::vec current_state (num_interactions, arma::fill::zeros);
+  int interaction_index = -1;
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      interaction_index++;
+      if (inclusion_indicator (var1, var2) == 1) {
+        current_state (interaction_index) = pairwise_effects (var1, var2);
+      }
+    }
+  }
+
+  // --- Compute gradient and posterior at current state
+  arma::vec grad_current = gradient_log_pseudoposterior_interactions (
+    pairwise_effects, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale
+  );
+
+  double log_post_current = log_pseudoposterior_interactions (
+    pairwise_effects, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale
+  );
+
+  // --- Generate Langevin proposal
+  arma::vec noise = arma::randn<arma::vec> (num_interactions);
+  arma::vec proposal = current_state +
+    0.5 * step_size_interactions * grad_current +
+    std::sqrt (step_size_interactions) * noise;
+
+  // --- Build symmetric proposal matrix
+  arma::mat proposal_matrix = pairwise_effects;
+  interaction_index = -1;
+  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+    for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+      interaction_index++;
+      if (inclusion_indicator (var1, var2) == 1) {
+        proposal_matrix (var1, var2) = proposal (interaction_index);
+        proposal_matrix (var2, var1) = proposal (interaction_index);
+      }
+    }
+  }
+
+  // --- Evaluate posterior and gradient at proposed state
+  double log_post_proposal = log_pseudoposterior_interactions (
+    proposal_matrix, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale
+  );
+
+  arma::vec grad_proposed = gradient_log_pseudoposterior_interactions (
+    proposal_matrix, main_effects, observations, num_categories,
+    inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale
+  );
+
+  // --- Compute MH log acceptance ratio
+  arma::vec forward_mean = current_state + 0.5 * step_size_interactions * grad_current;
+  arma::vec reverse_mean = proposal + 0.5 * step_size_interactions * grad_proposed;
+
+  double log_q_forward = -0.5 / step_size_interactions * arma::accu (arma::square (proposal - forward_mean));
+  double log_q_reverse = -0.5 / step_size_interactions * arma::accu (arma::square (current_state - reverse_mean));
+
+  double log_accept = log_post_proposal + log_q_reverse - log_post_current - log_q_forward;
+
+  double logu = std::log (R::runif (0.0, 1.0));
+  bool accepted = (logu < log_accept);
+  double acceptance_prob = std::min (1.0, std::exp (log_accept));
+
+  // --- Adapt step size
+  if (iteration < total_burnin) {
+    update_step_size_with_dual_averaging (
+        initial_step_size_interactions,
+        acceptance_prob,
+        iteration + 1,
+        dual_averaging_state
+    );
+    step_size_interactions = std::exp (dual_averaging_state (1));
+  } else {
+    update_step_size_with_robbins_monro (
+        acceptance_prob,
+        iteration - total_burnin + 1,
+        step_size_interactions
+    );
+  }
+
+  // --- Accept and update interaction matrix and residuals
+  if (accepted) {
+    interaction_index = -1;
+    for (int var1 = 0; var1 < num_variables - 1; var1++) {
+      for (int var2 = var1 + 1; var2 < num_variables; var2++) {
+        interaction_index++;
+        if (inclusion_indicator (var1, var2) == 1) {
+          double delta = proposal (interaction_index) - pairwise_effects (var1, var2);
+          pairwise_effects (var1, var2) = proposal (interaction_index);
+          pairwise_effects (var2, var1) = proposal (interaction_index);
+          residual_matrix.col (var1) += arma::conv_to<arma::vec>::from (observations.col (var2)) * delta;
+          residual_matrix.col (var2) += arma::conv_to<arma::vec>::from (observations.col (var1)) * delta;
+        }
+      }
+    }
+  }
+}
+
+
+
+/**
  * Function: compute_log_likelihood_ratio_for_variable
  *
  * Computes the log pseudo-likelihood ratio contribution for a single variable,
@@ -1199,48 +1694,49 @@ double compute_log_likelihood_ratio_for_variable (
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& reference_category
 ) {
-  // Convert integer interaction scores to floating point for vector math
-  arma::vec interaction = arma::conv_to<arma::vec>::from(interacting_score);
+  // Convert interaction score vector to double precision
+  arma::vec interaction = arma::conv_to<arma::vec>::from (interacting_score);
 
   const int num_persons = residual_matrix.n_rows;
-  const int num_cats = num_categories(variable);
+  const int num_categories_var = num_categories (variable);
 
-  // Compute person-wise residual scores, adjusted for current interaction
-  arma::vec rest_scores = residual_matrix.col(variable) - interaction * current_state;
+  // Compute adjusted linear predictors without the current interaction
+  arma::vec rest_scores = residual_matrix.col (variable) - interaction * current_state;
 
-  // Bound term for numerical stability in softmax normalization
-  arma::vec bounds = arma::max(rest_scores, arma::zeros<arma::vec>(num_persons)) * num_cats;
+  // Stability bound for softmax (scaled by number of categories)
+  arma::vec bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_persons)) * num_categories_var;
 
-  // Denominator terms for current and proposed interaction values
-  arma::vec denom_curr = arma::zeros(num_persons);
-  arma::vec denom_prop = arma::zeros(num_persons);
+  arma::vec denom_current = arma::zeros (num_persons);
+  arma::vec denom_proposed = arma::zeros (num_persons);
 
-  if (is_ordinal_variable(variable)) {
-    denom_curr += arma::exp(-bounds);
-    denom_prop += arma::exp(-bounds);
+  if (is_ordinal_variable (variable)) {
+    // Ordinal model: initialize with underflow-protection constant
+    denom_current += arma::exp ( -bounds );
+    denom_proposed += arma::exp ( -bounds );
 
-    // Add contributions from each ordinal category
-    for (int cat = 0; cat < num_cats; cat++) {
-      arma::vec exponent = main_effects(variable, cat) + (cat + 1) * rest_scores;
-      denom_curr += arma::exp(exponent + (cat + 1) * interaction * current_state - bounds);
-      denom_prop += arma::exp(exponent + (cat + 1) * interaction * proposed_state - bounds);
+    for (int category = 0; category < num_categories_var; category++) {
+      arma::vec exponent = main_effects (variable, category) + (category + 1) * rest_scores;
+      denom_current += arma::exp (exponent + (category + 1) * interaction * current_state - bounds);
+      denom_proposed += arma::exp (exponent + (category + 1) * interaction * proposed_state - bounds);
     }
 
   } else {
-    const int ref = reference_category(variable);
-    for (int cat = 0; cat <= num_cats; cat++) {
-      int centered = cat - ref;
-      double quad_term = main_effects(variable, 1) * centered * centered;
-      double lin_term = main_effects(variable, 0) * cat;
-      arma::vec exponent = lin_term + quad_term + cat * rest_scores - bounds;
+    // Binary or categorical variable: linear + quadratic score
+    const int ref_cat = reference_category (variable);
 
-      denom_curr += arma::exp(exponent + cat * interaction * current_state);
-      denom_prop += arma::exp(exponent + cat * interaction * proposed_state);
+    for (int category = 0; category <= num_categories_var; category++) {
+      int centered = category - ref_cat;
+      double lin_term = main_effects (variable, 0) * category;
+      double quad_term = main_effects (variable, 1) * centered * centered;
+      arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
+
+      denom_current += arma::exp (exponent + category * interaction * current_state);
+      denom_proposed += arma::exp (exponent + category * interaction * proposed_state);
     }
   }
 
-  // Total likelihood difference
-  return arma::accu(arma::log(denom_curr) - arma::log(denom_prop));
+  // Accumulated log-likelihood difference across persons
+  return arma::accu (arma::log (denom_current) - arma::log (denom_proposed));
 }
 
 
@@ -1498,6 +1994,234 @@ void update_indicator_interaction_pair_with_metropolis (
 
 
 /**
+ * Function: gradient_log_pseudoposterior_interaction_single
+ *
+ * Computes the gradient of the log pseudoposterior with respect to a single
+ * interaction parameter (i, j), assuming symmetric pairwise_effects matrix.
+ *
+ * Inputs:
+ *  - i, j: Variable indices for the interaction pair (i < j).
+ *  - pairwise_effects: Matrix of interaction parameters.
+ *  - main_effects: Matrix of main effect parameters.
+ *  - observations: Matrix of categorical data [N × V].
+ *  - num_categories: Vector with number of categories per variable.
+ *  - is_ordinal_variable: Logical vector (1 = ordinal, 0 = Blume-Capel).
+ *  - reference_category: Vector of reference categories for BC variables.
+ *  - interaction_scale: Scale of Cauchy prior.
+ *
+ * Returns:
+ *  - A single double value: the gradient with respect to β_ij.
+ */
+double gradient_log_pseudoposterior_interaction_single (
+    int var1,
+    int var2,
+    const arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+  const int num_persons = observations.n_rows;
+
+  // Extract observed score vectors for each variable
+  arma::vec x_var1 = arma::conv_to<arma::vec>::from (observations.col (var1));
+  arma::vec x_var2 = arma::conv_to<arma::vec>::from (observations.col (var2));
+
+  // First-order gradient from data
+  double gradient = 2.0 * arma::dot (x_var1, x_var2);
+
+  // --- Contribution from var1
+  int num_categories_var1 = num_categories (var1);
+  arma::vec rest_scores_var1 = observations * pairwise_effects.col (var1);  // β_{var1,var1} = 0
+  arma::vec numerator_var1 (num_persons, arma::fill::zeros);
+  arma::vec denominator_var1 (num_persons, arma::fill::zeros);
+  arma::vec bounds_var1 = arma::max (rest_scores_var1, arma::zeros<arma::vec> (num_persons)) * num_categories_var1;
+
+  if (is_ordinal_variable (var1)) {
+    denominator_var1 += arma::exp ( -bounds_var1 );
+    for (int category = 0; category < num_categories_var1; category++) {
+      arma::vec exponent = main_effects (var1, category) + (category + 1) * rest_scores_var1 - bounds_var1;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var1 += weight;
+      numerator_var1 += (category + 1) * x_var2 % weight;
+    }
+  } else {
+    const int ref_cat = reference_category (var1);
+    for (int category = 0; category <= num_categories_var1; category++) {
+      int centered = category - ref_cat;
+      double lin_term = main_effects (var1, 0) * category;
+      double quad_term = main_effects (var1, 1) * centered * centered;
+      arma::vec exponent = lin_term + quad_term + category * rest_scores_var1 - bounds_var1;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var1 += weight;
+      numerator_var1 += category * x_var2 % weight;
+    }
+  }
+
+  gradient -= arma::accu (numerator_var1 / denominator_var1);
+
+  // --- Contribution from var2
+  int num_categories_var2 = num_categories (var2);
+  arma::vec rest_scores_var2 = observations * pairwise_effects.col (var2);
+  arma::vec numerator_var2 (num_persons, arma::fill::zeros);
+  arma::vec denominator_var2 (num_persons, arma::fill::zeros);
+  arma::vec bounds_var2 = arma::max (rest_scores_var2, arma::zeros<arma::vec> (num_persons)) * num_categories_var2;
+
+  if (is_ordinal_variable (var2)) {
+    denominator_var2 += arma::exp ( -bounds_var2 );
+    for (int category = 0; category < num_categories_var2; category++) {
+      arma::vec exponent = main_effects (var2, category) + (category + 1) * rest_scores_var2 - bounds_var2;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var2 += weight;
+      numerator_var2 += (category + 1) * x_var1 % weight;
+    }
+  } else {
+    const int ref_cat = reference_category (var2);
+    for (int category = 0; category <= num_categories_var2; category++) {
+      int centered = category - ref_cat;
+      double lin_term = main_effects (var2, 0) * category;
+      double quad_term = main_effects (var2, 1) * centered * centered;
+      arma::vec exponent = lin_term + quad_term + category * rest_scores_var2 - bounds_var2;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var2 += weight;
+      numerator_var2 += category * x_var1 % weight;
+    }
+  }
+
+  gradient -= arma::accu (numerator_var2 / denominator_var2);
+
+  // --- Cauchy prior derivative
+  double beta = pairwise_effects (var1, var2);
+  gradient -= 2.0 * beta / (beta * beta + interaction_scale * interaction_scale);
+
+  return gradient;
+}
+
+
+
+/**
+ * Function: update_indicator_interaction_pair_with_mala
+ *
+ * Proposes and accepts/rejects inclusion of pairwise interaction terms in a sparse graphical model
+ * using a Metropolis-adjusted Langevin algorithm (MALA). Operates one pair at a time across a list
+ * of possible interactions.
+ *
+ * Inputs:
+ *  - pairwise_effects: Matrix of pairwise interaction effects (updated in-place).
+ *  - main_effects: Matrix of main effect (threshold) parameters.
+ *  - indicator: Binary matrix indicating inclusion of pairwise interaction terms (updated in-place).
+ *  - observations: Matrix of observed scores.
+ *  - num_categories: Vector with number of categories per variable.
+ *  - step_size_mala_pairwise: Step size used for MALA proposals.
+ *  - interaction_scale: Scale parameter of the Cauchy prior on interaction effects.
+ *  - index: Matrix listing all candidate pairs for interaction updates.
+ *  - no_interactions: Number of candidate interaction pairs to consider.
+ *  - num_persons: Number of observations (individuals).
+ *  - residual_matrix: Matrix of residuals (updated if proposal accepted).
+ *  - theta: Matrix of posterior inclusion probabilities for pairwise interactions.
+ *  - is_ordinal_variable: Indicator vector specifying which variables are ordinal.
+ *  - reference_category: Vector of reference categories for binary/categorical variables.
+ *
+ * Modifies:
+ *  - pairwise_effects
+ *  - indicator
+ *  - residual_matrix (only if proposal accepted)
+ */
+void update_indicator_interaction_pair_with_mala (
+    arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    arma::imat& indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const double step_size_mala_pairwise,
+    const double interaction_scale,
+    const arma::imat& index,
+    const int no_interactions,
+    const int num_persons,
+    arma::mat& residual_matrix,
+    const arma::mat& theta,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category
+) {
+  for (int cntr = 0; cntr < no_interactions; cntr++) {
+    const int variable1 = index(cntr, 1);
+    const int variable2 = index(cntr, 2);
+
+    // Determine if we are proposing to add (if currently absent)
+    const bool proposing_addition = (indicator(variable1, variable2) == 0);
+    const double current_state = pairwise_effects(variable1, variable2);
+    double proposed_state = 0.0;
+    double log_accept = 0.0;
+    const double theta_ij = theta(variable1, variable2);
+
+    if (proposing_addition) {
+      // Compute gradient of log-pseudo-posterior for interaction term
+      double grad = gradient_log_pseudoposterior_interaction_single (
+        variable1, variable2, pairwise_effects, main_effects, observations,
+        num_categories, is_ordinal_variable, reference_category,
+        interaction_scale
+      );
+
+      // MALA proposal: Langevin step forward
+      double sd = std::sqrt(step_size_mala_pairwise);
+      double noise = R::rnorm(0.0, sd);
+      double forward_mean = current_state + 0.5 * step_size_mala_pairwise * grad;
+      proposed_state = forward_mean + noise;
+      log_accept -= R::dnorm(proposed_state, forward_mean, sd, true);
+
+      // Cauchy prior on interaction effect
+      log_accept += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
+
+      // Prior inclusion probability
+      log_accept += std::log(theta_ij) - std::log(1.0 - theta_ij);
+    } else {
+
+      // MALA proposal: Langevin step backward
+      arma::mat proposed_matrix = pairwise_effects;
+      proposed_matrix(variable1, variable2) = proposed_state;
+      proposed_matrix(variable2, variable1) = proposed_state;
+      double grad = gradient_log_pseudoposterior_interaction_single (
+        variable1, variable2, proposed_matrix, main_effects, observations,
+        num_categories, is_ordinal_variable, reference_category,
+        interaction_scale
+      );
+      double sd = std::sqrt(step_size_mala_pairwise);
+      double backward_mean = proposed_state + 0.5 * step_size_mala_pairwise * grad;
+      log_accept += R::dnorm(current_state, backward_mean, sd, true);
+
+      // Cauchy prior on interaction effect
+      log_accept -= R::dcauchy(current_state, 0.0, interaction_scale, true);
+      // Prior inclusion probability
+      log_accept -= std::log(theta_ij) - std::log(1.0 - theta_ij);
+    }
+
+    log_accept += log_pseudolikelihood_ratio_interaction (
+      pairwise_effects, main_effects, observations, num_categories, num_persons,
+      variable1, variable2, proposed_state, current_state, residual_matrix,
+      is_ordinal_variable, reference_category
+    );
+
+    // Metropolis-Hastings accept step
+    if (std::log(R::unif_rand()) < log_accept) {
+      const int new_value = 1 - indicator(variable1, variable2);
+      indicator(variable1, variable2) = new_value;
+      indicator(variable2, variable1) = new_value;
+
+      const double delta = proposed_state - current_state;
+      pairwise_effects(variable1, variable2) = proposed_state;
+      pairwise_effects(variable2, variable1) = proposed_state;
+
+      residual_matrix.col(variable1) += arma::conv_to<arma::vec>::from(observations.col(variable2)) * delta;
+      residual_matrix.col(variable2) += arma::conv_to<arma::vec>::from(observations.col(variable1)) * delta;
+    }
+  }
+}
+
+
+
+/**
  * Function: gibbs_update_step_for_graphical_model_parameters
  *
  * Performs a single iteration of the Gibbs sampler for a graphical model.
@@ -1523,7 +2247,6 @@ void update_indicator_interaction_pair_with_metropolis (
  *  - num_variables: Number of variables.
  *  - num_pairwise: Number of candidate interaction pairs.
  *  - num_main: Number of main effect parameters.
- *  - max_categories: Maximum number of categories across variables.
  *  - inclusion_indicator: Symmetric matrix of active edges (updated in-place).
  *  - pairwise_effects: Matrix of interaction parameters (updated in-place).
  *  - main_effects: Matrix of main effect parameters (updated in-place).
@@ -1537,7 +2260,7 @@ void update_indicator_interaction_pair_with_metropolis (
  *  - iteration: Current iteration number.
  *  - dual_averaging_state: Vector of dual averaging state [log_eps, log_eps_avg, H_bar] (updated).
  *  - total_burnin: Total number of burn-in iterations.
- *  - use_mala_for_main_effects: Whether to use MALA for main effects.
+ *  - use_mala: Whether to use MALA for updating.
  *
  * Updates (in-place):
  *  - inclusion_indicator
@@ -1553,8 +2276,8 @@ void gibbs_update_step_for_graphical_model_parameters (
     const arma::ivec& num_categories,
     const double interaction_scale,
     arma::mat& proposal_sd_pairwise_effects,
-    arma::mat& proposal_sd_main_effects,
-    const arma::imat& update_index,
+    arma::mat& proposal_sd_blumecapel,
+    const arma::imat& index,
     const arma::imat& num_obs_categories,
     const arma::imat& sufficient_blume_capel,
     const double threshold_alpha,
@@ -1563,7 +2286,6 @@ void gibbs_update_step_for_graphical_model_parameters (
     const int num_variables,
     const int num_pairwise,
     const int num_main,
-    const int max_categories,
     arma::imat& inclusion_indicator,
     arma::mat& pairwise_effects,
     arma::mat& main_effects,
@@ -1573,13 +2295,16 @@ void gibbs_update_step_for_graphical_model_parameters (
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& reference_category,
     const bool edge_selection,
-    double& step_size_mala,
+    double& step_size_mala_main,
     const int iteration,
-    arma::vec& dual_averaging_state,
+    arma::vec& dual_averaging_main,
     const int total_burnin,
-    const bool use_mala_for_main_effects,
-    const double initial_step_size_mala,
-    arma::mat& sqrt_inv_fisher
+    const bool use_mala,
+    const double initial_step_size_mala_main,
+    arma::mat& sqrt_inv_fisher,
+    double& step_size_mala_pairwise,
+    arma::vec& dual_averaging_pairwise,
+    const double initial_step_size_mala_pairwise
 ) {
   // Robbins-Monro learning rate (e.g., iteration^-0.75)
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -1587,29 +2312,50 @@ void gibbs_update_step_for_graphical_model_parameters (
 
   // Step 1: Edge selection via MH indicator updates (if enabled)
   if (edge_selection) {
-    update_indicator_interaction_pair_with_metropolis(
-      pairwise_effects, main_effects, inclusion_indicator, observations,
-      num_categories, proposal_sd_pairwise_effects, interaction_scale,
-      update_index, num_pairwise, num_persons, residual_matrix,
-      theta, is_ordinal_variable, reference_category
-    );
+    if(use_mala) {
+      update_indicator_interaction_pair_with_mala (
+        pairwise_effects, main_effects, inclusion_indicator, observations,
+        num_categories, step_size_mala_pairwise, interaction_scale,
+        index, num_pairwise, num_persons, residual_matrix,
+        theta, is_ordinal_variable, reference_category
+      );
+    } else {
+      update_indicator_interaction_pair_with_metropolis (
+        pairwise_effects, main_effects, inclusion_indicator, observations,
+        num_categories, proposal_sd_pairwise_effects, interaction_scale,
+        index, num_pairwise, num_persons, residual_matrix,
+        theta, is_ordinal_variable, reference_category
+      );
+    }
   }
 
   // Step 2: Update interaction weights for active edges
-  update_interactions_with_adaptive_metropolis(
-    pairwise_effects, main_effects, inclusion_indicator, observations,
-    num_categories, proposal_sd_pairwise_effects, interaction_scale,
-    num_persons, num_variables, residual_matrix,
-    exp_neg_log_t_rm_adaptation_rate, is_ordinal_variable, reference_category
-  );
+  if (use_mala) {
+    update_interactions_with_mala (
+        pairwise_effects, residual_matrix, main_effects, observations,
+        num_categories, inclusion_indicator, is_ordinal_variable,
+        reference_category, interaction_scale,
+        step_size_mala_pairwise, initial_step_size_mala_pairwise,
+        iteration, total_burnin, dual_averaging_pairwise
+    );
+  } else {
+    update_interactions_with_adaptive_metropolis (
+        pairwise_effects, main_effects, inclusion_indicator, observations,
+        num_categories, proposal_sd_pairwise_effects, interaction_scale,
+        num_persons, num_variables, residual_matrix,
+        exp_neg_log_t_rm_adaptation_rate, is_ordinal_variable,
+        reference_category
+    );
+  }
 
   // Step 3: Update main effect (threshold) parameters
-  if (use_mala_for_main_effects) {
+  if (use_mala) {
     update_thresholds_with_fisher_mala (
-      main_effects, step_size_mala, residual_matrix, num_categories,
+      main_effects, step_size_mala_main, residual_matrix, num_categories,
       num_obs_categories, sufficient_blume_capel, reference_category,
-      is_ordinal_variable, iteration, total_burnin, dual_averaging_state, sqrt_inv_fisher,
-      threshold_alpha, threshold_beta, initial_step_size_mala
+      is_ordinal_variable, iteration, total_burnin, dual_averaging_main,
+      sqrt_inv_fisher, threshold_alpha, threshold_beta,
+      initial_step_size_mala_main
     );
   } else {
     for (int variable = 0; variable < num_variables; variable++) {
@@ -1623,7 +2369,7 @@ void gibbs_update_step_for_graphical_model_parameters (
         update_blumecapel_thresholds_with_adaptive_metropolis(
           main_effects, observations, num_categories, sufficient_blume_capel,
           num_persons, variable, reference_category, threshold_alpha,
-          threshold_beta, residual_matrix, proposal_sd_main_effects,
+          threshold_beta, residual_matrix, proposal_sd_blumecapel,
           exp_neg_log_t_rm_adaptation_rate
         );
       }
@@ -1668,7 +2414,7 @@ void gibbs_update_step_for_graphical_model_parameters (
  *  - save_main, save_pairwise, save_indicator: Whether to save MCMC samples.
  *  - display_progress: Show progress bar during sampling.
  *  - edge_selection: Whether to enable edge selection during burn-in.
- *  - use_mala_for_main_effects: Use MALA updates for thresholds if true.
+ *  - use_mala: Use MALA updates if true.
  *
  * Returns:
  *  - List containing:
@@ -1705,7 +2451,7 @@ List run_gibbs_sampler_for_bgm (
     const bool save_indicator = false,
     const bool display_progress = false,
     bool edge_selection = true,
-    bool use_mala_for_main_effects = false
+    bool use_mala = false
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -1739,9 +2485,14 @@ List run_gibbs_sampler_for_bgm (
   // Initialize proposal SDs and MALA tracking
   arma::mat proposal_sd_blumecapel(num_main, 2, arma::fill::ones);
   arma::mat proposal_sd_pairwise_effects(num_variables, num_variables, arma::fill::ones);
-  double step_size_mala = 0.01;
-  arma::vec dual_averaging_state(3, arma::fill::zeros);
-  const double decay_rate_robins_monro = 0.75;
+
+  double step_size_mala_main = 0.01;
+  double step_size_mala_pairwise = 0.01;
+  arma::vec dual_averaging_main(3, arma::fill::zeros);
+  arma::vec dual_averaging_pairwise(3, arma::fill::zeros);
+  double initial_step_size_mala_main = 0.01;
+  double initial_step_size_mala_pairwise = 0.01;
+  const double rm_decay_rate = 0.75;
 
   // Edge update shuffling setup
   arma::uvec v = arma::regspace<arma::uvec>(0, num_pairwise - 1);
@@ -1780,8 +2531,7 @@ List run_gibbs_sampler_for_bgm (
 
   // --- Optional MALA warmup stage (step size tuning only)
   arma::mat sqrt_inv_fisher(num_main, num_main, arma::fill::eye);  // Identity at start
-  double initial_step_size_mala = 0.01;
-  if (use_mala_for_main_effects) {
+  if (use_mala) {
     if (na_impute) {
       impute_missing_values_for_graphical_model(
         pairwise_effects, main_effects, observations, num_obs_categories,
@@ -1792,14 +2542,21 @@ List run_gibbs_sampler_for_bgm (
 
     // Warmup phase for MALA: find initial step size (per Hoffman & Gelman, 2014)
     // Uses one MALA step to tune the log step size before dual averaging.
-    initial_step_size_mala = find_reasonable_initial_step_size_mala_thresholds (
+    initial_step_size_mala_main = find_reasonable_initial_step_size_mala_thresholds (
       main_effects, residual_matrix, num_categories, num_obs_categories,
       sufficient_blume_capel, reference_category, is_ordinal_variable,
       threshold_alpha, threshold_beta
     );
+    initial_step_size_mala_pairwise = find_reasonable_initial_step_size_mala_interactions(
+      pairwise_effects, main_effects, observations, num_categories,
+      inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale
+    );
 
-    step_size_mala = initial_step_size_mala;
-    dual_averaging_state[0] = std::log(step_size_mala);
+    step_size_mala_main = initial_step_size_mala_main;
+    step_size_mala_pairwise = initial_step_size_mala_pairwise;
+
+    dual_averaging_main[0] = std::log(step_size_mala_main);
+    dual_averaging_pairwise[0] = std::log(step_size_mala_pairwise);
   }
 
   // --- Set up total number of iterations (burn-in + sampling)
@@ -1843,13 +2600,14 @@ List run_gibbs_sampler_for_bgm (
     gibbs_update_step_for_graphical_model_parameters(
       observations, num_categories, interaction_scale,
       proposal_sd_pairwise_effects, proposal_sd_blumecapel, index,
-      num_obs_categories, sufficient_blume_capel, threshold_alpha,
-      threshold_beta, num_persons, num_variables, num_pairwise, num_main,
-      max_num_categories, inclusion_indicator, pairwise_effects, main_effects,
-      residual_matrix, theta, decay_rate_robins_monro, is_ordinal_variable,
-      reference_category, edge_selection, step_size_mala, iteration,
-      dual_averaging_state, total_burnin, use_mala_for_main_effects,
-      initial_step_size_mala, sqrt_inv_fisher
+      num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta,
+      num_persons, num_variables, num_pairwise, num_main,
+      inclusion_indicator, pairwise_effects, main_effects, residual_matrix, theta,
+      rm_decay_rate, is_ordinal_variable, reference_category, edge_selection,
+      step_size_mala_main, iteration, dual_averaging_main, total_burnin,
+      use_mala, initial_step_size_mala_main, sqrt_inv_fisher,
+      step_size_mala_pairwise, dual_averaging_pairwise,
+      initial_step_size_mala_pairwise
     );
 
     // --- Update edge probabilities under the prior (if edge selection is active)

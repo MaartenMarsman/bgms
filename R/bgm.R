@@ -475,7 +475,7 @@ bgm = function(x,
     reference_category = reference_category, save_main = save_main,
     save_pairwise = save_pairwise, save_indicator = save_indicator,
     display_progress = display_progress, edge_selection = edge_selection,
-    use_mala_for_main_effects = mala
+    use_mala = mala
   )
 
   # Main output handler in the wrapper function
