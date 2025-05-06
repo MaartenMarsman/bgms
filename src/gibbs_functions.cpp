@@ -515,7 +515,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       arma::vec bound = theta.max() + num_cats * rest_score;                    // vector of bounds per person
 
       arma::mat exponents(num_persons, num_cats);                               // log unnormalized probabilities
-      for (int cat = 0; cat < num_cats; ++cat) {
+      for (int cat = 0; cat < num_cats; cat++) {
         exponents.col(cat) = theta(cat) + (cat + 1) * rest_score - bound;
       }
 
@@ -523,7 +523,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       arma::vec denom = arma::sum(probs, 1) + arma::exp(-bound);                // normalization constants per person
 
       // Accumulate gradient contributions by subtracting expected counts
-      for (int cat = 0; cat < num_cats; ++cat) {
+      for (int cat = 0; cat < num_cats; cat++) {
         arma::vec normalized = probs.col(cat) / denom;                          // normalized prob for category
         gradient(offset + cat) -= arma::accu(normalized);                       // accumulate gradient
       }
@@ -560,7 +560,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       arma::vec sum_lin(num_persons, arma::fill::zeros);                        // E[score]
       arma::vec sum_quad = ref * ref * denom;                                   // E[(score - ref)^2], starts at score = 0
 
-      for (int cat = 0; cat < num_cats; ++cat) {
+      for (int cat = 0; cat < num_cats; cat++) {
         int score = cat + 1;
         int centered = score - ref;
 
@@ -693,7 +693,7 @@ double find_reasonable_initial_step_size_mala_thresholds (
   }
 
   // Log-scale search for step size that brackets the target acceptance rate
-  for (int attempt = 0; attempt < max_attempts; ++attempt) {
+  for (int attempt = 0; attempt < max_attempts; attempt++) {
     log_step_size += direction;
     const double step_size = std::exp(log_step_size);
     const double sqrt_step = std::sqrt(step_size);
@@ -1134,7 +1134,7 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
     arma::vec denom_curr = arma::exp(numer_current(0) - bound);                 // Score = 0 contribution
     arma::vec denom_prop = arma::exp(numer_proposed(0) - bound);
 
-    for (int cat = 0; cat < num_cats; ++cat) {
+    for (int cat = 0; cat < num_cats; cat++) {
       arma::vec score_term = (cat + 1) * rest_score - bound;
 
       // Compute exponentials for each category and add to denominator
