@@ -6,6 +6,20 @@ It complements the `NEWS.md` file, which is limited to user-facing changes. The 
 
 ---
 
+## [2025-05-06] [Replaced Function to Compute Gradient Vector for Interactions]
+
+### Summary
+Replaced the former C++ function responsible for updating threshold parameters in the Gibbs sampler with a new, optimized version.
+
+### Rationale
+The old implementation was functionally correct but could be optimized. The new function improves numerical efficiency, as it computes the pseudolikelihoods only once.
+
+### Action Taken
+- Integrated the new gradient function in active source files.
+- Archived the old function in: src/archived code/deprecated_gibbs_functions.cpp
+
+---
+
 ## [2025-05-03] Replaced Threshold Update Function in Gibbs Sampler
 
 ### Summary

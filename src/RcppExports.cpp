@@ -45,6 +45,42 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gradient_log_pseudoposterior_interactions
+arma::vec gradient_log_pseudoposterior_interactions(const arma::mat& pairwise_effects, const arma::mat& main_effects, const arma::imat& observations, const arma::ivec& num_categories, const arma::imat& inclusion_indicator, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const double interaction_scale);
+RcppExport SEXP _bgms_gradient_log_pseudoposterior_interactions(SEXP pairwise_effectsSEXP, SEXP main_effectsSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP inclusion_indicatorSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP interaction_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_effects(pairwise_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_effects(main_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type inclusion_indicator(inclusion_indicatorSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(gradient_log_pseudoposterior_interactions(pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reworked_gradient_log_pseudoposterior_interactions
+arma::vec reworked_gradient_log_pseudoposterior_interactions(const arma::mat& pairwise_effects, const arma::mat& main_effects, const arma::imat& observations, const arma::ivec& num_categories, const arma::imat& inclusion_indicator, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const double interaction_scale);
+RcppExport SEXP _bgms_reworked_gradient_log_pseudoposterior_interactions(SEXP pairwise_effectsSEXP, SEXP main_effectsSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP inclusion_indicatorSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP interaction_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_effects(pairwise_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_effects(main_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type inclusion_indicator(inclusion_indicatorSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(reworked_gradient_log_pseudoposterior_interactions(pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // run_gibbs_sampler_for_bgm
 List run_gibbs_sampler_for_bgm(arma::imat& observations, const arma::ivec& num_categories, const double interaction_scale, const String& edge_prior, arma::mat& theta, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::imat& Index, const int iter, const int burnin, arma::imat& num_obs_categories, arma::imat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::imat& missing_index, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const bool save_main, const bool save_pairwise, const bool save_indicator, const bool display_progress, bool edge_selection, bool use_mala);
 RcppExport SEXP _bgms_run_gibbs_sampler_for_bgm(SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP edge_priorSEXP, SEXP thetaSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP IndexSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP use_malaSEXP) {
@@ -143,6 +179,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
+    {"_bgms_gradient_log_pseudoposterior_interactions", (DL_FUNC) &_bgms_gradient_log_pseudoposterior_interactions, 8},
+    {"_bgms_reworked_gradient_log_pseudoposterior_interactions", (DL_FUNC) &_bgms_reworked_gradient_log_pseudoposterior_interactions, 8},
     {"_bgms_run_gibbs_sampler_for_bgm", (DL_FUNC) &_bgms_run_gibbs_sampler_for_bgm, 26},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},

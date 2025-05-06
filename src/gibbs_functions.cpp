@@ -33,7 +33,7 @@ inline void update_step_size_with_dual_averaging (
     const int iteration,
     arma::vec& state
 ) {
-  const double target_log_step_size = std::log(10.0 * initial_step_size);
+  const double target_log_step_size = std::log (10.0 * initial_step_size);
   constexpr int stabilization_offset = 10;
 
   double& log_step_size = state[0];
@@ -46,9 +46,9 @@ inline void update_step_size_with_dual_averaging (
   acceptance_error_avg = (1.0 - 1.0 / adjusted_iter) * acceptance_error_avg +
     (1.0 / adjusted_iter) * error;
 
-  log_step_size = target_log_step_size - std::sqrt(static_cast<double>(iteration)) / 0.05 * acceptance_error_avg;
+  log_step_size = target_log_step_size - std::sqrt (static_cast<double> (iteration)) / 0.05 * acceptance_error_avg;
 
-  const double weight = std::pow(static_cast<double>(iteration), -0.75);
+  const double weight = std::pow (static_cast<double> (iteration), -0.75);
   log_step_size_avg = weight * log_step_size + (1.0 - weight) * log_step_size_avg;
 }
 
@@ -78,11 +78,11 @@ inline void update_step_size_with_robbins_monro (
   constexpr double decay_rate = 0.75;
 
   const double error = acceptance_probability - target_acceptance;
-  const double decay = std::pow(static_cast<double>(iteration), -decay_rate);
+  const double decay = std::pow (static_cast<double> (iteration), -decay_rate);
 
-  double log_step_size = std::log(step_size_mala);
+  double log_step_size = std::log (step_size_mala);
   log_step_size += error * decay;
-  step_size_mala = std::exp(log_step_size);
+  step_size_mala = std::exp (log_step_size);
 }
 
 
@@ -111,7 +111,7 @@ inline double update_proposal_sd_with_robbins_monro (
   // Normalize the acceptance probability
   double observed_acceptance_probability = 1.0;
   if (observed_log_acceptance_probability < 0.0) {
-    observed_acceptance_probability = std::exp(observed_log_acceptance_probability);
+    observed_acceptance_probability = std::exp (observed_log_acceptance_probability);
   }
 
   // Robbins-Monro update step
@@ -119,11 +119,11 @@ inline double update_proposal_sd_with_robbins_monro (
     (observed_acceptance_probability - target_acceptance) * rm_weight;
 
   // Handle NaNs robustly
-  if (std::isnan(updated_sd)) {
+  if (std::isnan (updated_sd)) {
     updated_sd = 1.0;
   }
 
-  return std::clamp(updated_sd, rm_lower_bound, rm_upper_bound);
+  return std::clamp (updated_sd, rm_lower_bound, rm_upper_bound);
 }
 
 
@@ -177,14 +177,14 @@ arma::vec vectorize_thresholds (
     const arma::ivec& num_categories,
     const arma::uvec& is_ordinal_variable
 ) {
-  const int num_parameters = count_num_main_effects(num_categories, is_ordinal_variable);
-  arma::vec vector(num_parameters);
+  const int num_parameters = count_num_main_effects (num_categories, is_ordinal_variable);
+  arma::vec vector (num_parameters);
   int offset = 0;
 
   for (int variable = 0; variable < main_effects.n_rows; variable++) {
-    const int num_pars = is_ordinal_variable(variable) ? num_categories(variable) : 2;
-    vector.subvec(offset, offset + num_pars - 1) =
-      main_effects.row(variable).cols(0, num_pars - 1).t();
+    const int num_pars = is_ordinal_variable (variable) ? num_categories(variable) : 2;
+    vector.subvec (offset, offset + num_pars - 1) =
+      main_effects.row (variable).cols (0, num_pars - 1).t ();
     offset += num_pars;
   }
 
@@ -214,15 +214,15 @@ arma::mat unvectorize_thresholds (
     const arma::uvec& is_ordinal_variable
 ) {
   const int num_variables = num_categories.n_elem;
-  const int max_categories = num_categories.max();
+  const int max_categories = num_categories.max ();
 
-  arma::mat matrix(num_variables, max_categories, arma::fill::zeros);
+  arma::mat matrix (num_variables, max_categories, arma::fill::zeros);
 
   int offset = 0;
   for (int variable = 0; variable < num_variables; variable++) {
     const int num_pars = is_ordinal_variable[variable] ? num_categories[variable] : 2;
-    matrix.row(variable).cols(0, num_pars - 1) =
-      vector.subvec(offset, offset + num_pars - 1).t();
+    matrix.row (variable).cols (0, num_pars - 1) =
+      vector.subvec (offset, offset + num_pars - 1).t ();
     offset += num_pars;
   }
 
@@ -266,17 +266,17 @@ void impute_missing_values_for_graphical_model (
 ) {
   const int num_variables = observations.n_cols;
   const int num_missings = missing_index.n_rows;
-  const int max_num_categories = num_categories.max();
+  const int max_num_categories = num_categories.max ();
 
-  arma::vec category_probabilities(max_num_categories + 1);
+  arma::vec category_probabilities (max_num_categories + 1);
 
   for (int miss = 0; miss < num_missings; miss++) {
-    const int person = missing_index(miss, 0);
-    const int variable = missing_index(miss, 1);
+    const int person = missing_index (miss, 0);
+    const int variable = missing_index (miss, 1);
 
-    const double rest_score = residual_matrix(person, variable);
-    const int num_cats = num_categories(variable);
-    const bool is_ordinal = is_ordinal_variable(variable);
+    const double rest_score = residual_matrix (person, variable);
+    const int num_cats = num_categories (variable);
+    const bool is_ordinal = is_ordinal_variable (variable);
 
     double cumsum = 0.0;
 
@@ -286,31 +286,31 @@ void impute_missing_values_for_graphical_model (
       category_probabilities[0] = cumsum;
       for (int cat = 0; cat < num_cats; cat++) {
         const int score = cat + 1;
-        const double exponent = main_effects(variable, cat) + score * rest_score;
-        cumsum += std::exp(exponent);
+        const double exponent = main_effects (variable, cat) + score * rest_score;
+        cumsum += std::exp (exponent);
         category_probabilities[score] = cumsum;
       }
     } else {
       // Compute probabilities for Blume-Capel variable
-      const int ref = reference_category(variable);
+      const int ref = reference_category (variable);
 
-      cumsum = std::exp(main_effects(variable, 1) * ref * ref);
+      cumsum = std::exp (main_effects (variable, 1) * ref * ref);
       category_probabilities[0] = cumsum;
 
       for (int cat = 0; cat < num_cats; cat++) {
         const int score = cat + 1;
         const int centered = score - ref;
         const double exponent =
-          main_effects(variable, 0) * score +
-          main_effects(variable, 1) * centered * centered +
+          main_effects (variable, 0) * score +
+          main_effects (variable, 1) * centered * centered +
           score * rest_score;
-        cumsum += std::exp(exponent);
+        cumsum += std::exp (exponent);
         category_probabilities[score] = cumsum;
       }
     }
 
     // Sample from categorical distribution via inverse transform
-    const double u = R::unif_rand() * cumsum;
+    const double u = R::unif_rand () * cumsum;
     int sampled_score = 0;
     while (u > category_probabilities[sampled_score]) {
       sampled_score++;
@@ -381,7 +381,7 @@ double log_pseudoposterior_thresholds (
   double log_posterior = 0.0;
 
   auto log_beta_prior = [&](double theta) {
-    return theta * threshold_alpha - std::log1p(std::exp(theta)) * (threshold_alpha + threshold_beta);
+    return theta * threshold_alpha - std::log1p (std::exp (theta)) * (threshold_alpha + threshold_beta);
   };
 
   for (int variable = 0; variable < num_variables; variable++) {
@@ -392,29 +392,29 @@ double log_pseudoposterior_thresholds (
       for (int cat = 0; cat < num_cats; cat++) {
         const double theta = main_effects(variable, cat);
         log_posterior += theta * num_obs_categories(cat + 1, variable);
-        log_posterior += log_beta_prior(theta);
+        log_posterior += log_beta_prior (theta);
       }
 
       // Vectorized likelihood contribution
       // For each person, we compute the unnormalized log-likelihood denominator:
-      //   denom = exp(-bound) + sum_c exp(theta_c + (c+1) * rest_score - bound)
+      //   denom = exp (-bound) + sum_c exp (theta_c + (c+1) * rest_score - bound)
       // Where:
       //   - rest_score is the summed interaction score excluding the variable itself
       //   - bound = num_cats * rest_score (for numerical stability)
       //   - theta_c is the threshold parameter for category c (0-based)
-      arma::vec rest_score = residual_matrix.col(variable);                     // rest scores for all persons
+      arma::vec rest_score = residual_matrix.col (variable);                     // rest scores for all persons
       arma::vec bound = num_cats * rest_score;                                  // numerical bound vector
-      arma::vec denom = arma::exp(-bound);                                      // initialize with base term
-      arma::vec theta = main_effects.row(variable).cols(0, num_cats - 1).t();   // threshold parameters
+      arma::vec denom = arma::exp (-bound);                                      // initialize with base term
+      arma::vec theta = main_effects.row (variable).cols (0, num_cats - 1).t ();   // threshold parameters
 
       for (int cat = 0; cat < num_cats; cat++) {
         arma::vec exponent = theta(cat) + (cat + 1) * rest_score - bound;       // exponent per person
-        denom += arma::exp(exponent);                                           // accumulate exp terms
+        denom += arma::exp (exponent);                                           // accumulate exp terms
       }
 
       // We then compute the total log-likelihood contribution as:
-      //   log_posterior -= bound + log(denom), summed over all persons
-      log_posterior -= arma::accu(bound + arma::log(denom));                    // total contribution
+      //   log_posterior -= bound + log (denom), summed over all persons
+      log_posterior -= arma::accu (bound + arma::log (denom));                    // total contribution
     } else {
       const double theta_lin = main_effects(variable, 0);
       const double theta_quad = main_effects(variable, 1);
@@ -428,7 +428,7 @@ double log_pseudoposterior_thresholds (
 
       // Vectorized likelihood contribution
       // For each person, we compute the unnormalized log-likelihood denominator:
-      //   denom = sum_c exp(θ_lin * c + θ_quad * (c - ref)^2 + c * rest_score - bound)
+      //   denom = sum_c exp (θ_lin * c + θ_quad * (c - ref)^2 + c * rest_score - bound)
       // Where:
       //   - θ_lin, θ_quad are linear and quadratic thresholds
       //   - ref is the reference category (used for centering)
@@ -442,12 +442,12 @@ double log_pseudoposterior_thresholds (
         double lin_term = theta_lin * cat;                                      // precompute linear term
 
         arma::vec exponent = lin_term + quad_term + cat * rest_score - bound;
-        denom += arma::exp(exponent);                                           // accumulate over categories
+        denom += arma::exp (exponent);                                           // accumulate over categories
       }
 
       // The final log-likelihood contribution is then:
-      //   log_posterior -= bound + log(denom), summed over all persons
-      log_posterior -= arma::accu(bound + arma::log(denom));                    // total contribution
+      //   log_posterior -= bound + log (denom), summed over all persons
+      log_posterior -= arma::accu (bound + arma::log (denom));                    // total contribution
     }
   }
 
@@ -504,7 +504,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       // Vectorized computation of expected category counts
       //
       // For each person, we compute softmax-like probabilities over categories:
-      //   probs[p, c] = exp(θ_c + (c+1) * rest_score_p - bound_p)
+      //   probs[p, c] = exp (θ_c + (c+1) * rest_score_p - bound_p)
       // where:
       //   - θ_c is the threshold for category c
       //   - bound_p = max(θ) + num_cats * rest_score_p (numerical stabilization)
@@ -519,18 +519,18 @@ arma::vec gradient_log_pseudoposterior_thresholds (
         exponents.col(cat) = theta(cat) + (cat + 1) * rest_score - bound;
       }
 
-      arma::mat probs = arma::exp(exponents);                                   // unnormalized probabilities
-      arma::vec denom = arma::sum(probs, 1) + arma::exp(-bound);                // normalization constants per person
+      arma::mat probs = arma::exp (exponents);                                   // unnormalized probabilities
+      arma::vec denom = arma::sum(probs, 1) + arma::exp (-bound);                // normalization constants per person
 
       // Accumulate gradient contributions by subtracting expected counts
       for (int cat = 0; cat < num_cats; cat++) {
         arma::vec normalized = probs.col(cat) / denom;                          // normalized prob for category
-        gradient(offset + cat) -= arma::accu(normalized);                       // accumulate gradient
+        gradient(offset + cat) -= arma::accu (normalized);                       // accumulate gradient
       }
 
       // Compute prior contribution to gradient
       for (int cat = 0; cat < num_cats; cat++) {
-        const double p = 1.0 / (1.0 + std::exp(-theta(cat)));
+        const double p = 1.0 / (1.0 + std::exp (-theta(cat)));
         gradient(offset + cat) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
@@ -555,7 +555,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       // This replaces the nested loop with vectorized accumulation over categories.
       arma::vec rest_score = residual_matrix.col(variable);                     // Residuals per person
       arma::vec bound = num_cats * rest_score;                                  // Stabilization bound
-      arma::vec denom = arma::exp(theta_quad * ref * ref - bound);              // Initial term at score = 0
+      arma::vec denom = arma::exp (theta_quad * ref * ref - bound);              // Initial term at score = 0
 
       arma::vec sum_lin(num_persons, arma::fill::zeros);                        // E[score]
       arma::vec sum_quad = ref * ref * denom;                                   // E[(score - ref)^2], starts at score = 0
@@ -568,7 +568,7 @@ arma::vec gradient_log_pseudoposterior_thresholds (
         double quad_term = theta_quad * centered * centered;
 
         arma::vec exponent = lin_term + quad_term + score * rest_score - bound;
-        arma::vec weight = arma::exp(exponent);                                 // Unnormalized probabilities
+        arma::vec weight = arma::exp (exponent);                                 // Unnormalized probabilities
 
         sum_lin += weight * score;                                              // Accumulate score-weighted terms
         sum_quad += weight * centered * centered;                               // Accumulate centered^2-weighted terms
@@ -576,14 +576,14 @@ arma::vec gradient_log_pseudoposterior_thresholds (
       }
 
       // Finalize the gradient updates
-      gradient(offset) -= arma::accu(sum_lin / denom);                          // Gradient for θ_lin
-      gradient(offset + 1) -= arma::accu(sum_quad / denom);                     // Gradient for θ_quad
+      gradient(offset) -= arma::accu (sum_lin / denom);                          // Gradient for θ_lin
+      gradient(offset + 1) -= arma::accu (sum_quad / denom);                     // Gradient for θ_quad
 
 
       // Compute prior contribution to gradient
       for (int i = 0; i < 2; i++) {
         const double theta = main_effects(variable, i);
-        const double p = 1.0 / (1.0 + std::exp(-theta));
+        const double p = 1.0 / (1.0 + std::exp (-theta));
         gradient(offset + i) += threshold_alpha - (threshold_alpha + threshold_beta) * p;
       }
 
@@ -639,7 +639,7 @@ double find_reasonable_initial_step_size_mala_thresholds (
   constexpr int max_attempts = 20;
   constexpr double max_log_step = 10.0;
 
-  double log_step_size = std::log(initial_step_size);
+  double log_step_size = std::log (initial_step_size);
 
   // Current state and log posterior
   const arma::vec current_state = vectorize_thresholds(main_effects, num_categories, is_ordinal_variable);
@@ -659,7 +659,7 @@ double find_reasonable_initial_step_size_mala_thresholds (
 
   // Propose initial MALA step: θ' = θ + ½ε ∇log p(θ) + √ε * N(0, I)
   {
-    const double step_size = std::exp(log_step_size);
+    const double step_size = std::exp (log_step_size);
     const double sqrt_step = std::sqrt(step_size);
     const arma::vec proposed_state = current_state + 0.5 * step_size * current_grad +
       sqrt_step * arma::randn(current_state.n_elem);
@@ -681,13 +681,13 @@ double find_reasonable_initial_step_size_mala_thresholds (
     const arma::vec forward = current_state + 0.5 * step_size * current_grad;
     const arma::vec backward = proposed_state + 0.5 * step_size * proposed_grad;
 
-    const double log_fwd = -0.5 / step_size * arma::accu(arma::square(proposed_state - forward));
-    const double log_bwd = -0.5 / step_size * arma::accu(arma::square(current_state - backward));
+    const double log_fwd = -0.5 / step_size * arma::accu (arma::square(proposed_state - forward));
+    const double log_bwd = -0.5 / step_size * arma::accu (arma::square(current_state - backward));
     const double log_accept = proposed_log_post + log_bwd - current_log_post - log_fwd;
 
-    accept_prob = std::min(1.0, std::exp(log_accept));
+    accept_prob = std::min(1.0, std::exp (log_accept));
     if (std::abs(accept_prob - target_acceptance) < 0.1) {
-      return std::exp(log_step_size);
+      return std::exp (log_step_size);
     }
     direction = (accept_prob > target_acceptance) ? 1 : -1;
   }
@@ -695,7 +695,7 @@ double find_reasonable_initial_step_size_mala_thresholds (
   // Log-scale search for step size that brackets the target acceptance rate
   for (int attempt = 0; attempt < max_attempts; attempt++) {
     log_step_size += direction;
-    const double step_size = std::exp(log_step_size);
+    const double step_size = std::exp (log_step_size);
     const double sqrt_step = std::sqrt(step_size);
 
     const arma::vec proposed_state = current_state + 0.5 * step_size * current_grad +
@@ -718,11 +718,11 @@ double find_reasonable_initial_step_size_mala_thresholds (
     const arma::vec forward = current_state + 0.5 * step_size * current_grad;
     const arma::vec backward = proposed_state + 0.5 * step_size * proposed_grad;
 
-    const double log_fwd = -0.5 / step_size * arma::accu(arma::square(proposed_state - forward));
-    const double log_bwd = -0.5 / step_size * arma::accu(arma::square(current_state - backward));
+    const double log_fwd = -0.5 / step_size * arma::accu (arma::square(proposed_state - forward));
+    const double log_bwd = -0.5 / step_size * arma::accu (arma::square(current_state - backward));
     const double log_accept = proposed_log_post + log_bwd - current_log_post - log_fwd;
 
-    const double new_accept_prob = std::min(1.0, std::exp(log_accept));
+    const double new_accept_prob = std::min(1.0, std::exp (log_accept));
 
     // Exit if acceptance flips across the target
     if ((direction == 1 && new_accept_prob < target_acceptance) ||
@@ -738,7 +738,7 @@ double find_reasonable_initial_step_size_mala_thresholds (
     }
   }
 
-  return std::exp(log_step_size);
+  return std::exp (log_step_size);
 }
 
 
@@ -770,7 +770,7 @@ inline arma::mat initialize_fisher_preconditioner(
   constexpr double damping_par = 10.0;
 
   const int dim = grad.n_elem;
-  const double inner = arma::dot(grad, grad);
+  const double inner = arma::dot (grad, grad);
   const arma::mat outer = grad * grad.t();
 
   // Shrinkage ratio: balances curvature and damping
@@ -810,7 +810,7 @@ inline void update_fisher_preconditioner(
 ) {
   // Transform score difference into scaled preconditioned space
   const arma::vec phi = sqrt_inv_fisher.t() * score_diff;
-  const double inner = arma::dot(phi, phi);
+  const double inner = arma::dot (phi, phi);
   const arma::mat outer = phi * phi.t();
 
   // Compute the Titsias update scaling factor
@@ -921,27 +921,27 @@ void update_thresholds_with_fisher_mala (
     current_state - proposed_state -
     0.25 * scaled_step_size * inv_fisher * proposed_grad;
 
-  const double log_forward = 0.5 * arma::dot(forward_proposal_residual, current_grad);
-  const double log_backward = 0.5 * arma::dot(reverse_proposal_residual, proposed_grad);
+  const double log_forward = 0.5 * arma::dot (forward_proposal_residual, current_grad);
+  const double log_backward = 0.5 * arma::dot (reverse_proposal_residual, proposed_grad);
 
   const double log_accept = log_post_prop - log_post + (log_backward - log_forward);
-  const double accept_prob = std::min(1.0, std::exp(log_accept));
+  const double accept_prob = std::min(1.0, std::exp (log_accept));
 
   // --- Accept or reject proposed move ---
-  if (std::log(R::unif_rand()) < log_accept) {
+  if (std::log (R::unif_rand()) < log_accept) {
     main_effects = proposed_main_effects;
   }
 
   // --- Update step size and Fisher matrix ---
   if (iteration < total_burnin) {
     // During warm-up: dual averaging adaptation
-    update_step_size_with_dual_averaging(
+    update_step_size_with_dual_averaging (
       initial_step_size, accept_prob, iteration + 1, dual_averaging_state
     );
-    step_size = std::exp(dual_averaging_state[1]);
+    step_size = std::exp (dual_averaging_state[1]);
   } else {
     // After warm-up: Robbins-Monro + Fisher preconditioner update
-    update_step_size_with_robbins_monro(
+    update_step_size_with_robbins_monro (
       accept_prob, iteration - total_burnin + 1, step_size
     );
 
@@ -990,17 +990,17 @@ void update_regular_thresholds_with_metropolis (
 
   for (int category = 0; category < num_cats; category++) {
     double current = main_effects(variable, category);
-    double exp_current = std::exp(current);
+    double exp_current = std::exp (current);
     double c = (threshold_alpha + threshold_beta) / (1.0 + exp_current);
 
     for (int person = 0; person < no_persons; person++) {
       double rest_score = residual_matrix(person, variable);
       double denom = 1.0;
-      double numer = std::exp((category + 1) * rest_score);
+      double numer = std::exp ((category + 1) * rest_score);
 
       for (int cat = 0; cat < num_cats; cat++) {
         if (cat != category) {
-          denom += std::exp(main_effects(variable, cat) + (cat + 1) * rest_score);
+          denom += std::exp (main_effects(variable, cat) + (cat + 1) * rest_score);
         }
       }
 
@@ -1015,14 +1015,14 @@ void update_regular_thresholds_with_metropolis (
     double a = num_obs_categories(category + 1, variable) + threshold_alpha;
     double b = no_persons + threshold_beta - num_obs_categories(category + 1, variable);
     double tmp = R::rbeta(a, b);
-    double proposed = std::log(tmp / (1.0 - tmp) / c);
-    double exp_proposed = std::exp(proposed);
+    double proposed = std::log (tmp / (1.0 - tmp) / c);
+    double exp_proposed = std::exp (proposed);
 
     // Compute MH acceptance probability
     double log_acceptance_probability = 0.0;
     for (int person = 0; person < no_persons; person++) {
-      log_acceptance_probability += std::log(g(person) + q(person) * exp_current);
-      log_acceptance_probability -= std::log(g(person) + q(person) * exp_proposed);
+      log_acceptance_probability += std::log (g(person) + q(person) * exp_current);
+      log_acceptance_probability -= std::log (g(person) + q(person) * exp_proposed);
     }
 
     log_acceptance_probability -= (threshold_alpha + threshold_beta) * std::log1p(exp_proposed);
@@ -1030,7 +1030,7 @@ void update_regular_thresholds_with_metropolis (
     log_acceptance_probability -= (a + b) * std::log1p(c * exp_current);
     log_acceptance_probability += (a + b) * std::log1p(c * exp_proposed);
 
-    if (std::log(R::unif_rand()) < log_acceptance_probability) {
+    if (std::log (R::unif_rand()) < log_acceptance_probability) {
       main_effects(variable, category) = proposed;
     }
   }
@@ -1081,7 +1081,7 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
   // --- Define helper for prior contribution
   auto log_beta_prior_diff = [&](double curr, double prop) {
     return (threshold_alpha + threshold_beta) *
-      (std::log1p(std::exp(curr)) - std::log1p(std::exp(prop)));
+      (std::log1p(std::exp (curr)) - std::log1p(std::exp (prop)));
   };
 
   // --- Update each threshold parameter: 0 = linear, 1 = quadratic
@@ -1131,25 +1131,25 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
     arma::vec rest_score = residual_matrix.col(variable);                       // Person-wise residuals
     arma::vec bound = arma::max(rest_score, arma::zeros<arma::vec>(num_persons)) * num_cats + lbound;
 
-    arma::vec denom_curr = arma::exp(numer_current(0) - bound);                 // Score = 0 contribution
-    arma::vec denom_prop = arma::exp(numer_proposed(0) - bound);
+    arma::vec denom_curr = arma::exp (numer_current(0) - bound);                 // Score = 0 contribution
+    arma::vec denom_prop = arma::exp (numer_proposed(0) - bound);
 
     for (int cat = 0; cat < num_cats; cat++) {
       arma::vec score_term = (cat + 1) * rest_score - bound;
 
       // Compute exponentials for each category and add to denominator
-      denom_curr += arma::exp(numer_current(cat + 1) + score_term);
-      denom_prop += arma::exp(numer_proposed(cat + 1) + score_term);
+      denom_curr += arma::exp (numer_current(cat + 1) + score_term);
+      denom_prop += arma::exp (numer_proposed(cat + 1) + score_term);
     }
 
     // Accumulate the person-wise log ratio contributions
-    log_accept += arma::accu(arma::log(denom_curr) - arma::log(denom_prop));
+    log_accept += arma::accu (arma::log (denom_curr) - arma::log (denom_prop));
 
     // --- Step 4: Add prior ratio
     log_accept += log_beta_prior_diff(current, proposed);
 
     // --- Step 5: Metropolis accept/reject
-    if (std::log(R::unif_rand()) < log_accept) {
+    if (std::log (R::unif_rand()) < log_accept) {
       main_effects(variable, param) = proposed;
     }
 
@@ -1182,9 +1182,6 @@ void update_blumecapel_thresholds_with_adaptive_metropolis (
  * Returns:
  *  - Gradient vector for all pairwise interactions (in upper-triangle order).
  */
-/**
- * Computes the gradient of the log pseudo-posterior for all active pairwise interaction effects.
- */
 arma::vec gradient_log_pseudoposterior_interactions (
     const arma::mat& pairwise_effects,
     const arma::mat& main_effects,
@@ -1199,93 +1196,88 @@ arma::vec gradient_log_pseudoposterior_interactions (
   const int num_observations = observations.n_rows;
   const int num_interactions = (num_variables * (num_variables - 1)) / 2;
 
+  arma::umat index_matrix(num_variables, num_variables);
+  int counter = 0;
+  for(int var1 = 0; var1 < num_variables-1; var1++) {
+    for(int var2 = var1 + 1; var2 < num_variables; var2++) {
+      index_matrix(var1, var2) = counter;
+      counter++;
+    }
+  }
+
   arma::vec gradient (num_interactions, arma::fill::zeros);
-  int interaction_index = -1;
 
-  for (int var1 = 0; var1 < num_variables - 1; var1++) {
+  for (int var = 0; var < num_variables; var++) {
+    int num_cats = num_categories (var);
+    arma::mat score_weights (num_observations, num_cats, arma::fill::zeros);    //First column would be zero
+
+    arma::vec rest_scores = observations * pairwise_effects.col (var);
+    arma::vec denominator = arma::zeros (num_observations);
+    arma::vec bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_cats;
+
+    if (is_ordinal_variable (var)) {
+      denominator += arma::exp (-bounds);
+      for (int category = 0; category < num_cats; category++) {
+        arma::vec exponent = main_effects (var, category) + (category + 1) * rest_scores - bounds;
+        arma::vec weight = arma::exp (exponent);
+        denominator += weight;
+        score_weights.col(category) = (category + 1) * weight;
+      }
+    } else {
+      const int ref_cat = reference_category (var);
+      // Zero category
+      double quad_term = main_effects (var, 1) * ref_cat * ref_cat;
+      arma::vec exponent = quad_term - bounds;
+      denominator = arma::exp (exponent);
+      for (int category = 1; category <= num_cats; category++) {
+        int centered_cat = category - ref_cat;
+        double lin_term = main_effects (var, 0) * category;
+        double quad_term = main_effects (var, 1) * centered_cat * centered_cat;
+        arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
+        arma::vec weight = arma::exp (exponent);
+        denominator += weight;
+        score_weights.col(category - 1) = category * weight;
+      }
+    }
+    score_weights.each_col() /= denominator;
+
+    for(int var2 = 0; var2 < num_variables; var2++) {
+      if (inclusion_indicator (var, var2) == 0)
+        continue;
+
+      arma::vec expected_value(num_observations, arma::fill::zeros);
+      if(var == var2)
+        continue;
+
+      arma::ivec xv = observations.col(var2);
+
+      for (int category = 0; category < num_cats; category++) {
+        expected_value += score_weights.col(category) % xv;
+      }
+
+      int location = (var < var2) ? index_matrix(var, var2) : index_matrix(var2, var);
+
+      gradient(location) -= arma::accu(expected_value);
+    }
+  }
+
+  for(int var1 = 0; var1 < num_variables; var1++) {
     for (int var2 = var1 + 1; var2 < num_variables; var2++) {
-      interaction_index++;
-
       if (inclusion_indicator (var1, var2) == 0)
         continue;
 
-      // Convert observed scores to integer vectors
-      const arma::ivec responses_var1 = arma::conv_to<arma::ivec>::from (observations.col (var1));
-      const arma::ivec responses_var2 = arma::conv_to<arma::ivec>::from (observations.col (var2));
+      int location = index_matrix(var1, var2);
 
-
-      // First-order gradient term from complete data
-      gradient (interaction_index) = 2.0 * arma::dot (responses_var1, responses_var2);
-
-      // --- Contribution from variable var1
-      int num_categories_var1 = num_categories (var1);
-      arma::vec rest_scores = observations * pairwise_effects.col (var1);
-      arma::vec numerator = arma::zeros (num_observations);
-      arma::vec denominator = arma::zeros (num_observations);
-      arma::vec bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var1;
-
-      if (is_ordinal_variable (var1)) {
-        denominator += arma::exp ( -bounds );
-        for (int category = 0; category < num_categories_var1; category++) {
-          arma::vec exponent = main_effects (var1, category) + (category + 1) * rest_scores - bounds;
-          arma::vec weight = arma::exp (exponent);
-          denominator += weight;
-          numerator += (category + 1) * responses_var2 % weight;
-        }
-      } else {
-        const int ref_cat = reference_category (var1);
-        for (int category = 0; category <= num_categories_var1; category++) {
-          int centered_cat = category - ref_cat;
-          double lin_term = main_effects (var1, 0) * category;
-          double quad_term = main_effects (var1, 1) * centered_cat * centered_cat;
-          arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
-          arma::vec weight = arma::exp (exponent);
-          denominator += weight;
-          numerator += category * responses_var2 % weight;
-        }
-      }
-
-      gradient (interaction_index) -= arma::accu (numerator / denominator);
-
-      // --- Contribution from variable var2
-      int num_categories_var2 = num_categories (var2);
-      rest_scores = observations * pairwise_effects.col (var2);
-      numerator.zeros ();
-      denominator.zeros ();
-      bounds = arma::max (rest_scores, arma::zeros<arma::vec> (num_observations)) * num_categories_var2;
-
-      if (is_ordinal_variable (var2)) {
-        denominator += arma::exp ( -bounds );
-        for (int category = 0; category < num_categories_var2; category++) {
-          arma::vec exponent = main_effects (var2, category) + (category + 1) * rest_scores - bounds;
-          arma::vec weight = arma::exp (exponent);
-          denominator += weight;
-          numerator += (category + 1) * responses_var1 % weight;
-        }
-      } else {
-        const int ref_cat = reference_category (var2);
-        for (int category = 0; category <= num_categories_var2; category++) {
-          int centered_cat = category - ref_cat;
-          double lin_term = main_effects (var2, 0) * category;
-          double quad_term = main_effects (var2, 1) * centered_cat * centered_cat;
-          arma::vec exponent = lin_term + quad_term + category * rest_scores - bounds;
-          arma::vec weight = arma::exp (exponent);
-          denominator += weight;
-          numerator += category * responses_var1 % weight;
-        }
-      }
-
-      gradient (interaction_index) -= arma::accu (numerator / denominator);
+      gradient (location) += 2.0 * arma::dot (observations.col(var1), observations.col(var2));
 
       // ---- Gradient contribution from Cauchy prior
       const double effect = pairwise_effects (var1, var2);
-      gradient (interaction_index) -= 2.0 * effect / (effect * effect + interaction_scale * interaction_scale);
+      gradient (location) -= 2.0 * effect / (effect * effect + interaction_scale * interaction_scale);
     }
   }
 
   return gradient;
 }
-
 
 
 /**
@@ -1338,7 +1330,7 @@ double log_pseudoposterior_interactions (
     arma::vec denominator = arma::zeros (num_observations);
 
     if (is_ordinal_variable (var)) {
-      // Ordinal variable: denominator includes exp(-bounds) + exp over categories
+      // Ordinal variable: denominator includes exp (-bounds) + exp over categories
       denominator += arma::exp ( -bounds );
       for (int category = 0; category < num_categories_var; category++) {
         arma::vec exponent = main_effects (var, category) + (category + 1) * rest_scores - bounds;
@@ -1792,7 +1784,7 @@ double log_pseudolikelihood_ratio_interaction (
 
   // (1) Direct interaction contribution to the linear predictor:
   //     Δβ × ∑(score1_i × score2_i) for all persons i
-  log_ratio += 2.0 * arma::dot(score1, score2) * delta;
+  log_ratio += 2.0 * arma::dot (score1, score2) * delta;
 
   // (2) Change in pseudo-likelihood for variable1 due to the update in its interaction with variable2
   log_ratio += compute_log_likelihood_ratio_for_variable (
@@ -1875,7 +1867,7 @@ void update_interactions_with_adaptive_metropolis (
         log_acceptance -= R::dcauchy(current_state, 0.0, interaction_scale, true);
 
         // Accept proposal with MH step
-        if (std::log(R::unif_rand()) < log_acceptance) {
+        if (std::log (R::unif_rand()) < log_acceptance) {
           const double delta = proposed_state - current_state;
 
           // Update effect matrix symmetrically
@@ -1966,15 +1958,15 @@ void update_indicator_interaction_pair_with_metropolis (
     if (proposing_addition) {
       log_accept += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
       log_accept -= R::dnorm(proposed_state, current_state, sd, true);
-      log_accept += std::log(theta_ij) - std::log(1.0 - theta_ij);
+      log_accept += std::log (theta_ij) - std::log (1.0 - theta_ij);
     } else {
       log_accept -= R::dcauchy(current_state, 0.0, interaction_scale, true);
       log_accept += R::dnorm(current_state, proposed_state, sd, true);
-      log_accept -= std::log(theta_ij) - std::log(1.0 - theta_ij);
+      log_accept -= std::log (theta_ij) - std::log (1.0 - theta_ij);
     }
 
     // Metropolis-Hastings accept step
-    if (std::log(R::unif_rand()) < log_accept) {
+    if (std::log (R::unif_rand()) < log_accept) {
       const int updated_indicator = 1 - indicator(variable1, variable2);
       indicator(variable1, variable2) = updated_indicator;
       indicator(variable2, variable1) = updated_indicator;
@@ -2175,7 +2167,7 @@ void update_indicator_interaction_pair_with_mala (
       log_accept += R::dcauchy(proposed_state, 0.0, interaction_scale, true);
 
       // Prior inclusion probability
-      log_accept += std::log(theta_ij) - std::log(1.0 - theta_ij);
+      log_accept += std::log (theta_ij) - std::log (1.0 - theta_ij);
     } else {
 
       // MALA proposal: Langevin step backward
@@ -2194,7 +2186,7 @@ void update_indicator_interaction_pair_with_mala (
       // Cauchy prior on interaction effect
       log_accept -= R::dcauchy(current_state, 0.0, interaction_scale, true);
       // Prior inclusion probability
-      log_accept -= std::log(theta_ij) - std::log(1.0 - theta_ij);
+      log_accept -= std::log (theta_ij) - std::log (1.0 - theta_ij);
     }
 
     log_accept += log_pseudolikelihood_ratio_interaction (
@@ -2204,7 +2196,7 @@ void update_indicator_interaction_pair_with_mala (
     );
 
     // Metropolis-Hastings accept step
-    if (std::log(R::unif_rand()) < log_accept) {
+    if (std::log (R::unif_rand()) < log_accept) {
       const int new_value = 1 - indicator(variable1, variable2);
       indicator(variable1, variable2) = new_value;
       indicator(variable2, variable1) = new_value;
@@ -2308,7 +2300,7 @@ void gibbs_update_step_for_graphical_model_parameters (
 ) {
   // Robbins-Monro learning rate (e.g., iteration^-0.75)
   const double exp_neg_log_t_rm_adaptation_rate =
-    std::exp(-std::log(static_cast<double>(iteration)) * rm_decay_rate);
+    std::exp (-std::log (static_cast<double>(iteration)) * rm_decay_rate);
 
   // Step 1: Edge selection via MH indicator updates (if enabled)
   if (edge_selection) {
@@ -2555,8 +2547,8 @@ List run_gibbs_sampler_for_bgm (
     step_size_mala_main = initial_step_size_mala_main;
     step_size_mala_pairwise = initial_step_size_mala_pairwise;
 
-    dual_averaging_main[0] = std::log(step_size_mala_main);
-    dual_averaging_pairwise[0] = std::log(step_size_mala_pairwise);
+    dual_averaging_main[0] = std::log (step_size_mala_main);
+    dual_averaging_pairwise[0] = std::log (step_size_mala_pairwise);
   }
 
   // --- Set up total number of iterations (burn-in + sampling)
