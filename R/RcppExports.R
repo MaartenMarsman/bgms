@@ -9,14 +9,6 @@ sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interact
     .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, variable_type, reference_category, iter)
 }
 
-gradient_log_pseudoposterior_interactions <- function(pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale) {
-    .Call(`_bgms_gradient_log_pseudoposterior_interactions`, pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale)
-}
-
-reworked_gradient_log_pseudoposterior_interactions <- function(pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale) {
-    .Call(`_bgms_reworked_gradient_log_pseudoposterior_interactions`, pairwise_effects, main_effects, observations, num_categories, inclusion_indicator, is_ordinal_variable, reference_category, interaction_scale)
-}
-
 run_gibbs_sampler_for_bgm <- function(observations, num_categories, interaction_scale, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main = FALSE, save_pairwise = FALSE, save_indicator = FALSE, display_progress = FALSE, edge_selection = TRUE, use_mala = FALSE) {
     .Call(`_bgms_run_gibbs_sampler_for_bgm`, observations, num_categories, interaction_scale, edge_prior, theta, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, use_mala)
 }
