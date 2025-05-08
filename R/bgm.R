@@ -152,6 +152,14 @@
 #' @param display_progress Should the function show a progress bar
 #' (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 #' The default is \code{TRUE}.
+#' @param update_method Character. Specifies how the MCMC sampler updates the threshold
+#' and interaction parameters:
+#' \describe{
+#'   \item{"adaptive-metropolis"}{Uses adaptive Metropolis-Hastings for both thresholds and interactions.}
+#'   \item{"adaptive-mala"}{Uses Fisher-preconditioned MALA for thresholds and standard MALA for interactions and indicators.}
+#'   \item{"fisher-mala"}{Uses Fisher-preconditioned MALA for both thresholds and interactions.}
+#' }
+#' Defaults to \code{"adaptive-metropolis"}.
 #'
 #' @return If \code{save = FALSE} (the default), the result is a list of class
 #' ``bgms'' containing the following matrices with model-averaged quantities:
@@ -317,7 +325,8 @@ bgm = function(x,
                save_pairwise = FALSE,
                save_indicator = FALSE,
                display_progress = TRUE,
-               mala = FALSE) {
+               update_method = c("adaptive-metropolis", "adaptive-mala", "fisher-mala")
+) {
 
   # Deprecation warning for save parameter
   if(hasArg(save)) {
@@ -331,6 +340,11 @@ bgm = function(x,
   save_main = check_logical(save_main, "save_main")
   save_pairwise = check_logical(save_pairwise, "save_pairwise")
   save_indicator = check_logical(save_indicator, "save_indicator")
+
+
+  # Check update method
+  update_method_input = update_method
+  update_method = match.arg(update_method)
 
 
   #Check data input ------------------------------------------------------------
@@ -368,7 +382,7 @@ bgm = function(x,
   reference_category = model$reference_category
   edge_selection = model$edge_selection
   edge_prior = model$edge_prior
-  theta = model$theta
+  inclusion_probability = model$inclusion_probability
 
   #Check Gibbs input -----------------------------------------------------------
   if(abs(iter - round(iter)) > .Machine$double.eps)
@@ -446,17 +460,17 @@ bgm = function(x,
     }
   }
 
-  # Index vector used to sample interactions in a random order -----------------
-  Index = matrix(0,
+  # Index matrix used in the c++ functions  ------------------------------------
+  interaction_index_matrix = matrix(0,
                  nrow = num_variables * (num_variables - 1) / 2,
                  ncol = 3)
   cntr = 0
   for(variable1 in 1:(num_variables - 1)) {
     for(variable2 in (variable1 + 1):num_variables) {
       cntr =  cntr + 1
-      Index[cntr, 1] = cntr
-      Index[cntr, 2] = variable1 - 1
-      Index[cntr, 3] = variable2 - 1
+      interaction_index_matrix[cntr, 1] = cntr
+      interaction_index_matrix[cntr, 2] = variable1 - 1
+      interaction_index_matrix[cntr, 3] = variable2 - 1
     }
   }
 
@@ -464,9 +478,10 @@ bgm = function(x,
   out = run_gibbs_sampler_for_bgm (
     observations = x, num_categories = num_categories,
     interaction_scale = interaction_scale, edge_prior = edge_prior,
-    theta = theta, beta_bernoulli_alpha = beta_bernoulli_alpha,
+    inclusion_probability = inclusion_probability, beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta = beta_bernoulli_beta,
-    dirichlet_alpha = dirichlet_alpha, lambda = lambda, Index = Index,
+    dirichlet_alpha = dirichlet_alpha, lambda = lambda,
+    interaction_index_matrix = interaction_index_matrix,
     iter = iter, burnin = burnin, num_obs_categories = num_obs_categories,
     sufficient_blume_capel = sufficient_blume_capel,
     threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
@@ -475,7 +490,7 @@ bgm = function(x,
     reference_category = reference_category, save_main = save_main,
     save_pairwise = save_pairwise, save_indicator = save_indicator,
     display_progress = display_progress, edge_selection = edge_selection,
-    use_mala = mala
+    update_method = update_method
   )
 
   # Main output handler in the wrapper function
@@ -488,7 +503,7 @@ bgm = function(x,
     burnin = burnin, interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
     na_action = na_action, na_impute = na_impute,
-    edge_selection = edge_selection, edge_prior = edge_prior, theta = theta,
+    edge_selection = edge_selection, edge_prior = edge_prior, inclusion_probability = inclusion_probability,
     beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta = beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha, lambda = lambda,

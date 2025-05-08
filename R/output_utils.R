@@ -3,7 +3,7 @@
 prepare_output_bgm = function (
     out, x, num_categories, iter, data_columnnames, is_ordinal_variable,
     save_options, burnin, interaction_scale, threshold_alpha, threshold_beta,
-    na_action, na_impute, edge_selection, edge_prior, theta,
+    na_action, na_impute, edge_selection, edge_prior, inclusion_probability,
     beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda,
     variable_type) {
 
@@ -15,7 +15,7 @@ prepare_output_bgm = function (
     burnin = burnin, interaction_scale = interaction_scale,
     threshold_alpha = threshold_alpha, threshold_beta = threshold_beta,
     edge_selection = edge_selection, edge_prior = edge_prior,
-    inclusion_probability = theta, beta_bernoulli_alpha = beta_bernoulli_alpha,
+    inclusion_probability = inclusion_probability, beta_bernoulli_alpha = beta_bernoulli_alpha,
     beta_bernoulli_beta =  beta_bernoulli_beta,
     dirichlet_alpha = dirichlet_alpha, lambda = lambda, na_action = na_action,
     save = save, version = packageVersion("bgms")

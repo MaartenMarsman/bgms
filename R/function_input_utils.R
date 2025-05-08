@@ -226,7 +226,7 @@ check_model = function(x,
               reference_category = reference_category,
               edge_selection = edge_selection,
               edge_prior = edge_prior,
-              theta = theta))
+              inclusion_probability = theta))
 }
 
 check_compare_model = function(x,
