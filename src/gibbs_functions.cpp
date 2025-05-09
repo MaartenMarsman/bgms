@@ -1398,7 +1398,6 @@ double gradient_log_pseudoposterior_interaction_single (
 }
 
 
-
 double hessian_log_pseudoposterior_interaction_single (
     int var1,
     int var2,
@@ -1587,6 +1586,90 @@ double log_pseudoposterior_interactions (
   }
 
   return log_pseudo_likelihood;
+}
+
+
+/**
+ *
+ *
+ *
+ */
+//[[Rcpp::export]]
+double optimize_log_pseudoposterior_interaction (
+    const double initial_value,
+    arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& inclusion_indicator,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const int num_persons,
+    const int variable1,
+    const int variable2,
+    const double proposed_state,
+    const double current_state,
+    const arma::mat& residual_matrix,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+
+  double x = initial_value;
+
+  const int    max_steps = 10;
+  const double tolerance = 1e-6;//sqrt (std::numeric_limits<double>::epsilon ());
+
+  const double x0 = pairwise_effects(variable1, variable2);
+  double hessian_at_x;
+  // find mode
+  for (int t = 0; t < max_steps; t++) {
+
+    // TODO: need to assign x to pairwise_effects[variable1, variable2]
+    pairwise_effects(variable1, variable2) = x;
+    pairwise_effects(variable2, variable1) = x;
+    Rcpp::Rcout << "t: " << t << " x: " << x << std::endl;
+    double gradient_at_x = gradient_log_pseudoposterior_interaction_single (
+      variable1, variable2, pairwise_effects, main_effects, observations,
+      num_categories, is_ordinal_variable, reference_category, interaction_scale
+    );
+
+    Rcpp::Rcout << "hessian_at_x" << std::endl;
+    hessian_at_x = hessian_log_pseudoposterior_interaction_single (
+      variable1, variable2, pairwise_effects, main_effects, observations,
+      num_categories, is_ordinal_variable, reference_category, interaction_scale
+    );
+
+    // double x_new = x - gradient_at_x / hessian_at_x;
+    double x_new = x - gradient_at_x / hessian_at_x;
+
+    if (std::abs(x_new - x) < tolerance) {
+      x = x_new;
+      break;
+    }
+    x = x_new;
+
+  }
+
+  pairwise_effects(variable1, variable2) = x;
+  pairwise_effects(variable2, variable1) = x;
+
+  const double fx = log_pseudoposterior_interactions(
+    pairwise_effects,
+    main_effects,
+    observations,
+    num_categories,
+    inclusion_indicator,
+    is_ordinal_variable,
+    reference_category,
+    interaction_scale
+  );
+
+  pairwise_effects(variable1, variable2) = x0;
+  pairwise_effects(variable2, variable1) = x0;
+
+  // @maarten not sure if you need or want both?
+  const double log_integral = fx + (log(2 * M_PI) - log(-hessian_at_x)) / 2;
+  return x;
+
 }
 
 
