@@ -23,7 +23,11 @@ bgm(
   lambda = 1,
   na_action = c("listwise", "impute"),
   save = FALSE,
-  display_progress = TRUE
+  save_main = FALSE,
+  save_pairwise = FALSE,
+  save_indicator = FALSE,
+  display_progress = TRUE,
+  update_method = c("adaptive-metropolis", "adaptive-mala", "fisher-mala")
 )
 }
 \arguments{
@@ -141,13 +145,25 @@ the mode of the posterior do not have an imputation option, the bgm function
 will automatically switch to \code{interaction_prior = "Cauchy"} and
 \code{adaptive = TRUE}.}
 
-\item{save}{Should the function collect and return all samples from the Gibbs
-sampler (\code{save = TRUE})? Or should it only return the (model-averaged)
-posterior means (\code{save = FALSE})? Defaults to \code{FALSE}.}
+\item{save}{Logical. If true, sampled states for all parameters are returned.
+Deprecated.}
+
+\item{save_main, save_pairwise, save_indicator}{Logical. Enable saving sampled
+states for `main_effects`, `pairwise_effects`, and `indicator`, respectively.
+Default: `FALSE`.}
 
 \item{display_progress}{Should the function show a progress bar
 (\code{display_progress = TRUE})? Or not (\code{display_progress = FALSE})?
 The default is \code{TRUE}.}
+
+\item{update_method}{Character. Specifies how the MCMC sampler updates the threshold
+and interaction parameters:
+\describe{
+  \item{"adaptive-metropolis"}{Uses adaptive Metropolis-Hastings for both thresholds and interactions.}
+  \item{"adaptive-mala"}{Uses Fisher-preconditioned MALA for thresholds and standard MALA for interactions and indicators.}
+  \item{"fisher-mala"}{Uses Fisher-preconditioned MALA for both thresholds and interactions.}
+}
+Defaults to \code{"adaptive-metropolis"}.}
 }
 \value{
 If \code{save = FALSE} (the default), the result is a list of class
