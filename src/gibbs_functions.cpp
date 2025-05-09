@@ -822,15 +822,27 @@ inline void update_fisher_preconditioner (
  * Function: update_thresholds_with_fisher_mala
  *
  * Performs a Fisher-preconditioned MALA update of the threshold parameters.
- * Uses dual averaging during burn-in and Robbins-Monro adaptation afterward.
- * Proposal is based on inverse Fisher matrix approximation following:
+ * The proposal uses the inverse Fisher matrix (either identity during burn-in or
+ * adapted afterward) to scale the Langevin drift and noise.
  *
- *   Titsias, M.K. (2023).
- *   Gradient-Based MCMC Using Preconditioned Langevin Dynamics.
- *   Journal of Machine Learning Research, 24(216):1–40.
+ * During burn-in, the step size is adapted using dual averaging. After burn-in,
+ * the step size is adapted using Robbins-Monro, and the Fisher matrix is updated
+ * with a rank-1 outer product of the score difference between the proposed and
+ * current states (Titsias, 2023).
+ *
+ * The step size is trace-scaled to match the average proposal magnitude across
+ * dimensions, following Proposition 1 from Titsias (2023).
+ *
+ * If the proposal is accepted, the main_effects matrix is updated in-place and
+ * the gradient cache for the interaction update is invalidated by setting
+ * `gradient_valid = false`.
  *
  * Modifies:
- *  - main_effects, step_size, dual_averaging_state, sqrt_inv_fisher
+ *  - main_effects
+ *  - step_size
+ *  - dual_averaging_state
+ *  - sqrt_inv_fisher
+ *  - gradient_valid
  */
 void update_thresholds_with_fisher_mala (
     arma::mat& main_effects,
@@ -847,7 +859,8 @@ void update_thresholds_with_fisher_mala (
     arma::mat& sqrt_inv_fisher,
     const double threshold_alpha,
     const double threshold_beta,
-    const double initial_step_size
+    const double initial_step_size,
+    bool& gradient_valid
 ) {
   // --- Compute current parameter vector and its gradient ---
   const arma::vec current_state = vectorize_thresholds (
@@ -926,19 +939,20 @@ void update_thresholds_with_fisher_mala (
   // --- Accept or reject proposed move ---
   if (std::log (R::unif_rand()) < log_accept) {
     main_effects = proposed_main_effects;
+    gradient_valid = false;
   }
 
   // --- Update step size and Fisher matrix ---
   if (iteration < total_burnin) {
     // During warm-up: dual averaging adaptation
     update_step_size_with_dual_averaging (
-      initial_step_size, accept_prob, iteration + 1, dual_averaging_state
+        initial_step_size, accept_prob, iteration + 1, dual_averaging_state
     );
     step_size = std::exp (dual_averaging_state[1]);
   } else {
     // After warm-up: Robbins-Monro + Fisher preconditioner update
     update_step_size_with_robbins_monro (
-      accept_prob, iteration - total_burnin + 1, step_size
+        accept_prob, iteration - total_burnin + 1, step_size
     );
 
     const arma::vec score_diff =
@@ -1310,8 +1324,8 @@ double gradient_log_pseudoposterior_interaction_single (
   const int num_persons = observations.n_rows;
 
   // Extract observed score vectors for each variable
-  arma::vec x_var1 = arma::conv_to<arma::vec>::from (observations.col (var1));
-  arma::vec x_var2 = arma::conv_to<arma::vec>::from (observations.col (var2));
+  arma::ivec x_var1 = observations.col (var1);
+  arma::ivec x_var2 = observations.col (var2);
 
   // First-order gradient from data
   double gradient = 2.0 * arma::dot (x_var1, x_var2);
@@ -1383,6 +1397,111 @@ double gradient_log_pseudoposterior_interaction_single (
   return gradient;
 }
 
+
+
+double hessian_log_pseudoposterior_interaction_single (
+    int var1,
+    int var2,
+    const arma::mat& pairwise_effects,
+    const arma::mat& main_effects,
+    const arma::imat& observations,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& reference_category,
+    const double interaction_scale
+) {
+  const int num_persons = observations.n_rows;
+
+  // Extract observed score vectors for each variable
+  arma::vec x_var1 = arma::conv_to<arma::vec>::from (observations.col (var1));
+  arma::vec x_var2 = arma::conv_to<arma::vec>::from (observations.col (var2));
+
+  // First-order gradient from data
+  double hessian = 0.0;
+
+  // --- Contribution from var1
+  int num_categories_var1 = num_categories (var1);
+  arma::vec rest_scores_var1 = observations * pairwise_effects.col (var1);  // β_{var1,var1} = 0
+  arma::vec numerator_var1_E (num_persons, arma::fill::zeros);
+  arma::vec denominator_var1 (num_persons, arma::fill::zeros);
+  arma::vec numerator_var1_E2 (num_persons, arma::fill::zeros);
+  arma::vec bounds_var1 = arma::max (rest_scores_var1, arma::zeros<arma::vec> (num_persons)) * num_categories_var1;
+
+  if (is_ordinal_variable (var1)) {
+    denominator_var1 += arma::exp ( -bounds_var1 );
+    for (int category = 0; category < num_categories_var1; category++) {
+      arma::vec exponent = main_effects (var1, category) + (category + 1) * rest_scores_var1 - bounds_var1;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var1 += weight;
+      numerator_var1_E += (category + 1) * x_var2 % weight;
+      numerator_var1_E2 += (category + 1) * (category + 1) * x_var2 % x_var2 % weight;
+    }
+  } else {
+    const int ref_cat = reference_category (var1);
+    for (int category = 0; category <= num_categories_var1; category++) {
+      int centered = category - ref_cat;
+      double lin_term = main_effects (var1, 0) * category;
+      double quad_term = main_effects (var1, 1) * centered * centered;
+      arma::vec exponent = lin_term + quad_term + category * rest_scores_var1 - bounds_var1;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var1 += weight;
+      numerator_var1_E += category * x_var2 % weight;
+      numerator_var1_E2 += category * category * x_var2 % x_var2 % weight;
+    }
+  }
+  //- E((XiXj)^2)
+  hessian -= arma::accu (numerator_var1_E2 / denominator_var1);
+
+  //+E(XiXj)^2
+  arma::vec expectation = numerator_var1_E / denominator_var1;
+  hessian += arma::accu(arma::square(expectation));
+
+  // --- Contribution from var2
+  int num_categories_var2 = num_categories (var2);
+  arma::vec rest_scores_var2 = observations * pairwise_effects.col (var2);
+  arma::vec numerator_var2_E (num_persons, arma::fill::zeros);
+  arma::vec numerator_var2_E2 (num_persons, arma::fill::zeros);
+  arma::vec denominator_var2 (num_persons, arma::fill::zeros);
+  arma::vec bounds_var2 = arma::max (rest_scores_var2, arma::zeros<arma::vec> (num_persons)) * num_categories_var2;
+
+  if (is_ordinal_variable (var2)) {
+    denominator_var2 += arma::exp ( -bounds_var2 );
+    for (int category = 0; category < num_categories_var2; category++) {
+      arma::vec exponent = main_effects (var2, category) + (category + 1) * rest_scores_var2 - bounds_var2;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var2 += weight;
+      numerator_var2_E += (category + 1) * x_var1 % weight;
+      numerator_var2_E2 += (category + 1) * (category + 1) * x_var1 % x_var1 % weight;
+    }
+  } else {
+    const int ref_cat = reference_category (var2);
+    for (int category = 0; category <= num_categories_var2; category++) {
+      int centered = category - ref_cat;
+      double lin_term = main_effects (var2, 0) * category;
+      double quad_term = main_effects (var2, 1) * centered * centered;
+      arma::vec exponent = lin_term + quad_term + category * rest_scores_var2 - bounds_var2;
+      arma::vec weight = arma::exp (exponent);
+      denominator_var2 += weight;
+      numerator_var2_E += category * x_var1 % weight;
+      numerator_var2_E2 += category * category * x_var1 % x_var1 % weight;
+    }
+  }
+
+  //- E((XiXj)^2)
+  hessian -= arma::accu (numerator_var2_E2 / denominator_var2);
+
+  //+E(XiXj)^2
+  expectation = numerator_var2_E / denominator_var2;
+  hessian += arma::accu(arma::square(expectation));
+
+
+  // --- Cauchy prior derivative
+  double beta = pairwise_effects (var1, var2) * pairwise_effects (var1, var2);
+  double s = interaction_scale * interaction_scale;
+  hessian += 2.0 * (beta - s) / ((beta + s) * (beta + s));
+
+  return hessian;
+}
 
 
 /**
@@ -1986,8 +2105,8 @@ void update_interactions_with_adaptive_metropolis (
         // Robbins-Monro adaptation of proposal SD
         proposal_sd_pairwise_effects(variable1, variable2) =
           update_proposal_sd_with_robbins_monro (
-            proposal_sd_pairwise_effects(variable1, variable2), log_acceptance,
-            exp_neg_log_t_rm_adaptation_rate
+              proposal_sd_pairwise_effects(variable1, variable2), log_acceptance,
+              exp_neg_log_t_rm_adaptation_rate
           );
       }
     }
@@ -2210,43 +2329,48 @@ void update_indicator_interaction_pair_with_mala (
 
 
 /**
+ * Function: update_interactions_with_fisher_mala
+ *
  * Updates all included pairwise interaction effects using Fisher-preconditioned MALA.
  *
- * This function performs a joint update of all currently included interaction parameters using
- * a Fisher-preconditioned Metropolis-adjusted Langevin algorithm (MALA). The method leverages
- * an adaptive Fisher information approximation to precondition the Langevin proposals and scale
- * the step size appropriately.
+ * This function performs a joint update of the interaction weights using a Fisher-preconditioned
+ * Metropolis-adjusted Langevin algorithm (MALA). The inverse Fisher matrix is either identity
+ * (during burn-in) or estimated and adapted post-burn-in using rank-one score difference updates.
  *
- * During burn-in, the inverse Fisher matrix is replaced by the identity matrix. After burn-in, the
- * algorithm updates the Fisher approximation via rank-one updates (Titsias 2023).
+ * The step size is normalized using the trace of the inverse Fisher matrix (Titsias, 2023), ensuring
+ * consistent average proposal scale. Accepted proposals update the cached interaction gradient, while
+ * rejected proposals retain the previous gradient unless it was invalid.
  *
- * The Metropolis-Hastings correction includes:
- *  - Forward and reverse proposal terms (Fisher-preconditioned)
- *  - Pseudoposterior differences
+ * During burn-in, the step size is adapted using dual averaging. After burn-in, Robbins-Monro is used
+ * along with Fisher matrix updates.
  *
  * Inputs:
- *  - pairwise_effects: Symmetric matrix of interaction coefficients (modified in-place).
- *  - residual_matrix: Person-by-variable linear predictor matrix (updated if proposal accepted).
- *  - main_effects: Matrix of threshold parameters.
- *  - observations: Matrix of observed person-by-variable scores.
+ *  - pairwise_effects: Matrix of interaction parameters (symmetric, updated in-place).
+ *  - residual_matrix: Person-by-variable linear predictor matrix (updated if proposal is accepted).
+ *  - main_effects: Matrix of current threshold (main effect) parameters.
+ *  - observations: Person-by-variable observation matrix.
  *  - num_categories: Number of categories per variable.
- *  - inclusion_indicator: Binary matrix indicating active pairwise interactions.
- *  - is_ordinal_variable: Vector indicating ordinal (vs. categorical) variables.
- *  - reference_category: Vector of reference categories for categorical variables.
- *  - interaction_scale: Cauchy prior scale for interaction strengths.
- *  - step_size_pairwise: MALA step size (updated adaptively).
- *  - initial_step_size_pairwise: Initial step size used for dual averaging.
+ *  - inclusion_indicator: Binary indicator matrix showing active interaction pairs.
+ *  - is_ordinal_variable: Flags indicating ordinal variables.
+ *  - reference_category: Reference category index per variable.
+ *  - interaction_scale: Scale parameter for the Cauchy prior on interaction weights.
+ *  - step_size_pairwise: Current MALA step size (updated in-place).
+ *  - initial_step_size_pairwise: Initial step size for dual averaging.
  *  - iteration: Current MCMC iteration.
- *  - total_burnin: Total number of burn-in iterations.
- *  - dual_averaging_state: 3-element vector for dual averaging (modified in-place).
- *  - sqrt_inv_fisher_pairwise: Approximate square root of inverse Fisher matrix (updated after burn-in).
+ *  - total_burnin: Total burn-in length.
+ *  - dual_averaging_state: Dual averaging parameters (updated during burn-in).
+ *  - sqrt_inv_fisher_pairwise: Square root of inverse Fisher information matrix (updated post-burn-in).
+ *  - cached_interaction_gradient: Cached gradient vector (read/write).
+ *  - gradient_valid: Flag indicating whether the cached gradient is valid (updated in-place).
  *
  * Modifies:
  *  - pairwise_effects (on accept)
  *  - residual_matrix (on accept)
  *  - step_size_pairwise (if adaptive)
  *  - dual_averaging_state (during burn-in)
- *  - sqrt_inv_fisher_pairwise (after burn-in)
+ *  - sqrt_inv_fisher_pairwise (post-burn-in)
+ *  - cached_interaction_gradient (updated if accept or stale)
+ *  - gradient_valid (always set to true by end)
  */
 void update_interactions_with_fisher_mala (
     arma::mat& pairwise_effects,
@@ -2263,7 +2387,9 @@ void update_interactions_with_fisher_mala (
     const int iteration,
     const int total_burnin,
     arma::vec& dual_averaging_state,
-    arma::mat& sqrt_inv_fisher_pairwise
+    arma::mat& sqrt_inv_fisher_pairwise,
+    arma::vec& cached_interaction_gradient,
+    bool& gradient_valid
 ) {
   const int num_variables = pairwise_effects.n_rows;
   const int num_interactions = (num_variables * (num_variables - 1)) / 2;
@@ -2281,11 +2407,16 @@ void update_interactions_with_fisher_mala (
   }
 
   // --- Compute gradient and log-posterior at current state
-  arma::vec current_grad = gradient_log_pseudoposterior_interactions (
-    pairwise_effects, main_effects, observations, num_categories,
-    inclusion_indicator, is_ordinal_variable, reference_category,
-    interaction_scale
-  );
+  arma::vec current_grad;
+  if (gradient_valid && cached_interaction_gradient.n_elem == num_interactions) {
+    current_grad = cached_interaction_gradient;
+  } else {
+    current_grad = gradient_log_pseudoposterior_interactions(
+      pairwise_effects, main_effects, observations, num_categories,
+      inclusion_indicator, is_ordinal_variable, reference_category,
+      interaction_scale
+    );
+  }
 
   double current_log_post = log_pseudoposterior_interactions (
     pairwise_effects, main_effects, observations, num_categories,
@@ -2369,6 +2500,13 @@ void update_interactions_with_fisher_mala (
         }
       }
     }
+    cached_interaction_gradient = proposed_grad;
+    gradient_valid = true;
+  } else {
+    if(!gradient_valid) {
+      cached_interaction_gradient = current_grad;
+      gradient_valid = true;
+    }
   }
 
   // --- Step size and Fisher adaptation
@@ -2395,47 +2533,54 @@ void update_interactions_with_fisher_mala (
 
 
 /**
- * Updates the inclusion indicators and interaction in pairs using Fisher-preconditioned MALA.
+ * Function: update_indicator_interaction_pair_with_fisher_mala
  *
- * This function proposes changes to pairwise inclusion indicators using a single-step
- * Fisher-preconditioned Langevin proposal and evaluates the proposal with a Metropolis-Hastings step.
+ * Updates the inclusion indicators and associated interaction weights using Fisher-preconditioned MALA.
  *
- * For each candidate pair (var1, var2):
- *   - If currently excluded, a new nonzero interaction is proposed based on a full gradient and
- *     preconditioned drift using a Fisher matrix row.
- *   - If currently included, a proposal to zero is evaluated using a recomputed directional gradient.
+ * This function iterates over all candidate interaction pairs and proposes either:
+ *   - The addition of an edge with a Fisher-preconditioned Langevin step
+ *   - The removal of an existing edge by proposing a zero interaction
  *
- * The decision is based on:
- *   - Full-data gradient (precomputed once)
- *   - Scaled inverse Fisher matrix
- *   - Cauchy prior on interactions
- *   - Pseudolikelihood difference for the pair
- *   - Prior inclusion probability (Bernoulli)
+ * Proposals are evaluated using a Metropolis-Hastings step that includes:
+ *   - Pseudolikelihood difference (pairwise-only)
+ *   - Cauchy prior for interaction weights
+ *   - Bernoulli prior for inclusion
  *   - Langevin forward/reverse proposal densities
+ *
+ * The step size is normalized using the trace of the inverse Fisher matrix (Titsias, 2023),
+ * and the Fisher-preconditioned drift is computed using the full interaction gradient.
+ *
+ * A cached gradient vector is passed in and reused across proposals. Only one component
+ * is modified if a proposal is accepted. At the end of the function, the updated gradient
+ * is returned to keep it consistent with the updated state of the model.
  *
  * Inputs:
  *  - pairwise_effects: Symmetric matrix of interaction parameters (modified in-place).
- *  - main_effects: Matrix of main effect parameters (thresholds).
- *  - indicator: Symmetric inclusion indicator matrix (modified in-place).
- *  - observations: Person-by-variable matrix of scores.
- *  - num_categories: Number of categories for each variable.
- *  - step_size_pairwise: Global MALA step size (scaled internally by Fisher trace).
- *  - interaction_scale: Scale of Cauchy prior on interaction strengths.
- *  - index: Matrix listing candidate pairs to update (row-wise: [index, var1, var2]).
- *  - num_persons: Number of individuals (rows of observations).
- *  - residual_matrix: Person-by-variable matrix of linear predictors (modified in-place).
- *  - inclusion_probability: Matrix of prior inclusion probabilities.
- *  - is_ordinal_variable: Indicator of ordinal (vs categorical) variables.
- *  - reference_category: Vector of reference categories for categorical variables.
+ *  - main_effects: Matrix of threshold (main effect) parameters.
+ *  - indicator: Symmetric matrix of inclusion indicators (modified in-place).
+ *  - observations: Person-by-variable matrix of observed scores.
+ *  - num_categories: Number of categories per variable.
+ *  - step_size_pairwise: Global MALA step size (scaled internally).
+ *  - interaction_scale: Scale parameter for Cauchy prior on interaction weights.
+ *  - index: Matrix listing candidate interactions: [index, var1, var2].
+ *  - num_persons: Number of observations (rows in observations matrix).
+ *  - residual_matrix: Linear predictor matrix (updated in-place on accept).
+ *  - inclusion_probability: Prior inclusion probabilities for interaction pairs.
+ *  - is_ordinal_variable: Indicator of ordinal variables.
+ *  - reference_category: Reference category for each variable.
  *  - sqrt_inv_fisher_pairwise: Square root of approximate inverse Fisher matrix.
- *  - num_pairwise: Number of interaction pairs to consider.
- *  - iteration: Current iteration number of the sampler.
- *  - total_burnin: Total number of burn-in iterations used for adaptive behavior.
+ *  - num_pairwise: Total number of candidate interactions.
+ *  - iteration: Current MCMC iteration.
+ *  - total_burnin: Number of warm-up iterations.
+ *  - cached_interaction_gradient: Gradient vector reused across proposals (updated in-place).
+ *  - gradient_valid: Flag indicating whether the gradient cache is valid (set true on exit).
  *
  * Modifies:
- *  - indicator (0/1 toggle for each interaction)
- *  - pairwise_effects (proposed value inserted if accepted)
- *  - residual_matrix (updated to reflect new interaction structure)
+ *  - indicator
+ *  - pairwise_effects (on accept)
+ *  - residual_matrix (on accept)
+ *  - cached_interaction_gradient (entry-by-entry if accepted)
+ *  - gradient_valid (set to true)
  */
 void update_indicator_interaction_pair_with_fisher_mala (
     arma::mat& pairwise_effects,
@@ -2454,7 +2599,9 @@ void update_indicator_interaction_pair_with_fisher_mala (
     const arma::mat& sqrt_inv_fisher_pairwise,
     const int num_pairwise,
     const int iteration,
-    const int total_burnin
+    const int total_burnin,
+    arma::vec& cached_interaction_gradient,
+    bool& gradient_valid
 ) {
   // --- Set inverse Fisher matrix (identity during burn-in)
   arma::mat inv_fisher;
@@ -2470,11 +2617,16 @@ void update_indicator_interaction_pair_with_fisher_mala (
   const double sd = std::sqrt(scaled_step_size);
 
   // --- Compute full gradient at current state (used in proposals)
-  arma::vec full_grad_current = gradient_log_pseudoposterior_interactions (
-    pairwise_effects, main_effects, observations, num_categories,
-    indicator, is_ordinal_variable, reference_category,
-    interaction_scale
-  );
+  arma::vec full_grad_current;
+  if (gradient_valid && cached_interaction_gradient.n_elem == num_pairwise) {
+    full_grad_current = cached_interaction_gradient;
+  } else {
+    full_grad_current = gradient_log_pseudoposterior_interactions(
+      pairwise_effects, main_effects, observations, num_categories,
+      indicator, is_ordinal_variable, reference_category,
+      interaction_scale
+    );
+  }
 
   for (int pair_index = 0; pair_index < num_pairwise; pair_index++) {
     const int interaction_index  = index(pair_index, 0) - 1;
@@ -2546,7 +2698,7 @@ void update_indicator_interaction_pair_with_fisher_mala (
 
       // --- Maintain gradient consistency
       if(new_value == 1) {
-        full_grad_current(interaction_index) = gradient_log_pseudoposterior_interaction_single(
+        full_grad_current(interaction_index) = gradient_log_pseudoposterior_interaction_single (
           var1, var2, pairwise_effects, main_effects, observations, num_categories,
           is_ordinal_variable, reference_category, interaction_scale
         );
@@ -2555,6 +2707,10 @@ void update_indicator_interaction_pair_with_fisher_mala (
       }
     }
   }
+
+  //Updated cached gradient
+  cached_interaction_gradient = full_grad_current;
+  gradient_valid = true;
 }
 
 
@@ -2653,7 +2809,9 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::vec& dual_averaging_pairwise,
     const double initial_step_size_pairwise,
     arma::mat& sqrt_inv_fisher_pairwise,
-    const std::string& update_method = "adaptive-metropolis"
+    const std::string& update_method,
+    arma::vec& cached_interaction_gradient,
+    bool& gradient_valid
 ) {
   // --- Robbins-Monro weight for adaptive Metropolis updates
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -2662,29 +2820,29 @@ void gibbs_update_step_for_graphical_model_parameters (
   // Step 1: Edge selection via MH indicator updates (if enabled)
   if (edge_selection) {
     if (update_method == "fisher-mala") {
-        // Use Fisher-preconditioned MALA for inclusion indicators
-        update_indicator_interaction_pair_with_fisher_mala (
-            pairwise_effects, main_effects, inclusion_indicator, observations,
-            num_categories, step_size_pairwise, interaction_scale, index,
-            num_persons, residual_matrix, inclusion_probability, is_ordinal_variable,
-            reference_category, sqrt_inv_fisher_pairwise, num_pairwise,
-            iteration, total_burnin
-        );
+      // Use Fisher-preconditioned MALA for inclusion indicators
+      update_indicator_interaction_pair_with_fisher_mala (
+          pairwise_effects, main_effects, inclusion_indicator, observations,
+          num_categories, step_size_pairwise, interaction_scale, index,
+          num_persons, residual_matrix, inclusion_probability, is_ordinal_variable,
+          reference_category, sqrt_inv_fisher_pairwise, num_pairwise,
+          iteration, total_burnin, cached_interaction_gradient, gradient_valid
+      );
     } else if (update_method == "adaptive-mala") {
-        // Use standard MALA for indicator updates
-        update_indicator_interaction_pair_with_mala (
-            pairwise_effects, main_effects, inclusion_indicator, observations,
-            num_categories, step_size_pairwise, interaction_scale,
-            index, num_pairwise, num_persons, residual_matrix,
-            inclusion_probability, is_ordinal_variable, reference_category
-        );
+      // Use standard MALA for indicator updates
+      update_indicator_interaction_pair_with_mala (
+          pairwise_effects, main_effects, inclusion_indicator, observations,
+          num_categories, step_size_pairwise, interaction_scale,
+          index, num_pairwise, num_persons, residual_matrix,
+          inclusion_probability, is_ordinal_variable, reference_category
+      );
     } else {
       // Use standard Metropolis-Hastings for indicator updates
       update_indicator_interaction_pair_with_metropolis (
-        pairwise_effects, main_effects, inclusion_indicator, observations,
-        num_categories, proposal_sd_pairwise, interaction_scale,
-        index, num_pairwise, num_persons, residual_matrix,
-        inclusion_probability, is_ordinal_variable, reference_category
+          pairwise_effects, main_effects, inclusion_indicator, observations,
+          num_categories, proposal_sd_pairwise, interaction_scale,
+          index, num_pairwise, num_persons, residual_matrix,
+          inclusion_probability, is_ordinal_variable, reference_category
       );
     }
   }
@@ -2696,7 +2854,8 @@ void gibbs_update_step_for_graphical_model_parameters (
         num_categories, inclusion_indicator, is_ordinal_variable,
         reference_category, interaction_scale, step_size_pairwise,
         initial_step_size_pairwise, iteration, total_burnin,
-        dual_averaging_pairwise, sqrt_inv_fisher_pairwise
+        dual_averaging_pairwise, sqrt_inv_fisher_pairwise,
+        cached_interaction_gradient, gradient_valid
     );
   } else if (update_method == "adaptive-mala") {
     update_interactions_with_mala (
@@ -2720,27 +2879,27 @@ void gibbs_update_step_for_graphical_model_parameters (
   if (update_method != "adaptive-metropolis") {
     // Update using Fisher-preconditioned MALA
     update_thresholds_with_fisher_mala (
-      main_effects, step_size_main, residual_matrix, num_categories,
-      num_obs_categories, sufficient_blume_capel, reference_category,
-      is_ordinal_variable, iteration, total_burnin, dual_averaging_main,
-      sqrt_inv_fisher_main, threshold_alpha, threshold_beta,
-      initial_step_size_main
+        main_effects, step_size_main, residual_matrix, num_categories,
+        num_obs_categories, sufficient_blume_capel, reference_category,
+        is_ordinal_variable, iteration, total_burnin, dual_averaging_main,
+        sqrt_inv_fisher_main, threshold_alpha, threshold_beta,
+        initial_step_size_main, gradient_valid
     );
   } else {
     // Metropolis updates (Blume-Capel or ordinal)
     for (int variable = 0; variable < num_variables; variable++) {
       if (is_ordinal_variable(variable)) {
         update_regular_thresholds_with_metropolis (
-          main_effects, observations, num_categories, num_obs_categories,
-          num_persons, variable, threshold_alpha, threshold_beta,
-          residual_matrix
+            main_effects, observations, num_categories, num_obs_categories,
+            num_persons, variable, threshold_alpha, threshold_beta,
+            residual_matrix
         );
       } else {
         update_blumecapel_thresholds_with_adaptive_metropolis (
-          main_effects, observations, num_categories, sufficient_blume_capel,
-          num_persons, variable, reference_category, threshold_alpha,
-          threshold_beta, residual_matrix, proposal_sd_main,
-          exp_neg_log_t_rm_adaptation_rate
+            main_effects, observations, num_categories, sufficient_blume_capel,
+            num_persons, variable, reference_category, threshold_alpha,
+            threshold_beta, residual_matrix, proposal_sd_main,
+            exp_neg_log_t_rm_adaptation_rate
         );
       }
     }
@@ -2905,9 +3064,9 @@ List run_gibbs_sampler_for_bgm (
   if (update_method != "adaptive-metropolis") {
     if (na_impute) {
       impute_missing_values_for_graphical_model (
-        pairwise_effects, main_effects, observations, num_obs_categories,
-        sufficient_blume_capel, num_categories, residual_matrix,
-        missing_index, is_ordinal_variable, reference_category
+          pairwise_effects, main_effects, observations, num_obs_categories,
+          sufficient_blume_capel, num_categories, residual_matrix,
+          missing_index, is_ordinal_variable, reference_category
       );
     }
 
@@ -2931,6 +3090,9 @@ List run_gibbs_sampler_for_bgm (
     dual_averaging_main[0] = std::log (step_size_main);
     dual_averaging_pairwise[0] = std::log (step_size_pairwise);
   }
+  arma::vec cached_interaction_gradient;  // will hold a cached gradient vector
+  bool gradient_valid = false;            // indicates whether the cache is valid
+
 
   // --- Set up total number of iterations (burn-in + sampling)
   bool enable_edge_selection = edge_selection;
@@ -2962,25 +3124,25 @@ List run_gibbs_sampler_for_bgm (
 
     // Optional imputation
     if (na_impute) {
-      impute_missing_values_for_graphical_model(
-        pairwise_effects, main_effects, observations, num_obs_categories,
-        sufficient_blume_capel, num_categories, residual_matrix,
-        missing_index, is_ordinal_variable, reference_category
+      impute_missing_values_for_graphical_model (
+          pairwise_effects, main_effects, observations, num_obs_categories,
+          sufficient_blume_capel, num_categories, residual_matrix,
+          missing_index, is_ordinal_variable, reference_category
       );
     }
 
     // Main Gibbs update step for parameters
-    gibbs_update_step_for_graphical_model_parameters(
-      observations, num_categories, interaction_scale,
-      proposal_sd_pairwise, proposal_sd_main, index,
-      num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta,
-      num_persons, num_variables, num_pairwise, num_main,
-      inclusion_indicator, pairwise_effects, main_effects, residual_matrix, inclusion_probability,
-      rm_decay_rate, is_ordinal_variable, reference_category, edge_selection,
-      step_size_main, iteration, dual_averaging_main, total_burnin,
-      initial_step_size_main, sqrt_inv_fisher_main,
-      step_size_pairwise, dual_averaging_pairwise,
-      initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method
+    gibbs_update_step_for_graphical_model_parameters (
+        observations, num_categories, interaction_scale, proposal_sd_pairwise,
+        proposal_sd_main, index, num_obs_categories, sufficient_blume_capel,
+        threshold_alpha, threshold_beta, num_persons, num_variables, num_pairwise,
+        num_main, inclusion_indicator, pairwise_effects, main_effects,
+        residual_matrix, inclusion_probability, rm_decay_rate, is_ordinal_variable,
+        reference_category, edge_selection, step_size_main, iteration,
+        dual_averaging_main, total_burnin, initial_step_size_main,
+        sqrt_inv_fisher_main, step_size_pairwise, dual_averaging_pairwise,
+        initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method,
+        cached_interaction_gradient, gradient_valid
     );
 
     // --- Update edge probabilities under the prior (if edge selection is active)
