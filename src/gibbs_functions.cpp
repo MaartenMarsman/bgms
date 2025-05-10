@@ -9,7 +9,6 @@
 using namespace Rcpp;
 
 
-
 /**
  * Adapts the log step size using dual averaging during MCMC burn-in.
  *
@@ -1398,110 +1397,6 @@ double gradient_log_pseudoposterior_interaction_single (
 }
 
 
-double hessian_log_pseudoposterior_interaction_single (
-    int var1,
-    int var2,
-    const arma::mat& pairwise_effects,
-    const arma::mat& main_effects,
-    const arma::imat& observations,
-    const arma::ivec& num_categories,
-    const arma::uvec& is_ordinal_variable,
-    const arma::ivec& reference_category,
-    const double interaction_scale
-) {
-  const int num_persons = observations.n_rows;
-
-  // Extract observed score vectors for each variable
-  arma::vec x_var1 = arma::conv_to<arma::vec>::from (observations.col (var1));
-  arma::vec x_var2 = arma::conv_to<arma::vec>::from (observations.col (var2));
-
-  // First-order gradient from data
-  double hessian = 0.0;
-
-  // --- Contribution from var1
-  int num_categories_var1 = num_categories (var1);
-  arma::vec rest_scores_var1 = observations * pairwise_effects.col (var1);  // β_{var1,var1} = 0
-  arma::vec numerator_var1_E (num_persons, arma::fill::zeros);
-  arma::vec denominator_var1 (num_persons, arma::fill::zeros);
-  arma::vec numerator_var1_E2 (num_persons, arma::fill::zeros);
-  arma::vec bounds_var1 = arma::max (rest_scores_var1, arma::zeros<arma::vec> (num_persons)) * num_categories_var1;
-
-  if (is_ordinal_variable (var1)) {
-    denominator_var1 += arma::exp ( -bounds_var1 );
-    for (int category = 0; category < num_categories_var1; category++) {
-      arma::vec exponent = main_effects (var1, category) + (category + 1) * rest_scores_var1 - bounds_var1;
-      arma::vec weight = arma::exp (exponent);
-      denominator_var1 += weight;
-      numerator_var1_E += (category + 1) * x_var2 % weight;
-      numerator_var1_E2 += (category + 1) * (category + 1) * x_var2 % x_var2 % weight;
-    }
-  } else {
-    const int ref_cat = reference_category (var1);
-    for (int category = 0; category <= num_categories_var1; category++) {
-      int centered = category - ref_cat;
-      double lin_term = main_effects (var1, 0) * category;
-      double quad_term = main_effects (var1, 1) * centered * centered;
-      arma::vec exponent = lin_term + quad_term + category * rest_scores_var1 - bounds_var1;
-      arma::vec weight = arma::exp (exponent);
-      denominator_var1 += weight;
-      numerator_var1_E += category * x_var2 % weight;
-      numerator_var1_E2 += category * category * x_var2 % x_var2 % weight;
-    }
-  }
-  //- E((XiXj)^2)
-  hessian -= arma::accu (numerator_var1_E2 / denominator_var1);
-
-  //+E(XiXj)^2
-  arma::vec expectation = numerator_var1_E / denominator_var1;
-  hessian += arma::accu(arma::square(expectation));
-
-  // --- Contribution from var2
-  int num_categories_var2 = num_categories (var2);
-  arma::vec rest_scores_var2 = observations * pairwise_effects.col (var2);
-  arma::vec numerator_var2_E (num_persons, arma::fill::zeros);
-  arma::vec numerator_var2_E2 (num_persons, arma::fill::zeros);
-  arma::vec denominator_var2 (num_persons, arma::fill::zeros);
-  arma::vec bounds_var2 = arma::max (rest_scores_var2, arma::zeros<arma::vec> (num_persons)) * num_categories_var2;
-
-  if (is_ordinal_variable (var2)) {
-    denominator_var2 += arma::exp ( -bounds_var2 );
-    for (int category = 0; category < num_categories_var2; category++) {
-      arma::vec exponent = main_effects (var2, category) + (category + 1) * rest_scores_var2 - bounds_var2;
-      arma::vec weight = arma::exp (exponent);
-      denominator_var2 += weight;
-      numerator_var2_E += (category + 1) * x_var1 % weight;
-      numerator_var2_E2 += (category + 1) * (category + 1) * x_var1 % x_var1 % weight;
-    }
-  } else {
-    const int ref_cat = reference_category (var2);
-    for (int category = 0; category <= num_categories_var2; category++) {
-      int centered = category - ref_cat;
-      double lin_term = main_effects (var2, 0) * category;
-      double quad_term = main_effects (var2, 1) * centered * centered;
-      arma::vec exponent = lin_term + quad_term + category * rest_scores_var2 - bounds_var2;
-      arma::vec weight = arma::exp (exponent);
-      denominator_var2 += weight;
-      numerator_var2_E += category * x_var1 % weight;
-      numerator_var2_E2 += category * category * x_var1 % x_var1 % weight;
-    }
-  }
-
-  //- E((XiXj)^2)
-  hessian -= arma::accu (numerator_var2_E2 / denominator_var2);
-
-  //+E(XiXj)^2
-  expectation = numerator_var2_E / denominator_var2;
-  hessian += arma::accu(arma::square(expectation));
-
-
-  // --- Cauchy prior derivative
-  double beta = pairwise_effects (var1, var2) * pairwise_effects (var1, var2);
-  double s = interaction_scale * interaction_scale;
-  hessian += 2.0 * (beta - s) / ((beta + s) * (beta + s));
-
-  return hessian;
-}
-
 
 /**
  * Function: log_pseudoposterior_interactions
@@ -1542,7 +1437,7 @@ double log_pseudoposterior_interactions (
   arma::mat real_observations = arma::conv_to<arma::mat>::from (observations);
 
   // Leading term: trace(X * B * X^T)
-  double log_pseudo_likelihood = arma::trace (real_observations * pairwise_effects * real_observations.t ());
+  double log_pseudo_posterior = arma::trace (real_observations * pairwise_effects * real_observations.t ());
 
   for (int var = 0; var < num_variables; var++) {
     int num_categories_var = num_categories (var);
@@ -1572,105 +1467,25 @@ double log_pseudoposterior_interactions (
     }
 
     // Subtract log partition function and bounds adjustment
-    log_pseudo_likelihood -= arma::accu (arma::log (denominator));
-    log_pseudo_likelihood -= arma::accu (bounds);
+    log_pseudo_posterior -= arma::accu (arma::log (denominator));
+    log_pseudo_posterior -= arma::accu (bounds);
   }
 
   // Add Cauchy prior terms for included pairwise effects
   for (int var1 = 0; var1 < num_variables - 1; var1++) {
     for (int var2 = var1 + 1; var2 < num_variables; var2++) {
       if (inclusion_indicator (var1, var2) == 1) {
-        log_pseudo_likelihood += R::dcauchy (pairwise_effects (var1, var2), 0.0, interaction_scale, true);
+        log_pseudo_posterior += R::dcauchy (pairwise_effects (var1, var2), 0.0, interaction_scale, true);
       }
     }
   }
 
-  return log_pseudo_likelihood;
+  return log_pseudo_posterior;
 }
 
 
-/**
- *
- *
- *
- */
-//[[Rcpp::export]]
-double optimize_log_pseudoposterior_interaction (
-    const double initial_value,
-    arma::mat& pairwise_effects,
-    const arma::mat& main_effects,
-    const arma::imat& inclusion_indicator,
-    const arma::imat& observations,
-    const arma::ivec& num_categories,
-    const int num_persons,
-    const int variable1,
-    const int variable2,
-    const double proposed_state,
-    const double current_state,
-    const arma::mat& residual_matrix,
-    const arma::uvec& is_ordinal_variable,
-    const arma::ivec& reference_category,
-    const double interaction_scale
-) {
 
-  double x = initial_value;
 
-  const int    max_steps = 10;
-  const double tolerance = 1e-6;//sqrt (std::numeric_limits<double>::epsilon ());
-
-  const double x0 = pairwise_effects(variable1, variable2);
-  double hessian_at_x;
-  // find mode
-  for (int t = 0; t < max_steps; t++) {
-
-    // TODO: need to assign x to pairwise_effects[variable1, variable2]
-    pairwise_effects(variable1, variable2) = x;
-    pairwise_effects(variable2, variable1) = x;
-    Rcpp::Rcout << "t: " << t << " x: " << x << std::endl;
-    double gradient_at_x = gradient_log_pseudoposterior_interaction_single (
-      variable1, variable2, pairwise_effects, main_effects, observations,
-      num_categories, is_ordinal_variable, reference_category, interaction_scale
-    );
-
-    Rcpp::Rcout << "hessian_at_x" << std::endl;
-    hessian_at_x = hessian_log_pseudoposterior_interaction_single (
-      variable1, variable2, pairwise_effects, main_effects, observations,
-      num_categories, is_ordinal_variable, reference_category, interaction_scale
-    );
-
-    // double x_new = x - gradient_at_x / hessian_at_x;
-    double x_new = x - gradient_at_x / hessian_at_x;
-
-    if (std::abs(x_new - x) < tolerance) {
-      x = x_new;
-      break;
-    }
-    x = x_new;
-
-  }
-
-  pairwise_effects(variable1, variable2) = x;
-  pairwise_effects(variable2, variable1) = x;
-
-  const double fx = log_pseudoposterior_interactions(
-    pairwise_effects,
-    main_effects,
-    observations,
-    num_categories,
-    inclusion_indicator,
-    is_ordinal_variable,
-    reference_category,
-    interaction_scale
-  );
-
-  pairwise_effects(variable1, variable2) = x0;
-  pairwise_effects(variable2, variable1) = x0;
-
-  // @maarten not sure if you need or want both?
-  const double log_integral = fx + (log(2 * M_PI) - log(-hessian_at_x)) / 2;
-  return x;
-
-}
 
 
 
@@ -2797,6 +2612,7 @@ void update_indicator_interaction_pair_with_fisher_mala (
 }
 
 
+
 /**
  * Performs a single iteration of the Gibbs sampler for graphical model parameters.
  *
@@ -2894,7 +2710,8 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::mat& sqrt_inv_fisher_pairwise,
     const std::string& update_method,
     arma::vec& cached_interaction_gradient,
-    bool& gradient_valid
+    bool& gradient_valid,
+    arma::vec& posterior_prob
 ) {
   // --- Robbins-Monro weight for adaptive Metropolis updates
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -3088,11 +2905,11 @@ List run_gibbs_sampler_for_bgm (
   const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
   arma::mat* main_effect_samples = nullptr;
   arma::mat* pairwise_effect_samples = nullptr;
-  arma::imat* indicator_samples = nullptr;
+  arma::mat* indicator_samples = nullptr;
 
   if (save_main) main_effect_samples = new arma::mat(iter, num_main);
   if (save_pairwise) pairwise_effect_samples = new arma::mat(iter, num_pairwise);
-  if (save_indicator) indicator_samples = new arma::imat(iter, num_pairwise);
+  if (save_indicator) indicator_samples = new arma::mat(iter, num_pairwise);
 
   // Initialize proposal SDs and MALA tracking
   arma::mat proposal_sd_main(num_main, 2, arma::fill::ones);
@@ -3175,7 +2992,7 @@ List run_gibbs_sampler_for_bgm (
   }
   arma::vec cached_interaction_gradient;  // will hold a cached gradient vector
   bool gradient_valid = false;            // indicates whether the cache is valid
-
+  arma::vec posterior_prob(num_pairwise);
 
   // --- Set up total number of iterations (burn-in + sampling)
   bool enable_edge_selection = edge_selection;
@@ -3225,7 +3042,7 @@ List run_gibbs_sampler_for_bgm (
         dual_averaging_main, total_burnin, initial_step_size_main,
         sqrt_inv_fisher_main, step_size_pairwise, dual_averaging_pairwise,
         initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method,
-        cached_interaction_gradient, gradient_valid
+        cached_interaction_gradient, gradient_valid, posterior_prob
     );
 
     // --- Update edge probabilities under the prior (if edge selection is active)
@@ -3295,11 +3112,11 @@ List run_gibbs_sampler_for_bgm (
       }
 
       if (save_indicator) {
-        arma::ivec vectorized_indicator(num_pairwise);
-        for (int i = 0; i < num_pairwise; i++) {
-          vectorized_indicator(i) = inclusion_indicator(interaction_index_matrix(i, 1), interaction_index_matrix(i, 2));
-        }
-        indicator_samples->row(sample_index) = vectorized_indicator.t();
+        //arma::ivec vectorized_indicator(num_pairwise);
+        //for (int i = 0; i < num_pairwise; i++) {
+        //  vectorized_indicator(i) = inclusion_indicator(interaction_index_matrix(i, 1), interaction_index_matrix(i, 2));
+        //}
+        indicator_samples->row(sample_index) = posterior_prob.t();//vectorized_indicator.t();
       }
 
       if (edge_prior == "Stochastic-Block") {
