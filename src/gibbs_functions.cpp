@@ -2229,8 +2229,7 @@ void update_indicator_interaction_pair_with_mala (
  * (during burn-in) or estimated and adapted post-burn-in using rank-one score difference updates.
  *
  * The step size is normalized using the trace of the inverse Fisher matrix (Titsias, 2023), ensuring
- * consistent average proposal scale. Accepted proposals update the cached interaction gradient, while
- * rejected proposals retain the previous gradient unless it was invalid.
+ * consistent average proposal scale.
  *
  * During burn-in, the step size is adapted using dual averaging. After burn-in, Robbins-Monro is used
  * along with Fisher matrix updates.
@@ -2258,8 +2257,6 @@ void update_indicator_interaction_pair_with_mala (
  *  - step_size_pairwise (if adaptive)
  *  - dual_averaging_state (during burn-in)
  *  - sqrt_inv_fisher_pairwise (post-burn-in)
- *  - cached_interaction_gradient (updated if accept or stale)
- *  - gradient_valid (always set to true by end)
  */
 void update_interactions_with_fisher_mala (
     arma::mat& pairwise_effects,
@@ -2425,10 +2422,6 @@ void update_interactions_with_fisher_mala (
  *
  * The step size is normalized using the trace of the inverse Fisher matrix (Titsias, 2023),
  * and the Fisher-preconditioned drift is computed using the full interaction gradient.
- *
- * A cached gradient vector is passed in and reused across proposals. Only one component
- * is modified if a proposal is accepted. At the end of the function, the updated gradient
- * is returned to keep it consistent with the updated state of the model.
  *
  * Inputs:
  *  - pairwise_effects: Symmetric matrix of interaction parameters (modified in-place).
