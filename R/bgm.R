@@ -325,7 +325,8 @@ bgm = function(x,
                save_pairwise = FALSE,
                save_indicator = FALSE,
                display_progress = TRUE,
-               update_method = c("adaptive-metropolis", "adaptive-mala", "fisher-mala")
+               update_method = c("adaptive-metropolis", "adaptive-mala", "fisher-mala"),
+               use_marginal_moms = FALSE
 ) {
 
   # Deprecation warning for save parameter
@@ -490,7 +491,7 @@ bgm = function(x,
     reference_category = reference_category, save_main = save_main,
     save_pairwise = save_pairwise, save_indicator = save_indicator,
     display_progress = display_progress, edge_selection = edge_selection,
-    update_method = update_method
+    update_method = update_method, use_marginal_moms = use_marginal_moms
   )
 
   # Main output handler in the wrapper function

@@ -9,8 +9,16 @@ sample_bcomrf_gibbs <- function(no_states, no_variables, no_categories, interact
     .Call(`_bgms_sample_bcomrf_gibbs`, no_states, no_variables, no_categories, interactions, thresholds, variable_type, reference_category, iter)
 }
 
-run_gibbs_sampler_for_bgm <- function(observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main = FALSE, save_pairwise = FALSE, save_indicator = FALSE, display_progress = FALSE, edge_selection = TRUE, update_method = "adaptive-metropolis") {
-    .Call(`_bgms_run_gibbs_sampler_for_bgm`, observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, update_method)
+gradient_log_pseudoposterior_interaction_single <- function(var1, var2, pairwise_effects, main_effects, observations, num_categories, is_ordinal_variable, reference_category, interaction_scale) {
+    .Call(`_bgms_gradient_log_pseudoposterior_interaction_single`, var1, var2, pairwise_effects, main_effects, observations, num_categories, is_ordinal_variable, reference_category, interaction_scale)
+}
+
+log_pseudolikelihood_ratio_interaction <- function(pairwise_effects, main_effects, observations, num_categories, num_persons, variable1, variable2, proposed_state, current_state, residual_matrix, is_ordinal_variable, reference_category) {
+    .Call(`_bgms_log_pseudolikelihood_ratio_interaction`, pairwise_effects, main_effects, observations, num_categories, num_persons, variable1, variable2, proposed_state, current_state, residual_matrix, is_ordinal_variable, reference_category)
+}
+
+run_gibbs_sampler_for_bgm <- function(observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main = FALSE, save_pairwise = FALSE, save_indicator = FALSE, display_progress = FALSE, edge_selection = TRUE, update_method = "adaptive-metropolis", use_marginal_moms = FALSE) {
+    .Call(`_bgms_run_gibbs_sampler_for_bgm`, observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, update_method, use_marginal_moms)
 }
 
 compare_anova_gibbs_sampler <- function(observations, main_effect_indices, pairwise_effect_indices, projection, num_categories, num_groups, group_indices, interaction_scale, pairwise_difference_scale, main_difference_scale, pairwise_difference_prior, main_difference_prior, inclusion_probability_difference, pairwise_beta_bernoulli_alpha, pairwise_beta_bernoulli_beta, main_beta_bernoulli_alpha, main_beta_bernoulli_beta, Index, iter, burnin, num_obs_categories, sufficient_blume_capel, prior_threshold_alpha, prior_threshold_beta, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, independent_thresholds, save_main = FALSE, save_pairwise = FALSE, save_indicator = FALSE, display_progress = FALSE, difference_selection = TRUE) {
@@ -19,5 +27,9 @@ compare_anova_gibbs_sampler <- function(observations, main_effect_indices, pairw
 
 compute_Vn_mfm_sbm <- function(no_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, no_variables, dirichlet_alpha, t_max, lambda)
+}
+
+update_indicator_interaction_pair_with_metropolis_and_marginal_moms <- function(pairwise_effects, main_effects, indicator, observations, num_categories, proposal_sd, interaction_scale, index, num_interactions, num_persons, residual_matrix, inclusion_probability, is_ordinal_variable, reference_category) {
+    invisible(.Call(`_bgms_update_indicator_interaction_pair_with_metropolis_and_marginal_moms`, pairwise_effects, main_effects, indicator, observations, num_categories, proposal_sd, interaction_scale, index, num_interactions, num_persons, residual_matrix, inclusion_probability, is_ordinal_variable, reference_category))
 }
 

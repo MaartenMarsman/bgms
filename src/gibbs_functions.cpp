@@ -4,6 +4,7 @@
 // [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
+#include "gibbs_functions_moms.h"
 #include <progress.hpp>
 #include <progress_bar.hpp>
 using namespace Rcpp;
@@ -1302,6 +1303,7 @@ arma::vec gradient_log_pseudoposterior_interactions (
  * Returns:
  *  - A single double value: the gradient with respect to β_ij.
  */
+// [[Rcpp::export]]
 double gradient_log_pseudoposterior_interaction_single (
     int var1,
     int var2,
@@ -1875,6 +1877,7 @@ double compute_log_likelihood_ratio_for_variable (
  *  - The log pseudo-likelihood ratio:
  *      log p(y | β_proposed) - log p(y | β_current)
  */
+// [[Rcpp::export]]
 double log_pseudolikelihood_ratio_interaction (
     const arma::mat& pairwise_effects,
     const arma::mat& main_effects,
@@ -2655,7 +2658,8 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::vec& dual_averaging_pairwise,
     const double initial_step_size_pairwise,
     arma::mat& sqrt_inv_fisher_pairwise,
-    const std::string& update_method
+    const std::string& update_method,
+    bool use_marginal_moms
 ) {
   // --- Robbins-Monro weight for adaptive Metropolis updates
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -2681,13 +2685,24 @@ void gibbs_update_step_for_graphical_model_parameters (
           inclusion_probability, is_ordinal_variable, reference_category
       );
     } else {
-      // Use standard Metropolis-Hastings for indicator updates
-      update_indicator_interaction_pair_with_metropolis (
-          pairwise_effects, main_effects, inclusion_indicator, observations,
-          num_categories, proposal_sd_pairwise, interaction_scale,
-          index, num_pairwise, num_persons, residual_matrix,
-          inclusion_probability, is_ordinal_variable, reference_category
-      );
+      if(use_marginal_moms) {
+        // Use standard Metropolis-Hastings for indicator updates
+        update_indicator_interaction_pair_with_metropolis_and_marginal_moms (
+            pairwise_effects, main_effects, inclusion_indicator, observations,
+            num_categories, proposal_sd_pairwise, interaction_scale,
+            index, num_pairwise, num_persons, residual_matrix,
+            inclusion_probability, is_ordinal_variable, reference_category
+        );
+
+      } else {
+        // Use standard Metropolis-Hastings for indicator updates
+        update_indicator_interaction_pair_with_metropolis (
+            pairwise_effects, main_effects, inclusion_indicator, observations,
+            num_categories, proposal_sd_pairwise, interaction_scale,
+            index, num_pairwise, num_persons, residual_matrix,
+            inclusion_probability, is_ordinal_variable, reference_category
+        );
+      }
     }
   }
 
@@ -2823,7 +2838,8 @@ List run_gibbs_sampler_for_bgm (
     const bool save_indicator = false,
     const bool display_progress = false,
     bool edge_selection = true,
-    const std::string& update_method = "adaptive-metropolis"
+    const std::string& update_method = "adaptive-metropolis",
+    bool use_marginal_moms = false
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -2982,7 +2998,8 @@ List run_gibbs_sampler_for_bgm (
         reference_category, edge_selection, step_size_main, iteration,
         dual_averaging_main, total_burnin, initial_step_size_main,
         sqrt_inv_fisher_main, step_size_pairwise, dual_averaging_pairwise,
-        initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method
+        initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method,
+        use_marginal_moms
     );
 
     // --- Update edge probabilities under the prior (if edge selection is active)

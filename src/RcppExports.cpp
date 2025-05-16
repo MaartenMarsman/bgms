@@ -45,9 +45,50 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gradient_log_pseudoposterior_interaction_single
+double gradient_log_pseudoposterior_interaction_single(int var1, int var2, const arma::mat& pairwise_effects, const arma::mat& main_effects, const arma::imat& observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const double interaction_scale);
+RcppExport SEXP _bgms_gradient_log_pseudoposterior_interaction_single(SEXP var1SEXP, SEXP var2SEXP, SEXP pairwise_effectsSEXP, SEXP main_effectsSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP interaction_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type var1(var1SEXP);
+    Rcpp::traits::input_parameter< int >::type var2(var2SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_effects(pairwise_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_effects(main_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(gradient_log_pseudoposterior_interaction_single(var1, var2, pairwise_effects, main_effects, observations, num_categories, is_ordinal_variable, reference_category, interaction_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// log_pseudolikelihood_ratio_interaction
+double log_pseudolikelihood_ratio_interaction(const arma::mat& pairwise_effects, const arma::mat& main_effects, const arma::imat& observations, const arma::ivec& num_categories, const int num_persons, const int variable1, const int variable2, const double proposed_state, const double current_state, const arma::mat& residual_matrix, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category);
+RcppExport SEXP _bgms_log_pseudolikelihood_ratio_interaction(SEXP pairwise_effectsSEXP, SEXP main_effectsSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP num_personsSEXP, SEXP variable1SEXP, SEXP variable2SEXP, SEXP proposed_stateSEXP, SEXP current_stateSEXP, SEXP residual_matrixSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_effects(pairwise_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_effects(main_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const int >::type num_persons(num_personsSEXP);
+    Rcpp::traits::input_parameter< const int >::type variable1(variable1SEXP);
+    Rcpp::traits::input_parameter< const int >::type variable2(variable2SEXP);
+    Rcpp::traits::input_parameter< const double >::type proposed_state(proposed_stateSEXP);
+    Rcpp::traits::input_parameter< const double >::type current_state(current_stateSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type residual_matrix(residual_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    rcpp_result_gen = Rcpp::wrap(log_pseudolikelihood_ratio_interaction(pairwise_effects, main_effects, observations, num_categories, num_persons, variable1, variable2, proposed_state, current_state, residual_matrix, is_ordinal_variable, reference_category));
+    return rcpp_result_gen;
+END_RCPP
+}
 // run_gibbs_sampler_for_bgm
-List run_gibbs_sampler_for_bgm(arma::imat& observations, const arma::ivec& num_categories, const double interaction_scale, const String& edge_prior, arma::mat& inclusion_probability, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::imat& interaction_index_matrix, const int iter, const int burnin, arma::imat& num_obs_categories, arma::imat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::imat& missing_index, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const bool save_main, const bool save_pairwise, const bool save_indicator, const bool display_progress, bool edge_selection, const std::string& update_method);
-RcppExport SEXP _bgms_run_gibbs_sampler_for_bgm(SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP edge_priorSEXP, SEXP inclusion_probabilitySEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP interaction_index_matrixSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP update_methodSEXP) {
+List run_gibbs_sampler_for_bgm(arma::imat& observations, const arma::ivec& num_categories, const double interaction_scale, const String& edge_prior, arma::mat& inclusion_probability, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double dirichlet_alpha, const double lambda, const arma::imat& interaction_index_matrix, const int iter, const int burnin, arma::imat& num_obs_categories, arma::imat& sufficient_blume_capel, const double threshold_alpha, const double threshold_beta, const bool na_impute, const arma::imat& missing_index, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category, const bool save_main, const bool save_pairwise, const bool save_indicator, const bool display_progress, bool edge_selection, const std::string& update_method, bool use_marginal_moms);
+RcppExport SEXP _bgms_run_gibbs_sampler_for_bgm(SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP interaction_scaleSEXP, SEXP edge_priorSEXP, SEXP inclusion_probabilitySEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP interaction_index_matrixSEXP, SEXP iterSEXP, SEXP burninSEXP, SEXP num_obs_categoriesSEXP, SEXP sufficient_blume_capelSEXP, SEXP threshold_alphaSEXP, SEXP threshold_betaSEXP, SEXP na_imputeSEXP, SEXP missing_indexSEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP, SEXP save_mainSEXP, SEXP save_pairwiseSEXP, SEXP save_indicatorSEXP, SEXP display_progressSEXP, SEXP edge_selectionSEXP, SEXP update_methodSEXP, SEXP use_marginal_momsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -77,7 +118,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type display_progress(display_progressSEXP);
     Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type update_method(update_methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(run_gibbs_sampler_for_bgm(observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, update_method));
+    Rcpp::traits::input_parameter< bool >::type use_marginal_moms(use_marginal_momsSEXP);
+    rcpp_result_gen = Rcpp::wrap(run_gibbs_sampler_for_bgm(observations, num_categories, interaction_scale, edge_prior, inclusion_probability, beta_bernoulli_alpha, beta_bernoulli_beta, dirichlet_alpha, lambda, interaction_index_matrix, iter, burnin, num_obs_categories, sufficient_blume_capel, threshold_alpha, threshold_beta, na_impute, missing_index, is_ordinal_variable, reference_category, save_main, save_pairwise, save_indicator, display_progress, edge_selection, update_method, use_marginal_moms));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -139,13 +181,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// update_indicator_interaction_pair_with_metropolis_and_marginal_moms
+void update_indicator_interaction_pair_with_metropolis_and_marginal_moms(arma::mat& pairwise_effects, const arma::mat& main_effects, arma::imat& indicator, const arma::imat& observations, const arma::ivec& num_categories, const arma::mat& proposal_sd, const double interaction_scale, const arma::imat& index, const int num_interactions, const int num_persons, arma::mat& residual_matrix, const arma::mat& inclusion_probability, const arma::uvec& is_ordinal_variable, const arma::ivec& reference_category);
+RcppExport SEXP _bgms_update_indicator_interaction_pair_with_metropolis_and_marginal_moms(SEXP pairwise_effectsSEXP, SEXP main_effectsSEXP, SEXP indicatorSEXP, SEXP observationsSEXP, SEXP num_categoriesSEXP, SEXP proposal_sdSEXP, SEXP interaction_scaleSEXP, SEXP indexSEXP, SEXP num_interactionsSEXP, SEXP num_personsSEXP, SEXP residual_matrixSEXP, SEXP inclusion_probabilitySEXP, SEXP is_ordinal_variableSEXP, SEXP reference_categorySEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type pairwise_effects(pairwise_effectsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type main_effects(main_effectsSEXP);
+    Rcpp::traits::input_parameter< arma::imat& >::type indicator(indicatorSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type proposal_sd(proposal_sdSEXP);
+    Rcpp::traits::input_parameter< const double >::type interaction_scale(interaction_scaleSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type index(indexSEXP);
+    Rcpp::traits::input_parameter< const int >::type num_interactions(num_interactionsSEXP);
+    Rcpp::traits::input_parameter< const int >::type num_persons(num_personsSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type residual_matrix(residual_matrixSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type inclusion_probability(inclusion_probabilitySEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type reference_category(reference_categorySEXP);
+    update_indicator_interaction_pair_with_metropolis_and_marginal_moms(pairwise_effects, main_effects, indicator, observations, num_categories, proposal_sd, interaction_scale, index, num_interactions, num_persons, residual_matrix, inclusion_probability, is_ordinal_variable, reference_category);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_omrf_gibbs", (DL_FUNC) &_bgms_sample_omrf_gibbs, 6},
     {"_bgms_sample_bcomrf_gibbs", (DL_FUNC) &_bgms_sample_bcomrf_gibbs, 8},
-    {"_bgms_run_gibbs_sampler_for_bgm", (DL_FUNC) &_bgms_run_gibbs_sampler_for_bgm, 26},
+    {"_bgms_gradient_log_pseudoposterior_interaction_single", (DL_FUNC) &_bgms_gradient_log_pseudoposterior_interaction_single, 9},
+    {"_bgms_log_pseudolikelihood_ratio_interaction", (DL_FUNC) &_bgms_log_pseudolikelihood_ratio_interaction, 12},
+    {"_bgms_run_gibbs_sampler_for_bgm", (DL_FUNC) &_bgms_run_gibbs_sampler_for_bgm, 27},
     {"_bgms_compare_anova_gibbs_sampler", (DL_FUNC) &_bgms_compare_anova_gibbs_sampler, 34},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
+    {"_bgms_update_indicator_interaction_pair_with_metropolis_and_marginal_moms", (DL_FUNC) &_bgms_update_indicator_interaction_pair_with_metropolis_and_marginal_moms, 14},
     {NULL, NULL, 0}
 };
 
