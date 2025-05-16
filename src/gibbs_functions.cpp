@@ -832,16 +832,11 @@ inline void update_fisher_preconditioner (
  * The step size is trace-scaled to match the average proposal magnitude across
  * dimensions, following Proposition 1 from Titsias (2023).
  *
- * If the proposal is accepted, the main_effects matrix is updated in-place and
- * the gradient cache for the interaction update is invalidated by setting
- * `gradient_valid = false`.
- *
  * Modifies:
  *  - main_effects
  *  - step_size
  *  - dual_averaging_state
  *  - sqrt_inv_fisher
- *  - gradient_valid
  */
 void update_thresholds_with_fisher_mala (
     arma::mat& main_effects,
@@ -858,8 +853,7 @@ void update_thresholds_with_fisher_mala (
     arma::mat& sqrt_inv_fisher,
     const double threshold_alpha,
     const double threshold_beta,
-    const double initial_step_size,
-    bool& gradient_valid
+    const double initial_step_size
 ) {
   // --- Compute current parameter vector and its gradient ---
   const arma::vec current_state = vectorize_thresholds (
@@ -938,7 +932,6 @@ void update_thresholds_with_fisher_mala (
   // --- Accept or reject proposed move ---
   if (std::log (R::unif_rand()) < log_accept) {
     main_effects = proposed_main_effects;
-    gradient_valid = false;
   }
 
   // --- Update step size and Fisher matrix ---
@@ -2258,8 +2251,6 @@ void update_indicator_interaction_pair_with_mala (
  *  - total_burnin: Total burn-in length.
  *  - dual_averaging_state: Dual averaging parameters (updated during burn-in).
  *  - sqrt_inv_fisher_pairwise: Square root of inverse Fisher information matrix (updated post-burn-in).
- *  - cached_interaction_gradient: Cached gradient vector (read/write).
- *  - gradient_valid: Flag indicating whether the cached gradient is valid (updated in-place).
  *
  * Modifies:
  *  - pairwise_effects (on accept)
@@ -2285,9 +2276,7 @@ void update_interactions_with_fisher_mala (
     const int iteration,
     const int total_burnin,
     arma::vec& dual_averaging_state,
-    arma::mat& sqrt_inv_fisher_pairwise,
-    arma::vec& cached_interaction_gradient,
-    bool& gradient_valid
+    arma::mat& sqrt_inv_fisher_pairwise
 ) {
   const int num_variables = pairwise_effects.n_rows;
   const int num_interactions = (num_variables * (num_variables - 1)) / 2;
@@ -2305,16 +2294,12 @@ void update_interactions_with_fisher_mala (
   }
 
   // --- Compute gradient and log-posterior at current state
-  arma::vec current_grad;
-  if (gradient_valid && cached_interaction_gradient.n_elem == num_interactions) {
-    current_grad = cached_interaction_gradient;
-  } else {
-    current_grad = gradient_log_pseudoposterior_interactions(
+  arma::vec current_grad = gradient_log_pseudoposterior_interactions(
       pairwise_effects, main_effects, observations, num_categories,
       inclusion_indicator, is_ordinal_variable, reference_category,
       interaction_scale
     );
-  }
+
 
   double current_log_post = log_pseudoposterior_interactions (
     pairwise_effects, main_effects, observations, num_categories,
@@ -2398,13 +2383,6 @@ void update_interactions_with_fisher_mala (
         }
       }
     }
-    cached_interaction_gradient = proposed_grad;
-    gradient_valid = true;
-  } else {
-    if(!gradient_valid) {
-      cached_interaction_gradient = current_grad;
-      gradient_valid = true;
-    }
   }
 
   // --- Step size and Fisher adaptation
@@ -2470,15 +2448,11 @@ void update_interactions_with_fisher_mala (
  *  - num_pairwise: Total number of candidate interactions.
  *  - iteration: Current MCMC iteration.
  *  - total_burnin: Number of warm-up iterations.
- *  - cached_interaction_gradient: Gradient vector reused across proposals (updated in-place).
- *  - gradient_valid: Flag indicating whether the gradient cache is valid (set true on exit).
  *
  * Modifies:
  *  - indicator
  *  - pairwise_effects (on accept)
  *  - residual_matrix (on accept)
- *  - cached_interaction_gradient (entry-by-entry if accepted)
- *  - gradient_valid (set to true)
  */
 void update_indicator_interaction_pair_with_fisher_mala (
     arma::mat& pairwise_effects,
@@ -2497,9 +2471,7 @@ void update_indicator_interaction_pair_with_fisher_mala (
     const arma::mat& sqrt_inv_fisher_pairwise,
     const int num_pairwise,
     const int iteration,
-    const int total_burnin,
-    arma::vec& cached_interaction_gradient,
-    bool& gradient_valid
+    const int total_burnin
 ) {
   // --- Set inverse Fisher matrix (identity during burn-in)
   arma::mat inv_fisher;
@@ -2514,18 +2486,6 @@ void update_indicator_interaction_pair_with_fisher_mala (
   const double scaled_step_size = step_size_pairwise / (trace_inv_fisher / num_pairwise);
   const double sd = std::sqrt(scaled_step_size);
 
-  // --- Compute full gradient at current state (used in proposals)
-  arma::vec full_grad_current;
-  if (gradient_valid && cached_interaction_gradient.n_elem == num_pairwise) {
-    full_grad_current = cached_interaction_gradient;
-  } else {
-    full_grad_current = gradient_log_pseudoposterior_interactions(
-      pairwise_effects, main_effects, observations, num_categories,
-      indicator, is_ordinal_variable, reference_category,
-      interaction_scale
-    );
-  }
-
   for (int pair_index = 0; pair_index < num_pairwise; pair_index++) {
     const int interaction_index  = index(pair_index, 0) - 1;
     const int var1 = index(pair_index, 1);
@@ -2539,7 +2499,15 @@ void update_indicator_interaction_pair_with_fisher_mala (
 
     const arma::rowvec fisher_row = inv_fisher.row(interaction_index);
 
+
+
     if (proposing_addition) {
+      // --- Compute full gradient at current state (used in proposals)
+      arma::vec full_grad_current = gradient_log_pseudoposterior_interactions(
+        pairwise_effects, main_effects, observations, num_categories,
+        indicator, is_ordinal_variable, reference_category,
+        interaction_scale
+      );
       // --- Propose new interaction using preconditioned Langevin step
       const double drift = 0.5 * scaled_step_size * arma::dot(fisher_row, full_grad_current);
       const double forward_mean = current_state + drift;
@@ -2559,10 +2527,10 @@ void update_indicator_interaction_pair_with_fisher_mala (
       proposed_matrix(var2, var1) = proposed_state;
 
       // Update only the relevant gradient component
-      arma::vec proposed_grad = full_grad_current;  // copy
-      proposed_grad(interaction_index) = gradient_log_pseudoposterior_interaction_single (
-        var1, var2, proposed_matrix, main_effects, observations, num_categories,
-        is_ordinal_variable, reference_category, interaction_scale
+      arma::vec proposed_grad = gradient_log_pseudoposterior_interactions(
+        proposed_matrix, main_effects, observations, num_categories,
+        indicator, is_ordinal_variable, reference_category,
+        interaction_scale
       );
 
       const double drift = 0.5 * scaled_step_size * arma::dot(fisher_row, proposed_grad);
@@ -2593,22 +2561,8 @@ void update_indicator_interaction_pair_with_fisher_mala (
       // --- Update residual matrix
       residual_matrix.col(var1) += arma::conv_to<arma::vec>::from(observations.col(var2)) * delta;
       residual_matrix.col(var2) += arma::conv_to<arma::vec>::from(observations.col(var1)) * delta;
-
-      // --- Maintain gradient consistency
-      if(new_value == 1) {
-        full_grad_current(interaction_index) = gradient_log_pseudoposterior_interaction_single (
-          var1, var2, pairwise_effects, main_effects, observations, num_categories,
-          is_ordinal_variable, reference_category, interaction_scale
-        );
-      } else {
-        full_grad_current(interaction_index) = 0.0;
-      }
     }
   }
-
-  //Updated cached gradient
-  cached_interaction_gradient = full_grad_current;
-  gradient_valid = true;
 }
 
 
@@ -2708,10 +2662,7 @@ void gibbs_update_step_for_graphical_model_parameters (
     arma::vec& dual_averaging_pairwise,
     const double initial_step_size_pairwise,
     arma::mat& sqrt_inv_fisher_pairwise,
-    const std::string& update_method,
-    arma::vec& cached_interaction_gradient,
-    bool& gradient_valid,
-    arma::vec& posterior_prob
+    const std::string& update_method
 ) {
   // --- Robbins-Monro weight for adaptive Metropolis updates
   const double exp_neg_log_t_rm_adaptation_rate =
@@ -2726,7 +2677,7 @@ void gibbs_update_step_for_graphical_model_parameters (
           num_categories, step_size_pairwise, interaction_scale, index,
           num_persons, residual_matrix, inclusion_probability, is_ordinal_variable,
           reference_category, sqrt_inv_fisher_pairwise, num_pairwise,
-          iteration, total_burnin, cached_interaction_gradient, gradient_valid
+          iteration, total_burnin
       );
     } else if (update_method == "adaptive-mala") {
       // Use standard MALA for indicator updates
@@ -2754,8 +2705,7 @@ void gibbs_update_step_for_graphical_model_parameters (
         num_categories, inclusion_indicator, is_ordinal_variable,
         reference_category, interaction_scale, step_size_pairwise,
         initial_step_size_pairwise, iteration, total_burnin,
-        dual_averaging_pairwise, sqrt_inv_fisher_pairwise,
-        cached_interaction_gradient, gradient_valid
+        dual_averaging_pairwise, sqrt_inv_fisher_pairwise
     );
   } else if (update_method == "adaptive-mala") {
     update_interactions_with_mala (
@@ -2783,7 +2733,7 @@ void gibbs_update_step_for_graphical_model_parameters (
         num_obs_categories, sufficient_blume_capel, reference_category,
         is_ordinal_variable, iteration, total_burnin, dual_averaging_main,
         sqrt_inv_fisher_main, threshold_alpha, threshold_beta,
-        initial_step_size_main, gradient_valid
+        initial_step_size_main
     );
   } else {
     // Metropolis updates (Blume-Capel or ordinal)
@@ -2990,8 +2940,6 @@ List run_gibbs_sampler_for_bgm (
     dual_averaging_main[0] = std::log (step_size_main);
     dual_averaging_pairwise[0] = std::log (step_size_pairwise);
   }
-  arma::vec cached_interaction_gradient;  // will hold a cached gradient vector
-  bool gradient_valid = false;            // indicates whether the cache is valid
   arma::vec posterior_prob(num_pairwise);
 
   // --- Set up total number of iterations (burn-in + sampling)
@@ -3041,8 +2989,7 @@ List run_gibbs_sampler_for_bgm (
         reference_category, edge_selection, step_size_main, iteration,
         dual_averaging_main, total_burnin, initial_step_size_main,
         sqrt_inv_fisher_main, step_size_pairwise, dual_averaging_pairwise,
-        initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method,
-        cached_interaction_gradient, gradient_valid, posterior_prob
+        initial_step_size_pairwise, sqrt_inv_fisher_pairwise, update_method
     );
 
     // --- Update edge probabilities under the prior (if edge selection is active)
