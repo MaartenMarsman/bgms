@@ -1,5 +1,4 @@
 #include <RcppArmadillo.h>
-
 #include <Rcpp.h>
 using namespace Rcpp;
 
@@ -25,36 +24,6 @@ arma::uvec table_cpp(arma::uvec x) {
   return counts;
 }
 
-// ----------------------------------------------------------------------------|
-// Remove row i and column i from a matrix
-// ----------------------------------------------------------------------------|
-arma::mat remove_row_col_matrix(arma::mat X, arma::uword i) {
-  arma::uword n = X.n_rows;
-
-  // Handle special case of matrix with only two rows and columns
-  if (n == 2) {
-    if(i == 0) {
-      X = X(arma::span(1, 1), arma::span(1, 1));
-    } else {
-      X = X(arma::span(0, 0), arma::span(0, 0));
-    }
-    return X;
-  }
-
-  // Remove row i
-  for (arma::uword j = i; j < n - 1; j++) {
-    X.row(j) = X(j+1);  // Shift all rows below i up by one
-  }
-  X = X.rows(arma::span(0, n - 2));  // Remove last row
-
-  // Remove column i
-  for (arma::uword j = i; j < n - 1; j++) {
-    X.col(j) = X.col(j+1);  // Shift all columns right of i to the left by one
-  }
-  X = X.cols(arma::span(0,n-2));  // Remove last column
-
-  return X;
-}
 
 // ----------------------------------------------------------------------------|
 // Add a row and column to a matrix (and fill with beta variables)
@@ -236,10 +205,10 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
   double logmarg;
 
   // Generate a randomized order using Rcpp's sample function
-  arma::ivec indices = Rcpp::sample(no_variables, no_variables);
+  arma::uvec indices = arma::randperm(no_variables); //arma::randperm() Generate a vector with a random permutation of integers from 0 to no_variables-1 
 
-  for (arma::uword idx = 0; idx < no_variables; ++idx) {
-    arma::uword node = indices(idx) - 1; // Convert to zero-based index
+  for (arma::uword idx = 0; idx < no_variables; idx++) {
+    arma::uword node = indices(idx); 
     old = cluster_assign(node);
 
     arma::uvec cluster_size = table_cpp(cluster_assign);
@@ -250,15 +219,15 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
 
       // Cluster sizes without node
       arma::uvec cluster_size_node = cluster_size;
-      cluster_size_node(old) -= (1 + dirichlet_alpha);
 
       // Compute probabilities for sampling process
-      arma::vec cluster_prob(no_clusters + 1);
-      for (arma::uword c = 0; c <= no_clusters; c++) {
+      arma::vec cluster_prob(no_clusters + 1); 
+      for (arma::uword c = 0; c <= no_clusters; c++) { 
         arma::uvec cluster_assign_tmp = cluster_assign;
         cluster_assign_tmp(node) = c;
 
-        if (c < no_clusters) {
+        if (c < no_clusters) { 
+          if(c != old){
           loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
                                            block_probs,
                                            indicator,
@@ -267,6 +236,11 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
 
           prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
             std::exp(loglike);
+          }
+          else{ // if old group, the probability is set to 0.0
+            prob = 0.0;
+          }
+          
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
                                          indicator,
@@ -283,21 +257,22 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
         cluster_prob(c) = prob;
       }
 
-
       //Choose the cluster number for node
       cluster = sample_cluster(cluster_prob);
 
-      // Remove the empty cluster
+      //if the sampled cluster is the new added cluster or the old one 
       if (cluster == no_clusters) {
-        cluster_assign(node) = old;
-      } else {
+        cluster_assign(node) = old; // new cluster takes the place of the older singleton but doesn't update probabilities, they are kept the same as the old ones
+      } else { // otherwise remove old (singleton) empty cluster, redefine cluster_assign and block_probs
         cluster_assign(node) = cluster;
         for (arma::uword i = 0; i < no_variables; i++) {
           if (cluster_assign(i) > old) {
             cluster_assign(i) -= 1;
           }
         }
-        block_probs = remove_row_col_matrix(block_probs, old);
+        // removing row and col index 'old' from block_probs
+        block_probs.shed_row(old);
+        block_probs.shed_col(old); 
       }
     } else {
       // Cluster sizes without node
@@ -309,7 +284,6 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
       for (arma::uword c = 0; c <= no_clusters; c++) {
         arma::uvec cluster_assign_tmp = cluster_assign;
         cluster_assign_tmp(node) = c;
-
         if (c < no_clusters) {
           loglike = log_likelihood_mfm_sbm(cluster_assign_tmp,
                                            block_probs,
@@ -329,7 +303,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
 
           prob = static_cast<double>(dirichlet_alpha) *
             std::exp(logmarg) *
-            std::exp(log_Vn(no_clusters) - log_Vn(no_clusters - 1));
+            std::exp(log_Vn(no_clusters) - log_Vn(no_clusters-1));
         }
 
         cluster_prob(c) = prob;
