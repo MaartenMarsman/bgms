@@ -2905,11 +2905,11 @@ List run_gibbs_sampler_for_bgm (
   const int num_main = count_num_main_effects(num_categories, is_ordinal_variable);
   arma::mat* main_effect_samples = nullptr;
   arma::mat* pairwise_effect_samples = nullptr;
-  arma::mat* indicator_samples = nullptr;
+  arma::imat* indicator_samples = nullptr;
 
   if (save_main) main_effect_samples = new arma::mat(iter, num_main);
   if (save_pairwise) pairwise_effect_samples = new arma::mat(iter, num_pairwise);
-  if (save_indicator) indicator_samples = new arma::mat(iter, num_pairwise);
+  if (save_indicator) indicator_samples = new arma::imat(iter, num_pairwise);
 
   // Initialize proposal SDs and MALA tracking
   arma::mat proposal_sd_main(num_main, 2, arma::fill::ones);
@@ -3112,11 +3112,11 @@ List run_gibbs_sampler_for_bgm (
       }
 
       if (save_indicator) {
-        //arma::ivec vectorized_indicator(num_pairwise);
-        //for (int i = 0; i < num_pairwise; i++) {
-        //  vectorized_indicator(i) = inclusion_indicator(interaction_index_matrix(i, 1), interaction_index_matrix(i, 2));
-        //}
-        indicator_samples->row(sample_index) = posterior_prob.t();//vectorized_indicator.t();
+        arma::ivec vectorized_indicator(num_pairwise);
+        for (int i = 0; i < num_pairwise; i++) {
+          vectorized_indicator(i) = inclusion_indicator(interaction_index_matrix(i, 1), interaction_index_matrix(i, 2));
+        }
+        indicator_samples->row(sample_index) = vectorized_indicator.t();
       }
 
       if (edge_prior == "Stochastic-Block") {
