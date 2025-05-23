@@ -1,5 +1,4 @@
 #define ARMA_NO_DEBUG
-
 #include <RcppArmadillo.h>
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
