@@ -1,7 +1,5 @@
-// [[Rcpp::depends(RcppArmadillo)]]
+#define ARMA_NO_DEBUG
 #include <RcppArmadillo.h>
-
-// [[Rcpp::depends(RcppProgress)]]
 #include <Rcpp.h>
 #include "gibbs_functions_edge_prior.h"
 #include <progress.hpp>
