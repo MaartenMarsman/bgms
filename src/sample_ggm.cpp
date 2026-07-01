@@ -77,13 +77,28 @@ Rcpp::List sample_ggm(
     //     between-model MH proposal SDs, which are still 1-D componentwise
     //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
     //     fixed point.
-    const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
+    //   - Under "gibbs": the within-step draw is exact (no MH tuning); the
+    //     target is inert, so use the same 0.44 fixed point.
+    const double mh_target =
+        (sampler_type == "adaptive-metropolis") ? target_acceptance : 0.44;
     model.set_metropolis_target_accept(mh_target);
 
     // Determinant-tilt prior on |K|: shifts both NUTS and MH targets by
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // The row-block Gibbs sampler is exact only in the conjugate prior scope
+    // (Normal slab, Gamma(shape = 1) on the precision diagonal, delta = 0).
+    // Fail fast with a clear message rather than let update_row_block_gibbs
+    // cast a mismatched prior.
+    if (sampler_type == "gibbs" && !model.row_block_gibbs_eligible()) {
+        Rcpp::stop(
+            "update_method = \"gibbs\" needs a Normal interaction (slab) prior, "
+            "a Gamma(shape = 1) scale prior on the precision diagonal, and "
+            "delta = 0. The current priors do not meet this; use another "
+            "update method or adjust the priors.");
+    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

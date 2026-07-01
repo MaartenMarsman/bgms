@@ -105,8 +105,25 @@ validate_sampler = function(update_method,
   # --- update_method ----------------------------------------------------------
   update_method = match.arg(
     update_method,
-    choices = c("nuts", "adaptive-metropolis")
+    choices = c("nuts", "adaptive-metropolis", "gibbs")
   )
+
+  # "gibbs" is the exact conjugate row-block Gibbs sampler for the Gaussian
+  # graphical model only, and only on a fixed graph (no edge selection).
+  if(update_method == "gibbs") {
+    if(!is_continuous) {
+      stop(
+        "update_method = \"gibbs\" is available only for the Gaussian ",
+        "graphical model (all-continuous data)."
+      )
+    }
+    if(edge_selection) {
+      stop(
+        "update_method = \"gibbs\" requires a fixed graph; set ",
+        "edge_selection = FALSE (edge-selection support is not yet available)."
+      )
+    }
+  }
 
   # --- target_accept ----------------------------------------------------------
   if(!is.null(target_accept)) {
@@ -115,7 +132,10 @@ validate_sampler = function(update_method,
   } else {
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
-      "nuts"                = 0.80
+      "nuts"                = 0.80,
+      # Exact draw: no acceptance target. Kept numeric (0.44, inert) so the
+      # downstream numeric contract holds; unused by the Gibbs path.
+      "gibbs"               = 0.44
     )
   }
 
