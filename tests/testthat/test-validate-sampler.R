@@ -6,7 +6,7 @@
 # Helper: minimal valid call with sensible defaults
 vs = function(...) {
   defaults = list(
-    update_method     = c("nuts", "adaptive-metropolis"),
+    update_method     = c("nuts", "adaptive-metropolis", "gibbs"),
     target_accept     = NULL,
     iter              = 1000L,
     warmup            = 250L,
@@ -65,6 +65,18 @@ test_that("GGM + explicit 'adaptive-metropolis' OK", {
 test_that("GGM + explicit 'nuts' OK", {
   res = vs(is_continuous = TRUE, update_method = "nuts")
   expect_equal(res$update_method, "nuts")
+})
+
+test_that("GGM + explicit 'gibbs' OK", {
+  res = vs(is_continuous = TRUE, update_method = "gibbs")
+  expect_equal(res$update_method, "gibbs")
+})
+
+test_that("gibbs is rejected for non-continuous data", {
+  expect_error(
+    vs(is_continuous = FALSE, update_method = "gibbs"),
+    "available only for the Gaussian"
+  )
 })
 
 
