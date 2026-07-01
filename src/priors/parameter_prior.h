@@ -83,6 +83,9 @@ public:
         return std::make_unique<CauchyPrior>(*this);
     }
 
+    /** @return the slab scale. */
+    double scale() const { return scale_; }
+
 private:
     double scale_;
 };

@@ -99,6 +99,7 @@ public:
         cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
+        omega_(arma::ones<arma::mat>(p_, p_)),
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
@@ -130,6 +131,7 @@ public:
           cholesky_of_precision_(other.cholesky_of_precision_),
           inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
           covariance_matrix_(other.covariance_matrix_),
+          omega_(other.omega_),
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
@@ -460,6 +462,11 @@ private:
     /// Precision matrix Omega, its Cholesky factor R (Omega = R'R),
     /// inverse Cholesky factor, and covariance matrix.
     arma::mat precision_matrix_, cholesky_of_precision_, inv_cholesky_of_precision_, covariance_matrix_;
+    /// Per-edge scale-mixture weight for the Cauchy slab: K_yy_ij | omega_ij ~
+    /// N(0, sigma^2 omega_ij), omega_ij ~ InvGamma(1/2, 1/2). Fixed at 1 for a
+    /// Normal slab (the mixture collapses to the plain Normal). Used only by
+    /// the row-block Gibbs within-step.
+    arma::mat omega_;
     /// Current edge-indicator matrix (p x p, symmetric, 0/1).
     arma::imat edge_indicators_;
     /// Pre-allocated storage returned by get_vectorized_parameters().
@@ -549,10 +556,16 @@ private:
      * K_yy_ij = -K_ij/2 and Gamma(alpha = 1, beta0) prior on K_ii/2, the
      * conditional (beta, xi = kii - beta^T C beta) is conjugate:
      *
-     *   xi   | rest ~ Gamma(n/2 + 1, (beta0 + S_ii)/2)
+     *   xi   | rest ~ Gamma(n/2 + delta + 1, (beta0 + S_ii)/2)
      *   beta | rest ~ N(-M^{-1} S_{N_i, i}, M^{-1}),
-     *     M = (beta0 + S_ii) C + (1/(4 sigma^2)) I,
+     *     M = (beta0 + S_ii) C + diag(1/(4 sigma^2 omega_k)),
      *     C = (A^{-1})_{N_i, N_i} = Sigma_{N_i, N_i} - Sigma_{N_i, i} Sigma_{i, N_i}/Sigma_ii.
+     *
+     * The determinant tilt delta enters as a shift in the xi Gamma shape. A
+     * Gamma shape alpha != 1 on the diagonal is handled by an independent-MH
+     * accept on (kii_new/kii_old)^(alpha-1) around the alpha = 1 proposal. A
+     * Cauchy slab enters through the scale-mixture weights omega_k (fixed at 1
+     * for a Normal slab), refreshed per sweep by do_one_gibbs_step().
      *
      * Precondition: row_block_gibbs_eligible() == true; covariance_matrix_
      * holds K^{-1} up to date with precision_matrix_.
@@ -560,6 +573,20 @@ private:
      * @param i  Row index.
      */
     void update_row_block_gibbs(size_t i);
+
+    /** @return the slab scale sigma on K_yy (Normal or Cauchy interaction prior). */
+    double slab_scale_() const;
+
+    /** @return true when the interaction (slab) prior is Cauchy. */
+    bool slab_is_cauchy_() const;
+
+    /**
+     * Refresh the Cauchy scale-mixture weights omega_ from the current K.
+     * With all of K held fixed, each active edge weight is a closed-form draw
+     *   omega_ij | K ~ InvGamma(1, 1/2 + K_yy_ij^2 / (2 sigma^2)),
+     * K_yy_ij = -K_ij/2. No-op for a Normal slab.
+     */
+    void refresh_cauchy_omega_();
 
     /**
      * Propose a new diagonal precision entry on the log scale.

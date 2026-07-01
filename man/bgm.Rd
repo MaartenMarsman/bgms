@@ -164,9 +164,8 @@ the precision matrix positive-definite; the mixed model uses RATTLE
 constrained integration when excluded edges impose constraints.}
 \item{"gibbs"}{An exact Gibbs sampler for the Gaussian graphical model.
 Available only for all-continuous data on a fixed graph
-(\code{edge_selection = FALSE}) with a Normal (slab) interaction prior,
-a Gamma(shape = 1) scale prior on the precision diagonal, and
-\code{delta = 0}.}
+(\code{edge_selection = FALSE}) with a Normal or Cauchy (slab)
+interaction prior and a Gamma scale prior on the precision diagonal.}
 }
 Default: \code{"nuts"}.}
 

@@ -352,14 +352,8 @@ bgm_spec = function(x,
   # where p is the dimension of the continuous precision matrix. For models
   # without a continuous block (omrf, compare) the tilt has no target, so
   # NULL resolves to 0.
-  # The exact conjugate Gibbs sampler is defined only at delta = 0, so the
-  # tilt defaults off for "gibbs" (and an explicit positive delta is rejected
-  # below).
-  um = match.arg(update_method, c("nuts", "adaptive-metropolis", "gibbs"))
   if(is.null(delta)) {
-    delta = if(um == "gibbs") {
-      0
-    } else if(model_type == "ggm") {
+    delta = if(model_type == "ggm") {
       0.5 * log(max(num_variables, 1))
     } else if(model_type == "mixed_mrf") {
       0.5 * log(max(sum(!is_ordinal), 1))
@@ -372,12 +366,6 @@ bgm_spec = function(x,
   if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
     !is.finite(delta) || delta < 0) {
     stop("'delta' must be a single finite non-negative numeric, or NULL.")
-  }
-  if(um == "gibbs" && delta > 0) {
-    stop(
-      "update_method = \"gibbs\" requires delta = 0. The Gibbs sampler does ",
-      "not support a determinant tilt; set delta = 0 or use another method."
-    )
   }
   if(delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(

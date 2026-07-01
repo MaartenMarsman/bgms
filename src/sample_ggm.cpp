@@ -88,16 +88,16 @@ Rcpp::List sample_ggm(
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
 
-    // The row-block Gibbs sampler is exact only in the conjugate prior scope
-    // (Normal slab, Gamma(shape = 1) on the precision diagonal, delta = 0).
-    // Fail fast with a clear message rather than let update_row_block_gibbs
-    // cast a mismatched prior.
+    // The row-block Gibbs sampler covers a Normal or Cauchy slab on the
+    // off-diagonals and a Gamma prior on the precision diagonal. Fail fast
+    // with a clear message rather than let update_row_block_gibbs cast a
+    // mismatched prior.
     if (sampler_type == "gibbs" && !model.row_block_gibbs_eligible()) {
         Rcpp::stop(
-            "update_method = \"gibbs\" needs a Normal interaction (slab) prior, "
-            "a Gamma(shape = 1) scale prior on the precision diagonal, and "
-            "delta = 0. The current priors do not meet this; use another "
-            "update method or adjust the priors.");
+            "update_method = \"gibbs\" needs a Normal or Cauchy interaction "
+            "(slab) prior and a Gamma scale prior on the precision diagonal. "
+            "The current priors do not meet this; use another update method "
+            "or adjust the priors.");
     }
 
     // Set up missing data imputation (same pattern as OMRF)
