@@ -199,11 +199,11 @@ public:
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     /**
-     * @return true iff the conjugate row-block Gibbs within-step is exact:
-     * Normal slab on K_yy off-diagonals, Gamma(alpha = 1, .) on K_ii/2, and
-     * determinant tilt delta == 0. Other prior families (or alpha != 1,
-     * delta != 0) need the post-step correction extensions ported later and
-     * return false here for now.
+     * @return true iff the row-block Gibbs within-step supports the current
+     * priors: a Normal or Cauchy slab on the K_yy off-diagonals and a Gamma
+     * prior on K_ii/2. The Gamma shape (alpha != 1) and the determinant tilt
+     * (delta != 0) do NOT gate eligibility -- they are handled by the
+     * independent-MH correction and the xi Gamma-shape shift, respectively.
      */
     bool row_block_gibbs_eligible();
 

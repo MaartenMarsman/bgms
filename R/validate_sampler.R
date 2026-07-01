@@ -109,9 +109,10 @@ validate_sampler = function(update_method,
   )
 
   # "gibbs" is the conjugate row-block Gibbs sampler for the Gaussian graphical
-  # model only. With edge selection it keeps the Roverato between-step (the
-  # Cauchy slab is not yet supported there; that is checked in C++, where the
-  # slab type is known).
+  # model only. With edge selection it adds or removes edges with a
+  # full-conditional birth/death step, for both the Normal and Cauchy slabs.
+  # The slab type is not gated here; the C++ side checks that the priors are
+  # supported (a Normal or Cauchy slab with a Gamma diagonal).
   if(update_method == "gibbs" && !is_continuous) {
     stop(
       "update_method = \"gibbs\" is available only for the Gaussian ",
