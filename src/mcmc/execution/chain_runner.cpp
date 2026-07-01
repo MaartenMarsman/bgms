@@ -4,6 +4,7 @@
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
+#include "mcmc/samplers/gibbs_sampler.h"
 
 
 namespace {
@@ -29,6 +30,8 @@ SamplerSpec resolve_sampler_spec(const std::string& sampler_type) {
         return SamplerSpec{SamplerKind::NUTS, /*learn_sd=*/true, /*nuts_diag=*/true, /*am_diag=*/false};
     } else if (sampler_type == "adaptive-metropolis") {
         return SamplerSpec{SamplerKind::AdaptiveMetropolis, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/true};
+    } else if (sampler_type == "gibbs") {
+        return SamplerSpec{SamplerKind::Gibbs, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/false};
     } else {
         Rcpp::stop("Unknown sampler_type: '%s'", sampler_type.c_str());
     }
@@ -40,6 +43,8 @@ std::unique_ptr<SamplerBase> create_sampler(SamplerKind kind, const SamplerConfi
             return std::make_unique<NUTSSampler>(config, schedule);
         case SamplerKind::AdaptiveMetropolis:
             return std::make_unique<MetropolisSampler>(config, schedule);
+        case SamplerKind::Gibbs:
+            return std::make_unique<GibbsSampler>(config, schedule);
     }
     Rcpp::stop("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
 }

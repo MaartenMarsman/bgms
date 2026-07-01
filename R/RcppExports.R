@@ -17,6 +17,10 @@ rcpp_ieee754_log <- function(x) {
     .Call(`_bgms_rcpp_ieee754_log`, x)
 }
 
+ggm_test_gibbs_sweep <- function(suf_stat, n, edge_indicators, pairwise_scale, gamma_shape, gamma_rate, n_sweeps, seed) {
+    .Call(`_bgms_ggm_test_gibbs_sweep`, suf_stat, n, edge_indicators, pairwise_scale, gamma_shape, gamma_rate, n_sweeps, seed)
+}
+
 ggm_test_logp_and_gradient <- function(theta, suf_stat, n, edge_indicators, pairwise_scale) {
     .Call(`_bgms_ggm_test_logp_and_gradient`, theta, suf_stat, n, edge_indicators, pairwise_scale)
 }

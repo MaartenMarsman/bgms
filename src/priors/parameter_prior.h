@@ -118,6 +118,9 @@ public:
         return std::make_unique<NormalPrior>(*this);
     }
 
+    /** @return the slab standard deviation. */
+    double scale() const { return scale_; }
+
 private:
     double scale_;
 };
@@ -177,6 +180,11 @@ public:
     std::unique_ptr<BaseParameterPrior> clone() const override {
         return std::make_unique<GammaScalePrior>(*this);
     }
+
+    /** @return the Gamma shape parameter. */
+    double shape() const { return shape_; }
+    /** @return the Gamma rate parameter. */
+    double rate() const { return rate_; }
 
 private:
     double shape_;

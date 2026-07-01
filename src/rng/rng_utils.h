@@ -29,6 +29,7 @@
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/exponential_distribution.hpp>
 #include <boost/random/beta_distribution.hpp>
+#include <boost/random/gamma_distribution.hpp>
 
 // [[Rcpp::depends(dqrng, BH)]]
 
@@ -116,6 +117,17 @@ inline double rbeta(SafeRNG& rng, double a, double b) {
  */
 inline double rexp(SafeRNG& rng, double lambda) {
   return boost::random::exponential_distribution<double>(lambda)(rng.eng);
+}
+
+/**
+ * Draw from Gamma(shape, rate).
+ * @param rng    Random number generator
+ * @param shape  Shape parameter (alpha)
+ * @param rate   Rate parameter (beta); mean = shape / rate
+ * @return A gamma-distributed variate. boost parameterizes by scale = 1/rate.
+ */
+inline double rgamma(SafeRNG& rng, double shape, double rate) {
+  return boost::random::gamma_distribution<double>(shape, 1.0 / rate)(rng.eng);
 }
 
 // ============================================================

@@ -197,6 +197,15 @@ public:
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
 
     /**
+     * @return true iff the conjugate row-block Gibbs within-step is exact:
+     * Normal slab on K_yy off-diagonals, Gamma(alpha = 1, .) on K_ii/2, and
+     * determinant tilt delta == 0. Other prior families (or alpha != 1,
+     * delta != 0) need the post-step correction extensions ported later and
+     * return false here for now.
+     */
+    bool row_block_gibbs_eligible();
+
+    /**
      * Set the determinant-tilt exponent delta. Adds delta * log|K| to the
      * log-prior, pushing the chain away from the PD-cone boundary. delta = 0
      * (default) recovers the untilted target. Currently consumed only by
@@ -263,6 +272,21 @@ public:
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
     void do_one_metropolis_step(int iteration = -1) override;
+
+    /**
+     * Perform one full row-block Gibbs sweep.
+     *
+     * Iterates over rows i = 0..p-1, drawing each column of K from its exact
+     * conjugate full-conditional via update_row_block_gibbs(i). No proposal
+     * adaptation (the draw is exact); edge-indicator add-delete moves are
+     * handled separately in update_edge_indicators().
+     *
+     * Precondition: row_block_gibbs_eligible() == true.
+     *
+     * @param iteration  Current iteration index (unused; kept for interface
+     *                   symmetry with do_one_metropolis_step).
+     */
+    void do_one_gibbs_step(int iteration = -1) override;
 
     /**
      * @return Active theta dimension: p + |E| (diagonals + included edges).
@@ -344,6 +368,11 @@ public:
     /** @return Mutable reference to the prior inclusion-probability matrix. */
     arma::mat& get_inclusion_probability() override {
         return inclusion_probability_;
+    }
+
+    /** @return const reference to the current precision matrix K. */
+    const arma::mat& get_precision_matrix() const {
+        return precision_matrix_;
     }
 
     /** @return Number of variables (p). */
@@ -508,6 +537,31 @@ private:
     double update_edge_parameter(size_t i, size_t j);
 
     /**
+     * Closed-form Gibbs draw for row i of K given the rest of K and the graph.
+     * The per-row primitive driven by do_one_gibbs_step().
+     *
+     * Origin: Wang's row-by-row block Gibbs update for Gaussian graphical
+     * models (each column of the precision matrix sampled from its exact
+     * full-conditional).
+     *
+     * Partitions K with A = K_{-i,-i}, beta = K_{N_i, i}, kii = K_{i,i}, where
+     * N_i is the active neighbour set of i. With Normal slab N(0, sigma^2) on
+     * K_yy_ij = -K_ij/2 and Gamma(alpha = 1, beta0) prior on K_ii/2, the
+     * conditional (beta, xi = kii - beta^T C beta) is conjugate:
+     *
+     *   xi   | rest ~ Gamma(n/2 + 1, (beta0 + S_ii)/2)
+     *   beta | rest ~ N(-M^{-1} S_{N_i, i}, M^{-1}),
+     *     M = (beta0 + S_ii) C + (1/(4 sigma^2)) I,
+     *     C = (A^{-1})_{N_i, N_i} = Sigma_{N_i, N_i} - Sigma_{N_i, i} Sigma_{i, N_i}/Sigma_ii.
+     *
+     * Precondition: row_block_gibbs_eligible() == true; covariance_matrix_
+     * holds K^{-1} up to date with precision_matrix_.
+     *
+     * @param i  Row index.
+     */
+    void update_row_block_gibbs(size_t i);
+
+    /**
      * Propose a new diagonal precision entry on the log scale.
      * Accepts or rejects with a Metropolis ratio using the Gaussian
      * likelihood, a Gamma(1,1) prior, and a Jacobian correction.
@@ -623,6 +677,24 @@ private:
      * @param j             Column index
      */
     void cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
+
+    /**
+     * Apply a symmetric rank-2 update to K, refresh chol(K), and refresh Sigma.
+     *
+     * Given vf1_, vf2_ of length p, this carries out
+     *   K_new     = K_old + vf1 vf2^T + vf2 vf1^T
+     *   chol(K)  <- Givens update + downdate on u1 = (vf1+vf2)/sqrt2, u2 = (vf1-vf2)/sqrt2
+     *   Sigma    <- inv(L) inv(L)^T, with a fallback to refresh_cholesky() when
+     *               accumulated updates make the triangular inverse fail.
+     *
+     * Inputs are taken from the model's vf1_, vf2_ scratch members so callers
+     * can populate them in-place without an extra copy. The helper does not
+     * touch precision_matrix_ -- the caller must already have written the
+     * post-update entries it represents. Generic in vf1, vf2: the edge update
+     * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
+     * full-vector inputs.
+     */
+    void apply_rank2_chol_smw_update_();
 
     /**
      * Update the Cholesky factor after changing a diagonal element.

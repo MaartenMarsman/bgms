@@ -15,7 +15,7 @@
 
 
 /** Which concrete sampler a run uses. */
-enum class SamplerKind { NUTS, AdaptiveMetropolis };
+enum class SamplerKind { NUTS, AdaptiveMetropolis, Gibbs };
 
 /**
  * Behavioral descriptor for a sampler type. resolve_sampler_spec is the single
