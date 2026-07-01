@@ -236,6 +236,9 @@ bgmCompare = function(
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
 
+  # bgmCompare supports only NUTS and adaptive-Metropolis.
+  update_method = match.arg(update_method)
+
   if(hasArg(main_difference_model)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(main_difference_model =)")
   }
