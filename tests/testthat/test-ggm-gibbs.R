@@ -174,3 +174,42 @@ test_that("gibbs agrees with AM under a Cauchy slab (scale mixture of normals)",
   gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
   expect_K_agreement(gibb, am, tol_abs = 0.10, tol_rel = 0.05)
 })
+
+
+# ---- Edge selection: between-model agreement with NUTS ---------------------- #
+
+# Posterior inclusion probabilities from an edge-selection fit.
+ggm_pips = function(Y, update_method, iter, warmup, seed = 7L) {
+  fit = bgm(
+    Y,
+    variable_type = "continuous",
+    interaction_prior = normal_prior(scale = 1),
+    edge_selection = TRUE,
+    iter = iter, warmup = warmup,
+    update_method = update_method,
+    chains = 1L, cores = 1L, seed = seed,
+    display_progress = "none", verbose = FALSE
+  )
+  colMeans(S7::prop(fit, "raw_samples")$indicator[[1L]])
+}
+
+test_that("gibbs edge selection recovers the same inclusion probabilities as NUTS", {
+  skip_on_cran()
+  skip_if_not_installed("MASS")
+  set.seed(11)
+  p = 8L
+  n = 250L
+  # Sparse truth: a chain graph.
+  K = diag(p)
+  for(i in seq_len(p - 1L)) K[i, i + 1L] = K[i + 1L, i] = -0.35
+  diag(K) = 2
+  Y = MASS::mvrnorm(n, mu = rep(0, p), Sigma = solve(K))
+  Y = scale(Y, center = TRUE, scale = FALSE)
+  colnames(Y) = paste0("V", seq_len(p))
+
+  pip_gibbs = ggm_pips(Y, "gibbs", iter = 4000L, warmup = 1500L)
+  pip_nuts = ggm_pips(Y, "nuts", iter = 4000L, warmup = 1500L)
+
+  expect_lt(max(abs(pip_gibbs - pip_nuts)), 0.10)
+  expect_lt(mean(abs(pip_gibbs - pip_nuts)), 0.03)
+})

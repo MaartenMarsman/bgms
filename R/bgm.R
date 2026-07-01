@@ -211,10 +211,13 @@
 #'       graphical model uses a free-element Cholesky parameterization that keeps
 #'       the precision matrix positive-definite; the mixed model uses RATTLE
 #'       constrained integration when excluded edges impose constraints.}
-#'     \item{"gibbs"}{An exact Gibbs sampler for the Gaussian graphical model.
-#'       Available only for all-continuous data on a fixed graph
-#'       (\code{edge_selection = FALSE}) with a Normal or Cauchy (slab)
-#'       interaction prior and a Gamma scale prior on the precision diagonal.}
+#'     \item{"gibbs"}{A Gibbs sampler for the Gaussian graphical model, with a
+#'       conjugate row-block draw of the precision matrix. Available only for
+#'       all-continuous data with a Normal or Cauchy (slab) interaction prior
+#'       and a Gamma scale prior on the precision diagonal. Edge selection is
+#'       supported with a Normal slab (the graph is updated by a
+#'       Metropolis--Hastings between-step); a Cauchy slab requires a fixed
+#'       graph (\code{edge_selection = FALSE}).}
 #'   }
 #'   Default: \code{"nuts"}.
 #'

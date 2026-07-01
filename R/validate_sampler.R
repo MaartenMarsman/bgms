@@ -108,21 +108,15 @@ validate_sampler = function(update_method,
     choices = c("nuts", "adaptive-metropolis", "gibbs")
   )
 
-  # "gibbs" is the exact conjugate row-block Gibbs sampler for the Gaussian
-  # graphical model only, and only on a fixed graph (no edge selection).
-  if(update_method == "gibbs") {
-    if(!is_continuous) {
-      stop(
-        "update_method = \"gibbs\" is available only for the Gaussian ",
-        "graphical model (all-continuous data)."
-      )
-    }
-    if(edge_selection) {
-      stop(
-        "update_method = \"gibbs\" requires a fixed graph; set ",
-        "edge_selection = FALSE (edge-selection support is not yet available)."
-      )
-    }
+  # "gibbs" is the conjugate row-block Gibbs sampler for the Gaussian graphical
+  # model only. With edge selection it keeps the Roverato between-step (the
+  # Cauchy slab is not yet supported there; that is checked in C++, where the
+  # slab type is known).
+  if(update_method == "gibbs" && !is_continuous) {
+    stop(
+      "update_method = \"gibbs\" is available only for the Gaussian ",
+      "graphical model (all-continuous data)."
+    )
   }
 
   # --- target_accept ----------------------------------------------------------
