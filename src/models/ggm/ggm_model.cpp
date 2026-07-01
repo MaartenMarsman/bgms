@@ -352,12 +352,17 @@ void GGMModel::refresh_cauchy_omega_() {
     const double two_sig2 = 2.0 * sigma * sigma;
     for (size_t i = 0; i + 1 < p_; ++i) {
         for (size_t j = i + 1; j < p_; ++j) {
-            if (edge_indicators_(i, j) == 0) continue;   // K_ij = 0: omega inert
-            const double kyy = -0.5 * precision_matrix_(i, j);
-            // omega | K ~ InvGamma(1, 1/2 + kyy^2 / (2 sigma^2)); draw as
-            // 1 / Gamma(1, rate) since InvGamma(a, b) = 1 / Gamma(a, b).
-            const double rate = 0.5 + kyy * kyy / two_sig2;
-            const double w = 1.0 / rgamma(rng_, 1.0, rate);
+            double w;
+            if (edge_indicators_(i, j) == 1) {
+                // Active: omega | K ~ InvGamma(1, 1/2 + kyy^2/(2 sigma^2)),
+                // drawn as 1 / Gamma(1, rate) since InvGamma(a, b) = 1/Gamma(a, b).
+                const double kyy = -0.5 * precision_matrix_(i, j);
+                w = 1.0 / rgamma(rng_, 1.0, 0.5 + kyy * kyy / two_sig2);
+            } else {
+                // Inactive (K_ij = 0): omega ~ prior InvGamma(1/2, 1/2). Kept
+                // fresh so an edge-selection add can condition on a valid weight.
+                w = 1.0 / rgamma(rng_, 0.5, 0.5);
+            }
             omega_(i, j) = w;
             omega_(j, i) = w;
         }
@@ -766,20 +771,27 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     const double beta0 = diagp->rate();
     const double alpha = diagp->shape();
 
+    // Conditional on the Cauchy scale-mixture weight omega (= 1 for a Normal
+    // slab), k_ij has slab variance 4 sigma^2 omega, so the slab precision is
+    // inv_4s2 / omega. Everything else is the Normal-slab move.
+    const double w = slab_is_cauchy_() ? omega_(i, j) : 1.0;
+    const double inv_4s2w = inv_4s2 / w;
+
     // Gaussian full conditional of phi (rest of K fixed, edge present):
-    //   Q  = c2^2/(4 sigma^2) + beta0 + S_jj
-    //   mu = -c2 (S_ij + c1/(4 sigma^2)) / Q
-    const double Q  = c2 * c2 * inv_4s2 + beta0 + suf_stat_(j, j);
-    const double mu = -c2 * (suf_stat_(i, j) + c1 * inv_4s2) / Q;
+    //   Q  = c2^2/(4 sigma^2 omega) + beta0 + S_jj
+    //   mu = -c2 (S_ij + c1/(4 sigma^2 omega)) / Q
+    const double Q  = c2 * c2 * inv_4s2w + beta0 + suf_stat_(j, j);
+    const double mu = -c2 * (suf_stat_(i, j) + c1 * inv_4s2w) / Q;
 
     // Proposal ordinate at the spike phi_0 = -c1/c2, on the k_ij scale
-    // (q(0) = q_phi(phi_0)/c2), and the slab density at k_ij = 0 (the -log 2 is
-    // the |dK_yy/dK_ij| = 1/2 Jacobian, since the slab is in K_yy coordinates).
+    // (q(0) = q_phi(phi_0)/c2), and the (conditional Gaussian) slab density of
+    // k_ij at 0: N(0; 0, 4 sigma^2 omega).
     const double phi0 = -c1 / c2;
     const double d = phi0 - mu;
     const double log_q0 = 0.5 * (MY_LOG(Q) - MY_LOG(2.0 * arma::datum::pi))
                           - 0.5 * Q * d * d - MY_LOG(c2);
-    const double log_pslab0 = interaction_prior_->logp(0.0) - MY_LOG(2.0);
+    const double log_pslab0 =
+        -0.5 * MY_LOG(2.0 * arma::datum::pi * 4.0 * sigma * sigma * w);
     const double log_odds = MY_LOG(inclusion_probability_(i, j))
                             - MY_LOG(1.0 - inclusion_probability_(i, j));
 

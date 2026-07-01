@@ -100,16 +100,6 @@ Rcpp::List sample_ggm(
             "or adjust the priors.");
     }
 
-    // Edge selection with the Gibbs sampler keeps the Roverato between-step,
-    // which reads the slab density directly. A Cauchy slab there would be
-    // inconsistent with the scale-mixture the within-step uses, so that
-    // combination is not yet supported.
-    if (sampler_type == "gibbs" && edge_selection && ipt_str == "cauchy") {
-        Rcpp::stop(
-            "update_method = \"gibbs\" with edge selection needs a Normal slab; "
-            "a Cauchy slab with edge selection is not yet supported. Use a "
-            "Normal slab or set edge_selection = FALSE.");
-    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {
