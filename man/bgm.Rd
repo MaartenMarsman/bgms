@@ -166,9 +166,8 @@ constrained integration when excluded edges impose constraints.}
 conjugate row-block draw of the precision matrix. Available only for
 all-continuous data with a Normal or Cauchy (slab) interaction prior
 and a Gamma scale prior on the precision diagonal. Edge selection is
-supported with a Normal slab and a Gamma scale prior of shape 1 (the
-graph is updated by a full-conditional birth/death between-step); a
-Cauchy slab or a shape other than 1 requires a fixed graph
+supported with a Normal slab (the graph is updated by a full-conditional
+birth/death between-step); a Cauchy slab requires a fixed graph
 (\code{edge_selection = FALSE}).}
 }
 Default: \code{"nuts"}.}

@@ -179,11 +179,12 @@ test_that("gibbs agrees with AM under a Cauchy slab (scale mixture of normals)",
 # ---- Edge selection: between-model agreement with NUTS ---------------------- #
 
 # Posterior inclusion probabilities from an edge-selection fit.
-ggm_pips = function(Y, update_method, iter, warmup, seed = 7L) {
+ggm_pips = function(Y, update_method, iter, warmup, shape = 1, seed = 7L) {
   fit = bgm(
     Y,
     variable_type = "continuous",
     interaction_prior = normal_prior(scale = 1),
+    precision_scale_prior = gamma_prior(shape = shape, rate = 1),
     edge_selection = TRUE,
     iter = iter, warmup = warmup,
     update_method = update_method,
@@ -209,6 +210,26 @@ test_that("gibbs edge selection recovers the same inclusion probabilities as NUT
 
   pip_gibbs = ggm_pips(Y, "gibbs", iter = 4000L, warmup = 1500L)
   pip_nuts = ggm_pips(Y, "nuts", iter = 4000L, warmup = 1500L)
+
+  expect_lt(max(abs(pip_gibbs - pip_nuts)), 0.10)
+  expect_lt(mean(abs(pip_gibbs - pip_nuts)), 0.03)
+})
+
+test_that("gibbs edge selection agrees with NUTS at Gamma shape = 2", {
+  skip_on_cran()
+  skip_if_not_installed("MASS")
+  set.seed(11)
+  p = 8L
+  n = 250L
+  K = diag(p)
+  for(i in seq_len(p - 1L)) K[i, i + 1L] = K[i + 1L, i] = -0.35
+  diag(K) = 2
+  Y = MASS::mvrnorm(n, mu = rep(0, p), Sigma = solve(K))
+  Y = scale(Y, center = TRUE, scale = FALSE)
+  colnames(Y) = paste0("V", seq_len(p))
+
+  pip_gibbs = ggm_pips(Y, "gibbs", iter = 4000L, warmup = 1500L, shape = 2)
+  pip_nuts = ggm_pips(Y, "nuts", iter = 4000L, warmup = 1500L, shape = 2)
 
   expect_lt(max(abs(pip_gibbs - pip_nuts)), 0.10)
   expect_lt(mean(abs(pip_gibbs - pip_nuts)), 0.03)

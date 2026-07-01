@@ -110,12 +110,6 @@ Rcpp::List sample_ggm(
             "a Cauchy slab with edge selection is not yet supported. Use a "
             "Normal slab or set edge_selection = FALSE.");
     }
-    if (sampler_type == "gibbs" && edge_selection && std::abs(s_shape - 1.0) > 1e-12) {
-        Rcpp::stop(
-            "update_method = \"gibbs\" with edge selection needs the Gamma "
-            "scale prior shape = 1; a shape != 1 with edge selection is not yet "
-            "supported. Set the scale prior shape to 1 or edge_selection = FALSE.");
-    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

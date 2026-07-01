@@ -762,8 +762,9 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     const double c2 = constants_[3];               // > 0
     const double sigma  = slab_scale_();
     const double inv_4s2 = 1.0 / (4.0 * sigma * sigma);
-    const double beta0 =
-        static_cast<const GammaScalePrior*>(diagonal_prior_.get())->rate();
+    const auto* diagp = static_cast<const GammaScalePrior*>(diagonal_prior_.get());
+    const double beta0 = diagp->rate();
+    const double alpha = diagp->shape();
 
     // Gaussian full conditional of phi (rest of K fixed, edge present):
     //   Q  = c2^2/(4 sigma^2) + beta0 + S_jj
@@ -783,15 +784,23 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
                             - MY_LOG(1.0 - inclusion_probability_(i, j));
 
     // A_add = odds * p_slab(0) / q(0); delete accepts with the reciprocal.
+    // For a Gamma shape alpha != 1 the alpha = 1 Gaussian is an independence
+    // proposal; the target's extra (k_jj/2)^(alpha-1) factor adds the
+    // correction (k_jj/k_jj(0))^(alpha-1) (the 1/2 cancels in the ratio),
+    // where k_jj(0) = constants_[5] is the spike diagonal.
     const double log_A_add = log_odds + log_pslab0 - log_q0;
+    const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
     if (edge_indicators_(i, j) == 0) {
-        // Add: draw phi* from the full conditional, then accept (independently
-        // of phi*).
+        // Add: draw phi* from the full conditional, then accept.
         const double phi_star = rnorm(rng_, mu, 1.0 / std::sqrt(Q));
-        if (MY_LOG(runif(rng_)) < log_A_add) {
-            const double kij = c1 + c2 * phi_star;
-            const double kjj = constrained_diagonal(kij);
+        const double kij = c1 + c2 * phi_star;
+        const double kjj = constrained_diagonal(kij);
+        double log_A = log_A_add;
+        if (alpha_ne_1) {
+            log_A += (alpha - 1.0) * (MY_LOG(kjj) - MY_LOG(constants_[5]));
+        }
+        if (MY_LOG(runif(rng_)) < log_A) {
             const double omega_ij_old = precision_matrix_(i, j);
             const double omega_jj_old = precision_matrix_(j, j);
             precision_proposal_(i, j) = kij;
@@ -805,8 +814,15 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
             invalidate_gradient_cache();
         }
     } else {
-        // Delete: deterministic to the spike; accept with 1 / A_add.
-        if (MY_LOG(runif(rng_)) < -log_A_add) {
+        // Delete: deterministic to the spike; accept with 1 / A_add evaluated
+        // at the current slab state, so the alpha correction uses the current
+        // diagonal against the spike diagonal.
+        double log_A = -log_A_add;
+        if (alpha_ne_1) {
+            log_A -= (alpha - 1.0)
+                     * (MY_LOG(precision_matrix_(j, j)) - MY_LOG(constants_[5]));
+        }
+        if (MY_LOG(runif(rng_)) < log_A) {
             const double kjj = constants_[5];      // constrained_diagonal(0)
             const double omega_ij_old = precision_matrix_(i, j);
             const double omega_jj_old = precision_matrix_(j, j);
