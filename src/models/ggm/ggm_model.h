@@ -290,6 +290,11 @@ public:
      */
     void do_one_gibbs_step(int iteration = -1) override;
 
+    /** Enable the full-conditional edge birth/death proposal (Gibbs path). */
+    void set_conjugate_edge_proposal(bool enable) override {
+        use_conjugate_edge_proposal_ = enable;
+    }
+
     /**
      * @return Active theta dimension: p + |E| (diagonals + included edges).
      *
@@ -454,6 +459,9 @@ private:
     /// initialize_precision_from_mle to zero the excluded entries and restore
     /// positive-definiteness.
     bool has_sparse_graph_ = false;
+    /// Use the full-conditional edge birth/death proposal (Gibbs sampler) in
+    /// place of the random-walk Roverato proposal. Set by the GibbsSampler.
+    bool use_conjugate_edge_proposal_ = false;
     /// Prior on off-diagonal precision elements (interactions).
     std::unique_ptr<BaseParameterPrior> interaction_prior_;
     /// Prior on diagonal precision elements (scale).
@@ -623,6 +631,17 @@ private:
      * @param j  Column index
      */
     void update_edge_indicator_parameter_pair(size_t i, size_t j);
+
+    /**
+     * Full-conditional edge birth/death for the joint spec (Normal slab,
+     * alpha = 1). The cofactor move preserves |K|, so F(phi) is Gaussian and
+     * the proposal is the exact conditional of the toggled coordinate; the
+     * acceptance reduces to the inclusion odds times p_slab(0)/q(0),
+     * independent of the proposed value. No proposal-SD tuning. Used by the
+     * Gibbs sampler in place of update_edge_indicator_parameter_pair.
+     * Source: Z manuscript, "Single-edge updates".
+     */
+    void update_edge_indicator_conjugate(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.

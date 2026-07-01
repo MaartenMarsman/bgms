@@ -742,7 +742,84 @@ void GGMModel::update_edge_indicators() {
             }
             acc += cols_in_row;
         }
-        update_edge_indicator_parameter_pair(i, j);
+        if (use_conjugate_edge_proposal_) {
+            update_edge_indicator_conjugate(i, j);
+        } else {
+            update_edge_indicator_parameter_pair(i, j);
+        }
+    }
+}
+
+void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
+    // Full-conditional (MoMS) edge birth/death for the joint spec, Normal slab,
+    // alpha = 1. The cofactor move preserves |K| (the determinant tilt and the
+    // likelihood determinant cancel), so F(phi) is Gaussian in the cofactor
+    // coordinate and the proposal is its exact conditional. The acceptance then
+    // reduces to the inclusion odds times p_slab(0)/q(0) and does not depend on
+    // the proposed value.
+    get_constants(i, j);
+    const double c1 = constants_[2];
+    const double c2 = constants_[3];               // > 0
+    const double sigma  = slab_scale_();
+    const double inv_4s2 = 1.0 / (4.0 * sigma * sigma);
+    const double beta0 =
+        static_cast<const GammaScalePrior*>(diagonal_prior_.get())->rate();
+
+    // Gaussian full conditional of phi (rest of K fixed, edge present):
+    //   Q  = c2^2/(4 sigma^2) + beta0 + S_jj
+    //   mu = -c2 (S_ij + c1/(4 sigma^2)) / Q
+    const double Q  = c2 * c2 * inv_4s2 + beta0 + suf_stat_(j, j);
+    const double mu = -c2 * (suf_stat_(i, j) + c1 * inv_4s2) / Q;
+
+    // Proposal ordinate at the spike phi_0 = -c1/c2, on the k_ij scale
+    // (q(0) = q_phi(phi_0)/c2), and the slab density at k_ij = 0 (the -log 2 is
+    // the |dK_yy/dK_ij| = 1/2 Jacobian, since the slab is in K_yy coordinates).
+    const double phi0 = -c1 / c2;
+    const double d = phi0 - mu;
+    const double log_q0 = 0.5 * (MY_LOG(Q) - MY_LOG(2.0 * arma::datum::pi))
+                          - 0.5 * Q * d * d - MY_LOG(c2);
+    const double log_pslab0 = interaction_prior_->logp(0.0) - MY_LOG(2.0);
+    const double log_odds = MY_LOG(inclusion_probability_(i, j))
+                            - MY_LOG(1.0 - inclusion_probability_(i, j));
+
+    // A_add = odds * p_slab(0) / q(0); delete accepts with the reciprocal.
+    const double log_A_add = log_odds + log_pslab0 - log_q0;
+
+    if (edge_indicators_(i, j) == 0) {
+        // Add: draw phi* from the full conditional, then accept (independently
+        // of phi*).
+        const double phi_star = rnorm(rng_, mu, 1.0 / std::sqrt(Q));
+        if (MY_LOG(runif(rng_)) < log_A_add) {
+            const double kij = c1 + c2 * phi_star;
+            const double kjj = constrained_diagonal(kij);
+            const double omega_ij_old = precision_matrix_(i, j);
+            const double omega_jj_old = precision_matrix_(j, j);
+            precision_proposal_(i, j) = kij;
+            precision_proposal_(j, j) = kjj;
+            precision_matrix_(i, j) = kij;
+            precision_matrix_(j, i) = kij;
+            precision_matrix_(j, j) = kjj;
+            edge_indicators_(i, j) = 1;
+            edge_indicators_(j, i) = 1;
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            invalidate_gradient_cache();
+        }
+    } else {
+        // Delete: deterministic to the spike; accept with 1 / A_add.
+        if (MY_LOG(runif(rng_)) < -log_A_add) {
+            const double kjj = constants_[5];      // constrained_diagonal(0)
+            const double omega_ij_old = precision_matrix_(i, j);
+            const double omega_jj_old = precision_matrix_(j, j);
+            precision_proposal_(i, j) = 0.0;
+            precision_proposal_(j, j) = kjj;
+            precision_matrix_(i, j) = 0.0;
+            precision_matrix_(j, i) = 0.0;
+            precision_matrix_(j, j) = kjj;
+            edge_indicators_(i, j) = 0;
+            edge_indicators_(j, i) = 0;
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            invalidate_gradient_cache();
+        }
     }
 }
 
