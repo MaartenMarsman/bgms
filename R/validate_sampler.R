@@ -128,9 +128,10 @@ validate_sampler = function(update_method,
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
       "nuts"                = 0.80,
-      # Exact draw: no acceptance target. Kept numeric (0.44, inert) so the
-      # downstream numeric contract holds; unused by the Gibbs path.
-      "gibbs"               = 0.44
+      # Exact draw: no acceptance target. NA_real_ records that honestly (not a
+      # fake 0.44); it stays numeric length-1 for the downstream contract and is
+      # unused by the Gibbs path (the C++ side ignores target_accept for gibbs).
+      "gibbs"               = NA_real_
     )
   }
 

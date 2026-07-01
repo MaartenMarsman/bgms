@@ -69,19 +69,21 @@ Rcpp::List sample_ggm(
         edge_selection, std::move(interaction_prior),
         std::move(diagonal_prior), na_impute);
 
-    // Forward target_accept to the model's MH proposal-SD tuner.
+    // Forward target_accept to the model's between-model MH proposal-SD tuner.
+    // Only adaptive-metropolis and nuts run the componentwise RW edge move that
+    // consumes it; the gibbs within-step and its full-conditional edge move are
+    // exact and tune nothing, so the gibbs path must not set an MH target.
     //   - Under "adaptive-metropolis": user's target_accept goes through
     //     directly (default 0.44 = componentwise RW MH optimum).
     //   - Under "nuts": user's target_accept (default 0.80) is the
     //     HMC step-size dual-averaging target and should NOT govern the
     //     between-model MH proposal SDs, which are still 1-D componentwise
-    //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
-    //     fixed point.
-    //   - Under "gibbs": the within-step draw is exact (no MH tuning); the
-    //     target is inert, so use the same 0.44 fixed point.
-    const double mh_target =
-        (sampler_type == "adaptive-metropolis") ? target_acceptance : 0.44;
-    model.set_metropolis_target_accept(mh_target);
+    //     RW MH. Use 0.44 there to keep stage-3b RM on the right fixed point.
+    if (sampler_type != "gibbs") {
+        const double mh_target =
+            (sampler_type == "adaptive-metropolis") ? target_acceptance : 0.44;
+        model.set_metropolis_target_accept(mh_target);
+    }
 
     // Determinant-tilt prior on |K|: shifts both NUTS and MH targets by
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
