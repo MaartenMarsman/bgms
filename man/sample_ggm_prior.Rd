@@ -17,7 +17,8 @@ sample_ggm_prior(
   edge_indicators = NULL,
   delta = NULL,
   spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs")
 )
 }
 \arguments{
@@ -79,6 +80,11 @@ companion-paper baseline) or a non-negative numeric to override.}
 \item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
 Bernoulli edge prior used when \code{spec = "joint"}. Default
 \code{0.5}. Ignored when \code{spec = "conditional"}.}
+
+\item{update_method}{One of \code{"adaptive-metropolis"} (default) or
+\code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+Gibbs chain uses the conjugate row and edge updates and needs no
+proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).}
 }
 \value{
 A list with components

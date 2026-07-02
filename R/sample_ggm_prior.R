@@ -73,6 +73,10 @@
 #' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
 #'   Bernoulli edge prior used when \code{spec = "joint"}. Default
 #'   \code{0.5}. Ignored when \code{spec = "conditional"}.
+#' @param update_method One of \code{"adaptive-metropolis"} (default) or
+#'   \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+#'   Gibbs chain uses the conjugate row and edge updates and needs no
+#'   proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -149,9 +153,11 @@ sample_ggm_prior = function(
   edge_indicators = NULL,
   delta = NULL,
   spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs")
 ) {
   spec = match.arg(spec)
+  update_method = match.arg(update_method)
   validate_integer(p, "p", min_value = 2L)
   validate_integer(n_samples, "n_samples", min_value = 1L)
   validate_integer(n_warmup, "n_warmup", min_value = 0L)
@@ -228,7 +234,7 @@ sample_ggm_prior = function(
     no_warmup               = as.integer(n_warmup),
     no_chains               = 1L,
     edge_selection          = TRUE,
-    sampler_type            = "adaptive-metropolis",
+    sampler_type            = update_method,
     seed                    = as.integer(seed),
     no_threads              = 1L,
     progress_type           = if(verbose) 2L else 0L,

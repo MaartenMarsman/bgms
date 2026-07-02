@@ -22,6 +22,7 @@
 * `extract_log_odds()`: extract log-odds for discrete pairwise interactions.
 * `extract_main_effects()`: extract main effect samples (category thresholds, continuous means, and precision diagonal).
 * NUTS diagnostics now include the per-iteration mean Metropolis acceptance probability (`fit$nuts_diag$accept_prob`, paralleling Stan's `accept_stat__`) and a per-chain `mean_accept_prob` summary.
+* `sample_ggm_prior()` accepts `update_method = "gibbs"` for the `spec = "joint"` prior chain, using the conjugate row and edge updates instead of adaptive Metropolis.
 
 ## Other changes
 
