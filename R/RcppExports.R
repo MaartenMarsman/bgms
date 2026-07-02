@@ -173,3 +173,15 @@ test_warmup_schedule <- function(warmup, edge_selection, learn_sd, select_during
     .Call(`_bgms_test_warmup_schedule`, warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations)
 }
 
+zratio_test_eval <- function(G, edges, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_test_eval`, G, edges, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max) {
+    .Call(`_bgms_zratio_test_precompute`, G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max)
+}
+
