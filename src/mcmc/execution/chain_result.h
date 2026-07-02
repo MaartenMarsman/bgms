@@ -37,6 +37,11 @@ public:
     /// Whether allocation samples are stored.
     bool        has_allocations = false;
 
+    /// Sampled inclusion parameter (Beta-Bernoulli theta; n_iter).
+    arma::vec   inclusion_parameter_samples;
+    /// Whether inclusion-parameter samples are stored.
+    bool        has_inclusion_parameter = false;
+
     /// NUTS tree depth diagnostics (n_iter).
     arma::ivec  treedepth_samples;
     /// NUTS divergent transition flags (n_iter).
@@ -86,6 +91,15 @@ public:
     }
 
     /**
+     * Reserve storage for inclusion-parameter samples
+     * @param n_iter  Number of sampling iterations
+     */
+    void reserve_inclusion_parameter(const size_t n_iter) {
+        inclusion_parameter_samples.set_size(n_iter);
+        has_inclusion_parameter = true;
+    }
+
+    /**
      * Reserve storage for NUTS diagnostics
      * @param n_iter  Number of sampling iterations
      */
@@ -132,6 +146,15 @@ public:
      */
     void store_allocations(const size_t iter, const arma::ivec& allocations) {
         allocation_samples.col(iter) = allocations;
+    }
+
+    /**
+     * Store the inclusion-parameter sample for one iteration
+     * @param iter   Iteration index (0-based)
+     * @param value  Sampled inclusion parameter (Beta-Bernoulli theta)
+     */
+    void store_inclusion_parameter(const size_t iter, const double value) {
+        inclusion_parameter_samples(iter) = value;
     }
 
     /**

@@ -344,7 +344,8 @@ test_that("return list has all expected elements", {
   expected_names = c(
     "update_method", "target_accept", "iter", "warmup",
     "nuts_max_depth", "learn_mass_matrix",
-    "chains", "cores", "seed", "progress_type", "progress_callback"
+    "chains", "cores", "seed", "progress_type", "progress_callback",
+    "verbose"
   )
   expect_named(res, expected_names)
 })

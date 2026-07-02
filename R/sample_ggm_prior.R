@@ -73,6 +73,22 @@
 #' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
 #'   Bernoulli edge prior used when \code{spec = "joint"}. Default
 #'   \code{0.5}. Ignored when \code{spec = "conditional"}.
+#' @param update_method One of \code{"adaptive-metropolis"} (default) or
+#'   \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+#'   Gibbs chain uses the conjugate row and edge updates and needs no
+#'   proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).
+#' @param edge_prior An edge prior specification object from
+#'   \code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+#'   or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+#'   prior with probability \code{edge_inclusion_prob}. Only for
+#'   \code{spec = "joint"}.
+#' @param apply_correction Logical. For the hierarchical edge priors
+#'   (\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+#'   normalizing-constant correction to the hyperparameter updates (default
+#'   \code{TRUE}; the correction table is built from the tilted prior
+#'   sampler and cached across calls). With \code{FALSE} the plain conjugate
+#'   updates are used, whose hyperparameter marginals do not match the
+#'   hyperpriors under the determinant tilt.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -108,6 +124,12 @@
 #'       \code{n_samples x p(p-1)/2} integer matrix of sampled
 #'       \eqn{\Gamma_{ij}} indicators (column order matches
 #'       \code{K_offdiag}).}
+#'     \item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+#'       vector of length \code{n_samples} with the sampled inclusion
+#'       probability.}
+#'     \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+#'       matrix (\code{n_samples x p}) of sampled cluster allocations
+#'       (1-based).}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -149,9 +171,29 @@ sample_ggm_prior = function(
   edge_indicators = NULL,
   delta = NULL,
   spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs"),
+  edge_prior = NULL,
+  apply_correction = TRUE
 ) {
   spec = match.arg(spec)
+  update_method = match.arg(update_method)
+  ep = if(is.null(edge_prior)) {
+    NULL
+  } else {
+    unpack_indicator_prior(edge_prior, num_variables = as.integer(p))
+  }
+  if(spec == "conditional" && !is.null(ep) &&
+    !identical(ep$edge_prior, "Bernoulli")) {
+    stop(
+      "Hierarchical edge priors require spec = \"joint\" (the conditional ",
+      "spec fixes the graph)."
+    )
+  }
+  if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
+    is.na(apply_correction)) {
+    stop("'apply_correction' must be TRUE or FALSE.")
+  }
   validate_integer(p, "p", min_value = 2L)
   validate_integer(n_samples, "n_samples", min_value = 1L)
   validate_integer(n_warmup, "n_warmup", min_value = 0L)
@@ -220,20 +262,44 @@ sample_ggm_prior = function(
     scale_rate             = sp$scale_rate
   )
 
+  if(is.null(ep)) {
+    ep = unpack_indicator_prior(
+      bernoulli_prior(edge_inclusion_prob),
+      num_variables = as.integer(p)
+    )
+  }
+  correction = NULL
+  if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
+    table = ggm_correction_table(
+      p = p, delta = delta,
+      interaction_prior = interaction_prior,
+      precision_scale_prior = precision_scale_prior,
+      update_method = "gibbs"
+    )
+    correction = correction_list_from_table(table, ep$edge_prior)
+  }
+
   results = sample_ggm(
-    inputFromR              = inputFromR,
-    prior_inclusion_prob    = matrix(edge_inclusion_prob, p, p),
+    inputFromR = inputFromR,
+    prior_inclusion_prob = ep$inclusion_probability,
     initial_edge_indicators = matrix(1L, p, p),
-    no_iter                 = as.integer(n_samples),
-    no_warmup               = as.integer(n_warmup),
-    no_chains               = 1L,
-    edge_selection          = TRUE,
-    sampler_type            = "adaptive-metropolis",
-    seed                    = as.integer(seed),
-    no_threads              = 1L,
-    progress_type           = if(verbose) 2L else 0L,
-    edge_prior              = "Bernoulli",
-    delta                   = as.numeric(delta)
+    no_iter = as.integer(n_samples),
+    no_warmup = as.integer(n_warmup),
+    no_chains = 1L,
+    edge_selection = TRUE,
+    sampler_type = update_method,
+    seed = as.integer(seed),
+    no_threads = 1L,
+    progress_type = if(verbose) 2L else 0L,
+    edge_prior = ep$edge_prior,
+    beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
+    beta_bernoulli_beta = ep$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
+    dirichlet_alpha = ep$dirichlet_alpha,
+    lambda = ep$lambda,
+    delta = as.numeric(delta),
+    edge_prior_correction = correction
   )
   if(length(results) == 0L || isTRUE(results[[1L]]$error)) {
     msg = if(length(results) > 0L) results[[1L]]$error_msg else "empty result"
@@ -276,13 +342,20 @@ sample_ggm_prior = function(
   }
   diag_names = paste0("K_", seq_len(p), "_", seq_len(p))
 
-  list(
+  out = list(
     K_offdiag       = K_offdiag,
     K_diag          = K_diag,
     offdiag_names   = offdiag_names,
     diag_names      = diag_names,
     edge_indicators = gamma_offdiag
   )
+  if(!is.null(results[[1L]]$inclusion_parameter_samples)) {
+    out$theta = as.numeric(results[[1L]]$inclusion_parameter_samples)
+  }
+  if(!is.null(results[[1L]]$allocation_samples)) {
+    out$allocations = t(results[[1L]]$allocation_samples)
+  }
+  out
 }
 
 

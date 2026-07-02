@@ -37,11 +37,13 @@ void cholesky_update(  arma::mat& R, arma::vec& u, double eps = 1e-12);
 /**
  * Rank-1 Cholesky downdate: R'R - uu' = R1'R1.
  *
- * Modifies R in place using hyperbolic rotations. If the result would
- * not be positive definite, R(1,0) is set to -2.0 as an error signal.
+ * Modifies R in place using hyperbolic rotations.
  *
  * @param R    Upper-triangular Cholesky factor (p x p, modified in place)
  * @param u    Downdate vector (length p, modified in place)
  * @param eps  Tolerance for near-singularity (default 1e-12)
+ * @return     true on success. false if the downdated matrix would not be
+ *             positive definite; R is then left partially updated and the
+ *             caller must rebuild the factor from the source matrix.
  */
-void cholesky_downdate(arma::mat& R, arma::vec& u, double eps = 1e-12);
+bool cholesky_downdate(arma::mat& R, arma::vec& u, double eps = 1e-12);

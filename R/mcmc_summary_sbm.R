@@ -127,6 +127,10 @@ find_representative_clustering = function(cluster_matrix) {
 # Miller & Harrison (2018). Mixture Models With a Prior on the Number of
 # blocks, Journal of the American Statistical Association, 113:521, 340-356,
 # DOI:10.1080/01621459.2016.1255636
+#
+# The prior on the number of components is the shifted Poisson
+# K - 1 ~ Poisson(lambda), matching the partition coefficients from
+# compute_Vn_mfm_sbm() that drive the sampler.
 #' @importFrom stats dpois
 compute_p_k_given_t = function(
   t,
@@ -144,9 +148,8 @@ compute_p_k_given_t = function(
   # Normalization constant for t
   log_vn_t = log_Vn[t]
 
-  # Normalizing factor for the truncated Poisson distribution
-  norm_factor = 1 - dpois(0, lambda)
-  truncated_poisson_pmf = dpois(K_values, lambda) / norm_factor
+  # Shifted Poisson prior on the number of components
+  poisson_pmf = dpois(K_values - 1, lambda)
 
   # Loop through each value of K
   for(i in seq_along(K_values)) {
@@ -158,7 +161,7 @@ compute_p_k_given_t = function(
       rising_factorial = prod((dirichlet_alpha * K) + 0:(num_variables - 1))
       # Compute log probability
       log_p_k = log(falling_factorial) - log(rising_factorial) +
-        log(truncated_poisson_pmf[i]) - log_vn_t
+        log(poisson_pmf[i]) - log_vn_t
       # Convert log probability to probability
       p_k_given_t[i] = exp(log_p_k)
     } else {

@@ -431,8 +431,10 @@ test_that("NUTS and MH posteriors agree under tilt (p=4, delta=1)", {
   for(j in seq_len(ncol(mh_pairwise))) {
     ratio = var(nuts_pairwise[, j]) / var(mh_pairwise[, j])
     expect_gt(ratio, 0.7,
-      label = paste0("pairwise[", j, "] var ratio > 0.7 (delta=1)"))
+      label = paste0("pairwise[", j, "] var ratio > 0.7 (delta=1)")
+    )
     expect_lt(ratio, 1.4,
-      label = paste0("pairwise[", j, "] var ratio < 1.4 (delta=1)"))
+      label = paste0("pairwise[", j, "] var ratio < 1.4 (delta=1)")
+    )
   }
 })

@@ -48,6 +48,10 @@
 // @param na_impute               Whether to impute missing data
 // @param missing_index_discrete  Matrix of missing discrete indices (n_miss x 2, 0-based)
 // @param missing_index_continuous Matrix of missing continuous indices (n_miss x 2, 0-based)
+// @param delta                   Determinant-tilt exponent on |Kyy|
+// @param edge_prior_correction   Normalizing-constant correction list for the
+//                                hierarchical edge priors (see
+//                                R/correction_tables.R), or R_NilValue
 //
 // @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
@@ -76,7 +80,8 @@ Rcpp::List sample_mixed_mrf(
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -176,6 +181,13 @@ Rcpp::List sample_mixed_mrf(
         beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
         dirichlet_alpha, lambda
     );
+
+    // Attach the normalizing-constant correction for the |Kyy| tilt so the
+    // hyperparameter updates target the corrected conditionals. The list's
+    // is_continuous mask restricts the tilt terms to continuous-continuous
+    // pairs; the table is built for the continuous block alone.
+    attach_edge_prior_correction(
+        edge_prior_obj.get(), edge_prior_correction, "sample_mixed_mrf");
 
     // Configure sampler
     SamplerConfig config;

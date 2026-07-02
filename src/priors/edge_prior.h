@@ -4,6 +4,7 @@
 #include <RcppArmadillo.h>
 #include "rng/rng_utils.h"
 #include "utils/common_helpers.h"
+#include "edge_prior_correction.h"
 #include "sbm_edge_prior.h"
 #include "sbm_edge_prior_interface.h"
 
@@ -35,6 +36,12 @@ public:
 
     virtual bool has_allocations() const { return false; }
     virtual arma::ivec get_allocations() const { return arma::ivec(); }
+
+    /** Whether the prior carries a sampled inclusion parameter (BB theta). */
+    virtual bool has_inclusion_parameter() const { return false; }
+    virtual double get_inclusion_parameter() const {
+        return NA_REAL;
+    }
 };
 
 
@@ -63,12 +70,19 @@ public:
  * Beta-Bernoulli edge prior.
  *
  * Draws a shared inclusion probability from Beta(alpha + #included,
- * beta + #excluded) and assigns it to all edges.
+ * beta + #excluded) and assigns it to all edges. With a normalizing-constant
+ * correction attached (GGM path), the draw targets the corrected conditional
+ * that carries the 1/C(theta) factor instead.
  */
 class BetaBernoulliEdgePrior : public BaseEdgePrior {
 public:
     BetaBernoulliEdgePrior(double alpha = 1.0, double beta = 1.0)
-        : alpha_(alpha), beta_(beta) {}
+        : alpha_(alpha), beta_(beta),
+          current_prob_(alpha / (alpha + beta)) {}
+
+    void set_correction(const EdgePriorCorrection& correction) {
+        correction_ = correction;
+    }
 
     void update(
         const arma::imat& edge_indicators,
@@ -84,10 +98,12 @@ public:
             }
         }
 
-        double prob = rbeta(rng,
-            alpha_ + num_edges_included,
-            beta_ + num_pairwise - num_edges_included
-        );
+        double a_post = alpha_ + num_edges_included;
+        double b_post = beta_ + num_pairwise - num_edges_included;
+        double prob = correction_.active()
+            ? correction_.draw_theta(rng, a_post, b_post, current_prob_)
+            : rbeta(rng, a_post, b_post);
+        current_prob_ = prob;
 
         for (int i = 0; i < num_variables - 1; i++) {
             for (int j = i + 1; j < num_variables; j++) {
@@ -101,9 +117,14 @@ public:
         return std::make_unique<BetaBernoulliEdgePrior>(*this);
     }
 
+    bool has_inclusion_parameter() const override { return true; }
+    double get_inclusion_parameter() const override { return current_prob_; }
+
 private:
     double alpha_;
     double beta_;
+    double current_prob_;
+    EdgePriorCorrection correction_;
 };
 
 
@@ -131,6 +152,10 @@ public:
         lambda_(lambda),
         initialized_(false)
     {}
+
+    void set_correction(const SBMCorrection& correction) {
+        correction_ = correction;
+    }
 
     /**
      * Initialize SBM state from the current edge indicators. Called
@@ -182,19 +207,37 @@ public:
             initialize(edge_indicators, inclusion_probability, num_variables, rng);
         }
 
-        cluster_allocations_ = block_allocations_mfm_sbm(
-            cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
-            arma::conv_to<arma::umat>::from(edge_indicators), dirichlet_alpha_,
-            beta_bernoulli_alpha_, beta_bernoulli_beta_,
-            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
-        );
+        if (correction_.active()) {
+            arma::umat indicator =
+                arma::conv_to<arma::umat>::from(edge_indicators);
+            cluster_allocations_ = block_allocations_mfm_sbm_corrected(
+                cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
+                indicator, dirichlet_alpha_,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_,
+                correction_, rng
+            );
+            cluster_prob_ = block_probs_mfm_sbm_corrected(
+                cluster_allocations_, cluster_prob_, indicator, num_variables,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_,
+                correction_, rng
+            );
+        } else {
+            cluster_allocations_ = block_allocations_mfm_sbm(
+                cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
+                arma::conv_to<arma::umat>::from(edge_indicators), dirichlet_alpha_,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+            );
 
-        cluster_prob_ = block_probs_mfm_sbm(
-            cluster_allocations_,
-            arma::conv_to<arma::umat>::from(edge_indicators), num_variables,
-            beta_bernoulli_alpha_, beta_bernoulli_beta_,
-            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
-        );
+            cluster_prob_ = block_probs_mfm_sbm(
+                cluster_allocations_,
+                arma::conv_to<arma::umat>::from(edge_indicators), num_variables,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+            );
+        }
 
         for (int i = 0; i < num_variables - 1; i++) {
             for (int j = i + 1; j < num_variables; j++) {
@@ -226,7 +269,46 @@ private:
     arma::uvec cluster_allocations_;
     arma::mat cluster_prob_;
     arma::vec log_Vn_;
+    SBMCorrection correction_;
 };
+
+
+/**
+ * Attach a normalizing-constant correction list (assembled by
+ * R/correction_tables.R) to a hierarchical edge prior. The beta-bernoulli
+ * prior reads the whole-graph logC(theta) curve; the stochastic block prior
+ * reads the slope and per-pair curves plus the optional continuous-block
+ * node mask used on the mixed-MRF path.
+ */
+inline void attach_edge_prior_correction(
+    BaseEdgePrior* edge_prior_obj,
+    const Rcpp::Nullable<Rcpp::List>& edge_prior_correction,
+    const char* caller
+) {
+    if (edge_prior_correction.isNull()) return;
+    Rcpp::List correction(edge_prior_correction.get());
+    if (auto* bb = dynamic_cast<BetaBernoulliEdgePrior*>(edge_prior_obj)) {
+        bb->set_correction(EdgePriorCorrection(
+            Rcpp::as<arma::vec>(correction["theta"]),
+            Rcpp::as<arma::vec>(correction["logC"])
+        ));
+    } else if (auto* sbm = dynamic_cast<StochasticBlockEdgePrior*>(edge_prior_obj)) {
+        arma::uvec is_continuous;
+        if (correction.containsElementNamed("is_continuous")) {
+            is_continuous = Rcpp::as<arma::uvec>(correction["is_continuous"]);
+        }
+        sbm->set_correction(SBMCorrection(
+            Rcpp::as<arma::vec>(correction["fprime_density"]),
+            Rcpp::as<arma::vec>(correction["fprime"]),
+            Rcpp::as<arma::vec>(correction["quad_theta"]),
+            Rcpp::as<arma::vec>(correction["quad_f"]),
+            is_continuous
+        ));
+    } else {
+        Rcpp::stop("%s: a correction table was supplied for an edge prior "
+                   "that does not support it.", caller);
+    }
+}
 
 
 /**

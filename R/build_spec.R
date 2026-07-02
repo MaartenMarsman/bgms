@@ -6,7 +6,6 @@
 # turn the validated bgm_spec into the family-specific spec object.
 
 
-
 # ==============================================================================
 # Internal builders (one per model type)
 # ==============================================================================
@@ -46,7 +45,8 @@ sampler_sublist = function(s) {
     learn_mass_matrix = s$learn_mass_matrix,
     seed              = as.integer(s$seed),
     progress_type     = as.integer(s$progress_type),
-    progress_callback = s$progress_callback
+    progress_callback = s$progress_callback,
+    verbose           = isTRUE(s$verbose)
   )
 }
 
@@ -711,4 +711,3 @@ build_spec_compare = function(x, y, group_indicator,
     )
   )
 }
-

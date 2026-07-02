@@ -4,7 +4,6 @@
 # dispatcher remain in build_output.R.
 
 
-
 # build_output_bgm()  --- unified GGM + OMRF
 # ==============================================================================
 #
@@ -63,6 +62,9 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
+      if(!is.null(chain$inclusion_parameter_samples)) {
+        res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
+      }
       attach_diagnostic_traces(res, chain)
     })
   } else {
@@ -84,6 +86,9 @@ build_output_bgm = function(spec, raw) {
       }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
+      }
+      if(!is.null(chain$inclusion_parameter_samples)) {
+        res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
       }
       attach_diagnostic_traces(res, chain)
     })
@@ -164,6 +169,11 @@ build_output_bgm = function(spec, raw) {
       )
       results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
       co_occur_matrix = sbm_convergence$co_occur_matrix
+    }
+
+    if("inclusion_parameter" %in% names(raw[[1]])) {
+      results$inclusion_parameter_samples =
+        lapply(raw, `[[`, "inclusion_parameter")
     }
   }
 
@@ -275,4 +285,3 @@ build_output_bgm = function(spec, raw) {
     s3_list_to_bgms(results)
   }
 }
-

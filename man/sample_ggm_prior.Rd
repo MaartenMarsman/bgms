@@ -17,7 +17,10 @@ sample_ggm_prior(
   edge_indicators = NULL,
   delta = NULL,
   spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs"),
+  edge_prior = NULL,
+  apply_correction = TRUE
 )
 }
 \arguments{
@@ -79,6 +82,25 @@ companion-paper baseline) or a non-negative numeric to override.}
 \item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
 Bernoulli edge prior used when \code{spec = "joint"}. Default
 \code{0.5}. Ignored when \code{spec = "conditional"}.}
+
+\item{update_method}{One of \code{"adaptive-metropolis"} (default) or
+\code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+Gibbs chain uses the conjugate row and edge updates and needs no
+proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).}
+
+\item{edge_prior}{An edge prior specification object from
+\code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+prior with probability \code{edge_inclusion_prob}. Only for
+\code{spec = "joint"}.}
+
+\item{apply_correction}{Logical. For the hierarchical edge priors
+(\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+normalizing-constant correction to the hyperparameter updates (default
+\code{TRUE}; the correction table is built from the tilted prior
+sampler and cached across calls). With \code{FALSE} the plain conjugate
+updates are used, whose hyperparameter marginals do not match the
+hyperpriors under the determinant tilt.}
 }
 \value{
 A list with components
@@ -105,6 +127,12 @@ the columns of \code{K_diag}.}
 \code{n_samples x p(p-1)/2} integer matrix of sampled
 \eqn{\Gamma_{ij}} indicators (column order matches
 \code{K_offdiag}).}
+\item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+vector of length \code{n_samples} with the sampled inclusion
+probability.}
+\item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+matrix (\code{n_samples x p}) of sampled cluster allocations
+(1-based).}
 }
 }
 \description{

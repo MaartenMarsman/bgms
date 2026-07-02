@@ -5,6 +5,18 @@ run_bgmCompare_parallel <- function(observations, num_groups, counts_per_categor
     .Call(`_bgms_run_bgmCompare_parallel`, observations, num_groups, counts_per_category, blume_capel_stats, pairwise_stats, num_categories, main_alpha, main_beta, pairwise_scale, pairwise_scaling_factors, difference_scale, difference_selection_alpha, difference_selection_beta, difference_selection_alpha_between, difference_selection_beta_between, difference_dirichlet_alpha, difference_lambda, difference_prior, iter, warmup, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, difference_selection, main_difference_selection, main_effect_indices, pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix, projection, group_membership, group_indices, interaction_index_matrix, inclusion_probability, num_chains, nThreads, seed, update_method, progress_type, interaction_prior_type_str, threshold_prior_type_str, threshold_scale, progress_callback)
 }
 
+test_cholesky_downdate <- function(R, u, eps = 1e-12) {
+    .Call(`_bgms_test_cholesky_downdate`, R, u, eps)
+}
+
+test_correction_logC_interp <- function(theta_grid, logC, theta_eval) {
+    .Call(`_bgms_test_correction_logC_interp`, theta_grid, logC, theta_eval)
+}
+
+test_corrected_bb_theta_draw <- function(a_post, b_post, theta_grid, logC, n_draws, seed, theta_init = 0.5) {
+    .Call(`_bgms_test_corrected_bb_theta_draw`, a_post, b_post, theta_grid, logC, n_draws, seed, theta_init)
+}
+
 get_explog_switch <- function() {
     .Call(`_bgms_get_explog_switch`)
 }
@@ -125,16 +137,32 @@ ggm_test_logp_and_gradient_prior <- function(theta, suf_stat, n, edge_indicators
     .Call(`_bgms_ggm_test_logp_and_gradient_prior`, theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
 }
 
-sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0) {
-    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, edge_prior_correction = NULL) {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, edge_prior_correction)
 }
 
-sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0) {
-    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta)
+sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0, edge_prior_correction = NULL) {
+    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction)
 }
 
 sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", na_impute = FALSE, missing_index_nullable = NULL, beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, pairwise_scaling_factors_nullable = NULL) {
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, pairwise_scaling_factors_nullable)
+}
+
+test_sbm_compute_ce <- function(cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_compute_ce`, cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous)
+}
+
+test_sbm_miniti_node <- function(node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_miniti_node`, node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f, is_continuous)
+}
+
+test_sbm_miniti_removal <- function(node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_miniti_removal`, node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f, is_continuous)
+}
+
+test_sbm_corrected_log_marginal <- function(node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_corrected_log_marginal`, node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }
 
 compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {

@@ -3,7 +3,6 @@
 # Split out of build_output.R (cleanup S4).
 
 
-
 # ==============================================================================
 # build_output_compare()
 # ==============================================================================
@@ -356,4 +355,3 @@ generate_param_names_bgmCompare = function(
     indicators = names_indicators
   )
 }
-

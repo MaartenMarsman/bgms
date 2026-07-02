@@ -47,6 +47,9 @@ bgms_class = new_class("bgms",
     # --- Pre-computed summaries (not lazy) ---
     posterior_summary_pairwise_allocations = new_property(class_any, default = NULL),
 
+    # --- Sampled edge-prior inclusion parameter (per-chain list) ---
+    inclusion_parameter_samples = new_property(class_any, default = NULL),
+
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main = new_property(
       class = class_any,
@@ -117,6 +120,7 @@ s3_list_to_bgms = function(results) {
     posterior_mode_allocations = .subset2(results, "posterior_mode_allocations"),
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
+    inclusion_parameter_samples = .subset2(results, "inclusion_parameter_samples"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
     indicator = .subset2(results, "indicator"),

@@ -1466,3 +1466,35 @@ test_that("Mixed MRF: continuous precision = -2 * associations", {
   dimnames(expected_offdiag) = dimnames(Theta)
   expect_equal(Theta, expected_offdiag)
 })
+
+
+# ---------------------------------------------------------------------------
+# SBM number-of-blocks summary: p(K | t) convention
+# ---------------------------------------------------------------------------
+
+test_that("p(K | t) matches the shifted-Poisson MFM generative prior", {
+  skip_on_cran()
+
+  q = 5L
+  lambda = 1
+  dirichlet_alpha = 1
+  log_Vn = compute_Vn_mfm_sbm(q, dirichlet_alpha, q + 10L, lambda)
+
+  # Simulate the sampler's generative prior: K - 1 ~ Poisson(lambda),
+  # symmetric Dirichlet(alpha) weights, iid allocations; t = #occupied.
+  set.seed(21)
+  n_sims = 3e5
+  K = rpois(n_sims, lambda) + 1L
+  t_obs = vapply(K, function(k) {
+    w = rgamma(k, dirichlet_alpha)
+    length(unique(sample.int(k, q, replace = TRUE, prob = w)))
+  }, integer(1))
+
+  for(t0 in 1:3) {
+    # The summary reports the conditional restricted to K <= q.
+    sel = t_obs == t0 & K <= q
+    empirical = tabulate(K[sel], nbins = q) / sum(sel)
+    analytic = compute_p_k_given_t(t0, log_Vn, dirichlet_alpha, q, lambda)
+    expect_lt(0.5 * sum(abs(empirical - analytic)), 0.02)
+  }
+})

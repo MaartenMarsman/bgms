@@ -38,7 +38,8 @@ Rcpp::List sample_ggm(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue
 ) {
 
     // Create parameter priors from R input
@@ -132,6 +133,12 @@ Rcpp::List sample_ggm(
         beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
         dirichlet_alpha, lambda
     );
+
+    // Attach the normalizing-constant correction (curves built from the
+    // tilted prior sampler at fit setup) so the hyperparameter updates
+    // target the corrected conditionals.
+    attach_edge_prior_correction(
+        edge_prior_obj.get(), edge_prior_correction, "sample_ggm");
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

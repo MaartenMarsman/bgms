@@ -54,6 +54,7 @@ Other extractors:
 \code{\link[=extract_pairwise_interactions]{extract_pairwise_interactions()}},
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
 \code{\link[=extract_precision]{extract_precision()}},
+\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
 \code{\link[=extract_sbm]{extract_sbm()}}
 }
