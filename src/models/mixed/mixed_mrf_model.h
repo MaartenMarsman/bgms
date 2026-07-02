@@ -638,5 +638,6 @@ private:
     }
     void set_gxy(int i, int j, int val) {
         edge_indicators_(i, p_ + j) = val;
+        edge_indicators_(p_ + j, i) = val;
     }
 };

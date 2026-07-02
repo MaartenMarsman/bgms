@@ -65,6 +65,10 @@ mixed_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, discrete
     .Call(`_bgms_mixed_test_leapfrog_constrained`, x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, inv_mass_in, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale)
 }
 
+test_mixed_edge_indicator_matrix <- function(discrete_observations, continuous_observations, num_categories, n_sweeps, seed) {
+    .Call(`_bgms_test_mixed_edge_indicator_matrix`, discrete_observations, continuous_observations, num_categories, n_sweeps, seed)
+}
+
 compute_conditional_ggm <- function(observations, predict_vars, precision) {
     .Call(`_bgms_compute_conditional_ggm`, observations, predict_vars, precision)
 }
