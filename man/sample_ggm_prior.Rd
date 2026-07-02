@@ -19,9 +19,7 @@ sample_ggm_prior(
   spec = c("conditional", "joint"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
-  edge_prior = c("bernoulli", "beta-bernoulli"),
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
+  edge_prior = NULL,
   apply_correction = TRUE
 )
 }
@@ -90,21 +88,19 @@ Bernoulli edge prior used when \code{spec = "joint"}. Default
 Gibbs chain uses the conjugate row and edge updates and needs no
 proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).}
 
-\item{edge_prior}{One of \code{"bernoulli"} (default; fixed
-\code{edge_inclusion_prob}) or \code{"beta-bernoulli"} (the inclusion
-probability gets a Beta hyperprior and is sampled). Only for
+\item{edge_prior}{An edge prior specification object from
+\code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+prior with probability \code{edge_inclusion_prob}. Only for
 \code{spec = "joint"}.}
 
-\item{beta_bernoulli_alpha, beta_bernoulli_beta}{Positive shape parameters
-of the Beta hyperprior when \code{edge_prior = "beta-bernoulli"}.
-Defaults \code{1} (uniform).}
-
-\item{apply_correction}{Logical. When \code{edge_prior =
-"beta-bernoulli"}, apply the normalizing-constant correction to the
-inclusion-probability update (default \code{TRUE}; the correction table
-is built from the tilted prior sampler and cached across calls). With
-\code{FALSE} the plain conjugate update is used, whose hyperparameter
-marginal does not match the Beta hyperprior under the determinant tilt.}
+\item{apply_correction}{Logical. For the hierarchical edge priors
+(\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+normalizing-constant correction to the hyperparameter updates (default
+\code{TRUE}; the correction table is built from the tilted prior
+sampler and cached across calls). With \code{FALSE} the plain conjugate
+updates are used, whose hyperparameter marginals do not match the
+hyperpriors under the determinant tilt.}
 }
 \value{
 A list with components
@@ -131,9 +127,12 @@ the columns of \code{K_diag}.}
 \code{n_samples x p(p-1)/2} integer matrix of sampled
 \eqn{\Gamma_{ij}} indicators (column order matches
 \code{K_offdiag}).}
-\item{\code{theta}}{Only when \code{edge_prior = "beta-bernoulli"}:
-numeric vector of length \code{n_samples} with the sampled
-inclusion probability.}
+\item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+vector of length \code{n_samples} with the sampled inclusion
+probability.}
+\item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+matrix (\code{n_samples x p}) of sampled cluster allocations
+(1-based).}
 }
 }
 \description{

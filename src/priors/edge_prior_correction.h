@@ -105,3 +105,63 @@ private:
     arma::vec theta_;
     arma::vec log_C_;
 };
+
+
+/**
+ * Normalizing-constant correction data for the stochastic block edge prior.
+ *
+ * The block-model updates read the correction locally: the per-edge tilt
+ * slope is f'(d) evaluated at the edge's min-endpoint expected degree
+ * density, and the new-cluster collapsed marginal integrates the per-pair
+ * curve f(theta) over a uniform quadrature grid. Holds
+ *
+ *   - (fprime_density, fprime): the slope f' tabulated against local
+ *     density, extended as constants beyond the tabulated range;
+ *   - (quad_theta, quad_f): the per-pair f(theta) curve pre-interpolated
+ *     onto a uniform quadrature grid.
+ *
+ * Built from the same correction table as the beta-bernoulli update; see
+ * R/correction_tables.R.
+ */
+class SBMCorrection {
+public:
+    SBMCorrection() = default;
+
+    SBMCorrection(const arma::vec& fprime_density, const arma::vec& fprime,
+                  const arma::vec& quad_theta, const arma::vec& quad_f)
+        : fprime_density_(fprime_density), fprime_(fprime),
+          quad_theta_(quad_theta), quad_f_(quad_f)
+    {
+        if (fprime_density_.n_elem != fprime_.n_elem ||
+            fprime_density_.n_elem < 2 ||
+            quad_theta_.n_elem != quad_f_.n_elem || quad_theta_.n_elem < 2) {
+            Rcpp::stop("SBMCorrection: curve inputs must have equal length >= 2.");
+        }
+    }
+
+    bool active() const { return fprime_.n_elem >= 2; }
+
+    /** Slope f' at local density d: linear interpolation, constant extension. */
+    double fprime_at(double d) const {
+        const arma::uword n = fprime_density_.n_elem;
+        if (d <= fprime_density_[0]) return fprime_[0];
+        if (d >= fprime_density_[n - 1]) return fprime_[n - 1];
+        arma::uword lo = 0, hi = n - 1;
+        while (hi - lo > 1) {
+            arma::uword mid = (lo + hi) / 2;
+            if (fprime_density_[mid] <= d) lo = mid; else hi = mid;
+        }
+        double t = (d - fprime_density_[lo]) /
+            (fprime_density_[hi] - fprime_density_[lo]);
+        return fprime_[lo] + t * (fprime_[hi] - fprime_[lo]);
+    }
+
+    const arma::vec& quad_theta() const { return quad_theta_; }
+    const arma::vec& quad_f() const { return quad_f_; }
+
+private:
+    arma::vec fprime_density_;
+    arma::vec fprime_;
+    arma::vec quad_theta_;
+    arma::vec quad_f_;
+};

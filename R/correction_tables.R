@@ -266,33 +266,57 @@ build_ggm_correction_table = function(
 
 
 # ------------------------------------------------------------------
+# correction_list_from_table (internal)
+# ------------------------------------------------------------------
+# Assemble the per-edge-prior correction curves handed to the C++
+# chain. The beta-bernoulli update reads the whole-graph logC(theta)
+# curve; the stochastic block updates read the slope vs local density
+# plus the per-pair f(theta) curve on a uniform quadrature grid.
+# ------------------------------------------------------------------
+correction_list_from_table = function(table, edge_prior) {
+  correction = list(theta = table$theta, logC = table$logC)
+  if(identical(edge_prior, "Stochastic-Block")) {
+    quad_theta = seq(0.0025, 0.9975, length.out = 200L)
+    correction$fprime_density = table$fprime_density
+    correction$fprime = table$fprime
+    correction$quad_theta = quad_theta
+    correction$quad_f = stats::approx(
+      table$theta, table$f, quad_theta,
+      rule = 2
+    )$y
+  }
+  correction
+}
+
+
+# ------------------------------------------------------------------
 # ggm_edge_prior_correction (internal)
 # ------------------------------------------------------------------
 # Resolve whether a GGM fit needs the normalizing-constant correction
 # and get-or-build the table for its model cell. Applies to fits with
-# edge selection and a Beta-Bernoulli edge prior (the stochastic block
-# corrections are separate). The tilted prior sweep runs the same
-# priors as the fit; the prior sampler does not support a beta-prime
-# slab, so those fits keep the uncorrected update with a warning.
+# edge selection and a hierarchical edge prior (Beta-Bernoulli or
+# Stochastic-Block). The tilted prior sweep runs the same priors as
+# the fit; the prior sampler does not support a beta-prime slab, so
+# those fits keep the uncorrected updates with a warning.
 #
-# Returns list(theta =, logC =), both NULL when no correction applies.
+# Returns the correction list for sample_ggm, or NULL when no
+# correction applies.
 # ------------------------------------------------------------------
 ggm_edge_prior_correction = function(prior, sampler, num_variables) {
-  none = list(theta = NULL, logC = NULL)
   if(!isTRUE(prior$edge_selection)) {
-    return(none)
+    return(NULL)
   }
-  if(!identical(prior$edge_prior, "Beta-Bernoulli")) {
-    return(none)
+  if(!prior$edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")) {
+    return(NULL)
   }
   if(!prior$interaction_prior_type %in% c("cauchy", "normal")) {
     warning(
-      "The Beta-Bernoulli inclusion-probability update is run without the ",
+      "The ", prior$edge_prior, " updates are run without the ",
       "normalizing-constant correction: the tilted prior sampler supports ",
       "only cauchy_prior() and normal_prior() interaction priors.",
       call. = FALSE
     )
-    return(none)
+    return(NULL)
   }
 
   interaction_prior = switch(prior$interaction_prior_type,
@@ -318,7 +342,7 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables) {
     update_method = "gibbs",
     cores = sampler$cores
   )
-  list(theta = table$theta, logC = table$logC)
+  correction_list_from_table(table, prior$edge_prior)
 }
 
 

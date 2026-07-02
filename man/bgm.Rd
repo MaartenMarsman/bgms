@@ -163,16 +163,18 @@ Legacy character strings \code{"Bernoulli"}, \code{"Beta-Bernoulli"},
 \code{"Stochastic-Block"} are still accepted but deprecated.
 Default: \code{bernoulli_prior(0.5)}.
 
-For continuous (GGM) models with \code{beta_bernoulli_prior()}, the
-inclusion-probability update carries a normalizing-constant correction:
-under the determinant-tilted precision prior, the plain conjugate Beta
-update targets the wrong marginal for the inclusion probability. The
-correction table is built from the prior distribution at the first fit
-of a model configuration (a one-time cost of the order of minutes,
-announced when \code{verbose = TRUE}) and cached on disk via
+For continuous (GGM) models with \code{beta_bernoulli_prior()} or
+\code{sbm_prior()}, the hyperparameter updates carry a
+normalizing-constant correction: under the determinant-tilted precision
+prior, the plain conjugate updates target the wrong marginals for the
+inclusion probability and the block structure. The correction table is
+built from the prior distribution at the first fit of a model
+configuration (a one-time cost of the order of minutes, announced when
+\code{verbose = TRUE}) and cached on disk via
 \code{tools::R_user_dir("bgms", "cache")}, so later fits of the same
-configuration skip the build. The sampled inclusion probability is
-returned per chain in \code{fit$inclusion_parameter_samples}.}
+configuration skip the build. With \code{beta_bernoulli_prior()} the
+sampled inclusion probability is returned per chain in
+\code{fit$inclusion_parameter_samples}.}
 
 \item{na_action}{Character. Specifies missing data handling. Either
 \code{"listwise"} (drop rows with missing values) or \code{"impute"}

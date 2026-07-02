@@ -153,6 +153,10 @@ public:
         initialized_(false)
     {}
 
+    void set_correction(const SBMCorrection& correction) {
+        correction_ = correction;
+    }
+
     /**
      * Initialize SBM state from the current edge indicators. Called
      * automatically on first update().
@@ -203,19 +207,37 @@ public:
             initialize(edge_indicators, inclusion_probability, num_variables, rng);
         }
 
-        cluster_allocations_ = block_allocations_mfm_sbm(
-            cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
-            arma::conv_to<arma::umat>::from(edge_indicators), dirichlet_alpha_,
-            beta_bernoulli_alpha_, beta_bernoulli_beta_,
-            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
-        );
+        if (correction_.active()) {
+            arma::umat indicator =
+                arma::conv_to<arma::umat>::from(edge_indicators);
+            cluster_allocations_ = block_allocations_mfm_sbm_corrected(
+                cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
+                indicator, dirichlet_alpha_,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_,
+                correction_, rng
+            );
+            cluster_prob_ = block_probs_mfm_sbm_corrected(
+                cluster_allocations_, cluster_prob_, indicator, num_variables,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_,
+                correction_, rng
+            );
+        } else {
+            cluster_allocations_ = block_allocations_mfm_sbm(
+                cluster_allocations_, num_variables, log_Vn_, cluster_prob_,
+                arma::conv_to<arma::umat>::from(edge_indicators), dirichlet_alpha_,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+            );
 
-        cluster_prob_ = block_probs_mfm_sbm(
-            cluster_allocations_,
-            arma::conv_to<arma::umat>::from(edge_indicators), num_variables,
-            beta_bernoulli_alpha_, beta_bernoulli_beta_,
-            beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
-        );
+            cluster_prob_ = block_probs_mfm_sbm(
+                cluster_allocations_,
+                arma::conv_to<arma::umat>::from(edge_indicators), num_variables,
+                beta_bernoulli_alpha_, beta_bernoulli_beta_,
+                beta_bernoulli_alpha_between_, beta_bernoulli_beta_between_, rng
+            );
+        }
 
         for (int i = 0; i < num_variables - 1; i++) {
             for (int j = i + 1; j < num_variables; j++) {
@@ -247,6 +269,7 @@ private:
     arma::uvec cluster_allocations_;
     arma::mat cluster_prob_;
     arma::vec log_Vn_;
+    SBMCorrection correction_;
 };
 
 

@@ -77,19 +77,18 @@
 #'   \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
 #'   Gibbs chain uses the conjugate row and edge updates and needs no
 #'   proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).
-#' @param edge_prior One of \code{"bernoulli"} (default; fixed
-#'   \code{edge_inclusion_prob}) or \code{"beta-bernoulli"} (the inclusion
-#'   probability gets a Beta hyperprior and is sampled). Only for
+#' @param edge_prior An edge prior specification object from
+#'   \code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+#'   or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+#'   prior with probability \code{edge_inclusion_prob}. Only for
 #'   \code{spec = "joint"}.
-#' @param beta_bernoulli_alpha,beta_bernoulli_beta Positive shape parameters
-#'   of the Beta hyperprior when \code{edge_prior = "beta-bernoulli"}.
-#'   Defaults \code{1} (uniform).
-#' @param apply_correction Logical. When \code{edge_prior =
-#'   "beta-bernoulli"}, apply the normalizing-constant correction to the
-#'   inclusion-probability update (default \code{TRUE}; the correction table
-#'   is built from the tilted prior sampler and cached across calls). With
-#'   \code{FALSE} the plain conjugate update is used, whose hyperparameter
-#'   marginal does not match the Beta hyperprior under the determinant tilt.
+#' @param apply_correction Logical. For the hierarchical edge priors
+#'   (\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+#'   normalizing-constant correction to the hyperparameter updates (default
+#'   \code{TRUE}; the correction table is built from the tilted prior
+#'   sampler and cached across calls). With \code{FALSE} the plain conjugate
+#'   updates are used, whose hyperparameter marginals do not match the
+#'   hyperpriors under the determinant tilt.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -125,9 +124,12 @@
 #'       \code{n_samples x p(p-1)/2} integer matrix of sampled
 #'       \eqn{\Gamma_{ij}} indicators (column order matches
 #'       \code{K_offdiag}).}
-#'     \item{\code{theta}}{Only when \code{edge_prior = "beta-bernoulli"}:
-#'       numeric vector of length \code{n_samples} with the sampled
-#'       inclusion probability.}
+#'     \item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+#'       vector of length \code{n_samples} with the sampled inclusion
+#'       probability.}
+#'     \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+#'       matrix (\code{n_samples x p}) of sampled cluster allocations
+#'       (1-based).}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -171,26 +173,23 @@ sample_ggm_prior = function(
   spec = c("conditional", "joint"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
-  edge_prior = c("bernoulli", "beta-bernoulli"),
-  beta_bernoulli_alpha = 1,
-  beta_bernoulli_beta = 1,
+  edge_prior = NULL,
   apply_correction = TRUE
 ) {
   spec = match.arg(spec)
   update_method = match.arg(update_method)
-  edge_prior = match.arg(edge_prior)
-  if(spec == "conditional" && edge_prior != "bernoulli") {
+  ep = if(is.null(edge_prior)) {
+    NULL
+  } else {
+    unpack_indicator_prior(edge_prior, num_variables = as.integer(p))
+  }
+  if(spec == "conditional" && !is.null(ep) &&
+    !identical(ep$edge_prior, "Bernoulli")) {
     stop(
-      "'edge_prior = \"beta-bernoulli\"' requires spec = \"joint\" (the ",
-      "conditional spec fixes the graph)."
+      "Hierarchical edge priors require spec = \"joint\" (the conditional ",
+      "spec fixes the graph)."
     )
   }
-  validate_finite_scalar(beta_bernoulli_alpha, "beta_bernoulli_alpha",
-    positive = TRUE
-  )
-  validate_finite_scalar(beta_bernoulli_beta, "beta_bernoulli_beta",
-    positive = TRUE
-  )
   if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
     is.na(apply_correction)) {
     stop("'apply_correction' must be TRUE or FALSE.")
@@ -263,42 +262,44 @@ sample_ggm_prior = function(
     scale_rate             = sp$scale_rate
   )
 
-  correction = list(theta = NULL, logC = NULL)
-  edge_prior_name = "Bernoulli"
-  initial_inclusion = edge_inclusion_prob
-  if(edge_prior == "beta-bernoulli") {
-    edge_prior_name = "Beta-Bernoulli"
-    initial_inclusion = beta_bernoulli_alpha /
-      (beta_bernoulli_alpha + beta_bernoulli_beta)
-    if(apply_correction) {
-      table = ggm_correction_table(
-        p = p, delta = delta,
-        interaction_prior = interaction_prior,
-        precision_scale_prior = precision_scale_prior,
-        update_method = "gibbs"
-      )
-      correction = list(theta = table$theta, logC = table$logC)
-    }
+  if(is.null(ep)) {
+    ep = unpack_indicator_prior(
+      bernoulli_prior(edge_inclusion_prob),
+      num_variables = as.integer(p)
+    )
+  }
+  correction = NULL
+  if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
+    table = ggm_correction_table(
+      p = p, delta = delta,
+      interaction_prior = interaction_prior,
+      precision_scale_prior = precision_scale_prior,
+      update_method = "gibbs"
+    )
+    correction = correction_list_from_table(table, ep$edge_prior)
   }
 
   results = sample_ggm(
-    inputFromR              = inputFromR,
-    prior_inclusion_prob    = matrix(initial_inclusion, p, p),
+    inputFromR = inputFromR,
+    prior_inclusion_prob = ep$inclusion_probability,
     initial_edge_indicators = matrix(1L, p, p),
-    no_iter                 = as.integer(n_samples),
-    no_warmup               = as.integer(n_warmup),
-    no_chains               = 1L,
-    edge_selection          = TRUE,
-    sampler_type            = update_method,
-    seed                    = as.integer(seed),
-    no_threads              = 1L,
-    progress_type           = if(verbose) 2L else 0L,
-    edge_prior              = edge_prior_name,
-    beta_bernoulli_alpha    = beta_bernoulli_alpha,
-    beta_bernoulli_beta     = beta_bernoulli_beta,
-    delta                   = as.numeric(delta),
-    correction_theta        = correction$theta,
-    correction_logC         = correction$logC
+    no_iter = as.integer(n_samples),
+    no_warmup = as.integer(n_warmup),
+    no_chains = 1L,
+    edge_selection = TRUE,
+    sampler_type = update_method,
+    seed = as.integer(seed),
+    no_threads = 1L,
+    progress_type = if(verbose) 2L else 0L,
+    edge_prior = ep$edge_prior,
+    beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
+    beta_bernoulli_beta = ep$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
+    dirichlet_alpha = ep$dirichlet_alpha,
+    lambda = ep$lambda,
+    delta = as.numeric(delta),
+    edge_prior_correction = correction
   )
   if(length(results) == 0L || isTRUE(results[[1L]]$error)) {
     msg = if(length(results) > 0L) results[[1L]]$error_msg else "empty result"
@@ -350,6 +351,9 @@ sample_ggm_prior = function(
   )
   if(!is.null(results[[1L]]$inclusion_parameter_samples)) {
     out$theta = as.numeric(results[[1L]]$inclusion_parameter_samples)
+  }
+  if(!is.null(results[[1L]]$allocation_samples)) {
+    out$allocations = t(results[[1L]]$allocation_samples)
   }
   out
 }

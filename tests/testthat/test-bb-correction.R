@@ -90,7 +90,7 @@ test_that("corrected prior-only chain returns the Beta hyperprior", {
   draws = sample_ggm_prior(
     p = 5, n_samples = 4000, n_warmup = 500,
     seed = 21, verbose = FALSE, spec = "joint",
-    update_method = "gibbs", edge_prior = "beta-bernoulli"
+    update_method = "gibbs", edge_prior = beta_bernoulli_prior(1, 1)
   )
 
   expect_length(draws$theta, 4000)
@@ -105,7 +105,7 @@ test_that("uncorrected prior-only chain misses the hyperprior", {
   draws = sample_ggm_prior(
     p = 5, n_samples = 4000, n_warmup = 500,
     seed = 22, verbose = FALSE, spec = "joint",
-    update_method = "gibbs", edge_prior = "beta-bernoulli",
+    update_method = "gibbs", edge_prior = beta_bernoulli_prior(1, 1),
     apply_correction = FALSE
   )
 
