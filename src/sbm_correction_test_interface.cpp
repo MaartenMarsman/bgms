@@ -5,13 +5,29 @@
 // corrections: the self-consistent per-edge slopes, the mini-TI label-move
 // correction, and the corrected new-cluster collapsed marginal. With a
 // constant slope curve all three have closed forms, so tests can pin the
-// ported numerics without running a chain.
+// ported numerics without running a chain. The optional is_continuous mask
+// (0/1 per node, NULL = all continuous) exercises the mixed-MRF path, where
+// only continuous-continuous pairs carry the tilt.
 // -----------------------------------------------------------------------------
 
 #include <RcppArmadillo.h>
 
 #include "priors/edge_prior_correction.h"
 #include "priors/sbm_edge_prior.h"
+
+static SBMCorrection make_test_correction(
+    const arma::vec& fprime_density,
+    const arma::vec& fprime,
+    const arma::vec& quad_theta,
+    const arma::vec& quad_f,
+    const Rcpp::Nullable<Rcpp::IntegerVector>& is_continuous
+) {
+    arma::uvec mask;
+    if (is_continuous.isNotNull()) {
+        mask = Rcpp::as<arma::uvec>(Rcpp::IntegerVector(is_continuous.get()));
+    }
+    return SBMCorrection(fprime_density, fprime, quad_theta, quad_f, mask);
+}
 
 // -----------------------------------------------------------------------------
 // test_sbm_compute_ce:
@@ -26,9 +42,11 @@ arma::mat test_sbm_compute_ce(
     const arma::vec& fprime_density,
     const arma::vec& fprime,
     const arma::vec& quad_theta,
-    const arma::vec& quad_f
+    const arma::vec& quad_f,
+    const Rcpp::Nullable<Rcpp::IntegerVector> is_continuous = R_NilValue
 ) {
-    SBMCorrection correction(fprime_density, fprime, quad_theta, quad_f);
+    SBMCorrection correction = make_test_correction(
+        fprime_density, fprime, quad_theta, quad_f, is_continuous);
     arma::uvec z = arma::conv_to<arma::uvec>::from(cluster_assign - 1);
     return compute_ce_sbm(z, block_probs, z.n_elem, correction);
 }
@@ -49,9 +67,11 @@ double test_sbm_miniti_node(
     const arma::vec& fprime_density,
     const arma::vec& fprime,
     const arma::vec& quad_theta,
-    const arma::vec& quad_f
+    const arma::vec& quad_f,
+    const Rcpp::Nullable<Rcpp::IntegerVector> is_continuous = R_NilValue
 ) {
-    SBMCorrection correction(fprime_density, fprime, quad_theta, quad_f);
+    SBMCorrection correction = make_test_correction(
+        fprime_density, fprime, quad_theta, quad_f, is_continuous);
     arma::uvec z = arma::conv_to<arma::uvec>::from(cluster_assign - 1);
     arma::vec deg_base = degrees_ld_sbm(z, block_probs, z.n_elem, correction);
     return miniti_node_sbm(
@@ -75,9 +95,11 @@ double test_sbm_miniti_removal(
     const arma::vec& fprime_density,
     const arma::vec& fprime,
     const arma::vec& quad_theta,
-    const arma::vec& quad_f
+    const arma::vec& quad_f,
+    const Rcpp::Nullable<Rcpp::IntegerVector> is_continuous = R_NilValue
 ) {
-    SBMCorrection correction(fprime_density, fprime, quad_theta, quad_f);
+    SBMCorrection correction = make_test_correction(
+        fprime_density, fprime, quad_theta, quad_f, is_continuous);
     arma::uvec z = arma::conv_to<arma::uvec>::from(cluster_assign - 1);
     arma::vec deg_base = degrees_ld_sbm(z, block_probs, z.n_elem, correction);
     return miniti_removal_sbm(
@@ -102,9 +124,11 @@ double test_sbm_corrected_log_marginal(
     const arma::vec& fprime_density,
     const arma::vec& fprime,
     const arma::vec& quad_theta,
-    const arma::vec& quad_f
+    const arma::vec& quad_f,
+    const Rcpp::Nullable<Rcpp::IntegerVector> is_continuous = R_NilValue
 ) {
-    SBMCorrection correction(fprime_density, fprime, quad_theta, quad_f);
+    SBMCorrection correction = make_test_correction(
+        fprime_density, fprime, quad_theta, quad_f, is_continuous);
     arma::uvec z = arma::conv_to<arma::uvec>::from(cluster_assign - 1);
     arma::umat ind = arma::conv_to<arma::umat>::from(indicator);
     return corrected_log_marginal_mfm_sbm(

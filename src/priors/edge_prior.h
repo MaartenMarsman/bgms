@@ -274,6 +274,44 @@ private:
 
 
 /**
+ * Attach a normalizing-constant correction list (assembled by
+ * R/correction_tables.R) to a hierarchical edge prior. The beta-bernoulli
+ * prior reads the whole-graph logC(theta) curve; the stochastic block prior
+ * reads the slope and per-pair curves plus the optional continuous-block
+ * node mask used on the mixed-MRF path.
+ */
+inline void attach_edge_prior_correction(
+    BaseEdgePrior* edge_prior_obj,
+    const Rcpp::Nullable<Rcpp::List>& edge_prior_correction,
+    const char* caller
+) {
+    if (edge_prior_correction.isNull()) return;
+    Rcpp::List correction(edge_prior_correction.get());
+    if (auto* bb = dynamic_cast<BetaBernoulliEdgePrior*>(edge_prior_obj)) {
+        bb->set_correction(EdgePriorCorrection(
+            Rcpp::as<arma::vec>(correction["theta"]),
+            Rcpp::as<arma::vec>(correction["logC"])
+        ));
+    } else if (auto* sbm = dynamic_cast<StochasticBlockEdgePrior*>(edge_prior_obj)) {
+        arma::uvec is_continuous;
+        if (correction.containsElementNamed("is_continuous")) {
+            is_continuous = Rcpp::as<arma::uvec>(correction["is_continuous"]);
+        }
+        sbm->set_correction(SBMCorrection(
+            Rcpp::as<arma::vec>(correction["fprime_density"]),
+            Rcpp::as<arma::vec>(correction["fprime"]),
+            Rcpp::as<arma::vec>(correction["quad_theta"]),
+            Rcpp::as<arma::vec>(correction["quad_f"]),
+            is_continuous
+        ));
+    } else {
+        Rcpp::stop("%s: a correction table was supplied for an edge prior "
+                   "that does not support it.", caller);
+    }
+}
+
+
+/**
  * Factory: create an edge prior from an EdgePrior enum and hyperparameters.
  */
 inline std::unique_ptr<BaseEdgePrior> create_edge_prior(

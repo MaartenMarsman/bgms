@@ -225,4 +225,3 @@ test_that("malformed edge_indicators are rejected", {
     "0 or 1"
   )
 })
-

@@ -402,13 +402,18 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
 // ----------------------------------------------------------------------------|
 // Self-consistent per-edge slopes c_e given labels and block probabilities:
 // fixed point of e = th * exp(c) / (1 - th + th * exp(c)) with
-// c = f'(min-endpoint expected degree density).
+// c = f'(min-endpoint expected degree density). Only continuous-continuous
+// pairs carry the tilt: other pairs keep slope zero and stay out of the
+// expected-degree sums, which run over the continuous subgraph.
 // ----------------------------------------------------------------------------|
 arma::mat compute_ce_sbm(const arma::uvec& cluster_assign,
                          const arma::mat& block_probs,
                          arma::uword no_variables,
                          const SBMCorrection& correction) {
   arma::uword q = no_variables;
+  arma::mat ce(q, q, arma::fill::zeros);
+  arma::uword q_cc = correction.num_continuous(q);
+  if(q_cc < 2) return ce;
   arma::mat TH(q, q, arma::fill::zeros), ep(q, q, arma::fill::zeros);
   for(arma::uword i = 0; i < q - 1; i++) {
     for(arma::uword j = i + 1; j < q; j++) {
@@ -417,17 +422,22 @@ arma::mat compute_ce_sbm(const arma::uvec& cluster_assign,
       ep(i, j) = th; ep(j, i) = th;
     }
   }
-  arma::mat ce(q, q, arma::fill::zeros);
   for(int it = 0; it < 40; it++) {
     arma::vec deg(q, arma::fill::zeros);
     for(arma::uword i = 0; i < q; i++) {
+      if(!correction.node_continuous(i)) continue;
       double s = 0;
-      for(arma::uword j = 0; j < q; j++) if(j != i) s += ep(i, j);
-      deg(i) = s / static_cast<double>(q - 1);
+      for(arma::uword j = 0; j < q; j++) {
+        if(j == i || !correction.node_continuous(j)) continue;
+        s += ep(i, j);
+      }
+      deg(i) = s / static_cast<double>(q_cc - 1);
     }
     double max_diff = 0;
     for(arma::uword i = 0; i < q - 1; i++) {
+      if(!correction.node_continuous(i)) continue;
       for(arma::uword j = i + 1; j < q; j++) {
+        if(!correction.node_continuous(j)) continue;
         double dmin = std::min(deg(i), deg(j));
         double c = correction.fprime_at(dmin);
         ce(i, j) = c; ce(j, i) = c;
@@ -445,24 +455,29 @@ arma::mat compute_ce_sbm(const arma::uvec& cluster_assign,
 
 // ----------------------------------------------------------------------------|
 // Baseline expected degree densities under (labels, block probabilities) via
-// the self-consistent local-density prediction.
+// the self-consistent local-density prediction, over the continuous
+// subgraph. Discrete nodes keep density zero; their entries are never read
+// by the tilt terms.
 // ----------------------------------------------------------------------------|
 arma::vec degrees_ld_sbm(const arma::uvec& cluster_assign,
                          const arma::mat& block_probs,
                          arma::uword no_variables,
                          const SBMCorrection& correction) {
   arma::uword q = no_variables;
-  arma::mat ce = compute_ce_sbm(cluster_assign, block_probs, q, correction);
   arma::vec deg(q, arma::fill::zeros);
+  arma::uword q_cc = correction.num_continuous(q);
+  if(q_cc < 2) return deg;
+  arma::mat ce = compute_ce_sbm(cluster_assign, block_probs, q, correction);
   for(arma::uword i = 0; i < q; i++) {
+    if(!correction.node_continuous(i)) continue;
     double s = 0;
     for(arma::uword j = 0; j < q; j++) {
-      if(j == i) continue;
+      if(j == i || !correction.node_continuous(j)) continue;
       double th = block_probs(cluster_assign(i), cluster_assign(j));
       double ec = std::exp(ce(i, j));
       s += th * ec / (1.0 - th + th * ec);
     }
-    deg(i) = s / static_cast<double>(q - 1);
+    deg(i) = s / static_cast<double>(q_cc - 1);
   }
   return deg;
 }
@@ -484,11 +499,13 @@ double miniti_node_sbm(arma::uword node,
                        const SBMCorrection& correction) {
   const int T = 4;
   arma::uword q = no_variables;
+  arma::uword q_cc = correction.num_continuous(q);
+  if(q_cc < 2 || !correction.node_continuous(node)) return 0.0;
   std::vector<double> th_old(q), th_new(q);
   std::vector<arma::uword> js;
   js.reserve(q - 1);
   for(arma::uword j = 0; j < q; j++) {
-    if(j == node) continue;
+    if(j == node || !correction.node_continuous(j)) continue;
     th_old[j] = block_probs(cur, cluster_assign(j));
     th_new[j] = block_probs(cand, cluster_assign(j));
     js.push_back(j);
@@ -498,7 +515,7 @@ double miniti_node_sbm(arma::uword node,
     double t = static_cast<double>(ti) / T;
     double degk = 0.0;
     for(arma::uword j : js) degk += (1 - t) * th_old[j] + t * th_new[j];
-    degk /= static_cast<double>(q - 1);
+    degk /= static_cast<double>(q_cc - 1);
     for(int it = 0; it < 3; it++) {
       double s = 0;
       for(arma::uword j : js) {
@@ -507,7 +524,7 @@ double miniti_node_sbm(arma::uword node,
         double ec = std::exp(correction.fprime_at(dmin));
         s += th * ec / (1.0 - th + th * ec);
       }
-      double ndeg = s / static_cast<double>(q - 1);
+      double ndeg = s / static_cast<double>(q_cc - 1);
       if(std::abs(ndeg - degk) < 1e-9) { degk = ndeg; break; }
       degk = ndeg;
     }
@@ -542,11 +559,13 @@ double miniti_removal_sbm(arma::uword node,
                           const SBMCorrection& correction) {
   const int T = 4;
   arma::uword q = no_variables;
+  arma::uword q_cc = correction.num_continuous(q);
+  if(q_cc < 2 || !correction.node_continuous(node)) return 0.0;
   std::vector<double> th_old(q);
   std::vector<arma::uword> js;
   js.reserve(q - 1);
   for(arma::uword j = 0; j < q; j++) {
-    if(j == node) continue;
+    if(j == node || !correction.node_continuous(j)) continue;
     th_old[j] = block_probs(cur, cluster_assign(j));
     js.push_back(j);
   }
@@ -555,7 +574,7 @@ double miniti_removal_sbm(arma::uword node,
     double t = static_cast<double>(ti) / T;
     double degk = 0.0;
     for(arma::uword j : js) degk += (1 - t) * th_old[j];
-    degk /= static_cast<double>(q - 1);
+    degk /= static_cast<double>(q_cc - 1);
     for(int it = 0; it < 3; it++) {
       double s = 0;
       for(arma::uword j : js) {
@@ -564,7 +583,7 @@ double miniti_removal_sbm(arma::uword node,
         double ec = std::exp(correction.fprime_at(dmin));
         s += th * ec / (1.0 - th + th * ec);
       }
-      double ndeg = s / static_cast<double>(q - 1);
+      double ndeg = s / static_cast<double>(q_cc - 1);
       if(std::abs(ndeg - degk) < 1e-9) { degk = ndeg; break; }
       degk = ndeg;
     }
@@ -586,8 +605,11 @@ double miniti_removal_sbm(arma::uword node,
 // Corrected collapsed log-marginal for assigning a node to a NEW cluster: for
 // each existing cluster r the fresh block-pair shares one probability drawn
 // from the Beta prior, so the tilt enters as the homogeneous whole-pair
-// factor exp(-n_r * f(theta)) inside the Beta-Bernoulli integral, computed by
-// quadrature on the per-pair f curve.
+// factor exp(-n_cc * f(theta)) inside the Beta-Bernoulli integral, computed
+// by quadrature on the per-pair f curve. Only the node's continuous-
+// continuous pairs are tilted: n_cc counts the cluster's continuous members,
+// and zero for a discrete node. Cluster terms without tilted pairs use the
+// exact conjugate Beta-Bernoulli marginal.
 // ----------------------------------------------------------------------------|
 double corrected_log_marginal_mfm_sbm(const arma::uvec& cluster_assign,
                                       const arma::umat& indicator,
@@ -602,24 +624,32 @@ double corrected_log_marginal_mfm_sbm(const arma::uvec& cluster_assign,
   double dth = thq(1) - thq(0);
   double lbab = R::lbeta(beta_bernoulli_alpha_between, beta_bernoulli_beta_between);
   arma::uword no_clusters = arma::max(cluster_assign) + 1;
+  bool node_cc = correction.node_continuous(node);
 
   double out = 0;
   std::vector<double> lp(Nq);
   for(arma::uword r = 0; r < no_clusters; r++) {
-    int nr = 0, mr = 0;
+    int nr = 0, mr = 0, nr_cc = 0;
     for(arma::uword j = 0; j < no_variables; j++) {
       if(j == node || cluster_assign(j) != r) continue;
       nr++;
+      if(correction.node_continuous(j)) nr_cc++;
       arma::uword a = std::min(node, j), b = std::max(node, j);
       if(indicator(a, b) == 1) mr++;
     }
     if(nr == 0) continue;
+    int tilt_n = node_cc ? nr_cc : 0;
+    if(tilt_n == 0) {
+      out += R::lbeta(beta_bernoulli_alpha_between + mr,
+                      beta_bernoulli_beta_between + nr - mr) - lbab;
+      continue;
+    }
     double mx = -std::numeric_limits<double>::infinity();
     for(arma::uword k = 0; k < Nq; k++) {
       double th = thq(k);
       lp[k] = (beta_bernoulli_alpha_between - 1.0 + mr) * std::log(th) +
         (beta_bernoulli_beta_between - 1.0 + nr - mr) * std::log1p(-th) -
-        static_cast<double>(nr) * fq(k);
+        static_cast<double>(tilt_n) * fq(k);
       if(lp[k] > mx) mx = lp[k];
     }
     double s = 0;
@@ -665,6 +695,11 @@ arma::uvec block_allocations_mfm_sbm_corrected(arma::uvec cluster_assign,
                                                double beta_bernoulli_beta_between,
                                                const SBMCorrection& correction,
                                                SafeRNG& rng) {
+  if(correction.is_continuous().n_elem > 0 &&
+     correction.is_continuous().n_elem != no_variables) {
+    Rcpp::stop("SBM correction: is_continuous mask length does not match "
+               "the number of variables.");
+  }
   arma::uvec indices = arma_randperm(rng, no_variables);
   double dir_alpha = static_cast<double>(dirichlet_alpha);
 
@@ -786,6 +821,11 @@ arma::mat block_probs_mfm_sbm_corrected(const arma::uvec& cluster_assign,
                                         double beta_bernoulli_beta_between,
                                         const SBMCorrection& correction,
                                         SafeRNG& rng) {
+  if(correction.is_continuous().n_elem > 0 &&
+     correction.is_continuous().n_elem != no_variables) {
+    Rcpp::stop("SBM correction: is_continuous mask length does not match "
+               "the number of variables.");
+  }
   arma::uvec cluster_size = table_cpp(cluster_assign);
   arma::uword no_clusters = cluster_size.n_elem;
   arma::mat block_probs(no_clusters, no_clusters);
@@ -809,7 +849,9 @@ arma::mat block_probs_mfm_sbm_corrected(const arma::uvec& cluster_assign,
       std::vector<double> ce_edges;
       ce_edges.reserve(n_pairs);
       for(arma::uword i = 0; i < no_variables - 1; i++) {
+        if(!correction.node_continuous(i)) continue;
         for(arma::uword j = i + 1; j < no_variables; j++) {
+          if(!correction.node_continuous(j)) continue;
           arma::uword zi = cluster_assign(i), zj = cluster_assign(j);
           bool in_pair = within ? (zi == r && zj == r)
             : ((zi == r && zj == s) || (zi == s && zj == r));
@@ -818,9 +860,15 @@ arma::mat block_probs_mfm_sbm_corrected(const arma::uvec& cluster_assign,
       }
       double a = within ? beta_bernoulli_alpha : beta_bernoulli_alpha_between;
       double b = within ? beta_bernoulli_beta : beta_bernoulli_beta_between;
-      block_probs(r, s) = draw_theta_local_density(
-        static_cast<int>(sumG), n_pairs, a, b,
-        block_probs_current(r, s), ce_edges, rng);
+      if(ce_edges.empty()) {
+        // No tilted pairs in this block pair: the conjugate draw is exact.
+        block_probs(r, s) = rbeta(
+          rng, a + sumG, b + static_cast<double>(n_pairs) - sumG);
+      } else {
+        block_probs(r, s) = draw_theta_local_density(
+          static_cast<int>(sumG), n_pairs, a, b,
+          block_probs_current(r, s), ce_edges, rng);
+      }
       block_probs(s, r) = block_probs(r, s);
     }
   }

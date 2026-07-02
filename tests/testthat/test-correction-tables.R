@@ -66,6 +66,23 @@ test_that("isotonic repair lifts a crash dip and reports it", {
   expect_false(is.unsorted(tab$edens))
 })
 
+test_that("a single pair yields the logC curve without slope pieces", {
+  c0 = -0.3
+  theta = ggm_correction_theta_grid(80L)
+  edens = theta * exp(c0) / (1 - theta + theta * exp(c0))
+
+  # num_pairs = 1: the resolvable density window (0.5, 0.5) is empty, so
+  # the slope curve cannot be tabulated; the integrated curve still can.
+  tab = correction_table_from_edens(theta, edens, num_pairs = 1)
+
+  expect_null(tab$fprime)
+  expect_null(tab$fprime_density)
+  expect_null(tab$fed)
+  expect_true(all(is.finite(tab$logC)))
+  f_exact = log(1 - theta + theta * exp(c0))
+  expect_equal(tab$f, f_exact - f_exact[1], tolerance = 2e-4)
+})
+
 test_that("table build with cache round-trips and reuses the file", {
   cache_dir = file.path(tempdir(), "bgms-ctable-test")
   unlink(cache_dir, recursive = TRUE)

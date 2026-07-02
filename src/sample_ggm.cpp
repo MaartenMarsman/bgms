@@ -137,25 +137,8 @@ Rcpp::List sample_ggm(
     // Attach the normalizing-constant correction (curves built from the
     // tilted prior sampler at fit setup) so the hyperparameter updates
     // target the corrected conditionals.
-    if (edge_prior_correction.isNotNull()) {
-        Rcpp::List correction(edge_prior_correction.get());
-        if (auto* bb = dynamic_cast<BetaBernoulliEdgePrior*>(edge_prior_obj.get())) {
-            bb->set_correction(EdgePriorCorrection(
-                Rcpp::as<arma::vec>(correction["theta"]),
-                Rcpp::as<arma::vec>(correction["logC"])
-            ));
-        } else if (auto* sbm = dynamic_cast<StochasticBlockEdgePrior*>(edge_prior_obj.get())) {
-            sbm->set_correction(SBMCorrection(
-                Rcpp::as<arma::vec>(correction["fprime_density"]),
-                Rcpp::as<arma::vec>(correction["fprime"]),
-                Rcpp::as<arma::vec>(correction["quad_theta"]),
-                Rcpp::as<arma::vec>(correction["quad_f"])
-            ));
-        } else {
-            Rcpp::stop("sample_ggm: a correction table was supplied for an "
-                       "edge prior that does not support it.");
-        }
-    }
+    attach_edge_prior_correction(
+        edge_prior_obj.get(), edge_prior_correction, "sample_ggm");
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

@@ -683,7 +683,10 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       sample(0:2, n, replace = TRUE)
     )
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
-    .test_cache$bgms_fit_mixed_mrf_sbm = bgm(
+    # Two continuous variables: the block-model correction warns that its
+    # slope curve is not resolvable at a single tilted pair and keeps the
+    # plain conjugate updates (asserted in test-mixed-correction.R).
+    .test_cache$bgms_fit_mixed_mrf_sbm = suppressWarnings(bgm(
       x = x,
       variable_type = c(
         "ordinal", "continuous", "ordinal",
@@ -694,7 +697,7 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       iter = 50, warmup = 100, chains = 1,
       seed = 77778,
       display_progress = "none"
-    )
+    ))
   }
   .test_cache$bgms_fit_mixed_mrf_sbm
 }

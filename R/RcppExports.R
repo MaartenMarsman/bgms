@@ -141,28 +141,28 @@ sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators
     .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, na_impute, missing_index_nullable, delta, edge_prior_correction)
 }
 
-sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0) {
-    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta)
+sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0, edge_prior_correction = NULL) {
+    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction)
 }
 
 sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", na_impute = FALSE, missing_index_nullable = NULL, beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, pairwise_scaling_factors_nullable = NULL) {
     .Call(`_bgms_sample_omrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, pairwise_scaling_factors_nullable)
 }
 
-test_sbm_compute_ce <- function(cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f) {
-    .Call(`_bgms_test_sbm_compute_ce`, cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f)
+test_sbm_compute_ce <- function(cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_compute_ce`, cluster_assign, block_probs, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }
 
-test_sbm_miniti_node <- function(node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f) {
-    .Call(`_bgms_test_sbm_miniti_node`, node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f)
+test_sbm_miniti_node <- function(node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_miniti_node`, node, cluster_assign, block_probs, cur, cand, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }
 
-test_sbm_miniti_removal <- function(node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f) {
-    .Call(`_bgms_test_sbm_miniti_removal`, node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f)
+test_sbm_miniti_removal <- function(node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_miniti_removal`, node, cluster_assign, block_probs, cur, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }
 
-test_sbm_corrected_log_marginal <- function(node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f) {
-    .Call(`_bgms_test_sbm_corrected_log_marginal`, node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f)
+test_sbm_corrected_log_marginal <- function(node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f, is_continuous = NULL) {
+    .Call(`_bgms_test_sbm_corrected_log_marginal`, node, cluster_assign, indicator, alpha_between, beta_between, fprime_density, fprime, quad_theta, quad_f, is_continuous)
 }
 
 compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {

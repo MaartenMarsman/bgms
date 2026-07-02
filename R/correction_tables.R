@@ -70,7 +70,9 @@ ggm_correction_theta_grid = function(n_grid = 120L, lower = 0.002,
 # exceed the true density; fprime and the fed table are therefore
 # built only from grid points with theta <= fprime_theta_cap whose
 # density is resolvable (inside (0.5/E, 1 - 0.5/E)), and extended as
-# constants beyond the covered density range.
+# constants beyond the covered density range. With a single pair the
+# resolvable window is empty, so the slope pieces are returned as
+# NULL; the logC curve does not depend on them.
 #
 # Returns the table as a list; logC is the whole-graph curve
 # num_pairs * f used by the beta-binomial draw. fprime is tabulated
@@ -90,23 +92,29 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
 
   keep = theta <= fprime_theta_cap &
     edens > 0.5 / num_pairs & edens < 1 - 0.5 / num_pairs
-  stopifnot(any(keep))
-  fprime_density = edens[keep]
-  fprime = log(
-    (fprime_density / (1 - fprime_density)) * (1 - theta[keep]) / theta[keep]
-  )
-  stopifnot(all(is.finite(fprime)))
+  fprime_density = NULL
+  fprime = NULL
+  fed_theta = NULL
+  fed_density = NULL
+  fed = NULL
+  if(any(keep)) {
+    fprime_density = edens[keep]
+    fprime = log(
+      (fprime_density / (1 - fprime_density)) * (1 - theta[keep]) / theta[keep]
+    )
+    stopifnot(all(is.finite(fprime)))
 
-  fed_theta = seq(0.005, 0.995, length.out = 120L)
-  fed_density = seq(min(fprime_density), max(fprime_density),
-    length.out = 60L
-  )
-  fprime_at = function(d) {
-    stats::approx(fprime_density, fprime, d, rule = 2, ties = mean)$y
+    fed_theta = seq(0.005, 0.995, length.out = 120L)
+    fed_density = seq(min(fprime_density), max(fprime_density),
+      length.out = 60L
+    )
+    fprime_at = function(d) {
+      stats::approx(fprime_density, fprime, d, rule = 2, ties = mean)$y
+    }
+    fed = outer(fed_theta, fed_density, function(tt, dd) {
+      log(1 - tt + tt * exp(fprime_at(dd)))
+    })
   }
-  fed = outer(fed_theta, fed_density, function(tt, dd) {
-    log(1 - tt + tt * exp(fprime_at(dd)))
-  })
 
   list(
     theta = theta,
@@ -271,9 +279,12 @@ build_ggm_correction_table = function(
 # Assemble the per-edge-prior correction curves handed to the C++
 # chain. The beta-bernoulli update reads the whole-graph logC(theta)
 # curve; the stochastic block updates read the slope vs local density
-# plus the per-pair f(theta) curve on a uniform quadrature grid.
+# plus the per-pair f(theta) curve on a uniform quadrature grid. On
+# the mixed-MRF path is_continuous (0/1 per node, model order) marks
+# the continuous block whose pairs carry the tilt; NULL means all
+# nodes are continuous (the GGM path).
 # ------------------------------------------------------------------
-correction_list_from_table = function(table, edge_prior) {
+correction_list_from_table = function(table, edge_prior, is_continuous = NULL) {
   correction = list(theta = table$theta, logC = table$logC)
   if(identical(edge_prior, "Stochastic-Block")) {
     quad_theta = seq(0.0025, 0.9975, length.out = 200L)
@@ -284,6 +295,9 @@ correction_list_from_table = function(table, edge_prior) {
       table$theta, table$f, quad_theta,
       rule = 2
     )$y
+    if(!is.null(is_continuous)) {
+      correction$is_continuous = as.integer(is_continuous)
+    }
   }
   correction
 }
@@ -292,21 +306,32 @@ correction_list_from_table = function(table, edge_prior) {
 # ------------------------------------------------------------------
 # ggm_edge_prior_correction (internal)
 # ------------------------------------------------------------------
-# Resolve whether a GGM fit needs the normalizing-constant correction
-# and get-or-build the table for its model cell. Applies to fits with
+# Resolve whether a fit needs the normalizing-constant correction and
+# get-or-build the table for its model cell. Applies to fits with
 # edge selection and a hierarchical edge prior (Beta-Bernoulli or
 # Stochastic-Block). The tilted prior sweep runs the same priors as
 # the fit; the prior sampler does not support a beta-prime slab, so
 # those fits keep the uncorrected updates with a warning.
 #
-# Returns the correction list for sample_ggm, or NULL when no
-# correction applies.
+# On the mixed-MRF path the determinant tilt acts on the continuous
+# precision block alone, so the table is built for a GGM of dimension
+# num_continuous and the correction list carries the continuous-block
+# node mask (model order: discrete block first). With fewer than two
+# continuous variables no pair is tilted and the plain conjugate
+# updates are exact, so no correction applies.
+#
+# Returns the correction list for sample_ggm / sample_mixed_mrf, or
+# NULL when no correction applies.
 # ------------------------------------------------------------------
-ggm_edge_prior_correction = function(prior, sampler, num_variables) {
+ggm_edge_prior_correction = function(prior, sampler, num_variables,
+                                     num_continuous = num_variables) {
   if(!isTRUE(prior$edge_selection)) {
     return(NULL)
   }
   if(!prior$edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")) {
+    return(NULL)
+  }
+  if(num_continuous < 2L) {
     return(NULL)
   }
   if(!prior$interaction_prior_type %in% c("cauchy", "normal")) {
@@ -336,13 +361,30 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables) {
     )
   }
   table = ggm_correction_table(
-    p = num_variables, delta = prior$delta,
+    p = num_continuous, delta = prior$delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     update_method = "gibbs",
     cores = sampler$cores
   )
-  correction_list_from_table(table, prior$edge_prior)
+  if(identical(prior$edge_prior, "Stochastic-Block") &&
+    is.null(table$fprime)) {
+    warning(
+      "The Stochastic-Block updates are run without the ",
+      "normalizing-constant correction: the slope curve is not resolvable ",
+      "for this model cell (a single tilted pair).",
+      call. = FALSE
+    )
+    return(NULL)
+  }
+  is_continuous = NULL
+  if(num_continuous < num_variables) {
+    is_continuous = c(
+      rep(0L, num_variables - num_continuous),
+      rep(1L, num_continuous)
+    )
+  }
+  correction_list_from_table(table, prior$edge_prior, is_continuous)
 }
 
 

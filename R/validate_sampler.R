@@ -201,6 +201,7 @@ validate_sampler = function(update_method,
     cores = cores,
     seed = seed,
     progress_type = progress_type,
-    progress_callback = progress_callback
+    progress_callback = progress_callback,
+    verbose = isTRUE(verbose)
   )
 }

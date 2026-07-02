@@ -117,6 +117,228 @@ test_that("corrected new-cluster marginal reduces to the clean marginal", {
 })
 
 # --------------------------------------------------------------------------- #
+# Mixed-MRF masking: with an is_continuous mask only continuous-continuous
+# pairs carry the tilt. A full mask must reproduce the unmasked results
+# exactly; under a mixed mask the constant-slope closed forms restrict their
+# sums to continuous neighbours, discrete nodes contribute nothing, and the
+# corrected marginal reduces to the clean conjugate marginal for a discrete
+# node.
+# --------------------------------------------------------------------------- #
+
+test_that("a full mask reproduces the unmasked results exactly", {
+  c0 = -0.3
+  cv = const_curves(c0, f0 = -0.2)
+  z = c(1L, 1L, 2L, 2L, 3L, 3L)
+  bp = matrix(c(
+    0.75, 0.20, 0.10,
+    0.20, 0.60, 0.30,
+    0.10, 0.30, 0.55
+  ), 3, 3)
+  full = rep(1L, 6)
+
+  expect_identical(
+    test_sbm_compute_ce(
+      z, bp, cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = full
+    ),
+    test_sbm_compute_ce(
+      z, bp, cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f
+    )
+  )
+  expect_identical(
+    test_sbm_miniti_node(
+      1L, z, bp, 1L, 3L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = full
+    ),
+    test_sbm_miniti_node(
+      1L, z, bp, 1L, 3L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f
+    )
+  )
+  expect_identical(
+    test_sbm_miniti_removal(
+      1L, z, bp, 1L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = full
+    ),
+    test_sbm_miniti_removal(
+      1L, z, bp, 1L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f
+    )
+  )
+
+  set.seed(11)
+  G = matrix(rbinom(36, 1, 0.5), 6, 6)
+  G[lower.tri(G)] = t(G)[lower.tri(G)]
+  diag(G) = 1L
+  expect_identical(
+    test_sbm_corrected_log_marginal(
+      3L, z, G, 1.5, 2.5,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = full
+    ),
+    test_sbm_corrected_log_marginal(
+      3L, z, G, 1.5, 2.5,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f
+    )
+  )
+})
+
+test_that("masked slopes vanish on pairs with a discrete endpoint", {
+  cv = const_curves(-0.4)
+  z = c(1L, 1L, 2L, 2L, 1L, 2L)
+  bp = matrix(c(0.7, 0.2, 0.2, 0.5), 2, 2)
+  mask = c(0L, 0L, 1L, 1L, 1L, 1L)
+
+  ce = test_sbm_compute_ce(
+    z, bp, cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+    is_continuous = mask
+  )
+
+  for(i in 1:5) {
+    for(j in (i + 1):6) {
+      expected = if(mask[i] == 1L && mask[j] == 1L) -0.4 else 0
+      expect_equal(ce[i, j], expected, tolerance = 1e-12)
+    }
+  }
+})
+
+test_that("masked mini-TI sums over continuous neighbours only", {
+  c0 = -0.35
+  cv = const_curves(c0)
+  z = c(1L, 1L, 2L, 2L, 3L, 3L)
+  bp = matrix(c(
+    0.75, 0.20, 0.10,
+    0.20, 0.60, 0.30,
+    0.10, 0.30, 0.55
+  ), 3, 3)
+  mask = c(0L, 0L, 1L, 1L, 1L, 1L)
+  Ff = function(th) log(1 - th + th * exp(c0))
+
+  # Continuous node 3 (cluster 2), morph cluster 2 -> 1: continuous
+  # neighbours are 4, 5, 6.
+  dlogC = test_sbm_miniti_node(
+    3L, z, bp, 2L, 1L,
+    cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+    is_continuous = mask
+  )
+  exact = 0
+  for(j in 4:6) {
+    exact = exact + Ff(bp[1, z[j]]) - Ff(bp[2, z[j]])
+  }
+  expect_equal(dlogC, exact, tolerance = 5e-4)
+
+  removal = test_sbm_miniti_removal(
+    3L, z, bp, 2L,
+    cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+    is_continuous = mask
+  )
+  exact_removal = -sum(vapply(4:6, function(j) Ff(bp[2, z[j]]), numeric(1)))
+  expect_equal(removal, exact_removal, tolerance = 5e-4)
+
+  # Discrete node 1: no tilted pairs, so both corrections are exactly zero.
+  expect_identical(
+    test_sbm_miniti_node(
+      1L, z, bp, 1L, 3L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = mask
+    ),
+    0
+  )
+  expect_identical(
+    test_sbm_miniti_removal(
+      1L, z, bp, 1L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = mask
+    ),
+    0
+  )
+})
+
+test_that("masked corrected marginal tilts continuous candidates only", {
+  set.seed(12)
+  q = 6
+  z = c(1L, 1L, 2L, 2L, 2L, 1L)
+  G = matrix(0L, q, q)
+  for(i in 1:(q - 1)) {
+    for(j in (i + 1):q) {
+      G[i, j] = G[j, i] = rbinom(1, 1, 0.5)
+    }
+  }
+  diag(G) = 1L
+  a = 1.5
+  b = 2.5
+  mask = c(0L, 0L, 1L, 1L, 1L, 1L)
+
+  clean_for_node = function(node) {
+    out = 0
+    for(r in 1:2) {
+      members = setdiff(which(z == r), node)
+      nr = length(members)
+      mr = sum(G[node, members])
+      out = out + lbeta(a + mr, b + nr - mr) - lbeta(a, b)
+    }
+    out
+  }
+
+  # Continuous node 3: constant f0 exposes one tilt factor per continuous
+  # candidate (nodes 4, 5, 6).
+  f0 = -0.25
+  cvf = const_curves(0, f0 = f0)
+  outf = test_sbm_corrected_log_marginal(
+    3L, z, G, a, b,
+    cvf$fprime_density, cvf$fprime, cvf$quad_theta, cvf$quad_f,
+    is_continuous = mask
+  )
+  expect_equal(outf, clean_for_node(3L) - f0 * 3, tolerance = 2e-3)
+
+  # Discrete node 1: no tilted pairs, so the marginal is the exact clean
+  # conjugate value (analytic branch, no quadrature error).
+  outd = test_sbm_corrected_log_marginal(
+    1L, z, G, a, b,
+    cvf$fprime_density, cvf$fprime, cvf$quad_theta, cvf$quad_f,
+    is_continuous = mask
+  )
+  expect_equal(outd, clean_for_node(1L), tolerance = 1e-10)
+})
+
+test_that("corrections vanish with fewer than two continuous nodes", {
+  cv = const_curves(-0.5, f0 = -0.3)
+  z = c(1L, 1L, 2L, 2L, 3L, 3L)
+  bp = matrix(c(
+    0.75, 0.20, 0.10,
+    0.20, 0.60, 0.30,
+    0.10, 0.30, 0.55
+  ), 3, 3)
+  mask = c(0L, 0L, 0L, 0L, 0L, 1L)
+
+  ce = test_sbm_compute_ce(
+    z, bp, cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+    is_continuous = mask
+  )
+  expect_true(all(ce == 0))
+
+  expect_identical(
+    test_sbm_miniti_node(
+      6L, z, bp, 3L, 1L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = mask
+    ),
+    0
+  )
+  expect_identical(
+    test_sbm_miniti_removal(
+      6L, z, bp, 3L,
+      cv$fprime_density, cv$fprime, cv$quad_theta, cv$quad_f,
+      is_continuous = mask
+    ),
+    0
+  )
+})
+
+
+# --------------------------------------------------------------------------- #
 # Prior-only identity: the corrected prior chain's number-of-blocks
 # distribution must return the MFM partition prior (K - 1 ~ Poisson(lambda)
 # components, symmetric Dirichlet allocation), because 1/C(z, theta) cancels

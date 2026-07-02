@@ -199,11 +199,13 @@ test_that("delta shifts logp by exactly delta * log|Kyy|", {
   s = mixed_full_make_setup()
   base = mixed_test_logp_and_gradient_full(
     s$params, s$x, s$y, s$num_cats, as.integer(s$is_ord),
-    s$base_cat, s$edge_ind, 2.5, delta = 0
+    s$base_cat, s$edge_ind, 2.5,
+    delta = 0
   )$value
   tilted = mixed_test_logp_and_gradient_full(
     s$params, s$x, s$y, s$num_cats, as.integer(s$is_ord),
-    s$base_cat, s$edge_ind, 2.5, delta = 3.0
+    s$base_cat, s$edge_ind, 2.5,
+    delta = 3.0
   )$value
 
   # log|Kyy| from psi entries (Cholesky-of-precision diagonals are exp(psi)).

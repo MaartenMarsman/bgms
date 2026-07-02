@@ -3,7 +3,6 @@
 # Split out of bgm_spec.R (cleanup S4).
 
 
-
 # ==============================================================================
 # build_arguments()  --- convert spec -> arguments list for fit object
 # ==============================================================================
@@ -185,4 +184,3 @@ build_arguments_compare = function(spec) {
     model_type                         = "compare"
   )
 }
-

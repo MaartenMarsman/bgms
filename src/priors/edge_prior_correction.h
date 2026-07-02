@@ -120,6 +120,12 @@ private:
  *   - (quad_theta, quad_f): the per-pair f(theta) curve pre-interpolated
  *     onto a uniform quadrature grid.
  *
+ * On the mixed-MRF path the determinant tilt acts on the continuous
+ * precision block only, so the tilt terms read continuous-continuous pairs
+ * exclusively; is_continuous carries the per-node mask in model order
+ * (discrete block first). An empty mask means all nodes are continuous
+ * (the GGM path).
+ *
  * Built from the same correction table as the beta-bernoulli update; see
  * R/correction_tables.R.
  */
@@ -128,9 +134,11 @@ public:
     SBMCorrection() = default;
 
     SBMCorrection(const arma::vec& fprime_density, const arma::vec& fprime,
-                  const arma::vec& quad_theta, const arma::vec& quad_f)
+                  const arma::vec& quad_theta, const arma::vec& quad_f,
+                  const arma::uvec& is_continuous = arma::uvec())
         : fprime_density_(fprime_density), fprime_(fprime),
-          quad_theta_(quad_theta), quad_f_(quad_f)
+          quad_theta_(quad_theta), quad_f_(quad_f),
+          is_continuous_(is_continuous)
     {
         if (fprime_density_.n_elem != fprime_.n_elem ||
             fprime_density_.n_elem < 2 ||
@@ -140,6 +148,19 @@ public:
     }
 
     bool active() const { return fprime_.n_elem >= 2; }
+
+    /** Whether node i sits in the continuous block (empty mask: all do). */
+    bool node_continuous(arma::uword i) const {
+        return is_continuous_.n_elem == 0 || is_continuous_(i) != 0;
+    }
+
+    /** Number of continuous nodes among no_variables total. */
+    arma::uword num_continuous(arma::uword no_variables) const {
+        if (is_continuous_.n_elem == 0) return no_variables;
+        return arma::accu(is_continuous_ != 0);
+    }
+
+    const arma::uvec& is_continuous() const { return is_continuous_; }
 
     /** Slope f' at local density d: linear interpolation, constant extension. */
     double fprime_at(double d) const {
@@ -164,4 +185,5 @@ private:
     arma::vec fprime_;
     arma::vec quad_theta_;
     arma::vec quad_f_;
+    arma::uvec is_continuous_;
 };

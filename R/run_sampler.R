@@ -190,6 +190,10 @@ run_sampler_mixed_mrf = function(spec) {
   bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
+  correction = ggm_edge_prior_correction(
+    p, s, d$num_variables, d$num_continuous
+  )
+
   input_list = list(
     discrete_observations   = d$x_discrete,
     continuous_observations = d$x_continuous,
@@ -241,7 +245,8 @@ run_sampler_mixed_mrf = function(spec) {
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
     missing_index_continuous_nullable = m$missing_index_continuous,
-    delta = p$delta
+    delta = p$delta,
+    edge_prior_correction = correction
   )
 
   out_raw

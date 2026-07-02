@@ -3,7 +3,6 @@
 # Split out of simulate_predict.R (cleanup S4).
 
 
-
 # ==============================================================================
 #   Mixed MRF Simulation Helper
 # ==============================================================================
@@ -568,4 +567,3 @@ format_mixed_response = function(probs, predict_vars,
 
   out
 }
-

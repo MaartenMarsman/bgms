@@ -3,7 +3,6 @@
 # Split out of simulate_predict.R (cleanup S4).
 
 
-
 # ==============================================================================
 #   GGM Prediction Helpers
 # ==============================================================================
@@ -234,4 +233,3 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
 
   return(result)
 }
-
