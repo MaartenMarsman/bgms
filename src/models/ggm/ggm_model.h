@@ -7,6 +7,7 @@
 #include "rng/rng_utils.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
+#include "models/ggm/zratio_engine.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 
@@ -147,8 +148,22 @@ public:
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
-          theta_(other.theta_)
+          theta_(other.theta_),
+          zratio_engine_(other.zratio_engine_
+                             ? std::make_shared<ZRatioEngine>(*other.zratio_engine_)
+                             : nullptr)
     {}
+
+    /**
+     * Attach the per-edge Z-ratio engine, switching the between-edge moves
+     * to the hierarchical prior specification p(K | Gamma) = rho/Z(Gamma):
+     * the add acceptance gains log J = log(Z(Gamma-)/Z(Gamma+)) and the
+     * delete acceptance its negation. Each chain clone deep-copies the
+     * engine, so per-chain caches never cross threads.
+     */
+    void set_zratio_engine(std::shared_ptr<ZRatioEngine> engine) {
+        zratio_engine_ = std::move(engine);
+    }
 
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
@@ -804,6 +819,9 @@ private:
     mutable bool theta_valid_ = false;
     /// Cached theta vector (active parameterization).
     mutable arma::vec theta_;
+    /// Per-edge Z-ratio engine (hierarchical prior spec); null on the
+    /// joint spec. Deep-copied per chain clone (owns a mutable cache).
+    std::shared_ptr<ZRatioEngine> zratio_engine_;
 
 public:
     /**

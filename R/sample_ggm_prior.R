@@ -3,7 +3,7 @@
 #' @description
 #' Draws from the prior of a Gaussian graphical model. The likelihood is
 #' omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-#' Two specifications are supported via the \code{spec} argument:
+#' Three specifications are supported via the \code{spec} argument:
 #' \itemize{
 #'   \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
 #'     sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
@@ -20,6 +20,14 @@
 #'     \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 #'     specification, not hierarchical). Useful for simulation-based
 #'     calibration of \code{\link{bgm}}'s default sampler.
+#'   \item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+#'     hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+#'     \eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+#'     \eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+#'     per-graph normalizer ratio in each between-edge move is evaluated
+#'     by the deterministic local Z-ratio approximation. Requires
+#'     \code{normal_prior()} interactions and a shape-1 diagonal scale
+#'     prior.
 #' }
 #'
 #' @details
@@ -75,8 +83,10 @@
 #'   Used only for \code{spec = "conditional"} (the chain samples
 #'   \eqn{K \mid \Gamma}); ignored for \code{spec = "joint"}.
 #' @param spec One of \code{"conditional"} (default, sample
-#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior).
+#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+#'   \code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+#'   normalized specification via the Z-ratio approximation).
 #' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
 #'   Bernoulli edge prior used when \code{spec = "joint"}. Default
 #'   \code{0.5}. Ignored when \code{spec = "conditional"}.
@@ -177,7 +187,7 @@ sample_ggm_prior = function(
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
+  spec = c("conditional", "joint", "hierarchical"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
@@ -193,8 +203,8 @@ sample_ggm_prior = function(
   if(spec == "conditional" && !is.null(ep) &&
     !identical(ep$edge_prior, "Bernoulli")) {
     stop(
-      "Hierarchical edge priors require spec = \"joint\" (the conditional ",
-      "spec fixes the graph)."
+      "Hierarchical edge priors require spec = \"joint\" or ",
+      "\"hierarchical\" (the conditional spec fixes the graph)."
     )
   }
   if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
@@ -256,9 +266,10 @@ sample_ggm_prior = function(
     ))
   }
 
-  # spec == "joint": drive the bgm() MH chain with edge selection on and
-  # zero data (n = 0, S = 0). The chain targets the un-normalised joint
-  # prior p(K, Gamma) and produces (K, Gamma) draws.
+  # spec == "joint" / "hierarchical": drive the bgm() MH chain with edge
+  # selection on and zero data (n = 0, S = 0). The joint chain targets the
+  # un-normalised joint prior; the hierarchical chain adds the per-edge
+  # Z-ratio to the between-edge moves so the graph marginal is pi(Gamma).
   inputFromR = list(
     n                      = 0L,
     suf_stat               = matrix(0, p, p),
@@ -276,7 +287,35 @@ sample_ggm_prior = function(
     )
   }
   correction = NULL
-  if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
+  zratio = NULL
+  if(spec == "hierarchical") {
+    # Hierarchical spec p(K | Gamma) = rho_Gamma(K)/Z(Gamma): the per-edge
+    # Z-ratio engine carries the normalizer into the between-edge moves,
+    # and the hyperparameter updates are the clean conjugate draws (no
+    # C-correction on this path).
+    if(!identical(ip$interaction_prior_type, "normal")) {
+      stop(
+        "spec = \"hierarchical\" requires a normal interaction (slab) ",
+        "prior; the Z-ratio constants are derived for the Normal slab."
+      )
+    }
+    if(abs(sp$scale_shape - 1) > 1e-12) {
+      stop(
+        "spec = \"hierarchical\" requires shape = 1 on the diagonal scale ",
+        "prior (gamma_prior(shape = 1) or exponential_prior); the Z-ratio ",
+        "constants are derived for the exponential diagonal."
+      )
+    }
+    zc = zratio_constants(
+      delta = delta,
+      sigma = 2 * ip$pairwise_scale,
+      beta = sp$scale_rate / 2
+    )
+    zratio = list(
+      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
+      wt = zc$wt, psi0 = zc$psi0
+    )
+  } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
       p = p, delta = delta,
       interaction_prior = interaction_prior,
@@ -306,7 +345,8 @@ sample_ggm_prior = function(
     dirichlet_alpha = ep$dirichlet_alpha,
     lambda = ep$lambda,
     delta = as.numeric(delta),
-    edge_prior_correction = correction
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
   if(length(results) == 0L || isTRUE(results[[1L]]$error)) {
     msg = if(length(results) > 0L) results[[1L]]$error_msg else "empty result"

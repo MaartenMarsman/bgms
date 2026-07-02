@@ -619,6 +619,14 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
+        // Hierarchical spec: the delete ratio carries -log J with
+        // J = Z(Gamma-)/Z(Gamma+) (the add ratio carries +log J below).
+        if (zratio_engine_) {
+            ln_alpha -= zratio_engine_->log_zratio(edge_indicators_,
+                                                   static_cast<int>(i),
+                                                   static_cast<int>(j));
+        }
+
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
         ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j)) - MY_LOG(2.0);
@@ -672,6 +680,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         }
 
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
+
+        // Hierarchical spec: the add ratio carries +log J.
+        if (zratio_engine_) {
+            ln_alpha += zratio_engine_->log_zratio(edge_indicators_,
+                                                   static_cast<int>(i),
+                                                   static_cast<int>(j));
+        }
 
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
         ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij) - MY_LOG(2.0);
@@ -820,7 +835,15 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     // proposal; the target's extra (k_jj/2)^(alpha-1) factor adds the
     // correction (k_jj/k_jj(0))^(alpha-1) (the 1/2 cancels in the ratio),
     // where k_jj(0) = constants_[5] is the spike diagonal.
-    const double log_A_add = log_odds + log_pslab0 - log_q0;
+    // Hierarchical spec: the add ratio also carries the per-graph normalizer
+    // ratio J = Z(Gamma-)/Z(Gamma+), state-invariant for the toggled edge,
+    // so the delete reciprocal handles it with the same value.
+    double log_A_add = log_odds + log_pslab0 - log_q0;
+    if (zratio_engine_) {
+        log_A_add += zratio_engine_->log_zratio(edge_indicators_,
+                                                static_cast<int>(i),
+                                                static_cast<int>(j));
+    }
     const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
     if (edge_indicators_(i, j) == 0) {

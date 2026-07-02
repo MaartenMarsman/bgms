@@ -16,7 +16,7 @@ sample_ggm_prior(
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
+  spec = c("conditional", "joint", "hierarchical"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
@@ -76,8 +76,10 @@ preparation). Pass \code{delta = 0} for the untilted prior (the
 companion-paper baseline) or a non-negative numeric to override.}
 
 \item{spec}{One of \code{"conditional"} (default, sample
-\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-\eqn{(K, \Gamma)} jointly from the un-normalised joint prior).}
+\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+\eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+\code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+normalized specification via the Z-ratio approximation).}
 
 \item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
 Bernoulli edge prior used when \code{spec = "joint"}. Default
@@ -138,7 +140,7 @@ matrix (\code{n_samples x p}) of sampled cluster allocations
 \description{
 Draws from the prior of a Gaussian graphical model. The likelihood is
 omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-Two specifications are supported via the \code{spec} argument:
+Three specifications are supported via the \code{spec} argument:
 \itemize{
 \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
 sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
@@ -155,6 +157,14 @@ edge selection on and the likelihood off, so the marginal on
 \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 specification, not hierarchical). Useful for simulation-based
 calibration of \code{\link{bgm}}'s default sampler.
+\item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+\eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+\eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+per-graph normalizer ratio in each between-edge move is evaluated
+by the deterministic local Z-ratio approximation. Requires
+\code{normal_prior()} interactions and a shape-1 diagonal scale
+prior.
 }
 }
 \details{
