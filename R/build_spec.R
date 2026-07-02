@@ -59,6 +59,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           interaction_prior_type, pairwise_scale,
                           interaction_alpha, interaction_beta,
                           scale_prior_type, scale_shape, scale_rate,
+                          scale_eta = NA_real_,
                           delta = 0,
                           edge_prior_flat) {
   # Missing data
@@ -70,6 +71,9 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
 
   # Center continuous data (GGM likelihood assumes zero mean)
   x = center_continuous_data(x)
+
+  # Standardized-frame scale prior: derive the raw diagonal rate eta / s
+  scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
 
   ep = edge_prior_flat
 
@@ -101,6 +105,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
         scale_prior_type = scale_prior_type,
         scale_shape = scale_shape,
         scale_rate = scale_rate,
+        scale_eta = scale_eta,
         delta = delta
       ),
       edge_prior_spec_fields(ep)
@@ -232,9 +237,13 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 means_prior_type, means_scale,
                                 means_alpha, means_beta,
                                 scale_prior_type, scale_shape, scale_rate,
+                                scale_eta = NA_real_,
                                 delta = 0,
                                 standardize,
                                 edge_prior_flat) {
+  # Standardized-frame scale prior: derive the raw diagonal rate eta / s
+  scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
+
   # Identify discrete vs continuous columns
   cont_idx = which(variable_type == "continuous")
   disc_idx = which(variable_type != "continuous")
@@ -372,6 +381,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_prior_type = scale_prior_type,
         scale_shape = scale_shape,
         scale_rate = scale_rate,
+        scale_eta = scale_eta,
         delta = delta,
         standardize = standardize
       ),

@@ -197,6 +197,16 @@ validate_bgm_spec = function(spec) {
     }
   }
 
+  # Continuous-block scale prior must carry a resolved raw rate
+  if(mt %in% c("ggm", "mixed_mrf")) {
+    if(!is.null(spec$prior$scale_rate) && !is.finite(spec$prior$scale_rate)) {
+      stop(
+        "bgm_spec: prior$scale_rate is not finite; a standardized-frame ",
+        "scale prior (eta) was not resolved to a raw rate."
+      )
+    }
+  }
+
   # Scaling factors dimensions
   if(mt %in% c("omrf", "compare")) {
     nv = spec$data$num_variables
@@ -268,6 +278,7 @@ bgm_spec = function(x,
                     scale_prior_type = "gamma",
                     scale_shape = 1,
                     scale_rate = 1,
+                    scale_eta = NA_real_,
                     delta = NULL,
                     standardize = FALSE,
                     edge_selection = TRUE,
@@ -447,6 +458,7 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      scale_eta = scale_eta,
       delta = delta,
       edge_prior_flat = ep_flat
     )
@@ -471,6 +483,7 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      scale_eta = scale_eta,
       delta = delta,
       standardize = standardize,
       edge_prior_flat = ep_flat

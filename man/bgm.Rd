@@ -13,7 +13,7 @@ bgm(
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
@@ -113,12 +113,23 @@ Default: \code{normal_prior(scale = 1)}.}
 \item{precision_scale_prior}{A prior specification object for the diagonal
 elements of the precision matrix, created by one of:
 \itemize{
-\item \code{\link{gamma_prior}()}: Gamma(shape, rate) prior (default).
-\item \code{\link{exponential_prior}()}: Exponential(rate) prior.
+\item \code{\link{gamma_prior}()}: Gamma prior (default).
+\item \code{\link{exponential_prior}()}: Exponential prior.
 }
+Both constructors accept the rate in one of two frames: \code{rate}
+(raw) or \code{eta} (standardized). \code{eta} is the rate on the
+diagonal in the standardized frame, the coordinate in which the
+pairwise (slab) prior has unit scale; it fixes the scale of the
+diagonal relative to the slab, and the raw rate is derived at fit time
+as \code{eta / s}, where \code{s} is the scale of the
+\code{interaction_prior}. At fixed \code{eta}, graph and
+partial-correlation inference is invariant to the slab scale, so the
+standardized frame keeps the prior geometry fixed when the slab scale
+changes. It requires an \code{interaction_prior} with a scale
+parameter (\code{cauchy_prior()} or \code{normal_prior()}).
 Only used for models with continuous variables (GGM and mixed MRF).
 Ignored for pure ordinal models.
-Default: \code{gamma_prior(shape = 1, rate = 1)}.}
+Default: \code{gamma_prior(shape = 1, eta = 1)}.}
 
 \item{delta}{Non-negative numeric, or \code{NULL} for the dimension-
 adaptive default. Determinant-tilt exponent on the continuous-block

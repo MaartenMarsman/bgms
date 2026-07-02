@@ -77,16 +77,33 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward 2*shape/rate", {
   # -K_yy_{ii} = K_{ii}/2, so gamma_prior(shape, rate) implies
   #   K_ii ~ 2 * Gamma(shape, rate),  mean = 2 * shape/rate.
   # Gamma(4, 2) -> mean(K_ii) = 4.0; Gamma(1, 1) -> mean(K_ii) = 2.0.
-  draws_default = short_run(
-    p = 3L, n_samples = 400L, n_warmup = 200L
+  draws_unit = short_run(
+    p = 3L, n_samples = 400L, n_warmup = 200L,
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1)
   )
   draws_heavy = short_run(
     p = 3L, n_samples = 400L, n_warmup = 200L,
     precision_scale_prior = gamma_prior(shape = 4, rate = 2)
   )
 
-  expect_lt(mean(draws_default$K_diag), mean(draws_heavy$K_diag))
+  expect_lt(mean(draws_unit$K_diag), mean(draws_heavy$K_diag))
   expect_equal(mean(draws_heavy$K_diag), 4.0, tolerance = 0.6)
+})
+
+
+test_that("gamma_prior(eta) resolves against the interaction-prior scale", {
+  # eta = 1 at cauchy scale 2.5 resolves to rate = 0.4; the same raw-rate
+  # spec with the same seed gives identical draws.
+  d_eta = short_run(
+    p = 3L, n_samples = 100L, n_warmup = 100L,
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1)
+  )
+  d_rate = short_run(
+    p = 3L, n_samples = 100L, n_warmup = 100L,
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1 / 2.5)
+  )
+  expect_equal(d_eta$K_diag, d_rate$K_diag)
+  expect_equal(d_eta$K_offdiag, d_rate$K_offdiag)
 })
 
 
