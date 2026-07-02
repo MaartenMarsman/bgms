@@ -218,6 +218,11 @@ double GGMModel::log_density_impl_diag(size_t j) const {
     return (n_ * logdet - trace_prod) / 2;
 }
 
+bool GGMModel::proposal_is_positive_definite_() const {
+    arma::mat R_chk;
+    return arma::chol(R_chk, precision_proposal_);
+}
+
 double GGMModel::ggm_edge_move(size_t i, size_t j) {
     get_constants(i, j);
     double Phi_q1q  = constants_[0];
@@ -235,6 +240,12 @@ double GGMModel::ggm_edge_move(size_t i, size_t j) {
     precision_proposal_(i, j) = omega_prop_q1q;
     precision_proposal_(j, i) = omega_prop_q1q;
     precision_proposal_(j, j) = omega_prop_qq;
+
+    // Prior-only chains have no likelihood anchor vetoing non-PD proposals;
+    // reject them explicitly (see proposal_is_positive_definite_).
+    if (n_ == 0 && !proposal_is_positive_definite_()) {
+        return -arma::datum::inf;
+    }
 
     double ln_alpha = log_density_impl_edge(i, j);
 
@@ -520,6 +531,14 @@ double GGMModel::ggm_diag_move(size_t i) {
 
     precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
+
+    // Prior-only chains have no likelihood anchor vetoing non-PD proposals;
+    // reject them explicitly (see proposal_is_positive_definite_). K_ii > 0
+    // by construction is not sufficient: a small K_ii relative to the
+    // off-diagonals can still violate PD.
+    if (n_ == 0 && !proposal_is_positive_definite_()) {
+        return -arma::datum::inf;
+    }
 
     double ln_alpha = log_density_impl_diag(i);
 

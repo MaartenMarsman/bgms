@@ -621,6 +621,22 @@ private:
     double ggm_diag_move(size_t i);
 
     /**
+     * Positive-definiteness canary for prior-only chains (n == 0).
+     *
+     * With data, the likelihood term (n/2) * log|K| vetoes proposals that
+     * leave the PD cone. Without data there is no such anchor: the
+     * reparameterization constants are computed from the incrementally
+     * maintained covariance, whose floating-point drift can place a proposal
+     * outside the cone with finite acceptance probability. An accepted
+     * non-PD state invalidates the Cholesky machinery and the next
+     * refresh_cholesky() throws. ggm_edge_move and ggm_diag_move reject such
+     * proposals explicitly when n == 0.
+     *
+     * @return true if precision_proposal_ admits a Cholesky factorization
+     */
+    bool proposal_is_positive_definite_() const;
+
+    /**
      * Metropolis-Hastings add-delete move for an edge indicator.
      *
      * If the edge is on, proposes deletion; if off, proposes a new value
