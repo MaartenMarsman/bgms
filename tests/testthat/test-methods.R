@@ -230,16 +230,27 @@ test_that("simulate.bgms returns matrix of correct size for ordinal fixtures", {
     expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "wrong ncol"))
     expect_equal(colnames(simulated), args$data_columnnames, info = ctx)
 
-    # Values should be integers within valid range
+    # Values should be integers on the original category scale.
     expect_true(all(simulated == round(simulated)), info = paste(ctx, "not integers"))
     expect_true(all(simulated >= 0), info = paste(ctx, "negative values"))
 
     for(j in seq_len(args$num_variables)) {
-      max_cat = args$num_categories[j]
-      expect_true(
-        all(simulated[, j] <= max_cat),
-        info = sprintf("%s variable %d exceeds max category %d", ctx, j, max_cat)
-      )
+      levels_j = args$category_levels[[j]]
+      if(is.null(levels_j)) {
+        # Blume-Capel (no recode map): 0-based scores within the range.
+        expect_true(
+          all(simulated[, j] <= args$num_categories[j]),
+          info = sprintf("%s variable %d exceeds the category range", ctx, j)
+        )
+      } else {
+        # Ordinal: simulate() returns the original category values. bgm stores
+        # them as sorted values; bgmCompare as a named original -> code lookup.
+        valid = if(!is.null(names(levels_j))) as.numeric(names(levels_j)) else levels_j
+        expect_true(
+          all(simulated[, j] %in% valid),
+          info = sprintf("%s variable %d off the original category scale", ctx, j)
+        )
+      }
     }
   }
 })
@@ -672,11 +683,22 @@ test_that("simulate.bgmCompare returns matrix of correct size for all fixture ty
       expect_true(all(simulated >= 0), info = paste(ctx, "group", g, "negative values"))
 
       for(j in seq_len(args$num_variables)) {
-        max_cat = args$num_categories[j]
-        expect_true(
-          all(simulated[, j] <= max_cat),
-          info = sprintf("%s group %d variable %d exceeds max category %d", ctx, g, j, max_cat)
-        )
+        levels_j = args$category_levels[[j]]
+        if(is.null(levels_j)) {
+          # Blume-Capel (no recode map): 0-based scores within the range.
+          expect_true(
+            all(simulated[, j] <= args$num_categories[j]),
+            info = sprintf("%s group %d variable %d exceeds the category range", ctx, g, j)
+          )
+        } else {
+          # Ordinal: simulate() returns the original category values (bgmCompare
+          # stores a named original -> code lookup).
+          valid = if(!is.null(names(levels_j))) as.numeric(names(levels_j)) else levels_j
+          expect_true(
+            all(simulated[, j] %in% valid),
+            info = sprintf("%s group %d variable %d off the original scale", ctx, g, j)
+          )
+        }
       }
     }
   }

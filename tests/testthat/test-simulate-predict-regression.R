@@ -770,3 +770,110 @@ test_that(paste(
     )
   }
 })
+
+
+# ==============================================================================
+# 7. simulate() returns data on the original category scale
+# ==============================================================================
+# Regression: simulate() emitted internal 0-based category codes while predict()
+# recodes newdata from the original category values, so simulate() -> predict()
+# mismatched (a "category values not observed" warning plus a silently miscoded
+# prediction context) for any ordinal variable not already 0-based. simulate()
+# now inverts the recode map, keeping the round trip on the original scale.
+# ==============================================================================
+
+test_that("simulate() returns ordinal data on the original category scale", {
+  skip_on_cran()
+
+  set.seed(1)
+  n = 200
+  x = cbind(
+    a = sample(0:2, n, replace = TRUE), # already 0-based
+    b = sample(1:3, n, replace = TRUE), # shifted (min = 1)
+    c = sample(c(0L, 1L, 3L), n, replace = TRUE) # non-contiguous (gap at 2)
+  )
+  fit = bgm(
+    x = x, variable_type = "ordinal",
+    iter = 300, warmup = 300, chains = 1, cores = 1,
+    update_method = "adaptive-metropolis",
+    display_progress = "none", seed = 42
+  )
+
+  sim = simulate(fit, nsim = 50, method = "posterior-mean", seed = 7)
+
+  # Every simulated value is one the model was trained on (original scale),
+  # not an internal 0-based code.
+  for(v in seq_len(ncol(x))) {
+    expect_true(
+      all(sim[, v] %in% sort(unique(x[, v]))),
+      info = sprintf("variable %d off the original scale", v)
+    )
+  }
+
+  # The round trip no longer warns, and produces no NA prediction cells.
+  expect_no_warning(
+    probs <- predict(fit, newdata = sim, type = "probabilities")
+  )
+  expect_false(any(vapply(probs, anyNA, logical(1))))
+})
+
+test_that("simulate() leaves Blume-Capel scores unmapped for the round trip", {
+  skip_on_cran()
+
+  set.seed(2)
+  n = 200
+  # Blume-Capel carries no recode map, so its simulated scores stay on the
+  # sampler scale that predict() reads directly (no back-mapping applied).
+  x = cbind(
+    bc = sample(0:3, n, replace = TRUE),
+    o = sample(0:2, n, replace = TRUE)
+  )
+  fit = bgm(
+    x = x, variable_type = c("blume-capel", "ordinal"),
+    baseline_category = c(0L, 0L),
+    iter = 300, warmup = 300, chains = 1, cores = 1,
+    update_method = "adaptive-metropolis",
+    display_progress = "none", seed = 43
+  )
+
+  sim = simulate(fit, nsim = 50, method = "posterior-mean", seed = 8)
+  expect_no_warning(predict(fit, newdata = sim, type = "probabilities"))
+})
+
+test_that("mixed predict recodes discrete newdata to the original scale", {
+  skip_on_cran()
+
+  set.seed(3)
+  n = 400
+  d_raw = sample(1:3, n, replace = TRUE) # discrete on {1,2,3}
+  cc = rnorm(n)
+  x_shift = cbind(d = d_raw, c = cc)
+  x_base = cbind(d = d_raw - 1L, c = cc) # same data recoded to {0,1,2}
+
+  fit_it = function(x) {
+    bgm(
+      x = x, variable_type = c("ordinal", "continuous"),
+      iter = 400, warmup = 400, chains = 1, cores = 1,
+      update_method = "adaptive-metropolis",
+      display_progress = "none", seed = 99
+    )
+  }
+  fit_shift = fit_it(x_shift)
+  fit_base = fit_it(x_base)
+
+  # Relabeling {1,2,3} -> {0,1,2} leaves the internal model identical, so
+  # predictions on corresponding original-scale newdata must match. Before the
+  # fix the mixed path fed {1,2,3} to the sampler as codes, so they did not.
+  probs_shift = predict(fit_shift, newdata = x_shift[1:20, ], type = "probabilities")
+  probs_base = predict(fit_base, newdata = x_base[1:20, ], type = "probabilities")
+  for(nm in names(probs_shift)) {
+    expect_equal(probs_shift[[nm]], probs_base[[nm]],
+      info = sprintf("relabel invariance %s", nm)
+    )
+  }
+
+  # simulate() returns the original discrete scale and the round trip is clean.
+  sim = simulate(fit_shift, nsim = 40, method = "posterior-mean", seed = 5)
+  expect_true(all(sim[, "d"] %in% c(1, 2, 3)))
+  expect_no_warning(predict(fit_shift, newdata = sim, type = "probabilities"))
+})
