@@ -127,6 +127,25 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
 
 
 # ------------------------------------------------------------------
+# normalize_builder_cores (internal)
+# ------------------------------------------------------------------
+# The sweep forks full R sessions via mclapply: honor R CMD check's
+# core limit, never fork on Windows, and never exceed the machine.
+# ------------------------------------------------------------------
+normalize_builder_cores = function(cores) {
+  cores = max(1L, as.integer(cores))
+  if(identical(.Platform$OS.type, "windows")) {
+    return(1L)
+  }
+  check_limit = Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+  if(nzchar(check_limit) && !identical(tolower(check_limit), "false")) {
+    cores = min(cores, 2L)
+  }
+  min(cores, parallel::detectCores())
+}
+
+
+# ------------------------------------------------------------------
 # sweep_prior_edge_density (internal)
 # ------------------------------------------------------------------
 # Run the tilted prior chain at each theta on the grid and record the
@@ -140,6 +159,7 @@ sweep_prior_edge_density = function(p, theta, delta,
                                     n_seeds = 3L,
                                     update_method = "gibbs",
                                     cores = 1L, base_seed = 1L) {
+  cores = normalize_builder_cores(cores)
   num_pairs = p * (p - 1) / 2
   cells = expand.grid(theta = theta, seed = seq_len(n_seeds))
 
