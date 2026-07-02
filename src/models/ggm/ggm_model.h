@@ -152,7 +152,10 @@ public:
           zratio_engine_(other.zratio_engine_
                              ? std::make_shared<ZRatioEngine>(*other.zratio_engine_)
                              : nullptr)
-    {}
+    {
+        // The engine's oracle draws from this clone's chain RNG.
+        if (zratio_engine_) zratio_engine_->set_rng(&rng_);
+    }
 
     /**
      * Attach the per-edge Z-ratio engine, switching the between-edge moves
@@ -163,6 +166,12 @@ public:
      */
     void set_zratio_engine(std::shared_ptr<ZRatioEngine> engine) {
         zratio_engine_ = std::move(engine);
+        if (zratio_engine_) zratio_engine_->set_rng(&rng_);
+    }
+
+    /** Freeze the Z-ratio calibrator at the warmup/sampling boundary. */
+    void on_warmup_end() override {
+        if (zratio_engine_) zratio_engine_->freeze_calibration();
     }
 
     /** @return true when edge selection is enabled. */

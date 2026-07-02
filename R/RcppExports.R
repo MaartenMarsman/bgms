@@ -181,6 +181,10 @@ zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
 }
 
+zratio_test_calibrated_eval <- function(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after) {
+    .Call(`_bgms_zratio_test_calibrated_eval`, graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after)
+}
+
 zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max) {
     .Call(`_bgms_zratio_test_precompute`, G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max)
 }

@@ -155,6 +155,13 @@ public:
      */
     virtual void prepare_iteration() {}
 
+    /**
+     * Called once at the warmup/sampling boundary (before the first
+     * retained iteration). Default no-op; models with warm-up-calibrated
+     * state (e.g. the GGM Z-ratio engine) freeze it here.
+     */
+    virtual void on_warmup_end() {}
+
     // =========================================================================
     // Edge selection
     // =========================================================================

@@ -39,8 +39,9 @@ struct WarmupSchedule {
   std::vector<int> window_ends;   ///< Stage-2 windows (last index of each)
   int stage3a_start;              ///< First iter in Stage-3a
   int stage3b_start;              ///< First iter in Stage-3b (== stage3c_start if skipped)
-  int stage3c_start;              ///< First iter in Stage-3c (== total_warmup if skipped)
-  int total_warmup;               ///< Warm-up iterations = user-specified value
+  int stage3c_start;              ///< First iter in Stage-3c (== stage3d_start if skipped)
+  int stage3d_start;              ///< First iter in Stage-3d (== total_warmup if no window)
+  int total_warmup;               ///< User warmup plus the Stage-3d calibration window
   bool learn_proposal_sd;         ///< Whether to run the proposal-SD tuner
   bool enable_selection;          ///< Allow edge-indicator moves
   int warning_type;               ///< Warning code (see above)
@@ -49,13 +50,16 @@ struct WarmupSchedule {
   WarmupSchedule(int warmup,
                  bool enable_sel,
                  bool learn_sd,
-                 bool select_during_warmup = false)
+                 bool select_during_warmup = false,
+                 int calibration_window = 0)
     : stage1_end(0)
     , window_ends()
     , stage3a_start(0)
     , stage3b_start(0)
     , stage3c_start(0)
-    , total_warmup(warmup)        // User gets exactly what they specify
+    , stage3d_start(warmup)       // Appended Stage-3d calibration window:
+                                  // adaptation stages keep the user's warmup
+    , total_warmup(warmup + std::max(0, calibration_window))
     , learn_proposal_sd(learn_sd)
     , enable_selection(enable_sel)
     , warning_type(0)
@@ -160,7 +164,7 @@ struct WarmupSchedule {
     stage3c_start = (selection_warmup_start >= 0)
       ? selection_warmup_start              // Gibbs: settle, then selection
       : warmup_core + stage3b_budget;
-    // total_warmup already set to user's warmup value
+    // total_warmup = stage3d_start (user warmup) + calibration window
   }
 
   /// Stage query helpers
@@ -168,7 +172,11 @@ struct WarmupSchedule {
   bool in_stage2 (int i) const { return i >= stage1_end && i < stage3a_start; }
   bool in_stage3a(int i) const { return i >= stage3a_start && i < stage3b_start; }
   bool in_stage3b(int i) const { return !stage3b_skipped && i >= stage3b_start && i < stage3c_start; }
-  bool in_stage3c(int i) const { return enable_selection && !stage3b_skipped && i >= stage3c_start && i < total_warmup; }
+  bool in_stage3c(int i) const { return enable_selection && !stage3b_skipped && i >= stage3c_start && i < stage3d_start; }
+  /// Stage-3d: the appended calibration window (selection active on every
+  /// host, so the Z-ratio calibrator sees a selection-warm stream; on the
+  /// adaptive-Metropolis host this is also its only selection-warm window).
+  bool in_stage3d(int i) const { return enable_selection && i >= stage3d_start && i < total_warmup; }
   bool sampling (int i) const { return i >= total_warmup; }
 
   bool has_warning() const { return warning_type > 0; }
@@ -179,7 +187,7 @@ struct WarmupSchedule {
 
   /// Whether indicator moves are enabled (Stage 3c and sampling)
   bool selection_enabled(int i) const {
-    return enable_selection && (in_stage3c(i) || sampling(i));
+    return enable_selection && (in_stage3c(i) || in_stage3d(i) || sampling(i));
   }
 
   /// Whether to adapt proposal_sd (Stage-3b only, if not skipped)

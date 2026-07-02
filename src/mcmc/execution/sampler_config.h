@@ -19,6 +19,9 @@ struct SamplerConfig {
     int no_iter = 1000;
     /// Number of warmup iterations.
     int no_warmup = 500;
+    /// Appended Stage-3d calibration window for the hierarchical-spec
+    /// Z-ratio calibrator (0 = no window; adaptation warmup untouched).
+    int zratio_calibration_window = 0;
 
     /// Maximum NUTS tree depth.
     int max_tree_depth = 10;

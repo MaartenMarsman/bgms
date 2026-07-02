@@ -109,6 +109,7 @@ Rcpp::List sample_ggm(
     // so the between-edge moves target p(K | Gamma) = rho_Gamma(K)/Z(Gamma).
     // The constants are resolved at R spec-build (zratio_constants); each
     // chain clone deep-copies the engine with its cache.
+    int zratio_window = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
         auto engine = std::make_shared<ZRatioEngine>(
@@ -118,6 +119,16 @@ Rcpp::List sample_ggm(
             Rcpp::as<arma::vec>(zs["ghat"]),
             Rcpp::as<arma::vec>(zs["wt"]),
             Rcpp::as<double>(zs["psi0"]));
+        if (zs.containsElementNamed("calibration_window")) {
+            zratio_window = Rcpp::as<int>(zs["calibration_window"]);
+        }
+        if (zratio_window > 0) {
+            // The rng pointer is rebound per chain clone by GGMModel.
+            engine->enable_calibration(
+                Rcpp::as<double>(zs["delta"]),
+                Rcpp::as<double>(zs["sigma"]),
+                Rcpp::as<double>(zs["beta"]), nullptr);
+        }
         model.set_zratio_engine(std::move(engine));
     }
 
@@ -138,9 +149,10 @@ Rcpp::List sample_ggm(
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
     config.na_impute = na_impute;
+    config.zratio_calibration_window = zratio_window;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
+    ProgressManager pm(no_chains, no_iter, no_warmup + zratio_window, 50, progress_type, true, progress_callback);
 
     // Create edge prior
     EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);

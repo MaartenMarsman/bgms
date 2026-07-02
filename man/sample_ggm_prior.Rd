@@ -20,7 +20,8 @@ sample_ggm_prior(
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
-  apply_correction = TRUE
+  apply_correction = TRUE,
+  calibration_window = NULL
 )
 }
 \arguments{
@@ -103,6 +104,14 @@ normalizing-constant correction to the hyperparameter updates (default
 sampler and cached across calls). With \code{FALSE} the plain conjugate
 updates are used, whose hyperparameter marginals do not match the
 hyperpriors under the determinant tilt.}
+
+\item{calibration_window}{Non-negative integer or \code{NULL} (default).
+Only for \code{spec = "hierarchical"}: length of the appended warm-up
+window in which the Z-ratio correction is calibrated online against a
+block-Gibbs oracle and then frozen (with its hull clamp) before
+sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
+percent of \code{n_warmup} otherwise. The adaptation warmup itself is
+never shortened; the window is appended.}
 }
 \value{
 A list with components

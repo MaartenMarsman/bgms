@@ -63,14 +63,15 @@ void run_mcmc_chain(
     // Construct warmup schedule (shared by runner and sampler)
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd,
-                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
+                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs,
+                            config.zratio_calibration_window);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
 
     // Initialize sampler (step-size heuristic) before the main loop
     sampler->initialize(model);
 
-    const int total_iter = config.no_warmup + config.no_iter;
+    const int total_iter = schedule.total_warmup + config.no_iter;
 
     // ---- Main MCMC loop (warmup + sampling) ----
     for (int iter = 0; iter < total_iter; ++iter) {
@@ -81,6 +82,11 @@ void run_mcmc_chain(
         // Optional missing-data imputation
         if (config.na_impute && model.has_missing_data()) {
             model.impute_missing();
+        }
+
+        // Warmup/sampling boundary hook (e.g. freeze the Z-ratio calibrator)
+        if (iter == schedule.total_warmup) {
+            model.on_warmup_end();
         }
 
         // Edge selection
@@ -110,7 +116,7 @@ void run_mcmc_chain(
 
         // Store samples (only during sampling phase)
         if (schedule.sampling(iter)) {
-            int sample_index = iter - config.no_warmup;
+            int sample_index = iter - schedule.total_warmup;
 
             store_nuts_diagnostics_if_present(chain_result, sample_index, *sampler, result);
 
