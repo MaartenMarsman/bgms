@@ -364,13 +364,15 @@ void MixedMRFModel::cholesky_update_after_precision_edge(
     cont_u2_ = (cont_vf1_ - cont_vf2_) / std::sqrt(2.0);
 
     cholesky_update(cholesky_of_precision_, cont_u1_);
-    cholesky_downdate(cholesky_of_precision_, cont_u2_);
+    bool down_ok = cholesky_downdate(cholesky_of_precision_, cont_u2_);
 
-    // Update the inverse Cholesky; if the rank-2 update has drifted into
-    // ill-conditioning, rebuild the decomposition from scratch (mirrors
-    // GGMModel's drift-guard). pairwise_effects_continuous_ already holds the
-    // accepted value here, so the rebuild reconstructs the accepted state.
-    if (arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+    // Update the inverse Cholesky; if the downdate lost positive definiteness
+    // or the rank-2 update has drifted into ill-conditioning, rebuild the
+    // decomposition from scratch (mirrors GGMModel's drift-guard).
+    // pairwise_effects_continuous_ already holds the accepted value here, so
+    // the rebuild reconstructs the accepted state.
+    if (down_ok &&
+        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
         covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
         log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     } else {
@@ -396,14 +398,17 @@ void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
 
     cont_vf1_[i] = std::sqrt(std::abs(delta));
 
+    bool down_ok = true;
     if(downdate)
-        cholesky_downdate(cholesky_of_precision_, cont_vf1_);
+        down_ok = cholesky_downdate(cholesky_of_precision_, cont_vf1_);
     else
         cholesky_update(cholesky_of_precision_, cont_vf1_);
 
-    // Update the inverse Cholesky; fall back to a full rebuild on drift
-    // (mirrors GGMModel's drift-guard).
-    if (arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+    // Update the inverse Cholesky; fall back to a full rebuild if the
+    // downdate lost positive definiteness or on drift (mirrors GGMModel's
+    // drift-guard).
+    if (down_ok &&
+        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
         covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
         log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     } else {

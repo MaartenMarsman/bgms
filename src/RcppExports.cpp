@@ -66,6 +66,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_cholesky_downdate
+Rcpp::List test_cholesky_downdate(arma::mat R, arma::vec u, double eps);
+RcppExport SEXP _bgms_test_cholesky_downdate(SEXP RSEXP, SEXP uSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type R(RSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type u(uSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_cholesky_downdate(R, u, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // get_explog_switch
 Rcpp::String get_explog_switch();
 RcppExport SEXP _bgms_get_explog_switch() {
@@ -742,6 +755,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
+    {"_bgms_test_cholesky_downdate", (DL_FUNC) &_bgms_test_cholesky_downdate, 3},
     {"_bgms_get_explog_switch", (DL_FUNC) &_bgms_get_explog_switch, 0},
     {"_bgms_rcpp_ieee754_exp", (DL_FUNC) &_bgms_rcpp_ieee754_exp, 1},
     {"_bgms_rcpp_ieee754_log", (DL_FUNC) &_bgms_rcpp_ieee754_log, 1},

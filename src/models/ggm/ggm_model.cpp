@@ -308,12 +308,12 @@ void GGMModel::apply_rank2_chol_smw_update_()
 
     // update phi (2x O(p^2))
     cholesky_update(cholesky_of_precision_, u1_);
-    cholesky_downdate(cholesky_of_precision_, u2_);
+    bool ok = cholesky_downdate(cholesky_of_precision_, u2_);
 
-    // update inverse — fall back to full recomputation if rank-1
-    // updates have caused numerical drift
-    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                          arma::eye(p_, p_), arma::solve_opts::fast);
+    // update inverse — fall back to full recomputation if the downdate lost
+    // positive definiteness or rank-1 updates have caused numerical drift
+    ok = ok && arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                           arma::eye(p_, p_), arma::solve_opts::fast);
     if (!ok) {
         refresh_cholesky();
     } else {
@@ -554,15 +554,16 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
     bool s = delta > 0;
     vf1_(i) = std::sqrt(std::abs(delta));
 
+    bool ok = true;
     if (s)
-        cholesky_downdate(cholesky_of_precision_, vf1_);
+        ok = cholesky_downdate(cholesky_of_precision_, vf1_);
     else
         cholesky_update(cholesky_of_precision_, vf1_);
 
-    // update inverse — fall back to full recomputation if rank-1
-    // updates have caused numerical drift
-    bool ok = arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                          arma::eye(p_, p_), arma::solve_opts::fast);
+    // update inverse — fall back to full recomputation if the downdate lost
+    // positive definiteness or rank-1 updates have caused numerical drift
+    ok = ok && arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
+                           arma::eye(p_, p_), arma::solve_opts::fast);
     if (!ok) {
         refresh_cholesky();
     } else {

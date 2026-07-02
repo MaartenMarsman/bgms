@@ -5,6 +5,10 @@ run_bgmCompare_parallel <- function(observations, num_groups, counts_per_categor
     .Call(`_bgms_run_bgmCompare_parallel`, observations, num_groups, counts_per_category, blume_capel_stats, pairwise_stats, num_categories, main_alpha, main_beta, pairwise_scale, pairwise_scaling_factors, difference_scale, difference_selection_alpha, difference_selection_beta, difference_selection_alpha_between, difference_selection_beta_between, difference_dirichlet_alpha, difference_lambda, difference_prior, iter, warmup, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, difference_selection, main_difference_selection, main_effect_indices, pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix, projection, group_membership, group_indices, interaction_index_matrix, inclusion_probability, num_chains, nThreads, seed, update_method, progress_type, interaction_prior_type_str, threshold_prior_type_str, threshold_scale, progress_callback)
 }
 
+test_cholesky_downdate <- function(R, u, eps = 1e-12) {
+    .Call(`_bgms_test_cholesky_downdate`, R, u, eps)
+}
+
 get_explog_switch <- function() {
     .Call(`_bgms_get_explog_switch`)
 }
