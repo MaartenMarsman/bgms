@@ -48,9 +48,12 @@
 #'   \eqn{\textrm{Cauchy}(0, 5)} prior).
 #' @param precision_scale_prior A \code{bgms_scale_prior} for
 #'   \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
-#'   \code{\link{exponential_prior}()}. Default: \code{gamma_prior(1, 1)},
-#'   which implies \eqn{K_{ii}/2 \sim \textrm{Exp}(1)} and therefore
-#'   \eqn{K_{ii} \sim \textrm{Exp}(1/2)} (mean \eqn{2}).
+#'   \code{\link{exponential_prior}()}. Both accept the rate in the raw
+#'   frame (\code{rate}) or the standardized frame (\code{eta}; the raw
+#'   rate is derived as \code{eta / s} for interaction-prior scale
+#'   \code{s}). Default: \code{gamma_prior(shape = 1, eta = 1)}; with the
+#'   default \code{cauchy_prior(scale = 2.5)} interaction prior this
+#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Gamma}(1, 0.4)}.
 #' @param step_size Positive numeric. Initial NUTS step size used to seed
 #'   dual-averaging adaptation. Default \code{0.1}. Used only for
 #'   \code{spec = "conditional"} (NUTS path); ignored for the
@@ -138,7 +141,7 @@ sample_ggm_prior = function(
   n_samples,
   n_warmup = 2e3,
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   step_size = 0.1,
   max_depth = 10L,
   seed = 1L,
@@ -179,6 +182,9 @@ sample_ggm_prior = function(
     )
   }
   sp = unpack_scale_prior(precision_scale_prior)
+  sp$scale_rate = resolve_scale_rate(
+    sp$scale_rate, sp$scale_eta, ip$pairwise_scale
+  )
 
   edge_indicators = validate_ggm_prior_edge_indicators(edge_indicators, p)
 

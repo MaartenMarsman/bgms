@@ -79,12 +79,15 @@ test_that("Gamma shape != 1 targets Gamma(shape, rate/2) via the independent-MH"
 
 # Posterior means of K (diagonal + off-diagonal) from a fixed-graph bgm() fit.
 ggm_K_means = function(Y, update_method, interaction_prior, alpha, delta,
-                       iter, warmup, seed = 1L) {
+                       iter, warmup, seed = 1L,
+                       precision_scale_prior = gamma_prior(
+                         shape = alpha, rate = 1
+                       )) {
   fit = bgm(
     Y,
     variable_type = "continuous",
     interaction_prior = interaction_prior,
-    precision_scale_prior = gamma_prior(shape = alpha, rate = 1),
+    precision_scale_prior = precision_scale_prior,
     delta = delta,
     edge_selection = FALSE,
     iter = iter, warmup = warmup,
@@ -169,6 +172,22 @@ test_that("gibbs agrees with AM under a Cauchy slab (scale mixture of normals)",
   args = list(
     Y = Y, interaction_prior = cauchy_prior(scale = 1),
     alpha = 1, delta = 0, iter = 4000L, warmup = 1000L
+  )
+  am = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
+  gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))
+  expect_K_agreement(gibb, am, tol_abs = 0.10, tol_rel = 0.05)
+})
+
+
+test_that("gibbs agrees with AM under a non-unit Cauchy slab in the eta frame", {
+  skip_on_cran()
+  skip_if_not_installed("MASS")
+  Y = ggm_agreement_data()
+  # Slab scale 2 with gamma_prior(eta = 1) resolves to a raw rate of 0.5.
+  args = list(
+    Y = Y, interaction_prior = cauchy_prior(scale = 2),
+    alpha = 1, delta = 0, iter = 4000L, warmup = 1000L,
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1)
   )
   am = do.call(ggm_K_means, c(args, update_method = "adaptive-metropolis"))
   gibb = do.call(ggm_K_means, c(args, update_method = "gibbs"))

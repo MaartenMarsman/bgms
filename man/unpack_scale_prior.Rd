@@ -11,7 +11,9 @@ unpack_scale_prior(prior)
 }
 \value{
 A list with \code{scale_prior_type} (character),
-\code{scale_shape} (numeric), and \code{scale_rate} (numeric).
+\code{scale_shape} (numeric), \code{scale_rate} (numeric; \code{NA} for
+a standardized-frame prior), and \code{scale_eta} (numeric; \code{NA}
+for a raw-frame prior).
 }
 \description{
 Unpack a scale prior into the flat parameters used by bgm_spec

@@ -145,6 +145,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
       pairwise_scale = scale, delta = 0,
+      precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2026L + r
     )
 
@@ -219,6 +220,7 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = FALSE, update_method = "adaptive-metropolis",
       pairwise_scale = scale, delta = 0,
+      precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2027L + r
     )
 
@@ -351,6 +353,7 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
       pairwise_scale = scale, delta = 0,
+      precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2028L + r
     )
 
@@ -398,7 +401,7 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
 # support by Hadamard's inequality. Off-diagonals are unchanged from the
 # untilted Cauchy-slab proposal.
 draw_prior_K_tilted = function(p, scale = 2.5, delta = 1,
-                                max_tries = 100000) {
+                               max_tries = 100000) {
   for(attempt in seq_len(max_tries)) {
     K = matrix(0, p, p)
 
@@ -467,6 +470,7 @@ test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
       pairwise_scale = scale, delta = delta,
+      precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2029L + r
     )
 
@@ -551,10 +555,10 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
     spec = "joint", delta = NULL, seed = 2030L, verbose = FALSE
   )
   thin_idx = seq(thin, R * thin, by = thin)
-  K_off_true  = joint$K_offdiag[thin_idx, , drop = FALSE]
+  K_off_true = joint$K_offdiag[thin_idx, , drop = FALSE]
   K_diag_true = joint$K_diag[thin_idx, , drop = FALSE]
 
-  n_params = p + 1L                          # K_11, ..., K_pp, log|K|
+  n_params = p + 1L # K_11, ..., K_pp, log|K|
   ranks = matrix(NA_real_, nrow = R, ncol = n_params)
 
   for(r in seq_len(R)) {
@@ -568,12 +572,12 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
-      delta = NULL,                          # auto-default, matches generator
+      delta = NULL, # auto-default, matches generator
       display_progress = "none", seed = 2030L + r
     )
 
     main_samples = do.call(rbind, fit$raw_samples$main)
-    pw_samples   = do.call(rbind, fit$raw_samples$pairwise)
+    pw_samples = do.call(rbind, fit$raw_samples$pairwise)
 
     # K diagonal ranks
     for(i in seq_len(p)) {
