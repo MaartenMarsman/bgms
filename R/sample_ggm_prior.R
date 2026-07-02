@@ -37,6 +37,13 @@
 #' the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 #' (the chain samples \eqn{\Gamma}).
 #'
+#' When \code{spec = "joint"}, the chain is initialized from an ancestral
+#' draw of the edge prior (hyperparameters from their prior, then
+#' indicators given the hyperparameters), keyed to \code{seed}. Under a
+#' hierarchical edge prior the inclusion parameter and the graph density
+#' are coupled, and a full-graph start can pin both near 1 for a large
+#' number of sweeps in zero-evidence chains.
+#'
 #' @param p Integer. Dimension of the precision matrix (\eqn{p \ge 2}).
 #' @param n_samples Integer. Number of post-warmup draws to keep.
 #' @param n_warmup Integer. NUTS warmup iterations. Default \code{2000}.
@@ -282,7 +289,7 @@ sample_ggm_prior = function(
   results = sample_ggm(
     inputFromR = inputFromR,
     prior_inclusion_prob = ep$inclusion_probability,
-    initial_edge_indicators = matrix(1L, p, p),
+    initial_edge_indicators = ggm_prior_ancestral_indicators(p, ep, seed),
     no_iter = as.integer(n_samples),
     no_warmup = as.integer(n_warmup),
     no_chains = 1L,
@@ -360,6 +367,87 @@ sample_ggm_prior = function(
 
 
 # Internal helpers -------------------------------------------------------------
+
+# Ancestral draw of the initial edge-indicator matrix for the joint-spec
+# chain: hyperparameters from their prior, then indicators given the
+# hyperparameters. Runs in an RNG scope keyed to `seed` and restores the
+# caller's RNG state on exit.
+ggm_prior_ancestral_indicators = function(p, ep, seed) {
+  has_seed = exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  if(has_seed) {
+    old_seed = get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
+  } else {
+    on.exit(
+      if(exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        rm(list = ".Random.seed", envir = globalenv())
+      },
+      add = TRUE
+    )
+  }
+  set.seed(seed)
+
+  prob = switch(ep$edge_prior,
+    "Bernoulli" = ep$inclusion_probability,
+    "Beta-Bernoulli" = matrix(
+      rbeta(1, ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta), p, p
+    ),
+    "Stochastic-Block" = {
+      z = ancestral_mfm_sbm_partition(p, ep$lambda, ep$dirichlet_alpha)
+      ancestral_sbm_pair_probabilities(
+        z,
+        ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta,
+        ep$beta_bernoulli_alpha_between, ep$beta_bernoulli_beta_between
+      )
+    }
+  )
+
+  g = matrix(0L, p, p)
+  upper = upper.tri(g)
+  g[upper] = as.integer(runif(sum(upper)) < prob[upper])
+  g = g + t(g)
+  diag(g) = 1L
+  g
+}
+
+# Ancestral draw from the MFM-SBM hyperprior: shifted-Poisson component
+# count, Dirichlet weights, and allocations.
+ancestral_mfm_sbm_partition = function(p, lambda, dirichlet_alpha) {
+  num_components = rpois(1, lambda) + 1L
+  w = rgamma(num_components, dirichlet_alpha)
+  sample.int(num_components, p, replace = TRUE, prob = w)
+}
+
+# Per-pair inclusion probabilities implied by an allocation vector, with
+# within-block and between-block Beta draws for each block pair.
+ancestral_sbm_pair_probabilities = function(
+  z, a_within, b_within, a_between, b_between
+) {
+  labs = sort(unique(z))
+  nl = length(labs)
+  th_rs = matrix(0, nl, nl)
+  for(r in seq_len(nl)) {
+    for(s in r:nl) {
+      v = if(r == s) {
+        rbeta(1, a_within, b_within)
+      } else {
+        rbeta(1, a_between, b_between)
+      }
+      th_rs[r, s] = v
+      th_rs[s, r] = v
+    }
+  }
+  zi = match(z, labs)
+  p = length(z)
+  prob = matrix(0.5, p, p)
+  for(i in seq_len(p - 1)) {
+    for(j in (i + 1):p) {
+      prob[i, j] = th_rs[zi[i], zi[j]]
+      prob[j, i] = prob[i, j]
+    }
+  }
+  prob
+}
 
 validate_integer = function(x, name, min_value = 1L) {
   if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {

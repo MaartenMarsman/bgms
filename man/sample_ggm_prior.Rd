@@ -171,6 +171,13 @@ When \code{spec = "conditional"} and \code{edge_indicators} is supplied,
 off-diagonals at excluded positions are constrained to zero throughout
 the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 (the chain samples \eqn{\Gamma}).
+
+When \code{spec = "joint"}, the chain is initialized from an ancestral
+draw of the edge prior (hyperparameters from their prior, then
+indicators given the hyperparameters), keyed to \code{seed}. Under a
+hierarchical edge prior the inclusion parameter and the graph density
+are coupled, and a full-graph start can pin both near 1 for a large
+number of sweeps in zero-evidence chains.
 }
 \examples{
 \donttest{
