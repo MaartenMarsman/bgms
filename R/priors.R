@@ -166,14 +166,32 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
 #' @title Gamma Prior for Scale Parameters
 #'
 #' @description
-#' Specifies a Gamma(shape, rate) prior for positive scale parameters such as
-#' the diagonal elements of the precision matrix. The default
-#' \code{gamma_prior(1, 1)} corresponds to an Exponential(1) distribution.
+#' Specifies a Gamma prior for positive scale parameters such as the
+#' diagonal elements of the precision matrix. The rate can be given in one
+#' of two frames:
+#' \itemize{
+#'   \item \code{rate}: the raw frame; the Gamma(shape, rate) prior applies
+#'     to the diagonal as-is.
+#'   \item \code{eta}: the standardized frame; \code{eta} is the Gamma rate
+#'     on the standardized diagonal, the coordinate in which the pairwise
+#'     (slab) prior has unit scale. \code{eta} fixes the scale of the
+#'     diagonal relative to the slab, and the raw rate is derived at fit
+#'     time as \code{eta / s}, where \code{s} is the scale of the
+#'     interaction prior. At fixed \code{eta}, graph and partial-correlation
+#'     inference is invariant to the slab scale \code{s}.
+#' }
+#' Supply either \code{rate} or \code{eta}, not both; with neither, the
+#' default is the standardized frame with \code{eta = 1}. Small \code{eta}
+#' places the prior mass well inside the positive-definite cone; large
+#' \code{eta} places mass near the cone boundary.
 #'
 #' @param shape Positive numeric. Shape parameter of the Gamma distribution.
 #'   Default: \code{1}.
-#' @param rate Positive numeric. Rate parameter of the Gamma distribution.
-#'   Default: \code{1}.
+#' @param rate Positive numeric. Rate parameter of the Gamma distribution in
+#'   the raw frame. Mutually exclusive with \code{eta}.
+#' @param eta Positive numeric. Rate parameter of the Gamma distribution on
+#'   the standardized diagonal (unit slab scale). Mutually exclusive with
+#'   \code{rate}. Default when neither is supplied: \code{1}.
 #'
 #' @return An object of class \code{"bgms_scale_prior"} with
 #'   \code{family = "gamma"}.
@@ -182,43 +200,88 @@ beta_prime_prior = function(alpha = 0.5, beta = 0.5) {
 #' @seealso \code{\link{exponential_prior}}, \code{\link{bgm}}
 #'
 #' @examples
-#' gamma_prior()
-#' gamma_prior(shape = 2, rate = 0.5)
+#' gamma_prior() # standardized frame, eta = 1
+#' gamma_prior(shape = 2, eta = 0.5)
+#' gamma_prior(shape = 2, rate = 0.5) # raw frame
 #'
 #' @export
-gamma_prior = function(shape = 1, rate = 1) {
+gamma_prior = function(shape = 1, rate = NULL, eta = NULL) {
   if(!is.numeric(shape) || length(shape) != 1L || is.na(shape)) {
     stop("'shape' must be a single positive number.")
   }
-  if(!is.numeric(rate) || length(rate) != 1L || is.na(rate)) {
-    stop("'rate' must be a single positive number.")
+  if(shape <= 0 || !is.finite(shape)) {
+    stop("'shape' must be positive and finite.")
   }
-  if(shape <= 0 || rate <= 0) {
-    stop("'shape' and 'rate' must be positive.")
-  }
-  if(!is.finite(shape) || !is.finite(rate)) {
-    stop("'shape' and 'rate' must be finite.")
-  }
+  re = validate_rate_eta(rate, eta)
 
   structure(
     list(
       family = "gamma",
-      hyper.parameters = list(shape = shape, rate = rate)
+      hyper.parameters = c(list(shape = shape), re)
     ),
     class = "bgms_scale_prior"
   )
 }
 
 
+# ------------------------------------------------------------------
+# validate_rate_eta
+# ------------------------------------------------------------------
+# Shared rate/eta handling for the scale-prior constructors: enforces
+# mutual exclusion, defaults to the standardized frame with eta = 1,
+# and validates whichever value was supplied.
+#
+# @param rate  Raw-frame rate, or NULL.
+# @param eta   Standardized-frame rate, or NULL.
+#
+# Returns: list(rate = <numeric or NA>, eta = <numeric or NA>), with
+# exactly one of the two set.
+# ------------------------------------------------------------------
+validate_rate_eta = function(rate, eta) {
+  if(!is.null(rate) && !is.null(eta)) {
+    stop(
+      "Supply either 'rate' (raw frame) or 'eta' (standardized frame), ",
+      "not both."
+    )
+  }
+  if(is.null(rate) && is.null(eta)) {
+    eta = 1
+  }
+  if(!is.null(rate)) {
+    if(!is.numeric(rate) || length(rate) != 1L || is.na(rate)) {
+      stop("'rate' must be a single positive number.")
+    }
+    if(rate <= 0 || !is.finite(rate)) {
+      stop("'rate' must be positive and finite.")
+    }
+  }
+  if(!is.null(eta)) {
+    if(!is.numeric(eta) || length(eta) != 1L || is.na(eta)) {
+      stop("'eta' must be a single positive number.")
+    }
+    if(eta <= 0 || !is.finite(eta)) {
+      stop("'eta' must be positive and finite.")
+    }
+  }
+  list(rate = rate %||% NA_real_, eta = eta %||% NA_real_)
+}
+
+
 #' @title Exponential Prior for Scale Parameters
 #'
 #' @description
-#' Specifies an Exponential(rate) prior for positive scale parameters.
-#' This is a convenience function equivalent to
-#' \code{gamma_prior(shape = 1, rate = rate)}.
+#' Specifies an Exponential prior for positive scale parameters. This is a
+#' convenience function equivalent to \code{gamma_prior(shape = 1)} with the
+#' same rate argument. As in \code{\link{gamma_prior}}, the rate can be given
+#' in the raw frame (\code{rate}) or the standardized frame (\code{eta}, the
+#' rate on the standardized diagonal at unit slab scale); supply one of the
+#' two, not both. With neither, the default is \code{eta = 1}.
 #'
 #' @param rate Positive numeric. Rate parameter of the Exponential
-#'   distribution. Default: \code{1}.
+#'   distribution in the raw frame. Mutually exclusive with \code{eta}.
+#' @param eta Positive numeric. Rate parameter of the Exponential
+#'   distribution on the standardized diagonal (unit slab scale). Mutually
+#'   exclusive with \code{rate}. Default when neither is supplied: \code{1}.
 #'
 #' @return An object of class \code{"bgms_scale_prior"} with
 #'   \code{family = "exponential"}.
@@ -227,25 +290,17 @@ gamma_prior = function(shape = 1, rate = 1) {
 #' @seealso \code{\link{gamma_prior}}, \code{\link{bgm}}
 #'
 #' @examples
-#' exponential_prior()
-#' exponential_prior(rate = 2)
+#' exponential_prior() # standardized frame, eta = 1
+#' exponential_prior(rate = 2) # raw frame
 #'
 #' @export
-exponential_prior = function(rate = 1) {
-  if(!is.numeric(rate) || length(rate) != 1L || is.na(rate)) {
-    stop("'rate' must be a single positive number.")
-  }
-  if(rate <= 0) {
-    stop("'rate' must be positive.")
-  }
-  if(!is.finite(rate)) {
-    stop("'rate' must be finite.")
-  }
+exponential_prior = function(rate = NULL, eta = NULL) {
+  re = validate_rate_eta(rate, eta)
 
   structure(
     list(
       family = "exponential",
-      hyper.parameters = list(rate = rate)
+      hyper.parameters = re
     ),
     class = "bgms_scale_prior"
   )
@@ -427,12 +482,18 @@ print.bgms_parameter_prior = function(x, ...) {
 #' @export
 print.bgms_scale_prior = function(x, ...) {
   hp = x$hyper.parameters
+  standardized = !is.na(hp$eta %||% NA_real_)
+  rate_label = if(standardized) {
+    sprintf("eta = %.4g, standardized frame", hp$eta)
+  } else {
+    sprintf("rate = %.4g", hp$rate)
+  }
   switch(x$family,
     "gamma" = cat(sprintf(
-      "Scale prior: Gamma(shape = %.4g, rate = %.4g)\n",
-      hp$shape, hp$rate
+      "Scale prior: Gamma(shape = %.4g, %s)\n",
+      hp$shape, rate_label
     )),
-    "exponential" = cat(sprintf("Scale prior: Exponential(rate = %.4g)\n", hp$rate)),
+    "exponential" = cat(sprintf("Scale prior: Exponential(%s)\n", rate_label)),
     cat(sprintf("Scale prior: %s\n", x$family))
   )
   invisible(x)
@@ -510,7 +571,9 @@ unpack_parameter_prior = function(prior) {
 #' @param prior A \code{bgms_scale_prior} object.
 #'
 #' @return A list with \code{scale_prior_type} (character),
-#'   \code{scale_shape} (numeric), and \code{scale_rate} (numeric).
+#'   \code{scale_shape} (numeric), \code{scale_rate} (numeric; \code{NA} for
+#'   a standardized-frame prior), and \code{scale_eta} (numeric; \code{NA}
+#'   for a raw-frame prior).
 #'
 #' @keywords internal
 unpack_scale_prior = function(prior) {
@@ -523,12 +586,43 @@ unpack_scale_prior = function(prior) {
   hp = prior$hyper.parameters
   # Exponential is Gamma(1, rate)
   shape = if(prior$family == "exponential") 1 else hp$shape
-  rate = hp$rate
   list(
     scale_prior_type = prior$family,
     scale_shape = shape,
-    scale_rate = rate
+    scale_rate = hp$rate %||% NA_real_,
+    scale_eta = hp$eta %||% NA_real_
   )
+}
+
+
+# ------------------------------------------------------------------
+# resolve_scale_rate
+# ------------------------------------------------------------------
+# Resolve the raw diagonal rate from a standardized-frame scale prior.
+#
+# @param scale_rate      Raw-frame rate; NA when the prior is specified
+#                        in the standardized frame.
+# @param scale_eta       Standardized rate; NA when the prior is
+#                        specified in the raw frame.
+# @param pairwise_scale  Scale of the interaction (slab) prior; NA for
+#                        priors without a scale parameter.
+#
+# Returns: the raw-frame rate — scale_rate as given, or
+# scale_eta / pairwise_scale.
+# ------------------------------------------------------------------
+resolve_scale_rate = function(scale_rate, scale_eta, pairwise_scale) {
+  if(is.na(scale_eta)) {
+    return(scale_rate)
+  }
+  if(is.na(pairwise_scale)) {
+    stop(
+      "The precision_scale_prior uses the standardized frame ('eta'), ",
+      "which requires an interaction prior with a scale parameter. Use ",
+      "cauchy_prior() or normal_prior() for 'interaction_prior', or ",
+      "specify the precision_scale_prior with 'rate' instead of 'eta'."
+    )
+  }
+  scale_eta / pairwise_scale
 }
 
 

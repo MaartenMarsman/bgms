@@ -573,12 +573,28 @@ test_that("GGM edge selection works with beta_prime_prior interaction", {
   fit = bgm(Y,
     variable_type = "continuous",
     interaction_prior = beta_prime_prior(1, 1),
+    # beta-prime has no scale, so the diagonal prior must give a raw rate
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     edge_prior = bernoulli_prior(0.5),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
   )
   expect_s3_class(fit, "bgms")
   expect_false(is.null(fit$posterior_mean_indicator))
+})
+
+test_that("GGM beta_prime_prior interaction rejects an eta-frame diagonal prior", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  expect_error(
+    bgm(Y,
+      variable_type = "continuous",
+      interaction_prior = beta_prime_prior(1, 1),
+      iter = 50, warmup = 100, chains = 1,
+      display_progress = "none"
+    ),
+    "scale parameter"
+  )
 })
 
 test_that("GGM edge selection works with non-default diagonal prior", {
