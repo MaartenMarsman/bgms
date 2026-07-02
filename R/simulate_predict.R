@@ -76,9 +76,11 @@ expand_variable_type = function(variable_type, num_variables) {
 #' If \code{method = "posterior-sample"}: A list of matrices, one per posterior
 #' draw, each with \code{nsim} rows and \code{p} columns.
 #'
-#' For mixed MRF models, discrete columns contain non-negative integers and
-#' continuous columns contain real-valued observations, ordered as in the
-#' original data.
+#' Discrete columns are returned on the original category scale of the training
+#' data (the values supplied to \code{bgm()}), so the output can be passed
+#' straight to \code{predict()}. For mixed MRF models, discrete columns contain
+#' non-negative integers and continuous columns contain real-valued
+#' observations, ordered as in the original data.
 #'
 #' @details
 #' This function uses the estimated interaction and threshold
@@ -210,6 +212,7 @@ simulate.bgms = function(object,
       iter = iter
     )
 
+    result = recode_simulated_to_original(result, arguments$category_levels)
     colnames(result) = data_columnnames
     return(result)
   } else {
@@ -244,8 +247,11 @@ simulate.bgms = function(object,
       progress_type = progress_type
     )
 
-    # Add column names
+    # Map codes back to the original scale and add column names.
     for(i in seq_along(results)) {
+      results[[i]] = recode_simulated_to_original(
+        results[[i]], arguments$category_levels
+      )
       colnames(results[[i]]) = data_columnnames
     }
 
@@ -392,6 +398,7 @@ simulate.bgmCompare = function(object,
       iter = iter
     )
 
+    result = recode_simulated_to_original(result, arguments$category_levels)
     colnames(result) = data_columnnames
     return(result)
   }
@@ -1068,4 +1075,42 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal,
   }
 
   return(x)
+}
+
+
+# ------------------------------------------------------------------------------
+# recode_simulated_to_original()
+# ------------------------------------------------------------------------------
+# Inverse of recode_data_for_prediction(): map the internal 0-based category
+# codes the MRF sampler produces back to the original category values the fit
+# was trained on, so simulate() returns data on the same scale predict() expects
+# for newdata. Regular ordinal variables carry a recode map in category_levels;
+# Blume-Capel and continuous variables have none (NULL) and are returned as is
+# -- their simulated values already share the scale the sampler and predict()
+# use. This keeps simulate() -> predict() a round trip on the original scale
+# regardless of whether the training data was 0-based.
+#
+# Two map forms, matching recode_data_for_prediction():
+#   - unnamed sorted original values (bgm/OMRF): code k is the (k + 1)-th value.
+#   - named lookup (bgmCompare): names are original values, entries the final
+#     (possibly collapsed) codes; invert to the smallest original value mapping
+#     to each code, which predict() recodes back to that same code.
+recode_simulated_to_original = function(x, category_levels) {
+  if(is.null(category_levels)) {
+    return(x)
+  }
+  for(v in seq_len(ncol(x))) {
+    levels_v = category_levels[[v]]
+    if(is.null(levels_v)) next
+
+    if(!is.null(names(levels_v))) {
+      inverse = tapply(
+        as.numeric(names(levels_v)), as.integer(unname(levels_v)), min
+      )
+      x[, v] = inverse[as.character(x[, v])]
+    } else {
+      x[, v] = levels_v[x[, v] + 1L]
+    }
+  }
+  x
 }
