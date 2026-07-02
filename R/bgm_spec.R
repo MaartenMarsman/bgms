@@ -199,7 +199,7 @@ validate_bgm_spec = function(spec) {
 
   # Continuous-block scale prior must carry a resolved raw rate
   if(mt %in% c("ggm", "mixed_mrf")) {
-    if(!is.finite(spec$prior$scale_rate)) {
+    if(!is.null(spec$prior$scale_rate) && !is.finite(spec$prior$scale_rate)) {
       stop(
         "bgm_spec: prior$scale_rate is not finite; a standardized-frame ",
         "scale prior (eta) was not resolved to a raw rate."
