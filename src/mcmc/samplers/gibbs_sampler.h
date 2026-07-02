@@ -10,8 +10,9 @@
  *
  * The within-step is an exact conjugate row sweep. With edge selection the
  * between-step (driven by the chain runner) uses the full-conditional edge
- * birth/death proposal, which needs no tuning, so the Gibbs sweep runs from the
- * first iteration with no warmup staging.
+ * birth/death proposal, which needs no tuning. Warmup staging is minimal: a
+ * short full-model settle window, then selection-active warmup (Stage 3c of
+ * the shared schedule) for the remainder; see WarmupSchedule.
  *
  * The sweep logic (do_one_gibbs_step) is model-specific; this is a thin wrapper
  * providing the uniform sampler interface. Only constructed for models whose

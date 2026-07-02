@@ -13,11 +13,20 @@
  *   Stage 1 (init), Stage 2 (doubling windows), Stage 3a (terminal).
  *   total_warmup = user-specified warmup.
  *
- * For edge_selection = TRUE:
+ * For edge_selection = TRUE with learn_sd (NUTS):
  *   User warmup is split: 85% for Stage 1-3a, 10% for Stage 3b, 5% for Stage 3c.
  *   - Stage 3b: proposal SD tuning for edge-selection Metropolis moves
  *   - Stage 3c: step size re-adaptation with edge selection active
  *   If Stage 3b would get < 20 iterations, it's skipped (uses default proposal SD).
+ *
+ * For edge_selection = TRUE with select_during_warmup (Gibbs):
+ *   The sampler has no adaptation, so warmup is split into a short full-model
+ *   settle window (the first gibbs_settle_fraction of warmup, selection off)
+ *   followed by Stage 3c covering the remainder (selection active). Both
+ *   windows rescale with the user's warmup budget.
+ *
+ * For edge_selection = TRUE otherwise (adaptive-Metropolis):
+ *   Stage 3c is empty; selection activates at the first sampling iteration.
  *
  * Warning types:
  *   0 = none, 1 = warmup extremely short (< 50),
@@ -39,7 +48,8 @@ struct WarmupSchedule {
 
   WarmupSchedule(int warmup,
                  bool enable_sel,
-                 bool learn_sd)
+                 bool learn_sd,
+                 bool select_during_warmup = false)
     : stage1_end(0)
     , window_ends()
     , stage3a_start(0)
@@ -54,6 +64,7 @@ struct WarmupSchedule {
     // ===== Step 1: Determine budget allocation =====
     int warmup_core;    // Budget for Stage 1-3a (mass matrix + step size)
     int stage3b_budget = 0;
+    int selection_warmup_start = -1;  // >= 0: Stage 3c starts here (Gibbs)
 
     if (enable_sel && learn_sd) {
       // For edge selection models: split warmup as 85%/10%/5%
@@ -72,6 +83,11 @@ struct WarmupSchedule {
         // Marginal but runs - warn about limited tuning
         warning_type = 3;
       }
+    } else if (enable_sel && select_during_warmup) {
+      // Tuning-free sampler (Gibbs): a short full-model settle window, then
+      // selection-active warmup (Stage 3c) for the remainder of the budget.
+      warmup_core = warmup;
+      selection_warmup_start = static_cast<int>(gibbs_settle_fraction * warmup);
     } else {
       // No edge selection: all warmup goes to core stages 1-3a
       warmup_core = warmup;
@@ -141,7 +157,9 @@ struct WarmupSchedule {
 
     /* ---------- Stage-3b and 3c boundaries ---------- */
     stage3b_start = warmup_core;
-    stage3c_start = warmup_core + stage3b_budget;
+    stage3c_start = (selection_warmup_start >= 0)
+      ? selection_warmup_start              // Gibbs: settle, then selection
+      : warmup_core + stage3b_budget;
     // total_warmup already set to user's warmup value
   }
 
@@ -172,6 +190,10 @@ struct WarmupSchedule {
   /// Robbins-Monro decay rate for proposal-SD adaptation. Single source of
   /// truth; every model's tune_proposal_sd consults this.
   static constexpr double proposal_sd_rm_decay = 0.75;
+
+  /// Fraction of the Gibbs warmup spent settling the full model (all edges
+  /// included, selection off) before Stage 3c activates the edge moves.
+  static constexpr double gibbs_settle_fraction = 0.15;
 
   /// Robbins-Monro weight for proposal-SD adaptation at the given iteration.
   ///

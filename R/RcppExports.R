@@ -137,3 +137,7 @@ compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
     .Call(`_bgms_compute_Vn_mfm_sbm`, num_variables, dirichlet_alpha, t_max, lambda)
 }
 
+test_warmup_schedule <- function(warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations) {
+    .Call(`_bgms_test_warmup_schedule`, warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations)
+}
+
