@@ -246,6 +246,63 @@ build_ggm_correction_table = function(
 
 
 # ------------------------------------------------------------------
+# ggm_edge_prior_correction (internal)
+# ------------------------------------------------------------------
+# Resolve whether a GGM fit needs the normalizing-constant correction
+# and get-or-build the table for its model cell. Applies to fits with
+# edge selection and a Beta-Bernoulli edge prior (the stochastic block
+# corrections are separate). The tilted prior sweep runs the same
+# priors as the fit; the prior sampler does not support a beta-prime
+# slab, so those fits keep the uncorrected update with a warning.
+#
+# Returns list(theta =, logC =), both NULL when no correction applies.
+# ------------------------------------------------------------------
+ggm_edge_prior_correction = function(prior, sampler, num_variables) {
+  none = list(theta = NULL, logC = NULL)
+  if(!isTRUE(prior$edge_selection)) {
+    return(none)
+  }
+  if(!identical(prior$edge_prior, "Beta-Bernoulli")) {
+    return(none)
+  }
+  if(!prior$interaction_prior_type %in% c("cauchy", "normal")) {
+    warning(
+      "The Beta-Bernoulli inclusion-probability update is run without the ",
+      "normalizing-constant correction: the tilted prior sampler supports ",
+      "only cauchy_prior() and normal_prior() interaction priors.",
+      call. = FALSE
+    )
+    return(none)
+  }
+
+  interaction_prior = switch(prior$interaction_prior_type,
+    cauchy = cauchy_prior(scale = prior$pairwise_scale),
+    normal = normal_prior(scale = prior$pairwise_scale)
+  )
+  precision_scale_prior = if(identical(prior$scale_prior_type, "exponential")) {
+    exponential_prior(rate = prior$scale_rate)
+  } else {
+    gamma_prior(shape = prior$scale_shape, rate = prior$scale_rate)
+  }
+
+  if(isTRUE(sampler$verbose)) {
+    message(
+      "Edge-prior correction: building or loading the normalizing-constant ",
+      "table for this model (cached across fits)."
+    )
+  }
+  table = ggm_correction_table(
+    p = num_variables, delta = prior$delta,
+    interaction_prior = interaction_prior,
+    precision_scale_prior = precision_scale_prior,
+    update_method = "gibbs",
+    cores = sampler$cores
+  )
+  list(theta = table$theta, logC = table$logC)
+}
+
+
+# ------------------------------------------------------------------
 # ggm_correction_table (internal)
 # ------------------------------------------------------------------
 # Cache wrapper: get-or-build the table for a model cell. Tables are

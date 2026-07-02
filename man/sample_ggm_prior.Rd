@@ -18,7 +18,11 @@ sample_ggm_prior(
   delta = NULL,
   spec = c("conditional", "joint"),
   edge_inclusion_prob = 0.5,
-  update_method = c("adaptive-metropolis", "gibbs")
+  update_method = c("adaptive-metropolis", "gibbs"),
+  edge_prior = c("bernoulli", "beta-bernoulli"),
+  beta_bernoulli_alpha = 1,
+  beta_bernoulli_beta = 1,
+  apply_correction = TRUE
 )
 }
 \arguments{
@@ -85,6 +89,22 @@ Bernoulli edge prior used when \code{spec = "joint"}. Default
 \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
 Gibbs chain uses the conjugate row and edge updates and needs no
 proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).}
+
+\item{edge_prior}{One of \code{"bernoulli"} (default; fixed
+\code{edge_inclusion_prob}) or \code{"beta-bernoulli"} (the inclusion
+probability gets a Beta hyperprior and is sampled). Only for
+\code{spec = "joint"}.}
+
+\item{beta_bernoulli_alpha, beta_bernoulli_beta}{Positive shape parameters
+of the Beta hyperprior when \code{edge_prior = "beta-bernoulli"}.
+Defaults \code{1} (uniform).}
+
+\item{apply_correction}{Logical. When \code{edge_prior =
+"beta-bernoulli"}, apply the normalizing-constant correction to the
+inclusion-probability update (default \code{TRUE}; the correction table
+is built from the tilted prior sampler and cached across calls). With
+\code{FALSE} the plain conjugate update is used, whose hyperparameter
+marginal does not match the Beta hyperprior under the determinant tilt.}
 }
 \value{
 A list with components
@@ -111,6 +131,9 @@ the columns of \code{K_diag}.}
 \code{n_samples x p(p-1)/2} integer matrix of sampled
 \eqn{\Gamma_{ij}} indicators (column order matches
 \code{K_offdiag}).}
+\item{\code{theta}}{Only when \code{edge_prior = "beta-bernoulli"}:
+numeric vector of length \code{n_samples} with the sampled
+inclusion probability.}
 }
 }
 \description{

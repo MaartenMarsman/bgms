@@ -38,7 +38,9 @@ Rcpp::List sample_ggm(
     const int max_tree_depth = 10,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const Rcpp::Nullable<Rcpp::NumericVector> correction_theta = R_NilValue,
+    const Rcpp::Nullable<Rcpp::NumericVector> correction_logC = R_NilValue
 ) {
 
     // Create parameter priors from R input
@@ -132,6 +134,21 @@ Rcpp::List sample_ggm(
         beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
         dirichlet_alpha, lambda
     );
+
+    // Attach the normalizing-constant correction (log C(theta) curve built
+    // from the tilted prior sampler at fit setup) so the hyperparameter
+    // update targets the corrected conditional.
+    if (correction_theta.isNotNull() && correction_logC.isNotNull()) {
+        auto* bb = dynamic_cast<BetaBernoulliEdgePrior*>(edge_prior_obj.get());
+        if (bb == nullptr) {
+            Rcpp::stop("sample_ggm: a correction table was supplied for an "
+                       "edge prior that does not support it.");
+        }
+        bb->set_correction(EdgePriorCorrection(
+            Rcpp::as<arma::vec>(correction_theta.get()),
+            Rcpp::as<arma::vec>(correction_logC.get())
+        ));
+    }
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

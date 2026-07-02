@@ -598,17 +598,24 @@ test_that("GGM beta_prime_prior interaction rejects an eta-frame diagonal prior"
 })
 
 test_that("GGM edge selection works with non-default diagonal prior", {
+  skip_on_cran() # builds a normalizing-constant correction table
+  old = options(
+    bgms.correction_cache_dir = file.path(tempdir(), "bgms-ctable-prior-cpp")
+  )
+  on.exit(options(old), add = TRUE)
+
   set.seed(42)
   Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
-  fit = bgm(Y,
+  fit = suppressMessages(bgm(Y,
     variable_type = "continuous",
     precision_scale_prior = gamma_prior(shape = 2, rate = 0.5),
     edge_prior = beta_bernoulli_prior(1, 1),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
-  )
+  ))
   expect_s3_class(fit, "bgms")
   expect_false(is.null(fit$posterior_mean_indicator))
+  expect_length(fit$inclusion_parameter_samples[[1]], 50)
 })
 
 test_that("OMRF edge selection works with normal_prior interaction", {

@@ -22,7 +22,8 @@
 * `extract_log_odds()`: extract log-odds for discrete pairwise interactions.
 * `extract_main_effects()`: extract main effect samples (category thresholds, continuous means, and precision diagonal).
 * NUTS diagnostics now include the per-iteration mean Metropolis acceptance probability (`fit$nuts_diag$accept_prob`, paralleling Stan's `accept_stat__`) and a per-chain `mean_accept_prob` summary.
-* `sample_ggm_prior()` accepts `update_method = "gibbs"` for the `spec = "joint"` prior chain, using the conjugate row and edge updates instead of adaptive Metropolis.
+* `sample_ggm_prior()` accepts `update_method = "gibbs"` for the `spec = "joint"` prior chain, using the conjugate row and edge updates instead of adaptive Metropolis, and `edge_prior = "beta-bernoulli"` for sampling the inclusion probability under its Beta hyperprior.
+* Corrected inclusion-probability updates for `beta_bernoulli_prior()` on continuous (GGM) models: under the determinant-tilted precision prior, the conjugate Beta update omits a normalizing-constant factor and biases the sampled inclusion probability toward sparsity (at 5 variables with a uniform hyperprior its prior mean lands near 0.37 instead of 0.5). The update now draws from the corrected conditional using a table built from the prior distribution at the first fit of a model configuration and cached on disk (`tools::R_user_dir("bgms", "cache")`; a one-time cost of the order of minutes, announced when `verbose = TRUE`). The sampled inclusion probability is returned per chain in `fit$inclusion_parameter_samples`.
 
 ## Other changes
 

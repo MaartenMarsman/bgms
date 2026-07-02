@@ -4,6 +4,7 @@
 #include <RcppArmadillo.h>
 #include "rng/rng_utils.h"
 #include "utils/common_helpers.h"
+#include "edge_prior_correction.h"
 #include "sbm_edge_prior.h"
 #include "sbm_edge_prior_interface.h"
 
@@ -35,6 +36,12 @@ public:
 
     virtual bool has_allocations() const { return false; }
     virtual arma::ivec get_allocations() const { return arma::ivec(); }
+
+    /** Whether the prior carries a sampled inclusion parameter (BB theta). */
+    virtual bool has_inclusion_parameter() const { return false; }
+    virtual double get_inclusion_parameter() const {
+        return NA_REAL;
+    }
 };
 
 
@@ -63,12 +70,19 @@ public:
  * Beta-Bernoulli edge prior.
  *
  * Draws a shared inclusion probability from Beta(alpha + #included,
- * beta + #excluded) and assigns it to all edges.
+ * beta + #excluded) and assigns it to all edges. With a normalizing-constant
+ * correction attached (GGM path), the draw targets the corrected conditional
+ * that carries the 1/C(theta) factor instead.
  */
 class BetaBernoulliEdgePrior : public BaseEdgePrior {
 public:
     BetaBernoulliEdgePrior(double alpha = 1.0, double beta = 1.0)
-        : alpha_(alpha), beta_(beta) {}
+        : alpha_(alpha), beta_(beta),
+          current_prob_(alpha / (alpha + beta)) {}
+
+    void set_correction(const EdgePriorCorrection& correction) {
+        correction_ = correction;
+    }
 
     void update(
         const arma::imat& edge_indicators,
@@ -84,10 +98,12 @@ public:
             }
         }
 
-        double prob = rbeta(rng,
-            alpha_ + num_edges_included,
-            beta_ + num_pairwise - num_edges_included
-        );
+        double a_post = alpha_ + num_edges_included;
+        double b_post = beta_ + num_pairwise - num_edges_included;
+        double prob = correction_.active()
+            ? correction_.draw_theta(rng, a_post, b_post, current_prob_)
+            : rbeta(rng, a_post, b_post);
+        current_prob_ = prob;
 
         for (int i = 0; i < num_variables - 1; i++) {
             for (int j = i + 1; j < num_variables; j++) {
@@ -101,9 +117,14 @@ public:
         return std::make_unique<BetaBernoulliEdgePrior>(*this);
     }
 
+    bool has_inclusion_parameter() const override { return true; }
+    double get_inclusion_parameter() const override { return current_prob_; }
+
 private:
     double alpha_;
     double beta_;
+    double current_prob_;
+    EdgePriorCorrection correction_;
 };
 
 
