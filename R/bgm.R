@@ -52,7 +52,11 @@
 #'
 #' @param warmup Integer. Number of warmup iterations before collecting
 #'   samples. Short warmups trigger progressive warnings (NUTS only); see
-#'   \code{validate_sampler()} for the thresholds. Default: \code{2e3}.
+#'   \code{validate_sampler()} for the thresholds. With
+#'   \code{update_method = "gibbs"} and edge selection, the first 15\% of
+#'   the warmup runs the full model (all edges included) so the precision
+#'   matrix settles, and edge selection is active for the remaining 85\%;
+#'   both windows scale with the warmup budget. Default: \code{2e3}.
 #'
 #' @param interaction_prior A prior specification object for pairwise
 #'   interaction parameters, created by one of the prior constructor functions:

@@ -62,7 +62,8 @@ void run_mcmc_chain(
 
     // Construct warmup schedule (shared by runner and sampler)
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
-    WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd);
+    WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd,
+                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
 

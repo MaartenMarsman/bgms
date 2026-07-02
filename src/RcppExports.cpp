@@ -709,6 +709,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// test_warmup_schedule
+Rcpp::List test_warmup_schedule(int warmup, bool edge_selection, bool learn_sd, bool select_during_warmup, Rcpp::IntegerVector probe_iterations);
+RcppExport SEXP _bgms_test_warmup_schedule(SEXP warmupSEXP, SEXP edge_selectionSEXP, SEXP learn_sdSEXP, SEXP select_during_warmupSEXP, SEXP probe_iterationsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type warmup(warmupSEXP);
+    Rcpp::traits::input_parameter< bool >::type edge_selection(edge_selectionSEXP);
+    Rcpp::traits::input_parameter< bool >::type learn_sd(learn_sdSEXP);
+    Rcpp::traits::input_parameter< bool >::type select_during_warmup(select_during_warmupSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type probe_iterations(probe_iterationsSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_warmup_schedule(warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
@@ -745,6 +760,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 25},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
+    {"_bgms_test_warmup_schedule", (DL_FUNC) &_bgms_test_warmup_schedule, 5},
     {NULL, NULL, 0}
 };
 
