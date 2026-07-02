@@ -288,6 +288,18 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     vf2_[i] = v2_[0];
     vf2_[j] = v2_[1];
 
+    apply_rank2_chol_smw_update_();
+
+    // reset for next iteration
+    vf1_[i] = 0.0;
+    vf1_[j] = 0.0;
+    vf2_[i] = 0.0;
+    vf2_[j] = 0.0;
+
+}
+
+void GGMModel::apply_rank2_chol_smw_update_()
+{
     // we now have
     // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
 
@@ -307,13 +319,193 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     } else {
         covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
     }
+}
 
-    // reset for next iteration
+bool GGMModel::row_block_gibbs_eligible() {
+    // Scope: a Normal or Cauchy slab on the off-diagonals and any Gamma(., .)
+    // on K_ii/2. The determinant tilt is a shift in the xi Gamma shape; a
+    // Gamma shape != 1 is an independent-MH correction; a Cauchy slab is the
+    // scale-mixture-of-normals with a per-edge weight omega. None of these
+    // gate eligibility.
+    const bool normal = dynamic_cast<const NormalPrior*>(interaction_prior_.get()) != nullptr;
+    const bool cauchy = dynamic_cast<const CauchyPrior*>(interaction_prior_.get()) != nullptr;
+    if (!normal && !cauchy) return false;
+    if (dynamic_cast<const GammaScalePrior*>(diagonal_prior_.get()) == nullptr) return false;
+    return true;
+}
+
+double GGMModel::slab_scale_() const {
+    if (const auto* n = dynamic_cast<const NormalPrior*>(interaction_prior_.get()))
+        return n->scale();
+    if (const auto* c = dynamic_cast<const CauchyPrior*>(interaction_prior_.get()))
+        return c->scale();
+    return 1.0;  // unreachable once row_block_gibbs_eligible() holds
+}
+
+bool GGMModel::slab_is_cauchy_() const {
+    return dynamic_cast<const CauchyPrior*>(interaction_prior_.get()) != nullptr;
+}
+
+void GGMModel::refresh_cauchy_omega_() {
+    if (!slab_is_cauchy_()) return;
+    const double sigma = slab_scale_();
+    const double two_sig2 = 2.0 * sigma * sigma;
+    for (size_t i = 0; i + 1 < p_; ++i) {
+        for (size_t j = i + 1; j < p_; ++j) {
+            double w;
+            if (edge_indicators_(i, j) == 1) {
+                // Active: omega | K ~ InvGamma(1, 1/2 + kyy^2/(2 sigma^2)),
+                // drawn as 1 / Gamma(1, rate) since InvGamma(a, b) = 1/Gamma(a, b).
+                const double kyy = -0.5 * precision_matrix_(i, j);
+                w = 1.0 / rgamma(rng_, 1.0, 0.5 + kyy * kyy / two_sig2);
+            } else {
+                // Inactive (K_ij = 0): omega ~ prior InvGamma(1/2, 1/2). Kept
+                // fresh so an edge-selection add can condition on a valid weight.
+                w = 1.0 / rgamma(rng_, 0.5, 0.5);
+            }
+            omega_(i, j) = w;
+            omega_(j, i) = w;
+        }
+    }
+}
+
+void GGMModel::update_row_block_gibbs(size_t i) {
+    // Gaussian-Gamma draw of (beta = K_{N_i, i}, kii = K_{i,i}) given
+    // A = K_{-i, -i}, S, and the slab x Gamma prior. The determinant tilt
+    // enters as a shift in the xi shape; a Gamma shape alpha != 1 is corrected
+    // by an independent-MH accept below; a Cauchy slab enters through the
+    // per-edge weights omega_ (fixed at 1 for a Normal slab).
+    //
+    // Slab sigma (std on K_yy_ij = -K_ij/2), diagonal Gamma rate beta0, and
+    // shape alpha are read from the (already eligibility-checked) priors.
+    const auto* diag  = static_cast<const GammaScalePrior*>(diagonal_prior_.get());
+    const double sigma = slab_scale_();
+    const double beta0 = diag->rate();
+    const double alpha = diag->shape();
+    const bool   cauchy = slab_is_cauchy_();
+    const double s_ii  = suf_stat_(i, i);
+
+    // Active neighbour set N_i (in row order).
+    std::vector<size_t> Ni;
+    Ni.reserve(p_ - 1);
+    for (size_t k = 0; k < p_; ++k) {
+        if (k != i && edge_indicators_(i, k) == 1) Ni.push_back(k);
+    }
+    const size_t q = Ni.size();
+
+    // Stash old K column entries so the rank-2 update can encode the delta.
+    const double kii_old = precision_matrix_(i, i);
+    arma::vec beta_old(q);
+    for (size_t k = 0; k < q; ++k) beta_old(k) = precision_matrix_(i, Ni[k]);
+
+    // xi shape: n/2 + delta + 1 (alpha = 1). The determinant tilt |K|^delta
+    // contributes delta * log(xi) to the K_ii log-kernel (|K| = |A| * xi), so
+    // it shifts the Gamma shape and leaves the rate unchanged.
+    const double xi_shape = static_cast<double>(n_) / 2.0 + determinant_tilt_ + 1.0;
+    const double xi_rate  = (beta0 + s_ii) / 2.0;
+
+    arma::vec beta_new(q, arma::fill::zeros);
+    double kii_new;
+
+    if (q == 0) {
+        // No active neighbours: K_{i,i} = xi, no beta draw.
+        kii_new = rgamma(rng_, xi_shape, xi_rate);
+    } else {
+        // C = (A^{-1})_{N_i, N_i} via Schur on Sigma:
+        //   C_{kl} = Sigma_{N_i[k], N_i[l]} - Sigma_{N_i[k], i} Sigma_{i, N_i[l]} / Sigma_{ii}
+        const double sigma_ii = covariance_matrix_(i, i);
+        arma::vec sigma_iNi(q);
+        for (size_t k = 0; k < q; ++k) sigma_iNi(k) = covariance_matrix_(i, Ni[k]);
+        arma::mat C(q, q);
+        for (size_t k = 0; k < q; ++k) {
+            for (size_t l = 0; l < q; ++l) {
+                C(k, l) = covariance_matrix_(Ni[k], Ni[l])
+                          - sigma_iNi(k) * sigma_iNi(l) / sigma_ii;
+            }
+        }
+
+        // M = (beta0 + S_ii) C + diag(1/(4 sigma^2 omega_k)) -- symmetric PD.
+        // The slab precision on K_ij is 1/(4 sigma^2) since K_yy_ij = -K_ij/2;
+        // the Cauchy scale-mixture divides it by the per-edge weight omega_k
+        // (omega = 1 recovers the Normal slab).
+        const double inv_4sig2 = 1.0 / (4.0 * sigma * sigma);
+        arma::mat M = (beta0 + s_ii) * C;
+        for (size_t k = 0; k < q; ++k) {
+            const double w_k = cauchy ? omega_(i, Ni[k]) : 1.0;
+            M(k, k) += inv_4sig2 / w_k;
+        }
+
+        arma::mat L_M;
+        if (!arma::chol(L_M, M, "lower")) {
+            // M is PD by construction (C PD as submatrix of A^{-1}, prior
+            // precision > 0). A failure here means numerical trouble; skip
+            // this row's update rather than corrupt K.
+            return;
+        }
+
+        // S_{N_i, i} vector.
+        arma::vec s_Ni_i(q);
+        for (size_t k = 0; k < q; ++k) s_Ni_i(k) = suf_stat_(Ni[k], i);
+
+        // Mean mu = -M^{-1} S_{N_i, i}. Two triangular solves: L y = -S, L^T mu = y.
+        arma::vec y  = arma::solve(arma::trimatl(L_M), -s_Ni_i);
+        arma::vec mu = arma::solve(arma::trimatu(L_M.t()), y);
+
+        // beta = mu + L^{-T} z, z ~ N(0, I_q): one triangular solve.
+        arma::vec z = arma_rnorm_vec(rng_, q);
+        arma::vec w = arma::solve(arma::trimatu(L_M.t()), z);
+        beta_new = mu + w;
+
+        // xi ~ Gamma; K_{i,i} = xi + beta^T C beta.
+        const double xi = rgamma(rng_, xi_shape, xi_rate);
+        kii_new = xi + arma::as_scalar(beta_new.t() * C * beta_new);
+    }
+
+    // Gamma shape alpha != 1: the prior carries an extra (kii/2)^(alpha-1)
+    // factor that does not factorize across (beta, xi). Treat the alpha = 1
+    // joint draw as an independent-MH proposal; the beta and S_ii factors
+    // cancel, leaving the ratio (kii_new/kii_old)^(alpha-1). The guard keeps
+    // the alpha = 1 path free of the runif draw.
+    if (std::abs(alpha - 1.0) > 1e-12) {
+        const double log_mh = (alpha - 1.0) * (std::log(kii_new) - std::log(kii_old));
+        if (MY_LOG(runif(rng_)) >= log_mh) {
+            return;  // reject: leave precision_matrix_, chol(K), Sigma unchanged
+        }
+    }
+
+    // Write the new K column / row, then apply the symmetric rank-2 update to
+    // chol(K) and Sigma. The rank-2 decomposition is
+    //   Delta K = e_i vf2^T + vf2 e_i^T,
+    //   (vf2)_i      = (kii_new - kii_old) / 2,
+    //   (vf2)_{N_i} = beta_new - beta_old,
+    //   (vf2)_k      = 0  otherwise
+    // which reproduces the sparse column-change at row/col i without touching
+    // the (k, l) entries off row i.
+    precision_matrix_(i, i) = kii_new;
+    for (size_t k = 0; k < q; ++k) {
+        precision_matrix_(i, Ni[k]) = beta_new(k);
+        precision_matrix_(Ni[k], i) = beta_new(k);
+    }
+
+    vf1_[i] = 1.0;
+    vf2_[i] = (kii_new - kii_old) / 2.0;
+    for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
+
+    apply_rank2_chol_smw_update_();
+
     vf1_[i] = 0.0;
-    vf1_[j] = 0.0;
     vf2_[i] = 0.0;
-    vf2_[j] = 0.0;
+    for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = 0.0;
+}
 
+void GGMModel::do_one_gibbs_step(int /*iteration*/) {
+    // One full sweep: each column of K drawn from its full-conditional. For a
+    // Cauchy slab, alternate the row sweep (conditional on omega) with a
+    // refresh of the scale-mixture weights omega (conditional on K).
+    for (size_t i = 0; i < p_; ++i) {
+        update_row_block_gibbs(i);
+    }
+    refresh_cauchy_omega_();
 }
 
 double GGMModel::ggm_diag_move(size_t i) {
@@ -555,7 +747,107 @@ void GGMModel::update_edge_indicators() {
             }
             acc += cols_in_row;
         }
-        update_edge_indicator_parameter_pair(i, j);
+        if (use_conjugate_edge_proposal_) {
+            update_edge_indicator_conjugate(i, j);
+        } else {
+            update_edge_indicator_parameter_pair(i, j);
+        }
+    }
+}
+
+void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
+    // Full-conditional (MoMS) edge birth/death for the joint spec, Normal slab,
+    // alpha = 1. The cofactor move preserves |K| (the determinant tilt and the
+    // likelihood determinant cancel), so F(phi) is Gaussian in the cofactor
+    // coordinate and the proposal is its exact conditional. The acceptance then
+    // reduces to the inclusion odds times p_slab(0)/q(0) and does not depend on
+    // the proposed value.
+    get_constants(i, j);
+    const double c1 = constants_[2];
+    const double c2 = constants_[3];               // > 0
+    const double sigma  = slab_scale_();
+    const double inv_4s2 = 1.0 / (4.0 * sigma * sigma);
+    const auto* diagp = static_cast<const GammaScalePrior*>(diagonal_prior_.get());
+    const double beta0 = diagp->rate();
+    const double alpha = diagp->shape();
+
+    // Conditional on the Cauchy scale-mixture weight omega (= 1 for a Normal
+    // slab), k_ij has slab variance 4 sigma^2 omega, so the slab precision is
+    // inv_4s2 / omega. Everything else is the Normal-slab move.
+    const double w = slab_is_cauchy_() ? omega_(i, j) : 1.0;
+    const double inv_4s2w = inv_4s2 / w;
+
+    // Gaussian full conditional of phi (rest of K fixed, edge present):
+    //   Q  = c2^2/(4 sigma^2 omega) + beta0 + S_jj
+    //   mu = -c2 (S_ij + c1/(4 sigma^2 omega)) / Q
+    const double Q  = c2 * c2 * inv_4s2w + beta0 + suf_stat_(j, j);
+    const double mu = -c2 * (suf_stat_(i, j) + c1 * inv_4s2w) / Q;
+
+    // Proposal ordinate at the spike phi_0 = -c1/c2, on the k_ij scale
+    // (q(0) = q_phi(phi_0)/c2), and the (conditional Gaussian) slab density of
+    // k_ij at 0: N(0; 0, 4 sigma^2 omega).
+    const double phi0 = -c1 / c2;
+    const double d = phi0 - mu;
+    const double log_q0 = 0.5 * (MY_LOG(Q) - MY_LOG(2.0 * arma::datum::pi))
+                          - 0.5 * Q * d * d - MY_LOG(c2);
+    const double log_pslab0 =
+        -0.5 * MY_LOG(2.0 * arma::datum::pi * 4.0 * sigma * sigma * w);
+    const double log_odds = MY_LOG(inclusion_probability_(i, j))
+                            - MY_LOG(1.0 - inclusion_probability_(i, j));
+
+    // A_add = odds * p_slab(0) / q(0); delete accepts with the reciprocal.
+    // For a Gamma shape alpha != 1 the alpha = 1 Gaussian is an independence
+    // proposal; the target's extra (k_jj/2)^(alpha-1) factor adds the
+    // correction (k_jj/k_jj(0))^(alpha-1) (the 1/2 cancels in the ratio),
+    // where k_jj(0) = constants_[5] is the spike diagonal.
+    const double log_A_add = log_odds + log_pslab0 - log_q0;
+    const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
+
+    if (edge_indicators_(i, j) == 0) {
+        // Add: draw phi* from the full conditional, then accept.
+        const double phi_star = rnorm(rng_, mu, 1.0 / std::sqrt(Q));
+        const double kij = c1 + c2 * phi_star;
+        const double kjj = constrained_diagonal(kij);
+        double log_A = log_A_add;
+        if (alpha_ne_1) {
+            log_A += (alpha - 1.0) * (MY_LOG(kjj) - MY_LOG(constants_[5]));
+        }
+        if (MY_LOG(runif(rng_)) < log_A) {
+            const double omega_ij_old = precision_matrix_(i, j);
+            const double omega_jj_old = precision_matrix_(j, j);
+            precision_proposal_(i, j) = kij;
+            precision_proposal_(j, j) = kjj;
+            precision_matrix_(i, j) = kij;
+            precision_matrix_(j, i) = kij;
+            precision_matrix_(j, j) = kjj;
+            edge_indicators_(i, j) = 1;
+            edge_indicators_(j, i) = 1;
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            invalidate_gradient_cache();
+        }
+    } else {
+        // Delete: deterministic to the spike; accept with 1 / A_add evaluated
+        // at the current slab state, so the alpha correction uses the current
+        // diagonal against the spike diagonal.
+        double log_A = -log_A_add;
+        if (alpha_ne_1) {
+            log_A -= (alpha - 1.0)
+                     * (MY_LOG(precision_matrix_(j, j)) - MY_LOG(constants_[5]));
+        }
+        if (MY_LOG(runif(rng_)) < log_A) {
+            const double kjj = constants_[5];      // constrained_diagonal(0)
+            const double omega_ij_old = precision_matrix_(i, j);
+            const double omega_jj_old = precision_matrix_(j, j);
+            precision_proposal_(i, j) = 0.0;
+            precision_proposal_(j, j) = kjj;
+            precision_matrix_(i, j) = 0.0;
+            precision_matrix_(j, i) = 0.0;
+            precision_matrix_(j, j) = kjj;
+            edge_indicators_(i, j) = 0;
+            edge_indicators_(j, i) = 0;
+            cholesky_update_after_edge(omega_ij_old, omega_jj_old, i, j);
+            invalidate_gradient_cache();
+        }
     }
 }
 

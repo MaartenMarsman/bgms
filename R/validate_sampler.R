@@ -105,8 +105,20 @@ validate_sampler = function(update_method,
   # --- update_method ----------------------------------------------------------
   update_method = match.arg(
     update_method,
-    choices = c("nuts", "adaptive-metropolis")
+    choices = c("nuts", "adaptive-metropolis", "gibbs")
   )
+
+  # "gibbs" is the conjugate row-block Gibbs sampler for the Gaussian graphical
+  # model only. With edge selection it adds or removes edges with a
+  # full-conditional birth/death step, for both the Normal and Cauchy slabs.
+  # The slab type is not gated here; the C++ side checks that the priors are
+  # supported (a Normal or Cauchy slab with a Gamma diagonal).
+  if(update_method == "gibbs" && !is_continuous) {
+    stop(
+      "update_method = \"gibbs\" is available only for the Gaussian ",
+      "graphical model (all-continuous data)."
+    )
+  }
 
   # --- target_accept ----------------------------------------------------------
   if(!is.null(target_accept)) {
@@ -115,7 +127,11 @@ validate_sampler = function(update_method,
   } else {
     target_accept = switch(update_method,
       "adaptive-metropolis" = 0.44,
-      "nuts"                = 0.80
+      "nuts"                = 0.80,
+      # Exact draw: no acceptance target. NA_real_ records that honestly (not a
+      # fake 0.44); it stays numeric length-1 for the downstream contract and is
+      # unused by the Gibbs path (the C++ side ignores target_accept for gibbs).
+      "gibbs"               = NA_real_
     )
   }
 

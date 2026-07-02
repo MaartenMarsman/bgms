@@ -69,21 +69,39 @@ Rcpp::List sample_ggm(
         edge_selection, std::move(interaction_prior),
         std::move(diagonal_prior), na_impute);
 
-    // Forward target_accept to the model's MH proposal-SD tuner.
+    // Forward target_accept to the model's between-model MH proposal-SD tuner.
+    // Only adaptive-metropolis and nuts run the componentwise RW edge move that
+    // consumes it; the gibbs within-step and its full-conditional edge move are
+    // exact and tune nothing, so the gibbs path must not set an MH target.
     //   - Under "adaptive-metropolis": user's target_accept goes through
     //     directly (default 0.44 = componentwise RW MH optimum).
     //   - Under "nuts": user's target_accept (default 0.80) is the
     //     HMC step-size dual-averaging target and should NOT govern the
     //     between-model MH proposal SDs, which are still 1-D componentwise
-    //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
-    //     fixed point.
-    const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
-    model.set_metropolis_target_accept(mh_target);
+    //     RW MH. Use 0.44 there to keep stage-3b RM on the right fixed point.
+    if (sampler_type != "gibbs") {
+        const double mh_target =
+            (sampler_type == "adaptive-metropolis") ? target_acceptance : 0.44;
+        model.set_metropolis_target_accept(mh_target);
+    }
 
     // Determinant-tilt prior on |K|: shifts both NUTS and MH targets by
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // The row-block Gibbs sampler covers a Normal or Cauchy slab on the
+    // off-diagonals and a Gamma prior on the precision diagonal. Fail fast
+    // with a clear message rather than let update_row_block_gibbs cast a
+    // mismatched prior.
+    if (sampler_type == "gibbs" && !model.row_block_gibbs_eligible()) {
+        Rcpp::stop(
+            "update_method = \"gibbs\" needs a Normal or Cauchy interaction "
+            "(slab) prior and a Gamma scale prior on the precision diagonal. "
+            "The current priors do not meet this; use another update method "
+            "or adjust the priors.");
+    }
+
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {

@@ -80,6 +80,27 @@ public:
     virtual void do_one_metropolis_step(int iteration = -1) = 0;
 
     /**
+     * Perform one full Gibbs sweep over all parameters.
+     *
+     * Default throws: only models with an exact conjugate full-conditional
+     * sweep (currently GGM row-block Gibbs) override this. The GibbsSampler
+     * wrapper is only constructed for models that support it.
+     *
+     * @param iteration  Current iteration index (unused by exact samplers;
+     *                   kept for interface symmetry with the Metropolis step).
+     */
+    virtual void do_one_gibbs_step(int /*iteration*/ = -1) {
+        throw std::runtime_error("do_one_gibbs_step not implemented for this model");
+    }
+
+    /**
+     * Enable the full-conditional edge birth/death proposal for the between-model
+     * step, used by the Gibbs sampler in place of the random-walk Roverato
+     * proposal (which needs tuning). Default no-op; only the GGM overrides it.
+     */
+    virtual void set_conjugate_edge_proposal(bool /*enable*/) {}
+
+    /**
      * Mean Metropolis acceptance probability across all components updated
      * in the most recent do_one_metropolis_step() call.
      *

@@ -41,6 +41,20 @@ test_that("bgmCompare is reproducible with seed (x, y interface)", {
 })
 
 
+test_that("bgmCompare accepts its default update_method", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:20, 1:3]
+  y = Wenchuan[21:40, 1:3]
+  expect_error(
+    bgmCompare(
+      x = x, y = y, iter = 20, warmup = 20, chains = 1, cores = 1,
+      seed = 1, display_progress = "none", verbose = FALSE
+    ),
+    NA
+  )
+})
+
+
 # ------------------------------------------------------------------------------
 # Output Structure Tests (using saved fit)
 # ------------------------------------------------------------------------------

@@ -18,7 +18,7 @@ bgm(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis"),
+  update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
@@ -162,6 +162,13 @@ for all variable types, including under edge selection. The Gaussian
 graphical model uses a free-element Cholesky parameterization that keeps
 the precision matrix positive-definite; the mixed model uses RATTLE
 constrained integration when excluded edges impose constraints.}
+\item{"gibbs"}{A Gibbs sampler for the Gaussian graphical model, with a
+conjugate row-block draw of the precision matrix. Available only for
+all-continuous data with a Normal or Cauchy (slab) interaction prior
+and a Gamma scale prior on the precision diagonal. Edge selection is
+supported for both slabs; the graph is updated by a full-conditional
+birth/death between-step (a Cauchy slab uses its scale-mixture
+representation).}
 }
 Default: \code{"nuts"}.}
 

@@ -99,6 +99,7 @@ public:
         cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         inv_cholesky_of_precision_(arma::eye<arma::mat>(p_, p_)),
         covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
+        omega_(arma::ones<arma::mat>(p_, p_)),
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
@@ -130,6 +131,7 @@ public:
           cholesky_of_precision_(other.cholesky_of_precision_),
           inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
           covariance_matrix_(other.covariance_matrix_),
+          omega_(other.omega_),
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
@@ -195,6 +197,15 @@ public:
      * under NUTS this is never called and the controller stays null.
      */
     void init_metropolis_adaptation(const WarmupSchedule& schedule) override;
+
+    /**
+     * @return true iff the row-block Gibbs within-step supports the current
+     * priors: a Normal or Cauchy slab on the K_yy off-diagonals and a Gamma
+     * prior on K_ii/2. The Gamma shape (alpha != 1) and the determinant tilt
+     * (delta != 0) do NOT gate eligibility -- they are handled by the
+     * independent-MH correction and the xi Gamma-shape shift, respectively.
+     */
+    bool row_block_gibbs_eligible();
 
     /**
      * Set the determinant-tilt exponent delta. Adds delta * log|K| to the
@@ -263,6 +274,26 @@ public:
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
     void do_one_metropolis_step(int iteration = -1) override;
+
+    /**
+     * Perform one full row-block Gibbs sweep.
+     *
+     * Iterates over rows i = 0..p-1, drawing each column of K from its exact
+     * conjugate full-conditional via update_row_block_gibbs(i). No proposal
+     * adaptation (the draw is exact); edge-indicator add-delete moves are
+     * handled separately in update_edge_indicators().
+     *
+     * Precondition: row_block_gibbs_eligible() == true.
+     *
+     * @param iteration  Current iteration index (unused; kept for interface
+     *                   symmetry with do_one_metropolis_step).
+     */
+    void do_one_gibbs_step(int iteration = -1) override;
+
+    /** Enable the full-conditional edge birth/death proposal (Gibbs path). */
+    void set_conjugate_edge_proposal(bool enable) override {
+        use_conjugate_edge_proposal_ = enable;
+    }
 
     /**
      * @return Active theta dimension: p + |E| (diagonals + included edges).
@@ -346,6 +377,11 @@ public:
         return inclusion_probability_;
     }
 
+    /** @return const reference to the current precision matrix K. */
+    const arma::mat& get_precision_matrix() const {
+        return precision_matrix_;
+    }
+
     /** @return Number of variables (p). */
     int get_num_variables() const override {
         return static_cast<int>(p_);
@@ -423,6 +459,9 @@ private:
     /// initialize_precision_from_mle to zero the excluded entries and restore
     /// positive-definiteness.
     bool has_sparse_graph_ = false;
+    /// Use the full-conditional edge birth/death proposal (Gibbs sampler) in
+    /// place of the random-walk Roverato proposal. Set by the GibbsSampler.
+    bool use_conjugate_edge_proposal_ = false;
     /// Prior on off-diagonal precision elements (interactions).
     std::unique_ptr<BaseParameterPrior> interaction_prior_;
     /// Prior on diagonal precision elements (scale).
@@ -431,6 +470,11 @@ private:
     /// Precision matrix Omega, its Cholesky factor R (Omega = R'R),
     /// inverse Cholesky factor, and covariance matrix.
     arma::mat precision_matrix_, cholesky_of_precision_, inv_cholesky_of_precision_, covariance_matrix_;
+    /// Per-edge scale-mixture weight for the Cauchy slab: K_yy_ij | omega_ij ~
+    /// N(0, sigma^2 omega_ij), omega_ij ~ InvGamma(1/2, 1/2). Fixed at 1 for a
+    /// Normal slab (the mixture collapses to the plain Normal). Used only by
+    /// the row-block Gibbs within-step.
+    arma::mat omega_;
     /// Current edge-indicator matrix (p x p, symmetric, 0/1).
     arma::imat edge_indicators_;
     /// Pre-allocated storage returned by get_vectorized_parameters().
@@ -508,6 +552,51 @@ private:
     double update_edge_parameter(size_t i, size_t j);
 
     /**
+     * Closed-form Gibbs draw for row i of K given the rest of K and the graph.
+     * The per-row primitive driven by do_one_gibbs_step().
+     *
+     * Origin: Wang's row-by-row block Gibbs update for Gaussian graphical
+     * models (each column of the precision matrix sampled from its exact
+     * full-conditional).
+     *
+     * Partitions K with A = K_{-i,-i}, beta = K_{N_i, i}, kii = K_{i,i}, where
+     * N_i is the active neighbour set of i. With Normal slab N(0, sigma^2) on
+     * K_yy_ij = -K_ij/2 and Gamma(alpha = 1, beta0) prior on K_ii/2, the
+     * conditional (beta, xi = kii - beta^T C beta) is conjugate:
+     *
+     *   xi   | rest ~ Gamma(n/2 + delta + 1, (beta0 + S_ii)/2)
+     *   beta | rest ~ N(-M^{-1} S_{N_i, i}, M^{-1}),
+     *     M = (beta0 + S_ii) C + diag(1/(4 sigma^2 omega_k)),
+     *     C = (A^{-1})_{N_i, N_i} = Sigma_{N_i, N_i} - Sigma_{N_i, i} Sigma_{i, N_i}/Sigma_ii.
+     *
+     * The determinant tilt delta enters as a shift in the xi Gamma shape. A
+     * Gamma shape alpha != 1 on the diagonal is handled by an independent-MH
+     * accept on (kii_new/kii_old)^(alpha-1) around the alpha = 1 proposal. A
+     * Cauchy slab enters through the scale-mixture weights omega_k (fixed at 1
+     * for a Normal slab), refreshed per sweep by do_one_gibbs_step().
+     *
+     * Precondition: row_block_gibbs_eligible() == true; covariance_matrix_
+     * holds K^{-1} up to date with precision_matrix_.
+     *
+     * @param i  Row index.
+     */
+    void update_row_block_gibbs(size_t i);
+
+    /** @return the slab scale sigma on K_yy (Normal or Cauchy interaction prior). */
+    double slab_scale_() const;
+
+    /** @return true when the interaction (slab) prior is Cauchy. */
+    bool slab_is_cauchy_() const;
+
+    /**
+     * Refresh the Cauchy scale-mixture weights omega_ from the current K.
+     * With all of K held fixed, each active edge weight is a closed-form draw
+     *   omega_ij | K ~ InvGamma(1, 1/2 + K_yy_ij^2 / (2 sigma^2)),
+     * K_yy_ij = -K_ij/2. No-op for a Normal slab.
+     */
+    void refresh_cauchy_omega_();
+
+    /**
      * Propose a new diagonal precision entry on the log scale.
      * Accepts or rejects with a Metropolis ratio using the Gaussian
      * likelihood, a Gamma(1,1) prior, and a Jacobian correction.
@@ -542,6 +631,17 @@ private:
      * @param j  Column index
      */
     void update_edge_indicator_parameter_pair(size_t i, size_t j);
+
+    /**
+     * Full-conditional edge birth/death for the joint spec (Normal slab,
+     * alpha = 1). The cofactor move preserves |K|, so F(phi) is Gaussian and
+     * the proposal is the exact conditional of the toggled coordinate; the
+     * acceptance reduces to the inclusion odds times p_slab(0)/q(0),
+     * independent of the proposed value. No proposal-SD tuning. Used by the
+     * Gibbs sampler in place of update_edge_indicator_parameter_pair.
+     * Source: Z manuscript, "Single-edge updates".
+     */
+    void update_edge_indicator_conjugate(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.
@@ -623,6 +723,24 @@ private:
      * @param j             Column index
      */
     void cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
+
+    /**
+     * Apply a symmetric rank-2 update to K, refresh chol(K), and refresh Sigma.
+     *
+     * Given vf1_, vf2_ of length p, this carries out
+     *   K_new     = K_old + vf1 vf2^T + vf2 vf1^T
+     *   chol(K)  <- Givens update + downdate on u1 = (vf1+vf2)/sqrt2, u2 = (vf1-vf2)/sqrt2
+     *   Sigma    <- inv(L) inv(L)^T, with a fallback to refresh_cholesky() when
+     *               accumulated updates make the triangular inverse fail.
+     *
+     * Inputs are taken from the model's vf1_, vf2_ scratch members so callers
+     * can populate them in-place without an extra copy. The helper does not
+     * touch precision_matrix_ -- the caller must already have written the
+     * post-update entries it represents. Generic in vf1, vf2: the edge update
+     * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
+     * full-vector inputs.
+     */
+    void apply_rank2_chol_smw_update_();
 
     /**
      * Update the Cholesky factor after changing a diagonal element.

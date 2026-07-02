@@ -12,6 +12,7 @@
 ## New features
 
 * Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Sampling uses NUTS on a free-element Cholesky (theta-space) parameterization of the precision matrix, which keeps the precision matrix positive-definite by construction; adaptive-metropolis is also available.
+* GGM Gibbs sampler: `update_method = "gibbs"` fits a GGM with a conjugate row-by-row update of the precision matrix, with or without edge selection. It needs no step-size or proposal tuning and supports a Normal or Cauchy prior on the edges. Continuous data only.
 * Mixed MRF models: `bgm()` accepts a per-variable `variable_type` vector that mixes `"ordinal"`, `"blume-capel"`, and `"continuous"` types to estimate networks with both discrete and continuous variables. `simulate.bgms()` and `predict.bgms()` also support mixed models.
 * Missing data imputation: `na_action = "impute"` integrates over missing values during MCMC sampling for ordinal, continuous, and mixed models.
 * `extract_precision()`: extract posterior precision matrix samples from GGM and mixed models.
