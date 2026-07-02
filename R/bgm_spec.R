@@ -296,7 +296,8 @@ bgm_spec = function(x,
                     # Sampler
                     update_method = c(
                       "nuts",
-                      "adaptive-metropolis"
+                      "adaptive-metropolis",
+                      "gibbs"
                     ),
                     target_accept = NULL,
                     iter = 10000L,
