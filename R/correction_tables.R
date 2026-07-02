@@ -304,6 +304,30 @@ correction_list_from_table = function(table, edge_prior, is_continuous = NULL) {
 
 
 # ------------------------------------------------------------------
+# correction_interaction_prior / correction_scale_prior (internal)
+# ------------------------------------------------------------------
+# Rebuild the prior objects for the tilted prior sweep from a fit
+# spec's flattened prior list. The interaction prior is NULL for slab
+# families the prior sampler does not support (beta-prime).
+# ------------------------------------------------------------------
+correction_interaction_prior = function(prior) {
+  switch(prior$interaction_prior_type,
+    cauchy = cauchy_prior(scale = prior$pairwise_scale),
+    normal = normal_prior(scale = prior$pairwise_scale),
+    NULL
+  )
+}
+
+correction_scale_prior = function(prior) {
+  if(identical(prior$scale_prior_type, "exponential")) {
+    exponential_prior(rate = prior$scale_rate)
+  } else {
+    gamma_prior(shape = prior$scale_shape, rate = prior$scale_rate)
+  }
+}
+
+
+# ------------------------------------------------------------------
 # ggm_edge_prior_correction (internal)
 # ------------------------------------------------------------------
 # Resolve whether a fit needs the normalizing-constant correction and
@@ -344,15 +368,8 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
     return(NULL)
   }
 
-  interaction_prior = switch(prior$interaction_prior_type,
-    cauchy = cauchy_prior(scale = prior$pairwise_scale),
-    normal = normal_prior(scale = prior$pairwise_scale)
-  )
-  precision_scale_prior = if(identical(prior$scale_prior_type, "exponential")) {
-    exponential_prior(rate = prior$scale_rate)
-  } else {
-    gamma_prior(shape = prior$scale_shape, rate = prior$scale_rate)
-  }
+  interaction_prior = correction_interaction_prior(prior)
+  precision_scale_prior = correction_scale_prior(prior)
 
   if(isTRUE(sampler$verbose)) {
     message(

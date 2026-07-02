@@ -231,6 +231,20 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
     )
   }
 
+  # Mixed-MRF fits store indicators in block order (discrete-discrete,
+  # continuous-continuous, cross) over internally reordered variables, not
+  # in global pair order: map them through the same block filler as
+  # posterior_mean_indicator.
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    return(fill_mixed_symmetric(
+      edge_means, d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices,
+      list(data_columnnames, data_columnnames)
+    ))
+  }
+
   pip_matrix = matrix(0, num_vars, num_vars)
   pip_matrix[lower.tri(pip_matrix)] = edge_means
   pip_matrix = pip_matrix + t(pip_matrix)
