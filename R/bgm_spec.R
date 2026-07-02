@@ -368,7 +368,7 @@ bgm_spec = function(x,
     delta = if(model_type == "ggm") {
       0.5 * log(max(num_variables, 1))
     } else if(model_type == "mixed_mrf") {
-      0.5 * log(max(sum(!is_ordinal), 1))
+      0.5 * log(max(sum(variable_type == "continuous"), 1))
     } else {
       0
     }

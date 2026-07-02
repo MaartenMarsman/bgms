@@ -34,7 +34,8 @@
 
 ## Bug fixes
 
-* Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
+* Fixed an indicator bookkeeping asymmetry in mixed MRF models: cross (discrete-continuous) edge moves updated only the upper triangle of the internal edge-indicator matrix, while the stochastic block edge prior reads full columns. Under `edge_prior = sbm_prior()`, the block-allocation update for a discrete variable therefore saw its cross edges as always included. Discrete-discrete and continuous-continuous moves, other edge priors, and the reported indicator samples were not affected.
+* Fixed the `delta = NULL` default for mixed MRF models: the determinant-tilt exponent applies to the continuous precision block, but the default counted blume-capel variables in its dimension. A mixed model with blume-capel variables now gets `0.5 * log(#continuous)` instead of `0.5 * log(#continuous + #blume-capel)`; models whose discrete variables are all ordinal are unchanged.* Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a transitive include for `<tbb/global_control.h>` that is not available on all platforms.
 * Fixed stale gradient cache after missing data imputation caused NUTS to use outdated cached values for leapfrog integration.
 * Fixed stale observation transpose after missing data imputation caused the pairwise gradient to use stale data.
 * Fixed NUTS acceptance probability: target_accept now correctly passed to lower-level NUTS functions.

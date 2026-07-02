@@ -683,6 +683,23 @@ test_that("mixed MRF: disc-length baseline_category works", {
 })
 
 # ==============================================================================
+# 13.  Mixed MRF: determinant-tilt default
+# ==============================================================================
+# The delta = NULL default is 0.5 * log(p) with p the dimension of the
+# continuous precision matrix, so only continuous variables count toward it.
+
+test_that("mixed MRF: default delta counts only continuous variables", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = 1,
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$prior$delta, 0.5 * log(2))
+})
+
+# ==============================================================================
 # bgm_spec() and bgmCompare() must share the same difference_scale default so
 # that a direct bgm_spec(model_type = "compare") call matches the public API.
 # ==============================================================================
