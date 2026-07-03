@@ -1549,13 +1549,18 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat pairwise_effects(num_pair, num_groups, arma::fill::zeros);
   arma::imat inclusion_indicator(num_variables, num_variables, arma::fill::ones);
 
-  // Allocate optional storage for MCMC samples
+  // Allocate storage for MCMC samples. Iterations that never run (user
+  // interrupt) keep the fill values: NaN for floating samples, -1 for the
+  // integer indicator and allocation samples.
   arma::mat main_effect_samples(iter, num_main * num_groups);
+  main_effect_samples.fill(arma::datum::nan);
   arma::mat pairwise_effect_samples(iter, num_pair * num_groups);
+  pairwise_effect_samples.fill(arma::datum::nan);
   arma::imat indicator_samples;
 
   if (difference_selection) {
     indicator_samples.set_size(iter, num_pair + num_variables);
+    indicator_samples.fill(-1);
   }
 
   // SBM cluster allocation samples (only populated when difference prior is SBM).
@@ -1565,6 +1570,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::imat allocation_samples;
   if (is_sbm) {
     allocation_samples.set_size(num_variables, iter);
+    allocation_samples.fill(-1);
   }
 
   // For logging nuts performance
