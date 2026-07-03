@@ -27,6 +27,9 @@ struct SamplerConfig {
     /// Target acceptance rate for dual-averaging adaptation.
     double target_acceptance = 0.8;
 
+    /// Adapt the (diagonal) mass matrix during warmup.
+    bool learn_mass_matrix = true;
+
     /// Enable spike-and-slab edge selection.
     bool edge_selection = false;
 

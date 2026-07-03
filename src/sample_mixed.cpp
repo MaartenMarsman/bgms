@@ -77,6 +77,7 @@ Rcpp::List sample_mixed_mrf(
     const std::string& sampler_type = "adaptive-metropolis",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
+    const bool learn_mass_matrix = true,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue,
@@ -199,6 +200,7 @@ Rcpp::List sample_mixed_mrf(
     config.na_impute = na_impute;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);

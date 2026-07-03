@@ -67,6 +67,7 @@ Rcpp::List sample_omrf(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
+    const bool learn_mass_matrix = true,
     const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
 ) {
     // Create parameter priors from R input
@@ -138,6 +139,7 @@ Rcpp::List sample_omrf(
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
     config.na_impute = na_impute;
 
     // Set up progress manager

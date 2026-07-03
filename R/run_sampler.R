@@ -105,6 +105,7 @@ run_sampler_ggm = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
+    learn_mass_matrix = s$learn_mass_matrix,
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
     delta = p$delta,
@@ -170,6 +171,7 @@ run_sampler_omrf = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
+    learn_mass_matrix = s$learn_mass_matrix,
     pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
   )
 
@@ -242,6 +244,7 @@ run_sampler_mixed_mrf = function(spec) {
     sampler_type = s$update_method,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
+    learn_mass_matrix = s$learn_mass_matrix,
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
     missing_index_continuous_nullable = m$missing_index_continuous,
