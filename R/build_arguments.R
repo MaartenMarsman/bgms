@@ -126,6 +126,7 @@ build_arguments_mixed_mrf = function(spec) {
     dirichlet_alpha              = spec$prior$dirichlet_alpha,
     lambda                       = spec$prior$lambda,
     na_action                    = spec$missing$na_action,
+    na_impute                    = spec$missing$na_impute,
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
