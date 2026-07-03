@@ -639,10 +639,20 @@ build_spec_compare = function(x, y, group_indicator,
   group_indices = matrix(NA_integer_, nrow = num_groups, ncol = 2)
   observations = x_centered
   sorted_group = sort(group)
+  row_permutation = integer(nrow(x_centered))
   for(g in unique(group)) {
-    observations[which(sorted_group == g), ] = x_centered[which(group == g), ]
-    group_indices[g, 1] = as.integer(min(which(sorted_group == g)) - 1)
-    group_indices[g, 2] = as.integer(max(which(sorted_group == g)) - 1)
+    src = which(group == g)
+    dst = which(sorted_group == g)
+    observations[dst, ] = x_centered[src, ]
+    row_permutation[src] = dst
+    group_indices[g, 1] = as.integer(min(dst) - 1)
+    group_indices[g, 2] = as.integer(max(dst) - 1)
+  }
+
+  # missing_index rows index observations, which is in group-sorted order;
+  # map the 0-based row column onto that order.
+  if(na_impute && nrow(missing_index) > 0) {
+    missing_index[, 1] = row_permutation[missing_index[, 1] + 1L] - 1L
   }
 
   one = matrix(1, nrow = num_groups, ncol = num_groups)
