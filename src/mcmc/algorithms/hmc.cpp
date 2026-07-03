@@ -60,7 +60,7 @@ double heuristic_initial_step_size(
   int direction = 2 * (H1 - H0 > log_target) - 1;  // +1 or -1
 
   int attempts = 0;
-  while (direction * (H1 - H0) > -direction * log_target && attempts < max_attempts) {
+  while (direction * (H1 - H0) > direction * log_target && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
     // Resample momentum on each iteration for step size search
@@ -119,7 +119,7 @@ double heuristic_initial_step_size_constrained(
   int direction = 2 * (H1 - H0 > log_target) - 1;
 
   int attempts = 0;
-  while (direction * (H1 - H0) > -direction * log_target && attempts < max_attempts) {
+  while (direction * (H1 - H0) > direction * log_target && attempts < max_attempts) {
     eps = (direction == 1) ? 2.0 * eps : 0.5 * eps;
 
     // Resample momentum and project onto cotangent space
