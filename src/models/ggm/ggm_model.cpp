@@ -950,17 +950,21 @@ void GGMModel::initialize_precision_from_mle() {
     if (arma::inv_sympd(K_init, S_reg)) {
         precision_matrix_ = static_cast<double>(n_) * K_init;
 
-        // For fixed sparse graphs, zero out excluded edges and
-        // recompute the diagonal to maintain positive definiteness.
-        if (has_sparse_graph_) {
-            for (size_t i = 0; i < p_ - 1; ++i) {
-                for (size_t j = i + 1; j < p_; ++j) {
-                    if (edge_indicators_(i, j) == 0) {
-                        precision_matrix_(i, j) = 0.0;
-                        precision_matrix_(j, i) = 0.0;
-                    }
+        // The samplers maintain the invariant that an excluded edge has a
+        // zero precision entry, so the initial state must satisfy it too:
+        // zero the excluded entries whether the graph is fixed sparse or a
+        // sparse initial state under edge selection.
+        bool any_excluded = false;
+        for (size_t i = 0; i < p_ - 1; ++i) {
+            for (size_t j = i + 1; j < p_; ++j) {
+                if (edge_indicators_(i, j) == 0) {
+                    precision_matrix_(i, j) = 0.0;
+                    precision_matrix_(j, i) = 0.0;
+                    any_excluded = true;
                 }
             }
+        }
+        if (any_excluded) {
             // Make diagonally dominant to ensure PD after zeroing.
             for (size_t i = 0; i < p_; ++i) {
                 double row_sum = 0.0;
