@@ -13,6 +13,7 @@ bgmCompare(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
+  difference_family = c("Cauchy", "Normal"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -28,7 +29,6 @@ bgmCompare(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   pairwise_scale,
@@ -83,8 +83,13 @@ pairwise selection under the Beta-Bernoulli prior, the default is
 \item{baseline_category}{Integer or vector giving the baseline category
 for Blume--Capel variables.}
 
-\item{difference_scale}{Double. Scale of the Cauchy prior for difference
+\item{difference_scale}{Double. Scale of the prior for difference
 parameters. Default: \code{1}.}
+
+\item{difference_family}{Character. Distributional family of the prior on
+difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
+Independent of \code{interaction_prior}, which governs the baseline
+interactions.}
 
 \item{difference_prior}{An indicator prior specification object for
 difference selection, created by one of:
@@ -150,16 +155,6 @@ matrix during warmup (NUTS only). Default: \code{TRUE}.}
 Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility.}
-
-\item{standardize}{Logical. If \code{TRUE}, the Cauchy prior scale for each
-pairwise interaction (both baseline and difference) is adjusted based on
-the range of response scores. Without standardization, pairs with more
-response categories experience less shrinkage because their naturally
-smaller interaction effects make a fixed prior relatively wide.
-Standardization equalizes relative shrinkage across all pairs, with the
-\code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-applying to the unit interval (binary) case.
-See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).

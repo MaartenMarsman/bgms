@@ -232,7 +232,7 @@ arma::vec gradient_observed_active(
 //      subtract them from the gradient.
 //  - Add prior contributions:
 //    * Logistic–Beta prior gradient for main-effect baseline parameters.
-//    * Cauchy prior gradient for group-difference parameters and pairwise effects.
+//    * Parameter-prior gradient for group-difference parameters and pairwise effects.
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
@@ -253,8 +253,8 @@ arma::vec gradient_observed_active(
 //  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
-//  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
-//  - difference_scale: Scale parameter for Cauchy prior on group differences.
+//  - interaction_scale: Scale parameter of the prior on baseline pairwise effects.
+//  - difference_scale: Scale parameter of the difference prior.
 //  - main_index: Index map for main-effect parameters (from build_index_maps()).
 //  - pair_index: Index map for pairwise-effect parameters (from build_index_maps()).
 //  - grad_obs: Precomputed observed-data contribution to the gradient
@@ -286,7 +286,6 @@ arma::vec gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
@@ -478,14 +477,14 @@ arma::vec gradient(
 
       off = pair_index(row, 0);
       double value = pairwise_effects(row, 0);
-      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
+      grad(off) += interaction_prior.grad(value);
 
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int k = 1; k < num_groups; ++k) {
         off = pair_index(row, k);
         double value = pairwise_effects(row, k);
-        grad(off) += difference_prior.grad(value, pairwise_scaling_factors(v1, v2));
+        grad(off) += difference_prior.grad(value);
       }
     }
   }
@@ -520,7 +519,6 @@ std::pair<double, arma::vec> logp_and_gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
@@ -743,18 +741,18 @@ std::pair<double, arma::vec> logp_and_gradient(
       const int idx = pairwise_effect_indices(v1, v2);
 
       double value = pairwise_effects(idx, 0);
-      log_pp += interaction_prior.logp(value, pairwise_scaling_factors(v1, v2));
+      log_pp += interaction_prior.logp(value);
 
       off = pair_index(idx, 0);
-      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
+      grad(off) += interaction_prior.grad(value);
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int eff = 1; eff < num_groups; eff++) {
         double diff_val = pairwise_effects(idx, eff);
-        log_pp += difference_prior.logp(diff_val, pairwise_scaling_factors(v1, v2));
+        log_pp += difference_prior.logp(diff_val);
 
         off = pair_index(idx, eff);
-        grad(off) += difference_prior.grad(diff_val, pairwise_scaling_factors(v1, v2));
+        grad(off) += difference_prior.grad(diff_val);
       }
     }
   }
@@ -778,7 +776,7 @@ std::pair<double, arma::vec> logp_and_gradient(
 //    * Subtract log normalizing constants from the group-specific likelihood.
 //  - Add prior contribution:
 //    * Logistic–Beta prior for baseline (h == 0).
-//    * Cauchy prior for group differences (h > 0), if included.
+//    * Difference prior for group differences (h > 0), if included.
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
@@ -796,7 +794,7 @@ std::pair<double, arma::vec> logp_and_gradient(
 //  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
-//  - difference_scale: Scale parameter for Cauchy priors on group differences.
+//  - difference_scale: Scale parameter of the difference prior.
 //  - variable: Index of the variable of interest.
 //  - category: Category index (only used if variable is ordinal).
 //  - par: Parameter index (0 = linear, 1 = quadratic; used for Blume–Capel).
@@ -887,8 +885,10 @@ double log_pseudoposterior_main_component(
     const arma::vec rest_score = obs * pairwise_group.col(variable);
     const int num_cats = num_categories(variable);
 
-    // bound to stabilize exp; use group-specific params consistently
-    arma::vec bound = num_cats * rest_score;
+    // bound to stabilize exp; clamp at 0 (the reference-category exponent) so
+    // exp cannot overflow. compute_denom_blume_capel overwrites bound with its
+    // own max, so the clamp only affects the ordinal path.
+    arma::vec bound = arma::clamp(num_cats * rest_score, 0.0, arma::datum::inf);
     arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
     if (is_ordinal_variable(variable)) {
@@ -950,8 +950,8 @@ double log_pseudoposterior_main_component(
 //      - Difference (h > 0): scaled by projection value proj_g(h-1).
 //    * Subtract log normalizing constants from both variables' likelihoods.
 //  - Add prior contribution:
-//    * Cauchy prior for baseline (scale = interaction_scale).
-//    * Cauchy prior for group differences (scale = difference_scale).
+//    * Interaction prior for baseline (scale = interaction_scale).
+//    * Difference prior for group differences (scale = difference_scale).
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
@@ -969,7 +969,6 @@ double log_pseudoposterior_main_component(
 //  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - interaction_prior: Prior (BaseParameterPrior) on baseline pairwise effects.
-//  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
 //  - difference_prior: Prior (BaseParameterPrior) on group differences.
 //  - variable1, variable2: Indices of the variable pair.
 //  - h: Column index (0 = baseline, > 0 = group difference).
@@ -997,7 +996,6 @@ double log_pseudoposterior_pair_component(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     int variable1,
     int variable2,
     int h,
@@ -1058,8 +1056,9 @@ double log_pseudoposterior_pair_component(
       // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
       arma::vec rest_score = residual_matrices[group].col(v) + obs_other * delta_g;
 
-      // bound to stabilize exp
-      arma::vec bound = num_cats * rest_score;
+      // bound to stabilize exp; clamp at 0 so exp cannot overflow (the
+      // Blume-Capel branch overwrites bound with its own max).
+      arma::vec bound = arma::clamp(num_cats * rest_score, 0.0, arma::datum::inf);
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
       if (is_ordinal_variable(v)) {
@@ -1078,9 +1077,9 @@ double log_pseudoposterior_pair_component(
 
   // ---- priors ----
   if (h == 0) {
-    log_pp += interaction_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
+    log_pp += interaction_prior.logp(proposed_value);
   } else {
-    log_pp += difference_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
+    log_pp += difference_prior.logp(proposed_value);
   }
   return log_pp;
 }
@@ -1192,8 +1191,8 @@ double log_ratio_pseudolikelihood_constant_variable(
     arma::vec denom_proposed(rest_proposed.n_elem, arma::fill::zeros);
 
     if (is_ordinal_variable (variable)) {
-      bound_current = rest_current * num_cats;
-      bound_proposed = rest_proposed * num_cats;
+      bound_current = arma::clamp(rest_current * num_cats, 0.0, arma::datum::inf);
+      bound_proposed = arma::clamp(rest_proposed * num_cats, 0.0, arma::datum::inf);
 
       denom_current += compute_denom_ordinal(
         rest_current, main_current, bound_current

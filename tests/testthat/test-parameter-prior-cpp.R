@@ -3,7 +3,6 @@
 #
 # 1. Correctness: logp and grad match R reference implementations
 # 2. Numerical gradient: analytic grad matches finite differences
-# 3. Scaled variants: logp(x, sf) matches logp at scaled parameters
 # ==============================================================================
 
 
@@ -135,54 +134,7 @@ test_that("ExponentialPrior (via create_scale_prior) matches Gamma(1, rate)", {
 
 
 # ==============================================================================
-# 2. Scaled prior variants
-# ==============================================================================
-
-test_that("CauchyPrior logp_scaled matches Cauchy with scaled width", {
-  scale = 1.0
-  sf = 2.0
-  for(x in c(-1.0, 0.0, 0.5, 2.0)) {
-    res = test_parameter_prior("cauchy", x, scale = scale, scale_factor = sf)
-    expected = dcauchy(x, 0, scale * sf, log = TRUE)
-    expect_equal(res$logp_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("NormalPrior logp_scaled matches Normal with scaled sd", {
-  scale = 1.0
-  sf = 3.0
-  for(x in c(-1.0, 0.0, 0.5, 2.0)) {
-    res = test_parameter_prior("normal", x, scale = scale, scale_factor = sf)
-    expected = dnorm(x, 0, scale * sf, log = TRUE)
-    expect_equal(res$logp_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("CauchyPrior grad_scaled matches analytic at scaled width", {
-  scale = 1.5
-  sf = 2.0
-  for(x in c(-1.0, 0.1, 0.5, 2.0)) {
-    res = test_parameter_prior("cauchy", x, scale = scale, scale_factor = sf)
-    s = scale * sf
-    expected = -2 * x / (s^2 + x^2)
-    expect_equal(res$grad_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("NormalPrior grad_scaled matches analytic at scaled sd", {
-  scale = 0.5
-  sf = 4.0
-  for(x in c(-1.0, 0.1, 0.5, 2.0)) {
-    res = test_parameter_prior("normal", x, scale = scale, scale_factor = sf)
-    s = scale * sf
-    expected = -x / s^2
-    expect_equal(res$grad_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-
-# ==============================================================================
-# 3. Numerical gradient verification for GGM with non-default priors
+# 2. Numerical gradient verification for GGM with non-default priors
 # ==============================================================================
 
 make_edge_matrix = function(p, included_edges) {

@@ -26,7 +26,6 @@ bgm(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   pairwise_scale,
@@ -227,27 +226,6 @@ Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility. Must be a
 single non-negative integer.}
-
-\item{standardize}{Logical. If \code{TRUE}, the prior scale for each
-pairwise interaction is adjusted based on the range of response scores.
-Variables with more response categories have larger score products
-\eqn{x_i \cdot x_j}, which typically correspond to smaller interaction
-effects \eqn{\sigma_{ij}}. Without standardization, a fixed prior scale
-is relatively wide for these smaller effects, resulting in less shrinkage
-for high-category pairs and more shrinkage for low-category pairs.
-Standardization scales the prior proportionally to the maximum score
-product, ensuring equivalent relative shrinkage across all pairs.
-After internal recoding, regular ordinal variables have scores
-\eqn{0, 1, \ldots, m}. The adjusted scale for the interaction between
-variables \eqn{i} and \eqn{j} is \code{pairwise_scale * m_i * m_j},
-so that \code{pairwise_scale} itself applies to the unit interval case
-(binary variables where \eqn{m_i = m_j = 1}). For Blume-Capel variables
-with reference category \eqn{b}, scores are centered as
-\eqn{-b, \ldots, m-b}, and the adjustment uses the maximum absolute
-product of the score endpoints. For mixed pairs, ordinal variables use
-raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
-score endpoints \eqn{(-b, m-b)}.
-Default: \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).

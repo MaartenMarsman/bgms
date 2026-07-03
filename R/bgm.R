@@ -131,27 +131,6 @@
 #'   interaction parameters. Use \code{interaction_prior} instead.
 #'   Default: \code{1}.
 #'
-#' @param standardize Logical. If \code{TRUE}, the prior scale for each
-#'   pairwise interaction is adjusted based on the range of response scores.
-#'   Variables with more response categories have larger score products
-#'   \eqn{x_i \cdot x_j}, which typically correspond to smaller interaction
-#'   effects \eqn{\sigma_{ij}}. Without standardization, a fixed prior scale
-#'   is relatively wide for these smaller effects, resulting in less shrinkage
-#'   for high-category pairs and more shrinkage for low-category pairs.
-#'   Standardization scales the prior proportionally to the maximum score
-#'   product, ensuring equivalent relative shrinkage across all pairs.
-#'   After internal recoding, regular ordinal variables have scores
-#'   \eqn{0, 1, \ldots, m}. The adjusted scale for the interaction between
-#'   variables \eqn{i} and \eqn{j} is \code{pairwise_scale * m_i * m_j},
-#'   so that \code{pairwise_scale} itself applies to the unit interval case
-#'   (binary variables where \eqn{m_i = m_j = 1}). For Blume-Capel variables
-#'   with reference category \eqn{b}, scores are centered as
-#'   \eqn{-b, \ldots, m-b}, and the adjustment uses the maximum absolute
-#'   product of the score endpoints. For mixed pairs, ordinal variables use
-#'   raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
-#'   score endpoints \eqn{(-b, m-b)}.
-#'   Default: \code{FALSE}.
-#'
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Double.
 #'   Shape parameters of the beta-prime prior for threshold parameters.
 #'   Use \code{threshold_prior} instead. Defaults: \code{main_alpha = 0.5}
@@ -397,7 +376,6 @@ bgm = function(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments (v0.1.6.0 and earlier)
@@ -536,7 +514,7 @@ bgm = function(
     x = x,
     model_type = "omrf",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else NULL,
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
@@ -555,7 +533,6 @@ bgm = function(
     scale_rate = sp$scale_rate,
     scale_eta = sp$scale_eta,
     delta = delta,
-    standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
     update_method = update_method,

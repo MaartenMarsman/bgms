@@ -7,6 +7,10 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
   // When a callback is provided, suppress the built-in progress display
   if (callback.isNotNull()) progress_type = 0;
 
+  // R API interaction (interrupt check, printing, callback) is confined to
+  // the thread that constructs the manager: the R main thread.
+  main_thread_id = std::this_thread::get_id();
+
   for (size_t i = 0; i < nChains; i++) progress[i] = 0;
   start = Clock::now();
   lastPrint = Clock::now();
@@ -54,41 +58,50 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
 }
 
 void ProgressManager::update(size_t chainId) {
-  progress[chainId]++;
+  const size_t count = progress[chainId].fetch_add(1, std::memory_order_relaxed) + 1;
 
-  // Only chain 0 actually does the printing/ checking for user interrupts
-  if (chainId != 0 || needsToExit) return;
+  // Every chain counts (atomically), but only chain 0 drives the display, and
+  // only when it runs on the R main thread. The R API (interrupt check,
+  // printing, callback) is not safe off the main thread; when the scheduler
+  // happens to run chain 0 on a worker thread the display is skipped that
+  // iteration rather than corrupting the interpreter.
+  if (chainId != 0) return;
+  if (std::this_thread::get_id() != main_thread_id) return;
+  if (count % printEvery == 0) poll();
+}
 
-  if (progress[chainId] % printEvery == 0) {
+void ProgressManager::poll() {
+  // Main-thread only: calling this from any other thread is a no-op.
+  if (std::this_thread::get_id() != main_thread_id) return;
+  if (needsToExit.load(std::memory_order_relaxed)) return;
 
-    // Check for user interrupts
-    needsToExit = checkInterrupt();
-
-    if (needsToExit && progress_type != 0) {
+  // Check for user interrupts
+  if (checkInterrupt()) {
+    needsToExit.store(true, std::memory_order_relaxed);
+    if (progress_type != 0) {
       // This should be immediately-ish visible to the user
       Rcpp::Rcout << "\nUser interrupt detected. Exiting gracefully. It may take a few seconds before all chains are terminated.\n";
-      return;
     }
-
-    auto now = Clock::now();
-    std::chrono::duration<double> sinceLast = now - lastPrint;
-
-    bool has_output = (progress_type != 0) || callback.isNotNull();
-
-    // Throttle printing to avoid spamming
-    if (has_output && sinceLast.count() >= 0.5) {
-      if (progress_type != 0) {
-        print();
-      }
-      if (callback.isNotNull()) {
-        size_t done = std::reduce(progress.begin(), progress.end());
-        size_t totalWork = nChains * nIter;
-        Rcpp::Function(callback.get())(done, totalWork);
-      }
-      lastPrint = now;
-    }
+    return;
   }
 
+  auto now = Clock::now();
+  std::chrono::duration<double> sinceLast = now - lastPrint;
+
+  bool has_output = (progress_type != 0) || callback.isNotNull();
+
+  // Throttle printing to avoid spamming
+  if (has_output && sinceLast.count() >= 0.5) {
+    if (progress_type != 0) {
+      print();
+    }
+    if (callback.isNotNull()) {
+      size_t done = totalProgress();
+      size_t totalWork = nChains * nIter;
+      Rcpp::Function(callback.get())(done, totalWork);
+    }
+    lastPrint = now;
+  }
 }
 
 void ProgressManager::finish() {
@@ -115,7 +128,7 @@ void ProgressManager::finish() {
 }
 
 bool ProgressManager::shouldExit() const {
-  return needsToExit;
+  return needsToExit.load(std::memory_order_relaxed);
 }
 
 void ProgressManager::checkConsoleWidthChange() {
@@ -289,7 +302,7 @@ void ProgressManager::print() {
   double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
 
   size_t totalWork = nChains * nIter;
-  size_t done = std::reduce(progress.begin(), progress.end());
+  size_t done = totalProgress();
   double fracTotal = double(done) / totalWork;
   // should actually be the eta of the slowest chain!
   double eta = (fracTotal > 0) ? elapsed / fracTotal - elapsed : 0.0;
@@ -315,8 +328,9 @@ void ProgressManager::print() {
 
     // Print progress for each chain
     for (size_t i = 0; i < nChains; i++) {
-      double frac = double(progress[i]) / nIter;
-      std::string chainProgress = formatProgressBar(i + 1, progress[i], nIter, frac);
+      const size_t chain_done = progress[i].load(std::memory_order_relaxed);
+      double frac = double(chain_done) / nIter;
+      std::string chainProgress = formatProgressBar(i + 1, chain_done, nIter, frac);
       out << chainProgress << "\n";
       // totalChars += chainProgress.length() + 1; // +1 for newline
     }

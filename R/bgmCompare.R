@@ -42,8 +42,12 @@
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
 #'   for Blume--Capel variables.
-#' @param difference_scale Double. Scale of the Cauchy prior for difference
+#' @param difference_scale Double. Scale of the prior for difference
 #'   parameters. Default: \code{1}.
+#' @param difference_family Character. Distributional family of the prior on
+#'   difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
+#'   Independent of \code{interaction_prior}, which governs the baseline
+#'   interactions.
 #' @param difference_prior An indicator prior specification object for
 #'   difference selection, created by one of:
 #'   \itemize{
@@ -79,15 +83,6 @@
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
 #'   Cauchy prior for baseline pairwise interactions.
 #'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
-#' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
-#'   pairwise interaction (both baseline and difference) is adjusted based on
-#'   the range of response scores. Without standardization, pairs with more
-#'   response categories experience less shrinkage because their naturally
-#'   smaller interaction effects make a fixed prior relatively wide.
-#'   Standardization equalizes relative shrinkage across all pairs, with the
-#'   \code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-#'   applying to the unit interval (binary) case.
-#'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
 #'   parameters of the beta-prime prior for baseline threshold parameters.
 #'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
@@ -188,6 +183,7 @@ bgmCompare = function(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
+  difference_family = c("Cauchy", "Normal"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -203,7 +199,6 @@ bgmCompare = function(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments
@@ -387,6 +382,8 @@ bgmCompare = function(
   # --- Unpack prior objects to flat parameters ---------------------------------
   ip = unpack_interaction_prior(interaction_prior)
   tp = unpack_threshold_prior(threshold_prior)
+  difference_family = match.arg(difference_family)
+  difference_prior_type = tolower(difference_family)
 
   # Unpack difference prior to flat params for bgm_spec
   num_variables = ncol(x)
@@ -397,7 +394,7 @@ bgmCompare = function(
     x = x,
     model_type = "compare",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else NULL,
     y = if(hasArg(y)) y else NULL,
     group_indicator = if(hasArg(group_indicator)) group_indicator else NULL,
     na_action = na_action,
@@ -409,11 +406,11 @@ bgmCompare = function(
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,
     threshold_scale = tp$threshold_scale,
-    standardize = standardize,
     difference_selection = difference_selection,
     main_difference_selection = main_difference_selection,
     difference_prior = dp$edge_prior,
     difference_scale = difference_scale,
+    difference_prior_type = difference_prior_type,
     difference_probability = dp$inclusion_probability,
     beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
     beta_bernoulli_beta = dp$beta_bernoulli_beta,

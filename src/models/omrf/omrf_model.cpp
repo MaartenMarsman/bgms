@@ -55,9 +55,6 @@ OMRFModel::OMRFModel(
     proposal_sd_main_ = arma::ones<arma::mat>(p_, max_cats);
     proposal_sd_pairwise_ = arma::ones<arma::mat>(p_, p_);
 
-    // Initialize per-pair scaling factors (default: ones)
-    pairwise_scaling_factors_ = arma::ones<arma::mat>(p_, p_);
-
     // Initialize mass matrix
     inv_mass_ = arma::ones<arma::vec>(num_main_ + num_pairwise_);
 
@@ -110,7 +107,6 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       inclusion_probability_(other.inclusion_probability_),
       interaction_prior_(other.interaction_prior_->clone()),
       threshold_prior_(other.threshold_prior_->clone()),
-      pairwise_scaling_factors_(other.pairwise_scaling_factors_),
       edge_selection_(other.edge_selection_),
       edge_selection_active_(other.edge_selection_active_),
       num_main_(other.num_main_),
@@ -577,7 +573,11 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
     double log_posterior = 0.0;
 
     const int num_cats = num_categories_(variable);
-    arma::vec bound = num_cats * residual_matrix_.col(variable);
+    // Stabiliser for the log-sum-exp; clamp at 0 (the reference-category
+    // exponent) so exp(-bound) cannot overflow. bound is subtracted inside the
+    // denominator and added back below, so its value does not change the result.
+    arma::vec bound = arma::clamp(
+        num_cats * residual_matrix_.col(variable), 0.0, arma::datum::inf);
 
     if (is_ordinal_variable_(variable)) {
         const double value = main_effects_(variable, category);
@@ -624,9 +624,18 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     const int num_persons = static_cast<int>(n_);
     const int num_cats = num_categories_(variable);
 
-    // Compute adjusted linear predictors without the current interaction
-    arma::vec residual_score = residual_matrix_.col(variable) - 2.0 * interaction * current_state;
-    arma::vec bounds = residual_score * num_cats;
+    // Linear predictors for the current and proposed interaction values. The
+    // residual matrix already carries the current interaction.
+    arma::vec res_current = residual_matrix_.col(variable);
+    arma::vec res_proposed =
+        res_current + 2.0 * interaction * (proposed_state - current_state);
+
+    // Shared stabiliser covering both states, built from the actual linear
+    // predictors (not the interaction-removed one) and clamped at 0 so exp
+    // cannot overflow. The same bound is used for both states, so it cancels
+    // in the current/proposed ratio.
+    arma::vec bounds = arma::clamp(
+        num_cats * arma::max(res_current, res_proposed), 0.0, arma::datum::inf);
 
     arma::vec denom_current = arma::zeros(num_persons);
     arma::vec denom_proposed = arma::zeros(num_persons);
@@ -634,23 +643,19 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     if (is_ordinal_variable_(variable)) {
         arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
 
-        denom_current += compute_denom_ordinal(
-            residual_score + 2.0 * interaction * current_state, main_param, bounds
-        );
-        denom_proposed += compute_denom_ordinal(
-            residual_score + 2.0 * interaction * proposed_state, main_param, bounds
-        );
+        denom_current += compute_denom_ordinal(res_current, main_param, bounds);
+        denom_proposed += compute_denom_ordinal(res_proposed, main_param, bounds);
     } else {
         const int ref_cat = baseline_category_(variable);
 
         denom_current = compute_denom_blume_capel(
-            residual_score + 2.0 * interaction * current_state, main_effects_(variable, 0),
+            res_current, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         double log_ratio = arma::accu(ARMA_MY_LOG(denom_current) + bounds);
 
         denom_proposed = compute_denom_blume_capel(
-            residual_score + 2.0 * interaction * proposed_state, main_effects_(variable, 0),
+            res_proposed, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         log_ratio -= arma::accu(ARMA_MY_LOG(denom_proposed) + bounds);
@@ -704,7 +709,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
 
         arma::vec residual_score = residual_matrix_.col(var) + 2.0 * obs_other * delta;
         arma::vec denominator = arma::zeros(num_observations);
-        arma::vec bound = num_cats * residual_score;
+        arma::vec bound = arma::clamp(num_cats * residual_score, 0.0, arma::datum::inf);
 
         if (is_ordinal_variable_(var)) {
             arma::vec main_effect_param = main_effects_.row(var).cols(0, num_cats - 1).t();
@@ -721,7 +726,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
     }
 
     if (edge_indicators_(var1, var2) == 1) {
-        log_pseudo_posterior += interaction_prior_->logp(proposed_value, pairwise_scaling_factors_(var1, var2));
+        log_pseudo_posterior += interaction_prior_->logp(proposed_value);
     }
 
     return log_pseudo_posterior;
@@ -823,7 +828,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
             double value = temp_pairwise(var1, var2);
             log_pp += 4.0 * pairwise_stats_(var1, var2) * value;
-            log_pp += interaction_prior_->logp(value, pairwise_scaling_factors_(var1, var2));
+            log_pp += interaction_prior_->logp(value);
         }
     }
 
@@ -916,7 +921,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             if (edge_indicators_(i, j) == 0) continue;
             int location = index_matrix_cache_(i, j);
             const double effect = temp_pairwise(i, j);
-            gradient(location) += interaction_prior_->grad(effect, pairwise_scaling_factors_(i, j));
+            gradient(location) += interaction_prior_->grad(effect);
         }
     }
 
@@ -989,14 +994,13 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 
     const double inclusion_probability_ij = inclusion_probability_(var1, var2);
     const double sd = proposal_sd_pairwise_(var1, var2);
-    const double sf = pairwise_scaling_factors_(var1, var2);
 
     if (proposing_addition) {
-        log_accept += interaction_prior_->logp(proposed_state, sf);
+        log_accept += interaction_prior_->logp(proposed_state);
         log_accept -= R::dnorm(proposed_state, current_state, sd, true);
         log_accept += MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     } else {
-        log_accept -= interaction_prior_->logp(current_state, sf);
+        log_accept -= interaction_prior_->logp(current_state);
         log_accept += R::dnorm(current_state, proposed_state, sd, true);
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
@@ -1120,24 +1124,43 @@ void OMRFModel::impute_missing() {
         double cumsum = 0.0;
 
         if (is_ordinal) {
-            cumsum = 1.0;
+            // Max-shift the category exponents (the reference category has
+            // exponent 0) so exp() cannot overflow; the shift cancels in the
+            // normalized inverse-transform draw below.
+            double max_exp = 0.0;
+            for (int cat = 0; cat < num_cats; cat++) {
+                const int score = cat + 1;
+                const double e = main_effects_(variable, cat) + score * residual_score;
+                if (e > max_exp) max_exp = e;
+            }
+            cumsum = MY_EXP(-max_exp);
             category_probabilities[0] = cumsum;
             for (int cat = 0; cat < num_cats; cat++) {
                 const int score = cat + 1;
-                const double exponent = main_effects_(variable, cat) + score * residual_score;
+                const double exponent =
+                    main_effects_(variable, cat) + score * residual_score - max_exp;
                 cumsum += MY_EXP(exponent);
                 category_probabilities[score] = cumsum;
             }
         } else {
             const int ref = baseline_category_(variable);
-            cumsum = 0.0;
 
+            double max_exp = -arma::datum::inf;
+            for (int cat = 0; cat <= num_cats; cat++) {
+                const int score = cat - ref;
+                const double e =
+                    main_effects_(variable, 0) * score +
+                    main_effects_(variable, 1) * score * score +
+                    score * residual_score;
+                if (e > max_exp) max_exp = e;
+            }
+            cumsum = 0.0;
             for (int cat = 0; cat <= num_cats; cat++) {
                 const int score = cat - ref;
                 const double exponent =
                     main_effects_(variable, 0) * score +
                     main_effects_(variable, 1) * score * score +
-                    score * residual_score;
+                    score * residual_score - max_exp;
                 cumsum += MY_EXP(exponent);
                 category_probabilities[cat] = cumsum;
             }

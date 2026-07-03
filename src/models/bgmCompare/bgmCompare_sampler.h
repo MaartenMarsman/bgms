@@ -30,7 +30,6 @@ class ProgressManager;
  * @param blume_capel_stats          Blume-Capel statistics per group (modified during imputation)
  * @param pairwise_stats             Pairwise sufficient statistics per group (modified during imputation)
  * @param num_categories             Number of categories per variable
- * @param pairwise_scaling_factors   Per-pair scaling factors for the Cauchy prior
  * @param difference_selection_alpha Alpha for difference-selection Beta-Bernoulli prior
  * @param difference_selection_beta  Beta for difference-selection Beta-Bernoulli prior
  * @param difference_prior_type      Prior family for inclusion probabilities (e.g. "Beta-Bernoulli")
@@ -73,7 +72,6 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     std::vector<arma::imat>& blume_capel_stats,
     std::vector<arma::mat>& pairwise_stats,
     const arma::ivec& num_categories,
-    const arma::mat& pairwise_scaling_factors,
     const double difference_selection_alpha,
     const double difference_selection_beta,
     const std::string& difference_prior_type,

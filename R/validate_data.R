@@ -233,6 +233,10 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
   # map. The recoded category of an original value v is match(v, levels) - 1.
   # predict() needs this to recode newdata the same way (NULL for Blume-Capel).
   category_levels = vector("list", num_variables)
+  # Per Blume-Capel variable: the additive shift applied to reach the 0-based
+  # internal scale (NA for regular ordinal and continuous variables). predict()
+  # subtracts it from newdata and simulate() adds it back.
+  blume_capel_shift = rep(NA_real_, num_variables)
 
   for(node in 1:num_variables) {
     unq_vls = sort(unique(x[, node]))
@@ -293,6 +297,7 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
       }
 
       # Check if observations start at zero and recode otherwise ---------------
+      blume_capel_shift[node] = min(x[, node])
       if(min(x[, node]) != 0) {
         baseline_category[node] = baseline_category[node] - min(x[, node])
         x[, node] = x[, node] - min(x[, node])
@@ -351,7 +356,8 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
     x                 = x,
     num_categories    = num_categories,
     baseline_category = baseline_category,
-    category_levels   = category_levels
+    category_levels   = category_levels,
+    blume_capel_shift = blume_capel_shift
   )
 }
 

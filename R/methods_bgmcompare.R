@@ -33,9 +33,6 @@ print.bgmCompare = function(x, ...) {
 
   # Dataset info
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
-  if(isTRUE(arguments$standardize)) {
-    cat(" Prior standardization: enabled\n")
-  }
   if(!is.null(arguments$num_groups)) {
     cat(paste0(" Number of groups: ", arguments$num_groups, "\n"))
   }

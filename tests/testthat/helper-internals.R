@@ -9,7 +9,6 @@ if(!exists("bgm_spec", mode = "function")) {
     "compute_conditional_ggm",
     "compute_conditional_mixed",
     "compute_conditional_probs",
-    "compute_scaling_factors",
     "get_explog_switch",
     "ggm_test_forward_map",
     "ggm_test_logp_and_gradient",
