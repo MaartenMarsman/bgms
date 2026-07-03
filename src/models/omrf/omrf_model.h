@@ -312,7 +312,6 @@ private:
     SafeRNG rng_;                       ///< Per-chain random number generator
 
     // NUTS settings
-    double step_size_;                  ///< Current step size for gradient-based samplers
     arma::vec inv_mass_;                ///< Inverse mass diagonal
 
     // Missing data handling
