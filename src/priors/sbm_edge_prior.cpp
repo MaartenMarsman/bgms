@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include <stdexcept>
 #include "rng/rng_utils.h"
 #include "math/explog_macros.h"
 #include "priors/edge_prior_correction.h"
@@ -696,8 +697,10 @@ arma::uvec block_allocations_mfm_sbm_corrected(arma::uvec cluster_assign,
                                                SafeRNG& rng) {
   if(correction.is_continuous().n_elem > 0 &&
      correction.is_continuous().n_elem != no_variables) {
-    Rcpp::stop("SBM correction: is_continuous mask length does not match "
-               "the number of variables.");
+    // std::runtime_error rather than Rcpp::stop: this runs on worker threads,
+    // where constructing an Rcpp exception is not safe.
+    throw std::runtime_error("SBM correction: is_continuous mask length does "
+                             "not match the number of variables.");
   }
   arma::uvec indices = arma_randperm(rng, no_variables);
   double dir_alpha = static_cast<double>(dirichlet_alpha);
@@ -822,8 +825,10 @@ arma::mat block_probs_mfm_sbm_corrected(const arma::uvec& cluster_assign,
                                         SafeRNG& rng) {
   if(correction.is_continuous().n_elem > 0 &&
      correction.is_continuous().n_elem != no_variables) {
-    Rcpp::stop("SBM correction: is_continuous mask length does not match "
-               "the number of variables.");
+    // std::runtime_error rather than Rcpp::stop: this runs on worker threads,
+    // where constructing an Rcpp exception is not safe.
+    throw std::runtime_error("SBM correction: is_continuous mask length does "
+                             "not match the number of variables.");
   }
   arma::uvec cluster_size = table_cpp(cluster_assign);
   arma::uword no_clusters = cluster_size.n_elem;

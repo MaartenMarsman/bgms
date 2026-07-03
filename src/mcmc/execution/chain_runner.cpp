@@ -1,10 +1,12 @@
 #include "mcmc/execution/chain_runner.h"
 
 #include <exception>
+#include <stdexcept>
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
 #include "mcmc/samplers/gibbs_sampler.h"
+#include "utils/thread_dispatch.h"
 
 
 namespace {
@@ -33,7 +35,9 @@ SamplerSpec resolve_sampler_spec(const std::string& sampler_type) {
     } else if (sampler_type == "gibbs") {
         return SamplerSpec{SamplerKind::Gibbs, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/false};
     } else {
-        Rcpp::stop("Unknown sampler_type: '%s'", sampler_type.c_str());
+        // std::runtime_error rather than Rcpp::stop: this runs on worker
+        // threads, where constructing an Rcpp exception is not safe.
+        throw std::runtime_error("Unknown sampler_type: '" + sampler_type + "'");
     }
 }
 
@@ -46,7 +50,7 @@ std::unique_ptr<SamplerBase> create_sampler(SamplerKind kind, const SamplerConfi
         case SamplerKind::Gibbs:
             return std::make_unique<GibbsSampler>(config, schedule);
     }
-    Rcpp::stop("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
+    throw std::runtime_error("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
 }
 
 
@@ -216,8 +220,12 @@ std::vector<ChainResult> run_mcmc_sampler(
         }
 
         MCMCChainRunner runner(results, models, edge_priors, config, pm);
-        tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
-        RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
+        // The parallelFor runs on a helper thread so the R main thread stays
+        // free to poll for interrupts, progress display, and the R callback.
+        bgms_threads::run_with_main_thread_progress(pm, [&]() {
+            tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
+            RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
+        });
 
     } else {
         model.set_seed(config.seed);

@@ -322,3 +322,56 @@ test_that("bgmCompare handles Blume-Capel variables coded 1-5 (H9)", {
   pred = predict(fit, newdata = x[1:5, ], group = 1)
   expect_true(all(vapply(pred, function(m) all(is.finite(m)), logical(1))))
 })
+
+# ---------------------------------------------------------------------------
+# H11 - parallel dispatch keeps the R API on the main thread
+#
+# Chains run under a helper-thread parallelFor while the main thread polls
+# for interrupts, progress, and the R callback. Chain seeding is independent
+# of the dispatch, so serial and parallel runs must produce identical draws,
+# and the callback must fire during a parallel run.
+# ---------------------------------------------------------------------------
+
+test_that("serial and parallel dispatch produce identical draws (H11)", {
+  skip_on_cran()
+
+  set.seed(11)
+  p = 4
+  x = matrix(sample(0:2, 120 * p, replace = TRUE), ncol = p)
+  colnames(x) = paste0("V", seq_len(p))
+
+  serial = bgm(
+    x,
+    iter = 100, warmup = 100, chains = 2, cores = 1, seed = 7,
+    display_progress = "none"
+  )
+  parallel = bgm(
+    x,
+    iter = 100, warmup = 100, chains = 2, cores = 2, seed = 7,
+    display_progress = "none"
+  )
+
+  expect_identical(serial$raw_samples$pairwise, parallel$raw_samples$pairwise)
+  expect_identical(serial$raw_samples$main, parallel$raw_samples$main)
+})
+
+test_that("the progress callback fires during a parallel run (H11)", {
+  skip_on_cran()
+
+  set.seed(12)
+  p = 3
+  x = matrix(sample(0:2, 100 * p, replace = TRUE), ncol = p)
+  colnames(x) = paste0("V", seq_len(p))
+
+  calls = 0L
+  fit = bgm(
+    x,
+    iter = 600, warmup = 600, chains = 2, cores = 2, seed = 1,
+    progress_callback = function(done, total) calls <<- calls + 1L
+  )
+
+  # At least the final finish() report; runs longer than the poll throttle
+  # also report from the main-thread loop mid-run.
+  expect_gte(calls, 1L)
+  expect_s3_class(fit, "bgms")
+})
