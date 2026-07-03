@@ -125,7 +125,6 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
                            interaction_alpha, interaction_beta,
                            threshold_prior_type, main_alpha, main_beta,
                            threshold_scale,
-                           standardize,
                            edge_prior_flat) {
   # Baseline category
   bc = validate_baseline_category(
@@ -152,21 +151,6 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
   missing_index = md$missing_index
 
   ep = edge_prior_flat
-
-  # Scaling factors
-  varnames = if(is.null(colnames(x))) {
-    paste0("Variable ", seq_len(num_variables))
-  } else {
-    colnames(x)
-  }
-  psf = compute_scaling_factors(
-    num_variables     = num_variables,
-    is_ordinal        = is_ordinal,
-    num_categories    = num_categories,
-    baseline_category = bc_final,
-    standardize       = standardize,
-    varnames          = varnames
-  )
 
   num_thresholds = sum(ifelse(is_ordinal, num_categories, 2L))
 
@@ -202,9 +186,7 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
         threshold_prior_type = threshold_prior_type,
         main_alpha = main_alpha,
         main_beta = main_beta,
-        threshold_scale = threshold_scale,
-        standardize = standardize,
-        pairwise_scaling_factors = psf
+        threshold_scale = threshold_scale
       ),
       edge_prior_spec_fields(ep)
     ),
@@ -239,7 +221,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 scale_prior_type, scale_shape, scale_rate,
                                 scale_eta = NA_real_,
                                 delta = 0,
-                                standardize,
                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
   scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
@@ -382,8 +363,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_shape = scale_shape,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
-        delta = delta,
-        standardize = standardize
+        delta = delta
       ),
       edge_prior_spec_fields(ep)
     ),
@@ -405,7 +385,6 @@ build_spec_compare = function(x, y, group_indicator,
                               interaction_alpha, interaction_beta,
                               threshold_prior_type, main_alpha, main_beta,
                               threshold_scale,
-                              standardize,
                               difference_selection, main_difference_selection,
                               difference_prior,
                               difference_scale, difference_probability,
@@ -620,21 +599,6 @@ build_spec_compare = function(x, y, group_indicator,
     }
   }
 
-  # Scaling factors
-  varnames = if(is.null(colnames(x_recoded))) {
-    paste0("Variable ", seq_len(num_variables))
-  } else {
-    colnames(x_recoded)
-  }
-  psf = compute_scaling_factors(
-    num_variables     = num_variables,
-    is_ordinal        = ordinal_variable,
-    num_categories    = num_categories,
-    baseline_category = bc_final,
-    standardize       = standardize,
-    varnames          = varnames
-  )
-
   # Group indices and projection
   group_indices = matrix(NA_integer_, nrow = num_groups, ncol = 2)
   observations = x_centered
@@ -696,8 +660,6 @@ build_spec_compare = function(x, y, group_indicator,
       main_alpha = main_alpha,
       main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
-      pairwise_scaling_factors = psf,
       difference_selection = dp$difference_selection,
       main_difference_selection = main_difference_selection,
       difference_prior = dp$difference_prior,

@@ -1,6 +1,6 @@
 // Test interface for the polymorphic parameter prior classes.
 //
-// Exposes logp, grad, and scaled variants to R for unit testing.
+// Exposes logp and grad to R for unit testing.
 
 #include <RcppArmadillo.h>
 #include "priors/parameter_prior.h"
@@ -14,16 +14,13 @@ Rcpp::List test_parameter_prior(
     double x,
     double scale = 1.0,
     double alpha = 0.5,
-    double beta = 0.5,
-    double scale_factor = 1.0
+    double beta = 0.5
 ) {
     auto prior = create_parameter_prior(type, scale, alpha, beta);
 
     return Rcpp::List::create(
         Rcpp::Named("logp") = prior->logp(x),
-        Rcpp::Named("grad") = prior->grad(x),
-        Rcpp::Named("logp_scaled") = prior->logp(x, scale_factor),
-        Rcpp::Named("grad_scaled") = prior->grad(x, scale_factor)
+        Rcpp::Named("grad") = prior->grad(x)
     );
 }
 

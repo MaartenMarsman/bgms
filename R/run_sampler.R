@@ -172,8 +172,7 @@ run_sampler_omrf = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    learn_mass_matrix = s$learn_mass_matrix,
-    pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
+    learn_mass_matrix = s$learn_mass_matrix
   )
 
   out_raw
@@ -278,7 +277,6 @@ run_sampler_compare = function(spec) {
     main_alpha = p$main_alpha,
     main_beta = p$main_beta,
     pairwise_scale = p$pairwise_scale,
-    pairwise_scaling_factors = p$pairwise_scaling_factors,
     difference_scale = p$difference_scale,
     difference_selection_alpha = p$beta_bernoulli_alpha,
     difference_selection_beta = p$beta_bernoulli_beta,

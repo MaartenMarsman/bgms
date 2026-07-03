@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // run_bgmCompare_parallel
-Rcpp::List run_bgmCompare_parallel(const arma::imat& observations, int num_groups, const std::vector<arma::imat>& counts_per_category, const std::vector<arma::imat>& blume_capel_stats, const std::vector<arma::mat>& pairwise_stats, const arma::ivec& num_categories, double main_alpha, double main_beta, double pairwise_scale, const arma::mat& pairwise_scaling_factors, double difference_scale, double difference_selection_alpha, double difference_selection_beta, double difference_selection_alpha_between, double difference_selection_beta_between, double difference_dirichlet_alpha, double difference_lambda, const std::string& difference_prior, int iter, int warmup, bool na_impute, const arma::imat& missing_data_indices, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, bool difference_selection, bool main_difference_selection, const arma::imat& main_effect_indices, const arma::imat& pairwise_effect_indices, double target_accept, int nuts_max_depth, bool learn_mass_matrix, const arma::mat& projection, const arma::ivec& group_membership, const arma::imat& group_indices, const arma::imat& interaction_index_matrix, const arma::mat& inclusion_probability, int num_chains, int nThreads, int seed, const std::string& update_method, int progress_type, const std::string& interaction_prior_type_str, const std::string& threshold_prior_type_str, double threshold_scale, SEXP progress_callback);
-RcppExport SEXP _bgms_run_bgmCompare_parallel(SEXP observationsSEXP, SEXP num_groupsSEXP, SEXP counts_per_categorySEXP, SEXP blume_capel_statsSEXP, SEXP pairwise_statsSEXP, SEXP num_categoriesSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP pairwise_scaleSEXP, SEXP pairwise_scaling_factorsSEXP, SEXP difference_scaleSEXP, SEXP difference_selection_alphaSEXP, SEXP difference_selection_betaSEXP, SEXP difference_selection_alpha_betweenSEXP, SEXP difference_selection_beta_betweenSEXP, SEXP difference_dirichlet_alphaSEXP, SEXP difference_lambdaSEXP, SEXP difference_priorSEXP, SEXP iterSEXP, SEXP warmupSEXP, SEXP na_imputeSEXP, SEXP missing_data_indicesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP difference_selectionSEXP, SEXP main_difference_selectionSEXP, SEXP main_effect_indicesSEXP, SEXP pairwise_effect_indicesSEXP, SEXP target_acceptSEXP, SEXP nuts_max_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP projectionSEXP, SEXP group_membershipSEXP, SEXP group_indicesSEXP, SEXP interaction_index_matrixSEXP, SEXP inclusion_probabilitySEXP, SEXP num_chainsSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP update_methodSEXP, SEXP progress_typeSEXP, SEXP interaction_prior_type_strSEXP, SEXP threshold_prior_type_strSEXP, SEXP threshold_scaleSEXP, SEXP progress_callbackSEXP) {
+Rcpp::List run_bgmCompare_parallel(const arma::imat& observations, int num_groups, const std::vector<arma::imat>& counts_per_category, const std::vector<arma::imat>& blume_capel_stats, const std::vector<arma::mat>& pairwise_stats, const arma::ivec& num_categories, double main_alpha, double main_beta, double pairwise_scale, double difference_scale, double difference_selection_alpha, double difference_selection_beta, double difference_selection_alpha_between, double difference_selection_beta_between, double difference_dirichlet_alpha, double difference_lambda, const std::string& difference_prior, int iter, int warmup, bool na_impute, const arma::imat& missing_data_indices, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, bool difference_selection, bool main_difference_selection, const arma::imat& main_effect_indices, const arma::imat& pairwise_effect_indices, double target_accept, int nuts_max_depth, bool learn_mass_matrix, const arma::mat& projection, const arma::ivec& group_membership, const arma::imat& group_indices, const arma::imat& interaction_index_matrix, const arma::mat& inclusion_probability, int num_chains, int nThreads, int seed, const std::string& update_method, int progress_type, const std::string& interaction_prior_type_str, const std::string& threshold_prior_type_str, double threshold_scale, SEXP progress_callback);
+RcppExport SEXP _bgms_run_bgmCompare_parallel(SEXP observationsSEXP, SEXP num_groupsSEXP, SEXP counts_per_categorySEXP, SEXP blume_capel_statsSEXP, SEXP pairwise_statsSEXP, SEXP num_categoriesSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP pairwise_scaleSEXP, SEXP difference_scaleSEXP, SEXP difference_selection_alphaSEXP, SEXP difference_selection_betaSEXP, SEXP difference_selection_alpha_betweenSEXP, SEXP difference_selection_beta_betweenSEXP, SEXP difference_dirichlet_alphaSEXP, SEXP difference_lambdaSEXP, SEXP difference_priorSEXP, SEXP iterSEXP, SEXP warmupSEXP, SEXP na_imputeSEXP, SEXP missing_data_indicesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP difference_selectionSEXP, SEXP main_difference_selectionSEXP, SEXP main_effect_indicesSEXP, SEXP pairwise_effect_indicesSEXP, SEXP target_acceptSEXP, SEXP nuts_max_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP projectionSEXP, SEXP group_membershipSEXP, SEXP group_indicesSEXP, SEXP interaction_index_matrixSEXP, SEXP inclusion_probabilitySEXP, SEXP num_chainsSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP update_methodSEXP, SEXP progress_typeSEXP, SEXP interaction_prior_type_strSEXP, SEXP threshold_prior_type_strSEXP, SEXP threshold_scaleSEXP, SEXP progress_callbackSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -26,7 +26,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
     Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type pairwise_scaling_factors(pairwise_scaling_factorsSEXP);
     Rcpp::traits::input_parameter< double >::type difference_scale(difference_scaleSEXP);
     Rcpp::traits::input_parameter< double >::type difference_selection_alpha(difference_selection_alphaSEXP);
     Rcpp::traits::input_parameter< double >::type difference_selection_beta(difference_selection_betaSEXP);
@@ -62,7 +61,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::string& >::type threshold_prior_type_str(threshold_prior_type_strSEXP);
     Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
     Rcpp::traits::input_parameter< SEXP >::type progress_callback(progress_callbackSEXP);
-    rcpp_result_gen = Rcpp::wrap(run_bgmCompare_parallel(observations, num_groups, counts_per_category, blume_capel_stats, pairwise_stats, num_categories, main_alpha, main_beta, pairwise_scale, pairwise_scaling_factors, difference_scale, difference_selection_alpha, difference_selection_beta, difference_selection_alpha_between, difference_selection_beta_between, difference_dirichlet_alpha, difference_lambda, difference_prior, iter, warmup, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, difference_selection, main_difference_selection, main_effect_indices, pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix, projection, group_membership, group_indices, interaction_index_matrix, inclusion_probability, num_chains, nThreads, seed, update_method, progress_type, interaction_prior_type_str, threshold_prior_type_str, threshold_scale, progress_callback));
+    rcpp_result_gen = Rcpp::wrap(run_bgmCompare_parallel(observations, num_groups, counts_per_category, blume_capel_stats, pairwise_stats, num_categories, main_alpha, main_beta, pairwise_scale, difference_scale, difference_selection_alpha, difference_selection_beta, difference_selection_alpha_between, difference_selection_beta_between, difference_dirichlet_alpha, difference_lambda, difference_prior, iter, warmup, na_impute, missing_data_indices, is_ordinal_variable, baseline_category, difference_selection, main_difference_selection, main_effect_indices, pairwise_effect_indices, target_accept, nuts_max_depth, learn_mass_matrix, projection, group_membership, group_indices, interaction_index_matrix, inclusion_probability, num_chains, nThreads, seed, update_method, progress_type, interaction_prior_type_str, threshold_prior_type_str, threshold_scale, progress_callback));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -600,8 +599,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // test_parameter_prior
-Rcpp::List test_parameter_prior(const std::string& type, double x, double scale, double alpha, double beta, double scale_factor);
-RcppExport SEXP _bgms_test_parameter_prior(SEXP typeSEXP, SEXP xSEXP, SEXP scaleSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP scale_factorSEXP) {
+Rcpp::List test_parameter_prior(const std::string& type, double x, double scale, double alpha, double beta);
+RcppExport SEXP _bgms_test_parameter_prior(SEXP typeSEXP, SEXP xSEXP, SEXP scaleSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -610,8 +609,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< double >::type scale_factor(scale_factorSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_parameter_prior(type, x, scale, alpha, beta, scale_factor));
+    rcpp_result_gen = Rcpp::wrap(test_parameter_prior(type, x, scale, alpha, beta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -724,8 +722,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_omrf
-Rcpp::List sample_omrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix, const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable);
-RcppExport SEXP _bgms_sample_omrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP pairwise_scaling_factors_nullableSEXP) {
+Rcpp::List sample_omrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix);
+RcppExport SEXP _bgms_sample_omrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -753,8 +751,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type target_acceptance(target_acceptanceSEXP);
     Rcpp::traits::input_parameter< const int >::type max_tree_depth(max_tree_depthSEXP);
     Rcpp::traits::input_parameter< const bool >::type learn_mass_matrix(learn_mass_matrixSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::NumericMatrix> >::type pairwise_scaling_factors_nullable(pairwise_scaling_factors_nullableSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_omrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, pairwise_scaling_factors_nullable));
+    rcpp_result_gen = Rcpp::wrap(sample_omrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, na_impute, missing_index_nullable, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -865,7 +862,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
+    {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 44},
     {"_bgms_test_cholesky_downdate", (DL_FUNC) &_bgms_test_cholesky_downdate, 3},
     {"_bgms_test_correction_logC_interp", (DL_FUNC) &_bgms_test_correction_logC_interp, 3},
     {"_bgms_test_corrected_bb_theta_draw", (DL_FUNC) &_bgms_test_corrected_bb_theta_draw, 7},
@@ -896,12 +893,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_sample_mixed_mrf_gibbs", (DL_FUNC) &_bgms_sample_mixed_mrf_gibbs, 11},
     {"_bgms_run_mixed_simulation_parallel", (DL_FUNC) &_bgms_run_mixed_simulation_parallel, 16},
     {"_bgms_test_omrf_residual_invariant", (DL_FUNC) &_bgms_test_omrf_residual_invariant, 8},
-    {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 6},
+    {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 5},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},
     {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 26},
     {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 27},
-    {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 25},
+    {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_test_sbm_compute_ce", (DL_FUNC) &_bgms_test_sbm_compute_ce, 7},
     {"_bgms_test_sbm_miniti_node", (DL_FUNC) &_bgms_test_sbm_miniti_node, 10},
     {"_bgms_test_sbm_miniti_removal", (DL_FUNC) &_bgms_test_sbm_miniti_removal, 9},

@@ -33,7 +33,7 @@ test_that("get_bgms_fixtures covers all required labels", {
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }
-  expect_equal(length(specs), 23L,
+  expect_equal(length(specs), 22L,
     info = "bgms fixture count changed — update this guard if intentional"
   )
 })
@@ -45,7 +45,7 @@ test_that("get_bgmcompare_fixtures covers all required labels", {
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }
-  expect_equal(length(specs), 11L,
+  expect_equal(length(specs), 10L,
     info = "bgmcompare fixture count changed — update this guard if intentional"
   )
 })

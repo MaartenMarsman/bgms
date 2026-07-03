@@ -153,7 +153,7 @@ test_that("OMRF build_arguments: all expected field names present", {
   a = build_arguments(s)
   expected = c(
     "num_variables", "num_cases", "na_impute", "variable_type",
-    "iter", "warmup", "pairwise_scale", "standardize",
+    "iter", "warmup", "pairwise_scale",
     "main_alpha", "main_beta",
     "edge_selection", "edge_prior", "inclusion_probability",
     "beta_bernoulli_alpha", "beta_bernoulli_beta",
@@ -163,7 +163,7 @@ test_that("OMRF build_arguments: all expected field names present", {
     "nuts_max_depth", "learn_mass_matrix",
     "num_chains", "num_categories", "category_levels",
     "data_columnnames", "baseline_category",
-    "pairwise_scaling_factors", "no_variables",
+    "no_variables",
     "model_type"
   )
   expect_true(all(expected %in% names(a)),
@@ -180,17 +180,14 @@ test_that("OMRF build_arguments: all expected field names present", {
 
 test_that("OMRF build_arguments: values are correct", {
   s = spec_omrf(
-    pairwise_scale = 3.0, main_alpha = 0.7, main_beta = 0.3,
-    standardize = TRUE
+    pairwise_scale = 3.0, main_alpha = 0.7, main_beta = 0.3
   )
   a = build_arguments(s)
   expect_equal(a$pairwise_scale, 3.0)
   expect_equal(a$main_alpha, 0.7)
   expect_equal(a$main_beta, 0.3)
-  expect_true(a$standardize)
   expect_equal(length(a$num_categories), a$num_variables)
   expect_equal(length(a$baseline_category), a$num_variables)
-  expect_equal(dim(a$pairwise_scaling_factors), c(a$num_variables, a$num_variables))
   expect_equal(a$no_variables, a$num_variables)
 })
 
@@ -214,7 +211,7 @@ test_that("Compare build_arguments: all expected field names present", {
   a = build_arguments(s)
   expected = c(
     "num_variables", "num_cases", "iter", "warmup",
-    "pairwise_scale", "difference_scale", "standardize",
+    "pairwise_scale", "difference_scale",
     "difference_selection", "main_difference_selection",
     "difference_prior",
     "difference_selection_alpha", "difference_selection_beta",
@@ -226,7 +223,7 @@ test_that("Compare build_arguments: all expected field names present", {
     "num_chains", "num_groups",
     "data_columnnames", "projection",
     "num_categories", "category_levels", "is_ordinal_variable",
-    "group", "pairwise_scaling_factors",
+    "group",
     "model_type"
   )
   expect_true(all(expected %in% names(a)),

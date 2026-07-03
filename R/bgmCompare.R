@@ -79,15 +79,6 @@
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
 #'   Cauchy prior for baseline pairwise interactions.
 #'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
-#' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
-#'   pairwise interaction (both baseline and difference) is adjusted based on
-#'   the range of response scores. Without standardization, pairs with more
-#'   response categories experience less shrinkage because their naturally
-#'   smaller interaction effects make a fixed prior relatively wide.
-#'   Standardization equalizes relative shrinkage across all pairs, with the
-#'   \code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-#'   applying to the unit interval (binary) case.
-#'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
 #'   parameters of the beta-prime prior for baseline threshold parameters.
 #'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
@@ -203,7 +194,6 @@ bgmCompare = function(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments
@@ -409,7 +399,6 @@ bgmCompare = function(
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,
     threshold_scale = tp$threshold_scale,
-    standardize = standardize,
     difference_selection = difference_selection,
     main_difference_selection = main_difference_selection,
     difference_prior = dp$edge_prior,

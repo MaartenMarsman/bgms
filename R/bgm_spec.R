@@ -103,13 +103,6 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
       is.character(prior$threshold_prior_type),
       length(prior$threshold_prior_type) == 1L
     )
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
-  }
-  if(model_type %in% c("omrf", "compare")) {
-    stopifnot(is.matrix(prior$pairwise_scaling_factors))
-  }
-  if(model_type == "mixed_mrf") {
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
   }
   if(model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
@@ -207,18 +200,6 @@ validate_bgm_spec = function(spec) {
     }
   }
 
-  # Scaling factors dimensions
-  if(mt %in% c("omrf", "compare")) {
-    nv = spec$data$num_variables
-    sf = spec$prior$pairwise_scaling_factors
-    if(nrow(sf) != nv || ncol(sf) != nv) {
-      stop(
-        "bgm_spec: pairwise_scaling_factors dimensions (",
-        nrow(sf), "x", ncol(sf), ") don't match num_variables (", nv, ")."
-      )
-    }
-  }
-
   # num_categories length (OMRF / compare)
   if(mt == "omrf" || mt == "compare") {
     if(length(spec$data$num_categories) != spec$data$num_variables) {
@@ -280,7 +261,6 @@ bgm_spec = function(x,
                     scale_rate = 1,
                     scale_eta = NA_real_,
                     delta = NULL,
-                    standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
                     # Legacy edge prior params (accepted for backward compat)
@@ -485,7 +465,6 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      standardize = standardize,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {
@@ -503,7 +482,6 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       edge_prior_flat = ep_flat
     )
   } else {
@@ -522,7 +500,6 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       difference_selection = difference_selection,
       main_difference_selection = main_difference_selection,
       difference_prior = difference_prior,

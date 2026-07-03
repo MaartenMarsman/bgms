@@ -97,7 +97,6 @@ struct GibbsCompareChainRunner : public Worker {
   const std::vector<arma::imat>& blume_capel_stats_master;
   const std::vector<arma::mat>&  pairwise_stats_master;
   const arma::ivec& num_categories;
-  const arma::mat& pairwise_scaling_factors;
   const double difference_selection_alpha;
   const double difference_selection_beta;
   const std::string& difference_prior_type;
@@ -138,7 +137,6 @@ struct GibbsCompareChainRunner : public Worker {
     const std::vector<arma::imat>& blume_capel_stats_master,
     const std::vector<arma::mat>&  pairwise_stats_master,
     const arma::ivec& num_categories,
-    const arma::mat& pairwise_scaling_factors,
     double difference_selection_alpha,
     double difference_selection_beta,
     const std::string& difference_prior_type,
@@ -175,7 +173,6 @@ struct GibbsCompareChainRunner : public Worker {
     blume_capel_stats_master(blume_capel_stats_master),
     pairwise_stats_master(pairwise_stats_master),
     num_categories(num_categories),
-    pairwise_scaling_factors(pairwise_scaling_factors),
     difference_selection_alpha(difference_selection_alpha),
     difference_selection_beta(difference_selection_beta),
     difference_prior_type(difference_prior_type),
@@ -238,7 +235,6 @@ struct GibbsCompareChainRunner : public Worker {
           blume_capel_stats,
           pairwise_stats,
           num_categories,
-          pairwise_scaling_factors,
           difference_selection_alpha,
           difference_selection_beta,
           difference_prior_type,
@@ -359,7 +355,6 @@ Rcpp::List run_bgmCompare_parallel(
     double main_alpha,
     double main_beta,
     double pairwise_scale,
-    const arma::mat& pairwise_scaling_factors,
     double difference_scale,
     double difference_selection_alpha,
     double difference_selection_beta,
@@ -434,7 +429,7 @@ Rcpp::List run_bgmCompare_parallel(
   GibbsCompareChainRunner worker(
       observations, num_groups,
       counts_per_category, blume_capel_stats, pairwise_stats,
-      num_categories, pairwise_scaling_factors,
+      num_categories,
       difference_selection_alpha, difference_selection_beta, difference_prior, // string "Beta-Bernoulli" etc.
       iter, warmup, na_impute, missing_data_indices, is_ordinal_variable,
       baseline_category, difference_selection, main_difference_selection, main_effect_indices,

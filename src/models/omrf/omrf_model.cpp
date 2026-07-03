@@ -55,9 +55,6 @@ OMRFModel::OMRFModel(
     proposal_sd_main_ = arma::ones<arma::mat>(p_, max_cats);
     proposal_sd_pairwise_ = arma::ones<arma::mat>(p_, p_);
 
-    // Initialize per-pair scaling factors (default: ones)
-    pairwise_scaling_factors_ = arma::ones<arma::mat>(p_, p_);
-
     // Initialize mass matrix
     inv_mass_ = arma::ones<arma::vec>(num_main_ + num_pairwise_);
 
@@ -110,7 +107,6 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       inclusion_probability_(other.inclusion_probability_),
       interaction_prior_(other.interaction_prior_->clone()),
       threshold_prior_(other.threshold_prior_->clone()),
-      pairwise_scaling_factors_(other.pairwise_scaling_factors_),
       edge_selection_(other.edge_selection_),
       edge_selection_active_(other.edge_selection_active_),
       num_main_(other.num_main_),
@@ -721,7 +717,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
     }
 
     if (edge_indicators_(var1, var2) == 1) {
-        log_pseudo_posterior += interaction_prior_->logp(proposed_value, pairwise_scaling_factors_(var1, var2));
+        log_pseudo_posterior += interaction_prior_->logp(proposed_value);
     }
 
     return log_pseudo_posterior;
@@ -823,7 +819,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
 
             double value = temp_pairwise(var1, var2);
             log_pp += 4.0 * pairwise_stats_(var1, var2) * value;
-            log_pp += interaction_prior_->logp(value, pairwise_scaling_factors_(var1, var2));
+            log_pp += interaction_prior_->logp(value);
         }
     }
 
@@ -916,7 +912,7 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             if (edge_indicators_(i, j) == 0) continue;
             int location = index_matrix_cache_(i, j);
             const double effect = temp_pairwise(i, j);
-            gradient(location) += interaction_prior_->grad(effect, pairwise_scaling_factors_(i, j));
+            gradient(location) += interaction_prior_->grad(effect);
         }
     }
 
@@ -989,14 +985,13 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 
     const double inclusion_probability_ij = inclusion_probability_(var1, var2);
     const double sd = proposal_sd_pairwise_(var1, var2);
-    const double sf = pairwise_scaling_factors_(var1, var2);
 
     if (proposing_addition) {
-        log_accept += interaction_prior_->logp(proposed_state, sf);
+        log_accept += interaction_prior_->logp(proposed_state);
         log_accept -= R::dnorm(proposed_state, current_state, sd, true);
         log_accept += MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     } else {
-        log_accept -= interaction_prior_->logp(current_state, sf);
+        log_accept -= interaction_prior_->logp(current_state);
         log_accept += R::dnorm(current_state, proposed_state, sd, true);
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }

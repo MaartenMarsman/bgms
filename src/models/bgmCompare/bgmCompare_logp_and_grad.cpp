@@ -286,7 +286,6 @@ arma::vec gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
@@ -478,14 +477,14 @@ arma::vec gradient(
 
       off = pair_index(row, 0);
       double value = pairwise_effects(row, 0);
-      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
+      grad(off) += interaction_prior.grad(value);
 
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int k = 1; k < num_groups; ++k) {
         off = pair_index(row, k);
         double value = pairwise_effects(row, k);
-        grad(off) += difference_prior.grad(value, pairwise_scaling_factors(v1, v2));
+        grad(off) += difference_prior.grad(value);
       }
     }
   }
@@ -520,7 +519,6 @@ std::pair<double, arma::vec> logp_and_gradient(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const arma::imat& main_index,
     const arma::imat& pair_index,
     const arma::vec& grad_obs,
@@ -743,18 +741,18 @@ std::pair<double, arma::vec> logp_and_gradient(
       const int idx = pairwise_effect_indices(v1, v2);
 
       double value = pairwise_effects(idx, 0);
-      log_pp += interaction_prior.logp(value, pairwise_scaling_factors(v1, v2));
+      log_pp += interaction_prior.logp(value);
 
       off = pair_index(idx, 0);
-      grad(off) += interaction_prior.grad(value, pairwise_scaling_factors(v1, v2));
+      grad(off) += interaction_prior.grad(value);
 
       if (inclusion_indicator(v1, v2) == 0) continue;
       for (int eff = 1; eff < num_groups; eff++) {
         double diff_val = pairwise_effects(idx, eff);
-        log_pp += difference_prior.logp(diff_val, pairwise_scaling_factors(v1, v2));
+        log_pp += difference_prior.logp(diff_val);
 
         off = pair_index(idx, eff);
-        grad(off) += difference_prior.grad(diff_val, pairwise_scaling_factors(v1, v2));
+        grad(off) += difference_prior.grad(diff_val);
       }
     }
   }
@@ -969,7 +967,6 @@ double log_pseudoposterior_main_component(
 //  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - interaction_prior: Prior (BaseParameterPrior) on baseline pairwise effects.
-//  - pairwise_scaling_factors: Per-pair scaling factors for the prior.
 //  - difference_prior: Prior (BaseParameterPrior) on group differences.
 //  - variable1, variable2: Indices of the variable pair.
 //  - h: Column index (0 = baseline, > 0 = group difference).
@@ -997,7 +994,6 @@ double log_pseudoposterior_pair_component(
     const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     int variable1,
     int variable2,
     int h,
@@ -1078,9 +1074,9 @@ double log_pseudoposterior_pair_component(
 
   // ---- priors ----
   if (h == 0) {
-    log_pp += interaction_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
+    log_pp += interaction_prior.logp(proposed_value);
   } else {
-    log_pp += difference_prior.logp(proposed_value, pairwise_scaling_factors(variable1, variable2));
+    log_pp += difference_prior.logp(proposed_value);
   }
   return log_pp;
 }

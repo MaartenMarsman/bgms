@@ -28,7 +28,6 @@ bgmCompare(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   pairwise_scale,
@@ -150,16 +149,6 @@ matrix during warmup (NUTS only). Default: \code{TRUE}.}
 Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility.}
-
-\item{standardize}{Logical. If \code{TRUE}, the Cauchy prior scale for each
-pairwise interaction (both baseline and difference) is adjusted based on
-the range of response scores. Without standardization, pairs with more
-response categories experience less shrinkage because their naturally
-smaller interaction effects make a fixed prior relatively wide.
-Standardization equalizes relative shrinkage across all pairs, with the
-\code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-applying to the unit interval (binary) case.
-See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).
