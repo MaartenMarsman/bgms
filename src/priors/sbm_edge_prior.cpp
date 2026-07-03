@@ -190,8 +190,12 @@ arma::uword sample_cluster(arma::vec cluster_prob,
       return i;
     }
   }
-  return cum_prob.n_elem;
+  return cum_prob.n_elem - 1;
 }
+
+// Defined below; the uncorrected sweep samples from max-shifted log-weights.
+static arma::uword sample_cluster_log(const arma::vec& log_weights,
+                                      SafeRNG& rng);
 
 // ----------------------------------------------------------------------------|
 // Sample the block allocations for the MFM - SBM
@@ -212,7 +216,6 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
   arma::uword old;
   arma::uword cluster;
   arma::uword no_clusters;
-  double prob;
   double loglike;
   double logmarg;
 
@@ -232,8 +235,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
       // Cluster sizes without node
       arma::uvec cluster_size_node = cluster_size;
 
-      // Compute probabilities for sampling process
-      arma::vec cluster_prob(no_clusters + 1);
+      // Compute log-weights for the sampling process (max-shifted at draw).
+      arma::vec log_weights(no_clusters + 1);
       for (arma::uword c = 0; c <= no_clusters; c++) {
         arma::uvec cluster_assign_tmp = cluster_assign;
         cluster_assign_tmp(node) = c;
@@ -246,11 +249,12 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                              node,
                                              no_variables);
 
-            prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
-              MY_EXP(loglike);
+            log_weights(c) =
+              std::log(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
+              loglike;
           }
-          else{ // if old group, the probability is set to 0.0
-            prob = 0.0;
+          else{ // if old group, the weight is zero (log-weight -inf)
+            log_weights(c) = -arma::datum::inf;
           }
 
         } else {
@@ -261,16 +265,13 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
-          prob = static_cast<double>(dirichlet_alpha) *
-            MY_EXP(logmarg) *
-            MY_EXP(log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2));
+          log_weights(c) = std::log(dirichlet_alpha) + logmarg +
+            (log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2));
         }
-
-        cluster_prob(c) = prob;
       }
 
       //Choose the cluster number for node
-      cluster = sample_cluster(cluster_prob, rng);
+      cluster = sample_cluster_log(log_weights, rng);
 
       //if the sampled cluster is the new added cluster or the old one
       if (cluster == no_clusters) {
@@ -291,8 +292,8 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
       arma::uvec cluster_size_node = cluster_size;
       cluster_size_node(old) -= 1;
 
-      // Compute probabilities for sampling process
-      arma::vec cluster_prob(no_clusters + 1);
+      // Compute log-weights for the sampling process (max-shifted at draw).
+      arma::vec log_weights(no_clusters + 1);
       for (arma::uword c = 0; c <= no_clusters; c++) {
         arma::uvec cluster_assign_tmp = cluster_assign;
         cluster_assign_tmp(node) = c;
@@ -303,8 +304,9 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                            node,
                                            no_variables);
 
-          prob = (static_cast<double>(dirichlet_alpha) + static_cast<double>(cluster_size_node(c))) *
-            MY_EXP(loglike);
+          log_weights(c) =
+            std::log(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
+            loglike;
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
                                          indicator,
@@ -313,17 +315,14 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
-          prob = static_cast<double>(dirichlet_alpha) *
-            MY_EXP(logmarg) *
-            MY_EXP(log_Vn(no_clusters) - log_Vn(no_clusters-1));
+          log_weights(c) = std::log(dirichlet_alpha) + logmarg +
+            (log_Vn(no_clusters) - log_Vn(no_clusters-1));
         }
-
-        cluster_prob(c) = prob;
       }
 
 
       //Choose the cluster number for node
-      cluster = sample_cluster(cluster_prob, rng);
+      cluster = sample_cluster_log(log_weights, rng);
 
       cluster_assign(node) = cluster;
 
