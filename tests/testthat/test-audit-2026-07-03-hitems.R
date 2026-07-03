@@ -230,3 +230,95 @@ test_that("difference_family selects the difference prior independently (H8)", {
     )
   )
 })
+
+# ---------------------------------------------------------------------------
+# C5 follow-up - GGM summary with edge selection keeps the mixture columns,
+# on the association scale
+# ---------------------------------------------------------------------------
+
+test_that("GGM selection summary is a mixture summary on the association scale", {
+  skip_on_cran()
+
+  set.seed(9)
+  p = 4
+  n = 200
+  x = matrix(rnorm(n * p), n, p)
+  colnames(x) = paste0("V", seq_len(p))
+
+  fit = bgm(
+    x,
+    variable_type = "continuous", update_method = "adaptive-metropolis",
+    edge_selection = TRUE, iter = 300, warmup = 300, chains = 1, seed = 2,
+    display_progress = "none"
+  )
+
+  pw = fit$posterior_summary_pairwise
+  # Same summarizer as the discrete models: the mixture column is present.
+  expect_true("n_eff_mixt" %in% colnames(pw))
+  # And the mean is on the association scale coef() reports.
+  cf = coef(fit)$pairwise
+  expect_equal(sort(pw$mean), sort(cf[upper.tri(cf)]), tolerance = 1e-8)
+})
+
+# ---------------------------------------------------------------------------
+# H10 follow-up - GGM simulate() returns data on the original scale
+# ---------------------------------------------------------------------------
+
+test_that("GGM simulate() draws are on the training data scale", {
+  skip_on_cran()
+
+  set.seed(10)
+  p = 3
+  n = 150
+  shift = c(5, -3, 10)
+  x = sweep(matrix(rnorm(n * p), n, p), 2, shift, "+")
+  colnames(x) = paste0("V", seq_len(p))
+
+  fit = bgm(
+    x,
+    variable_type = "continuous", update_method = "adaptive-metropolis",
+    edge_selection = FALSE, iter = 200, warmup = 200, chains = 1, seed = 1,
+    display_progress = "none"
+  )
+
+  sim = simulate(fit, nsim = 2000, seed = 4)
+  # Column means of the simulated data sit near the training means, not zero.
+  expect_equal(unname(colMeans(sim)), unname(colMeans(x)), tolerance = 0.5)
+})
+
+# ---------------------------------------------------------------------------
+# H9 follow-up - bgmCompare Blume-Capel prediction/simulation on the original
+# category scale
+# ---------------------------------------------------------------------------
+
+test_that("bgmCompare handles Blume-Capel variables coded 1-5 (H9)", {
+  skip_on_cran()
+
+  set.seed(11)
+  ng = 2
+  npg = 60
+  p = 3
+  x = matrix(sample(1:5, ng * npg * p, replace = TRUE), ncol = p)
+  colnames(x) = paste0("B", seq_len(p))
+  g = rep(seq_len(ng), each = npg)
+
+  fit = bgmCompare(
+    x,
+    group_indicator = g, variable_type = "blume-capel",
+    baseline_category = 3, difference_selection = FALSE,
+    iter = 100, warmup = 100, chains = 1, seed = 2,
+    display_progress = "none"
+  )
+
+  # The shift back to the original 1-based coding is stored per variable.
+  expect_equal(extract_arguments(fit)$blume_capel_shift, rep(1, p))
+
+  # simulate() returns the original 1..5 coding, not the internal 0..4 one.
+  sim = simulate(fit, nsim = 200, group = 1, seed = 3)
+  expect_gte(min(sim), 1)
+  expect_lte(max(sim), 5)
+
+  # predict() on original-scale newdata runs and returns finite probabilities.
+  pred = predict(fit, newdata = x[1:5, ], group = 1)
+  expect_true(all(vapply(pred, function(m) all(is.finite(m)), logical(1))))
+})

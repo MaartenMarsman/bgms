@@ -51,6 +51,18 @@ ensure_summaries = function(fit) {
     cache$posterior_summary_pairwise_differences = summary_list$pairwise_differences
     cache$posterior_summary_indicator = summary_list$indicators
   } else {
+    if(isTRUE(is_continuous)) {
+      # GGM raw pairwise samples are on the precision (off-diagonal) scale;
+      # the association scale is precision * -0.5 (as in coef() /
+      # extract_pairwise_interactions()). Transform the draws before
+      # summarizing so the whole pipeline -- including the selection-aware
+      # mixture summary -- reports mean, sd, and mcse on the association
+      # scale. Zeros stay zeros, so the spike/slab split is unaffected.
+      raw = lapply(raw, function(chain) {
+        chain$pairwise_samples = -0.5 * chain$pairwise_samples
+        chain
+      })
+    }
     summary_list = summarize_fit(raw, edge_selection = edge_selection)
     main_summary = summary_list$main[, -1]
     pairwise_summary = summary_list$pairwise[, -1]
@@ -88,13 +100,6 @@ ensure_summaries = function(fit) {
         names_main
       )
       cache$posterior_summary_quadratic = rv_summary
-      # GGM raw pairwise samples are on the precision (off-diagonal) scale;
-      # the association scale is precision * -0.5 (as in coef() /
-      # extract_pairwise_interactions()). Summarize the transformed samples so
-      # mean, sd, and mcse are all on the association scale.
-      array3d_pw = combine_chains(raw, "pairwise_samples")
-      pairwise_summary = summarize_manual(raw, array3d = -0.5 * array3d_pw)[, -1]
-      rownames(pairwise_summary) = edge_names
     } else {
       cache$posterior_summary_main = main_summary
     }

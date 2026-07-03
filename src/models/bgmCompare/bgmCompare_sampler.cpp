@@ -829,8 +829,8 @@ StepResult update_nuts_bgmcompare(
 //  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
 //  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
 //  - baseline_category: Reference category for Blume–Capel variables.
-//  - pairwise_scale: Scale of Cauchy prior for pairwise effects.
-//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - pairwise_scale: Scale of the prior on pairwise effects.
+//  - difference_scale: Scale of the difference prior.
 //  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
 //  - iteration: Current iteration (to check schedule stage).
 //  - rng: Random number generator.
@@ -1040,7 +1040,7 @@ void tune_proposal_sd_bgmcompare(
 // The acceptance probability combines:
 //  - Pseudolikelihood ratio (data contribution),
 //  - Prior ratio on inclusion indicators,
-//  - Prior ratio on parameter values (Cauchy vs. point-mass-at-zero),
+//  - Prior ratio on parameter values (slab prior vs. point-mass-at-zero),
 //  - Proposal density correction.
 //
 // Inputs:
@@ -1059,7 +1059,7 @@ void tune_proposal_sd_bgmcompare(
 //  - baseline_category: Reference category for Blume–Capel variables [V].
 //  - proposal_sd_main, proposal_sd_pairwise: Proposal SD matrices for main
 //    and pairwise effects.
-//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - difference_scale: Scale of the difference prior.
 //  - counts_per_category, blume_capel_stats: Per-group sufficient statistics
 //    for main effects.
 //  - pairwise_stats: Per-group sufficient statistics for pairwise effects.

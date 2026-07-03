@@ -126,6 +126,11 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
       is.numeric(prior$difference_scale),
       length(prior$difference_scale) == 1L
     )
+    stopifnot(
+      is.character(prior$difference_prior_type),
+      length(prior$difference_prior_type) == 1L,
+      prior$difference_prior_type %in% c("cauchy", "normal")
+    )
     stopifnot(is.matrix(prior$inclusion_probability_difference))
   }
 

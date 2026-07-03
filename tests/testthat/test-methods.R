@@ -688,9 +688,12 @@ test_that("simulate.bgmCompare returns matrix of correct size for all fixture ty
       for(j in seq_len(args$num_variables)) {
         levels_j = args$category_levels[[j]]
         if(is.null(levels_j)) {
-          # Blume-Capel (no recode map): 0-based scores within the range.
+          # Blume-Capel (no recode map): original-scale scores, i.e. the
+          # 0-based internal range shifted by the stored per-variable offset.
+          shift_j = args$blume_capel_shift[j]
           expect_true(
-            all(simulated[, j] <= args$num_categories[j]),
+            all(simulated[, j] >= shift_j &
+              simulated[, j] <= shift_j + args$num_categories[j]),
             info = sprintf("%s group %d variable %d exceeds the category range", ctx, g, j)
           )
         } else {

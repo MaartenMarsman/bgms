@@ -232,7 +232,7 @@ arma::vec gradient_observed_active(
 //      subtract them from the gradient.
 //  - Add prior contributions:
 //    * Logistic–Beta prior gradient for main-effect baseline parameters.
-//    * Cauchy prior gradient for group-difference parameters and pairwise effects.
+//    * Parameter-prior gradient for group-difference parameters and pairwise effects.
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
@@ -253,8 +253,8 @@ arma::vec gradient_observed_active(
 //  - is_ordinal_variable: Indicator vector (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
-//  - interaction_scale: Scale parameter for Cauchy prior on baseline pairwise effects.
-//  - difference_scale: Scale parameter for Cauchy prior on group differences.
+//  - interaction_scale: Scale parameter of the prior on baseline pairwise effects.
+//  - difference_scale: Scale parameter of the difference prior.
 //  - main_index: Index map for main-effect parameters (from build_index_maps()).
 //  - pair_index: Index map for pairwise-effect parameters (from build_index_maps()).
 //  - grad_obs: Precomputed observed-data contribution to the gradient
@@ -776,7 +776,7 @@ std::pair<double, arma::vec> logp_and_gradient(
 //    * Subtract log normalizing constants from the group-specific likelihood.
 //  - Add prior contribution:
 //    * Logistic–Beta prior for baseline (h == 0).
-//    * Cauchy prior for group differences (h > 0), if included.
+//    * Difference prior for group differences (h > 0), if included.
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).
@@ -794,7 +794,7 @@ std::pair<double, arma::vec> logp_and_gradient(
 //  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
 //  - baseline_category: Reference categories for Blume–Capel variables.
 //  - main_alpha, main_beta: Hyperparameters for Beta priors on main effects.
-//  - difference_scale: Scale parameter for Cauchy priors on group differences.
+//  - difference_scale: Scale parameter of the difference prior.
 //  - variable: Index of the variable of interest.
 //  - category: Category index (only used if variable is ordinal).
 //  - par: Parameter index (0 = linear, 1 = quadratic; used for Blume–Capel).
@@ -950,8 +950,8 @@ double log_pseudoposterior_main_component(
 //      - Difference (h > 0): scaled by projection value proj_g(h-1).
 //    * Subtract log normalizing constants from both variables' likelihoods.
 //  - Add prior contribution:
-//    * Cauchy prior for baseline (scale = interaction_scale).
-//    * Cauchy prior for group differences (scale = difference_scale).
+//    * Interaction prior for baseline (scale = interaction_scale).
+//    * Difference prior for group differences (scale = difference_scale).
 //
 // Inputs:
 //  - main_effects: Matrix of main-effect parameters (rows = categories, cols = groups).

@@ -64,6 +64,14 @@ build_precision_from_draw = function(pairwise_vec, main_vec, p) {
 simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
                              num_variables, data_columnnames,
                              cores, progress_type) {
+  # The model is fit on training-mean-centered data; simulate on the original
+  # scale by using the stored means. Older fits without stored means fall
+  # back to the centered (zero-mean) scale.
+  train_means = extract_arguments(object)$column_means
+  if(is.null(train_means)) {
+    train_means = rep(0, num_variables)
+  }
+
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
@@ -76,7 +84,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
       num_states = nsim,
       num_variables = num_variables,
       pairwise = precision,
-      main = rep(0, num_variables),
+      main = train_means,
       variable_type = "continuous",
       seed = seed
     )
@@ -106,7 +114,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
       draw_indices = as.integer(draw_indices),
       num_states = as.integer(nsim),
       num_variables = as.integer(num_variables),
-      means = rep(0, num_variables),
+      means = train_means,
       nThreads = cores,
       seed = seed,
       progress_type = progress_type
@@ -120,7 +128,6 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
     return(results)
   }
 }
-
 
 
 # GGM prediction implementation (called from predict.bgms).

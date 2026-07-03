@@ -175,6 +175,7 @@ build_arguments_compare = function(spec) {
     projection                         = spec$data$projection,
     num_categories                     = spec$data$num_categories,
     category_levels                    = spec$data$category_levels,
+    blume_capel_shift                  = spec$data$blume_capel_shift,
     is_ordinal_variable                = spec$variables$is_ordinal,
     group                              = sort(spec$data$group),
     model_type                         = "compare"

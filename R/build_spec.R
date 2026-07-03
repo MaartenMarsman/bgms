@@ -634,16 +634,19 @@ build_spec_compare = function(x, y, group_indicator,
   new_bgm_spec(
     model_type = "compare",
     data = list(
-      x                = observations,
+      x = observations,
       data_columnnames = data_columnnames,
-      num_variables    = as.integer(num_variables),
-      num_cases        = as.integer(nrow(observations)),
-      num_categories   = as.integer(num_categories),
-      category_levels  = category_levels,
-      group            = as.integer(group),
-      num_groups       = as.integer(num_groups),
-      group_indices    = group_indices,
-      projection       = projection
+      num_variables = as.integer(num_variables),
+      num_cases = as.integer(nrow(observations)),
+      num_categories = as.integer(num_categories),
+      category_levels = category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable (the
+      # cross-group collapse leaves Blume-Capel columns unchanged).
+      blume_capel_shift = ord$blume_capel_shift,
+      group = as.integer(group),
+      num_groups = as.integer(num_groups),
+      group_indices = group_indices,
+      projection = projection
     ),
     variables = list(
       variable_type     = variable_type,
