@@ -887,8 +887,9 @@ void tune_proposal_sd_bgmcompare(
     int hmax = group_differences ? num_groups : 1;
 
     if (is_ordinal_variable[var]) {
-      // Ordinal variable: num_categories[var] - 1 free parameters
-      int ncat = num_categories[var] - 1;
+      // Ordinal variable: num_categories[var] free threshold parameters,
+      // matching the Metropolis sweep and count_num_main_effects.
+      int ncat = num_categories[var];
       for (int c = 0; c < ncat; ++c) {
         int row = start + c;
         for (int h = 0; h < hmax; ++h) {
