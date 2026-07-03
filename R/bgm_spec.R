@@ -256,7 +256,7 @@ bgm_spec = function(x,
                     model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
                     # Variable specification
                     variable_type = "ordinal",
-                    baseline_category = 0L,
+                    baseline_category = NULL,
                     # Data (compare-specific)
                     y = NULL,
                     group_indicator = NULL,

@@ -130,7 +130,7 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
   # Baseline category
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x,
     variable_bool = is_ordinal
   )
@@ -273,7 +273,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   # Baseline category for discrete variables
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x_disc,
     variable_bool = is_ordinal_disc
   )
@@ -464,7 +464,7 @@ build_spec_compare = function(x, y, group_indicator,
   # --- Baseline category (needs combined x) -----------------------------------
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x,
     variable_bool = is_ordinal
   )
