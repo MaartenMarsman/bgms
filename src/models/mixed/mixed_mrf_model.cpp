@@ -1101,13 +1101,21 @@ void MixedMRFModel::impute_missing() {
 
             double cumsum = 0.0;
 
+            // Max-shift the category exponents so exp() cannot overflow; the
+            // shift cancels in the normalized inverse-transform draw below.
             if(is_ordinal_variable_(variable)) {
-                // P(x=0) = 1, P(x=c) ∝ exp(c · rest + μ_x(s, c-1))
-                cumsum = 1.0;
+                // P(x=0) ∝ exp(0), P(x=c) ∝ exp(c · rest + μ_x(s, c-1))
+                double max_exp = 0.0;
+                for(int c = 1; c <= num_cats; c++) {
+                    double e = static_cast<double>(c) * rest_v +
+                               main_effects_discrete_(variable, c - 1);
+                    if(e > max_exp) max_exp = e;
+                }
+                cumsum = MY_EXP(-max_exp);
                 category_probabilities(0) = cumsum;
                 for(int c = 1; c <= num_cats; c++) {
                     double exponent = static_cast<double>(c) * rest_v +
-                                      main_effects_discrete_(variable, c - 1);
+                                      main_effects_discrete_(variable, c - 1) - max_exp;
                     cumsum += MY_EXP(exponent);
                     category_probabilities(c) = cumsum;
                 }
@@ -1116,12 +1124,18 @@ void MixedMRFModel::impute_missing() {
                 const int ref = baseline_category_(variable);
                 double alpha = main_effects_discrete_(variable, 0);
                 double beta = main_effects_discrete_(variable, 1);
+                double max_exp = -arma::datum::inf;
+                for(int cat = 0; cat <= num_cats; cat++) {
+                    const int score = cat - ref;
+                    double e = alpha * score + beta * score * score + score * rest_v;
+                    if(e > max_exp) max_exp = e;
+                }
                 cumsum = 0.0;
                 for(int cat = 0; cat <= num_cats; cat++) {
                     const int score = cat - ref;
                     double exponent = alpha * score +
                                       beta * score * score +
-                                      score * rest_v;
+                                      score * rest_v - max_exp;
                     cumsum += MY_EXP(exponent);
                     category_probabilities(cat) = cumsum;
                 }

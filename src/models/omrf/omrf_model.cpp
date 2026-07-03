@@ -1115,24 +1115,43 @@ void OMRFModel::impute_missing() {
         double cumsum = 0.0;
 
         if (is_ordinal) {
-            cumsum = 1.0;
+            // Max-shift the category exponents (the reference category has
+            // exponent 0) so exp() cannot overflow; the shift cancels in the
+            // normalized inverse-transform draw below.
+            double max_exp = 0.0;
+            for (int cat = 0; cat < num_cats; cat++) {
+                const int score = cat + 1;
+                const double e = main_effects_(variable, cat) + score * residual_score;
+                if (e > max_exp) max_exp = e;
+            }
+            cumsum = MY_EXP(-max_exp);
             category_probabilities[0] = cumsum;
             for (int cat = 0; cat < num_cats; cat++) {
                 const int score = cat + 1;
-                const double exponent = main_effects_(variable, cat) + score * residual_score;
+                const double exponent =
+                    main_effects_(variable, cat) + score * residual_score - max_exp;
                 cumsum += MY_EXP(exponent);
                 category_probabilities[score] = cumsum;
             }
         } else {
             const int ref = baseline_category_(variable);
-            cumsum = 0.0;
 
+            double max_exp = -arma::datum::inf;
+            for (int cat = 0; cat <= num_cats; cat++) {
+                const int score = cat - ref;
+                const double e =
+                    main_effects_(variable, 0) * score +
+                    main_effects_(variable, 1) * score * score +
+                    score * residual_score;
+                if (e > max_exp) max_exp = e;
+            }
+            cumsum = 0.0;
             for (int cat = 0; cat <= num_cats; cat++) {
                 const int score = cat - ref;
                 const double exponent =
                     main_effects_(variable, 0) * score +
                     main_effects_(variable, 1) * score * score +
-                    score * residual_score;
+                    score * residual_score - max_exp;
                 cumsum += MY_EXP(exponent);
                 category_probabilities[cat] = cumsum;
             }
