@@ -6,7 +6,6 @@
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
 #include "mcmc/samplers/gibbs_sampler.h"
-#include "utils/thread_dispatch.h"
 
 
 namespace {
@@ -220,12 +219,8 @@ std::vector<ChainResult> run_mcmc_sampler(
         }
 
         MCMCChainRunner runner(results, models, edge_priors, config, pm);
-        // The parallelFor runs on a helper thread so the R main thread stays
-        // free to poll for interrupts, progress display, and the R callback.
-        bgms_threads::run_with_main_thread_progress(pm, [&]() {
-            tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
-            RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
-        });
+        tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
+        RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
 
     } else {
         model.set_seed(config.seed);

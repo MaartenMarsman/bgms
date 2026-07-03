@@ -60,12 +60,13 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
 void ProgressManager::update(size_t chainId) {
   const size_t count = progress[chainId].fetch_add(1, std::memory_order_relaxed) + 1;
 
-  // Worker threads only count. The R API (interrupt check, printing, the
-  // callback) is only legal on the R main thread: in a serial run every
-  // update lands there and drives the display below; in a parallel run the
-  // launcher's poll() loop does instead.
+  // Every chain counts (atomically), but only chain 0 drives the display, and
+  // only when it runs on the R main thread. The R API (interrupt check,
+  // printing, callback) is not safe off the main thread; when the scheduler
+  // happens to run chain 0 on a worker thread the display is skipped that
+  // iteration rather than corrupting the interpreter.
+  if (chainId != 0) return;
   if (std::this_thread::get_id() != main_thread_id) return;
-
   if (count % printEvery == 0) poll();
 }
 

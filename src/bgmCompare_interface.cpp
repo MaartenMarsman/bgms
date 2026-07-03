@@ -7,7 +7,6 @@
 #include <vector>
 #include <string>
 #include "utils/progress_manager.h"
-#include "utils/thread_dispatch.h"
 #include "models/bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "utils/common_helpers.h"
@@ -445,12 +444,10 @@ Rcpp::List run_bgmCompare_parallel(
       results
   );
 
-  // The parallelFor runs on a helper thread so the R main thread stays free
-  // to poll for interrupts, progress display, and the R callback.
-  bgms_threads::run_with_main_thread_progress(pm, [&]() {
+  {
     tbb::global_control control(tbb::global_control::max_allowed_parallelism, nThreads);
     parallelFor(0, num_chains, worker);
-  });
+  }
 
   // wrap results back into Rcpp::List
   Rcpp::List output(num_chains);

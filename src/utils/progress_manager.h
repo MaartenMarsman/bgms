@@ -38,9 +38,8 @@ inline bool checkInterrupt() {
  * per-chain counters and the exit flag are atomics, so update() and
  * shouldExit() may be called from any thread. All R API interaction (the
  * interrupt check, console output, and the R callback) happens only on the
- * construction thread: update() performs it when called there (the serial
- * path), and poll() provides it for a main-thread loop that supervises
- * worker threads (the parallel path).
+ * construction thread: update() drives it when chain 0 runs on that thread and
+ * skips it otherwise, so a worker thread never touches the R interpreter.
  *
  * Key features:
  * - Multi-chain progress tracking with atomic counters
@@ -58,11 +57,14 @@ public:
 
     ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true, SEXP progress_callback = R_NilValue);
     void update(size_t chainId);
-    void poll();
     void finish();
     bool shouldExit() const;
 
 private:
+
+    // Runs the R-main-thread work (interrupt check, throttled print, callback).
+    // A no-op when called off the construction thread.
+    void poll();
 
     void checkConsoleWidthChange();
     size_t getConsoleWidth() const;

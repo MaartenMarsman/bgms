@@ -5,7 +5,6 @@
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "utils/progress_manager.h"
-#include "utils/thread_dispatch.h"
 #include <vector>
 #include <string>
 
@@ -518,13 +517,11 @@ Rcpp::List run_simulation_parallel(
     results
   );
 
-  // The parallelFor runs on a helper thread so the R main thread stays free
-  // to poll for interrupts and progress display.
-  bgms_threads::run_with_main_thread_progress(pm, [&]() {
+  {
     tbb::global_control control(
       tbb::global_control::max_allowed_parallelism, nThreads);
     parallelFor(0, ndraws, worker);
-  });
+  }
   pm.finish();
 
   // Convert results to R list
@@ -684,13 +681,11 @@ Rcpp::List run_ggm_simulation_parallel(
     results
   );
 
-  // The parallelFor runs on a helper thread so the R main thread stays free
-  // to poll for interrupts and progress display.
-  bgms_threads::run_with_main_thread_progress(pm, [&]() {
+  {
     tbb::global_control control(
       tbb::global_control::max_allowed_parallelism, nThreads);
     parallelFor(0, ndraws, worker);
-  });
+  }
   pm.finish();
 
   Rcpp::List output(ndraws);
@@ -1173,13 +1168,11 @@ Rcpp::List run_mixed_simulation_parallel(
     iter, mux_param_counts, draw_rngs, pm, results
   );
 
-  // The parallelFor runs on a helper thread so the R main thread stays free
-  // to poll for interrupts and progress display.
-  bgms_threads::run_with_main_thread_progress(pm, [&]() {
+  {
     tbb::global_control control(
       tbb::global_control::max_allowed_parallelism, nThreads);
     parallelFor(0, ndraws, worker);
-  });
+  }
   pm.finish();
 
   Rcpp::List output(ndraws);
