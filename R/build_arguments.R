@@ -52,11 +52,11 @@ build_arguments_ggm = function(spec) {
     num_chains                   = spec$sampler$chains,
     data_columnnames             = spec$data$data_columnnames,
     no_variables                 = spec$data$num_variables,
+    column_means                 = spec$data$column_means,
     is_continuous                = TRUE,
     model_type                   = "ggm"
   )
 }
-
 
 
 build_arguments_omrf = function(spec) {
@@ -92,6 +92,7 @@ build_arguments_omrf = function(spec) {
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
     category_levels              = spec$data$category_levels,
+    blume_capel_shift            = spec$data$blume_capel_shift,
     data_columnnames             = spec$data$data_columnnames,
     baseline_category            = spec$variables$baseline_category,
     no_variables                 = spec$data$num_variables,
@@ -130,6 +131,7 @@ build_arguments_mixed_mrf = function(spec) {
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
     category_levels              = spec$data$category_levels,
+    blume_capel_shift            = spec$data$blume_capel_shift,
     data_columnnames             = spec$data$data_columnnames,
     data_columnnames_discrete    = spec$data$data_columnnames_discrete,
     data_columnnames_continuous  = spec$data$data_columnnames_continuous,

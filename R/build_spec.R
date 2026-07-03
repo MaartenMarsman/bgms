@@ -69,7 +69,9 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
   )
   x = md$x
 
-  # Center continuous data (GGM likelihood assumes zero mean)
+  # Center continuous data (GGM likelihood assumes zero mean). The column
+  # means are kept so prediction can center newdata on the training scale.
+  column_means = colMeans(x)
   x = center_continuous_data(x)
 
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
@@ -83,7 +85,8 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       x                = x,
       data_columnnames = data_columnnames,
       num_variables    = as.integer(ncol(x)),
-      num_cases        = as.integer(nrow(x))
+      num_cases        = as.integer(nrow(x)),
+      column_means     = column_means
     ),
     variables = list(
       variable_type     = variable_type,
@@ -114,7 +117,6 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
     precomputed = list()
   )
 }
-
 
 
 build_spec_omrf = function(x, data_columnnames, num_variables,
@@ -157,14 +159,16 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
   new_bgm_spec(
     model_type = "omrf",
     data = list(
-      x                = x_recoded,
+      x = x_recoded,
       data_columnnames = data_columnnames,
-      num_variables    = as.integer(num_variables),
-      num_cases        = as.integer(nrow(x_recoded)),
-      num_categories   = as.integer(num_categories),
+      num_variables = as.integer(num_variables),
+      num_cases = as.integer(nrow(x_recoded)),
+      num_categories = as.integer(num_categories),
       # Recode map (sorted original values per ordinal variable) so predict()
       # can recode newdata the same way bgm() recoded the training data.
-      category_levels  = ord$category_levels
+      category_levels = ord$category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable.
+      blume_capel_shift = ord$blume_capel_shift
     ),
     variables = list(
       variable_type     = variable_type,
@@ -328,6 +332,8 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       # Recode map (sorted original values per discrete variable) for original-
       # scale threshold labels; NULL for Blume-Capel.
       category_levels = ord$category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable.
+      blume_capel_shift = ord$blume_capel_shift,
       discrete_indices = disc_idx,
       continuous_indices = cont_idx
     ),

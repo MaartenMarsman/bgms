@@ -237,9 +237,12 @@ test_that("simulate.bgms returns matrix of correct size for ordinal fixtures", {
     for(j in seq_len(args$num_variables)) {
       levels_j = args$category_levels[[j]]
       if(is.null(levels_j)) {
-        # Blume-Capel (no recode map): 0-based scores within the range.
+        # Blume-Capel (no recode map): original-scale scores, i.e. the 0-based
+        # internal range shifted by the stored per-variable offset.
+        shift_j = args$blume_capel_shift[j]
         expect_true(
-          all(simulated[, j] <= args$num_categories[j]),
+          all(simulated[, j] >= shift_j &
+            simulated[, j] <= shift_j + args$num_categories[j]),
           info = sprintf("%s variable %d exceeds the category range", ctx, j)
         )
       } else {
@@ -637,16 +640,16 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
   omega_hat = extract_precision(fit)
   p = args$num_variables
 
-  # Center newdata by its own means (predict does the same internally)
-  newdata_means = colMeans(newdata)
-  newdata_centered = sweep(newdata, 2, newdata_means)
+  # Center newdata on the training means (predict does the same internally)
+  train_means = args$column_means
+  newdata_centered = sweep(newdata, 2, train_means)
 
   for(j in seq_len(p)) {
     omega_jj = omega_hat[j, j]
     rest_cols = setdiff(seq_len(p), j)
     # Conditional mean in centered space, then shift back
     expected_means = as.numeric(
-      newdata_means[j] - newdata_centered[, rest_cols, drop = FALSE] %*%
+      train_means[j] - newdata_centered[, rest_cols, drop = FALSE] %*%
         omega_hat[rest_cols, j] / omega_jj
     )
     expected_sd = sqrt(1 / omega_jj)

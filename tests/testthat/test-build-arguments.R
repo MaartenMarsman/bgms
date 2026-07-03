@@ -98,7 +98,7 @@ test_that("GGM build_arguments: all expected field names present", {
     "beta_bernoulli_alpha_between", "beta_bernoulli_beta_between",
     "dirichlet_alpha", "lambda", "na_action", "version",
     "update_method", "target_accept", "num_chains",
-    "data_columnnames", "no_variables", "is_continuous",
+    "data_columnnames", "no_variables", "column_means", "is_continuous",
     "model_type"
   )
   expect_true(all(expected %in% names(a)),
@@ -161,7 +161,7 @@ test_that("OMRF build_arguments: all expected field names present", {
     "dirichlet_alpha", "lambda", "na_action", "version",
     "update_method", "target_accept",
     "nuts_max_depth", "learn_mass_matrix",
-    "num_chains", "num_categories", "category_levels",
+    "num_chains", "num_categories", "category_levels", "blume_capel_shift",
     "data_columnnames", "baseline_category",
     "no_variables",
     "model_type"

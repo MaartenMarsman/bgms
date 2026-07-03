@@ -138,9 +138,14 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
 predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
                             num_variables,
                             type, method, ndraws) {
-  # Center newdata by its own column means
-  newdata_means = colMeans(newdata)
-  newdata_centered = sweep(newdata, 2, newdata_means)
+  # Center newdata on the training column means so predictions match the
+  # scale the model was fit on. Older fits without stored means fall back to
+  # centering newdata by its own means.
+  train_means = extract_arguments(object)$column_means
+  if(is.null(train_means)) {
+    train_means = colMeans(newdata)
+  }
+  newdata_centered = sweep(newdata, 2, train_means)
 
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
@@ -161,7 +166,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
       colnames(result[[v]]) = c("mean", "sd")
       result[[v]][, "mean"] =
         result[[v]][, "mean"] +
-        newdata_means[predict_vars[v]]
+        train_means[predict_vars[v]]
     }
   } else {
     # Use posterior samples
@@ -197,7 +202,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
 
       # Shift conditional means back to original scale
       for(v in seq_along(predict_vars)) {
-        preds[[v]][, 1] = preds[[v]][, 1] + newdata_means[predict_vars[v]]
+        preds[[v]][, 1] = preds[[v]][, 1] + train_means[predict_vars[v]]
       }
 
       all_preds[[i]] = preds
