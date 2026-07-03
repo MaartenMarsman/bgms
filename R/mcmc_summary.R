@@ -88,6 +88,13 @@ ensure_summaries = function(fit) {
         names_main
       )
       cache$posterior_summary_quadratic = rv_summary
+      # GGM raw pairwise samples are on the precision (off-diagonal) scale;
+      # the association scale is precision * -0.5 (as in coef() /
+      # extract_pairwise_interactions()). Summarize the transformed samples so
+      # mean, sd, and mcse are all on the association scale.
+      array3d_pw = combine_chains(raw, "pairwise_samples")
+      pairwise_summary = summarize_manual(raw, array3d = -0.5 * array3d_pw)[, -1]
+      rownames(pairwise_summary) = edge_names
     } else {
       cache$posterior_summary_main = main_summary
     }
@@ -492,7 +499,9 @@ summarize_main_diff_compare = function(
         draws_pw = main_effect_samples[, , col_index]
 
         pname = if(!is.null(param_names)) {
-          param_names[counter]
+          # param_names is laid out contrast-major (all rows of contrast 1,
+          # then contrast 2, ...).
+          param_names[(h - 1L) * num_main + row]
         } else {
           paste0("var", v, " (diff", h, "; ", category, ")")
         }
@@ -537,7 +546,9 @@ summarize_pairwise_diff_compare = function(
         draws_pw = pairwise_effect_samples[, , col_index]
 
         pname = if(!is.null(param_names)) {
-          param_names[counter]
+          # param_names is laid out contrast-major (all edges of contrast 1,
+          # then contrast 2, ...).
+          param_names[(h - 1L) * num_pair + row]
         } else {
           paste0("V", i, "-", j, " (diff", h, ")")
         }
