@@ -309,6 +309,7 @@ run_sampler_compare = function(spec) {
     update_method = s$update_method,
     progress_type = s$progress_type,
     interaction_prior_type_str = p$interaction_prior_type,
+    difference_prior_type_str = p$difference_prior_type,
     threshold_prior_type_str = p$threshold_prior_type,
     threshold_scale = if(is.na(p$threshold_scale)) 1.0 else p$threshold_scale,
     progress_callback = s$progress_callback

@@ -39,7 +39,7 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
     array3d[, , p] = get_draws_pair(Pairs[p, 1], Pairs[p, 2])
   }
   ind_stats = .compute_indicator_ess_cpp(array3d)
-  batch_rhat = .compute_rhat_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
   result = cbind(
     ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE],

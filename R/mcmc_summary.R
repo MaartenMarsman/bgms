@@ -125,6 +125,30 @@ combine_chains = function(fit, component) {
   array3d
 }
 
+# Split each chain into its first and second half, turning m chains into 2m
+# sub-chains. Rhat computed on the split array is the split-R-hat of Gelman et
+# al. / Vehtari et al.: it detects within-chain drift that whole-chain
+# Gelman-Rubin cannot, and the vignette's Rhat < 1.01 guideline refers to this
+# split form. An odd iteration count drops the middle draw so both halves match;
+# chains shorter than two iterations are returned unchanged.
+split_chains = function(array3d) {
+  niter = dim(array3d)[1]
+  nchains = dim(array3d)[2]
+  nparam = dim(array3d)[3]
+  half = niter %/% 2L
+  if(half < 1L) {
+    return(array3d)
+  }
+  first_idx = seq_len(half)
+  second_idx = (niter - half + 1L):niter
+  out = array(NA_real_, dim = c(half, 2L * nchains, nparam))
+  for(i in seq_len(nchains)) {
+    out[, 2L * i - 1L, ] = array3d[first_idx, i, ]
+    out[, 2L * i, ] = array3d[second_idx, i, ]
+  }
+  out
+}
+
 # Compute ESS and Rhat for a single [niter x nchains] draws matrix.
 # Used only by summarize_slab() where the draws are variable-length.
 compute_rhat_ess = function(draws) {
@@ -143,7 +167,7 @@ summarize_manual = function(fit, component = c("main_samples", "pairwise_samples
 
   # Batch computation via C++
   ess = .compute_ess_cpp(array3d)
-  rhat = .compute_rhat_cpp(array3d)
+  rhat = .compute_rhat_cpp(split_chains(array3d))
 
   # Vectorized mean and sd across all iterations and chains
   pooled = matrix(array3d, nrow = dim(array3d)[1] * dim(array3d)[2], ncol = nparam)
@@ -168,7 +192,7 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 
   # Batch indicator ESS + transition counts via C++
   ind_stats = .compute_indicator_ess_cpp(array3d)
-  batch_rhat = .compute_rhat_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
   result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
   colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
@@ -256,7 +280,7 @@ summarize_pair = function(fit,
 
   # Unconditional ESS and Rhat on the raw effect chain (includes zeros)
   n_eff = .compute_ess_cpp(array3d_pw)
-  rhat = .compute_rhat_cpp(array3d_pw)
+  rhat = .compute_rhat_cpp(split_chains(array3d_pw))
 
   if(is.null(param_names)) {
     data.frame(
@@ -342,7 +366,7 @@ summarize_manual_compare = function(fit_or_array,
 
   # Batch computation via C++
   ess = .compute_ess_cpp(array3d)
-  rhat = .compute_rhat_cpp(array3d)
+  rhat = .compute_rhat_cpp(split_chains(array3d))
 
   # Vectorized mean and sd across all iterations and chains
   pooled = matrix(array3d, nrow = dim(array3d)[1] * dim(array3d)[2], ncol = nparam)
@@ -366,7 +390,7 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
 
   # Batch indicator ESS + transition counts via C++
   ind_stats = .compute_indicator_ess_cpp(array3d)
-  batch_rhat = .compute_rhat_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
   result = cbind(ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE], Rhat = batch_rhat)
   colnames(result)[4:7] = c("n0->0", "n0->1", "n1->0", "n1->1")
@@ -437,7 +461,7 @@ summarize_mixture_effect = function(draws_pw, draws_id, name) {
   ## --- unconditional ESS and Rhat on the raw effect chain ---
   pw_array = array(draws_pw, dim = c(niter, nchains, 1L))
   n_eff = .compute_ess_cpp(pw_array)[1]
-  Rhat = if(nchains > 1) .compute_rhat_cpp(pw_array)[1] else NA_real_
+  Rhat = if(nchains > 1) .compute_rhat_cpp(split_chains(pw_array))[1] else NA_real_
 
   data.frame(
     parameter = name,

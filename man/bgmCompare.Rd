@@ -13,6 +13,7 @@ bgmCompare(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
+  difference_family = c("Cauchy", "Normal"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -82,8 +83,13 @@ pairwise selection under the Beta-Bernoulli prior, the default is
 \item{baseline_category}{Integer or vector giving the baseline category
 for Blume--Capel variables.}
 
-\item{difference_scale}{Double. Scale of the Cauchy prior for difference
+\item{difference_scale}{Double. Scale of the prior for difference
 parameters. Default: \code{1}.}
+
+\item{difference_family}{Character. Distributional family of the prior on
+difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
+Independent of \code{interaction_prior}, which governs the baseline
+interactions.}
 
 \item{difference_prior}{An indicator prior specification object for
 difference selection, created by one of:
