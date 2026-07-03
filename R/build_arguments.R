@@ -100,7 +100,6 @@ build_arguments_omrf = function(spec) {
 }
 
 
-
 build_arguments_mixed_mrf = function(spec) {
   list(
     num_variables                = spec$data$num_variables,
@@ -143,7 +142,6 @@ build_arguments_mixed_mrf = function(spec) {
     model_type                   = "mixed_mrf"
   )
 }
-
 
 
 build_arguments_compare = function(spec) {

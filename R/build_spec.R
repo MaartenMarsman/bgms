@@ -198,7 +198,6 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
 }
 
 
-
 # ------------------------------------------------------------------
 # build_spec_mixed_mrf
 # ------------------------------------------------------------------
@@ -373,7 +372,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
     )
   )
 }
-
 
 
 build_spec_compare = function(x, y, group_indicator,

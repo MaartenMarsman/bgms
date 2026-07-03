@@ -885,8 +885,10 @@ double log_pseudoposterior_main_component(
     const arma::vec rest_score = obs * pairwise_group.col(variable);
     const int num_cats = num_categories(variable);
 
-    // bound to stabilize exp; use group-specific params consistently
-    arma::vec bound = num_cats * rest_score;
+    // bound to stabilize exp; clamp at 0 (the reference-category exponent) so
+    // exp cannot overflow. compute_denom_blume_capel overwrites bound with its
+    // own max, so the clamp only affects the ordinal path.
+    arma::vec bound = arma::clamp(num_cats * rest_score, 0.0, arma::datum::inf);
     arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
     if (is_ordinal_variable(variable)) {
@@ -1054,8 +1056,9 @@ double log_pseudoposterior_pair_component(
       // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
       arma::vec rest_score = residual_matrices[group].col(v) + obs_other * delta_g;
 
-      // bound to stabilize exp
-      arma::vec bound = num_cats * rest_score;
+      // bound to stabilize exp; clamp at 0 so exp cannot overflow (the
+      // Blume-Capel branch overwrites bound with its own max).
+      arma::vec bound = arma::clamp(num_cats * rest_score, 0.0, arma::datum::inf);
       arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
       if (is_ordinal_variable(v)) {
@@ -1188,8 +1191,8 @@ double log_ratio_pseudolikelihood_constant_variable(
     arma::vec denom_proposed(rest_proposed.n_elem, arma::fill::zeros);
 
     if (is_ordinal_variable (variable)) {
-      bound_current = rest_current * num_cats;
-      bound_proposed = rest_proposed * num_cats;
+      bound_current = arma::clamp(rest_current * num_cats, 0.0, arma::datum::inf);
+      bound_proposed = arma::clamp(rest_proposed * num_cats, 0.0, arma::datum::inf);
 
       denom_current += compute_denom_ordinal(
         rest_current, main_current, bound_current

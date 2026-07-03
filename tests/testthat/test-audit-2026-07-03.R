@@ -96,7 +96,8 @@ test_that("GGM summary() pairwise means match coef() (association scale) (C5)", 
   # and not the raw precision scale (which is association * -2)
   expect_false(
     isTRUE(all.equal(sort(summary_mean), sort(-2 * coef_upper),
-      tolerance = 1e-6))
+      tolerance = 1e-6
+    ))
   )
 })
 

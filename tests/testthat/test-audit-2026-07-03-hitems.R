@@ -17,7 +17,8 @@ test_that("mixed model with one continuous variable does not crash (H13)", {
 
   expect_no_error(
     bgm(
-      x, variable_type = c("ordinal", "ordinal", "continuous"),
+      x,
+      variable_type = c("ordinal", "ordinal", "continuous"),
       edge_selection = FALSE, update_method = "adaptive-metropolis",
       iter = 30, warmup = 30, chains = 1, seed = 1, display_progress = "none"
     )
@@ -37,7 +38,8 @@ test_that("OMRF SBM allocation samples carry node names (H15)", {
   colnames(x) = paste0("V", seq_len(p))
 
   fit = bgm(
-    x, variable_type = "ordinal", edge_selection = TRUE,
+    x,
+    variable_type = "ordinal", edge_selection = TRUE,
     edge_prior = sbm_prior(),
     iter = 30, warmup = 30, chains = 1, seed = 1, display_progress = "none"
   )
@@ -62,7 +64,8 @@ test_that("explicit baseline_category = 0L works for Blume-Capel (H16)", {
   # "baseline_category is required for Blume-Capel variables".
   expect_no_error(
     bgm(
-      x, variable_type = "blume-capel", baseline_category = 0L,
+      x,
+      variable_type = "blume-capel", baseline_category = 0L,
       edge_selection = FALSE, update_method = "adaptive-metropolis",
       iter = 20, warmup = 20, chains = 1, seed = 1, display_progress = "none"
     )

@@ -78,7 +78,7 @@ public:
      */
     void reserve_indicators(const size_t n_edges, const size_t n_iter) {
         indicator_samples.set_size(n_edges, n_iter);
-        indicator_samples.fill(arma::datum::nan);
+        indicator_samples.fill(-1);
         has_indicators = true;
     }
 
@@ -89,7 +89,7 @@ public:
      */
     void reserve_allocations(const size_t n_variables, const size_t n_iter) {
         allocation_samples.set_size(n_variables, n_iter);
-        allocation_samples.fill(arma::datum::nan);
+        allocation_samples.fill(-1);
         has_allocations = true;
     }
 

@@ -573,7 +573,11 @@ double OMRFModel::log_pseudoposterior_main_component(int variable, int category,
     double log_posterior = 0.0;
 
     const int num_cats = num_categories_(variable);
-    arma::vec bound = num_cats * residual_matrix_.col(variable);
+    // Stabiliser for the log-sum-exp; clamp at 0 (the reference-category
+    // exponent) so exp(-bound) cannot overflow. bound is subtracted inside the
+    // denominator and added back below, so its value does not change the result.
+    arma::vec bound = arma::clamp(
+        num_cats * residual_matrix_.col(variable), 0.0, arma::datum::inf);
 
     if (is_ordinal_variable_(variable)) {
         const double value = main_effects_(variable, category);
@@ -620,9 +624,18 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     const int num_persons = static_cast<int>(n_);
     const int num_cats = num_categories_(variable);
 
-    // Compute adjusted linear predictors without the current interaction
-    arma::vec residual_score = residual_matrix_.col(variable) - 2.0 * interaction * current_state;
-    arma::vec bounds = residual_score * num_cats;
+    // Linear predictors for the current and proposed interaction values. The
+    // residual matrix already carries the current interaction.
+    arma::vec res_current = residual_matrix_.col(variable);
+    arma::vec res_proposed =
+        res_current + 2.0 * interaction * (proposed_state - current_state);
+
+    // Shared stabiliser covering both states, built from the actual linear
+    // predictors (not the interaction-removed one) and clamped at 0 so exp
+    // cannot overflow. The same bound is used for both states, so it cancels
+    // in the current/proposed ratio.
+    arma::vec bounds = arma::clamp(
+        num_cats * arma::max(res_current, res_proposed), 0.0, arma::datum::inf);
 
     arma::vec denom_current = arma::zeros(num_persons);
     arma::vec denom_proposed = arma::zeros(num_persons);
@@ -630,23 +643,19 @@ double OMRFModel::compute_log_likelihood_ratio_for_variable(
     if (is_ordinal_variable_(variable)) {
         arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
 
-        denom_current += compute_denom_ordinal(
-            residual_score + 2.0 * interaction * current_state, main_param, bounds
-        );
-        denom_proposed += compute_denom_ordinal(
-            residual_score + 2.0 * interaction * proposed_state, main_param, bounds
-        );
+        denom_current += compute_denom_ordinal(res_current, main_param, bounds);
+        denom_proposed += compute_denom_ordinal(res_proposed, main_param, bounds);
     } else {
         const int ref_cat = baseline_category_(variable);
 
         denom_current = compute_denom_blume_capel(
-            residual_score + 2.0 * interaction * current_state, main_effects_(variable, 0),
+            res_current, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         double log_ratio = arma::accu(ARMA_MY_LOG(denom_current) + bounds);
 
         denom_proposed = compute_denom_blume_capel(
-            residual_score + 2.0 * interaction * proposed_state, main_effects_(variable, 0),
+            res_proposed, main_effects_(variable, 0),
             main_effects_(variable, 1), ref_cat, num_cats, bounds
         );
         log_ratio -= arma::accu(ARMA_MY_LOG(denom_proposed) + bounds);
@@ -700,7 +709,7 @@ double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, doub
 
         arma::vec residual_score = residual_matrix_.col(var) + 2.0 * obs_other * delta;
         arma::vec denominator = arma::zeros(num_observations);
-        arma::vec bound = num_cats * residual_score;
+        arma::vec bound = arma::clamp(num_cats * residual_score, 0.0, arma::datum::inf);
 
         if (is_ordinal_variable_(var)) {
             arma::vec main_effect_param = main_effects_.row(var).cols(0, num_cats - 1).t();

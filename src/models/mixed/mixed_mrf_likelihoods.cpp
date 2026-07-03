@@ -50,7 +50,8 @@ double MixedMRFModel::log_marginal_omrf(int s) const {
             main_param(c) = main_effects_discrete_(s, c) + static_cast<double>((c + 1) * (c + 1)) * precision_ss;
         }
 
-        arma::vec bound = static_cast<double>(C_s) * rest;
+        arma::vec bound = arma::clamp(
+            static_cast<double>(C_s) * rest, 0.0, arma::datum::inf);
         arma::vec denom = compute_denom_ordinal(rest, main_param, bound);
 
         return numer - arma::accu(bound + ARMA_MY_LOG(denom));
