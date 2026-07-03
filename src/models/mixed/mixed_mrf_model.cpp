@@ -107,10 +107,15 @@ MixedMRFModel::MixedMRFModel(
     //   With cross_int = 0, this is zero.
     marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
 
-    // Initialize edge-order permutation vectors
-    edge_order_xx_ = arma::regspace<arma::uvec>(0, num_pairwise_xx_ - 1);
-    edge_order_yy_ = arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1);
-    edge_order_xy_ = arma::regspace<arma::uvec>(0, num_cross_ - 1);
+    // Initialize edge-order permutation vectors. The counts are size_t, so a
+    // zero count (one continuous or one discrete variable) must not reach
+    // regspace(0, count - 1), which would underflow to SIZE_MAX.
+    edge_order_xx_ = num_pairwise_xx_
+        ? arma::regspace<arma::uvec>(0, num_pairwise_xx_ - 1) : arma::uvec();
+    edge_order_yy_ = num_pairwise_yy_
+        ? arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1) : arma::uvec();
+    edge_order_xy_ = num_cross_
+        ? arma::regspace<arma::uvec>(0, num_cross_ - 1) : arma::uvec();
 
     // Detect sparse initial graph (constraints without edge selection)
     if(!edge_selection_) {
