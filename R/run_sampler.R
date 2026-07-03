@@ -96,6 +96,7 @@ run_sampler_ggm = function(spec) {
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_prior = p$edge_prior,
     beta_bernoulli_alpha = p$beta_bernoulli_alpha,
     beta_bernoulli_beta = p$beta_bernoulli_beta,
