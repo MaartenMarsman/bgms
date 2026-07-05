@@ -202,8 +202,7 @@ warm-up window (see \code{calibration_window}) and audited after
 sampling (\code{\link{summarize_zratio_diagnostics}}; the summary
 is returned as \code{fit$zratio_diag} and issues print like other
 sampler warnings). Requires \code{edge_selection = TRUE}, a
-\code{normal_prior()} or \code{cauchy_prior()} interaction prior
-(the Cauchy slab enters through its scale mixture of normals), a
+\code{normal_prior()} or \code{cauchy_prior()} interaction prior, a
 shape-1 \code{gamma_prior()} (or \code{exponential_prior()})
 precision scale prior, and continuous data — either all-continuous
 (GGM) or mixed with at least two continuous variables. On mixed data the

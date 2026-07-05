@@ -407,9 +407,7 @@ bgm_spec = function(x,
       stop(sprintf(
         paste0(
           "precision_graph_prior = \"hierarchical\" supports a normal or Cauchy ",
-          "interaction (slab) prior: the Z-ratio normalizer is derived for ",
-          "the normal slab, and the Cauchy slab enters through its scale ",
-          "mixture of normals. Got %s_prior(). Use interaction_prior = ",
+          "interaction (slab) prior. Got %s_prior(). Use interaction_prior = ",
           "normal_prior() or cauchy_prior(), or keep precision_graph_prior = ",
           "\"joint\"."
         ),

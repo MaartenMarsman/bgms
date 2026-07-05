@@ -319,10 +319,8 @@ sample_ggm_prior = function(
       stop(sprintf(
         paste0(
           "spec = \"hierarchical\" supports a normal or Cauchy interaction ",
-          "(slab) prior: the Z-ratio normalizer is derived for the normal ",
-          "slab, and the Cauchy slab enters through its scale mixture of ",
-          "normals. Got %s_prior(). Use interaction_prior = normal_prior() ",
-          "or cauchy_prior()."
+          "(slab) prior. Got %s_prior(). Use interaction_prior = ",
+          "normal_prior() or cauchy_prior()."
         ),
         ip$interaction_prior_type
       ))
