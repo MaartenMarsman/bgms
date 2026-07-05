@@ -157,6 +157,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       ind[["n_eff_mixt"]][few] = NA
     }
 
+    ind_has_na = anyNA(ind)
+
     # round only numeric columns
     ind[] = lapply(ind, function(col) {
       if(is.numeric(col)) {
@@ -175,15 +177,19 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     if(nrow(x$indicator) > 6) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
     }
-    cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-    cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
-    cat("`summary(fit)$indicator` still contains all computed values.\n\n")
+    if(ind_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
+      cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
+      cat("`summary(fit)$indicator` still contains all computed values.\n")
+    }
+    cat("\n")
   }
 
   if(!is.null(x$main_diff)) {
     cat("Group differences (main effects):\n")
 
     maind = head(x$main_diff, 6)
+    maind_has_na = anyNA(maind)
 
     # Only round numeric columns
     is_num = vapply(maind, is.numeric, logical(1))
@@ -198,9 +204,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$main_diff` to see full output)\n")
     }
 
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && maind_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
+      cat("is constant across iterations, so mcse/n_eff_mixt are undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -210,6 +216,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     cat("Group differences (pairwise effects):\n")
 
     pairwised = head(x$pairwise_diff, 6)
+    pairwised_has_na = anyNA(pairwised)
 
     # Only round numeric columns
     is_num = vapply(pairwised, is.numeric, logical(1))
@@ -224,9 +231,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$pairwise_diff` to see full output)\n")
     }
 
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && pairwised_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
+      cat("is constant across iterations, so mcse/n_eff_mixt are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
     cat("\n")

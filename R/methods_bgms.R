@@ -165,12 +165,13 @@ print.summary.bgms = function(x, digits = 3, ...) {
   if(!is.null(x$pairwise)) {
     cat("Pairwise interactions:\n")
     pair = head(x$pairwise, .summary_preview_rows)
+    pair_has_na = anyNA(pair)
     pair[] = lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(pair)
     if(nrow(x$pairwise) > .summary_preview_rows) cat("... (use `summary(fit)$pairwise` to see full output)\n")
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an \n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && pair_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
+      cat("is constant across iterations, so mcse/n_eff_mixt are undefined;\n")
       cat("`summary(fit)$pairwise` still contains the NA values.\n")
     }
     cat("\n")
@@ -185,12 +186,16 @@ print.summary.bgms = function(x, digits = 3, ...) {
       few[is.na(few)] = TRUE
       ind[["n_eff_mixt"]][few] = NA
     }
+    ind_has_na = anyNA(ind)
     ind[] = lapply(ind, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(ind)
     if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
-    cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-    cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
-    cat("`summary(fit)$indicator` still contains all computed values.\n\n")
+    if(ind_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
+      cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
+      cat("`summary(fit)$indicator` still contains all computed values.\n")
+    }
+    cat("\n")
   }
 
   if(!is.null(x$allocations)) {
