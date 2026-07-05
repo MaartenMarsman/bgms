@@ -168,7 +168,7 @@
 #'   sampled inclusion probability is returned per chain in
 #'   \code{fit$inclusion_parameter_samples}.
 #'
-#' @param graph_prior_spec Character. How the precision prior composes with
+#' @param precision_graph_prior Character. How the precision prior composes with
 #'   the edge prior under edge selection for continuous (GGM) data:
 #'   \describe{
 #'     \item{"joint"}{(default) The un-normalised joint specification
@@ -202,7 +202,7 @@
 #'   Default: \code{"joint"}.
 #'
 #' @param calibration_window Non-negative integer or \code{NULL} (default).
-#'   Only for \code{graph_prior_spec = "hierarchical"}: length of the
+#'   Only for \code{precision_graph_prior = "hierarchical"}: length of the
 #'   appended warm-up window in which the Z-ratio correction is calibrated
 #'   online against a block-Gibbs oracle and then frozen (with its hull
 #'   clamp) before sampling. \code{NULL} resolves to no window for
@@ -395,7 +395,7 @@
 #' }
 #'
 #' @export
-bgm = function(
+bgm <- function(
   x,
   variable_type = "ordinal",
   baseline_category,
@@ -408,7 +408,7 @@ bgm = function(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
-  graph_prior_spec = c("joint", "hierarchical"),
+  precision_graph_prior = c("joint", "hierarchical"),
   calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
@@ -441,87 +441,87 @@ bgm = function(
 ) {
   # Set verbose option for internal functions, restore on exit
 
-  old_verbose = getOption("bgms.verbose")
+  old_verbose <- getOption("bgms.verbose")
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
 
   # --- Legacy deprecation: v0.1.6.0 renames -----------------------------------
-  if(hasArg(interaction_scale)) {
+  if (hasArg(interaction_scale)) {
     lifecycle::deprecate_warn(
       "0.1.6.0", "bgm(interaction_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(!hasArg(pairwise_scale) &&
+    if (!hasArg(pairwise_scale) &&
       identical(interaction_prior, cauchy_prior(scale = 1))) {
-      interaction_prior = cauchy_prior(scale = interaction_scale)
+      interaction_prior <- cauchy_prior(scale = interaction_scale)
     }
   }
 
-  if(hasArg(burnin)) {
+  if (hasArg(burnin)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgm(burnin =)", "bgm(warmup =)")
-    if(!hasArg(warmup)) warmup = burnin
+    if (!hasArg(warmup)) warmup <- burnin
   }
 
-  if(hasArg(save)) {
+  if (hasArg(save)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgm(save =)")
   }
 
-  if(hasArg(threshold_alpha) || hasArg(threshold_beta)) {
+  if (hasArg(threshold_alpha) || hasArg(threshold_beta)) {
     lifecycle::deprecate_warn(
       "0.1.6.0",
       "bgm(threshold_alpha =, threshold_beta =)",
       "bgm(threshold_prior =)"
     )
-    if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
-      ta = if(hasArg(threshold_alpha)) threshold_alpha else 0.5
-      tb = if(hasArg(threshold_beta)) threshold_beta else 0.5
-      threshold_prior = beta_prime_prior(alpha = ta, beta = tb)
+    if (identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
+      ta <- if (hasArg(threshold_alpha)) threshold_alpha else 0.5
+      tb <- if (hasArg(threshold_beta)) threshold_beta else 0.5
+      threshold_prior <- beta_prime_prior(alpha = ta, beta = tb)
     }
   }
 
   # --- Legacy deprecation: scalar prior parameters ----------------------------
-  if(hasArg(pairwise_scale)) {
+  if (hasArg(pairwise_scale)) {
     lifecycle::deprecate_warn(
       "0.2.0", "bgm(pairwise_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
-      interaction_prior = cauchy_prior(scale = pairwise_scale)
+    if (identical(interaction_prior, cauchy_prior(scale = 1))) {
+      interaction_prior <- cauchy_prior(scale = pairwise_scale)
     }
   }
 
-  if(hasArg(main_alpha) || hasArg(main_beta)) {
+  if (hasArg(main_alpha) || hasArg(main_beta)) {
     lifecycle::deprecate_warn(
       "0.2.0",
       "bgm(main_alpha =)",
       "bgm(threshold_prior =)"
     )
-    if(identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
-      ma = if(hasArg(main_alpha)) main_alpha else 0.5
-      mb = if(hasArg(main_beta)) main_beta else 0.5
-      threshold_prior = beta_prime_prior(alpha = ma, beta = mb)
+    if (identical(threshold_prior, beta_prime_prior(0.5, 0.5))) {
+      ma <- if (hasArg(main_alpha)) main_alpha else 0.5
+      mb <- if (hasArg(main_beta)) main_beta else 0.5
+      threshold_prior <- beta_prime_prior(alpha = ma, beta = mb)
     }
   }
 
   # Handle edge_prior: accept both string (deprecated) and object (new)
-  if(is.character(edge_prior)) {
+  if (is.character(edge_prior)) {
     lifecycle::deprecate_warn(
       "0.2.0", "bgm(edge_prior = 'must be a prior object')",
       "bgm(edge_prior = 'bernoulli_prior()')"
     )
-    edge_prior_str = match.arg(edge_prior,
+    edge_prior_str <- match.arg(edge_prior,
       choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
     )
 
-    ip = if(hasArg(inclusion_probability)) inclusion_probability else 0.5
-    bba = if(hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
-    bbb = if(hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
-    bbab = if(hasArg(beta_bernoulli_alpha_between)) beta_bernoulli_alpha_between else 1
-    bbbb = if(hasArg(beta_bernoulli_beta_between)) beta_bernoulli_beta_between else 1
-    da = if(hasArg(dirichlet_alpha)) dirichlet_alpha else 1
-    lam = if(hasArg(lambda)) lambda else 1
+    ip <- if (hasArg(inclusion_probability)) inclusion_probability else 0.5
+    bba <- if (hasArg(beta_bernoulli_alpha)) beta_bernoulli_alpha else 1
+    bbb <- if (hasArg(beta_bernoulli_beta)) beta_bernoulli_beta else 1
+    bbab <- if (hasArg(beta_bernoulli_alpha_between)) beta_bernoulli_alpha_between else 1
+    bbbb <- if (hasArg(beta_bernoulli_beta_between)) beta_bernoulli_beta_between else 1
+    da <- if (hasArg(dirichlet_alpha)) dirichlet_alpha else 1
+    lam <- if (hasArg(lambda)) lambda else 1
 
-    edge_prior = switch(edge_prior_str,
+    edge_prior <- switch(edge_prior_str,
       "Bernoulli" = bernoulli_prior(inclusion_probability = ip),
       "Beta-Bernoulli" = beta_bernoulli_prior(alpha = bba, beta = bbb),
       "Stochastic-Block" = sbm_prior(
@@ -532,13 +532,13 @@ bgm = function(
     )
   } else {
     # Warn if loose edge params are also supplied alongside an object
-    if(hasArg(inclusion_probability)) {
+    if (hasArg(inclusion_probability)) {
       lifecycle::deprecate_warn(
         "0.2.0", "bgm(inclusion_probability =)",
         "bgm(edge_prior = 'bernoulli_prior()')"
       )
     }
-    if(hasArg(beta_bernoulli_alpha)) {
+    if (hasArg(beta_bernoulli_alpha)) {
       lifecycle::deprecate_warn(
         "0.2.0", "bgm(beta_bernoulli_alpha =)",
         "bgm(edge_prior = 'beta_bernoulli_prior()')"
@@ -547,17 +547,17 @@ bgm = function(
   }
 
   # --- Unpack prior objects to flat parameters for bgm_spec -------------------
-  ip = unpack_interaction_prior(interaction_prior)
-  tp = unpack_threshold_prior(threshold_prior)
-  mp = unpack_parameter_prior(means_prior)
-  sp = unpack_scale_prior(precision_scale_prior)
+  ip <- unpack_interaction_prior(interaction_prior)
+  tp <- unpack_threshold_prior(threshold_prior)
+  mp <- unpack_parameter_prior(means_prior)
+  sp <- unpack_scale_prior(precision_scale_prior)
 
   # --- Build spec, sample, build output ----------------------------------------
-  spec = bgm_spec(
+  spec <- bgm_spec(
     x = x,
     model_type = "omrf",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else NULL,
+    baseline_category = if (hasArg(baseline_category)) baseline_category else NULL,
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
@@ -578,10 +578,10 @@ bgm = function(
     delta = delta,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
-    graph_prior_spec = graph_prior_spec,
+    precision_graph_prior = precision_graph_prior,
     calibration_window = calibration_window,
     update_method = update_method,
-    target_accept = if(hasArg(target_accept)) target_accept else NULL,
+    target_accept = if (hasArg(target_accept)) target_accept else NULL,
     iter = iter,
     warmup = warmup,
     nuts_max_depth = nuts_max_depth,
@@ -594,7 +594,7 @@ bgm = function(
     progress_callback = progress_callback
   )
 
-  raw = run_sampler(spec)
-  output = build_output(spec, raw)
+  raw <- run_sampler(spec)
+  output <- build_output(spec, raw)
   return(output)
 }

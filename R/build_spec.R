@@ -52,34 +52,34 @@ sampler_sublist = function(s) {
 
 
 
-build_spec_ggm = function(x, data_columnnames, num_variables,
-                          variable_type, is_ordinal, is_continuous,
-                          baseline_category,
-                          na_action, sampler,
-                          interaction_prior_type, pairwise_scale,
-                          interaction_alpha, interaction_beta,
-                          scale_prior_type, scale_shape, scale_rate,
-                          scale_eta = NA_real_,
-                          delta = 0,
-                          graph_prior_spec = "joint",
-                          calibration_window = NULL,
-                          edge_prior_flat) {
+build_spec_ggm <- function(x, data_columnnames, num_variables,
+                           variable_type, is_ordinal, is_continuous,
+                           baseline_category,
+                           na_action, sampler,
+                           interaction_prior_type, pairwise_scale,
+                           interaction_alpha, interaction_beta,
+                           scale_prior_type, scale_shape, scale_rate,
+                           scale_eta = NA_real_,
+                           delta = 0,
+                           precision_graph_prior = "joint",
+                           calibration_window = NULL,
+                           edge_prior_flat) {
   # Missing data
-  md = validate_missing_data(
+  md <- validate_missing_data(
     x = x, na_action = na_action,
     is_continuous = TRUE
   )
-  x = md$x
+  x <- md$x
 
   # Center continuous data (GGM likelihood assumes zero mean). The column
   # means are kept so prediction can center newdata on the training scale.
-  column_means = colMeans(x)
-  x = center_continuous_data(x)
+  column_means <- colMeans(x)
+  x <- center_continuous_data(x)
 
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
-  scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
+  scale_rate <- resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
 
-  ep = edge_prior_flat
+  ep <- edge_prior_flat
 
   new_bgm_spec(
     model_type = "ggm",
@@ -112,7 +112,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        graph_prior_spec = graph_prior_spec,
+        precision_graph_prior = precision_graph_prior,
         calibration_window = calibration_window
       ),
       edge_prior_spec_fields(ep)
@@ -215,53 +215,53 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
 # the spec with metadata needed by sample_mixed_mrf() and
 # build_output_mixed_mrf().
 # ------------------------------------------------------------------
-build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
-                                variable_type, is_ordinal,
-                                baseline_category,
-                                na_action, sampler,
-                                interaction_prior_type, pairwise_scale,
-                                interaction_alpha, interaction_beta,
-                                threshold_prior_type, main_alpha, main_beta,
-                                threshold_scale,
-                                means_prior_type, means_scale,
-                                means_alpha, means_beta,
-                                scale_prior_type, scale_shape, scale_rate,
-                                scale_eta = NA_real_,
-                                delta = 0,
-                                graph_prior_spec = "joint",
-                                calibration_window = NULL,
-                                edge_prior_flat) {
+build_spec_mixed_mrf <- function(x, data_columnnames, num_variables,
+                                 variable_type, is_ordinal,
+                                 baseline_category,
+                                 na_action, sampler,
+                                 interaction_prior_type, pairwise_scale,
+                                 interaction_alpha, interaction_beta,
+                                 threshold_prior_type, main_alpha, main_beta,
+                                 threshold_scale,
+                                 means_prior_type, means_scale,
+                                 means_alpha, means_beta,
+                                 scale_prior_type, scale_shape, scale_rate,
+                                 scale_eta = NA_real_,
+                                 delta = 0,
+                                 precision_graph_prior = "joint",
+                                 calibration_window = NULL,
+                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
-  scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
+  scale_rate <- resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
 
   # Identify discrete vs continuous columns
-  cont_idx = which(variable_type == "continuous")
-  disc_idx = which(variable_type != "continuous")
-  p = length(disc_idx)
-  q = length(cont_idx)
+  cont_idx <- which(variable_type == "continuous")
+  disc_idx <- which(variable_type != "continuous")
+  p <- length(disc_idx)
+  q <- length(cont_idx)
 
   # Split data
-  x_disc = x[, disc_idx, drop = FALSE]
-  x_cont = x[, cont_idx, drop = FALSE]
+  x_disc <- x[, disc_idx, drop = FALSE]
+  x_cont <- x[, cont_idx, drop = FALSE]
 
   # Ensure integer matrix for discrete data
-  storage.mode(x_disc) = "integer"
+  storage.mode(x_disc) <- "integer"
   # Ensure numeric matrix for continuous data
-  storage.mode(x_cont) = "double"
+  storage.mode(x_cont) <- "double"
 
   # Discrete variable properties (subset to discrete columns)
-  is_ordinal_disc = is_ordinal[disc_idx]
-  vtype_disc = variable_type[disc_idx]
+  is_ordinal_disc <- is_ordinal[disc_idx]
+  vtype_disc <- variable_type[disc_idx]
 
   # Subset baseline_category to discrete columns when the user supplies a
 
   # full-length vector (one entry per variable, including continuous ones).
-  if(length(baseline_category) == num_variables && num_variables != p) {
-    baseline_category = baseline_category[disc_idx]
+  if (length(baseline_category) == num_variables && num_variables != p) {
+    baseline_category <- baseline_category[disc_idx]
   }
 
   # Baseline category for discrete variables
-  bc = validate_baseline_category(
+  bc <- validate_baseline_category(
     baseline_category = baseline_category,
     baseline_category_provided = !is.null(baseline_category),
     x = x_disc,
@@ -269,30 +269,30 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   )
 
   # Missing data handling
-  na_impute = FALSE
-  missing_index_discrete = NULL
-  missing_index_continuous = NULL
+  na_impute <- FALSE
+  missing_index_discrete <- NULL
+  missing_index_continuous <- NULL
 
-  if(na_action == "listwise") {
-    missing_rows = apply(x_disc, 1, anyNA) | apply(x_cont, 1, anyNA)
-    if(all(missing_rows)) {
+  if (na_action == "listwise") {
+    missing_rows <- apply(x_disc, 1, anyNA) | apply(x_cont, 1, anyNA)
+    if (all(missing_rows)) {
       stop(paste0(
         "All rows in x contain at least one missing response.\n",
         "You could try option na_action = \"impute\"."
       ))
     }
-    n_removed = sum(missing_rows)
-    if(n_removed > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
-      n_remaining = nrow(x_disc) - n_removed
+    n_removed <- sum(missing_rows)
+    if (n_removed > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+      n_remaining <- nrow(x_disc) - n_removed
       message(
-        n_removed, " row", if(n_removed > 1) "s" else "",
+        n_removed, " row", if (n_removed > 1) "s" else "",
         " with missing values excluded (n = ", n_remaining, " remaining).\n",
         "To impute missing values instead, use na_action = \"impute\"."
       )
     }
-    x_disc = x_disc[!missing_rows, , drop = FALSE]
-    x_cont = x_cont[!missing_rows, , drop = FALSE]
-    if(nrow(x_disc) < 2) {
+    x_disc <- x_disc[!missing_rows, , drop = FALSE]
+    x_cont <- x_cont[!missing_rows, , drop = FALSE]
+    if (nrow(x_disc) < 2) {
       stop(paste0(
         "After removing missing observations from the input matrix x,\n",
         "there were less than two rows left in x."
@@ -300,27 +300,27 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
     }
   } else {
     # Impute path: handle discrete and continuous sub-matrices separately
-    md_disc = handle_impute(x_disc)
-    md_cont = handle_impute(x_cont)
-    x_disc = md_disc$x
-    x_cont = md_cont$x
-    na_impute = md_disc$na_impute || md_cont$na_impute
-    if(md_disc$na_impute) missing_index_discrete = md_disc$missing_index
-    if(md_cont$na_impute) missing_index_continuous = md_cont$missing_index
+    md_disc <- handle_impute(x_disc)
+    md_cont <- handle_impute(x_cont)
+    x_disc <- md_disc$x
+    x_cont <- md_cont$x
+    na_impute <- md_disc$na_impute || md_cont$na_impute
+    if (md_disc$na_impute) missing_index_discrete <- md_disc$missing_index
+    if (md_cont$na_impute) missing_index_continuous <- md_cont$missing_index
   }
 
   # Ordinal recoding (reformat discrete data)
-  ord = reformat_ordinal_data(
+  ord <- reformat_ordinal_data(
     x = x_disc, is_ordinal = is_ordinal_disc,
     baseline_category = bc
   )
-  x_disc_recoded = ord$x
-  num_categories = ord$num_categories
-  bc_final = ord$baseline_category
+  x_disc_recoded <- ord$x
+  num_categories <- ord$num_categories
+  bc_final <- ord$baseline_category
 
-  ep = edge_prior_flat
+  ep <- edge_prior_flat
 
-  num_thresholds = sum(ifelse(is_ordinal_disc, num_categories, 2L))
+  num_thresholds <- sum(ifelse(is_ordinal_disc, num_categories, 2L))
 
   new_bgm_spec(
     model_type = "mixed_mrf",
@@ -375,7 +375,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        graph_prior_spec = graph_prior_spec,
+        precision_graph_prior = precision_graph_prior,
         calibration_window = calibration_window
       ),
       edge_prior_spec_fields(ep)

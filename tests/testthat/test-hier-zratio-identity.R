@@ -20,14 +20,7 @@ hier_prior_run = function(q, delta, sigma, p_inc, um, edge_prior = NULL,
   )
 }
 
-test_that("hierarchical spec requires the Normal slab and shape-1 diagonal", {
-  expect_error(
-    sample_ggm_prior(
-      p = 4, n_samples = 5, n_warmup = 5, spec = "hierarchical",
-      interaction_prior = cauchy_prior(scale = 1), verbose = FALSE
-    ),
-    "normal interaction"
-  )
+test_that("hierarchical spec requires the shape-1 diagonal", {
   expect_error(
     sample_ggm_prior(
       p = 4, n_samples = 5, n_warmup = 5, spec = "hierarchical",

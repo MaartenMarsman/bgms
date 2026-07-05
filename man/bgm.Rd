@@ -17,7 +17,7 @@ bgm(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
-  graph_prior_spec = c("joint", "hierarchical"),
+  precision_graph_prior = c("joint", "hierarchical"),
   calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
@@ -181,7 +181,7 @@ configuration skip the build. With \code{beta_bernoulli_prior()} the
 sampled inclusion probability is returned per chain in
 \code{fit$inclusion_parameter_samples}.}
 
-\item{graph_prior_spec}{Character. How the precision prior composes with
+\item{precision_graph_prior}{Character. How the precision prior composes with
 the edge prior under edge selection for continuous (GGM) data:
 \describe{
 \item{"joint"}{(default) The un-normalised joint specification
@@ -215,7 +215,7 @@ and cross edges are unchanged.}
 Default: \code{"joint"}.}
 
 \item{calibration_window}{Non-negative integer or \code{NULL} (default).
-Only for \code{graph_prior_spec = "hierarchical"}: length of the
+Only for \code{precision_graph_prior = "hierarchical"}: length of the
 appended warm-up window in which the Z-ratio correction is calibrated
 online against a block-Gibbs oracle and then frozen (with its hull
 clamp) before sampling. \code{NULL} resolves to no window for

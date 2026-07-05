@@ -89,12 +89,12 @@ spec_compare = function(...) {
 # ==============================================================================
 
 test_that("GGM build_arguments: all expected field names present", {
-  s = spec_ggm()
-  a = build_arguments(s)
-  expected = c(
+  s <- spec_ggm()
+  a <- build_arguments(s)
+  expected <- c(
     "num_variables", "num_cases", "na_impute", "variable_type",
     "iter", "warmup", "edge_selection", "edge_prior",
-    "graph_prior_spec", "calibration_window",
+    "precision_graph_prior", "calibration_window",
     "inclusion_probability", "beta_bernoulli_alpha", "beta_bernoulli_beta",
     "beta_bernoulli_alpha_between", "beta_bernoulli_beta_between",
     "dirichlet_alpha", "lambda", "na_action", "version",

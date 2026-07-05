@@ -238,79 +238,79 @@ validate_bgm_spec = function(spec) {
 #
 # Parameters mirror the union of bgm() and bgmCompare() arguments.
 # ==============================================================================
-bgm_spec = function(x,
-                    model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
-                    # Variable specification
-                    variable_type = "ordinal",
-                    baseline_category = NULL,
-                    # Data (compare-specific)
-                    y = NULL,
-                    group_indicator = NULL,
-                    # Missing data
-                    na_action = c("listwise", "impute"),
-                    # Priors (new: prior objects unpacked by bgm())
-                    interaction_prior_type = "cauchy",
-                    pairwise_scale = 1,
-                    interaction_alpha = NA_real_,
-                    interaction_beta = NA_real_,
-                    threshold_prior_type = "beta-prime",
-                    main_alpha = 0.5,
-                    main_beta = 0.5,
-                    threshold_scale = NA_real_,
-                    means_prior_type = "normal",
-                    means_scale = 1,
-                    means_alpha = NA_real_,
-                    means_beta = NA_real_,
-                    scale_prior_type = "gamma",
-                    scale_shape = 1,
-                    scale_rate = 1,
-                    scale_eta = NA_real_,
-                    delta = NULL,
-                    edge_selection = TRUE,
-                    edge_prior = bernoulli_prior(0.5),
-                    graph_prior_spec = c("joint", "hierarchical"),
-                    calibration_window = NULL,
-                    # Legacy edge prior params (accepted for backward compat)
-                    inclusion_probability = 0.5,
-                    beta_bernoulli_alpha_between = 1,
-                    beta_bernoulli_beta_between = 1,
-                    dirichlet_alpha = 1,
-                    lambda = 1,
-                    # Priors (compare-specific)
-                    difference_selection = TRUE,
-                    main_difference_selection = FALSE,
-                    difference_prior = c(
-                      "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
-                    ),
-                    difference_scale = 1,
-                    difference_prior_type = "cauchy",
-                    difference_probability = 0.5,
-                    # Compare difference prior hyperparameters
-                    beta_bernoulli_alpha = 1,
-                    beta_bernoulli_beta = 1,
-                    difference_beta_bernoulli_alpha_between = 1,
-                    difference_beta_bernoulli_beta_between = 1,
-                    difference_dirichlet_alpha = 1,
-                    difference_lambda = 1,
-                    # Sampler
-                    update_method = c(
-                      "nuts",
-                      "adaptive-metropolis",
-                      "gibbs"
-                    ),
-                    target_accept = NULL,
-                    iter = 10000L,
-                    warmup = 1000L,
-                    nuts_max_depth = 10L,
-                    learn_mass_matrix = TRUE,
-                    chains = 4L,
-                    cores = parallel::detectCores(),
-                    seed = NULL,
-                    display_progress = c("per-chain", "total", "none"),
-                    verbose = TRUE,
-                    progress_callback = NULL) {
-  model_type = match.arg(model_type)
-  na_action = tryCatch(match.arg(na_action), error = function(e) {
+bgm_spec <- function(x,
+                     model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
+                     # Variable specification
+                     variable_type = "ordinal",
+                     baseline_category = NULL,
+                     # Data (compare-specific)
+                     y = NULL,
+                     group_indicator = NULL,
+                     # Missing data
+                     na_action = c("listwise", "impute"),
+                     # Priors (new: prior objects unpacked by bgm())
+                     interaction_prior_type = "cauchy",
+                     pairwise_scale = 1,
+                     interaction_alpha = NA_real_,
+                     interaction_beta = NA_real_,
+                     threshold_prior_type = "beta-prime",
+                     main_alpha = 0.5,
+                     main_beta = 0.5,
+                     threshold_scale = NA_real_,
+                     means_prior_type = "normal",
+                     means_scale = 1,
+                     means_alpha = NA_real_,
+                     means_beta = NA_real_,
+                     scale_prior_type = "gamma",
+                     scale_shape = 1,
+                     scale_rate = 1,
+                     scale_eta = NA_real_,
+                     delta = NULL,
+                     edge_selection = TRUE,
+                     edge_prior = bernoulli_prior(0.5),
+                     precision_graph_prior = c("joint", "hierarchical"),
+                     calibration_window = NULL,
+                     # Legacy edge prior params (accepted for backward compat)
+                     inclusion_probability = 0.5,
+                     beta_bernoulli_alpha_between = 1,
+                     beta_bernoulli_beta_between = 1,
+                     dirichlet_alpha = 1,
+                     lambda = 1,
+                     # Priors (compare-specific)
+                     difference_selection = TRUE,
+                     main_difference_selection = FALSE,
+                     difference_prior = c(
+                       "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
+                     ),
+                     difference_scale = 1,
+                     difference_prior_type = "cauchy",
+                     difference_probability = 0.5,
+                     # Compare difference prior hyperparameters
+                     beta_bernoulli_alpha = 1,
+                     beta_bernoulli_beta = 1,
+                     difference_beta_bernoulli_alpha_between = 1,
+                     difference_beta_bernoulli_beta_between = 1,
+                     difference_dirichlet_alpha = 1,
+                     difference_lambda = 1,
+                     # Sampler
+                     update_method = c(
+                       "nuts",
+                       "adaptive-metropolis",
+                       "gibbs"
+                     ),
+                     target_accept = NULL,
+                     iter = 10000L,
+                     warmup = 1000L,
+                     nuts_max_depth = 10L,
+                     learn_mass_matrix = TRUE,
+                     chains = 4L,
+                     cores = parallel::detectCores(),
+                     seed = NULL,
+                     display_progress = c("per-chain", "total", "none"),
+                     verbose = TRUE,
+                     progress_callback = NULL) {
+  model_type <- match.arg(model_type)
+  na_action <- tryCatch(match.arg(na_action), error = function(e) {
     stop(paste0(
       "The na_action argument should be one of \"listwise\" or \"impute\", not \"",
       na_action, "\"."
@@ -318,44 +318,44 @@ bgm_spec = function(x,
   })
 
   # --- Data validation --------------------------------------------------------
-  x = data_check(x, "x")
-  data_columnnames = if(is.null(colnames(x))) {
+  x <- data_check(x, "x")
+  data_columnnames <- if (is.null(colnames(x))) {
     paste0("Variable ", seq_len(ncol(x)))
   } else {
     colnames(x)
   }
-  num_variables = ncol(x)
+  num_variables <- ncol(x)
 
   # --- Variable types ---------------------------------------------------------
-  allow_continuous = (model_type != "compare")
-  vt = validate_variable_types(
+  allow_continuous <- (model_type != "compare")
+  vt <- validate_variable_types(
     variable_type    = variable_type,
     num_variables    = num_variables,
     allow_continuous = allow_continuous,
     allow_mixed      = (model_type != "compare"),
-    caller           = if(model_type == "compare") "bgmCompare" else "bgm"
+    caller           = if (model_type == "compare") "bgmCompare" else "bgm"
   )
-  variable_type = vt$variable_type
-  is_ordinal = vt$variable_bool
-  is_continuous = vt$is_continuous
-  is_mixed = vt$is_mixed
+  variable_type <- vt$variable_type
+  is_ordinal <- vt$variable_bool
+  is_continuous <- vt$is_continuous
+  is_mixed <- vt$is_mixed
 
   # Resolve model_type if "omrf" default was kept but data is continuous
-  if(model_type == "omrf" && is_continuous) {
-    model_type = "ggm"
+  if (model_type == "omrf" && is_continuous) {
+    model_type <- "ggm"
   }
-  if(model_type == "omrf" && is_mixed) {
-    model_type = "mixed_mrf"
+  if (model_type == "omrf" && is_mixed) {
+    model_type <- "mixed_mrf"
   }
 
   # Auto-resolve delta = NULL to the dimension-adaptive default 0.5 * log(p),
   # where p is the dimension of the continuous precision matrix. For models
   # without a continuous block (omrf, compare) the tilt has no target, so
   # NULL resolves to 0.
-  if(is.null(delta)) {
-    delta = if(model_type == "ggm") {
+  if (is.null(delta)) {
+    delta <- if (model_type == "ggm") {
       0.5 * log(max(num_variables, 1))
-    } else if(model_type == "mixed_mrf") {
+    } else if (model_type == "mixed_mrf") {
       0.5 * log(max(sum(variable_type == "continuous"), 1))
     } else {
       0
@@ -363,11 +363,11 @@ bgm_spec = function(x,
   }
 
   # Validate determinant-tilt exponent and reject for pure-ordinal models
-  if(!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
+  if (!is.numeric(delta) || length(delta) != 1L || is.na(delta) ||
     !is.finite(delta) || delta < 0) {
     stop("'delta' must be a single finite non-negative numeric, or NULL.")
   }
-  if(delta > 0 && model_type %in% c("omrf", "compare")) {
+  if (delta > 0 && model_type %in% c("omrf", "compare")) {
     stop(
       "'delta' (determinant tilt) requires continuous variables; the ",
       "current model_type is '", model_type, "', which has no precision ",
@@ -379,51 +379,51 @@ bgm_spec = function(x,
   # The Z-ratio constants are derived for the Normal slab with an exponential
   # (shape-1 Gamma) diagonal, on the continuous precision matrix, under edge
   # selection. Anything else keeps the joint specification.
-  graph_prior_spec = match.arg(graph_prior_spec)
-  if(graph_prior_spec == "hierarchical") {
-    if(!model_type %in% c("ggm", "mixed_mrf")) {
+  precision_graph_prior <- match.arg(precision_graph_prior)
+  if (precision_graph_prior == "hierarchical") {
+    if (!model_type %in% c("ggm", "mixed_mrf")) {
       stop(
-        "graph_prior_spec = \"hierarchical\" needs a continuous precision ",
+        "precision_graph_prior = \"hierarchical\" needs a continuous precision ",
         "block to normalize; the current model_type is '", model_type,
         "'. Use the joint specification, or data with continuous variables."
       )
     }
-    if(model_type == "mixed_mrf" && sum(variable_type == "continuous") < 2) {
+    if (model_type == "mixed_mrf" && sum(variable_type == "continuous") < 2) {
       stop(
-        "graph_prior_spec = \"hierarchical\" on mixed data needs at least ",
+        "precision_graph_prior = \"hierarchical\" on mixed data needs at least ",
         "two continuous variables (the specification normalizes the ",
         "continuous-block prior across its graphs). Use the joint ",
         "specification."
       )
     }
-    if(!edge_selection) {
+    if (!edge_selection) {
       stop(
-        "graph_prior_spec = \"hierarchical\" normalizes p(K | Gamma) ",
+        "precision_graph_prior = \"hierarchical\" normalizes p(K | Gamma) ",
         "across graphs and needs edge_selection = TRUE; with a fixed ",
         "graph the specifications coincide."
       )
     }
-    if(!interaction_prior_type %in% c("normal", "cauchy")) {
+    if (!interaction_prior_type %in% c("normal", "cauchy")) {
       stop(sprintf(
         paste0(
-          "graph_prior_spec = \"hierarchical\" supports a normal or Cauchy ",
+          "precision_graph_prior = \"hierarchical\" supports a normal or Cauchy ",
           "interaction (slab) prior: the Z-ratio normalizer is derived for ",
           "the normal slab, and the Cauchy slab enters through its scale ",
           "mixture of normals. Got %s_prior(). Use interaction_prior = ",
-          "normal_prior() or cauchy_prior(), or keep graph_prior_spec = ",
+          "normal_prior() or cauchy_prior(), or keep precision_graph_prior = ",
           "\"joint\"."
         ),
         interaction_prior_type
       ))
     }
-    if(abs(scale_shape - 1) > 1e-12) {
+    if (abs(scale_shape - 1) > 1e-12) {
       stop(sprintf(
         paste0(
-          "graph_prior_spec = \"hierarchical\" requires shape = 1 on the ",
+          "precision_graph_prior = \"hierarchical\" requires shape = 1 on the ",
           "precision scale prior; the Z-ratio normalizer is derived for ",
           "the exponential diagonal. Got shape = %s. Use ",
           "gamma_prior(shape = 1) or exponential_prior(), or keep ",
-          "graph_prior_spec = \"joint\"."
+          "precision_graph_prior = \"joint\"."
         ),
         format(scale_shape)
       ))
@@ -431,7 +431,7 @@ bgm_spec = function(x,
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
-  sampler = validate_sampler(
+  sampler <- validate_sampler(
     update_method = update_method,
     target_accept = target_accept,
     iter = iter,
@@ -443,20 +443,20 @@ bgm_spec = function(x,
     seed = seed,
     display_progress = display_progress,
     is_continuous = is_continuous,
-    edge_selection = if(model_type == "compare") FALSE else edge_selection,
+    edge_selection = if (model_type == "compare") FALSE else edge_selection,
     verbose = verbose,
     progress_callback = progress_callback
   )
 
   # --- Resolve edge prior object -----------------------------------------------
-  if(inherits(edge_prior, "bgms_indicator_prior")) {
-    ep_flat = unpack_indicator_prior(edge_prior, num_variables)
-  } else if(is.character(edge_prior)) {
+  if (inherits(edge_prior, "bgms_indicator_prior")) {
+    ep_flat <- unpack_indicator_prior(edge_prior, num_variables)
+  } else if (is.character(edge_prior)) {
     # Legacy string path (tests and bgmCompare may call bgm_spec directly)
-    edge_prior_str = match.arg(edge_prior,
+    edge_prior_str <- match.arg(edge_prior,
       choices = c("Bernoulli", "Beta-Bernoulli", "Stochastic-Block")
     )
-    ep_flat = validate_edge_prior(
+    ep_flat <- validate_edge_prior(
       edge_selection = edge_selection, edge_prior = edge_prior_str,
       inclusion_probability = inclusion_probability,
       num_variables = num_variables,
@@ -466,12 +466,12 @@ bgm_spec = function(x,
       beta_bernoulli_beta_between = beta_bernoulli_beta_between,
       dirichlet_alpha = dirichlet_alpha, lambda = lambda
     )
-    ep_flat$beta_bernoulli_alpha = beta_bernoulli_alpha
-    ep_flat$beta_bernoulli_beta = beta_bernoulli_beta
-    ep_flat$beta_bernoulli_alpha_between = beta_bernoulli_alpha_between
-    ep_flat$beta_bernoulli_beta_between = beta_bernoulli_beta_between
-    ep_flat$dirichlet_alpha = dirichlet_alpha
-    ep_flat$lambda = lambda
+    ep_flat$beta_bernoulli_alpha <- beta_bernoulli_alpha
+    ep_flat$beta_bernoulli_beta <- beta_bernoulli_beta
+    ep_flat$beta_bernoulli_alpha_between <- beta_bernoulli_alpha_between
+    ep_flat$beta_bernoulli_beta_between <- beta_bernoulli_beta_between
+    ep_flat$dirichlet_alpha <- dirichlet_alpha
+    ep_flat$lambda <- lambda
   } else {
     stop(
       "'edge_prior' must be a bgms_indicator_prior object.",
@@ -479,15 +479,15 @@ bgm_spec = function(x,
     )
   }
   # Override edge_selection if explicitly FALSE
-  if(!edge_selection) {
-    ep_flat$edge_selection = FALSE
-    ep_flat$edge_prior = "Not Applicable"
-    ep_flat$inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
+  if (!edge_selection) {
+    ep_flat$edge_selection <- FALSE
+    ep_flat$edge_prior <- "Not Applicable"
+    ep_flat$inclusion_probability <- matrix(0.5, nrow = 1, ncol = 1)
   }
 
   # --- Build by model type ----------------------------------------------------
-  if(model_type == "ggm") {
-    spec = build_spec_ggm(
+  if (model_type == "ggm") {
+    spec <- build_spec_ggm(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
       variable_type = variable_type, is_ordinal = is_ordinal,
@@ -503,12 +503,12 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      precision_graph_prior = precision_graph_prior,
       calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
-  } else if(model_type == "mixed_mrf") {
-    spec = build_spec_mixed_mrf(
+  } else if (model_type == "mixed_mrf") {
+    spec <- build_spec_mixed_mrf(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
       variable_type = variable_type, is_ordinal = is_ordinal,
@@ -530,12 +530,12 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      precision_graph_prior = precision_graph_prior,
       calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
-  } else if(model_type == "omrf") {
-    spec = build_spec_omrf(
+  } else if (model_type == "omrf") {
+    spec <- build_spec_omrf(
       x = x, data_columnnames = data_columnnames,
       num_variables = num_variables,
       variable_type = variable_type, is_ordinal = is_ordinal,
@@ -552,7 +552,7 @@ bgm_spec = function(x,
       edge_prior_flat = ep_flat
     )
   } else {
-    spec = build_spec_compare(
+    spec <- build_spec_compare(
       x = x, y = y, group_indicator = group_indicator,
       data_columnnames = data_columnnames,
       num_variables = num_variables,
