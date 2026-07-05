@@ -337,6 +337,33 @@ void MixedMRFModel::refresh_marginal_interactions_entry(int i, int j) {
     marginal_interactions_(j, i) = value;
 }
 
+void MixedMRFModel::recompute_am_caches() {
+    marginal_matvec_ = discrete_observations_dbl_ * marginal_interactions_;
+    cross_matvec_ = discrete_observations_dbl_ * pairwise_effects_cross_;
+    cross_bias_ = 2.0 * pairwise_effects_cross_ * main_effects_continuous_;
+    recompute_conditional_mean_from_cross_matvec();
+
+    if(ll_marginal_cache_.n_elem != p_) {
+        ll_marginal_cache_.set_size(p_);
+        marginal_matvec_prop_.set_size(n_, p_);
+        mdiag_prop_.set_size(p_);
+        ll_marginal_prop_.set_size(p_);
+        cross_bias_prop_.set_size(p_);
+        matvec_col_i_scratch_.set_size(n_);
+        matvec_col_j_scratch_.set_size(n_);
+        cond_mean_scratch_.set_size(n_, q_);
+    }
+    for(size_t s = 0; s < p_; ++s)
+        ll_marginal_cache_(s) = log_marginal_omrf_cached(s);
+    ll_ggm_cache_ = log_conditional_ggm();
+}
+
+void MixedMRFModel::recompute_conditional_mean_from_cross_matvec() {
+    // M = μ_y' + 2 X A_xy Σ_yy with X A_xy read from the sweep cache.
+    conditional_mean_ = 2.0 * cross_matvec_ * covariance_continuous_;
+    conditional_mean_.each_row() += main_effects_continuous_.t();
+}
+
 
 // =============================================================================
 // Constraint structure (RATTLE)
@@ -918,6 +945,8 @@ void MixedMRFModel::impute_missing() {
 // =============================================================================
 
 void MixedMRFModel::do_one_metropolis_step(int iteration) {
+    recompute_am_caches();
+
     // Per-slot accept-probability and visit-mask matrices for the five
     // proposal-SD storages. Only entries we actually visit get mask=1; the
     // adapter only RM-updates those slots.
@@ -1010,6 +1039,8 @@ void MixedMRFModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
 }
 
 void MixedMRFModel::sweep_within_model_mh(std::optional<double> rm_weight) {
+    recompute_am_caches();
+
     // Step 1: Update all main effects (ordinal thresholds or BC α/β)
     for(size_t s = 0; s < p_; ++s) {
         if(is_ordinal_variable_(s)) {
@@ -1055,6 +1086,7 @@ void MixedMRFModel::update_edge_indicators() {
     if(!edge_selection_active_) return;
 
     invalidate_gradient_cache();
+    recompute_am_caches();
 
     // Discrete-discrete edges (shuffled order)
     for(size_t e = 0; e < num_pairwise_xx_; ++e) {
