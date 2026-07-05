@@ -21,6 +21,7 @@ struct BuildTreeResult {
   arma::vec r_plus;        ///< Corresponding momentum at theta_plus
   arma::vec theta_prime;   ///< Current proposed sample (to possibly accept)
   arma::vec r_prime;       ///< Momentum at theta_prime (for energy diagnostics)
+  double logp_prime;       ///< Log-posterior at theta_prime (avoids a re-eval in nuts_step)
   arma::vec rho;           ///< Sum of momenta along the subtree (for U-turn criterion)
   arma::vec p_sharp_beg;   ///< Sharp momentum (M^{-1} p) at subtree beginning
   arma::vec p_sharp_end;   ///< Sharp momentum (M^{-1} p) at subtree end

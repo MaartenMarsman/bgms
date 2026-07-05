@@ -71,6 +71,19 @@ public:
    */
   void invalidate() { has_cache = false; }
 
+  /**
+   * Copy another Memoizer's cached entry (position, logp, gradient).
+   *
+   * Lets a secondary Memoizer start from an evaluation the primary one
+   * already holds instead of recomputing it.
+   */
+  void seed_from(const Memoizer& other) {
+    cached_theta = other.cached_theta;
+    cached_logp_val = other.cached_logp_val;
+    cached_grad_val = other.cached_grad_val;
+    has_cache = other.has_cache;
+  }
+
 private:
   void ensure_cached(const arma::vec& theta) {
     if (has_cache &&

@@ -83,10 +83,11 @@ BuildTreeResult build_tree(
     // ---- Base case: a single leapfrog step --------------------------------
     arma::vec theta_new, r_new;
     bool non_reversible = false;
-    if (project_position && project_momentum) {
-      // Always run the checked variant so we can observe reversibility even
-      // when reverse_check is off. reverse_check controls whether we ACT
-      // on the result (terminate the tree); observation is always on.
+    if (project_position && project_momentum && reverse_check) {
+      // Checked variant: forward step plus a full backward integration to
+      // verify reversibility. Only run when the check is enforced (sampling
+      // phase); warmup observations are never stored, so the backward
+      // integration would be pure overhead there (mirrors hmc_step).
       auto checked = leapfrog_constrained_checked(
         theta, r, v * step_size, memo, inv_mass_diag,
         *project_position, *project_momentum,
@@ -95,6 +96,11 @@ BuildTreeResult build_tree(
       theta_new = std::move(checked.theta);
       r_new = std::move(checked.r);
       non_reversible = !checked.reversible;
+    } else if (project_position && project_momentum) {
+      std::tie(theta_new, r_new) = leapfrog_constrained(
+        theta, r, v * step_size, memo, inv_mass_diag,
+        *project_position, *project_momentum
+      );
     } else {
       std::tie(theta_new, r_new) = leapfrog_memo(
         theta, r, v * step_size, memo, inv_mass_diag
@@ -117,6 +123,7 @@ BuildTreeResult build_tree(
       result.p_end = r_new;
       result.r_prime = std::move(r_new);
       result.theta_prime = std::move(theta_new);
+      result.logp_prime = neg_inf;  // never selected: s_prime = 0
       result.p_sharp_beg = p_sharp;
       result.p_sharp_end = std::move(p_sharp);
       result.log_sum_weight = neg_inf;
@@ -151,6 +158,7 @@ BuildTreeResult build_tree(
     result.p_end = r_new;
     result.r_prime = std::move(r_new);
     result.theta_prime = std::move(theta_new);
+    result.logp_prime = logp;
     result.p_sharp_beg = p_sharp;
     result.p_sharp_end = std::move(p_sharp);
     result.alpha = alpha;
@@ -192,6 +200,7 @@ BuildTreeResult build_tree(
   arma::vec r_plus = std::move(init_result.r_plus);
   arma::vec theta_prime = std::move(init_result.theta_prime);
   arma::vec r_prime = std::move(init_result.r_prime);
+  double logp_prime = init_result.logp_prime;
   arma::vec rho_init = std::move(init_result.rho);
   arma::vec p_sharp_init_beg = std::move(init_result.p_sharp_beg);
   arma::vec p_sharp_init_end = std::move(init_result.p_sharp_end);
@@ -240,6 +249,7 @@ BuildTreeResult build_tree(
     result.r_plus = std::move(r_plus);
     result.theta_prime = std::move(theta_prime);
     result.r_prime = std::move(r_prime);
+    result.logp_prime = logp_prime;
     rho_init += final_result.rho;
     result.rho = std::move(rho_init);
     result.p_sharp_beg = std::move(p_sharp_init_beg);
@@ -273,10 +283,12 @@ BuildTreeResult build_tree(
   if (log_sum_weight_final > log_sum_weight_subtree) {
     theta_prime = std::move(final_result.theta_prime);
     r_prime = std::move(final_result.r_prime);
+    logp_prime = final_result.logp_prime;
   } else if (MY_LOG(runif(rng)) <
              log_sum_weight_final - log_sum_weight_subtree) {
     theta_prime = std::move(final_result.theta_prime);
     r_prime = std::move(final_result.r_prime);
+    logp_prime = final_result.logp_prime;
   }
 
   arma::vec rho_subtree = rho_init + rho_final;
@@ -298,6 +310,7 @@ BuildTreeResult build_tree(
   result.r_plus = std::move(r_plus);
   result.theta_prime = std::move(theta_prime);
   result.r_prime = std::move(r_prime);
+  result.logp_prime = logp_prime;
   result.rho = std::move(rho_subtree);
   result.p_sharp_beg = std::move(p_sharp_init_beg);
   result.p_sharp_end = std::move(p_sharp_final_end);
@@ -340,6 +353,8 @@ StepResult nuts_step(
   double logp0 = memo.cached_log_post(init_theta);
   double kin0 = kinetic_energy(r0, inv_mass_diag);
   double H0 = -logp0 + kin0;
+  // Log-posterior of the currently selected sample, kept in sync with theta.
+  double logp_selected = logp0;
 
   arma::vec theta_min = init_theta, r_min = r0;
   arma::vec theta_plus = init_theta, r_plus = r0;
@@ -431,6 +446,7 @@ StepResult nuts_step(
             result.log_sum_weight - log_sum_weight_traj) {
         theta = std::move(result.theta_prime);
         r = std::move(result.r_prime);
+        logp_selected = result.logp_prime;
       }
     }
     log_sum_weight_traj =
@@ -453,9 +469,8 @@ StepResult nuts_step(
   }
 
   double accept_prob = sum_metro_prob / static_cast<double>(n_leapfrog_total);
-  auto logp_final = memo.cached_log_post(theta);
   double kin_final = kinetic_energy(r, inv_mass_diag);
-  double energy = -logp_final + kin_final;
+  double energy = -logp_selected + kin_final;
 
   auto diag = std::make_shared<NUTSDiagnostics>();
   diag->tree_depth = j;
