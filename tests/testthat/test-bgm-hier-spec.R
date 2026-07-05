@@ -12,11 +12,11 @@ test_that("hierarchical spec eligibility is validated", {
   expect_error(
     bgm(
       x = Y, variable_type = "continuous",
-      interaction_prior = cauchy_prior(scale = 0.5),
+      interaction_prior = beta_prime_prior(),
       graph_prior_spec = "hierarchical",
       update_method = "gibbs", display_progress = "none", verbose = FALSE
     ),
-    "normal"
+    "normal or Cauchy"
   )
   expect_error(
     bgm(
@@ -48,6 +48,29 @@ test_that("hierarchical spec eligibility is validated", {
     ),
     "continuous"
   )
+})
+
+test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
+  skip_on_cran()
+  Y = hier_test_data(q = 8)
+  for(method in c("nuts", "adaptive-metropolis", "gibbs")) {
+    fit = bgm(
+      x = Y, variable_type = "continuous",
+      iter = 100, warmup = 150,
+      interaction_prior = cauchy_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+      graph_prior_spec = "hierarchical", calibration_window = 50,
+      update_method = method, chains = 1, cores = 1, seed = 7,
+      display_progress = "none", verbose = FALSE
+    )
+    s = summary(fit)
+    expect_true(all(is.finite(s$pairwise$mean)), info = method)
+    expect_true(all(s$indicator$mean >= 0 & s$indicator$mean <= 1),
+      info = method
+    )
+    expect_equal(fit@arguments$graph_prior_spec, "hierarchical", info = method)
+    expect_false(is.null(fit@zratio_diag), info = method)
+  }
 })
 
 test_that("bgm fits the hierarchical spec and attaches the alarm suite", {

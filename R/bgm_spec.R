@@ -403,22 +403,30 @@ bgm_spec = function(x,
         "graph the specifications coincide."
       )
     }
-    if(!identical(interaction_prior_type, "normal")) {
-      stop(
-        "graph_prior_spec = \"hierarchical\" requires a normal ",
-        "interaction (slab) prior; the Z-ratio constants are derived for ",
-        "the Normal slab. Use interaction_prior = normal_prior(), or the ",
-        "joint specification."
-      )
+    if(!interaction_prior_type %in% c("normal", "cauchy")) {
+      stop(sprintf(
+        paste0(
+          "graph_prior_spec = \"hierarchical\" supports a normal or Cauchy ",
+          "interaction (slab) prior: the Z-ratio normalizer is derived for ",
+          "the normal slab, and the Cauchy slab enters through its scale ",
+          "mixture of normals. Got %s_prior(). Use interaction_prior = ",
+          "normal_prior() or cauchy_prior(), or keep graph_prior_spec = ",
+          "\"joint\"."
+        ),
+        interaction_prior_type
+      ))
     }
     if(abs(scale_shape - 1) > 1e-12) {
-      stop(
-        "graph_prior_spec = \"hierarchical\" requires shape = 1 on the ",
-        "precision scale prior (gamma_prior(shape = 1) or ",
-        "exponential_prior()); the Z-ratio constants are derived for the ",
-        "exponential diagonal. Adjust the prior, or use the joint ",
-        "specification."
-      )
+      stop(sprintf(
+        paste0(
+          "graph_prior_spec = \"hierarchical\" requires shape = 1 on the ",
+          "precision scale prior; the Z-ratio normalizer is derived for ",
+          "the exponential diagonal. Got shape = %s. Use ",
+          "gamma_prior(shape = 1) or exponential_prior(), or keep ",
+          "graph_prior_spec = \"joint\"."
+        ),
+        format(scale_shape)
+      ))
     }
   }
 

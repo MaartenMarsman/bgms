@@ -315,18 +315,28 @@ sample_ggm_prior = function(
     # Z-ratio engine carries the normalizer into the between-edge moves,
     # and the hyperparameter updates are the clean conjugate draws (no
     # C-correction on this path).
-    if(!identical(ip$interaction_prior_type, "normal")) {
-      stop(
-        "spec = \"hierarchical\" requires a normal interaction (slab) ",
-        "prior; the Z-ratio constants are derived for the Normal slab."
-      )
+    if(!ip$interaction_prior_type %in% c("normal", "cauchy")) {
+      stop(sprintf(
+        paste0(
+          "spec = \"hierarchical\" supports a normal or Cauchy interaction ",
+          "(slab) prior: the Z-ratio normalizer is derived for the normal ",
+          "slab, and the Cauchy slab enters through its scale mixture of ",
+          "normals. Got %s_prior(). Use interaction_prior = normal_prior() ",
+          "or cauchy_prior()."
+        ),
+        ip$interaction_prior_type
+      ))
     }
     if(abs(sp$scale_shape - 1) > 1e-12) {
-      stop(
-        "spec = \"hierarchical\" requires shape = 1 on the diagonal scale ",
-        "prior (gamma_prior(shape = 1) or exponential_prior); the Z-ratio ",
-        "constants are derived for the exponential diagonal."
-      )
+      stop(sprintf(
+        paste0(
+          "spec = \"hierarchical\" requires shape = 1 on the diagonal ",
+          "scale prior; the Z-ratio normalizer is derived for the ",
+          "exponential diagonal. Got shape = %s. Use ",
+          "gamma_prior(shape = 1) or exponential_prior()."
+        ),
+        format(sp$scale_shape)
+      ))
     }
     zc = zratio_constants(
       delta = delta,
