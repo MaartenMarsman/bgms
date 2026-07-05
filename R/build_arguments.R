@@ -27,8 +27,7 @@ build_arguments = function(spec) {
 }
 
 
-
-build_arguments_ggm <- function(spec) {
+build_arguments_ggm = function(spec) {
   list(
     num_variables = spec$data$num_variables,
     num_cases = spec$data$num_cases,
@@ -103,7 +102,7 @@ build_arguments_omrf = function(spec) {
 }
 
 
-build_arguments_mixed_mrf <- function(spec) {
+build_arguments_mixed_mrf = function(spec) {
   list(
     num_variables = spec$data$num_variables,
     num_discrete = spec$data$num_discrete,

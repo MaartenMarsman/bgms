@@ -7,7 +7,7 @@ hier_test_data = function(q = 10, n = 40, seed = 4) {
 }
 
 test_that("hierarchical spec eligibility is validated", {
-  Y <- hier_test_data()
+  Y = hier_test_data()
 
   expect_error(
     bgm(
@@ -52,9 +52,9 @@ test_that("hierarchical spec eligibility is validated", {
 
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
   skip_on_cran()
-  Y <- hier_test_data(q = 8)
-  for (method in c("nuts", "adaptive-metropolis", "gibbs")) {
-    fit <- bgm(
+  Y = hier_test_data(q = 8)
+  for(method in c("nuts", "adaptive-metropolis", "gibbs")) {
+    fit = bgm(
       x = Y, variable_type = "continuous",
       iter = 100, warmup = 150,
       interaction_prior = cauchy_prior(scale = 0.5),
@@ -63,7 +63,7 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
       update_method = method, chains = 1, cores = 1, seed = 7,
       display_progress = "none", verbose = FALSE
     )
-    s <- summary(fit)
+    s = summary(fit)
     expect_true(all(is.finite(s$pairwise$mean)), info = method)
     expect_true(all(s$indicator$mean >= 0 & s$indicator$mean <= 1),
       info = method
@@ -75,8 +75,8 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
 
 test_that("bgm fits the hierarchical spec and attaches the alarm suite", {
   skip_on_cran()
-  Y <- hier_test_data(q = 12)
-  fit <- bgm(
+  Y = hier_test_data(q = 12)
+  fit = bgm(
     x = Y, variable_type = "continuous",
     iter = 150, warmup = 250,
     interaction_prior = normal_prior(scale = 0.5),
@@ -86,7 +86,7 @@ test_that("bgm fits the hierarchical spec and attaches the alarm suite", {
     update_method = "gibbs", chains = 2, cores = 2, seed = 11,
     display_progress = "none", verbose = FALSE
   )
-  zd <- fit@zratio_diag
+  zd = fit@zratio_diag
   expect_false(is.null(zd))
   expect_equal(nrow(zd$per_chain), 2L)
   expect_true(all(zd$per_chain$frozen))
@@ -101,8 +101,8 @@ test_that("bgm fits the hierarchical spec and attaches the alarm suite", {
 
 test_that("the joint default is unchanged", {
   skip_on_cran()
-  Y <- hier_test_data(q = 6)
-  fit <- bgm(
+  Y = hier_test_data(q = 6)
+  fit = bgm(
     x = Y, variable_type = "continuous",
     iter = 100, warmup = 150,
     update_method = "gibbs", chains = 1, cores = 1, seed = 3,
@@ -135,13 +135,13 @@ test_that("mixed indicator layout rebuilds the continuous subgraph", {
 test_that("mixed data supports the hierarchical spec on the continuous block", {
   skip_on_cran()
   set.seed(9)
-  n <- 60
-  X <- cbind(
+  n = 60
+  X = cbind(
     matrix(sample(0:2, n * 3, replace = TRUE), n, 3),
     matrix(rnorm(n * 8), n, 8)
   )
-  colnames(X) <- paste0("V", seq_len(11))
-  vt <- c(rep("ordinal", 3), rep("continuous", 8))
+  colnames(X) = paste0("V", seq_len(11))
+  vt = c(rep("ordinal", 3), rep("continuous", 8))
 
   expect_error(
     bgm(
@@ -154,7 +154,7 @@ test_that("mixed data supports the hierarchical spec on the continuous block", {
     "two continuous"
   )
 
-  fit <- bgm(
+  fit = bgm(
     x = X, variable_type = vt,
     iter = 120, warmup = 200,
     interaction_prior = normal_prior(scale = 0.5),
@@ -164,7 +164,7 @@ test_that("mixed data supports the hierarchical spec on the continuous block", {
     update_method = "adaptive-metropolis", chains = 1, cores = 1, seed = 5,
     display_progress = "none", verbose = FALSE
   )
-  zd <- fit@zratio_diag
+  zd = fit@zratio_diag
   expect_false(is.null(zd))
   expect_true(zd$per_chain$frozen)
   expect_false(zd$verdict_flagged)

@@ -61,29 +61,29 @@ run_sampler = function(spec) {
 # ==============================================================================
 # run_sampler_ggm()
 # ==============================================================================
-run_sampler_ggm <- function(spec) {
-  d <- spec$data
-  p <- spec$prior
-  s <- spec$sampler
-  m <- spec$missing
+run_sampler_ggm = function(spec) {
+  d = spec$data
+  p = spec$prior
+  s = spec$sampler
+  m = spec$missing
 
-  bb_alpha_between <- bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
-  bb_beta_between <- bb_between_or_sentinel(p$beta_bernoulli_beta_between)
+  bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   # Graph-prior specification: the joint path corrects the hyperparameter
   # updates for the untracked normalizer Z(Gamma); the hierarchical path
   # tracks Z(Gamma) itself in the between-edge moves (per-edge Z-ratio
   # engine) and keeps the hyperparameter updates clean conjugate. The two
   # are mutually exclusive.
-  correction <- NULL
-  zratio <- NULL
-  if (identical(p$precision_graph_prior, "hierarchical")) {
-    zc <- zratio_constants(
+  correction = NULL
+  zratio = NULL
+  if(identical(p$precision_graph_prior, "hierarchical")) {
+    zc = zratio_constants(
       delta = p$delta,
       sigma = 2 * p$pairwise_scale,
       beta = p$scale_rate / 2
     )
-    zratio <- list(
+    zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
@@ -92,10 +92,10 @@ run_sampler_ggm <- function(spec) {
       )
     )
   } else {
-    correction <- ggm_edge_prior_correction(p, s, d$num_variables)
+    correction = ggm_edge_prior_correction(p, s, d$num_variables)
   }
 
-  out_raw <- sample_ggm(
+  out_raw = sample_ggm(
     inputFromR = list(
       X = d$x,
       pairwise_scale = p$pairwise_scale,
@@ -206,28 +206,28 @@ run_sampler_omrf = function(spec) {
 # ==============================================================================
 # run_sampler_mixed_mrf()
 # ==============================================================================
-run_sampler_mixed_mrf <- function(spec) {
-  d <- spec$data
-  v <- spec$variables
-  m <- spec$missing
-  p <- spec$prior
-  s <- spec$sampler
+run_sampler_mixed_mrf = function(spec) {
+  d = spec$data
+  v = spec$variables
+  m = spec$missing
+  p = spec$prior
+  s = spec$sampler
 
-  bb_alpha_between <- bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
-  bb_beta_between <- bb_between_or_sentinel(p$beta_bernoulli_beta_between)
+  bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
+  bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   # Graph-prior specification on the continuous block: same dichotomy as the
   # GGM path (see run_sampler_ggm). The Z-ratio constants and the Stage-3d
   # window are sized on the continuous subgraph.
-  correction <- NULL
-  zratio <- NULL
-  if (identical(p$precision_graph_prior, "hierarchical")) {
-    zc <- zratio_constants(
+  correction = NULL
+  zratio = NULL
+  if(identical(p$precision_graph_prior, "hierarchical")) {
+    zc = zratio_constants(
       delta = p$delta,
       sigma = 2 * p$pairwise_scale,
       beta = p$scale_rate / 2
     )
-    zratio <- list(
+    zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
@@ -236,12 +236,12 @@ run_sampler_mixed_mrf <- function(spec) {
       )
     )
   } else {
-    correction <- ggm_edge_prior_correction(
+    correction = ggm_edge_prior_correction(
       p, s, d$num_variables, d$num_continuous
     )
   }
 
-  input_list <- list(
+  input_list = list(
     discrete_observations   = d$x_discrete,
     continuous_observations = d$x_continuous,
     num_categories          = d$num_categories,
@@ -264,7 +264,7 @@ run_sampler_mixed_mrf <- function(spec) {
     scale_rate              = p$scale_rate
   )
 
-  out_raw <- sample_mixed_mrf(
+  out_raw = sample_mixed_mrf(
     inputFromR = input_list,
     prior_inclusion_prob = p$inclusion_probability,
     initial_edge_indicators = matrix(1L,

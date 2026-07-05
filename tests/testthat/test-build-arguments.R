@@ -89,9 +89,9 @@ spec_compare = function(...) {
 # ==============================================================================
 
 test_that("GGM build_arguments: all expected field names present", {
-  s <- spec_ggm()
-  a <- build_arguments(s)
-  expected <- c(
+  s = spec_ggm()
+  a = build_arguments(s)
+  expected = c(
     "num_variables", "num_cases", "na_impute", "variable_type",
     "iter", "warmup", "edge_selection", "edge_prior",
     "precision_graph_prior", "calibration_window",
