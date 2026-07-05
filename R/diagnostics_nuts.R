@@ -220,6 +220,15 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
       ))
     }
 
+    incomplete_chains = which(warmup_check$warmup_incomplete)
+    if(length(incomplete_chains) > 0) {
+      issues = c(issues, sprintf(
+        "Warmup incomplete: energy not stationary in chain%s %s - increase warmup",
+        if(length(incomplete_chains) > 1) "s" else "",
+        paste(incomplete_chains, collapse = ", ")
+      ))
+    }
+
     if(length(issues) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
       cat("NUTS issues:\n")
       for(issue in issues) {

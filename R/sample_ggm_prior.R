@@ -113,6 +113,11 @@
 #'   sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
 #'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
 #'   never shortened; the window is appended.
+#' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
+#'   \code{spec = "hierarchical"}: run the post-sampling Z-ratio alarm suite
+#'   (\code{\link{summarize_zratio_diagnostics}}) on the returned chain and
+#'   attach the result; detected issues are printed when \code{verbose}.
+#'   The audit spends a few dozen measurement-only block-Gibbs oracle calls.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -154,6 +159,10 @@
 #'     \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
 #'       matrix (\code{n_samples x p}) of sampled cluster allocations
 #'       (1-based).}
+#'     \item{\code{zratio_diagnostics}}{Only with
+#'       \code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
+#'       the alarm-suite summary from
+#'       \code{\link{summarize_zratio_diagnostics}}.}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -199,7 +208,8 @@ sample_ggm_prior = function(
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
   apply_correction = TRUE,
-  calibration_window = NULL
+  calibration_window = NULL,
+  zratio_diagnostics = TRUE
 ) {
   spec = match.arg(spec)
   update_method = match.arg(update_method)
@@ -218,6 +228,10 @@ sample_ggm_prior = function(
   if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
     is.na(apply_correction)) {
     stop("'apply_correction' must be TRUE or FALSE.")
+  }
+  if(!is.logical(zratio_diagnostics) || length(zratio_diagnostics) != 1L ||
+    is.na(zratio_diagnostics)) {
+    stop("'zratio_diagnostics' must be TRUE or FALSE.")
   }
   validate_integer(p, "p", min_value = 2L)
   validate_integer(n_samples, "n_samples", min_value = 1L)
@@ -413,6 +427,13 @@ sample_ggm_prior = function(
   }
   if(!is.null(results[[1L]]$allocation_samples)) {
     out$allocations = t(results[[1L]]$allocation_samples)
+  }
+  if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
+    out$zratio_diagnostics = summarize_zratio_diagnostics(
+      results, zratio,
+      num_nodes = as.integer(p),
+      seed = as.integer(seed), verbose = verbose
+    )
   }
   out
 }

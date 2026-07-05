@@ -7,6 +7,27 @@
 #include "rng/rng_utils.h"
 
 /**
+ * Mediating-block descriptors for one candidate edge (i, j) on a graph.
+ *
+ * The block collects the common neighbours of the endpoints plus the
+ * endpoints of 2-hop bridges between the exclusive neighbour sets; the
+ * integer counts drive the additive saddle and the OLS correction, and
+ * the adjacency + side memberships drive the block-Gibbs oracle.
+ */
+struct ZRatioBlock {
+    bool valid = false;   ///< false: one side empty (isolated-edge ratio)
+    int m = 0;            ///< number of mediating nodes
+    int ncn = 0;          ///< common-neighbour nodes
+    int cne = 0;          ///< edges among the common neighbours
+    int bre = 0;          ///< bridge edges between the exclusive sides
+    int maxbd = 0;        ///< maximum bridge degree over both sides
+    double dens = 0.0;    ///< block edge density
+    arma::imat a_blk;     ///< block adjacency (m x m)
+    arma::uvec si;        ///< block rows adjacent to endpoint i
+    arma::uvec sj;        ///< block rows adjacent to endpoint j
+};
+
+/**
  * Deterministic per-edge normalizing-constant ratio for the hierarchical
  * prior specification p(K | Gamma) = rho_Gamma(K) / Z(Gamma).
  *
@@ -61,6 +82,51 @@ public:
     double saddle_ratio(double s1, double s2) const;
 
     /**
+     * Extract the mediating block of the edge (i, j): common neighbours,
+     * 2-hop bridge endpoints, adjacency, side memberships, and the integer
+     * counts (nCN, cne, bre, maxbd) with the block density. The toggled
+     * edge's own state never enters.
+     */
+    ZRatioBlock extract_block(const arma::imat& G, int i, int j) const;
+
+    /**
+     * Deployed OLS correction for one block under the current constant
+     * block: 0 for maxbd < 2 or when no fit is packed (addc[12] <= 0.5),
+     * the OLS value inside the hull box, 0 outside it (clamped = true).
+     * Reads state only; no counters move.
+     */
+    double deployed_correction(const ZRatioBlock& bl, bool& clamped) const;
+
+    /**
+     * Measurement-only audit of the edge (i, j): the deployed correction
+     * versus the block-Gibbs local oracle on the same block.
+     *
+     * On success fills pred_out (deployed correction), oracle_out
+     * (log(saddle on oracle moments) - log(additive saddle)) and bl_out,
+     * and returns true. Returns false for one-sided blocks, non-positive
+     * additive moments, or an oracle with no finite sweep. Requires
+     * set_oracle_params (or enable_calibration) to have run; feeds
+     * nothing back into the fit, caches, or counters.
+     */
+    bool audit_edge(const arma::imat& G, int i, int j, double& pred_out,
+                    double& oracle_out, ZRatioBlock& bl_out);
+
+    /**
+     * Set the bare-scale prior constants and RNG the block-Gibbs oracle
+     * samples under, without entering calibration mode. rng must outlive
+     * the engine.
+     */
+    void set_oracle_params(double delta, double sigma, double beta,
+                           SafeRNG* rng, int n_sweep = 300, int burn = 30) {
+        delta_ = delta;
+        sigma_ = sigma;
+        beta_ = beta;
+        rng_ = rng;
+        n_sweep_ = n_sweep;
+        burn_ = burn;
+    }
+
+    /**
      * Enable online calibration of the OLS correction during warm-up.
      *
      * While unfrozen, coupled-bridge blocks (maxbd >= 2) route through the
@@ -105,6 +171,10 @@ public:
     long n_anchors() const { return static_cast<long>(ay_.n_elem); }
     bool frozen() const { return frozen_; }
     const arma::vec& addc() const { return addc_; }
+    /// Calibration anchor design rows (1, bre, m, cne, maxbd, dens).
+    const arma::mat& anchors_x() const { return ax_; }
+    /// Calibration anchor targets log(oracle) - log(additive).
+    const arma::vec& anchors_y() const { return ay_; }
 
 private:
     void gibbs_sweep_(arma::mat& k_blk,

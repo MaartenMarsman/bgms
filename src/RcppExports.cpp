@@ -862,6 +862,47 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// zratio_scan_graph
+arma::mat zratio_scan_graph(arma::imat G, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
+RcppExport SEXP _bgms_zratio_scan_graph(SEXP GSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_scan_graph(G, addc, tg, ihat, ghat, wt, psi0));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_audit_edges
+Rcpp::List zratio_audit_edges(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int n_sweep, int burn, int seed);
+RcppExport SEXP _bgms_zratio_audit_edges(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
+    Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_audit_edges(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // zratio_test_eval
 Rcpp::List zratio_test_eval(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
 RcppExport SEXP _bgms_zratio_test_eval(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
@@ -988,6 +1029,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_sbm_corrected_log_marginal", (DL_FUNC) &_bgms_test_sbm_corrected_log_marginal, 10},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {"_bgms_test_warmup_schedule", (DL_FUNC) &_bgms_test_warmup_schedule, 5},
+    {"_bgms_zratio_scan_graph", (DL_FUNC) &_bgms_zratio_scan_graph, 7},
+    {"_bgms_zratio_audit_edges", (DL_FUNC) &_bgms_zratio_audit_edges, 14},
     {"_bgms_zratio_test_eval", (DL_FUNC) &_bgms_zratio_test_eval, 8},
     {"_bgms_zratio_test_saddle", (DL_FUNC) &_bgms_zratio_test_saddle, 8},
     {"_bgms_zratio_test_calibrated_eval", (DL_FUNC) &_bgms_zratio_test_calibrated_eval, 15},

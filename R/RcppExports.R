@@ -173,6 +173,14 @@ test_warmup_schedule <- function(warmup, edge_selection, learn_sd, select_during
     .Call(`_bgms_test_warmup_schedule`, warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations)
 }
 
+zratio_scan_graph <- function(G, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_scan_graph`, G, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_audit_edges <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed) {
+    .Call(`_bgms_zratio_audit_edges`, G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed)
+}
+
 zratio_test_eval <- function(G, edges, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_test_eval`, G, edges, addc, tg, ihat, ghat, wt, psi0)
 }

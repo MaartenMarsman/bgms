@@ -9,6 +9,7 @@
 struct StepResult;
 struct SafeRNG;
 struct WarmupSchedule;
+class ChainResult;
 
 /**
  * BaseModel — Abstract interface for all graphical models.
@@ -161,6 +162,16 @@ public:
      * state (e.g. the GGM Z-ratio engine) freeze it here.
      */
     virtual void on_warmup_end() {}
+
+    /**
+     * Called once at the end of the chain run. Default no-op; models with
+     * run-level diagnostic state (e.g. the GGM Z-ratio engine's counters,
+     * frozen constants, and calibration anchors) copy it into the chain
+     * result here.
+     *
+     * @param chain_result  Output storage for the finished chain
+     */
+    virtual void collect_chain_diagnostics(ChainResult& /*chain_result*/) const {}
 
     // =========================================================================
     // Edge selection

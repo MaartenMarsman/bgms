@@ -117,6 +117,21 @@ void run_mcmc_chain(
             );
         }
 
+        // Z-ratio drift trace: graph density and edge-prior theta over the
+        // selection-enabled warmup stream. Feeds the end-of-warmup drift
+        // condition in summarize_zratio_diagnostics.
+        if (config.zratio_calibration_window > 0 &&
+            iter < schedule.total_warmup &&
+            schedule.selection_enabled(iter) && model.has_edge_selection()) {
+            arma::ivec ind = model.get_vectorized_indicator_parameters();
+            chain_result.zratio_warmup_density.push_back(
+                ind.n_elem > 0 ? static_cast<double>(arma::accu(ind)) /
+                                     static_cast<double>(ind.n_elem)
+                               : 0.0);
+            chain_result.zratio_warmup_theta.push_back(
+                edge_prior.get_inclusion_parameter());
+        }
+
         // Store samples (only during sampling phase)
         if (schedule.sampling(iter)) {
             int sample_index = iter - schedule.total_warmup;
@@ -150,6 +165,9 @@ void run_mcmc_chain(
         }
     }
 
+    // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
+    // frozen constants) outlives the loop only through the chain result.
+    model.collect_chain_diagnostics(chain_result);
 }
 
 
@@ -281,6 +299,21 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_am_diagnostics) {
                 chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
+            }
+
+            if (chain.has_zratio_diagnostics) {
+                Rcpp::NumericVector counters(chain.zratio_counters.begin(),
+                                             chain.zratio_counters.end());
+                counters.names() = Rcpp::CharacterVector::create(
+                    "n_hit", "n_miss", "n_pred", "n_add", "n_clamp",
+                    "n_oracle", "n_anchors", "cache_size", "frozen");
+                chain_list["zratio"] = Rcpp::List::create(
+                    Rcpp::_["addc"] = chain.zratio_addc,
+                    Rcpp::_["anchors_x"] = chain.zratio_anchors_x,
+                    Rcpp::_["anchors_y"] = chain.zratio_anchors_y,
+                    Rcpp::_["counters"] = counters,
+                    Rcpp::_["warmup_density"] = chain.zratio_warmup_density,
+                    Rcpp::_["warmup_theta"] = chain.zratio_warmup_theta);
             }
         }
 

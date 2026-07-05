@@ -15,8 +15,10 @@ double ZRatioEngine::saddle_ratio(double s1, double s2) const {
     return nf / dg;
 }
 
-double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
+ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
+                                        int j) const {
     const int q = static_cast<int>(G.n_rows);
+    ZRatioBlock bl;
 
     // Mediating block: common neighbours of (i, j) plus the endpoints of
     // 2-hop bridges between the exclusive neighbour sets. The toggled
@@ -40,6 +42,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         if (in_r[k]) rv.push_back(k);
     }
     const int m = static_cast<int>(rv.size());
+    bl.m = m;
 
     std::vector<int> cn, si_o, sj_o;
     for (int p = 0; p < m; p++) {
@@ -50,45 +53,73 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     }
     if ((cn.empty() && si_o.empty()) || (cn.empty() && sj_o.empty())) {
         // One side of the mediating block is empty: isolated-edge ratio.
-        n_add_++;
-        return std::log(psi0_);
+        return bl;
     }
+    bl.valid = true;
 
-    arma::imat a_blk(m, m, arma::fill::zeros);
+    bl.a_blk.zeros(m, m);
     for (int a = 0; a < m; a++) {
         for (int b = a + 1; b < m; b++) {
             int e = (G(rv[a], rv[b]) == 1) ? 1 : 0;
-            a_blk(a, b) = e;
-            a_blk(b, a) = e;
+            bl.a_blk(a, b) = e;
+            bl.a_blk(b, a) = e;
         }
     }
 
-    int ncn = static_cast<int>(cn.size()), cne = 0, bre = 0;
+    bl.ncn = static_cast<int>(cn.size());
     for (size_t a = 0; a < cn.size(); a++) {
         for (size_t b = a + 1; b < cn.size(); b++) {
-            if (a_blk(cn[a], cn[b]) == 1) cne++;
+            if (bl.a_blk(cn[a], cn[b]) == 1) bl.cne++;
         }
     }
     for (int a : si_o) {
         for (int b : sj_o) {
-            if (a_blk(a, b) == 1) bre++;
+            if (bl.a_blk(a, b) == 1) bl.bre++;
         }
     }
-    int maxbdeg = 0;
     for (int a : si_o) {
         int d = 0;
         for (int b : sj_o) {
-            if (a_blk(a, b) == 1) d++;
+            if (bl.a_blk(a, b) == 1) d++;
         }
-        if (d > maxbdeg) maxbdeg = d;
+        if (d > bl.maxbd) bl.maxbd = d;
     }
     for (int b : sj_o) {
         int d = 0;
         for (int a : si_o) {
-            if (a_blk(a, b) == 1) d++;
+            if (bl.a_blk(a, b) == 1) d++;
         }
-        if (d > maxbdeg) maxbdeg = d;
+        if (d > bl.maxbd) bl.maxbd = d;
     }
+
+    bl.dens = (m >= 2)
+        ? ((static_cast<double>(arma::accu(bl.a_blk)) / 2.0) /
+           (static_cast<double>(m) * (m - 1) / 2.0))
+        : 0.0;
+
+    // Side memberships in ascending block position (CN nodes sit on both).
+    std::vector<arma::uword> si_v, sj_v;
+    for (int p = 0; p < m; p++) {
+        bool si = std::find(cn.begin(), cn.end(), p) != cn.end();
+        bool sio = std::find(si_o.begin(), si_o.end(), p) != si_o.end();
+        bool sjo = std::find(sj_o.begin(), sj_o.end(), p) != sj_o.end();
+        if (si || sio) si_v.push_back(p);
+        if (si || sjo) sj_v.push_back(p);
+    }
+    bl.si = arma::uvec(si_v);
+    bl.sj = arma::uvec(sj_v);
+    return bl;
+}
+
+double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
+    ZRatioBlock bl = extract_block(G, i, j);
+    if (!bl.valid) {
+        n_add_++;
+        return std::log(psi0_);
+    }
+    const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre, maxbdeg = bl.maxbd,
+              m = bl.m;
+    const double dens = bl.dens;
 
     double s1 = ncn * addc_[0] + cne * addc_[2] + bre * addc_[4];
     double s2 = ncn * addc_[1] + cne * addc_[3] + bre * addc_[5];
@@ -114,11 +145,6 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         n_add_++;
         return log_r_add;
     }
-
-    const double dens = (m >= 2)
-        ? ((static_cast<double>(arma::accu(a_blk)) / 2.0) /
-           (static_cast<double>(m) * (m - 1) / 2.0))
-        : 0.0;
 
     // Warm-up calibration: identical block signatures are served from the
     // correction cache; blocks inside the anchor cloud's Mahalanobis hull
@@ -146,17 +172,8 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
             n_pred_++;
             return log_r_add + arma::dot(x, coef_);
         }
-        std::vector<arma::uword> si_v, sj_v;
-        for (int p_ = 0; p_ < m; p_++) {
-            bool si = std::find(cn.begin(), cn.end(), p_) != cn.end();
-            bool sio = std::find(si_o.begin(), si_o.end(), p_) != si_o.end();
-            bool sjo = std::find(sj_o.begin(), sj_o.end(), p_) != sj_o.end();
-            if (si || sio) si_v.push_back(p_);
-            if (si || sjo) sj_v.push_back(p_);
-        }
         double s1b = 0, s2b = 0, dl = 0;
-        if (block_oracle_moments(a_blk, arma::uvec(si_v), arma::uvec(sj_v),
-                                 s1b, s2b)) {
+        if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
             dl = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
         }
         n_oracle_++;
@@ -169,33 +186,58 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
 
     // Frozen OLS correction on the log-ratio scale, zeroed outside the
     // trained hull so the kernel never extrapolates.
-    double log_r_corr = 0.0;
-    bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
-    if (direct) {
-        double fc = addc_[6] + addc_[7] * static_cast<double>(bre) +
-                    addc_[8] * static_cast<double>(m) +
-                    addc_[9] * static_cast<double>(cne) +
-                    addc_[10] * static_cast<double>(maxbdeg) +
-                    addc_[11] * dens;
-        if (addc_.n_elem >= 23) {
-            double bd = static_cast<double>(bre), md = static_cast<double>(m),
-                   cd = static_cast<double>(cne),
-                   xd = static_cast<double>(maxbdeg);
-            bool inside =
-                (bd >= addc_[13] && bd <= addc_[14] && md >= addc_[15] &&
-                 md <= addc_[16] && cd >= addc_[17] && cd <= addc_[18] &&
-                 xd >= addc_[19] && xd <= addc_[20] && dens >= addc_[21] &&
-                 dens <= addc_[22]);
-            if (!inside) {
-                fc = 0.0;
-                n_clamp_++;
-            }
-        }
-        log_r_corr = fc;
-    }
+    bool clamped = false;
+    const double log_r_corr = deployed_correction(bl, clamped);
+    if (clamped) n_clamp_++;
     if (log_r_corr != 0.0) n_pred_++;
     else n_add_++;
     return log_r_add + log_r_corr;
+}
+
+double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
+                                         bool& clamped) const {
+    clamped = false;
+    if (bl.maxbd < 2) return 0.0;
+    bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
+    if (!direct) return 0.0;
+    double fc = addc_[6] + addc_[7] * static_cast<double>(bl.bre) +
+                addc_[8] * static_cast<double>(bl.m) +
+                addc_[9] * static_cast<double>(bl.cne) +
+                addc_[10] * static_cast<double>(bl.maxbd) +
+                addc_[11] * bl.dens;
+    if (addc_.n_elem >= 23) {
+        double bd = static_cast<double>(bl.bre), md = static_cast<double>(bl.m),
+               cd = static_cast<double>(bl.cne),
+               xd = static_cast<double>(bl.maxbd);
+        bool inside =
+            (bd >= addc_[13] && bd <= addc_[14] && md >= addc_[15] &&
+             md <= addc_[16] && cd >= addc_[17] && cd <= addc_[18] &&
+             xd >= addc_[19] && xd <= addc_[20] && bl.dens >= addc_[21] &&
+             bl.dens <= addc_[22]);
+        if (!inside) {
+            fc = 0.0;
+            clamped = true;
+        }
+    }
+    return fc;
+}
+
+bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
+                              double& pred_out, double& oracle_out,
+                              ZRatioBlock& bl_out) {
+    bl_out = extract_block(G, i, j);
+    const ZRatioBlock& bl = bl_out;
+    if (!bl.valid) return false;
+    double s1 = bl.ncn * addc_[0] + bl.cne * addc_[2] + bl.bre * addc_[4];
+    double s2 = bl.ncn * addc_[1] + bl.cne * addc_[3] + bl.bre * addc_[5];
+    if (s1 <= 0 || s2 <= 0) return false;
+    const double log_r_add = std::log(saddle_ratio(s1, s2));
+    bool clamped = false;
+    pred_out = deployed_correction(bl, clamped);
+    double s1b = 0, s2b = 0;
+    if (!block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) return false;
+    oracle_out = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
+    return true;
 }
 
 void ZRatioEngine::enable_calibration(double delta, double sigma, double beta,

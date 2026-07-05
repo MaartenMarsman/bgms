@@ -174,6 +174,13 @@ public:
         if (zratio_engine_) zratio_engine_->freeze_calibration();
     }
 
+    /**
+     * Copy the Z-ratio engine's end-of-run state (counters, frozen
+     * constant block, calibration anchors) into the chain result. No-op
+     * without an engine.
+     */
+    void collect_chain_diagnostics(ChainResult& chain_result) const override;
+
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
     /** @return true when missing-data imputation is active. */
