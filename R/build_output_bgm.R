@@ -248,11 +248,16 @@ build_output_bgm = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # Report the number of chains actually kept; failed chains are dropped
+  # upstream, so raw holds only the survivors.
+  results$arguments$num_chains = length(raw)
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
+  # Allocation samples are per node (one column per variable), so they carry
+  # node names, not edge names.
   alloc_names = if(identical(edge_prior, "Stochastic-Block")) {
-    if(is_continuous) data_columnnames else edge_names
+    data_columnnames
   } else {
     NULL
   }

@@ -178,12 +178,10 @@ test_that("bgm GGM output has correct parameter ordering", {
   )
 
   # Summary names -> matrix positions (pairwise)
-  # GGM: summary stores precision-scale, matrix stores association-scale (= -0.5 * precision)
-  summary_pairwise_k = fit$posterior_summary_pairwise
-  summary_pairwise_k$mean = -0.5 * summary_pairwise_k$mean
+  # GGM: summary and matrix are both on the association scale.
   expect_true(
     all(check_summary_matrix_consistency(
-      summary_pairwise_k,
+      fit$posterior_summary_pairwise,
       fit$posterior_mean_pairwise
     )),
     info = "GGM pairwise summary names do not match matrix positions"
@@ -574,11 +572,14 @@ test_that("GGM impute: entire-column-missing gives clear error", {
   )
 })
 
-test_that("bgm GGM arguments do not leak internal fields", {
+test_that("bgm GGM stores the training column means for prediction", {
   fit = get_bgms_fit_ggm()
   args = extract_arguments(fit)
 
-  expect_null(args$column_means)
+  # predict() centers newdata on these means (the GGM analogue of the ordinal
+  # recode map in category_levels), so they must be stored on the fit.
+  expect_length(args$column_means, args$num_variables)
+  expect_true(all(is.finite(args$column_means)))
 })
 
 

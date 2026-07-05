@@ -3,6 +3,7 @@
 
 #include <Rcpp.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -33,14 +34,20 @@ inline bool checkInterrupt() {
  * console and terminal environments. It supports Unicode theming with colored
  * progress indicators and proper cursor positioning.
  *
+ * Thread contract: the manager must be constructed on the R main thread. The
+ * per-chain counters and the exit flag are atomics, so update() and
+ * shouldExit() may be called from any thread. All R API interaction (the
+ * interrupt check, console output, and the R callback) happens only on the
+ * construction thread: update() drives it when chain 0 runs on that thread and
+ * skips it otherwise, so a worker thread never touches the R interpreter.
+ *
  * Key features:
- * - Multi-chain progress tracking with atomic operations
+ * - Multi-chain progress tracking with atomic counters
  * - RStudio vs terminal environment detection and adaptation
  * - Unicode and classic theming options
  * - ANSI color support with proper visual length calculations
- * - Thread-safe printing with mutex protection
  * - Console width adaptation and change detection
- * - User interrupt checking
+ * - User interrupt checking, confined to the R main thread
  * - Optional R callback for external progress reporting (e.g., JASP),
  *   invoked as callback(completed, total)
  */
@@ -55,6 +62,10 @@ public:
 
 private:
 
+    // Runs the R-main-thread work (interrupt check, throttled print, callback).
+    // A no-op when called off the construction thread.
+    void poll();
+
     void checkConsoleWidthChange();
     size_t getConsoleWidth() const;
     std::string formatProgressBar(size_t chainId, size_t current, size_t total, double fraction, bool isTotal = false) const;
@@ -63,13 +74,20 @@ private:
     void setupTheme();
 
     bool isWarmupPhase() const {
-        for (auto c : progress)
-            if (c < nWarmup)
+        for (const auto& c : progress)
+            if (c.load(std::memory_order_relaxed) < nWarmup)
                 return true;
         return false;
     }
     bool isWarmupPhase(const size_t chain_id) const {
-      return progress[chain_id] < nWarmup;
+      return progress[chain_id].load(std::memory_order_relaxed) < nWarmup;
+    }
+
+    size_t totalProgress() const {
+        size_t done = 0;
+        for (const auto& c : progress)
+            done += c.load(std::memory_order_relaxed);
+        return done;
     }
 
     void print();
@@ -85,7 +103,8 @@ private:
     size_t printEvery;                 // Print frequency
     size_t progress_type = 2;          // Progress bar style type (0 = "none", 1 = "total", 2 = "per-chain")
     bool useUnicode = true;            // Use Unicode vs ASCII theme
-    std::vector<size_t> progress;      // Per-chain progress counters
+    std::vector<std::atomic<size_t>> progress; // Per-chain progress counters
+    std::thread::id main_thread_id;    // Thread the manager was constructed on (the R main thread)
 
     // internal config parameters/ data
     size_t no_spaces_for_total;     // Spacing for total line alignment
@@ -96,9 +115,9 @@ private:
     int prevConsoleWidth = -1;      // Previous console width for change detection
 
     // Environment and state flags
-    bool isRStudio = false;         ///< Whether running in RStudio console
-    bool needsToExit = false;       ///< User interrupt flag
-    bool widthChanged = false;      ///< Console width changed flag
+    bool isRStudio = false;              ///< Whether running in RStudio console
+    std::atomic<bool> needsToExit{false}; ///< User interrupt flag (set on the main thread, read by all chains)
+    bool widthChanged = false;           ///< Console width changed flag
 
     // Visual configuration
     size_t barWidth = 40;              // Progress bar width in characters

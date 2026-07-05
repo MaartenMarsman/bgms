@@ -68,6 +68,7 @@ public:
      */
     void reserve(const size_t param_dim, const size_t n_iter) {
         samples.set_size(param_dim, n_iter);
+        samples.fill(arma::datum::nan);
     }
 
     /**
@@ -77,6 +78,7 @@ public:
      */
     void reserve_indicators(const size_t n_edges, const size_t n_iter) {
         indicator_samples.set_size(n_edges, n_iter);
+        indicator_samples.fill(-1);
         has_indicators = true;
     }
 
@@ -87,6 +89,7 @@ public:
      */
     void reserve_allocations(const size_t n_variables, const size_t n_iter) {
         allocation_samples.set_size(n_variables, n_iter);
+        allocation_samples.fill(-1);
         has_allocations = true;
     }
 
@@ -96,6 +99,7 @@ public:
      */
     void reserve_inclusion_parameter(const size_t n_iter) {
         inclusion_parameter_samples.set_size(n_iter);
+        inclusion_parameter_samples.fill(arma::datum::nan);
         has_inclusion_parameter = true;
     }
 
@@ -104,11 +108,19 @@ public:
      * @param n_iter  Number of sampling iterations
      */
     void reserve_nuts_diagnostics(const size_t n_iter) {
+        // Integer diagnostics use -1 as a "not sampled" sentinel; the
+        // floating ones use NaN. This keeps interrupted runs from returning
+        // uninitialized values for iterations that never ran.
         treedepth_samples.set_size(n_iter);
+        treedepth_samples.fill(-1);
         divergent_samples.set_size(n_iter);
+        divergent_samples.fill(-1);
         non_reversible_samples.set_size(n_iter);
+        non_reversible_samples.fill(-1);
         energy_samples.set_size(n_iter);
+        energy_samples.fill(arma::datum::nan);
         accept_prob_samples.set_size(n_iter);
+        accept_prob_samples.fill(arma::datum::nan);
         has_nuts_diagnostics = true;
     }
 
@@ -118,6 +130,7 @@ public:
      */
     void reserve_am_diagnostics(const size_t n_iter) {
         am_accept_prob_samples.set_size(n_iter);
+        am_accept_prob_samples.fill(arma::datum::nan);
         has_am_diagnostics = true;
     }
 

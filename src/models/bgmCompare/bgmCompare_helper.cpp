@@ -482,6 +482,15 @@ arma::vec inv_mass_active(
   active_inv_diag.subvec(off, off + num_pair - 1) = inv_diag.subvec(off, off + num_pair - 1);
   off += num_pair;
 
+  // inv_diag was learned in stage 2 with all indicators on, i.e. in the full
+  // parameter layout. Read it through full-layout positions (main_index /
+  // pair_index reflect the selection-reduced layout and would misalign once
+  // parameters are excluded). The full layout is: main overall, pair overall,
+  // then per-row main differences and per-row pairwise differences, each row
+  // repeated over the G-1 group contrasts.
+  const int diff_base = num_main + num_pair;
+  const int pair_diff_base = diff_base + num_main * (num_groups - 1);
+
   // 3) MAIN differences (cols 1..G-1) for selected variables
   for (int v = 0; v < num_variables; ++v) {
     if (inclusion_indicator(v, v) == 0) continue;
@@ -489,7 +498,7 @@ arma::vec inv_mass_active(
     const int r1 = main_effect_indices(v, 1);
     for (int r = r0; r <= r1; ++r) {
       for (int g = 1; g < num_groups; ++g) {
-        int idx = main_index(r, g);
+        int idx = diff_base + r * (num_groups - 1) + (g - 1);
         active_inv_diag(off++) = inv_diag(idx);
       }
     }
@@ -501,7 +510,7 @@ arma::vec inv_mass_active(
       if (inclusion_indicator(v1, v2) != 1) continue;
       const int row = pairwise_effect_indices(v1, v2);
       for (int g = 1; g < num_groups; ++g) {
-        int idx = pair_index(row, g);
+        int idx = pair_diff_base + row * (num_groups - 1) + (g - 1);
         active_inv_diag(off++) = inv_diag(idx);
       }
     }

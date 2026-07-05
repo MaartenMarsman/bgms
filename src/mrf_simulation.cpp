@@ -376,7 +376,6 @@ public:
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
-    bool is_main = (begin == 0);
     for (std::size_t i = begin; i < end; ++i) {
       if (pm.shouldExit()) return;
 
@@ -430,7 +429,7 @@ public:
       }
 
       results[i] = result;
-      if (is_main) pm.update(0);
+      pm.update(0);
     }
   }
 };
@@ -588,7 +587,6 @@ public:
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
-    bool is_main = (begin == 0);
     for (std::size_t i = begin; i < end; ++i) {
       if (pm.shouldExit()) return;
 
@@ -629,7 +627,7 @@ public:
       }
 
       results[i] = result;
-      if (is_main) pm.update(0);
+      pm.update(0);
     }
   }
 };
@@ -1002,7 +1000,6 @@ public:
   {}
 
   void operator()(std::size_t begin, std::size_t end) {
-    bool is_main = (begin == 0);
     for (std::size_t i = begin; i < end; i++) {
       if (pm.shouldExit()) return;
 
@@ -1087,7 +1084,7 @@ public:
       }
 
       results[i] = result;
-      if (is_main) pm.update(0);
+      pm.update(0);
     }
   }
 };

@@ -34,6 +34,7 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal
   category_levels = arguments$category_levels
+  blume_capel_shift = arguments$blume_capel_shift
   baseline_category_disc = arguments$baseline_category
 
   disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
@@ -66,7 +67,9 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
       seed = seed
     )
 
-    result$x = recode_simulated_to_original(result$x, category_levels)
+    result$x = recode_simulated_to_original(
+      result$x, category_levels, blume_capel_shift
+    )
     out = combine_mixed_result(result, disc_idx, cont_idx, data_columnnames)
     return(out)
   } else {
@@ -100,7 +103,7 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
 
     for(i in seq_along(results)) {
       results[[i]]$x = recode_simulated_to_original(
-        results[[i]]$x, category_levels
+        results[[i]]$x, category_levels, blume_capel_shift
       )
       results[[i]] = combine_mixed_result(
         results[[i]], disc_idx, cont_idx, data_columnnames
@@ -141,6 +144,7 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal
   category_levels = arguments$category_levels
+  blume_capel_shift = arguments$blume_capel_shift
   baseline_category_disc = arguments$baseline_category
 
   disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
@@ -160,7 +164,7 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
   # path; unobserved categories warn and yield NA predictions.
   x_data = as.matrix(newdata[, disc_idx, drop = FALSE])
   x_data = recode_data_for_prediction(
-    x_data, num_categories, is_ordinal, category_levels
+    x_data, num_categories, is_ordinal, category_levels, blume_capel_shift
   )
   storage.mode(x_data) = "integer"
   y_data = as.matrix(newdata[, cont_idx, drop = FALSE])

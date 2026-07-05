@@ -55,9 +55,6 @@ print.bgms = function(x, ...) {
 
   # Dataset info
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
-  if(isTRUE(arguments$standardize)) {
-    cat(" Prior standardization: enabled\n")
-  }
   if(isTRUE(arguments$na_impute)) {
     cat(paste0(" Number of cases: ", arguments$num_cases, " (missings imputed)\n"))
   } else {

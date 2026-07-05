@@ -67,7 +67,7 @@ Rcpp::List sample_omrf(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
-    const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
+    const bool learn_mass_matrix = true
 ) {
     // Create parameter priors from R input
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
@@ -106,13 +106,6 @@ Rcpp::List sample_omrf(
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
 
-    // Set pairwise scaling factors (if provided)
-    if (pairwise_scaling_factors_nullable.isNotNull()) {
-        arma::mat sf = Rcpp::as<arma::mat>(
-            Rcpp::NumericMatrix(pairwise_scaling_factors_nullable.get()));
-        model.set_pairwise_scaling_factors(sf);
-    }
-
     // Set up missing data imputation
     if (na_impute && missing_index_nullable.isNotNull()) {
         arma::imat missing_index = Rcpp::as<arma::imat>(
@@ -138,6 +131,7 @@ Rcpp::List sample_omrf(
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
     config.na_impute = na_impute;
 
     // Set up progress manager

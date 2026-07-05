@@ -245,12 +245,6 @@ public:
     arma::mat& get_proposal_sd_pairwise() { return proposal_sd_pairwise_; }
 
     /**
-     * Set per-pair scaling factors for the Cauchy prior.
-     * @param sf  Scaling factor matrix (p x p)
-     */
-    void set_pairwise_scaling_factors(const arma::mat& sf) { pairwise_scaling_factors_ = sf; }
-
-    /**
      * Enable or disable edge-selection proposals.
      * @param active  true to enable edge add-delete moves
      */
@@ -297,7 +291,6 @@ private:
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
     std::unique_ptr<BaseParameterPrior> interaction_prior_; ///< Prior on pairwise interactions
     std::unique_ptr<BaseParameterPrior> threshold_prior_;  ///< Prior on main effects / thresholds
-    arma::mat pairwise_scaling_factors_; ///< Per-pair scaling factors for interaction prior
 
     // Model configuration
     bool edge_selection_;               ///< Enable edge selection
@@ -319,7 +312,6 @@ private:
     SafeRNG rng_;                       ///< Per-chain random number generator
 
     // NUTS settings
-    double step_size_;                  ///< Current step size for gradient-based samplers
     arma::vec inv_mass_;                ///< Inverse mass diagonal
 
     // Missing data handling

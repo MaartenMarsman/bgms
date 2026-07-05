@@ -203,6 +203,9 @@ build_output_compare = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # Report the number of chains actually kept; failed chains are dropped
+  # upstream, so raw holds only the survivors.
+  results$arguments$num_chains = length(raw)
   # NULL placeholders ensure names(fit) lists these fields for easybgm compat.
   # Use list(NULL) because results$x = NULL removes the element in R.
   results["posterior_summary_main_baseline"] = list(NULL)
@@ -230,7 +233,6 @@ build_output_compare = function(spec, raw) {
     s3_list_to_bgmCompare(results)
   }
 }
-
 
 
 # ==============================================================================

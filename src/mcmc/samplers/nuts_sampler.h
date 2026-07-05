@@ -41,6 +41,7 @@ public:
           max_tree_depth_(config.max_tree_depth),
           reverse_check_(config.reverse_check),
           reverse_check_tol_(config.reverse_check_tol),
+          learn_mass_matrix_(config.learn_mass_matrix),
           initialized_(false)
     {}
 
@@ -261,7 +262,7 @@ private:
         // Construct the adaptation controller with the shared schedule
         nuts_adapt_ = std::make_unique<NUTSAdaptationController>(
             dim, init_eps, target_acceptance_, schedule_,
-            /*learn_mass_matrix=*/true);
+            learn_mass_matrix_);
     }
 
     // --- Configuration / state ---
@@ -271,6 +272,7 @@ private:
     int max_tree_depth_;
     bool reverse_check_;
     double reverse_check_tol_;
+    bool learn_mass_matrix_;
 
     // --- Lifecycle flags ---
     bool initialized_;

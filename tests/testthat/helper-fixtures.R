@@ -316,21 +316,6 @@ get_bgms_fit_impute = function() {
   .test_cache$bgms_fit_impute
 }
 
-#' @description Get cached bgms fit with prior standardization (1 chain)
-get_bgms_fit_standardize = function() {
-  if(is.null(.test_cache$bgms_fit_std)) {
-    data("Wenchuan", package = "bgms")
-    .test_cache$bgms_fit_std = bgm(
-      Wenchuan[1:50, 1:4],
-      standardize = TRUE,
-      iter = 25, warmup = 50, chains = 1,
-      seed = 88881,
-      display_progress = "none"
-    )
-  }
-  .test_cache$bgms_fit_std
-}
-
 #' @description Get cached bgmCompare fit with Blume-Capel variables (1 chain)
 get_bgmcompare_fit_blumecapel = function() {
   if(is.null(.test_cache$bgmcompare_fit_bc)) {
@@ -420,23 +405,6 @@ get_bgmcompare_fit_blumecapel_impute = function() {
     )
   }
   .test_cache$bgmcompare_fit_bc_impute
-}
-
-#' @description Get cached bgmCompare fit with prior standardization (1 chain)
-get_bgmcompare_fit_standardize = function() {
-  if(is.null(.test_cache$bgmcompare_fit_std)) {
-    data("Wenchuan", package = "bgms")
-    x = Wenchuan[1:25, 1:4]
-    y = Wenchuan[26:50, 1:4]
-    .test_cache$bgmcompare_fit_std = bgmCompare(
-      x = x, y = y,
-      standardize = TRUE,
-      iter = 25, warmup = 50, chains = 1,
-      seed = 22221,
-      display_progress = "none"
-    )
-  }
-  .test_cache$bgmcompare_fit_std
 }
 
 #' @description Get cached bgms fit for GGM
@@ -1118,13 +1086,6 @@ get_bgms_fixtures = function() {
       is_continuous = FALSE
     ),
     list(
-      label = "standardize",
-      get_fit = get_bgms_fit_standardize,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
       label = "beta-bernoulli",
       get_fit = get_bgms_fit_beta_bernoulli,
       get_prediction_data = get_prediction_data_binary,
@@ -1297,12 +1258,6 @@ get_bgmcompare_fixtures = function() {
     list(
       label = "beta-bernoulli",
       get_fit = get_bgmcompare_fit_beta_bernoulli,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    ),
-    list(
-      label = "standardize",
-      get_fit = get_bgmcompare_fit_standardize,
       get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     ),

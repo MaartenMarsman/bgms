@@ -69,7 +69,9 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
   )
   x = md$x
 
-  # Center continuous data (GGM likelihood assumes zero mean)
+  # Center continuous data (GGM likelihood assumes zero mean). The column
+  # means are kept so prediction can center newdata on the training scale.
+  column_means = colMeans(x)
   x = center_continuous_data(x)
 
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
@@ -83,7 +85,8 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
       x                = x,
       data_columnnames = data_columnnames,
       num_variables    = as.integer(ncol(x)),
-      num_cases        = as.integer(nrow(x))
+      num_cases        = as.integer(nrow(x)),
+      column_means     = column_means
     ),
     variables = list(
       variable_type     = variable_type,
@@ -116,7 +119,6 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
 }
 
 
-
 build_spec_omrf = function(x, data_columnnames, num_variables,
                            variable_type, is_ordinal, is_continuous,
                            baseline_category,
@@ -125,12 +127,11 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
                            interaction_alpha, interaction_beta,
                            threshold_prior_type, main_alpha, main_beta,
                            threshold_scale,
-                           standardize,
                            edge_prior_flat) {
   # Baseline category
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x,
     variable_bool = is_ordinal
   )
@@ -153,34 +154,21 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
 
   ep = edge_prior_flat
 
-  # Scaling factors
-  varnames = if(is.null(colnames(x))) {
-    paste0("Variable ", seq_len(num_variables))
-  } else {
-    colnames(x)
-  }
-  psf = compute_scaling_factors(
-    num_variables     = num_variables,
-    is_ordinal        = is_ordinal,
-    num_categories    = num_categories,
-    baseline_category = bc_final,
-    standardize       = standardize,
-    varnames          = varnames
-  )
-
   num_thresholds = sum(ifelse(is_ordinal, num_categories, 2L))
 
   new_bgm_spec(
     model_type = "omrf",
     data = list(
-      x                = x_recoded,
+      x = x_recoded,
       data_columnnames = data_columnnames,
-      num_variables    = as.integer(num_variables),
-      num_cases        = as.integer(nrow(x_recoded)),
-      num_categories   = as.integer(num_categories),
+      num_variables = as.integer(num_variables),
+      num_cases = as.integer(nrow(x_recoded)),
+      num_categories = as.integer(num_categories),
       # Recode map (sorted original values per ordinal variable) so predict()
       # can recode newdata the same way bgm() recoded the training data.
-      category_levels  = ord$category_levels
+      category_levels = ord$category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable.
+      blume_capel_shift = ord$blume_capel_shift
     ),
     variables = list(
       variable_type     = variable_type,
@@ -202,9 +190,7 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
         threshold_prior_type = threshold_prior_type,
         main_alpha = main_alpha,
         main_beta = main_beta,
-        threshold_scale = threshold_scale,
-        standardize = standardize,
-        pairwise_scaling_factors = psf
+        threshold_scale = threshold_scale
       ),
       edge_prior_spec_fields(ep)
     ),
@@ -214,7 +200,6 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
     )
   )
 }
-
 
 
 # ------------------------------------------------------------------
@@ -239,7 +224,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 scale_prior_type, scale_shape, scale_rate,
                                 scale_eta = NA_real_,
                                 delta = 0,
-                                standardize,
                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
   scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
@@ -273,7 +257,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   # Baseline category for discrete variables
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x_disc,
     variable_bool = is_ordinal_disc
   )
@@ -348,6 +332,8 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
       # Recode map (sorted original values per discrete variable) for original-
       # scale threshold labels; NULL for Blume-Capel.
       category_levels = ord$category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable.
+      blume_capel_shift = ord$blume_capel_shift,
       discrete_indices = disc_idx,
       continuous_indices = cont_idx
     ),
@@ -382,8 +368,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_shape = scale_shape,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
-        delta = delta,
-        standardize = standardize
+        delta = delta
       ),
       edge_prior_spec_fields(ep)
     ),
@@ -395,7 +380,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
 }
 
 
-
 build_spec_compare = function(x, y, group_indicator,
                               data_columnnames, num_variables,
                               variable_type, is_ordinal, is_continuous,
@@ -405,10 +389,10 @@ build_spec_compare = function(x, y, group_indicator,
                               interaction_alpha, interaction_beta,
                               threshold_prior_type, main_alpha, main_beta,
                               threshold_scale,
-                              standardize,
                               difference_selection, main_difference_selection,
                               difference_prior,
                               difference_scale, difference_probability,
+                              difference_prior_type = "cauchy",
                               beta_bernoulli_alpha, beta_bernoulli_beta,
                               beta_bernoulli_alpha_between = 1,
                               beta_bernoulli_beta_between = 1,
@@ -464,7 +448,7 @@ build_spec_compare = function(x, y, group_indicator,
   # --- Baseline category (needs combined x) -----------------------------------
   bc = validate_baseline_category(
     baseline_category = baseline_category,
-    baseline_category_provided = !identical(baseline_category, 0L),
+    baseline_category_provided = !is.null(baseline_category),
     x = x,
     variable_bool = is_ordinal
   )
@@ -620,29 +604,24 @@ build_spec_compare = function(x, y, group_indicator,
     }
   }
 
-  # Scaling factors
-  varnames = if(is.null(colnames(x_recoded))) {
-    paste0("Variable ", seq_len(num_variables))
-  } else {
-    colnames(x_recoded)
-  }
-  psf = compute_scaling_factors(
-    num_variables     = num_variables,
-    is_ordinal        = ordinal_variable,
-    num_categories    = num_categories,
-    baseline_category = bc_final,
-    standardize       = standardize,
-    varnames          = varnames
-  )
-
   # Group indices and projection
   group_indices = matrix(NA_integer_, nrow = num_groups, ncol = 2)
   observations = x_centered
   sorted_group = sort(group)
+  row_permutation = integer(nrow(x_centered))
   for(g in unique(group)) {
-    observations[which(sorted_group == g), ] = x_centered[which(group == g), ]
-    group_indices[g, 1] = as.integer(min(which(sorted_group == g)) - 1)
-    group_indices[g, 2] = as.integer(max(which(sorted_group == g)) - 1)
+    src = which(group == g)
+    dst = which(sorted_group == g)
+    observations[dst, ] = x_centered[src, ]
+    row_permutation[src] = dst
+    group_indices[g, 1] = as.integer(min(dst) - 1)
+    group_indices[g, 2] = as.integer(max(dst) - 1)
+  }
+
+  # missing_index rows index observations, which is in group-sorted order;
+  # map the 0-based row column onto that order.
+  if(na_impute && nrow(missing_index) > 0) {
+    missing_index[, 1] = row_permutation[missing_index[, 1] + 1L] - 1L
   }
 
   one = matrix(1, nrow = num_groups, ncol = num_groups)
@@ -655,16 +634,19 @@ build_spec_compare = function(x, y, group_indicator,
   new_bgm_spec(
     model_type = "compare",
     data = list(
-      x                = observations,
+      x = observations,
       data_columnnames = data_columnnames,
-      num_variables    = as.integer(num_variables),
-      num_cases        = as.integer(nrow(observations)),
-      num_categories   = as.integer(num_categories),
-      category_levels  = category_levels,
-      group            = as.integer(group),
-      num_groups       = as.integer(num_groups),
-      group_indices    = group_indices,
-      projection       = projection
+      num_variables = as.integer(num_variables),
+      num_cases = as.integer(nrow(observations)),
+      num_categories = as.integer(num_categories),
+      category_levels = category_levels,
+      # Additive shift to the 0-based scale per Blume-Capel variable (the
+      # cross-group collapse leaves Blume-Capel columns unchanged).
+      blume_capel_shift = ord$blume_capel_shift,
+      group = as.integer(group),
+      num_groups = as.integer(num_groups),
+      group_indices = group_indices,
+      projection = projection
     ),
     variables = list(
       variable_type     = variable_type,
@@ -686,12 +668,11 @@ build_spec_compare = function(x, y, group_indicator,
       main_alpha = main_alpha,
       main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
-      pairwise_scaling_factors = psf,
       difference_selection = dp$difference_selection,
       main_difference_selection = main_difference_selection,
       difference_prior = dp$difference_prior,
       difference_scale = difference_scale,
+      difference_prior_type = difference_prior_type,
       inclusion_probability_difference = dp$inclusion_probability_difference,
       beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
       beta_bernoulli_beta = dp$beta_bernoulli_beta,

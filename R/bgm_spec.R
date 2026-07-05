@@ -103,13 +103,6 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
       is.character(prior$threshold_prior_type),
       length(prior$threshold_prior_type) == 1L
     )
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
-  }
-  if(model_type %in% c("omrf", "compare")) {
-    stopifnot(is.matrix(prior$pairwise_scaling_factors))
-  }
-  if(model_type == "mixed_mrf") {
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
   }
   if(model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
@@ -132,6 +125,11 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
     stopifnot(
       is.numeric(prior$difference_scale),
       length(prior$difference_scale) == 1L
+    )
+    stopifnot(
+      is.character(prior$difference_prior_type),
+      length(prior$difference_prior_type) == 1L,
+      prior$difference_prior_type %in% c("cauchy", "normal")
     )
     stopifnot(is.matrix(prior$inclusion_probability_difference))
   }
@@ -207,18 +205,6 @@ validate_bgm_spec = function(spec) {
     }
   }
 
-  # Scaling factors dimensions
-  if(mt %in% c("omrf", "compare")) {
-    nv = spec$data$num_variables
-    sf = spec$prior$pairwise_scaling_factors
-    if(nrow(sf) != nv || ncol(sf) != nv) {
-      stop(
-        "bgm_spec: pairwise_scaling_factors dimensions (",
-        nrow(sf), "x", ncol(sf), ") don't match num_variables (", nv, ")."
-      )
-    }
-  }
-
   # num_categories length (OMRF / compare)
   if(mt == "omrf" || mt == "compare") {
     if(length(spec$data$num_categories) != spec$data$num_variables) {
@@ -256,7 +242,7 @@ bgm_spec = function(x,
                     model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
                     # Variable specification
                     variable_type = "ordinal",
-                    baseline_category = 0L,
+                    baseline_category = NULL,
                     # Data (compare-specific)
                     y = NULL,
                     group_indicator = NULL,
@@ -280,7 +266,6 @@ bgm_spec = function(x,
                     scale_rate = 1,
                     scale_eta = NA_real_,
                     delta = NULL,
-                    standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
                     # Legacy edge prior params (accepted for backward compat)
@@ -296,6 +281,7 @@ bgm_spec = function(x,
                       "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
                     ),
                     difference_scale = 1,
+                    difference_prior_type = "cauchy",
                     difference_probability = 0.5,
                     # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,
@@ -485,7 +471,6 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      standardize = standardize,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {
@@ -503,7 +488,6 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       edge_prior_flat = ep_flat
     )
   } else {
@@ -522,11 +506,11 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       difference_selection = difference_selection,
       main_difference_selection = main_difference_selection,
       difference_prior = difference_prior,
       difference_scale = difference_scale,
+      difference_prior_type = difference_prior_type,
       difference_probability = difference_probability,
       beta_bernoulli_alpha = beta_bernoulli_alpha,
       beta_bernoulli_beta = beta_bernoulli_beta,

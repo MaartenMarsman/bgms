@@ -52,11 +52,11 @@ build_arguments_ggm = function(spec) {
     num_chains                   = spec$sampler$chains,
     data_columnnames             = spec$data$data_columnnames,
     no_variables                 = spec$data$num_variables,
+    column_means                 = spec$data$column_means,
     is_continuous                = TRUE,
     model_type                   = "ggm"
   )
 }
-
 
 
 build_arguments_omrf = function(spec) {
@@ -72,7 +72,6 @@ build_arguments_omrf = function(spec) {
     iter                         = spec$sampler$iter,
     warmup                       = spec$sampler$warmup,
     pairwise_scale               = spec$prior$pairwise_scale,
-    standardize                  = spec$prior$standardize,
     main_alpha                   = spec$prior$main_alpha,
     main_beta                    = spec$prior$main_beta,
     edge_selection               = spec$prior$edge_selection,
@@ -93,14 +92,13 @@ build_arguments_omrf = function(spec) {
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
     category_levels              = spec$data$category_levels,
+    blume_capel_shift            = spec$data$blume_capel_shift,
     data_columnnames             = spec$data$data_columnnames,
     baseline_category            = spec$variables$baseline_category,
-    pairwise_scaling_factors     = spec$prior$pairwise_scaling_factors,
     no_variables                 = spec$data$num_variables,
     model_type                   = "omrf"
   )
 }
-
 
 
 build_arguments_mixed_mrf = function(spec) {
@@ -113,7 +111,6 @@ build_arguments_mixed_mrf = function(spec) {
     iter                         = spec$sampler$iter,
     warmup                       = spec$sampler$warmup,
     pairwise_scale               = spec$prior$pairwise_scale,
-    standardize                  = spec$prior$standardize,
     main_alpha                   = spec$prior$main_alpha,
     main_beta                    = spec$prior$main_beta,
     edge_selection               = spec$prior$edge_selection,
@@ -126,6 +123,7 @@ build_arguments_mixed_mrf = function(spec) {
     dirichlet_alpha              = spec$prior$dirichlet_alpha,
     lambda                       = spec$prior$lambda,
     na_action                    = spec$missing$na_action,
+    na_impute                    = spec$missing$na_impute,
     version                      = packageVersion("bgms"),
     update_method                = spec$sampler$update_method,
     target_accept                = spec$sampler$target_accept,
@@ -133,6 +131,7 @@ build_arguments_mixed_mrf = function(spec) {
     num_chains                   = spec$sampler$chains,
     num_categories               = spec$data$num_categories,
     category_levels              = spec$data$category_levels,
+    blume_capel_shift            = spec$data$blume_capel_shift,
     data_columnnames             = spec$data$data_columnnames,
     data_columnnames_discrete    = spec$data$data_columnnames_discrete,
     data_columnnames_continuous  = spec$data$data_columnnames_continuous,
@@ -147,7 +146,6 @@ build_arguments_mixed_mrf = function(spec) {
 }
 
 
-
 build_arguments_compare = function(spec) {
   list(
     num_variables                      = spec$data$num_variables,
@@ -156,7 +154,6 @@ build_arguments_compare = function(spec) {
     warmup                             = spec$sampler$warmup,
     pairwise_scale                     = spec$prior$pairwise_scale,
     difference_scale                   = spec$prior$difference_scale,
-    standardize                        = spec$prior$standardize,
     difference_selection               = spec$prior$difference_selection,
     main_difference_selection          = spec$prior$main_difference_selection,
     difference_prior                   = spec$prior$difference_prior,
@@ -178,9 +175,9 @@ build_arguments_compare = function(spec) {
     projection                         = spec$data$projection,
     num_categories                     = spec$data$num_categories,
     category_levels                    = spec$data$category_levels,
+    blume_capel_shift                  = spec$data$blume_capel_shift,
     is_ordinal_variable                = spec$variables$is_ordinal,
     group                              = sort(spec$data$group),
-    pairwise_scaling_factors           = spec$prior$pairwise_scaling_factors,
     model_type                         = "compare"
   )
 }

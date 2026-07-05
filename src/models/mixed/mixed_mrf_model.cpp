@@ -107,10 +107,15 @@ MixedMRFModel::MixedMRFModel(
     //   With cross_int = 0, this is zero.
     marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
 
-    // Initialize edge-order permutation vectors
-    edge_order_xx_ = arma::regspace<arma::uvec>(0, num_pairwise_xx_ - 1);
-    edge_order_yy_ = arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1);
-    edge_order_xy_ = arma::regspace<arma::uvec>(0, num_cross_ - 1);
+    // Initialize edge-order permutation vectors. The counts are size_t, so a
+    // zero count (one continuous or one discrete variable) must not reach
+    // regspace(0, count - 1), which would underflow to SIZE_MAX.
+    edge_order_xx_ = num_pairwise_xx_
+        ? arma::regspace<arma::uvec>(0, num_pairwise_xx_ - 1) : arma::uvec();
+    edge_order_yy_ = num_pairwise_yy_
+        ? arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1) : arma::uvec();
+    edge_order_xy_ = num_cross_
+        ? arma::regspace<arma::uvec>(0, num_cross_ - 1) : arma::uvec();
 
     // Detect sparse initial graph (constraints without edge selection)
     if(!edge_selection_) {
@@ -1096,13 +1101,21 @@ void MixedMRFModel::impute_missing() {
 
             double cumsum = 0.0;
 
+            // Max-shift the category exponents so exp() cannot overflow; the
+            // shift cancels in the normalized inverse-transform draw below.
             if(is_ordinal_variable_(variable)) {
-                // P(x=0) = 1, P(x=c) ∝ exp(c · rest + μ_x(s, c-1))
-                cumsum = 1.0;
+                // P(x=0) ∝ exp(0), P(x=c) ∝ exp(c · rest + μ_x(s, c-1))
+                double max_exp = 0.0;
+                for(int c = 1; c <= num_cats; c++) {
+                    double e = static_cast<double>(c) * rest_v +
+                               main_effects_discrete_(variable, c - 1);
+                    if(e > max_exp) max_exp = e;
+                }
+                cumsum = MY_EXP(-max_exp);
                 category_probabilities(0) = cumsum;
                 for(int c = 1; c <= num_cats; c++) {
                     double exponent = static_cast<double>(c) * rest_v +
-                                      main_effects_discrete_(variable, c - 1);
+                                      main_effects_discrete_(variable, c - 1) - max_exp;
                     cumsum += MY_EXP(exponent);
                     category_probabilities(c) = cumsum;
                 }
@@ -1111,12 +1124,18 @@ void MixedMRFModel::impute_missing() {
                 const int ref = baseline_category_(variable);
                 double alpha = main_effects_discrete_(variable, 0);
                 double beta = main_effects_discrete_(variable, 1);
+                double max_exp = -arma::datum::inf;
+                for(int cat = 0; cat <= num_cats; cat++) {
+                    const int score = cat - ref;
+                    double e = alpha * score + beta * score * score + score * rest_v;
+                    if(e > max_exp) max_exp = e;
+                }
                 cumsum = 0.0;
                 for(int cat = 0; cat <= num_cats; cat++) {
                     const int score = cat - ref;
                     double exponent = alpha * score +
                                       beta * score * score +
-                                      score * rest_v;
+                                      score * rest_v - max_exp;
                     cumsum += MY_EXP(exponent);
                     category_probabilities(cat) = cumsum;
                 }
@@ -1152,8 +1171,14 @@ void MixedMRFModel::impute_missing() {
         }
     }
 
-    // --- Phase 2: Refresh conditional_mean_ (depends on discrete data) ---
-    if(num_disc_missing > 0 && missing_index_continuous_.n_rows > 0) {
+    // --- Phase 2: Refresh caches that depend on the discrete data ---
+    if(num_disc_missing > 0) {
+        // logp_and_gradient_full reads discrete_observations_dbl_t_ directly,
+        // not via ensure_gradient_cache; hold it equal to the transpose of the
+        // discrete data.
+        discrete_observations_dbl_t_ = discrete_observations_dbl_.t();
+        // conditional_mean_ is a function of the discrete data and is read by
+        // every MH acceptance ratio (log_conditional_ggm).
         recompute_conditional_mean();
     }
 
