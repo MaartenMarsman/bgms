@@ -411,6 +411,28 @@ private:
     arma::mat cross_term_;                  ///< p x p cached 2 A_xy Σ A_xy' (marginal PL cross term)
     arma::mat conditional_mean_;            ///< n x q conditional mean
 
+    // =========================================================================
+    // Adaptive-Metropolis sweep caches
+    // =========================================================================
+    // Refreshed in full at the top of each MH/indicator sweep and maintained
+    // incrementally by the accept paths inside a sweep. Reads outside the
+    // sweeps must not rely on them.
+
+    arma::mat marginal_matvec_;    ///< n x p  X · M (rest scores read off its columns)
+    arma::mat cross_matvec_;       ///< n x q  X · A_xy (conditional mean, Σ-change deltas)
+    arma::vec cross_bias_;         ///< p      2 · A_xy · μ_y (rest-score offset per variable)
+    arma::vec ll_marginal_cache_;  ///< p      log_marginal_omrf(s) at the current state
+    double ll_ggm_cache_ = 0.0;    ///< log_conditional_ggm() at the current state
+
+    // Proposal scratch (pre-sized in recompute_am_caches, reused per proposal)
+    arma::mat marginal_matvec_prop_;  ///< n x p  proposed X · M'
+    arma::vec mdiag_prop_;            ///< p      proposed diag(M')
+    arma::vec ll_marginal_prop_;      ///< p      proposed per-variable marginals
+    arma::vec cross_bias_prop_;       ///< p      proposed rest-score offsets
+    arma::vec matvec_col_i_scratch_;  ///< n      saved matvec column (exact reject restore)
+    arma::vec matvec_col_j_scratch_;  ///< n      saved matvec column (exact reject restore)
+    arma::mat cond_mean_scratch_;     ///< n x q  saved conditional mean (exact reject restore)
+
     // Rank-1 Cholesky update workspace
     std::array<double, 6> cont_constants_{};  ///< Reparameterization constants
     arma::mat precision_proposal_;        ///< q x q scratch for proposed precision
@@ -492,6 +514,12 @@ private:
     /** Refresh marginal_interactions_(i,j)/(j,i) from pairwise_effects_discrete_ and the cached cross_term_. Valid only while pairwise_effects_cross_ and covariance_continuous_ are unchanged since the last cross_term_ refresh. */
     void refresh_marginal_interactions_entry(int i, int j);
 
+    /** Rebuild all AM sweep caches (matvecs, cross bias, per-variable marginals, GGM value). */
+    void recompute_am_caches();
+
+    /** Recompute conditional_mean_ as 2 · cross_matvec_ · Σ + μ_y' (requires a fresh cross_matvec_). */
+    void recompute_conditional_mean_from_cross_matvec();
+
     /** Rebuild Cholesky constraint structure and excluded-edge index lists. */
     void ensure_constraint_structure();
 
@@ -524,8 +552,23 @@ private:
     /** Marginal OMRF pseudolikelihood for discrete variable s, using marginal_interactions_. */
     double log_marginal_omrf(int s) const;
 
+    /** Marginal OMRF pseudolikelihood for variable s given its precomputed rest score. */
+    double log_marginal_omrf_given_rest(int s, const arma::vec& rest, double precision_ss) const;
+
+    /** Marginal OMRF pseudolikelihood for variable s from a cached X·M matvec. */
+    double log_marginal_omrf_from(int s, const arma::mat& matvec,
+                                  double precision_ss, double bias_s) const;
+
+    /** log_marginal_omrf_from on the current-state caches. */
+    double log_marginal_omrf_cached(int s) const;
+
     /** Conditional GGM log-likelihood: log f(y | x), using cached decomposition. */
     double log_conditional_ggm() const;
+
+    /** OMRF part of an MH ratio for a proposed covariance Σ'. Fills the
+        proposal scratch (matvec, diag, per-variable marginals) and returns
+        Σ_s L'_s − Σ_s L_s. Members are not mutated. */
+    double omrf_ratio_for_covariance_change(const arma::mat& cov_prop);
 
     // =========================================================================
     // MH update functions (implemented in mixed_mrf_metropolis.cpp)
