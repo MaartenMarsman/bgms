@@ -812,7 +812,7 @@ void simulate_mixed_mrf(
           double cumsum = 0.0;
           arma::vec cum_probs(Cs + 1);
           for (int c = 0; c <= Cs; c++) {
-            cumsum += std::exp(log_probs(c) - max_lp);
+            cumsum += MY_EXP(log_probs(c) - max_lp);
             cum_probs(c) = cumsum;
           }
 
@@ -835,7 +835,7 @@ void simulate_mixed_mrf(
           double cumsum = 0.0;
           arma::vec cum_probs(Cs + 1);
           for (int c = 0; c <= Cs; c++) {
-            cumsum += std::exp(log_probs(c) - max_lp);
+            cumsum += MY_EXP(log_probs(c) - max_lp);
             cum_probs(c) = cumsum;
           }
 

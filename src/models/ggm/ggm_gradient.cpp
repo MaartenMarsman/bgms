@@ -1,4 +1,5 @@
 #include "models/ggm/ggm_gradient.h"
+#include "math/explog_macros.h"
 
 #include <cmath>
 #include <limits>
@@ -152,7 +153,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
             // Column 0: just the diagonal
             double psi_q = theta(offset);
             result.psi(q) = psi_q;
-            result.Phi(0, 0) = std::exp(psi_q);
+            result.Phi(0, 0) = MY_EXP(psi_q);
             continue;
         }
 
@@ -166,7 +167,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
         // psi_q is after f_q
         double psi_q = theta(offset + d_q);
         result.psi(q) = psi_q;
-        result.Phi(q, q) = std::exp(psi_q);
+        result.Phi(q, q) = MY_EXP(psi_q);
 
         // Build constraint matrix A_q
         size_t m_q = col.m_q;
@@ -212,7 +213,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
 
     // Jacobian: log|det J| = p*log(2) + 2*sum(psi) + sum_{i<p}(p-i)*psi_i
     //                       - sum_q sum_j log|R_{q,jj}|
-    double ldj = static_cast<double>(p_) * std::log(2.0);
+    double ldj = static_cast<double>(p_) * MY_LOG(2.0);
     for (size_t q = 0; q < p_; ++q) {
         ldj += 2.0 * result.psi(q);
     }
@@ -222,7 +223,7 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
     for (size_t q = 1; q < p_; ++q) {
         const auto& rd = result.R_diag[q];
         for (size_t j = 0; j < rd.n_elem; ++j) {
-            ldj -= std::log(rd(j));
+            ldj -= MY_LOG(rd(j));
         }
     }
     result.log_det_jacobian = ldj;

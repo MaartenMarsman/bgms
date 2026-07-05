@@ -252,31 +252,15 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
     const double target_accept = target_accept_;
 
     const int num_variables = static_cast<int>(p_);
+    recompute_log_denominators();
 
     for (int variable1 = 0; variable1 < num_variables - 1; variable1++) {
         for (int variable2 = variable1 + 1; variable2 < num_variables; variable2++) {
-            double current = pairwise_effects_(variable1, variable2);
-            double proposal_sd = proposal_sd_pairwise_(variable1, variable2);
+            double accept_prob = mh_pairwise_step(variable1, variable2);
 
-            auto log_post = [&](double theta) {
-                double delta = theta - current;
-                return log_pseudoposterior_pairwise_at_delta(variable1, variable2, delta);
-            };
-
-            StepResult result = metropolis_step(current, proposal_sd, log_post, rng_);
-
-            double value = result.state[0];
-            pairwise_effects_(variable1, variable2) = value;
-            pairwise_effects_(variable2, variable1) = value;
-
-            if (current != value) {
-                double delta = value - current;
-                residual_matrix_.col(variable1) += 2.0 * observations_double_.col(variable2) * delta;
-                residual_matrix_.col(variable2) += 2.0 * observations_double_.col(variable1) * delta;
-            }
-
-            proposal_sd = update_proposal_sd_with_robbins_monro(
-                proposal_sd, MY_LOG(result.accept_prob), rm_weight, target_accept);
+            double proposal_sd = update_proposal_sd_with_robbins_monro(
+                proposal_sd_pairwise_(variable1, variable2), MY_LOG(accept_prob),
+                rm_weight, target_accept);
             proposal_sd_pairwise_(variable1, variable2) = proposal_sd;
             proposal_sd_pairwise_(variable2, variable1) = proposal_sd;
         }
@@ -569,168 +553,55 @@ void OMRFModel::get_active_inv_mass_into(arma::vec& active_inv_mass) const {
 // Log-pseudoposterior computation
 // =============================================================================
 
-double OMRFModel::log_pseudoposterior_main_component(int variable, int category, int parameter) const {
-    double log_posterior = 0.0;
 
+
+
+
+
+
+double OMRFModel::compute_log_denominator(int variable) const {
     const int num_cats = num_categories_(variable);
-    // Stabiliser for the log-sum-exp; clamp at 0 (the reference-category
-    // exponent) so exp(-bound) cannot overflow. bound is subtracted inside the
-    // denominator and added back below, so its value does not change the result.
+    const arma::vec& residual_score = residual_matrix_.col(variable);
     arma::vec bound = arma::clamp(
-        num_cats * residual_matrix_.col(variable), 0.0, arma::datum::inf);
+        num_cats * residual_score, 0.0, arma::datum::inf);
 
-    if (is_ordinal_variable_(variable)) {
-        const double value = main_effects_(variable, category);
-        log_posterior += value * counts_per_category_(category + 1, variable);
-        log_posterior += threshold_prior_->logp(value);
-
-        arma::vec residual_score = residual_matrix_.col(variable);
-        arma::vec main_effect_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
-
-        arma::vec denom = compute_denom_ordinal(residual_score, main_effect_param, bound);
-        log_posterior -= arma::accu(bound + ARMA_MY_LOG(denom));
-    } else {
-        const double value = main_effects_(variable, parameter);
-        const double linear_main_effect = main_effects_(variable, 0);
-        const double quadratic_main_effect = main_effects_(variable, 1);
-        const int ref = baseline_category_(variable);
-
-        log_posterior += value * blume_capel_stats_(parameter, variable);
-        log_posterior += threshold_prior_->logp(value);
-
-        arma::vec residual_score = residual_matrix_.col(variable);
-        arma::vec denom(n_, arma::fill::zeros);
-
-        denom = compute_denom_blume_capel(
-            residual_score, linear_main_effect, quadratic_main_effect, ref, num_cats, bound
-        );
-
-        log_posterior -= arma::accu(bound + ARMA_MY_LOG(denom));
-    }
-
-    return log_posterior;
-}
-
-
-double OMRFModel::compute_log_likelihood_ratio_for_variable(
-    int variable,
-    const arma::ivec& interacting_score,
-    double proposed_state,
-    double current_state
-) const {
-    // Convert interaction score vector to double precision
-    arma::vec interaction = arma::conv_to<arma::vec>::from(interacting_score);
-
-    const int num_persons = static_cast<int>(n_);
-    const int num_cats = num_categories_(variable);
-
-    // Linear predictors for the current and proposed interaction values. The
-    // residual matrix already carries the current interaction.
-    arma::vec res_current = residual_matrix_.col(variable);
-    arma::vec res_proposed =
-        res_current + 2.0 * interaction * (proposed_state - current_state);
-
-    // Shared stabiliser covering both states, built from the actual linear
-    // predictors (not the interaction-removed one) and clamped at 0 so exp
-    // cannot overflow. The same bound is used for both states, so it cancels
-    // in the current/proposed ratio.
-    arma::vec bounds = arma::clamp(
-        num_cats * arma::max(res_current, res_proposed), 0.0, arma::datum::inf);
-
-    arma::vec denom_current = arma::zeros(num_persons);
-    arma::vec denom_proposed = arma::zeros(num_persons);
-
+    arma::vec denom;
     if (is_ordinal_variable_(variable)) {
         arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
-
-        denom_current += compute_denom_ordinal(res_current, main_param, bounds);
-        denom_proposed += compute_denom_ordinal(res_proposed, main_param, bounds);
+        denom = compute_denom_ordinal(residual_score, main_param, bound);
     } else {
-        const int ref_cat = baseline_category_(variable);
-
-        denom_current = compute_denom_blume_capel(
-            res_current, main_effects_(variable, 0),
-            main_effects_(variable, 1), ref_cat, num_cats, bounds
-        );
-        double log_ratio = arma::accu(ARMA_MY_LOG(denom_current) + bounds);
-
-        denom_proposed = compute_denom_blume_capel(
-            res_proposed, main_effects_(variable, 0),
-            main_effects_(variable, 1), ref_cat, num_cats, bounds
-        );
-        log_ratio -= arma::accu(ARMA_MY_LOG(denom_proposed) + bounds);
-
-        return log_ratio;
+        denom = compute_denom_blume_capel(
+            residual_score, main_effects_(variable, 0), main_effects_(variable, 1),
+            baseline_category_(variable), num_cats, bound);
     }
-
-    // Accumulated log-likelihood difference across persons
-    return arma::accu(ARMA_MY_LOG(denom_current) - ARMA_MY_LOG(denom_proposed));
+    return arma::accu(bound + ARMA_MY_LOG(denom));
 }
 
+double OMRFModel::compute_log_denominator_shifted(
+    int variable, const arma::vec& obs_other, double delta) const {
+    const int num_cats = num_categories_(variable);
+    arma::vec residual_score = residual_matrix_.col(variable) + 2.0 * obs_other * delta;
+    arma::vec bound = arma::clamp(
+        num_cats * residual_score, 0.0, arma::datum::inf);
 
-double OMRFModel::log_pseudolikelihood_ratio_interaction(
-    int variable1,
-    int variable2,
-    double proposed_state,
-    double current_state
-) const {
-    double log_ratio = 0.0;
-    const double delta = proposed_state - current_state;
-
-    arma::ivec score1 = observations_.col(variable1);
-    arma::ivec score2 = observations_.col(variable2);
-
-    log_ratio += 4.0 * pairwise_stats_(variable1, variable2) * delta;
-
-    log_ratio += compute_log_likelihood_ratio_for_variable(
-        variable1, score2, proposed_state, current_state
-    );
-
-    log_ratio += compute_log_likelihood_ratio_for_variable(
-        variable2, score1, proposed_state, current_state
-    );
-
-    return log_ratio;
+    arma::vec denom;
+    if (is_ordinal_variable_(variable)) {
+        arma::vec main_param = main_effects_.row(variable).cols(0, num_cats - 1).t();
+        denom = compute_denom_ordinal(residual_score, main_param, bound);
+    } else {
+        denom = compute_denom_blume_capel(
+            residual_score, main_effects_(variable, 0), main_effects_(variable, 1),
+            baseline_category_(variable), num_cats, bound);
+    }
+    return arma::accu(bound + ARMA_MY_LOG(denom));
 }
 
-
-double OMRFModel::log_pseudoposterior_pairwise_at_delta(int var1, int var2, double delta) const {
-    const int num_observations = static_cast<int>(n_);
-    const double proposed_value = pairwise_effects_(var1, var2) + delta;
-
-    double log_pseudo_posterior = 4.0 * proposed_value * pairwise_stats_(var1, var2);
-
-    const arma::vec& obs_var1 = observations_double_.col(var1);
-    const arma::vec& obs_var2 = observations_double_.col(var2);
-
-    for (int var : {var1, var2}) {
-        int num_cats = num_categories_(var);
-        const arma::vec& obs_other = (var == var1) ? obs_var2 : obs_var1;
-
-        arma::vec residual_score = residual_matrix_.col(var) + 2.0 * obs_other * delta;
-        arma::vec denominator = arma::zeros(num_observations);
-        arma::vec bound = arma::clamp(num_cats * residual_score, 0.0, arma::datum::inf);
-
-        if (is_ordinal_variable_(var)) {
-            arma::vec main_effect_param = main_effects_.row(var).cols(0, num_cats - 1).t();
-            denominator += compute_denom_ordinal(residual_score, main_effect_param, bound);
-        } else {
-            const int ref = baseline_category_(var);
-            denominator = compute_denom_blume_capel(
-                residual_score, main_effects_(var, 0), main_effects_(var, 1), ref, num_cats, bound
-            );
-        }
-
-        log_pseudo_posterior -= arma::accu(ARMA_MY_LOG(denominator));
-        log_pseudo_posterior -= arma::accu(bound);
-    }
-
-    if (edge_indicators_(var1, var2) == 1) {
-        log_pseudo_posterior += interaction_prior_->logp(proposed_value);
-    }
-
-    return log_pseudo_posterior;
+void OMRFModel::recompute_log_denominators() {
+    if (log_denominator_cache_.n_elem != p_) log_denominator_cache_.set_size(p_);
+    for (size_t v = 0; v < p_; ++v)
+        log_denominator_cache_(v) = compute_log_denominator(v);
 }
+
 
 
 // =============================================================================
@@ -942,41 +813,71 @@ double OMRFModel::update_main_effect_parameter(int variable, int category, int p
         ? proposal_sd_main_(variable, category)
         : proposal_sd_main_(variable, parameter);
 
-    auto log_post = [&](double theta) {
-        current = theta;
-        return log_pseudoposterior_main_component(variable, category, parameter);
-    };
+    const double count_stat = is_ordinal_variable_(variable)
+        ? static_cast<double>(counts_per_category_(category + 1, variable))
+        : static_cast<double>(blume_capel_stats_(parameter, variable));
 
-    StepResult result = metropolis_step(current, proposal_sd, log_post, rng_);
-    current = result.state[0];
-    return result.accept_prob;
+    double current_val = current;
+    double proposed = rnorm(rng_, current_val, proposal_sd);
+
+    // Current log-posterior: the normalizer comes from the sweep cache.
+    double ll_curr = current_val * count_stat + threshold_prior_->logp(current_val)
+                   - log_denominator_cache_(variable);
+
+    current = proposed;
+    double log_denom_prop = compute_log_denominator(variable);
+    double ll_prop = proposed * count_stat + threshold_prior_->logp(proposed)
+                   - log_denom_prop;
+
+    double accept_prob = std::min(1.0, MY_EXP(ll_prop - ll_curr));
+    if (runif(rng_) < accept_prob) {
+        log_denominator_cache_(variable) = log_denom_prop;
+    } else {
+        current = current_val;
+    }
+    return accept_prob;
+}
+
+
+double OMRFModel::mh_pairwise_step(int var1, int var2) {
+    double current_value = pairwise_effects_(var1, var2);
+    double proposal_sd = proposal_sd_pairwise_(var1, var2);
+
+    double proposed = rnorm(rng_, current_value, proposal_sd);
+    double delta = proposed - current_value;
+
+    const double stat = 4.0 * static_cast<double>(pairwise_stats_(var1, var2));
+    const bool has_prior = (edge_indicators_(var1, var2) == 1);
+
+    // Current log-posterior: both normalizers come from the sweep cache.
+    double ll_curr = current_value * stat
+                   - log_denominator_cache_(var1) - log_denominator_cache_(var2);
+    double log_denom_prop_1 = compute_log_denominator_shifted(
+        var1, observations_double_.col(var2), delta);
+    double log_denom_prop_2 = compute_log_denominator_shifted(
+        var2, observations_double_.col(var1), delta);
+    double ll_prop = proposed * stat - log_denom_prop_1 - log_denom_prop_2;
+    if (has_prior) {
+        ll_curr += interaction_prior_->logp(current_value);
+        ll_prop += interaction_prior_->logp(proposed);
+    }
+
+    double accept_prob = std::min(1.0, MY_EXP(ll_prop - ll_curr));
+    if (runif(rng_) < accept_prob) {
+        pairwise_effects_(var1, var2) = proposed;
+        pairwise_effects_(var2, var1) = proposed;
+        residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
+        residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
+        log_denominator_cache_(var1) = log_denom_prop_1;
+        log_denominator_cache_(var2) = log_denom_prop_2;
+    }
+    return accept_prob;
 }
 
 
 double OMRFModel::update_pairwise_effect(int var1, int var2) {
     if (edge_indicators_(var1, var2) == 0) return 1.0;
-
-    double current_value = pairwise_effects_(var1, var2);
-    double proposal_sd = proposal_sd_pairwise_(var1, var2);
-
-    auto log_post = [&](double theta) {
-        double delta = theta - current_value;
-        return log_pseudoposterior_pairwise_at_delta(var1, var2, delta);
-    };
-
-    StepResult result = metropolis_step(current_value, proposal_sd, log_post, rng_);
-
-    double value = result.state[0];
-    pairwise_effects_(var1, var2) = value;
-    pairwise_effects_(var2, var1) = value;
-
-    if (current_value != value) {
-        double delta = value - current_value;
-        residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
-        residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
-    }
-
-    return result.accept_prob;
+    return mh_pairwise_step(var1, var2);
 }
 
 
@@ -988,9 +889,16 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         ? rnorm(rng_, current_state, proposal_sd_pairwise_(var1, var2))
         : 0.0;
 
-    double log_accept = log_pseudolikelihood_ratio_interaction(
-        var1, var2, proposed_state, current_state
-    );
+    // Likelihood ratio: statistic shift plus the normalizer change, with the
+    // current-state normalizers read from the sweep cache.
+    const double delta = proposed_state - current_state;
+    const double log_denom_prop_1 = compute_log_denominator_shifted(
+        var1, observations_double_.col(var2), delta);
+    const double log_denom_prop_2 = compute_log_denominator_shifted(
+        var2, observations_double_.col(var1), delta);
+    double log_accept = 4.0 * static_cast<double>(pairwise_stats_(var1, var2)) * delta
+        + log_denominator_cache_(var1) + log_denominator_cache_(var2)
+        - log_denom_prop_1 - log_denom_prop_2;
 
     const double inclusion_probability_ij = inclusion_probability_(var1, var2);
     const double sd = proposal_sd_pairwise_(var1, var2);
@@ -1013,9 +921,10 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         pairwise_effects_(var1, var2) = proposed_state;
         pairwise_effects_(var2, var1) = proposed_state;
 
-        const double delta = proposed_state - current_state;
         residual_matrix_.col(var1) += 2.0 * observations_double_.col(var2) * delta;
         residual_matrix_.col(var2) += 2.0 * observations_double_.col(var1) * delta;
+        log_denominator_cache_(var1) = log_denom_prop_1;
+        log_denominator_cache_(var2) = log_denom_prop_2;
     }
 }
 
@@ -1025,6 +934,8 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
 // =============================================================================
 
 void OMRFModel::do_one_metropolis_step(int iteration) {
+    recompute_log_denominators();
+
     // Track running mean acceptance probability across all components
     // updated this iteration; exposed via last_metropolis_mean_accept_prob().
     double sum_accept = 0.0;
@@ -1094,6 +1005,7 @@ void OMRFModel::prepare_iteration() {
 
 
 void OMRFModel::update_edge_indicators() {
+    recompute_log_denominators();
     for (size_t i = 0; i < num_pairwise_; ++i) {
         int idx = shuffled_edge_order_(i);
         int var1 = interaction_index_(idx, 1);

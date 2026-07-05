@@ -3,6 +3,7 @@
 #include <RcppArmadillo.h>
 #include <unordered_map>
 #include <string>
+#include <cstdint>
 
 #include "rng/rng_utils.h"
 
@@ -184,10 +185,17 @@ private:
                         double& p2) const;
     void refit_();
 
+    /** Pack the (nCN, cne, bre) additive-cache counts into one integer key. */
+    static std::uint64_t pack_count_key(int ncn, int cne, int bre) {
+        return (static_cast<std::uint64_t>(ncn) << 42) |
+               (static_cast<std::uint64_t>(cne) << 21) |
+               static_cast<std::uint64_t>(bre);
+    }
+
     arma::vec addc_;
     arma::vec tg_, ihat_, ghat_, wt_;
     double psi0_;
-    std::unordered_map<std::string, double> cache_;
+    std::unordered_map<std::uint64_t, double> cache_;
     long n_hit_ = 0, n_miss_ = 0;
     long n_pred_ = 0, n_add_ = 0, n_clamp_ = 0;
 

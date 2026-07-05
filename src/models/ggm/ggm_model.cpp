@@ -53,7 +53,7 @@ void GGMModel::recompute_theta() const {
         size_t offset = cs.theta_offsets[q];
 
         // psi_q = log(phi_qq)
-        double psi_q = std::log(cholesky_of_precision_(q, q));
+        double psi_q = MY_LOG(cholesky_of_precision_(q, q));
         theta_(offset + col.d_q) = psi_q;
 
         if (q == 0 || col.d_q == 0) continue;
@@ -309,7 +309,7 @@ double GGMModel::update_edge_parameter(size_t i, size_t j) {
     if (edge_indicators_(i, j) == 0) {
         return 0.0; // Edge is not included; skip update (AR irrelevant, masked out)
     }
-    return std::min(1.0, std::exp(ggm_edge_move(i, j)));
+    return std::min(1.0, MY_EXP(ggm_edge_move(i, j)));
 }
 
 void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j)
@@ -503,7 +503,7 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     // cancel, leaving the ratio (kii_new/kii_old)^(alpha-1). The guard keeps
     // the alpha = 1 path free of the runif draw.
     if (std::abs(alpha - 1.0) > 1e-12) {
-        const double log_mh = (alpha - 1.0) * (std::log(kii_new) - std::log(kii_old));
+        const double log_mh = (alpha - 1.0) * (MY_LOG(kii_new) - MY_LOG(kii_old));
         if (MY_LOG(runif(rng_)) >= log_mh) {
             return;  // reject: leave precision_matrix_, chol(K), Sigma unchanged
         }
@@ -589,7 +589,7 @@ double GGMModel::ggm_diag_move(size_t i) {
 }
 
 double GGMModel::update_diagonal_parameter(size_t i) {
-    return std::min(1.0, std::exp(ggm_diag_move(i)));
+    return std::min(1.0, MY_EXP(ggm_diag_move(i)));
 }
 
 void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)

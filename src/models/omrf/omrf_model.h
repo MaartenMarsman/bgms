@@ -282,6 +282,11 @@ private:
     arma::imat pairwise_stats_;         ///< X^T X
     arma::mat residual_matrix_;         ///< X * pairwise_effects (n x p)
 
+    // Per-variable log normalizer sum_i (bound + log denom) at the current
+    // state. Refreshed at the top of each MH/indicator sweep and maintained
+    // on accept, so proposals stop re-evaluating the current state.
+    arma::vec log_denominator_cache_;   ///< p
+
     // Parameters
     arma::mat main_effects_;            ///< Main effect parameters (p x max_cats)
     arma::mat pairwise_effects_;        ///< Pairwise interactions (p x p, symmetric)
@@ -378,35 +383,27 @@ private:
     // -------------------------------------------------------------------------
 
     /**
-     * Log-posterior for single main effect component
+     * Log normalizer sum_i (bound + log denom) for one variable at the
+     * current state; the expensive shared piece of every MH acceptance.
      */
-    double log_pseudoposterior_main_component(int variable, int category, int parameter) const;
+    double compute_log_denominator(int variable) const;
 
     /**
-     * Log-likelihood ratio for variable update
+     * Log normalizer for variable under a pairwise shift: the residual
+     * column moves by 2 * obs_other * delta.
      */
-    double compute_log_likelihood_ratio_for_variable(
-        int variable,
-        const arma::ivec& interacting_score,
-        double proposed_state,
-        double current_state
-    ) const;
+    double compute_log_denominator_shifted(
+        int variable, const arma::vec& obs_other, double delta) const;
+
+    /** Refill log_denominator_cache_ for all variables. */
+    void recompute_log_denominators();
 
     /**
-     * Log-pseudolikelihood ratio for interaction update
+     * One cached MH step on pairwise effect (var1, var2): shared by
+     * update_pairwise_effect and the stage-3b tuner (which runs it without
+     * the edge gate). Returns the acceptance probability.
      */
-    double log_pseudolikelihood_ratio_interaction(
-        int variable1,
-        int variable2,
-        double proposed_state,
-        double current_state
-    ) const;
-
-    /**
-     * Log-pseudoposterior of a pairwise interaction at proposed = current + delta.
-     * Used by tune_proposal_sd() for Robbins-Monro adaptation.
-     */
-    double log_pseudoposterior_pairwise_at_delta(int var1, int var2, double delta) const;
+    double mh_pairwise_step(int var1, int var2);
 
     // -------------------------------------------------------------------------
     // Parameter vectorization

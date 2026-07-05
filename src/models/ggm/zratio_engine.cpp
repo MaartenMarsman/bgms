@@ -1,4 +1,5 @@
 #include "zratio_engine.h"
+#include "math/explog_macros.h"
 
 #include <algorithm>
 #include <vector>
@@ -24,14 +25,19 @@ ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
     // 2-hop bridges between the exclusive neighbour sets. The toggled
     // edge's own state never enters, so the value is state-invariant.
     std::vector<bool> in_r(q, false);
+    // Exclusive neighbour lists of i and j; the bridge scan below then runs
+    // over the candidate pairs instead of the full q x q grid.
+    std::vector<int> excl_i, excl_j;
     for (int k = 0; k < q; k++) {
-        if (k != i && k != j && G(i, k) == 1 && G(j, k) == 1) in_r[k] = true;
+        if (k == i || k == j) continue;
+        const bool near_i = (G(i, k) == 1), near_j = (G(j, k) == 1);
+        if (near_i && near_j) in_r[k] = true;
+        else if (near_i) excl_i.push_back(k);
+        else if (near_j) excl_j.push_back(k);
     }
-    for (int a = 0; a < q; a++) {
-        if (a == i || a == j || G(i, a) != 1 || G(j, a) == 1) continue;
-        for (int b = 0; b < q; b++) {
-            if (b != i && b != j && b != a && G(j, b) == 1 && G(i, b) != 1 &&
-                G(a, b) == 1) {
+    for (int a : excl_i) {
+        for (int b : excl_j) {
+            if (G(a, b) == 1) {
                 in_r[a] = true;
                 in_r[b] = true;
             }
@@ -115,7 +121,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     ZRatioBlock bl = extract_block(G, i, j);
     if (!bl.valid) {
         n_add_++;
-        return std::log(psi0_);
+        return MY_LOG(psi0_);
     }
     const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre, maxbdeg = bl.maxbd,
               m = bl.m;
@@ -127,8 +133,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     // Additive saddle: depends only on (nCN, cne, bre), served from the
     // persistent count-key cache. Corrections ride on top post-cache, so
     // corrected edges keep the compact key and full cache reuse.
-    std::string sig = "A" + std::to_string(ncn) + "_" + std::to_string(cne) +
-                      "_" + std::to_string(bre);
+    const std::uint64_t sig = pack_count_key(ncn, cne, bre);
     double a;
     auto it = cache_.find(sig);
     if (it != cache_.end()) {
@@ -139,7 +144,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         a = saddle_ratio(s1, s2);
         cache_[sig] = a;
     }
-    const double log_r_add = std::log(a);
+    const double log_r_add = MY_LOG(a);
 
     if (maxbdeg < 2) {
         n_add_++;
@@ -174,7 +179,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         }
         double s1b = 0, s2b = 0, dl = 0;
         if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
-            dl = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
+            dl = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
         }
         n_oracle_++;
         corr_cache_[ckey] = dl;
@@ -231,12 +236,12 @@ bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
     double s1 = bl.ncn * addc_[0] + bl.cne * addc_[2] + bl.bre * addc_[4];
     double s2 = bl.ncn * addc_[1] + bl.cne * addc_[3] + bl.bre * addc_[5];
     if (s1 <= 0 || s2 <= 0) return false;
-    const double log_r_add = std::log(saddle_ratio(s1, s2));
+    const double log_r_add = MY_LOG(saddle_ratio(s1, s2));
     bool clamped = false;
     pred_out = deployed_correction(bl, clamped);
     double s1b = 0, s2b = 0;
     if (!block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) return false;
-    oracle_out = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
+    oracle_out = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
     return true;
 }
 
@@ -397,10 +402,7 @@ void ZRatioEngine::precompute_table(int ncn_max, int bre_max) {
             for (int bre = 0; bre <= bre_max; bre++) {
                 double s1 = ncn * c1 + cne * c3 + bre * c5;
                 double s2 = ncn * c2 + cne * c4 + bre * c6;
-                std::string sig = "A" + std::to_string(ncn) + "_" +
-                                  std::to_string(cne) + "_" +
-                                  std::to_string(bre);
-                cache_[sig] = saddle_ratio(s1, s2);
+                cache_[pack_count_key(ncn, cne, bre)] = saddle_ratio(s1, s2);
             }
         }
     }
