@@ -110,15 +110,13 @@ check_warmup_complete = function(energy_mat) {
 # Returns: An invisible named list with:
 #   - treedepth:  Integer matrix (chains x iterations).
 #   - divergent:  Integer matrix (chains x iterations), 0/1.
-#   - non_reversible: Integer matrix (chains x iterations), 0/1.
 #   - energy:     Numeric matrix (chains x iterations).
 #   - accept_prob: Numeric matrix (chains x iterations) of mean
 #       per-trajectory Metropolis acceptance (Stan's accept_stat__).
 #   - ebfmi:      Numeric vector of per-chain E-BFMI values.
 #   - warmup_check: Output of check_warmup_complete().
 #   - summary:    List with total_divergences, max_tree_depth_hits,
-#       min_ebfmi, mean_accept_prob, total_non_reversible, and
-#       warmup_incomplete (logical).
+#       min_ebfmi, mean_accept_prob, and warmup_incomplete (logical).
 # ------------------------------------------------------------------------------
 summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) {
   nuts_chains = Filter(function(chain) {
@@ -141,12 +139,6 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   divergent_mat = combine_diag("divergent__", integer = TRUE)
   energy_mat = combine_diag("energy__")
 
-  non_reversible_mat = if("non_reversible__" %in% names(nuts_chains[[1]])) {
-    combine_diag("non_reversible__", integer = TRUE)
-  } else {
-    matrix(0L, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
-  }
-
   accept_prob_mat = if("accept_prob__" %in% names(nuts_chains[[1]])) {
     combine_diag("accept_prob__")
   } else {
@@ -164,7 +156,6 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   # Summaries
   n_total = nrow(divergent_mat) * ncol(divergent_mat)
   total_divergences = sum(divergent_mat)
-  total_non_reversible = sum(non_reversible_mat)
   max_tree_depth_hits = sum(treedepth_mat == nuts_max_depth)
   min_ebfmi = min(ebfmi_per_chain)
   low_ebfmi_chains = which(ebfmi_per_chain < 0.2)
@@ -187,14 +178,6 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
           total_divergences, 100 * divergence_rate
         ))
       }
-    }
-
-    if(total_non_reversible > 0) {
-      non_rev_rate = total_non_reversible / n_total
-      issues = c(issues, sprintf(
-        "Non-reversible steps: %d (%.3f%%) - constrained integrator round-trip failed",
-        total_non_reversible, 100 * non_rev_rate
-      ))
     }
 
     if(max_tree_depth_hits > 0) {
@@ -242,14 +225,12 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   invisible(list(
     treedepth = treedepth_mat,
     divergent = divergent_mat,
-    non_reversible = non_reversible_mat,
     energy = energy_mat,
     accept_prob = accept_prob_mat,
     ebfmi = ebfmi_per_chain,
     warmup_check = warmup_check,
     summary = list(
       total_divergences = total_divergences,
-      total_non_reversible = total_non_reversible,
       max_tree_depth_hits = max_tree_depth_hits,
       min_ebfmi = min_ebfmi,
       mean_accept_prob = mean_accept_prob,

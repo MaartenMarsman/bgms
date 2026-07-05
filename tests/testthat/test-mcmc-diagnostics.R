@@ -472,7 +472,6 @@ test_that("summarize_nuts_diagnostics honors the integer matrix contract", {
       treedepth__ = c(2, 3, 2, 4),
       divergent__ = c(0, 0, 1, 0),
       energy__ = c(1.2, 0.8, 1.5, 0.9),
-      non_reversible__ = c(0, 1, 0, 0),
       accept_prob__ = c(0.9, 0.8, 0.95, 0.7)
     )
   }
@@ -483,7 +482,6 @@ test_that("summarize_nuts_diagnostics honors the integer matrix contract", {
   # Count fields are integer matrices; real-valued fields are double.
   expect_true(is.integer(res$treedepth))
   expect_true(is.integer(res$divergent))
-  expect_true(is.integer(res$non_reversible))
   expect_true(is.double(res$energy))
   expect_true(is.double(res$accept_prob))
   # Exact integer tree-depth comparison: depth 4 hit once per chain.

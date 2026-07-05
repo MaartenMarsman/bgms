@@ -27,7 +27,6 @@ struct DiagnosticsBase {
 struct NUTSDiagnostics : public DiagnosticsBase {
   int tree_depth;        ///< Depth of the trajectory tree
   bool divergent;        ///< Whether a divergence occurred
-  bool non_reversible;   ///< Whether a non-reversible constrained step occurred
   double energy;         ///< Final Hamiltonian (-log posterior + kinetic energy)
   double accept_prob;    ///< Mean Metropolis acceptance over the trajectory's
                          ///  leapfrog steps (Stan's `accept_stat__`)

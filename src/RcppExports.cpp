@@ -271,112 +271,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// mixed_test_logp_and_gradient_full
-Rcpp::List mixed_test_logp_and_gradient_full(const arma::vec& params, const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& edge_indicators, double pairwise_scale, double main_alpha, double main_beta, std::string interaction_prior_type, std::string threshold_prior_type, double threshold_scale, std::string means_prior_type, double means_scale, std::string diagonal_prior_type, double diagonal_shape, double diagonal_rate, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_diag, double delta);
-RcppExport SEXP _bgms_mixed_test_logp_and_gradient_full(SEXP paramsSEXP, SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP interaction_prior_typeSEXP, SEXP threshold_prior_typeSEXP, SEXP threshold_scaleSEXP, SEXP means_prior_typeSEXP, SEXP means_scaleSEXP, SEXP diagonal_prior_typeSEXP, SEXP diagonal_shapeSEXP, SEXP diagonal_rateSEXP, SEXP inv_mass_diagSEXP, SEXP deltaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type interaction_prior_type(interaction_prior_typeSEXP);
-    Rcpp::traits::input_parameter< std::string >::type threshold_prior_type(threshold_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
-    Rcpp::traits::input_parameter< std::string >::type means_prior_type(means_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type means_scale(means_scaleSEXP);
-    Rcpp::traits::input_parameter< std::string >::type diagonal_prior_type(diagonal_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type diagonal_shape(diagonal_shapeSEXP);
-    Rcpp::traits::input_parameter< double >::type diagonal_rate(diagonal_rateSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_diag(inv_mass_diagSEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    rcpp_result_gen = Rcpp::wrap(mixed_test_logp_and_gradient_full(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale, means_prior_type, means_scale, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag, delta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// mixed_test_project_position
-Rcpp::List mixed_test_project_position(const arma::vec& x, const arma::vec& inv_mass, const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& edge_indicators, double pairwise_scale, double main_alpha, double main_beta, std::string interaction_prior_type, std::string threshold_prior_type, double threshold_scale);
-RcppExport SEXP _bgms_mixed_test_project_position(SEXP xSEXP, SEXP inv_massSEXP, SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP interaction_prior_typeSEXP, SEXP threshold_prior_typeSEXP, SEXP threshold_scaleSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type inv_mass(inv_massSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type interaction_prior_type(interaction_prior_typeSEXP);
-    Rcpp::traits::input_parameter< std::string >::type threshold_prior_type(threshold_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
-    rcpp_result_gen = Rcpp::wrap(mixed_test_project_position(x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale));
-    return rcpp_result_gen;
-END_RCPP
-}
-// mixed_test_project_momentum
-Rcpp::List mixed_test_project_momentum(const arma::vec& r, const arma::vec& x, const arma::vec& inv_mass, const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& edge_indicators, double pairwise_scale, double main_alpha, double main_beta, std::string interaction_prior_type, std::string threshold_prior_type, double threshold_scale);
-RcppExport SEXP _bgms_mixed_test_project_momentum(SEXP rSEXP, SEXP xSEXP, SEXP inv_massSEXP, SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP interaction_prior_typeSEXP, SEXP threshold_prior_typeSEXP, SEXP threshold_scaleSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type r(rSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type inv_mass(inv_massSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type interaction_prior_type(interaction_prior_typeSEXP);
-    Rcpp::traits::input_parameter< std::string >::type threshold_prior_type(threshold_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
-    rcpp_result_gen = Rcpp::wrap(mixed_test_project_momentum(r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale));
-    return rcpp_result_gen;
-END_RCPP
-}
-// mixed_test_leapfrog_constrained
-Rcpp::List mixed_test_leapfrog_constrained(const arma::vec& x0, const arma::vec& r0, double step_size, int n_steps, const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& edge_indicators, double pairwise_scale, Rcpp::Nullable<Rcpp::NumericVector> inv_mass_in, double main_alpha, double main_beta, std::string interaction_prior_type, std::string threshold_prior_type, double threshold_scale);
-RcppExport SEXP _bgms_mixed_test_leapfrog_constrained(SEXP x0SEXP, SEXP r0SEXP, SEXP step_sizeSEXP, SEXP n_stepsSEXP, SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP edge_indicatorsSEXP, SEXP pairwise_scaleSEXP, SEXP inv_mass_inSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP interaction_prior_typeSEXP, SEXP threshold_prior_typeSEXP, SEXP threshold_scaleSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::vec& >::type x0(x0SEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type r0(r0SEXP);
-    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type discrete_observations(discrete_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type continuous_observations(continuous_observationsSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
-    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
-    Rcpp::traits::input_parameter< const arma::imat& >::type edge_indicators(edge_indicatorsSEXP);
-    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type inv_mass_in(inv_mass_inSEXP);
-    Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
-    Rcpp::traits::input_parameter< std::string >::type interaction_prior_type(interaction_prior_typeSEXP);
-    Rcpp::traits::input_parameter< std::string >::type threshold_prior_type(threshold_prior_typeSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
-    rcpp_result_gen = Rcpp::wrap(mixed_test_leapfrog_constrained(x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, inv_mass_in, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale));
-    return rcpp_result_gen;
-END_RCPP
-}
 // test_mixed_edge_indicator_matrix
 arma::imat test_mixed_edge_indicator_matrix(const arma::imat& discrete_observations, const arma::mat& continuous_observations, const arma::ivec& num_categories, int n_sweeps, int seed);
 RcppExport SEXP _bgms_test_mixed_edge_indicator_matrix(SEXP discrete_observationsSEXP, SEXP continuous_observationsSEXP, SEXP num_categoriesSEXP, SEXP n_sweepsSEXP, SEXP seedSEXP) {
@@ -1002,10 +896,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},
     {"_bgms_mixed_test_logp_and_gradient", (DL_FUNC) &_bgms_mixed_test_logp_and_gradient, 18},
-    {"_bgms_mixed_test_logp_and_gradient_full", (DL_FUNC) &_bgms_mixed_test_logp_and_gradient_full, 20},
-    {"_bgms_mixed_test_project_position", (DL_FUNC) &_bgms_mixed_test_project_position, 14},
-    {"_bgms_mixed_test_project_momentum", (DL_FUNC) &_bgms_mixed_test_project_momentum, 15},
-    {"_bgms_mixed_test_leapfrog_constrained", (DL_FUNC) &_bgms_mixed_test_leapfrog_constrained, 17},
     {"_bgms_test_mixed_edge_indicator_matrix", (DL_FUNC) &_bgms_test_mixed_edge_indicator_matrix, 5},
     {"_bgms_compute_conditional_ggm", (DL_FUNC) &_bgms_compute_conditional_ggm, 3},
     {"_bgms_compute_conditional_probs", (DL_FUNC) &_bgms_compute_conditional_probs, 7},

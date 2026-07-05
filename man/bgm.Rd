@@ -231,10 +231,10 @@ the model parameters:
 \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 with Robbins--Monro proposal adaptation.}
 \item{"nuts"}{The No-U-Turn Sampler, a gradient-based sampler available
-for all variable types, including under edge selection. The Gaussian
-graphical model uses a free-element Cholesky parameterization that keeps
-the precision matrix positive-definite; the mixed model uses RATTLE
-constrained integration when excluded edges impose constraints.}
+for all variable types, including under edge selection. Continuous
+precision blocks use a free-element Cholesky parameterization that
+keeps the precision matrix positive-definite and encodes excluded
+edges through per-column null-space coordinates.}
 \item{"gibbs"}{A Gibbs sampler for the Gaussian graphical model, with a
 conjugate row-block draw of the precision matrix. Available only for
 all-continuous data with a Normal or Cauchy (slab) interaction prior

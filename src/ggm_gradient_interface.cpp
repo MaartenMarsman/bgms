@@ -1,7 +1,6 @@
 // Test interface for the GGM gradient engine and RATTLE projection.
 //
-// Exposes logp_and_gradient, forward_map, project_position,
-// project_momentum, and constrained leapfrog to R for validation.
+// Exposes logp_and_gradient and forward_map to R for validation.
 // Also exposes sample_ggm_prior() for sampling from the GGM prior
 // from the GGM prior using NUTS.
 

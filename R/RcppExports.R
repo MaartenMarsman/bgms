@@ -61,22 +61,6 @@ mixed_test_logp_and_gradient <- function(params, discrete_observations, continuo
     .Call(`_bgms_mixed_test_logp_and_gradient`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale, means_prior_type, means_scale, diagonal_prior_type, diagonal_shape, diagonal_rate)
 }
 
-mixed_test_logp_and_gradient_full <- function(params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha = 1.0, main_beta = 1.0, interaction_prior_type = "cauchy", threshold_prior_type = "beta-prime", threshold_scale = 1.0, means_prior_type = "normal", means_scale = 1.0, diagonal_prior_type = "gamma", diagonal_shape = 1.0, diagonal_rate = 1.0, inv_mass_diag = NULL, delta = 0.0) {
-    .Call(`_bgms_mixed_test_logp_and_gradient_full`, params, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale, means_prior_type, means_scale, diagonal_prior_type, diagonal_shape, diagonal_rate, inv_mass_diag, delta)
-}
-
-mixed_test_project_position <- function(x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha = 1.0, main_beta = 1.0, interaction_prior_type = "cauchy", threshold_prior_type = "beta-prime", threshold_scale = 1.0) {
-    .Call(`_bgms_mixed_test_project_position`, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale)
-}
-
-mixed_test_project_momentum <- function(r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha = 1.0, main_beta = 1.0, interaction_prior_type = "cauchy", threshold_prior_type = "beta-prime", threshold_scale = 1.0) {
-    .Call(`_bgms_mixed_test_project_momentum`, r, x, inv_mass, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale)
-}
-
-mixed_test_leapfrog_constrained <- function(x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, inv_mass_in = NULL, main_alpha = 1.0, main_beta = 1.0, interaction_prior_type = "cauchy", threshold_prior_type = "beta-prime", threshold_scale = 1.0) {
-    .Call(`_bgms_mixed_test_leapfrog_constrained`, x0, r0, step_size, n_steps, discrete_observations, continuous_observations, num_categories, is_ordinal_variable, baseline_category, edge_indicators, pairwise_scale, inv_mass_in, main_alpha, main_beta, interaction_prior_type, threshold_prior_type, threshold_scale)
-}
-
 test_mixed_edge_indicator_matrix <- function(discrete_observations, continuous_observations, num_categories, n_sweeps, seed) {
     .Call(`_bgms_test_mixed_edge_indicator_matrix`, discrete_observations, continuous_observations, num_categories, n_sweeps, seed)
 }

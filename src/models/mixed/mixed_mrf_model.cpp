@@ -874,8 +874,8 @@ void MixedMRFModel::impute_missing() {
 
     // --- Phase 2: Refresh caches that depend on the discrete data ---
     if(num_disc_missing > 0) {
-        // logp_and_gradient_full reads discrete_observations_dbl_t_ directly,
-        // not via ensure_gradient_cache; hold it equal to the transpose of the
+        // The gradient reads discrete_observations_dbl_t_ directly, not via
+        // ensure_gradient_cache; hold it equal to the transpose of the
         // discrete data.
         discrete_observations_dbl_t_ = discrete_observations_dbl_.t();
         // conditional_mean_ is a function of the discrete data and is read by
