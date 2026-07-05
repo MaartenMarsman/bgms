@@ -17,6 +17,8 @@ bgm(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
+  graph_prior_spec = c("joint", "hierarchical"),
+  calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -178,6 +180,41 @@ minutes, announced when \code{verbose = TRUE}) and cached on disk via
 configuration skip the build. With \code{beta_bernoulli_prior()} the
 sampled inclusion probability is returned per chain in
 \code{fit$inclusion_parameter_samples}.}
+
+\item{graph_prior_spec}{Character. How the precision prior composes with
+the edge prior under edge selection for continuous (GGM) data:
+\describe{
+\item{"joint"}{(default) The un-normalised joint specification
+\eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
+    \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
+    \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
+    Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
+\code{sbm_prior()} the hyperparameter updates carry the
+normalizing-constant correction described under
+\code{edge_prior}.}
+\item{"hierarchical"}{The hierarchical specification
+\eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
+normalized per graph, so the graph marginal is exactly the edge
+prior \eqn{\pi(\Gamma)}. Each between-edge move evaluates the
+normalizer ratio by a deterministic local Z-ratio approximation,
+calibrated online against a block-Gibbs oracle in an appended
+warm-up window (see \code{calibration_window}) and audited after
+sampling (\code{\link{summarize_zratio_diagnostics}}; the summary
+is returned as \code{fit$zratio_diag} and issues print like other
+sampler warnings). Requires continuous data,
+\code{edge_selection = TRUE}, a \code{normal_prior()} interaction
+prior, and a shape-1 \code{gamma_prior()} (or
+\code{exponential_prior()}) precision scale prior.}
+}
+Default: \code{"joint"}.}
+
+\item{calibration_window}{Non-negative integer or \code{NULL} (default).
+Only for \code{graph_prior_spec = "hierarchical"}: length of the
+appended warm-up window in which the Z-ratio correction is calibrated
+online against a block-Gibbs oracle and then frozen (with its hull
+clamp) before sampling. \code{NULL} resolves to no window for
+\code{p < 15} variables and 15 percent of \code{warmup} otherwise. The
+adaptation warmup itself is never shortened; the window is appended.}
 
 \item{na_action}{Character. Specifies missing data handling. Either
 \code{"listwise"} (drop rows with missing values) or \code{"impute"}

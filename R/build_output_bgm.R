@@ -23,6 +23,15 @@ build_output_bgm = function(spec, raw) {
   edge_selection = p$edge_selection
   edge_prior = p$edge_prior
 
+  # Keep the raw chains for the Z-ratio alarm suite: it needs the untouched
+  # indicator layout and the per-chain zratio block, both dropped by the
+  # normalization below.
+  zratio_chains = if(identical(p$graph_prior_spec, "hierarchical")) {
+    raw
+  } else {
+    NULL
+  }
+
   # --- Normalize raw C++ output -----------------------------------------------
   # The C++ GGM/OMRF backends return a flat `samples` matrix (params x iters)
   # via convert_results_to_list(). Split into main and pairwise components and
@@ -282,6 +291,21 @@ build_output_bgm = function(spec, raw) {
     names_main = names_main, names_pairwise = edge_names,
     target_accept = s$target_accept
   )
+
+  # --- Z-ratio alarm suite (hierarchical graph-prior spec) ----------------------
+  if(!is.null(zratio_chains)) {
+    zc = zratio_constants(
+      delta = p$delta,
+      sigma = 2 * p$pairwise_scale,
+      beta = p$scale_rate / 2
+    )
+    results$zratio_diag = summarize_zratio_diagnostics(
+      zratio_chains, zc,
+      num_nodes = num_variables,
+      seed = s$seed,
+      verbose = TRUE
+    )
+  }
 
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {

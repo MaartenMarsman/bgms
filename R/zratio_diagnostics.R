@@ -396,7 +396,7 @@ summarize_zratio_diagnostics = function(
       chain, zratio_spec, num_nodes, n_graphs, top_k, rand_k, audit_sweep,
       seed + 1000L * c_idx
     )
-    audits[[c_idx]] = audit$picks
+    audits[c_idx] = list(audit$picks)
     gate = if(!is.na(audit$aud_targeted_max)) {
       audit$aud_targeted_max
     } else {

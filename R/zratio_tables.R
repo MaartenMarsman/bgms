@@ -213,13 +213,28 @@ zratio_bridge_channel = function(delta, sigma, beta, nlag = 64, nher = 80) {
   c(n1 / den, n2 / den)
 }
 
+# Session cache for zratio_constants: the constant set is deterministic per
+# (delta, sigma, beta) cell, and one fit resolves the same cell more than
+# once (sampler dispatch and diagnostics assembly).
+zratio_constants_cache = new.env(parent = emptyenv())
+
 # Full fit-time constant set for one (delta, sigma, beta) cell:
 # addc[1..6] (R indexing) = (w1, w2, ce1, ce2, cb1, cb2), the saddle grid,
 # and psi0 = I_spike(0)/G(0). The OLS-correction slots (7..13) and the hull
 # box (14..23) are absent here; the warm-up calibrator appends them.
 # The clique-2 channel draws seeded Monte Carlo samples, so the caller's RNG
-# state is saved and restored.
+# state is saved and restored. Results are served from a session cache keyed
+# on the cell.
 zratio_constants = function(delta, sigma, beta) {
+  key = paste(
+    format(delta, digits = 17), format(sigma, digits = 17),
+    format(beta, digits = 17),
+    sep = "_"
+  )
+  cached = zratio_constants_cache[[key]]
+  if(!is.null(cached)) {
+    return(cached)
+  }
   has_seed = exists(".Random.seed", envir = globalenv(), inherits = FALSE)
   if(has_seed) {
     old_seed = get(".Random.seed", envir = globalenv(), inherits = FALSE)
@@ -238,7 +253,7 @@ zratio_constants = function(delta, sigma, beta) {
   e2 = zratio_clique2_moments(delta, sigma, beta)
   cb = zratio_bridge_channel(delta, sigma, beta)
   addc = c(w12[1], w12[2], e2[1] - 2 * w12[1], e2[2] - 2 * w12[2], cb[1], cb[2])
-  list(
+  out = list(
     delta = delta,
     sigma = sigma,
     beta = beta,
@@ -249,4 +264,6 @@ zratio_constants = function(delta, sigma, beta) {
     wt = grid$wt,
     psi0 = pair$ispike(0) / pair$g(0)
   )
+  assign(key, out, envir = zratio_constants_cache)
+  out
 }

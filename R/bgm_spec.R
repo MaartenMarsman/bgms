@@ -268,6 +268,8 @@ bgm_spec = function(x,
                     delta = NULL,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
+                    graph_prior_spec = c("joint", "hierarchical"),
+                    calibration_window = NULL,
                     # Legacy edge prior params (accepted for backward compat)
                     inclusion_probability = 0.5,
                     beta_bernoulli_alpha_between = 1,
@@ -373,6 +375,45 @@ bgm_spec = function(x,
     )
   }
 
+  # --- Hierarchical graph-prior spec eligibility --------------------------------
+  # The Z-ratio constants are derived for the Normal slab with an exponential
+  # (shape-1 Gamma) diagonal, on the continuous precision matrix, under edge
+  # selection. Anything else keeps the joint specification.
+  graph_prior_spec = match.arg(graph_prior_spec)
+  if(graph_prior_spec == "hierarchical") {
+    if(model_type != "ggm") {
+      stop(
+        "graph_prior_spec = \"hierarchical\" is available for continuous ",
+        "(GGM) data; the current model_type is '", model_type, "'. Use ",
+        "the joint specification, or all-continuous data."
+      )
+    }
+    if(!edge_selection) {
+      stop(
+        "graph_prior_spec = \"hierarchical\" normalizes p(K | Gamma) ",
+        "across graphs and needs edge_selection = TRUE; with a fixed ",
+        "graph the specifications coincide."
+      )
+    }
+    if(!identical(interaction_prior_type, "normal")) {
+      stop(
+        "graph_prior_spec = \"hierarchical\" requires a normal ",
+        "interaction (slab) prior; the Z-ratio constants are derived for ",
+        "the Normal slab. Use interaction_prior = normal_prior(), or the ",
+        "joint specification."
+      )
+    }
+    if(abs(scale_shape - 1) > 1e-12) {
+      stop(
+        "graph_prior_spec = \"hierarchical\" requires shape = 1 on the ",
+        "precision scale prior (gamma_prior(shape = 1) or ",
+        "exponential_prior()); the Z-ratio constants are derived for the ",
+        "exponential diagonal. Adjust the prior, or use the joint ",
+        "specification."
+      )
+    }
+  }
+
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
   sampler = validate_sampler(
     update_method = update_method,
@@ -446,6 +487,8 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
+      graph_prior_spec = graph_prior_spec,
+      calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
