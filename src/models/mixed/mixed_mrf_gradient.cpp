@@ -227,8 +227,8 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
 
     // --- Derived quantities ---
     // Conditional mean: M_i = μ_y' + 2 x_i' A_xy Σ_yy  (n x q)
-    arma::mat temp_cond_mean = arma::repmat(temp_main_continuous.t(), n_, 1)
-                             + 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * temp_covariance;
+    arma::mat temp_cond_mean = 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * temp_covariance;
+    temp_cond_mean.each_row() += temp_main_continuous.t();
 
     // Residual: D = Y - M  (n x q)
     arma::mat D = continuous_observations_ - temp_cond_mean;
@@ -238,6 +238,11 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // (see recompute_marginal_interactions in mixed_mrf_model.cpp).
     arma::mat temp_marginal;
     temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
+
+    // Rest-score ingredients shared by every variable: one n x p GEMM instead
+    // of p per-variable GEMVs, and the p cross-bias scalars in one GEMV.
+    arma::mat X_marginal = discrete_observations_dbl_ * temp_marginal;
+    arma::vec cross_bias = 2.0 * (temp_pairwise_cross * temp_main_continuous);
 
     // Start gradient from observed-statistics cache
     arma::vec grad = grad_obs_cache_;
@@ -262,9 +267,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         arma::vec rest;
         // Marginal: Θ-based rest + A_xy μ_y bias
         double precision_ss = temp_marginal(s, s);
-        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+        rest = 2.0 * (X_marginal.col(s)
                     - discrete_observations_dbl_.col(s) * precision_ss)
-             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+             + cross_bias(s);
 
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
@@ -465,9 +470,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
         int C_s = num_categories_(s);
         arma::vec rest;
         double precision_ss = temp_marginal(s, s);
-        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+        rest = 2.0 * (X_marginal.col(s)
                     - discrete_observations_dbl_.col(s) * precision_ss)
-             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+             + cross_bias(s);
         // Marginal self-interaction quadratic contribution
         logp += precision_ss * arma::dot(
             discrete_observations_dbl_.col(s),
@@ -811,12 +816,17 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
     double temp_log_det = 2.0 * arma::sum(arma::log(temp_cholesky.diag()));
 
     // --- Derived quantities ---
-    arma::mat temp_cond_mean = arma::repmat(temp_main_continuous.t(), n_, 1)
-                             + 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * temp_covariance;
+    arma::mat temp_cond_mean = 2.0 * discrete_observations_dbl_ * temp_pairwise_cross * temp_covariance;
+    temp_cond_mean.each_row() += temp_main_continuous.t();
     arma::mat D = continuous_observations_ - temp_cond_mean;
 
     arma::mat temp_marginal;
     temp_marginal = temp_pairwise_discrete + 2.0 * temp_pairwise_cross * temp_covariance * temp_pairwise_cross.t();
+
+    // Rest-score ingredients shared by every variable: one n x p GEMM instead
+    // of p per-variable GEMVs, and the p cross-bias scalars in one GEMV.
+    arma::mat X_marginal = discrete_observations_dbl_ * temp_marginal;
+    arma::vec cross_bias = 2.0 * (temp_pairwise_cross * temp_main_continuous);
 
     // Initialize gradient (full dimension)
     arma::vec grad(full_dim, arma::fill::zeros);
@@ -883,9 +893,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         // Rest score
         arma::vec rest;
         double precision_ss = temp_marginal(s, s);
-        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+        rest = 2.0 * (X_marginal.col(s)
                     - discrete_observations_dbl_.col(s) * precision_ss)
-             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+             + cross_bias(s);
 
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
@@ -1038,9 +1048,9 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient_full(
         int C_s = num_categories_(s);
         arma::vec rest;
         double precision_ss = temp_marginal(s, s);
-        rest = 2.0 * (discrete_observations_dbl_ * temp_marginal.col(s)
+        rest = 2.0 * (X_marginal.col(s)
                     - discrete_observations_dbl_.col(s) * precision_ss)
-             + 2.0 * arma::dot(temp_pairwise_cross.row(s), temp_main_continuous);
+             + cross_bias(s);
         logp += precision_ss * arma::dot(
             discrete_observations_dbl_.col(s),
             discrete_observations_dbl_.col(s));

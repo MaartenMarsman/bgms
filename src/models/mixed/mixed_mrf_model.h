@@ -439,6 +439,7 @@ private:
     arma::mat covariance_continuous_;       ///< q x q Σ = Precision^{-1}
     double log_det_precision_;              ///< log|Precision|
     arma::mat marginal_interactions_;                       ///< p x p marginal PL interaction matrix
+    arma::mat cross_term_;                  ///< p x p cached 2 A_xy Σ A_xy' (marginal PL cross term)
     arma::mat conditional_mean_;            ///< n x q conditional mean
 
     // Rank-1 Cholesky update workspace
@@ -497,6 +498,8 @@ private:
     arma::uvec edge_order_xx_;          ///< Shuffled xx-edge pair indices
     arma::uvec edge_order_yy_;          ///< Shuffled yy-edge pair indices
     arma::uvec edge_order_xy_;          ///< Shuffled xy-edge pair indices
+    arma::umat edge_pairs_xx_;          ///< num_pairwise_xx x 2 flat-index -> (i, j) table
+    arma::umat edge_pairs_yy_;          ///< num_pairwise_yy x 2 flat-index -> (i, j) table
 
     // =========================================================================
     // Private helpers
@@ -514,8 +517,11 @@ private:
     /** Recompute cholesky_of_precision_, inv_cholesky_of_precision_, covariance_continuous_, log_det_precision_ from pairwise_effects_continuous_. */
     void recompute_pairwise_effects_continuous_decomposition();
 
-    /** Recompute marginal_interactions_ from pairwise_effects_discrete_, pairwise_effects_cross_, covariance_continuous_ (marginal PL only). */
+    /** Recompute marginal_interactions_ from pairwise_effects_discrete_, pairwise_effects_cross_, covariance_continuous_ (marginal PL only). Refreshes cross_term_. */
     void recompute_marginal_interactions();
+
+    /** Refresh marginal_interactions_(i,j)/(j,i) from pairwise_effects_discrete_ and the cached cross_term_. Valid only while pairwise_effects_cross_ and covariance_continuous_ are unchanged since the last cross_term_ refresh. */
+    void refresh_marginal_interactions_entry(int i, int j);
 
     /** Rebuild Cholesky constraint structure and excluded-edge index lists. */
     void ensure_constraint_structure();
