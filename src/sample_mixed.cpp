@@ -52,6 +52,9 @@
 // @param edge_prior_correction   Normalizing-constant correction list for the
 //                                hierarchical edge priors (see
 //                                R/correction_tables.R), or R_NilValue
+// @param zratio_spec             Hierarchical graph-prior spec: Z-ratio
+//                                constants + calibration window for the
+//                                continuous block, or R_NilValue (joint spec)
 //
 // @return List with per-chain results including samples and diagnostics
 // [[Rcpp::export]]
@@ -82,7 +85,8 @@ Rcpp::List sample_mixed_mrf(
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue,
     const double delta = 0.0,
-    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue
+    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue,
+    const Rcpp::Nullable<Rcpp::List> zratio_spec = R_NilValue
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -160,6 +164,33 @@ Rcpp::List sample_mixed_mrf(
     // MixedMRFModel.
     model.set_determinant_tilt_yy(delta);
 
+    // Hierarchical prior specification on the continuous block: attach the
+    // per-edge Z-ratio engine so the Gamma_yy between-edge moves target
+    // p(K_yy | Gamma_yy) = rho/Z(Gamma_yy). The constants are resolved at R
+    // spec-build (zratio_constants); each chain clone deep-copies the engine.
+    int zratio_window = 0;
+    if (zratio_spec.isNotNull()) {
+        Rcpp::List zs(zratio_spec.get());
+        auto engine = std::make_shared<ZRatioEngine>(
+            Rcpp::as<arma::vec>(zs["addc"]),
+            Rcpp::as<arma::vec>(zs["tg"]),
+            Rcpp::as<arma::vec>(zs["ihat"]),
+            Rcpp::as<arma::vec>(zs["ghat"]),
+            Rcpp::as<arma::vec>(zs["wt"]),
+            Rcpp::as<double>(zs["psi0"]));
+        if (zs.containsElementNamed("calibration_window")) {
+            zratio_window = Rcpp::as<int>(zs["calibration_window"]);
+        }
+        if (zratio_window > 0) {
+            // The rng pointer is rebound per chain clone by MixedMRFModel.
+            engine->enable_calibration(
+                Rcpp::as<double>(zs["delta"]),
+                Rcpp::as<double>(zs["sigma"]),
+                Rcpp::as<double>(zs["beta"]), nullptr);
+        }
+        model.set_zratio_engine(std::move(engine));
+    }
+
     // Set up missing data imputation
     if(na_impute) {
         arma::imat missing_disc, missing_cont;
@@ -201,9 +232,10 @@ Rcpp::List sample_mixed_mrf(
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
     config.learn_mass_matrix = learn_mass_matrix;
+    config.zratio_calibration_window = zratio_window;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
+    ProgressManager pm(no_chains, no_iter, no_warmup + zratio_window, 50, progress_type, true, progress_callback);
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

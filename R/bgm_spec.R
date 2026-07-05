@@ -381,11 +381,19 @@ bgm_spec = function(x,
   # selection. Anything else keeps the joint specification.
   graph_prior_spec = match.arg(graph_prior_spec)
   if(graph_prior_spec == "hierarchical") {
-    if(model_type != "ggm") {
+    if(!model_type %in% c("ggm", "mixed_mrf")) {
       stop(
-        "graph_prior_spec = \"hierarchical\" is available for continuous ",
-        "(GGM) data; the current model_type is '", model_type, "'. Use ",
-        "the joint specification, or all-continuous data."
+        "graph_prior_spec = \"hierarchical\" needs a continuous precision ",
+        "block to normalize; the current model_type is '", model_type,
+        "'. Use the joint specification, or data with continuous variables."
+      )
+    }
+    if(model_type == "mixed_mrf" && sum(variable_type == "continuous") < 2) {
+      stop(
+        "graph_prior_spec = \"hierarchical\" on mixed data needs at least ",
+        "two continuous variables (the specification normalizes the ",
+        "continuous-block prior across its graphs). Use the joint ",
+        "specification."
       )
     }
     if(!edge_selection) {
@@ -514,6 +522,8 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
+      graph_prior_spec = graph_prior_spec,
+      calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {

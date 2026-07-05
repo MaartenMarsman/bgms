@@ -13,7 +13,9 @@ summarize_zratio_diagnostics(
   rand_k = 6,
   audit_sweep = 600,
   seed = 1,
-  verbose = TRUE
+  verbose = TRUE,
+  layout_offset = 0L,
+  layout_diag = TRUE
 )
 }
 \arguments{
@@ -45,6 +47,14 @@ oracle (default 1).}
 
 \item{verbose}{Logical: print detected issues (default \code{TRUE}).
 Quiet chains print nothing.}
+
+\item{layout_offset}{Integer: indicator-vector entries to skip before the
+audited graph's segment (default 0; the mixed model's discrete block
+precedes the continuous one).}
+
+\item{layout_diag}{Logical: whether the segment carries diagonal entries
+(default \code{TRUE}, the GGM layout; the mixed model's continuous
+block does not).}
 }
 \value{
 An invisible named list:

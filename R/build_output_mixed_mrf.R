@@ -35,6 +35,15 @@ build_output_mixed_mrf = function(spec, raw) {
   num_categories = d$num_categories
   edge_selection = pr$edge_selection
 
+  # Keep the raw chains for the Z-ratio alarm suite: it needs the untouched
+  # indicator layout and the per-chain zratio block, both dropped by the
+  # normalization below.
+  zratio_chains = if(identical(pr$graph_prior_spec, "hierarchical")) {
+    raw
+  } else {
+    NULL
+  }
+
   # --- Compute index layout in flat parameter vector --------------------------
   layout = compute_mixed_parameter_indices(
     num_thresholds = spec$precomputed$num_thresholds,
@@ -275,6 +284,25 @@ build_output_mixed_mrf = function(spec, raw) {
     names_main = names_main, names_pairwise = edge_names,
     target_accept = s$target_accept
   )
+
+  # --- Z-ratio alarm suite (hierarchical spec on the continuous block) ---------
+  # The indicator vector is [Gxx upper, Gyy upper, Gxy row-major], both
+  # triangles without diagonals; the audit reads the Gyy segment.
+  if(!is.null(zratio_chains)) {
+    zc = zratio_constants(
+      delta = pr$delta,
+      sigma = 2 * pr$pairwise_scale,
+      beta = pr$scale_rate / 2
+    )
+    results$zratio_diag = summarize_zratio_diagnostics(
+      zratio_chains, zc,
+      num_nodes = q,
+      seed = s$seed,
+      verbose = TRUE,
+      layout_offset = as.integer(p * (p - 1) / 2),
+      layout_diag = FALSE
+    )
+  }
 
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {

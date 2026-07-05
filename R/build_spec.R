@@ -228,6 +228,8 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 scale_prior_type, scale_shape, scale_rate,
                                 scale_eta = NA_real_,
                                 delta = 0,
+                                graph_prior_spec = "joint",
+                                calibration_window = NULL,
                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
   scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
@@ -372,7 +374,9 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_shape = scale_shape,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
-        delta = delta
+        delta = delta,
+        graph_prior_spec = graph_prior_spec,
+        calibration_window = calibration_window
       ),
       edge_prior_spec_fields(ep)
     ),

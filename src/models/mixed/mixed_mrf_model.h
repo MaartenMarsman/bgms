@@ -6,6 +6,7 @@
 #include "models/base_model.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
+#include "models/ggm/zratio_engine.h"
 #include "math/cholesky_helpers.h"
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
@@ -134,6 +135,31 @@ public:
     void set_determinant_tilt_yy(double delta) {
         determinant_tilt_yy_ = delta;
     }
+
+    /**
+     * Attach the per-edge Z-ratio engine, switching the continuous-block
+     * between-edge moves to the hierarchical prior specification
+     * p(K_yy | Gamma_yy) = rho/Z(Gamma_yy): the add acceptance gains
+     * log J = log(Z(Gamma-)/Z(Gamma+)) and the delete acceptance its
+     * negation, with the mediating-block counts read off the continuous
+     * subgraph. Each chain clone deep-copies the engine.
+     */
+    void set_zratio_engine(std::shared_ptr<ZRatioEngine> engine) {
+        zratio_engine_ = std::move(engine);
+        if (zratio_engine_) zratio_engine_->set_rng(&rng_);
+    }
+
+    /** Freeze the Z-ratio calibrator at the warmup/sampling boundary. */
+    void on_warmup_end() override {
+        if (zratio_engine_) zratio_engine_->freeze_calibration();
+    }
+
+    /**
+     * Copy the Z-ratio engine's end-of-run state (counters, frozen
+     * constant block, calibration anchors) into the chain result. No-op
+     * without an engine.
+     */
+    void collect_chain_diagnostics(ChainResult& chain_result) const override;
 
     /**
      * Construct Robbins-Monro adaptation controllers for the per-iteration
@@ -302,6 +328,10 @@ private:
     // proposal-SD tuning. Set via set_metropolis_target_accept(); defaults
     // to 0.44 (componentwise random-walk Metropolis optimum).
     double target_accept_ = 0.44;
+
+    /// Per-edge Z-ratio engine for the hierarchical spec on the continuous
+    /// block (null under the joint spec). Deep-copied per chain clone.
+    std::shared_ptr<ZRatioEngine> zratio_engine_;
 
     // Determinant-tilt exponent on the Kyy block (see set_determinant_tilt_yy).
     // Adds determinant_tilt_yy_ * log|Kyy| to the NUTS log-prior; MH ratios
@@ -639,5 +669,16 @@ private:
     void set_gxy(int i, int j, int val) {
         edge_indicators_(i, p_ + j) = val;
         edge_indicators_(p_ + j, i) = val;
+    }
+
+    /**
+     * Continuous-block adjacency Gamma_yy (q x q, unit diagonal) for the
+     * Z-ratio engine's mediating-block extraction.
+     */
+    arma::imat continuous_subgraph() const {
+        arma::imat g = edge_indicators_.submat(p_, p_, p_ + q_ - 1,
+                                               p_ + q_ - 1);
+        g.diag().ones();
+        return g;
     }
 };

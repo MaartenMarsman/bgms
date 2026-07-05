@@ -7,6 +7,7 @@
 // (mixed_mrf_likelihoods.cpp, mixed_mrf_gradient.cpp, mixed_mrf_metropolis.cpp).
 #include <RcppArmadillo.h>
 #include "models/mixed/mixed_mrf_model.h"
+#include "mcmc/execution/chain_result.h"
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "mcmc/execution/warmup_schedule.h"
@@ -203,6 +204,33 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       edge_order_yy_(other.edge_order_yy_),
       edge_order_xy_(other.edge_order_xy_)
 {
+    // Deep-copy the Z-ratio engine (per-chain caches never cross threads)
+    // and rebind its RNG to this clone's stream.
+    if (other.zratio_engine_) {
+        zratio_engine_ = std::make_shared<ZRatioEngine>(*other.zratio_engine_);
+        zratio_engine_->set_rng(&rng_);
+    }
+}
+
+
+void MixedMRFModel::collect_chain_diagnostics(ChainResult& chain_result) const {
+    if (!zratio_engine_) return;
+    const ZRatioEngine& engine = *zratio_engine_;
+    chain_result.has_zratio_diagnostics = true;
+    chain_result.zratio_addc = engine.addc();
+    chain_result.zratio_anchors_x = engine.anchors_x();
+    chain_result.zratio_anchors_y = engine.anchors_y();
+    chain_result.zratio_counters = {
+        static_cast<double>(engine.n_hit()),
+        static_cast<double>(engine.n_miss()),
+        static_cast<double>(engine.n_pred()),
+        static_cast<double>(engine.n_add()),
+        static_cast<double>(engine.n_clamp()),
+        static_cast<double>(engine.n_oracle()),
+        static_cast<double>(engine.n_anchors()),
+        static_cast<double>(engine.cache_size()),
+        engine.frozen() ? 1.0 : 0.0
+    };
 }
 
 

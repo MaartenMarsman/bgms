@@ -66,19 +66,23 @@ zratio_drift_flag = function(trace, n_pairs) {
 # ------------------------------------------------------------------------------
 # zratio_indicator_graph
 # ------------------------------------------------------------------------------
-# Rebuild the p x p adjacency from one column of the vectorized indicator
-# samples (upper triangle including the diagonal, row-major).
+# Rebuild the p x p adjacency from one column segment of the vectorized
+# indicator samples: the row-major upper triangle, including the diagonal
+# (GGM layout) or excluding it (the mixed model's Gamma_yy block).
 #
-# @param column     Integer vector of length p(p+1)/2.
-# @param num_nodes  Number of nodes p.
+# @param column        Integer vector of length p(p+1)/2 or p(p-1)/2.
+# @param num_nodes     Number of nodes p.
+# @param include_diag  Whether the segment carries diagonal entries.
 #
 # Returns: Integer p x p adjacency matrix with unit diagonal.
 # ------------------------------------------------------------------------------
-zratio_indicator_graph = function(column, num_nodes) {
+zratio_indicator_graph = function(column, num_nodes, include_diag = TRUE) {
   G = matrix(0L, num_nodes, num_nodes)
   e = 1L
-  for(i in seq_len(num_nodes)) {
-    for(j in i:num_nodes) {
+  last_row = if(include_diag) num_nodes else num_nodes - 1L
+  for(i in seq_len(last_row)) {
+    j_start = if(include_diag) i else i + 1L
+    for(j in j_start:num_nodes) {
       G[i, j] = column[e]
       G[j, i] = column[e]
       e = e + 1L
@@ -109,24 +113,34 @@ zratio_indicator_graph = function(column, num_nodes) {
 # @param rand_k       Random picks (entangled and additive-zone channels).
 # @param audit_sweep  Oracle block-Gibbs sweeps per audited block.
 # @param seed         Seed for graph sampling, random picks, and the oracle.
+# @param layout_offset  Indicator-vector entries to skip before the graph
+#   segment (the mixed model's Gamma_xx block precedes Gamma_yy).
+# @param layout_diag  Whether the segment carries diagonal entries.
 #
 # Returns: List with the channel maxima/medians, regime fractions, pick
 #   count, and the per-pick audit table.
 # ------------------------------------------------------------------------------
 zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
-                              rand_k, audit_sweep, seed) {
+                              rand_k, audit_sweep, seed, layout_offset = 0L,
+                              layout_diag = TRUE) {
   zr = chain$zratio
   addc = as.numeric(zr$addc)
   have_fit = length(addc) >= 23 && addc[13] > 0.5
   inds = chain$indicator_samples
   n_iter = ncol(inds)
+  seg_len = if(layout_diag) {
+    num_nodes * (num_nodes + 1) / 2
+  } else {
+    num_nodes * (num_nodes - 1) / 2
+  }
+  seg = layout_offset + seq_len(seg_len)
   set.seed(seed)
   cols = sort(sample.int(n_iter, min(n_graphs, n_iter)))
 
   scan = vector("list", length(cols))
   graphs = vector("list", length(cols))
   for(g in seq_along(cols)) {
-    G = zratio_indicator_graph(inds[, cols[g]], num_nodes)
+    G = zratio_indicator_graph(inds[seg, cols[g]], num_nodes, layout_diag)
     graphs[[g]] = G
     rows = zratio_scan_graph(
       G, addc, zratio_spec$tg, zratio_spec$ihat, zratio_spec$ghat,
@@ -330,6 +344,12 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
 #'   oracle (default 1).
 #' @param verbose Logical: print detected issues (default \code{TRUE}).
 #'   Quiet chains print nothing.
+#' @param layout_offset Integer: indicator-vector entries to skip before the
+#'   audited graph's segment (default 0; the mixed model's discrete block
+#'   precedes the continuous one).
+#' @param layout_diag Logical: whether the segment carries diagonal entries
+#'   (default \code{TRUE}, the GGM layout; the mixed model's continuous
+#'   block does not).
 #'
 #' @return An invisible named list:
 #'   \describe{
@@ -374,7 +394,9 @@ summarize_zratio_diagnostics = function(
   rand_k = 6,
   audit_sweep = 600,
   seed = 1,
-  verbose = TRUE
+  verbose = TRUE,
+  layout_offset = 0L,
+  layout_diag = TRUE
 ) {
   chains = Filter(function(chain) !is.null(chain$zratio), chains)
   if(length(chains) == 0) {
@@ -394,7 +416,7 @@ summarize_zratio_diagnostics = function(
     counters = chain$zratio$counters
     audit = zratio_audit_chain(
       chain, zratio_spec, num_nodes, n_graphs, top_k, rand_k, audit_sweep,
-      seed + 1000L * c_idx
+      seed + 1000L * c_idx, layout_offset, layout_diag
     )
     audits[c_idx] = list(audit$picks)
     gate = if(!is.na(audit$aud_targeted_max)) {

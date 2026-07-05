@@ -807,6 +807,16 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(p_ + i, p_ + j));
     }
 
+    // Hierarchical spec on the continuous block: the add ratio carries
+    // +log J with J = Z(Gamma_yy-)/Z(Gamma_yy+) and the delete ratio -log J.
+    // Mediating-block counts are read off the continuous subgraph; the
+    // toggled edge's own state never enters.
+    if (zratio_engine_) {
+        const double log_j = zratio_engine_->log_zratio(
+            continuous_subgraph(), i, j);
+        ln_alpha += (g_prop == 1) ? log_j : -log_j;
+    }
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
         double old_theta_ij = -2.0 * pairwise_effects_continuous_(i, j);
