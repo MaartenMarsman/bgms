@@ -650,8 +650,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_ggm
-Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double delta, const Rcpp::Nullable<Rcpp::List> edge_prior_correction);
-RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP deltaSEXP, SEXP edge_prior_correctionSEXP) {
+Rcpp::List sample_ggm(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const std::string& sampler_type, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable, const double delta, const Rcpp::Nullable<Rcpp::List> edge_prior_correction, const Rcpp::Nullable<Rcpp::List> zratio_spec);
+RcppExport SEXP _bgms_sample_ggm(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP sampler_typeSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP na_imputeSEXP, SEXP missing_index_nullableSEXP, SEXP deltaSEXP, SEXP edge_prior_correctionSEXP, SEXP zratio_specSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -681,13 +681,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::IntegerMatrix> >::type missing_index_nullable(missing_index_nullableSEXP);
     Rcpp::traits::input_parameter< const double >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::List> >::type edge_prior_correction(edge_prior_correctionSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_ggm(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_nullable, delta, edge_prior_correction));
+    Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::List> >::type zratio_spec(zratio_specSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_ggm(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_nullable, delta, edge_prior_correction, zratio_spec));
     return rcpp_result_gen;
 END_RCPP
 }
 // sample_mixed_mrf
-Rcpp::List sample_mixed_mrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const std::string& sampler_type, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable, const double delta, const Rcpp::Nullable<Rcpp::List> edge_prior_correction);
-RcppExport SEXP _bgms_sample_mixed_mrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP sampler_typeSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP na_imputeSEXP, SEXP missing_index_discrete_nullableSEXP, SEXP missing_index_continuous_nullableSEXP, SEXP deltaSEXP, SEXP edge_prior_correctionSEXP) {
+Rcpp::List sample_mixed_mrf(const Rcpp::List& inputFromR, const arma::mat& prior_inclusion_prob, const arma::imat& initial_edge_indicators, const int no_iter, const int no_warmup, const int no_chains, const bool edge_selection, const int seed, const int no_threads, const int progress_type, SEXP progress_callback, const std::string& edge_prior, const double beta_bernoulli_alpha, const double beta_bernoulli_beta, const double beta_bernoulli_alpha_between, const double beta_bernoulli_beta_between, const double dirichlet_alpha, const double lambda, const std::string& sampler_type, const double target_acceptance, const int max_tree_depth, const bool learn_mass_matrix, const bool na_impute, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable, const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable, const double delta, const Rcpp::Nullable<Rcpp::List> edge_prior_correction, const Rcpp::Nullable<Rcpp::List> zratio_spec);
+RcppExport SEXP _bgms_sample_mixed_mrf(SEXP inputFromRSEXP, SEXP prior_inclusion_probSEXP, SEXP initial_edge_indicatorsSEXP, SEXP no_iterSEXP, SEXP no_warmupSEXP, SEXP no_chainsSEXP, SEXP edge_selectionSEXP, SEXP seedSEXP, SEXP no_threadsSEXP, SEXP progress_typeSEXP, SEXP progress_callbackSEXP, SEXP edge_priorSEXP, SEXP beta_bernoulli_alphaSEXP, SEXP beta_bernoulli_betaSEXP, SEXP beta_bernoulli_alpha_betweenSEXP, SEXP beta_bernoulli_beta_betweenSEXP, SEXP dirichlet_alphaSEXP, SEXP lambdaSEXP, SEXP sampler_typeSEXP, SEXP target_acceptanceSEXP, SEXP max_tree_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP na_imputeSEXP, SEXP missing_index_discrete_nullableSEXP, SEXP missing_index_continuous_nullableSEXP, SEXP deltaSEXP, SEXP edge_prior_correctionSEXP, SEXP zratio_specSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -718,7 +719,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::IntegerMatrix> >::type missing_index_continuous_nullable(missing_index_continuous_nullableSEXP);
     Rcpp::traits::input_parameter< const double >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::List> >::type edge_prior_correction(edge_prior_correctionSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction));
+    Rcpp::traits::input_parameter< const Rcpp::Nullable<Rcpp::List> >::type zratio_spec(zratio_specSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_mixed_mrf(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction, zratio_spec));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -861,6 +863,128 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// zratio_scan_graph
+arma::mat zratio_scan_graph(arma::imat G, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
+RcppExport SEXP _bgms_zratio_scan_graph(SEXP GSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_scan_graph(G, addc, tg, ihat, ghat, wt, psi0));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_audit_edges
+Rcpp::List zratio_audit_edges(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int n_sweep, int burn, int seed);
+RcppExport SEXP _bgms_zratio_audit_edges(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
+    Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_audit_edges(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_eval
+Rcpp::List zratio_test_eval(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
+RcppExport SEXP _bgms_zratio_test_eval(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_eval(G, edges, addc, tg, ihat, ghat, wt, psi0));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_saddle
+double zratio_test_saddle(double s1, double s2, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
+RcppExport SEXP _bgms_zratio_test_saddle(SEXP s1SEXP, SEXP s2SEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type s1(s1SEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_saddle(s1, s2, addc, tg, ihat, ghat, wt, psi0));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_calibrated_eval
+Rcpp::List zratio_test_calibrated_eval(Rcpp::List graphs, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int seed, int n_sweep, int burn, int freeze_after);
+RcppExport SEXP _bgms_zratio_test_calibrated_eval(SEXP graphsSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP seedSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP freeze_afterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type graphs(graphsSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
+    Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
+    Rcpp::traits::input_parameter< int >::type freeze_after(freeze_afterSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_calibrated_eval(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_precompute
+Rcpp::List zratio_test_precompute(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, int ncn_max, int bre_max);
+RcppExport SEXP _bgms_zratio_test_precompute(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP ncn_maxSEXP, SEXP bre_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< int >::type ncn_max(ncn_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type bre_max(bre_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_precompute(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
@@ -897,8 +1021,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_parameter_prior", (DL_FUNC) &_bgms_test_parameter_prior, 5},
     {"_bgms_test_scale_prior", (DL_FUNC) &_bgms_test_scale_prior, 4},
     {"_bgms_ggm_test_logp_and_gradient_prior", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient_prior, 11},
-    {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 26},
-    {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 27},
+    {"_bgms_sample_ggm", (DL_FUNC) &_bgms_sample_ggm, 27},
+    {"_bgms_sample_mixed_mrf", (DL_FUNC) &_bgms_sample_mixed_mrf, 28},
     {"_bgms_sample_omrf", (DL_FUNC) &_bgms_sample_omrf, 24},
     {"_bgms_test_sbm_compute_ce", (DL_FUNC) &_bgms_test_sbm_compute_ce, 7},
     {"_bgms_test_sbm_miniti_node", (DL_FUNC) &_bgms_test_sbm_miniti_node, 10},
@@ -906,6 +1030,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_sbm_corrected_log_marginal", (DL_FUNC) &_bgms_test_sbm_corrected_log_marginal, 10},
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {"_bgms_test_warmup_schedule", (DL_FUNC) &_bgms_test_warmup_schedule, 5},
+    {"_bgms_zratio_scan_graph", (DL_FUNC) &_bgms_zratio_scan_graph, 7},
+    {"_bgms_zratio_audit_edges", (DL_FUNC) &_bgms_zratio_audit_edges, 14},
+    {"_bgms_zratio_test_eval", (DL_FUNC) &_bgms_zratio_test_eval, 8},
+    {"_bgms_zratio_test_saddle", (DL_FUNC) &_bgms_zratio_test_saddle, 8},
+    {"_bgms_zratio_test_calibrated_eval", (DL_FUNC) &_bgms_zratio_test_calibrated_eval, 15},
+    {"_bgms_zratio_test_precompute", (DL_FUNC) &_bgms_zratio_test_precompute, 10},
     {NULL, NULL, 0}
 };
 

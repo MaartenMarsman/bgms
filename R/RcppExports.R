@@ -137,12 +137,12 @@ ggm_test_logp_and_gradient_prior <- function(theta, suf_stat, n, edge_indicators
     .Call(`_bgms_ggm_test_logp_and_gradient_prior`, theta, suf_stat, n, edge_indicators, interaction_prior_type, interaction_scale, interaction_alpha, interaction_beta, diagonal_prior_type, diagonal_shape, diagonal_rate)
 }
 
-sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, learn_mass_matrix = TRUE, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, edge_prior_correction = NULL) {
-    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_nullable, delta, edge_prior_correction)
+sample_ggm <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, learn_mass_matrix = TRUE, na_impute = FALSE, missing_index_nullable = NULL, delta = 0.0, edge_prior_correction = NULL, zratio_spec = NULL) {
+    .Call(`_bgms_sample_ggm`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_nullable, delta, edge_prior_correction, zratio_spec)
 }
 
-sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, learn_mass_matrix = TRUE, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0, edge_prior_correction = NULL) {
-    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction)
+sample_mixed_mrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, sampler_type = "adaptive-metropolis", target_acceptance = 0.80, max_tree_depth = 10L, learn_mass_matrix = TRUE, na_impute = FALSE, missing_index_discrete_nullable = NULL, missing_index_continuous_nullable = NULL, delta = 0.0, edge_prior_correction = NULL, zratio_spec = NULL) {
+    .Call(`_bgms_sample_mixed_mrf`, inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, seed, no_threads, progress_type, progress_callback, edge_prior, beta_bernoulli_alpha, beta_bernoulli_beta, beta_bernoulli_alpha_between, beta_bernoulli_beta_between, dirichlet_alpha, lambda, sampler_type, target_acceptance, max_tree_depth, learn_mass_matrix, na_impute, missing_index_discrete_nullable, missing_index_continuous_nullable, delta, edge_prior_correction, zratio_spec)
 }
 
 sample_omrf <- function(inputFromR, prior_inclusion_prob, initial_edge_indicators, no_iter, no_warmup, no_chains, edge_selection, sampler_type, seed, no_threads, progress_type, progress_callback = NULL, edge_prior = "Bernoulli", na_impute = FALSE, missing_index_nullable = NULL, beta_bernoulli_alpha = 1.0, beta_bernoulli_beta = 1.0, beta_bernoulli_alpha_between = 1.0, beta_bernoulli_beta_between = 1.0, dirichlet_alpha = 1.0, lambda = 1.0, target_acceptance = 0.8, max_tree_depth = 10L, learn_mass_matrix = TRUE) {
@@ -171,5 +171,29 @@ compute_Vn_mfm_sbm <- function(num_variables, dirichlet_alpha, t_max, lambda) {
 
 test_warmup_schedule <- function(warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations) {
     .Call(`_bgms_test_warmup_schedule`, warmup, edge_selection, learn_sd, select_during_warmup, probe_iterations)
+}
+
+zratio_scan_graph <- function(G, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_scan_graph`, G, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_audit_edges <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed) {
+    .Call(`_bgms_zratio_audit_edges`, G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed)
+}
+
+zratio_test_eval <- function(G, edges, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_test_eval`, G, edges, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
+    .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
+}
+
+zratio_test_calibrated_eval <- function(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after) {
+    .Call(`_bgms_zratio_test_calibrated_eval`, graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after)
+}
+
+zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max) {
+    .Call(`_bgms_zratio_test_precompute`, G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max)
 }
 

@@ -3,7 +3,7 @@
 #' @description
 #' Draws from the prior of a Gaussian graphical model. The likelihood is
 #' omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-#' Two specifications are supported via the \code{spec} argument:
+#' Three specifications are supported via the \code{spec} argument:
 #' \itemize{
 #'   \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
 #'     sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
@@ -20,6 +20,14 @@
 #'     \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 #'     specification, not hierarchical). Useful for simulation-based
 #'     calibration of \code{\link{bgm}}'s default sampler.
+#'   \item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+#'     hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+#'     \eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+#'     \eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+#'     per-graph normalizer ratio in each between-edge move is evaluated
+#'     by the deterministic local Z-ratio approximation. Requires
+#'     \code{normal_prior()} interactions and a shape-1 diagonal scale
+#'     prior.
 #' }
 #'
 #' @details
@@ -36,6 +44,13 @@
 #' off-diagonals at excluded positions are constrained to zero throughout
 #' the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 #' (the chain samples \eqn{\Gamma}).
+#'
+#' When \code{spec = "joint"}, the chain is initialized from an ancestral
+#' draw of the edge prior (hyperparameters from their prior, then
+#' indicators given the hyperparameters), keyed to \code{seed}. Under a
+#' hierarchical edge prior the inclusion parameter and the graph density
+#' are coupled, and a full-graph start can pin both near 1 for a large
+#' number of sweeps in zero-evidence chains.
 #'
 #' @param p Integer. Dimension of the precision matrix (\eqn{p \ge 2}).
 #' @param n_samples Integer. Number of post-warmup draws to keep.
@@ -68,8 +83,10 @@
 #'   Used only for \code{spec = "conditional"} (the chain samples
 #'   \eqn{K \mid \Gamma}); ignored for \code{spec = "joint"}.
 #' @param spec One of \code{"conditional"} (default, sample
-#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior).
+#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+#'   \code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+#'   normalized specification via the Z-ratio approximation).
 #' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
 #'   Bernoulli edge prior used when \code{spec = "joint"}. Default
 #'   \code{0.5}. Ignored when \code{spec = "conditional"}.
@@ -89,6 +106,18 @@
 #'   sampler and cached across calls). With \code{FALSE} the plain conjugate
 #'   updates are used, whose hyperparameter marginals do not match the
 #'   hyperpriors under the determinant tilt.
+#' @param calibration_window Non-negative integer or \code{NULL} (default).
+#'   Only for \code{spec = "hierarchical"}: length of the appended warm-up
+#'   window in which the Z-ratio correction is calibrated online against a
+#'   block-Gibbs oracle and then frozen (with its hull clamp) before
+#'   sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
+#'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
+#'   never shortened; the window is appended.
+#' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
+#'   \code{spec = "hierarchical"}: run the post-sampling Z-ratio alarm suite
+#'   (\code{\link{summarize_zratio_diagnostics}}) on the returned chain and
+#'   attach the result; detected issues are printed when \code{verbose}.
+#'   The audit spends a few dozen measurement-only block-Gibbs oracle calls.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -130,6 +159,10 @@
 #'     \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
 #'       matrix (\code{n_samples x p}) of sampled cluster allocations
 #'       (1-based).}
+#'     \item{\code{zratio_diagnostics}}{Only with
+#'       \code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
+#'       the alarm-suite summary from
+#'       \code{\link{summarize_zratio_diagnostics}}.}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -170,11 +203,13 @@ sample_ggm_prior = function(
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
+  spec = c("conditional", "joint", "hierarchical"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
-  apply_correction = TRUE
+  apply_correction = TRUE,
+  calibration_window = NULL,
+  zratio_diagnostics = TRUE
 ) {
   spec = match.arg(spec)
   update_method = match.arg(update_method)
@@ -186,13 +221,17 @@ sample_ggm_prior = function(
   if(spec == "conditional" && !is.null(ep) &&
     !identical(ep$edge_prior, "Bernoulli")) {
     stop(
-      "Hierarchical edge priors require spec = \"joint\" (the conditional ",
-      "spec fixes the graph)."
+      "Hierarchical edge priors require spec = \"joint\" or ",
+      "\"hierarchical\" (the conditional spec fixes the graph)."
     )
   }
   if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
     is.na(apply_correction)) {
     stop("'apply_correction' must be TRUE or FALSE.")
+  }
+  if(!is.logical(zratio_diagnostics) || length(zratio_diagnostics) != 1L ||
+    is.na(zratio_diagnostics)) {
+    stop("'zratio_diagnostics' must be TRUE or FALSE.")
   }
   validate_integer(p, "p", min_value = 2L)
   validate_integer(n_samples, "n_samples", min_value = 1L)
@@ -249,9 +288,10 @@ sample_ggm_prior = function(
     ))
   }
 
-  # spec == "joint": drive the bgm() MH chain with edge selection on and
-  # zero data (n = 0, S = 0). The chain targets the un-normalised joint
-  # prior p(K, Gamma) and produces (K, Gamma) draws.
+  # spec == "joint" / "hierarchical": drive the bgm() MH chain with edge
+  # selection on and zero data (n = 0, S = 0). The joint chain targets the
+  # un-normalised joint prior; the hierarchical chain adds the per-edge
+  # Z-ratio to the between-edge moves so the graph marginal is pi(Gamma).
   inputFromR = list(
     n                      = 0L,
     suf_stat               = matrix(0, p, p),
@@ -269,7 +309,39 @@ sample_ggm_prior = function(
     )
   }
   correction = NULL
-  if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
+  zratio = NULL
+  if(spec == "hierarchical") {
+    # Hierarchical spec p(K | Gamma) = rho_Gamma(K)/Z(Gamma): the per-edge
+    # Z-ratio engine carries the normalizer into the between-edge moves,
+    # and the hyperparameter updates are the clean conjugate draws (no
+    # C-correction on this path).
+    if(!identical(ip$interaction_prior_type, "normal")) {
+      stop(
+        "spec = \"hierarchical\" requires a normal interaction (slab) ",
+        "prior; the Z-ratio constants are derived for the Normal slab."
+      )
+    }
+    if(abs(sp$scale_shape - 1) > 1e-12) {
+      stop(
+        "spec = \"hierarchical\" requires shape = 1 on the diagonal scale ",
+        "prior (gamma_prior(shape = 1) or exponential_prior); the Z-ratio ",
+        "constants are derived for the exponential diagonal."
+      )
+    }
+    zc = zratio_constants(
+      delta = delta,
+      sigma = 2 * ip$pairwise_scale,
+      beta = sp$scale_rate / 2
+    )
+    zratio = list(
+      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
+      wt = zc$wt, psi0 = zc$psi0,
+      delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
+      calibration_window = resolve_zratio_calibration_window(
+        calibration_window, p, n_warmup
+      )
+    )
+  } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
       p = p, delta = delta,
       interaction_prior = interaction_prior,
@@ -282,7 +354,7 @@ sample_ggm_prior = function(
   results = sample_ggm(
     inputFromR = inputFromR,
     prior_inclusion_prob = ep$inclusion_probability,
-    initial_edge_indicators = matrix(1L, p, p),
+    initial_edge_indicators = ggm_prior_ancestral_indicators(p, ep, seed),
     no_iter = as.integer(n_samples),
     no_warmup = as.integer(n_warmup),
     no_chains = 1L,
@@ -299,7 +371,8 @@ sample_ggm_prior = function(
     dirichlet_alpha = ep$dirichlet_alpha,
     lambda = ep$lambda,
     delta = as.numeric(delta),
-    edge_prior_correction = correction
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
   if(length(results) == 0L || isTRUE(results[[1L]]$error)) {
     msg = if(length(results) > 0L) results[[1L]]$error_msg else "empty result"
@@ -355,11 +428,115 @@ sample_ggm_prior = function(
   if(!is.null(results[[1L]]$allocation_samples)) {
     out$allocations = t(results[[1L]]$allocation_samples)
   }
+  if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
+    out$zratio_diagnostics = summarize_zratio_diagnostics(
+      results, zratio,
+      num_nodes = as.integer(p),
+      seed = as.integer(seed), verbose = verbose
+    )
+  }
   out
 }
 
 
 # Internal helpers -------------------------------------------------------------
+
+# Length of the appended Stage-3d calibration window for the hierarchical
+# spec. NULL resolves the default: no window at small p (the additive kernel
+# passes the identity gates there and coupled-bridge blocks are rare),
+# 15 percent of the warmup budget otherwise. The user's warmup is untouched;
+# the window is appended.
+resolve_zratio_calibration_window = function(window, p, n_warmup) {
+  if(is.null(window)) {
+    window = if(p < 15) 0L else ceiling(0.15 * n_warmup)
+  }
+  if(!is.numeric(window) || length(window) != 1L || is.na(window) ||
+    window < 0) {
+    stop("'calibration_window' must be a single non-negative number or NULL.")
+  }
+  as.integer(window)
+}
+
+# Ancestral draw of the initial edge-indicator matrix for the joint-spec
+# chain: hyperparameters from their prior, then indicators given the
+# hyperparameters. Runs in an RNG scope keyed to `seed` and restores the
+# caller's RNG state on exit.
+ggm_prior_ancestral_indicators = function(p, ep, seed) {
+  has_seed = exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  if(has_seed) {
+    old_seed = get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
+  } else {
+    on.exit(
+      if(exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        rm(list = ".Random.seed", envir = globalenv())
+      },
+      add = TRUE
+    )
+  }
+  set.seed(seed)
+
+  prob = switch(ep$edge_prior,
+    "Bernoulli" = ep$inclusion_probability,
+    "Beta-Bernoulli" = matrix(
+      rbeta(1, ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta), p, p
+    ),
+    "Stochastic-Block" = {
+      z = ancestral_mfm_sbm_partition(p, ep$lambda, ep$dirichlet_alpha)
+      ancestral_sbm_pair_probabilities(
+        z,
+        ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta,
+        ep$beta_bernoulli_alpha_between, ep$beta_bernoulli_beta_between
+      )
+    }
+  )
+
+  g = matrix(0L, p, p)
+  upper = upper.tri(g)
+  g[upper] = as.integer(runif(sum(upper)) < prob[upper])
+  g = g + t(g)
+  diag(g) = 1L
+  g
+}
+
+# Ancestral draw from the MFM-SBM hyperprior: shifted-Poisson component
+# count, Dirichlet weights, and allocations.
+ancestral_mfm_sbm_partition = function(p, lambda, dirichlet_alpha) {
+  num_components = rpois(1, lambda) + 1L
+  w = rgamma(num_components, dirichlet_alpha)
+  sample.int(num_components, p, replace = TRUE, prob = w)
+}
+
+# Per-pair inclusion probabilities implied by an allocation vector, with
+# within-block and between-block Beta draws for each block pair.
+ancestral_sbm_pair_probabilities = function(
+  z, a_within, b_within, a_between, b_between
+) {
+  labs = sort(unique(z))
+  nl = length(labs)
+  th_rs = matrix(0, nl, nl)
+  for(r in seq_len(nl)) {
+    for(s in r:nl) {
+      v = if(r == s) {
+        rbeta(1, a_within, b_within)
+      } else {
+        rbeta(1, a_between, b_between)
+      }
+      th_rs[r, s] = v
+      th_rs[s, r] = v
+    }
+  }
+  zi = match(z, labs)
+  p = length(z)
+  prob = matrix(0.5, p, p)
+  for(i in seq_len(p - 1)) {
+    for(j in (i + 1):p) {
+      prob[i, j] = th_rs[zi[i], zi[j]]
+      prob[j, i] = prob[i, j]
+    }
+  }
+  prob
+}
 
 validate_integer = function(x, name, min_value = 1L) {
   if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {

@@ -66,14 +66,15 @@ void run_mcmc_chain(
     // Construct warmup schedule (shared by runner and sampler)
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd,
-                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
+                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs,
+                            config.zratio_calibration_window);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
 
     // Initialize sampler (step-size heuristic) before the main loop
     sampler->initialize(model);
 
-    const int total_iter = config.no_warmup + config.no_iter;
+    const int total_iter = schedule.total_warmup + config.no_iter;
 
     // ---- Main MCMC loop (warmup + sampling) ----
     for (int iter = 0; iter < total_iter; ++iter) {
@@ -84,6 +85,11 @@ void run_mcmc_chain(
         // Optional missing-data imputation
         if (config.na_impute && model.has_missing_data()) {
             model.impute_missing();
+        }
+
+        // Warmup/sampling boundary hook (e.g. freeze the Z-ratio calibrator)
+        if (iter == schedule.total_warmup) {
+            model.on_warmup_end();
         }
 
         // Edge selection
@@ -111,9 +117,24 @@ void run_mcmc_chain(
             );
         }
 
+        // Z-ratio drift trace: graph density and edge-prior theta over the
+        // selection-enabled warmup stream. Feeds the end-of-warmup drift
+        // condition in summarize_zratio_diagnostics.
+        if (config.zratio_calibration_window > 0 &&
+            iter < schedule.total_warmup &&
+            schedule.selection_enabled(iter) && model.has_edge_selection()) {
+            arma::ivec ind = model.get_vectorized_indicator_parameters();
+            chain_result.zratio_warmup_density.push_back(
+                ind.n_elem > 0 ? static_cast<double>(arma::accu(ind)) /
+                                     static_cast<double>(ind.n_elem)
+                               : 0.0);
+            chain_result.zratio_warmup_theta.push_back(
+                edge_prior.get_inclusion_parameter());
+        }
+
         // Store samples (only during sampling phase)
         if (schedule.sampling(iter)) {
-            int sample_index = iter - config.no_warmup;
+            int sample_index = iter - schedule.total_warmup;
 
             store_nuts_diagnostics_if_present(chain_result, sample_index, *sampler, result);
 
@@ -144,6 +165,9 @@ void run_mcmc_chain(
         }
     }
 
+    // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
+    // frozen constants) outlives the loop only through the chain result.
+    model.collect_chain_diagnostics(chain_result);
 }
 
 
@@ -275,6 +299,21 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_am_diagnostics) {
                 chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
+            }
+
+            if (chain.has_zratio_diagnostics) {
+                Rcpp::NumericVector counters(chain.zratio_counters.begin(),
+                                             chain.zratio_counters.end());
+                counters.names() = Rcpp::CharacterVector::create(
+                    "n_hit", "n_miss", "n_pred", "n_add", "n_clamp",
+                    "n_oracle", "n_anchors", "cache_size", "frozen");
+                chain_list["zratio"] = Rcpp::List::create(
+                    Rcpp::_["addc"] = chain.zratio_addc,
+                    Rcpp::_["anchors_x"] = chain.zratio_anchors_x,
+                    Rcpp::_["anchors_y"] = chain.zratio_anchors_y,
+                    Rcpp::_["counters"] = counters,
+                    Rcpp::_["warmup_density"] = chain.zratio_warmup_density,
+                    Rcpp::_["warmup_theta"] = chain.zratio_warmup_theta);
             }
         }
 

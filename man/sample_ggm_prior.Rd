@@ -16,11 +16,13 @@ sample_ggm_prior(
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
+  spec = c("conditional", "joint", "hierarchical"),
   edge_inclusion_prob = 0.5,
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
-  apply_correction = TRUE
+  apply_correction = TRUE,
+  calibration_window = NULL,
+  zratio_diagnostics = TRUE
 )
 }
 \arguments{
@@ -76,8 +78,10 @@ preparation). Pass \code{delta = 0} for the untilted prior (the
 companion-paper baseline) or a non-negative numeric to override.}
 
 \item{spec}{One of \code{"conditional"} (default, sample
-\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-\eqn{(K, \Gamma)} jointly from the un-normalised joint prior).}
+\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+\eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+\code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+normalized specification via the Z-ratio approximation).}
 
 \item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
 Bernoulli edge prior used when \code{spec = "joint"}. Default
@@ -101,6 +105,20 @@ normalizing-constant correction to the hyperparameter updates (default
 sampler and cached across calls). With \code{FALSE} the plain conjugate
 updates are used, whose hyperparameter marginals do not match the
 hyperpriors under the determinant tilt.}
+
+\item{calibration_window}{Non-negative integer or \code{NULL} (default).
+Only for \code{spec = "hierarchical"}: length of the appended warm-up
+window in which the Z-ratio correction is calibrated online against a
+block-Gibbs oracle and then frozen (with its hull clamp) before
+sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
+percent of \code{n_warmup} otherwise. The adaptation warmup itself is
+never shortened; the window is appended.}
+
+\item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
+\code{spec = "hierarchical"}: run the post-sampling Z-ratio alarm suite
+(\code{\link{summarize_zratio_diagnostics}}) on the returned chain and
+attach the result; detected issues are printed when \code{verbose}.
+The audit spends a few dozen measurement-only block-Gibbs oracle calls.}
 }
 \value{
 A list with components
@@ -133,12 +151,16 @@ probability.}
 \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
 matrix (\code{n_samples x p}) of sampled cluster allocations
 (1-based).}
+\item{\code{zratio_diagnostics}}{Only with
+\code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
+the alarm-suite summary from
+\code{\link{summarize_zratio_diagnostics}}.}
 }
 }
 \description{
 Draws from the prior of a Gaussian graphical model. The likelihood is
 omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-Two specifications are supported via the \code{spec} argument:
+Three specifications are supported via the \code{spec} argument:
 \itemize{
 \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
 sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
@@ -155,6 +177,14 @@ edge selection on and the likelihood off, so the marginal on
 \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 specification, not hierarchical). Useful for simulation-based
 calibration of \code{\link{bgm}}'s default sampler.
+\item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+\eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+\eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+per-graph normalizer ratio in each between-edge move is evaluated
+by the deterministic local Z-ratio approximation. Requires
+\code{normal_prior()} interactions and a shape-1 diagonal scale
+prior.
 }
 }
 \details{
@@ -171,6 +201,13 @@ When \code{spec = "conditional"} and \code{edge_indicators} is supplied,
 off-diagonals at excluded positions are constrained to zero throughout
 the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 (the chain samples \eqn{\Gamma}).
+
+When \code{spec = "joint"}, the chain is initialized from an ancestral
+draw of the edge prior (hyperparameters from their prior, then
+indicators given the hyperparameters), keyed to \code{seed}. Under a
+hierarchical edge prior the inclusion parameter and the graph density
+are coupled, and a full-graph start can pin both near 1 for a large
+number of sweeps in zero-evidence chains.
 }
 \examples{
 \donttest{

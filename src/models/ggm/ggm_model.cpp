@@ -2,8 +2,29 @@
 #include "rng/rng_utils.h"
 #include "math/explog_macros.h"
 #include "math/cholupdate.h"
+#include "mcmc/execution/chain_result.h"
 #include "mcmc/execution/step_result.h"
 #include "mcmc/execution/warmup_schedule.h"
+
+void GGMModel::collect_chain_diagnostics(ChainResult& chain_result) const {
+    if (!zratio_engine_) return;
+    const ZRatioEngine& engine = *zratio_engine_;
+    chain_result.has_zratio_diagnostics = true;
+    chain_result.zratio_addc = engine.addc();
+    chain_result.zratio_anchors_x = engine.anchors_x();
+    chain_result.zratio_anchors_y = engine.anchors_y();
+    chain_result.zratio_counters = {
+        static_cast<double>(engine.n_hit()),
+        static_cast<double>(engine.n_miss()),
+        static_cast<double>(engine.n_pred()),
+        static_cast<double>(engine.n_add()),
+        static_cast<double>(engine.n_clamp()),
+        static_cast<double>(engine.n_oracle()),
+        static_cast<double>(engine.n_anchors()),
+        static_cast<double>(engine.cache_size()),
+        engine.frozen() ? 1.0 : 0.0
+    };
+}
 
 // =====================================================================
 // NUTS gradient support
@@ -218,6 +239,11 @@ double GGMModel::log_density_impl_diag(size_t j) const {
     return (n_ * logdet - trace_prod) / 2;
 }
 
+bool GGMModel::proposal_is_positive_definite_() const {
+    arma::mat R_chk;
+    return arma::chol(R_chk, precision_proposal_);
+}
+
 double GGMModel::ggm_edge_move(size_t i, size_t j) {
     get_constants(i, j);
     double Phi_q1q  = constants_[0];
@@ -235,6 +261,12 @@ double GGMModel::ggm_edge_move(size_t i, size_t j) {
     precision_proposal_(i, j) = omega_prop_q1q;
     precision_proposal_(j, i) = omega_prop_q1q;
     precision_proposal_(j, j) = omega_prop_qq;
+
+    // Prior-only chains have no likelihood anchor vetoing non-PD proposals;
+    // reject them explicitly (see proposal_is_positive_definite_).
+    if (n_ == 0 && !proposal_is_positive_definite_()) {
+        return -arma::datum::inf;
+    }
 
     double ln_alpha = log_density_impl_edge(i, j);
 
@@ -521,6 +553,14 @@ double GGMModel::ggm_diag_move(size_t i) {
     precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
+    // Prior-only chains have no likelihood anchor vetoing non-PD proposals;
+    // reject them explicitly (see proposal_is_positive_definite_). K_ii > 0
+    // by construction is not sufficient: a small K_ii relative to the
+    // off-diagonals can still violate PD.
+    if (n_ == 0 && !proposal_is_positive_definite_()) {
+        return -arma::datum::inf;
+    }
+
     double ln_alpha = log_density_impl_diag(i);
 
     // Determinant-tilt prior: |K|^delta contributes delta * log_det_ratio
@@ -600,6 +640,14 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         ln_alpha += MY_LOG(1.0 - inclusion_probability_(i, j)) - MY_LOG(inclusion_probability_(i, j));
 
+        // Hierarchical spec: the delete ratio carries -log J with
+        // J = Z(Gamma-)/Z(Gamma+) (the add ratio carries +log J below).
+        if (zratio_engine_) {
+            ln_alpha -= zratio_engine_->log_zratio(edge_indicators_,
+                                                   static_cast<int>(i),
+                                                   static_cast<int>(j));
+        }
+
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
         ln_alpha -= interaction_prior_->logp(-0.5 * precision_matrix_(i, j)) - MY_LOG(2.0);
@@ -653,6 +701,13 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         }
 
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
+
+        // Hierarchical spec: the add ratio carries +log J.
+        if (zratio_engine_) {
+            ln_alpha += zratio_engine_->log_zratio(edge_indicators_,
+                                                   static_cast<int>(i),
+                                                   static_cast<int>(j));
+        }
 
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
         ln_alpha += interaction_prior_->logp(-0.5 * omega_prop_ij) - MY_LOG(2.0);
@@ -801,7 +856,15 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     // proposal; the target's extra (k_jj/2)^(alpha-1) factor adds the
     // correction (k_jj/k_jj(0))^(alpha-1) (the 1/2 cancels in the ratio),
     // where k_jj(0) = constants_[5] is the spike diagonal.
-    const double log_A_add = log_odds + log_pslab0 - log_q0;
+    // Hierarchical spec: the add ratio also carries the per-graph normalizer
+    // ratio J = Z(Gamma-)/Z(Gamma+), state-invariant for the toggled edge,
+    // so the delete reciprocal handles it with the same value.
+    double log_A_add = log_odds + log_pslab0 - log_q0;
+    if (zratio_engine_) {
+        log_A_add += zratio_engine_->log_zratio(edge_indicators_,
+                                                static_cast<int>(i),
+                                                static_cast<int>(j));
+    }
     const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
     if (edge_indicators_(i, j) == 0) {
@@ -908,17 +971,21 @@ void GGMModel::initialize_precision_from_mle() {
     if (arma::inv_sympd(K_init, S_reg)) {
         precision_matrix_ = static_cast<double>(n_) * K_init;
 
-        // For fixed sparse graphs, zero out excluded edges and
-        // recompute the diagonal to maintain positive definiteness.
-        if (has_sparse_graph_) {
-            for (size_t i = 0; i < p_ - 1; ++i) {
-                for (size_t j = i + 1; j < p_; ++j) {
-                    if (edge_indicators_(i, j) == 0) {
-                        precision_matrix_(i, j) = 0.0;
-                        precision_matrix_(j, i) = 0.0;
-                    }
+        // The samplers maintain the invariant that an excluded edge has a
+        // zero precision entry, so the initial state must satisfy it too:
+        // zero the excluded entries whether the graph is fixed sparse or a
+        // sparse initial state under edge selection.
+        bool any_excluded = false;
+        for (size_t i = 0; i < p_ - 1; ++i) {
+            for (size_t j = i + 1; j < p_; ++j) {
+                if (edge_indicators_(i, j) == 0) {
+                    precision_matrix_(i, j) = 0.0;
+                    precision_matrix_(j, i) = 0.0;
+                    any_excluded = true;
                 }
             }
+        }
+        if (any_excluded) {
             // Make diagonally dominant to ensure PD after zeroing.
             for (size_t i = 0; i < p_; ++i) {
                 double row_sum = 0.0;

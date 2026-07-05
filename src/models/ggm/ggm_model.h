@@ -7,6 +7,7 @@
 #include "rng/rng_utils.h"
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
+#include "models/ggm/zratio_engine.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 
@@ -147,8 +148,38 @@ public:
           gradient_engine_(other.gradient_engine_),
           constraint_dirty_(other.constraint_dirty_),
           theta_valid_(other.theta_valid_),
-          theta_(other.theta_)
-    {}
+          theta_(other.theta_),
+          zratio_engine_(other.zratio_engine_
+                             ? std::make_shared<ZRatioEngine>(*other.zratio_engine_)
+                             : nullptr)
+    {
+        // The engine's oracle draws from this clone's chain RNG.
+        if (zratio_engine_) zratio_engine_->set_rng(&rng_);
+    }
+
+    /**
+     * Attach the per-edge Z-ratio engine, switching the between-edge moves
+     * to the hierarchical prior specification p(K | Gamma) = rho/Z(Gamma):
+     * the add acceptance gains log J = log(Z(Gamma-)/Z(Gamma+)) and the
+     * delete acceptance its negation. Each chain clone deep-copies the
+     * engine, so per-chain caches never cross threads.
+     */
+    void set_zratio_engine(std::shared_ptr<ZRatioEngine> engine) {
+        zratio_engine_ = std::move(engine);
+        if (zratio_engine_) zratio_engine_->set_rng(&rng_);
+    }
+
+    /** Freeze the Z-ratio calibrator at the warmup/sampling boundary. */
+    void on_warmup_end() override {
+        if (zratio_engine_) zratio_engine_->freeze_calibration();
+    }
+
+    /**
+     * Copy the Z-ratio engine's end-of-run state (counters, frozen
+     * constant block, calibration anchors) into the chain result. No-op
+     * without an engine.
+     */
+    void collect_chain_diagnostics(ChainResult& chain_result) const override;
 
     /** @return true when edge selection is enabled. */
     bool has_edge_selection()  const override { return edge_selection_; }
@@ -621,6 +652,22 @@ private:
     double ggm_diag_move(size_t i);
 
     /**
+     * Positive-definiteness canary for prior-only chains (n == 0).
+     *
+     * With data, the likelihood term (n/2) * log|K| vetoes proposals that
+     * leave the PD cone. Without data there is no such anchor: the
+     * reparameterization constants are computed from the incrementally
+     * maintained covariance, whose floating-point drift can place a proposal
+     * outside the cone with finite acceptance probability. An accepted
+     * non-PD state invalidates the Cholesky machinery and the next
+     * refresh_cholesky() throws. ggm_edge_move and ggm_diag_move reject such
+     * proposals explicitly when n == 0.
+     *
+     * @return true if precision_proposal_ admits a Cholesky factorization
+     */
+    bool proposal_is_positive_definite_() const;
+
+    /**
      * Metropolis-Hastings add-delete move for an edge indicator.
      *
      * If the edge is on, proposes deletion; if off, proposes a new value
@@ -788,6 +835,9 @@ private:
     mutable bool theta_valid_ = false;
     /// Cached theta vector (active parameterization).
     mutable arma::vec theta_;
+    /// Per-edge Z-ratio engine (hierarchical prior spec); null on the
+    /// joint spec. Deep-copied per chain clone (owns a mutable cache).
+    std::shared_ptr<ZRatioEngine> zratio_engine_;
 
 public:
     /**

@@ -168,6 +168,46 @@
 #'   sampled inclusion probability is returned per chain in
 #'   \code{fit$inclusion_parameter_samples}.
 #'
+#' @param graph_prior_spec Character. How the precision prior composes with
+#'   the edge prior under edge selection for continuous (GGM) data:
+#'   \describe{
+#'     \item{"joint"}{(default) The un-normalised joint specification
+#'       \eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
+#'       \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
+#'       \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
+#'       Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
+#'       \code{sbm_prior()} the hyperparameter updates carry the
+#'       normalizing-constant correction described under
+#'       \code{edge_prior}.}
+#'     \item{"hierarchical"}{The hierarchical specification
+#'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
+#'       normalized per graph, so the graph marginal is exactly the edge
+#'       prior \eqn{\pi(\Gamma)}. Each between-edge move evaluates the
+#'       normalizer ratio by a deterministic local Z-ratio approximation,
+#'       calibrated online against a block-Gibbs oracle in an appended
+#'       warm-up window (see \code{calibration_window}) and audited after
+#'       sampling (\code{\link{summarize_zratio_diagnostics}}; the summary
+#'       is returned as \code{fit$zratio_diag} and issues print like other
+#'       sampler warnings). Requires \code{edge_selection = TRUE}, a
+#'       \code{normal_prior()} interaction prior, a shape-1
+#'       \code{gamma_prior()} (or \code{exponential_prior()}) precision
+#'       scale prior, and continuous data — either all-continuous (GGM) or
+#'       mixed with at least two continuous variables. On mixed data the
+#'       normalizer lives on the continuous block \eqn{K_{yy}}, so the
+#'       Z-ratio enters the continuous-continuous edge moves only, with the
+#'       mediating-block counts read off the continuous subgraph; discrete
+#'       and cross edges are unchanged.}
+#'   }
+#'   Default: \code{"joint"}.
+#'
+#' @param calibration_window Non-negative integer or \code{NULL} (default).
+#'   Only for \code{graph_prior_spec = "hierarchical"}: length of the
+#'   appended warm-up window in which the Z-ratio correction is calibrated
+#'   online against a block-Gibbs oracle and then frozen (with its hull
+#'   clamp) before sampling. \code{NULL} resolves to no window for
+#'   \code{p < 15} variables and 15 percent of \code{warmup} otherwise. The
+#'   adaptation warmup itself is never shortened; the window is appended.
+#'
 #' @param inclusion_probability `r lifecycle::badge("deprecated")` Numeric
 #'   scalar. Use \code{edge_prior = bernoulli_prior(inclusion_probability)}
 #'   instead. Default: \code{0.5}.
@@ -367,6 +407,8 @@ bgm = function(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
+  graph_prior_spec = c("joint", "hierarchical"),
+  calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -535,6 +577,8 @@ bgm = function(
     delta = delta,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
+    graph_prior_spec = graph_prior_spec,
+    calibration_window = calibration_window,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

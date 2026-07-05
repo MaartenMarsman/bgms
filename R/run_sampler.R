@@ -70,7 +70,30 @@ run_sampler_ggm = function(spec) {
   bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
-  correction = ggm_edge_prior_correction(p, s, d$num_variables)
+  # Graph-prior specification: the joint path corrects the hyperparameter
+  # updates for the untracked normalizer Z(Gamma); the hierarchical path
+  # tracks Z(Gamma) itself in the between-edge moves (per-edge Z-ratio
+  # engine) and keeps the hyperparameter updates clean conjugate. The two
+  # are mutually exclusive.
+  correction = NULL
+  zratio = NULL
+  if(identical(p$graph_prior_spec, "hierarchical")) {
+    zc = zratio_constants(
+      delta = p$delta,
+      sigma = 2 * p$pairwise_scale,
+      beta = p$scale_rate / 2
+    )
+    zratio = list(
+      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
+      wt = zc$wt, psi0 = zc$psi0,
+      delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
+      calibration_window = resolve_zratio_calibration_window(
+        p$calibration_window, d$num_variables, s$warmup
+      )
+    )
+  } else {
+    correction = ggm_edge_prior_correction(p, s, d$num_variables)
+  }
 
   out_raw = sample_ggm(
     inputFromR = list(
@@ -110,7 +133,8 @@ run_sampler_ggm = function(spec) {
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
     delta = p$delta,
-    edge_prior_correction = correction
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
 
   out_raw
@@ -192,9 +216,30 @@ run_sampler_mixed_mrf = function(spec) {
   bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
-  correction = ggm_edge_prior_correction(
-    p, s, d$num_variables, d$num_continuous
-  )
+  # Graph-prior specification on the continuous block: same dichotomy as the
+  # GGM path (see run_sampler_ggm). The Z-ratio constants and the Stage-3d
+  # window are sized on the continuous subgraph.
+  correction = NULL
+  zratio = NULL
+  if(identical(p$graph_prior_spec, "hierarchical")) {
+    zc = zratio_constants(
+      delta = p$delta,
+      sigma = 2 * p$pairwise_scale,
+      beta = p$scale_rate / 2
+    )
+    zratio = list(
+      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
+      wt = zc$wt, psi0 = zc$psi0,
+      delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
+      calibration_window = resolve_zratio_calibration_window(
+        p$calibration_window, d$num_continuous, s$warmup
+      )
+    )
+  } else {
+    correction = ggm_edge_prior_correction(
+      p, s, d$num_variables, d$num_continuous
+    )
+  }
 
   input_list = list(
     discrete_observations   = d$x_discrete,
@@ -249,7 +294,8 @@ run_sampler_mixed_mrf = function(spec) {
     missing_index_discrete_nullable = m$missing_index_discrete,
     missing_index_continuous_nullable = m$missing_index_continuous,
     delta = p$delta,
-    edge_prior_correction = correction
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
 
   out_raw

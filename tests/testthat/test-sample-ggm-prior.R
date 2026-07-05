@@ -225,3 +225,74 @@ test_that("malformed edge_indicators are rejected", {
     "0 or 1"
   )
 })
+
+
+# ---- Ancestral initialization (spec = "joint") -------------------------------
+
+test_that("ancestral indicator draws are seed-keyed and restore the RNG", {
+  ep = bgms:::unpack_indicator_prior(bernoulli_prior(0.2), num_variables = 8L)
+  set.seed(123)
+  before = .Random.seed
+  g1 = bgms:::ggm_prior_ancestral_indicators(8L, ep, seed = 7L)
+  expect_identical(.Random.seed, before)
+  g2 = bgms:::ggm_prior_ancestral_indicators(8L, ep, seed = 7L)
+  expect_identical(g1, g2)
+
+  expect_true(isSymmetric(g1))
+  expect_true(all(diag(g1) == 1L))
+  expect_true(all(g1 %in% c(0L, 1L)))
+})
+
+test_that("ancestral indicator draws track the edge prior", {
+  p = 20L
+  offdiag_mean = function(g) {
+    mean(g[upper.tri(g)])
+  }
+
+  ep_dense = bgms:::unpack_indicator_prior(
+    bernoulli_prior(0.9),
+    num_variables = p
+  )
+  ep_sparse = bgms:::unpack_indicator_prior(
+    bernoulli_prior(0.1),
+    num_variables = p
+  )
+  g_dense = bgms:::ggm_prior_ancestral_indicators(p, ep_dense, seed = 11L)
+  g_sparse = bgms:::ggm_prior_ancestral_indicators(p, ep_sparse, seed = 11L)
+  expect_gt(offdiag_mean(g_dense), offdiag_mean(g_sparse))
+
+  # Beta-Bernoulli: a concentrated hyperprior pins the drawn theta.
+  ep_bb = bgms:::unpack_indicator_prior(
+    beta_bernoulli_prior(alpha = 200, beta = 1),
+    num_variables = p
+  )
+  g_bb = bgms:::ggm_prior_ancestral_indicators(p, ep_bb, seed = 11L)
+  expect_gt(offdiag_mean(g_bb), 0.8)
+
+  # SBM: valid draw with block-pair probabilities in (0, 1).
+  ep_sbm = bgms:::unpack_indicator_prior(
+    sbm_prior(),
+    num_variables = p
+  )
+  g_sbm = bgms:::ggm_prior_ancestral_indicators(p, ep_sbm, seed = 11L)
+  expect_true(isSymmetric(g_sbm))
+  expect_true(all(diag(g_sbm) == 1L))
+  expect_true(all(g_sbm %in% c(0L, 1L)))
+})
+
+test_that("joint-spec chains run from the ancestral start for each prior", {
+  skip_on_cran()
+  for(prior in list(
+    bernoulli_prior(0.3),
+    beta_bernoulli_prior(alpha = 2, beta = 4),
+    sbm_prior()
+  )) {
+    draws = sample_ggm_prior(
+      p = 6L, n_samples = 25L, n_warmup = 50L,
+      spec = "joint", edge_prior = prior, apply_correction = FALSE,
+      seed = 3L, verbose = FALSE
+    )
+    expect_equal(dim(draws$edge_indicators), c(25L, 15L))
+    expect_true(all(is.finite(draws$K_diag)))
+  }
+})

@@ -51,6 +51,11 @@ reference:
     contents:
       - starts_with("extract_")
 
+  - title: Diagnostics
+    desc: Post-sampling diagnostic checks.
+    contents:
+      - summarize_zratio_diagnostics
+
   - title: Legacy
     desc: Deprecated functions retained for backwards compatibility.
     contents:
