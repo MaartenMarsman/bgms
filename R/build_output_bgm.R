@@ -26,7 +26,7 @@ build_output_bgm = function(spec, raw) {
   # Keep the raw chains for the Z-ratio alarm suite: it needs the untouched
   # indicator layout and the per-chain zratio block, both dropped by the
   # normalization below.
-  zratio_chains = if(identical(p$graph_prior_spec, "hierarchical")) {
+  zratio_chains = if(identical(p$precision_graph_prior, "hierarchical")) {
     raw
   } else {
     NULL

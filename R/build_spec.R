@@ -29,7 +29,6 @@ edge_prior_spec_fields = function(ep) {
 }
 
 
-
 # ==============================================================================
 # sampler_sublist()  --- extract validated sampler list for new_bgm_spec()
 # ==============================================================================
@@ -51,7 +50,6 @@ sampler_sublist = function(s) {
 }
 
 
-
 build_spec_ggm = function(x, data_columnnames, num_variables,
                           variable_type, is_ordinal, is_continuous,
                           baseline_category,
@@ -61,7 +59,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           scale_prior_type, scale_shape, scale_rate,
                           scale_eta = NA_real_,
                           delta = 0,
-                          graph_prior_spec = "joint",
+                          precision_graph_prior = "joint",
                           calibration_window = NULL,
                           edge_prior_flat) {
   # Missing data
@@ -112,7 +110,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        graph_prior_spec = graph_prior_spec,
+        precision_graph_prior = precision_graph_prior,
         calibration_window = calibration_window
       ),
       edge_prior_spec_fields(ep)
@@ -228,7 +226,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 scale_prior_type, scale_shape, scale_rate,
                                 scale_eta = NA_real_,
                                 delta = 0,
-                                graph_prior_spec = "joint",
+                                precision_graph_prior = "joint",
                                 calibration_window = NULL,
                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
@@ -375,7 +373,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        graph_prior_spec = graph_prior_spec,
+        precision_graph_prior = precision_graph_prior,
         calibration_window = calibration_window
       ),
       edge_prior_spec_fields(ep)

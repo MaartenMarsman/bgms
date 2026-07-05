@@ -77,7 +77,7 @@ run_sampler_ggm = function(spec) {
   # are mutually exclusive.
   correction = NULL
   zratio = NULL
-  if(identical(p$graph_prior_spec, "hierarchical")) {
+  if(identical(p$precision_graph_prior, "hierarchical")) {
     zc = zratio_constants(
       delta = p$delta,
       sigma = 2 * p$pairwise_scale,
@@ -221,7 +221,7 @@ run_sampler_mixed_mrf = function(spec) {
   # window are sized on the continuous subgraph.
   correction = NULL
   zratio = NULL
-  if(identical(p$graph_prior_spec, "hierarchical")) {
+  if(identical(p$precision_graph_prior, "hierarchical")) {
     zc = zratio_constants(
       delta = p$delta,
       sigma = 2 * p$pairwise_scale,

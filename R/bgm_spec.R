@@ -268,7 +268,7 @@ bgm_spec = function(x,
                     delta = NULL,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
-                    graph_prior_spec = c("joint", "hierarchical"),
+                    precision_graph_prior = c("joint", "hierarchical"),
                     calibration_window = NULL,
                     # Legacy edge prior params (accepted for backward compat)
                     inclusion_probability = 0.5,
@@ -379,18 +379,18 @@ bgm_spec = function(x,
   # The Z-ratio constants are derived for the Normal slab with an exponential
   # (shape-1 Gamma) diagonal, on the continuous precision matrix, under edge
   # selection. Anything else keeps the joint specification.
-  graph_prior_spec = match.arg(graph_prior_spec)
-  if(graph_prior_spec == "hierarchical") {
+  precision_graph_prior = match.arg(precision_graph_prior)
+  if(precision_graph_prior == "hierarchical") {
     if(!model_type %in% c("ggm", "mixed_mrf")) {
       stop(
-        "graph_prior_spec = \"hierarchical\" needs a continuous precision ",
+        "precision_graph_prior = \"hierarchical\" needs a continuous precision ",
         "block to normalize; the current model_type is '", model_type,
         "'. Use the joint specification, or data with continuous variables."
       )
     }
     if(model_type == "mixed_mrf" && sum(variable_type == "continuous") < 2) {
       stop(
-        "graph_prior_spec = \"hierarchical\" on mixed data needs at least ",
+        "precision_graph_prior = \"hierarchical\" on mixed data needs at least ",
         "two continuous variables (the specification normalizes the ",
         "continuous-block prior across its graphs). Use the joint ",
         "specification."
@@ -398,27 +398,33 @@ bgm_spec = function(x,
     }
     if(!edge_selection) {
       stop(
-        "graph_prior_spec = \"hierarchical\" normalizes p(K | Gamma) ",
+        "precision_graph_prior = \"hierarchical\" normalizes p(K | Gamma) ",
         "across graphs and needs edge_selection = TRUE; with a fixed ",
         "graph the specifications coincide."
       )
     }
-    if(!identical(interaction_prior_type, "normal")) {
-      stop(
-        "graph_prior_spec = \"hierarchical\" requires a normal ",
-        "interaction (slab) prior; the Z-ratio constants are derived for ",
-        "the Normal slab. Use interaction_prior = normal_prior(), or the ",
-        "joint specification."
-      )
+    if(!interaction_prior_type %in% c("normal", "cauchy")) {
+      stop(sprintf(
+        paste0(
+          "precision_graph_prior = \"hierarchical\" supports a normal or Cauchy ",
+          "interaction (slab) prior. Got %s_prior(). Use interaction_prior = ",
+          "normal_prior() or cauchy_prior(), or keep precision_graph_prior = ",
+          "\"joint\"."
+        ),
+        interaction_prior_type
+      ))
     }
     if(abs(scale_shape - 1) > 1e-12) {
-      stop(
-        "graph_prior_spec = \"hierarchical\" requires shape = 1 on the ",
-        "precision scale prior (gamma_prior(shape = 1) or ",
-        "exponential_prior()); the Z-ratio constants are derived for the ",
-        "exponential diagonal. Adjust the prior, or use the joint ",
-        "specification."
-      )
+      stop(sprintf(
+        paste0(
+          "precision_graph_prior = \"hierarchical\" requires shape = 1 on the ",
+          "precision scale prior; the Z-ratio normalizer is derived for ",
+          "the exponential diagonal. Got shape = %s. Use ",
+          "gamma_prior(shape = 1) or exponential_prior(), or keep ",
+          "precision_graph_prior = \"joint\"."
+        ),
+        format(scale_shape)
+      ))
     }
   }
 
@@ -495,7 +501,7 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      precision_graph_prior = precision_graph_prior,
       calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
@@ -522,7 +528,7 @@ bgm_spec = function(x,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
       delta = delta,
-      graph_prior_spec = graph_prior_spec,
+      precision_graph_prior = precision_graph_prior,
       calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
