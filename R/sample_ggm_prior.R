@@ -6,7 +6,7 @@
 #' Three specifications are supported via the \code{spec} argument:
 #' \itemize{
 #'   \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
-#'     sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
+#'     sample \eqn{K \mid \Gamma} via the same theta-space NUTS sampler
 #'     that drives \code{\link{bgm}} for continuous data. The chain
 #'     targets \eqn{p(K \mid \Gamma) \propto \mathrm{slab}(K) \cdot
 #'     \mathrm{diag}(K) \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in

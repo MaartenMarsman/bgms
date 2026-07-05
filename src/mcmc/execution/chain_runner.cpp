@@ -19,7 +19,7 @@ void store_nuts_diagnostics_if_present(ChainResult& chain_result, int sample_ind
     auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
     if (diag) {
         chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent,
-                                            diag->non_reversible, diag->energy, diag->accept_prob);
+                                            diag->energy, diag->accept_prob);
     }
 }
 
@@ -292,7 +292,6 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
             if (chain.has_nuts_diagnostics) {
                 chain_list["treedepth"] = chain.treedepth_samples;
                 chain_list["divergent"] = chain.divergent_samples;
-                chain_list["non_reversible"] = chain.non_reversible_samples;
                 chain_list["energy"] = chain.energy_samples;
                 chain_list["accept_prob"] = chain.accept_prob_samples;
             }

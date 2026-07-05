@@ -48,7 +48,6 @@ public:
     /// NUTS divergent transition flags (n_iter).
     arma::ivec  divergent_samples;
     /// NUTS non-reversible step flags (n_iter).
-    arma::ivec  non_reversible_samples;
     /// NUTS energy diagnostic (n_iter).
     arma::vec   energy_samples;
     /// NUTS mean per-trajectory Metropolis acceptance (n_iter).
@@ -134,8 +133,6 @@ public:
         treedepth_samples.fill(-1);
         divergent_samples.set_size(n_iter);
         divergent_samples.fill(-1);
-        non_reversible_samples.set_size(n_iter);
-        non_reversible_samples.fill(-1);
         energy_samples.set_size(n_iter);
         energy_samples.fill(arma::datum::nan);
         accept_prob_samples.set_size(n_iter);
@@ -194,14 +191,12 @@ public:
      * @param iter         Iteration index (0-based)
      * @param tree_depth   Tree depth from NUTS
      * @param divergent    Whether a divergence occurred
-     * @param non_reversible Whether a non-reversible constrained step occurred
      * @param energy       Final Hamiltonian energy
      * @param accept_prob  Mean Metropolis acceptance over the trajectory
      */
-    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, bool non_reversible, double energy, double accept_prob) {
+    void store_nuts_diagnostics(const size_t iter, int tree_depth, bool divergent, double energy, double accept_prob) {
         treedepth_samples(iter) = tree_depth;
         divergent_samples(iter) = divergent ? 1 : 0;
-        non_reversible_samples(iter) = non_reversible ? 1 : 0;
         energy_samples(iter) = energy;
         accept_prob_samples(iter) = accept_prob;
     }

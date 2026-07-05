@@ -442,13 +442,6 @@ public:
      */
     arma::vec get_active_inv_mass() const override;
 
-    // GGMModel uses the theta-space (free-element Cholesky) NUTS path
-    // exclusively. RATTLE projection (project_position/project_momentum,
-    // full-position get/set, full-space gradient) is not implemented;
-    // the BaseModel defaults are sufficient — they are never reached
-    // because has_constraints() defaults to false. See nuts_sampler.h
-    // for the do_unconstrained_step path actually taken.
-
     /** @return Deep copy of this model. */
     std::unique_ptr<BaseModel> clone() const override {
         return std::make_unique<GGMModel>(*this);

@@ -39,12 +39,6 @@ struct SamplerConfig {
     /// Enable missing-data imputation during sampling.
     bool na_impute = false;
 
-    /// Enable runtime reversibility check for constrained integration.
-    bool reverse_check = true;
-
-    /// Factor for the eps²-scaled reversibility tolerance (tol = factor * eps²).
-    double reverse_check_tol = 0.5;
-
     /// Random seed.
     int seed = 42;
 

@@ -225,7 +225,9 @@ test_that("gradient matches FD with sparse edges (p=3, q=2, conditional)", {
   n_main = sum(num_cats)
   n_pw = 1
   n_cross = 2
-  n_chol = q * (q + 1) / 2
+  # Kyy theta block: q log-diagonals + one f_q coordinate per included yy
+  # edge; the (4,5) edge is excluded here, so the block is just the psis.
+  n_chol = q
   set.seed(4)
   params = rnorm(n_main + n_pw + q + n_cross + n_chol, sd = 0.3)
   err = mixed_check_gradient(
@@ -253,7 +255,9 @@ test_that("gradient matches FD with sparse edges (p=3, q=2, marginal)", {
   n_main = sum(num_cats)
   n_pw = 1
   n_cross = 2
-  n_chol = q * (q + 1) / 2
+  # Kyy theta block: q log-diagonals + one f_q coordinate per included yy
+  # edge; the (4,5) edge is excluded here, so the block is just the psis.
+  n_chol = q
   set.seed(4)
   params = rnorm(n_main + n_pw + q + n_cross + n_chol, sd = 0.3)
   err = mixed_check_gradient(

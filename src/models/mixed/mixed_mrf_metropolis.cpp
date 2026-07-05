@@ -695,7 +695,7 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
     double ln_alpha = ll_prop - ll_curr;
 
     // Discrete slab prior: interaction_prior_
-    // Must match the prior used in logp_and_gradient / logp_and_gradient_full.
+    // Must match the prior used in logp_and_gradient.
     if(g_prop == 1) {
         // Add: slab prior, subtract proposal density, inclusion prior
         ln_alpha += interaction_prior_->logp(k_prop);

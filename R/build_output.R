@@ -219,7 +219,6 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
 attach_diagnostic_traces = function(res, chain) {
   if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
   if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
-  if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
   if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
   if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
   if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
