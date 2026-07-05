@@ -52,7 +52,7 @@ double MixedMRFModel::update_main_effect(int s, int c, std::optional<double> rm_
         proposal_sd_main_discrete_(s, c) = update_proposal_sd_with_robbins_monro(
             proposal_sd_main_discrete_(s, c), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 
@@ -103,7 +103,7 @@ double MixedMRFModel::update_continuous_mean(int j, std::optional<double> rm_wei
         proposal_sd_main_continuous_(j) = update_proposal_sd_with_robbins_monro(
             proposal_sd_main_continuous_(j), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 
@@ -156,7 +156,7 @@ double MixedMRFModel::update_pairwise_discrete(int i, int j, std::optional<doubl
         proposal_sd_pairwise_discrete_(i, j) = update_proposal_sd_with_robbins_monro(
             proposal_sd_pairwise_discrete_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 
@@ -493,7 +493,7 @@ double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, s
         proposal_sd_pairwise_continuous_(i, j) = update_proposal_sd_with_robbins_monro(
             proposal_sd_pairwise_continuous_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 
@@ -558,7 +558,7 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
         proposal_sd_pairwise_continuous_(i, i) = update_proposal_sd_with_robbins_monro(
             proposal_sd_pairwise_continuous_(i, i), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 
@@ -623,7 +623,7 @@ double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> 
         proposal_sd_pairwise_cross_(i, j) = update_proposal_sd_with_robbins_monro(
             proposal_sd_pairwise_cross_(i, j), ln_alpha, *rm_weight, target_accept_);
     }
-    return std::min(1.0, std::exp(ln_alpha));
+    return std::min(1.0, MY_EXP(ln_alpha));
 }
 
 

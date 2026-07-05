@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <Rmath.h>
+#include "math/explog_macros.h"
 
 
 // =============================================================================
@@ -97,12 +98,12 @@ public:
         : alpha_(alpha), beta_(beta) {}
 
     double logp(double x) const override {
-        return x * alpha_ - std::log1p(std::exp(x)) * (alpha_ + beta_);
+        return x * alpha_ - MY_LOG1P(MY_EXP(x)) * (alpha_ + beta_);
     }
 
     double grad(double x) const override {
         // alpha - (alpha + beta) * sigmoid(x)
-        double p = 1.0 / (1.0 + std::exp(-x));
+        double p = 1.0 / (1.0 + MY_EXP(-x));
         return alpha_ - (alpha_ + beta_) * p;
     }
 

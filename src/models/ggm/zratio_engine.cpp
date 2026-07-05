@@ -1,4 +1,5 @@
 #include "zratio_engine.h"
+#include "math/explog_macros.h"
 
 #include <algorithm>
 #include <vector>
@@ -120,7 +121,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     ZRatioBlock bl = extract_block(G, i, j);
     if (!bl.valid) {
         n_add_++;
-        return std::log(psi0_);
+        return MY_LOG(psi0_);
     }
     const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre, maxbdeg = bl.maxbd,
               m = bl.m;
@@ -143,7 +144,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         a = saddle_ratio(s1, s2);
         cache_[sig] = a;
     }
-    const double log_r_add = std::log(a);
+    const double log_r_add = MY_LOG(a);
 
     if (maxbdeg < 2) {
         n_add_++;
@@ -178,7 +179,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         }
         double s1b = 0, s2b = 0, dl = 0;
         if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
-            dl = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
+            dl = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
         }
         n_oracle_++;
         corr_cache_[ckey] = dl;
@@ -235,12 +236,12 @@ bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
     double s1 = bl.ncn * addc_[0] + bl.cne * addc_[2] + bl.bre * addc_[4];
     double s2 = bl.ncn * addc_[1] + bl.cne * addc_[3] + bl.bre * addc_[5];
     if (s1 <= 0 || s2 <= 0) return false;
-    const double log_r_add = std::log(saddle_ratio(s1, s2));
+    const double log_r_add = MY_LOG(saddle_ratio(s1, s2));
     bool clamped = false;
     pred_out = deployed_correction(bl, clamped);
     double s1b = 0, s2b = 0;
     if (!block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) return false;
-    oracle_out = std::log(saddle_ratio(s1b, s2b)) - log_r_add;
+    oracle_out = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
     return true;
 }
 

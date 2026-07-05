@@ -408,7 +408,7 @@ void MixedMRFModel::recompute_theta_yy() const {
         const auto& col = cs.columns[q];
         size_t offset = cs.theta_offsets[q];
 
-        theta_yy_(offset + col.d_q) = std::log(cholesky_of_precision_(q, q));
+        theta_yy_(offset + col.d_q) = MY_LOG(cholesky_of_precision_(q, q));
 
         if (q == 0 || col.d_q == 0) continue;
 

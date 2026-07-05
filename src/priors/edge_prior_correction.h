@@ -2,6 +2,7 @@
 
 #include <RcppArmadillo.h>
 #include "rng/rng_utils.h"
+#include "math/explog_macros.h"
 
 /**
  * Normalizing-constant correction for hierarchical edge priors on the GGM.
@@ -82,13 +83,13 @@ public:
         for (int k = 0; k < N; k++) {
             double th = lo + step * k;
             grid[k] = th;
-            weight[k] = (a_post - 1.0) * std::log(th) +
-                (b_post - 1.0) * std::log1p(-th) - log_C(th);
+            weight[k] = (a_post - 1.0) * MY_LOG(th) +
+                (b_post - 1.0) * MY_LOG1P(-th) - log_C(th);
             if (weight[k] > max_logp) max_logp = weight[k];
         }
         double total = 0.0;
         for (int k = 0; k < N; k++) {
-            weight[k] = std::exp(weight[k] - max_logp);
+            weight[k] = MY_EXP(weight[k] - max_logp);
             total += weight[k];
         }
         double u = runif(rng) * total;
