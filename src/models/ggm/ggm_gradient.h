@@ -83,6 +83,16 @@ public:
                  double determinant_tilt = 0.0);
 
     /**
+     * Structure-only initialization for callers that use forward_map() and
+     * theta_gradient_from_phi_bar() but supply their own log-posterior
+     * (e.g. the mixed model's Kyy block). logp_and_gradient() must not be
+     * called on an engine initialized this way.
+     *
+     * @param structure   Precomputed graph constraint structure
+     */
+    void rebuild(const GraphConstraintStructure& structure);
+
+    /**
      * Forward map: theta -> (Phi, K, log|det J|).
      *
      * Processes columns left-to-right, building Phi column by column.
@@ -106,6 +116,32 @@ public:
      * @return (log-posterior value, gradient vector)
      */
     std::pair<double, arma::vec> logp_and_gradient(const arma::vec& theta) const;
+
+    /**
+     * Map a Phi-space adjoint to the theta gradient (reverse-mode).
+     *
+     * Given Phi_bar = dL/dPhi seeded by the caller (data, priors, and any
+     * couplings differentiated with respect to Phi), extracts the gradient
+     * for every (f_q, psi_q) block: the psi chain rule through exp, the
+     * parameterization-Jacobian terms 2 + (p-1-q), the f_q gradient via
+     * N_q, and the cross-column adjoint through the stored Givens
+     * rotations. Phi_bar is consumed as workspace (mutated in place).
+     *
+     * @param theta         Parameter vector the forward map was run on
+     * @param theta_offset  Offset of this block inside theta/gradient
+     * @param fm            Forward-map result for theta
+     * @param Phi_bar       Seed adjoint dL/dPhi (p x p, upper); mutated
+     * @param psi_extra     Extra constant added to every psi gradient
+     *                      (e.g. n from the log-likelihood determinant,
+     *                      2*delta from a determinant tilt)
+     * @param gradient      Output vector; block written at theta_offset
+     */
+    void theta_gradient_from_phi_bar(const arma::vec& theta,
+                                     size_t theta_offset,
+                                     const ForwardMapResult& fm,
+                                     arma::mat& Phi_bar,
+                                     double psi_extra,
+                                     arma::vec& gradient) const;
 
     /**
      * Givens QR of an n x m matrix M (n >= m).

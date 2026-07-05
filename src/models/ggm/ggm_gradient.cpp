@@ -25,6 +25,16 @@ void GGMGradientEngine::rebuild(
     delta_ = determinant_tilt;
 }
 
+void GGMGradientEngine::rebuild(const GraphConstraintStructure& structure) {
+    structure_ = &structure;
+    p_ = structure.p;
+    n_ = 0;
+    suf_stat_ = nullptr;
+    interaction_prior_ = nullptr;
+    diagonal_prior_ = nullptr;
+    delta_ = 0.0;
+}
+
 // =====================================================================
 // build_Aq
 // =====================================================================
@@ -322,27 +332,49 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
         }
     }
 
-    // Phase 2: Process columns right-to-left, extracting theta gradient
-    // and accumulating the cross-column adjoint into Phi_bar.
+    // Phase 2: reverse-Givens extraction of the theta gradient from Phi_bar.
+    // The log-det data term contributes +n to every psi (log|K| = 2*sum(psi));
+    // the determinant tilt contributes +2*delta.
     arma::vec gradient(theta.n_elem, arma::fill::zeros);
+    theta_gradient_from_phi_bar(theta, 0, fm, Phi_bar, n + 2.0 * delta_,
+                                gradient);
+
+    return {lp, gradient};
+}
+
+// =====================================================================
+// theta_gradient_from_phi_bar
+// =====================================================================
+// Reverse-mode extraction of the (f_q, psi_q) gradient from a caller-
+// seeded Phi-space adjoint. Processes columns right-to-left, extracting
+// the theta gradient and accumulating the cross-column adjoint into
+// Phi_bar (which is consumed as workspace).
+
+void GGMGradientEngine::theta_gradient_from_phi_bar(
+    const arma::vec& theta,
+    size_t theta_offset,
+    const ForwardMapResult& fm,
+    arma::mat& Phi_bar,
+    double psi_extra,
+    arma::vec& gradient) const
+{
+    const arma::mat& Phi = fm.Phi;
 
     for (size_t q = p_; q-- > 0; ) {
         const auto& col = structure_->columns[q];
-        size_t offset = structure_->theta_offsets[q];
+        size_t offset = theta_offset + structure_->theta_offsets[q];
         size_t d_q = col.d_q;
 
         // --- psi_q gradient ---
         // Phi_bar(q,q) * Phi(q,q) = chain rule through exp(psi_q)
-        // +n from log-det: d/dpsi [(n/2)*2*psi] = n
         // +2 from Jacobian: d/dpsi [2*psi] = 2
         // +(p-1-q) from Jacobian: d/dpsi [(p-1-q)*psi] for q < p-1
+        // +psi_extra from the caller (log-det data term, determinant tilt)
         double psi_bar = Phi_bar(q, q) * Phi(q, q);
-        psi_bar += n + 2.0;
+        psi_bar += psi_extra + 2.0;
         if (q + 1 < p_) {
             psi_bar += static_cast<double>(p_ - 1 - q);
         }
-        // Determinant tilt: d/dpsi_q [delta_ * 2 * sum(psi)] = 2 * delta_
-        psi_bar += 2.0 * delta_;
         gradient(offset + d_q) = psi_bar;
 
         if (q == 0) continue;
@@ -447,7 +479,5 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
             }
         }
     }
-
-    return {lp, gradient};
 }
 
