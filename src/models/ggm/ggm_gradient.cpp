@@ -172,8 +172,10 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
         size_t m_q = col.m_q;
 
         if (m_q == 0 && d_q == q) {
-            // No constraints: x_q = f_q directly (N_q = I)
-            result.Nq[q] = arma::eye(q, q);
+            // No constraints: x_q = f_q directly. N_q is the identity and is
+            // never materialized; the backward pass copies x_bar straight
+            // into f_bar for m_q == 0 columns.
+            result.Nq[q].reset();
             result.R_diag[q].reset();
             result.givens_rotations[q].clear();
             for (size_t k = 0; k < d_q; ++k) {
@@ -380,6 +382,16 @@ void GGMGradientEngine::theta_gradient_from_phi_bar(
         if (q == 0) continue;
 
         // --- f_q gradient via N_q ---
+        size_t m_q = col.m_q;
+
+        if (d_q > 0 && m_q == 0) {
+            // Unconstrained column: N_q = I, so f_bar = x_bar directly.
+            for (size_t k = 0; k < d_q; ++k) {
+                gradient(offset + k) = Phi_bar(k, q);
+            }
+            continue;
+        }
+
         arma::vec x_bar = Phi_bar.col(q).head(q);
 
         if (d_q > 0) {
@@ -391,7 +403,6 @@ void GGMGradientEngine::theta_gradient_from_phi_bar(
         }
 
         // --- Cross-column adjoint (reverse-Givens) ---
-        size_t m_q = col.m_q;
         if (m_q == 0) continue;
 
         const auto& rotations = fm.givens_rotations[q];
