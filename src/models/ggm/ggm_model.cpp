@@ -134,6 +134,7 @@ void GGMModel::set_vectorized_parameters(const arma::vec& parameters) {
         refresh_cholesky();
     } else {
         covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     }
 
     // Cache theta
@@ -185,7 +186,7 @@ arma::vec GGMModel::get_active_inv_mass() const {
 void GGMModel::get_constants(size_t i, size_t j) {
     // GGM stores K directly, so the precision entries are precision_matrix_.
     constants_ = cholesky_helpers::precision_proposal_constants(
-        cholesky_of_precision_, covariance_matrix_, i, j,
+        log_det_precision_, covariance_matrix_, i, j,
         precision_matrix_(i, j), precision_matrix_(j, j));
 }
 
@@ -256,8 +257,10 @@ double GGMModel::ggm_edge_move(size_t i, size_t j) {
     double omega_prop_q1q = constants_[2] + constants_[3] * phi_prop;
     double omega_prop_qq  = constrained_diagonal(omega_prop_q1q);
 
-    // form full proposal matrix for Omega
-    precision_proposal_ = precision_matrix_;
+    // Only the (i,j), (j,i), (j,j) entries of the proposal are read on the
+    // data path; the full-matrix copy is needed only for the prior-only PD
+    // check below.
+    if (n_ == 0) precision_proposal_ = precision_matrix_;
     precision_proposal_(i, j) = omega_prop_q1q;
     precision_proposal_(j, i) = omega_prop_q1q;
     precision_proposal_(j, j) = omega_prop_qq;
@@ -350,6 +353,7 @@ void GGMModel::apply_rank2_chol_smw_update_()
         refresh_cholesky();
     } else {
         covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     }
 }
 
@@ -541,7 +545,7 @@ void GGMModel::do_one_gibbs_step(int /*iteration*/) {
 }
 
 double GGMModel::ggm_diag_move(size_t i) {
-    double logdet_omega = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    double logdet_omega = log_det_precision_;
     double logdet_omega_sub_ii = logdet_omega + MY_LOG(covariance_matrix_(i, i));
 
     size_t e = i * (i + 3) / 2; // parameter index in vectorized form (column-major upper triangle, i==j)
@@ -550,7 +554,9 @@ double GGMModel::ggm_diag_move(size_t i) {
     double theta_curr = (logdet_omega - logdet_omega_sub_ii) / 2;
     double theta_prop = rnorm(rng_, theta_curr, proposal_sd);
 
-    precision_proposal_ = precision_matrix_;
+    // Only the (i,i) entry of the proposal is read on the data path; the
+    // full-matrix copy is needed only for the prior-only PD check below.
+    if (n_ == 0) precision_proposal_ = precision_matrix_;
     precision_proposal_(i, i) = precision_matrix_(i, i) - MY_EXP(theta_curr) * MY_EXP(theta_curr) + MY_EXP(theta_prop) * MY_EXP(theta_prop);
 
     // Prior-only chains have no likelihood anchor vetoing non-PD proposals;
@@ -608,6 +614,7 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
         refresh_cholesky();
     } else {
         covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     }
 
     // reset for next iteration
@@ -621,8 +628,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
     double proposal_sd = proposal_sds_(e);
 
     if (edge_indicators_(i, j) == 1) {
-        // Propose to turn OFF the edge
-        precision_proposal_ = precision_matrix_;
+        // Propose to turn OFF the edge. Only the (i,j), (j,i), (j,j)
+        // entries of the proposal are read below.
         precision_proposal_(i, j) = 0.0;
         precision_proposal_(j, i) = 0.0;
 
@@ -687,7 +694,7 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         double omega_prop_ij = constants_[3] * epsilon;
         double omega_prop_jj = constrained_diagonal(omega_prop_ij);
 
-        precision_proposal_ = precision_matrix_;
+        // Only the (i,j), (j,i), (j,j) entries of the proposal are read below.
         precision_proposal_(i, j) = omega_prop_ij;
         precision_proposal_(j, i) = omega_prop_ij;
         precision_proposal_(j, j) = omega_prop_jj;
@@ -790,19 +797,8 @@ void GGMModel::prepare_iteration() {
 void GGMModel::update_edge_indicators() {
     for (size_t idx = 0; idx < num_pairwise_; ++idx) {
         size_t flat = shuffled_edge_order_(idx);
-        // Convert flat index to (i, j) upper-triangle pair.
-        // flat = 0..(num_pairwise_-1), row-major: (0,1),(0,2),...,(0,p-1),(1,2),...
-        size_t i = 0, j = 0;
-        size_t acc = 0;
-        for (size_t row = 0; row < p_ - 1; ++row) {
-            size_t cols_in_row = p_ - 1 - row;
-            if (flat < acc + cols_in_row) {
-                i = row;
-                j = row + 1 + (flat - acc);
-                break;
-            }
-            acc += cols_in_row;
-        }
+        size_t i = edge_pairs_(flat, 0);
+        size_t j = edge_pairs_(flat, 1);
         if (use_conjugate_edge_proposal_) {
             update_edge_indicator_conjugate(i, j);
         } else {
@@ -955,6 +951,7 @@ void GGMModel::refresh_cholesky() {
     arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
                 arma::eye(p_, p_), arma::solve_opts::fast);
     covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
+    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
 }
 
 

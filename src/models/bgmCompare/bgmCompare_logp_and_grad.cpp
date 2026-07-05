@@ -142,8 +142,8 @@ arma::vec gradient_observed_active(
   // -------------------------------
   for (int g = 0; g < num_groups; g++) {
     // list access
-    arma::imat counts_per_category = counts_per_category_group[g];
-    arma::imat blume_capel_stats = blume_capel_stats_group[g];
+    const arma::imat& counts_per_category = counts_per_category_group[g];
+    const arma::imat& blume_capel_stats = blume_capel_stats_group[g];
     const arma::vec proj_g = projection.row(g).t(); // length = num_groups-1
 
     // Main effects
@@ -191,7 +191,7 @@ arma::vec gradient_observed_active(
     }
 
     // Pairwise (observed)
-    arma::mat pairwise_stats = pairwise_stats_group[g];
+    const arma::mat& pairwise_stats = pairwise_stats_group[g];
     for (int v1 = 0; v1 < num_variables - 1; v1++) {
       for (int v2 = v1 + 1; v2 < num_variables; v2++) {
         const int row = pairwise_effect_indices(v1, v2);
@@ -542,8 +542,8 @@ std::pair<double, arma::vec> logp_and_gradient(
     const int r0 = group_indices(g, 0);
     const int r1 = group_indices(g, 1);
 
-    const arma::imat counts_per_category = counts_per_category_group[g];
-    const arma::imat blume_capel_stats = blume_capel_stats_group[g];
+    const arma::imat& counts_per_category = counts_per_category_group[g];
+    const arma::imat& blume_capel_stats = blume_capel_stats_group[g];
     const arma::vec proj_g = projection.row(g).t();
 
     main_group.zeros();
@@ -581,7 +581,7 @@ std::pair<double, arma::vec> logp_and_gradient(
     // ---- data contribution pseudolikelihood (quadratic terms) ----
     const arma::mat obs = observations_double.rows(r0, r1);
     const arma::mat obs_t = obs.t();  // Pre-transpose for BLAS vectorization
-    const arma::mat pairwise_stats = pairwise_stats_group[g];
+    const arma::mat& pairwise_stats = pairwise_stats_group[g];
 
     log_pp += arma::accu(pairwise_group % pairwise_stats);
 

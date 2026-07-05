@@ -111,6 +111,14 @@ public:
         int num_edges = arma::accu(edge_indicators_) / 2;
         int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
         has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
+        edge_pairs_.set_size(num_pairwise_, 2);
+        size_t flat = 0;
+        for (size_t i = 0; i + 1 < p_; ++i) {
+            for (size_t j = i + 1; j < p_; ++j, ++flat) {
+                edge_pairs_(flat, 0) = i;
+                edge_pairs_(flat, 1) = j;
+            }
+        }
         initialize_precision_from_mle();
     }
 
@@ -132,12 +140,14 @@ public:
           cholesky_of_precision_(other.cholesky_of_precision_),
           inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
           covariance_matrix_(other.covariance_matrix_),
+          log_det_precision_(other.log_det_precision_),
           omega_(other.omega_),
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           proposal_sds_(other.proposal_sds_),
           shuffled_edge_order_(other.shuffled_edge_order_),
+          edge_pairs_(other.edge_pairs_),
           num_pairwise_(other.num_pairwise_),
           rng_(other.rng_),
           observations_(other.observations_),
@@ -501,6 +511,7 @@ private:
     /// Precision matrix Omega, its Cholesky factor R (Omega = R'R),
     /// inverse Cholesky factor, and covariance matrix.
     arma::mat precision_matrix_, cholesky_of_precision_, inv_cholesky_of_precision_, covariance_matrix_;
+    double log_det_precision_ = 0.0;    ///< Cached log|K|, refreshed with the Cholesky caches
     /// Per-edge scale-mixture weight for the Cauchy slab: K_yy_ij | omega_ij ~
     /// N(0, sigma^2 omega_ij), omega_ij ~ InvGamma(1/2, 1/2). Fixed at 1 for a
     /// Normal slab (the mixture collapses to the plain Normal). Used only by
@@ -520,6 +531,7 @@ private:
 
     /// Shuffled edge visit order for random-scan edge selection.
     arma::uvec shuffled_edge_order_;
+    arma::umat edge_pairs_;             ///< num_pairwise x 2 flat-index -> (i, j) table (row-major upper triangle)
     /// Number of unique off-diagonal pairs: p(p-1)/2.
     size_t num_pairwise_ = 0;
     /// Random number generator.

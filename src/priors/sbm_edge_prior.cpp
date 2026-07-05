@@ -251,7 +251,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                              no_variables);
 
             log_weights(c) =
-              std::log(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
+              MY_LOG(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
               loglike;
           }
           else{ // if old group, the weight is zero (log-weight -inf)
@@ -266,7 +266,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
-          log_weights(c) = std::log(dirichlet_alpha) + logmarg +
+          log_weights(c) = MY_LOG(dirichlet_alpha) + logmarg +
             (log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2));
         }
       }
@@ -306,7 +306,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                            no_variables);
 
           log_weights(c) =
-            std::log(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
+            MY_LOG(dirichlet_alpha + static_cast<double>(cluster_size_node(c))) +
             loglike;
         } else {
           logmarg = log_marginal_mfm_sbm(cluster_assign_tmp,
@@ -316,7 +316,7 @@ arma::uvec block_allocations_mfm_sbm(arma::uvec cluster_assign,
                                          beta_bernoulli_alpha_between,
                                          beta_bernoulli_beta_between);
 
-          log_weights(c) = std::log(dirichlet_alpha) + logmarg +
+          log_weights(c) = MY_LOG(dirichlet_alpha) + logmarg +
             (log_Vn(no_clusters) - log_Vn(no_clusters-1));
         }
       }
@@ -442,7 +442,7 @@ arma::mat compute_ce_sbm(const arma::uvec& cluster_assign,
         double c = correction.fprime_at(dmin);
         ce(i, j) = c; ce(j, i) = c;
         double th = TH(i, j);
-        double ec = std::exp(c);
+        double ec = MY_EXP(c);
         double e = th * ec / (1.0 - th + th * ec);
         max_diff = std::max(max_diff, std::abs(e - ep(i, j)));
         ep(i, j) = e; ep(j, i) = e;
@@ -474,7 +474,7 @@ arma::vec degrees_ld_sbm(const arma::uvec& cluster_assign,
     for(arma::uword j = 0; j < q; j++) {
       if(j == i || !correction.node_continuous(j)) continue;
       double th = block_probs(cluster_assign(i), cluster_assign(j));
-      double ec = std::exp(ce(i, j));
+      double ec = MY_EXP(ce(i, j));
       s += th * ec / (1.0 - th + th * ec);
     }
     deg(i) = s / static_cast<double>(q_cc - 1);
@@ -521,7 +521,7 @@ double miniti_node_sbm(arma::uword node,
       for(arma::uword j : js) {
         double th = (1 - t) * th_old[j] + t * th_new[j];
         double dmin = std::min(degk, deg_base(j));
-        double ec = std::exp(correction.fprime_at(dmin));
+        double ec = MY_EXP(correction.fprime_at(dmin));
         s += th * ec / (1.0 - th + th * ec);
       }
       double ndeg = s / static_cast<double>(q_cc - 1);
@@ -533,7 +533,7 @@ double miniti_node_sbm(arma::uword node,
       double th = (1 - t) * th_old[j] + t * th_new[j];
       double dth = th_new[j] - th_old[j];
       double dmin = std::min(degk, deg_base(j));
-      double ec = std::exp(correction.fprime_at(dmin));
+      double ec = MY_EXP(correction.fprime_at(dmin));
       sc += dth * (ec - 1.0) / (1.0 - th + th * ec);
     }
     if(ti > 0) dlogC += 0.5 * (prev + sc) * (1.0 / T);
@@ -580,7 +580,7 @@ double miniti_removal_sbm(arma::uword node,
       for(arma::uword j : js) {
         double th = (1 - t) * th_old[j];
         double dmin = std::min(degk, deg_base(j));
-        double ec = std::exp(correction.fprime_at(dmin));
+        double ec = MY_EXP(correction.fprime_at(dmin));
         s += th * ec / (1.0 - th + th * ec);
       }
       double ndeg = s / static_cast<double>(q_cc - 1);
@@ -592,7 +592,7 @@ double miniti_removal_sbm(arma::uword node,
       double th = (1 - t) * th_old[j];
       double dth = 0.0 - th_old[j];
       double dmin = std::min(degk, deg_base(j));
-      double ec = std::exp(correction.fprime_at(dmin));
+      double ec = MY_EXP(correction.fprime_at(dmin));
       sc += dth * (ec - 1.0) / (1.0 - th + th * ec);
     }
     if(ti > 0) dlogC += 0.5 * (prev + sc) * (1.0 / T);
@@ -628,6 +628,12 @@ double corrected_log_marginal_mfm_sbm(const arma::uvec& cluster_assign,
 
   double out = 0;
   std::vector<double> lp(Nq);
+  // log(th)/log1p(-th) are cluster-invariant; precompute the grids once.
+  std::vector<double> log_thq(Nq), log1p_neg_thq(Nq);
+  for(arma::uword k = 0; k < Nq; k++) {
+    log_thq[k] = MY_LOG(thq(k));
+    log1p_neg_thq[k] = MY_LOG1P(-thq(k));
+  }
   for(arma::uword r = 0; r < no_clusters; r++) {
     int nr = 0, mr = 0, nr_cc = 0;
     for(arma::uword j = 0; j < no_variables; j++) {
@@ -646,15 +652,14 @@ double corrected_log_marginal_mfm_sbm(const arma::uvec& cluster_assign,
     }
     double mx = -std::numeric_limits<double>::infinity();
     for(arma::uword k = 0; k < Nq; k++) {
-      double th = thq(k);
-      lp[k] = (beta_bernoulli_alpha_between - 1.0 + mr) * std::log(th) +
-        (beta_bernoulli_beta_between - 1.0 + nr - mr) * std::log1p(-th) -
+      lp[k] = (beta_bernoulli_alpha_between - 1.0 + mr) * log_thq[k] +
+        (beta_bernoulli_beta_between - 1.0 + nr - mr) * log1p_neg_thq[k] -
         static_cast<double>(tilt_n) * fq(k);
       if(lp[k] > mx) mx = lp[k];
     }
     double s = 0;
-    for(arma::uword k = 0; k < Nq; k++) s += std::exp(lp[k] - mx);
-    out += (std::log(s) + mx + std::log(dth)) - lbab;
+    for(arma::uword k = 0; k < Nq; k++) s += MY_EXP(lp[k] - mx);
+    out += (MY_LOG(s) + mx + MY_LOG(dth)) - lbab;
   }
   return out;
 }
@@ -732,7 +737,7 @@ arma::uvec block_allocations_mfm_sbm_corrected(arma::uvec cluster_assign,
         deg_base, correction);
       double size_excl = static_cast<double>(cluster_size(c)) -
         ((c == old) ? 1.0 : 0.0);
-      log_weights(c) = std::log(dir_alpha + size_excl) + loglike - corr;
+      log_weights(c) = MY_LOG(dir_alpha + size_excl) + loglike - corr;
     }
 
     double logmarg = corrected_log_marginal_mfm_sbm(
@@ -745,7 +750,7 @@ arma::uvec block_allocations_mfm_sbm_corrected(arma::uvec cluster_assign,
       ? (log_Vn(no_clusters - 1) - log_Vn(no_clusters - 2))
       : (log_Vn(no_clusters) - log_Vn(no_clusters - 1));
     log_weights(no_clusters) =
-      std::log(dir_alpha) + logmarg + vn_ratio - removal;
+      MY_LOG(dir_alpha) + logmarg + vn_ratio - removal;
 
     arma::uword cluster = sample_cluster_log(log_weights, rng);
 
@@ -792,20 +797,25 @@ static double draw_theta_local_density(int m, int n_pairs, double a, double b,
   double hi = std::min(1.0 - 1e-7, theta_current + half_width);
   double grid[N], weight[N];
   double step = (hi - lo) / (N - 1);
+  // exp(c_e) is grid-invariant; hoist it out of the N-point loop.
+  std::vector<double> exp_ce(ce_edges.size());
+  for(size_t e = 0; e < ce_edges.size(); e++) {
+    exp_ce[e] = MY_EXP(ce_edges[e]);
+  }
   double mx = -std::numeric_limits<double>::infinity();
   for(int k = 0; k < N; k++) {
     double th = lo + step * k;
     grid[k] = th;
     double lc = 0;
-    for(size_t e = 0; e < ce_edges.size(); e++) {
-      lc += std::log(1.0 - th + th * std::exp(ce_edges[e]));
+    for(size_t e = 0; e < exp_ce.size(); e++) {
+      lc += MY_LOG(1.0 - th + th * exp_ce[e]);
     }
-    weight[k] = (a + m - 1.0) * std::log(th) +
-      (b + n_pairs - m - 1.0) * std::log1p(-th) - lc;
+    weight[k] = (a + m - 1.0) * MY_LOG(th) +
+      (b + n_pairs - m - 1.0) * MY_LOG1P(-th) - lc;
     if(weight[k] > mx) mx = weight[k];
   }
   double s = 0;
-  for(int k = 0; k < N; k++) { weight[k] = std::exp(weight[k] - mx); s += weight[k]; }
+  for(int k = 0; k < N; k++) { weight[k] = MY_EXP(weight[k] - mx); s += weight[k]; }
   double u = runif(rng) * s;
   double cum = 0;
   int k = 0;

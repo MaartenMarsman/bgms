@@ -107,6 +107,7 @@ MixedMRFModel::MixedMRFModel(
     // Initialize marginal interactions: disc_int + 2 * cross_int * Sigma_yy * cross_int'
     //   With cross_int = 0, this is zero.
     marginal_interactions_ = arma::zeros<arma::mat>(p_, p_);
+    cross_term_ = arma::zeros<arma::mat>(p_, p_);
 
     // Initialize edge-order permutation vectors. The counts are size_t, so a
     // zero count (one continuous or one discrete variable) must not reach
@@ -117,6 +118,22 @@ MixedMRFModel::MixedMRFModel(
         ? arma::regspace<arma::uvec>(0, num_pairwise_yy_ - 1) : arma::uvec();
     edge_order_xy_ = num_cross_
         ? arma::regspace<arma::uvec>(0, num_cross_ - 1) : arma::uvec();
+
+    // Flat-index -> (i, j) lookup tables for the upper-triangle edge loops
+    // (row-major: (0,1),(0,2),...,(1,2),...).
+    auto build_edge_pairs = [](size_t dim, size_t count) {
+        arma::umat pairs(count, 2);
+        size_t flat = 0;
+        for (size_t i = 0; i + 1 < dim; ++i) {
+            for (size_t j = i + 1; j < dim; ++j, ++flat) {
+                pairs(flat, 0) = i;
+                pairs(flat, 1) = j;
+            }
+        }
+        return pairs;
+    };
+    edge_pairs_xx_ = build_edge_pairs(p_, num_pairwise_xx_);
+    edge_pairs_yy_ = build_edge_pairs(q_, num_pairwise_yy_);
 
     // Detect sparse initial graph (constraints without edge selection)
     if(!edge_selection_) {
@@ -181,6 +198,7 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       covariance_continuous_(other.covariance_continuous_),
       log_det_precision_(other.log_det_precision_),
       marginal_interactions_(other.marginal_interactions_),
+      cross_term_(other.cross_term_),
       conditional_mean_(other.conditional_mean_),
       cont_constants_(other.cont_constants_),
       precision_proposal_(other.precision_proposal_),
@@ -202,7 +220,9 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
       edge_order_yy_(other.edge_order_yy_),
-      edge_order_xy_(other.edge_order_xy_)
+      edge_order_xy_(other.edge_order_xy_),
+      edge_pairs_xx_(other.edge_pairs_xx_),
+      edge_pairs_yy_(other.edge_pairs_yy_)
 {
     // Deep-copy the Z-ratio engine (per-chain caches never cross threads)
     // and rebind its RNG to this clone's stream.
@@ -285,8 +305,8 @@ size_t MixedMRFModel::count_num_main_effects() const {
 
 void MixedMRFModel::recompute_conditional_mean() {
     // M = μ_y' + 2 X A_xy Σ_yy
-    conditional_mean_ = arma::repmat(main_effects_continuous_.t(), n_, 1) +
-                        2.0 * discrete_observations_dbl_ * pairwise_effects_cross_ * covariance_continuous_;
+    conditional_mean_ = 2.0 * discrete_observations_dbl_ * pairwise_effects_cross_ * covariance_continuous_;
+    conditional_mean_.each_row() += main_effects_continuous_.t();
 }
 
 void MixedMRFModel::recompute_pairwise_effects_continuous_decomposition() {
@@ -303,8 +323,16 @@ void MixedMRFModel::recompute_marginal_interactions() {
     //   M = A_xx + 2 A_xy Σ_yy A_xy'
     // The log-marginal has x'Mx, so the x_s-conditional rest score carries
     // a factor 2 on M.col(s) (consumed at the call site in log_marginal_omrf).
-    marginal_interactions_ = pairwise_effects_discrete_
-                           + 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
+    cross_term_ = 2.0 * pairwise_effects_cross_ * covariance_continuous_ * pairwise_effects_cross_.t();
+    marginal_interactions_ = pairwise_effects_discrete_ + cross_term_;
+}
+
+void MixedMRFModel::refresh_marginal_interactions_entry(int i, int j) {
+    // A_xx-only change: the cross term is untouched, so only the (i,j)/(j,i)
+    // entries of M move.
+    double value = pairwise_effects_discrete_(i, j) + cross_term_(i, j);
+    marginal_interactions_(i, j) = value;
+    marginal_interactions_(j, i) = value;
 }
 
 
@@ -1386,34 +1414,13 @@ void MixedMRFModel::update_edge_indicators() {
     // Discrete-discrete edges (shuffled order)
     for(size_t e = 0; e < num_pairwise_xx_; ++e) {
         size_t idx = edge_order_xx_(e);
-        // Decode upper-triangle index to (i, j)
-        size_t i = 0, j = 1;
-        size_t count = 0;
-        for(i = 0; i < p_ - 1; ++i) {
-            size_t row_len = p_ - 1 - i;
-            if(count + row_len > idx) {
-                j = i + 1 + (idx - count);
-                break;
-            }
-            count += row_len;
-        }
-        update_edge_indicator_discrete(i, j);
+        update_edge_indicator_discrete(edge_pairs_xx_(idx, 0), edge_pairs_xx_(idx, 1));
     }
 
     // Continuous-continuous edges (shuffled order)
     for(size_t e = 0; e < num_pairwise_yy_; ++e) {
         size_t idx = edge_order_yy_(e);
-        size_t i = 0, j = 1;
-        size_t count = 0;
-        for(i = 0; i < q_ - 1; ++i) {
-            size_t row_len = q_ - 1 - i;
-            if(count + row_len > idx) {
-                j = i + 1 + (idx - count);
-                break;
-            }
-            count += row_len;
-        }
-        update_edge_indicator_continuous(i, j);
+        update_edge_indicator_continuous(edge_pairs_yy_(idx, 0), edge_pairs_yy_(idx, 1));
     }
 
     // Cross edges (shuffled order)

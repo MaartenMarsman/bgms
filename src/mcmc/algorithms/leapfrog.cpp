@@ -87,8 +87,11 @@ ConstrainedLeapfrogResult leapfrog_constrained_checked(
   );
 
   // --- Backward step (negate momentum, step forward) ---
-  // Use a separate Memoizer so the caller's cache stays at theta_new.
+  // Use a separate Memoizer so the caller's cache stays at theta_new, but
+  // seed it with the caller's cached evaluation: the forward step left memo
+  // at theta_new, which is exactly where the backward step starts.
   Memoizer back_memo(memo.joint_fn);
+  back_memo.seed_from(memo);
   arma::vec r_back = -r_new;
   auto [theta_back, r_back_out] = leapfrog_constrained(
     theta_new, r_back, eps, back_memo, inv_mass_diag,
