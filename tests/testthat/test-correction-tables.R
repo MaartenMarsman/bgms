@@ -108,6 +108,54 @@ test_that("table build with cache round-trips and reuses the file", {
   expect_equal(tab1$cell$delta, 0.5 * log(4))
 })
 
+test_that("the progress bar renders the label, counts, and percentage", {
+  pb = new_correction_progress(120L, prefix = "Correction table")
+  mid = paste(capture.output(pb$update(70L)), collapse = "")
+  expect_match(mid, "Correction table:", fixed = TRUE)
+  expect_match(mid, "70/120", fixed = TRUE)
+  expect_match(mid, "58.3%", fixed = TRUE)
+  full = paste(capture.output(pb$update(120L)), collapse = "")
+  expect_match(full, "120/120 (100.0%)", fixed = TRUE)
+})
+
+test_that("the parallel sweep matches the serial sweep cell for cell", {
+  skip_on_cran()
+  skip_on_os("windows")
+
+  args = list(
+    p = 4, theta = c(0.2, 0.5, 0.8), delta = 0.5 * log(4),
+    interaction_prior = cauchy_prior(scale = 2.5),
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    n_samples = 200L, n_warmup = 100L, n_seeds = 2L, update_method = "gibbs"
+  )
+  serial = do.call(sweep_prior_edge_density, c(args, cores = 1L))
+  parallel = do.call(sweep_prior_edge_density, c(args, cores = 2L))
+
+  expect_equal(parallel$edens_raw, serial$edens_raw)
+})
+
+test_that("the build announces itself once; a cache hit is silent", {
+  cache_dir = file.path(tempdir(), "bgms-ctable-msg-test")
+  unlink(cache_dir, recursive = TRUE)
+  old = options(bgms.correction_cache_dir = cache_dir)
+  on.exit(options(old), add = TRUE)
+
+  build_args = list(
+    p = 4, n_grid = 12L, n_samples = 100L, n_warmup = 100L, n_seeds = 1L,
+    update_method = "gibbs", verbose = TRUE
+  )
+  # capture.output silences the progress bar (stdout); messages pass through.
+  capture.output(
+    expect_message(
+      do.call(ggm_correction_table, build_args),
+      "Building the edge-selection prior correction table"
+    )
+  )
+  capture.output(
+    expect_no_message(do.call(ggm_correction_table, build_args))
+  )
+})
+
 test_that("gibbs and adaptive-metropolis sweeps agree on edge density", {
   skip_on_cran()
 

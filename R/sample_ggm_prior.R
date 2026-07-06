@@ -354,7 +354,8 @@ sample_ggm_prior = function(
       p = p, delta = delta,
       interaction_prior = interaction_prior,
       precision_scale_prior = precision_scale_prior,
-      update_method = "gibbs"
+      update_method = "gibbs",
+      verbose = isTRUE(verbose)
     )
     correction = correction_list_from_table(table, ep$edge_prior)
   }

@@ -286,7 +286,9 @@
 #' @param chains Integer. Number of parallel chains to run. Default: \code{4}.
 #'
 #' @param cores Integer. Number of CPU cores for parallel execution.
-#'   Default: \code{parallel::detectCores()}.
+#'   Sampling uses \code{min(cores, chains)}; some computations outside of
+#'   sampling (such as building the edge-selection prior correction table)
+#'   use all \code{cores}. Default: \code{parallel::detectCores()}.
 #'
 #' @param seed Optional integer. Random seed for reproducibility. Must be a
 #'   single non-negative integer.

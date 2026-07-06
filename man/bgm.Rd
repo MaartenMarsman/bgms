@@ -259,7 +259,9 @@ matrix. Default: \code{TRUE}.}
 \item{chains}{Integer. Number of parallel chains to run. Default: \code{4}.}
 
 \item{cores}{Integer. Number of CPU cores for parallel execution.
-Default: \code{parallel::detectCores()}.}
+Sampling uses \code{min(cores, chains)}; some computations outside of
+sampling (such as building the edge-selection prior correction table)
+use all \code{cores}. Default: \code{parallel::detectCores()}.}
 
 \item{display_progress}{Character. Controls progress reporting during
 sampling. Options: \code{"per-chain"} (separate bar per chain),

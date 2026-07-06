@@ -242,19 +242,28 @@ test_that("bgm() applies the correction to a mixed beta-bernoulli fit", {
   skip_on_cran()
   old = mixed_correction_cache()
   on.exit(options(old), add = TRUE)
+  # A fresh cache forces an actual build, the only case that announces
+  # itself; a cache hit is silent.
+  unlink(getOption("bgms.correction_cache_dir"), recursive = TRUE)
 
   d = mixed_smoke_data()
-  msgs = capture.output(
-    fit <- bgm(d$x,
-      variable_type = d$variable_type,
-      edge_prior = beta_bernoulli_prior(),
-      iter = 300, warmup = 300, chains = 1, cores = 1,
-      display_progress = "none", verbose = TRUE
+  # Capture stdout too, so an interactive test run does not leak the
+  # build progress bar; the announcement is a message (stderr).
+  msgs = NULL
+  capture.output(
+    msgs <- capture.output(
+      fit <- bgm(d$x,
+        variable_type = d$variable_type,
+        edge_prior = beta_bernoulli_prior(),
+        iter = 300, warmup = 300, chains = 1, cores = 1,
+        display_progress = "none", verbose = TRUE
+      ),
+      type = "message"
     ),
-    type = "message"
+    type = "output"
   )
 
-  expect_true(any(grepl("Edge-prior correction", msgs)))
+  expect_true(any(grepl("correction table", msgs)))
   expect_s3_class(fit, "bgms")
   th = fit$inclusion_parameter_samples
   expect_length(th, 1L)
@@ -294,7 +303,7 @@ test_that("bgm() skips the correction with one continuous variable", {
     type = "message"
   )
 
-  expect_false(any(grepl("Edge-prior correction", msgs)))
+  expect_false(any(grepl("correction table", msgs)))
   expect_s3_class(fit, "bgms")
 })
 
