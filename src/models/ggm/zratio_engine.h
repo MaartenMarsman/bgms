@@ -53,10 +53,14 @@ struct ZRatioBlock {
  *            design, order bre, m, cne, maxbd, dens); outside the box the
  *            correction is zeroed so the frozen kernel never extrapolates.
  *
- * Conventions (bare scale): K_ii ~ Exp(beta), slab K_ij ~ N(0, sigma^2),
- * tilt |K|^delta; sigma = 2 * pairwise_scale, beta = scale_rate / 2 in bgms
- * parameter units. Reference: SV/Z sbc_prior_chain_exact.cpp and the
- * z_graph_prior deployed kernel (hier_chain_data.cpp).
+ * Conventions (standardized cell): K_ii ~ Exp(beta), slab K_ij ~ N(0,
+ * sigma^2), tilt |K|^delta. The between-graph ratio is invariant under the
+ * diagonal congruence Theta = A K A, so the constants are built at
+ * sigma = 1, beta = eta = pairwise_scale * scale_rate in bgms parameter
+ * units (R/zratio_tables.R, zratio_cell_constants), and the same cell
+ * serves every user scale choice. Reference: SV/Z
+ * sbc_prior_chain_exact.cpp and the z_graph_prior deployed kernel
+ * (hier_chain_data.cpp).
  */
 class ZRatioEngine {
 public:
@@ -113,9 +117,9 @@ public:
                     double& oracle_out, ZRatioBlock& bl_out);
 
     /**
-     * Set the bare-scale prior constants and RNG the block-Gibbs oracle
-     * samples under, without entering calibration mode. rng must outlive
-     * the engine.
+     * Set the standardized-cell prior constants and RNG the block-Gibbs
+     * oracle samples under, without entering calibration mode. rng must
+     * outlive the engine.
      */
     void set_oracle_params(double delta, double sigma, double beta,
                            SafeRNG* rng, int n_sweep = 300, int burn = 30) {
@@ -138,8 +142,9 @@ public:
      * box into the addc layout, after which the engine behaves exactly
      * like one constructed with a full 23-slot constant block.
      *
-     * (delta, sigma, beta) are the bare-scale prior constants the oracle
-     * samples under; rng must outlive the engine (the model's chain RNG).
+     * (delta, sigma, beta) are the standardized-cell prior constants the
+     * oracle samples under; rng must outlive the engine (the model's
+     * chain RNG).
      */
     void enable_calibration(double delta, double sigma, double beta,
                             SafeRNG* rng, int n_sweep = 300, int burn = 30,

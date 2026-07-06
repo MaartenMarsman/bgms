@@ -10,10 +10,16 @@
 #   - the per-channel moment constants addc[0..5] for the additive counts
 #     (common-neighbour node, CN-CN edge, bridge edge),
 #   - psi0, the isolated-edge ratio I_spike(0)/G(0).
-# Conventions (bare scale): K_ii ~ Exp(beta), slab K_ij ~ N(0, sigma^2),
-# tilt |K|^delta. In bgms parameter units: sigma = 2 * pairwise_scale and
-# beta = scale_rate / 2 (priors act on K/2). Reference implementation:
-# SV/Z don-validation (sd_marginal_helpers.R, ks_validation_grid.R).
+# Conventions: K_ii ~ Exp(beta), slab K_ij ~ N(0, sigma^2), tilt
+# |K|^delta. The between-graph ratio Z(Gamma-)/Z(Gamma+) is invariant under
+# the diagonal congruence Theta = A K A (scale standardization of the
+# normalizer), so it depends on (delta, eta) alone, where in bgms parameter
+# units eta = (2 * pairwise_scale) * (scale_rate / 2) = pairwise_scale *
+# scale_rate (priors act on K/2). The fixed quadrature grids below (cmax,
+# Cmax, Tmax, Laguerre ranges) are sized for the sigma = 1 frame, so every
+# consumer builds in the standardized cell (delta, sigma = 1, beta = eta)
+# via zratio_cell_constants(). Reference implementation: SV/Z don-validation
+# (sd_marginal_helpers.R, ks_validation_grid.R).
 
 # Golub-Welsch Gauss quadrature nodes/weights. kind: "laguerre" (weight
 # e^{-x} on (0, Inf)), "hermite" (weight e^{-x^2} on (-Inf, Inf)),
@@ -211,6 +217,18 @@ zratio_bridge_channel = function(delta, sigma, beta, nlag = 64, nher = 80) {
     }
   }
   c(n1 / den, n2 / den)
+}
+
+# Standardized cell for one fit's Z-ratio constants. The between-graph
+# ratio depends on (delta, eta) only, so the constants are built at
+# sigma = 1, beta = eta, the frame the quadrature grids are sized for; user
+# scale choices with the same eta share one constant set. eta is the
+# user-specified standardized rate when the scale prior carries one, else
+# pairwise_scale * scale_rate (the same number up to rounding).
+zratio_cell_constants = function(delta, pairwise_scale, scale_rate,
+                                 scale_eta = NA_real_) {
+  eta = if(is.finite(scale_eta)) scale_eta else pairwise_scale * scale_rate
+  zratio_constants(delta, sigma = 1, beta = eta)
 }
 
 # Session cache for zratio_constants: the constant set is deterministic per

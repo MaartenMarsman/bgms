@@ -53,6 +53,41 @@ test_that("hierarchical graph marginal matches Bernoulli(p); joint does not", {
   }
 })
 
+test_that("Z-ratio constants build in the standardized cell", {
+  skip_on_cran()
+  # The between-graph ratio depends on (delta, eta) only, so every user
+  # frame with the same eta = pairwise_scale * scale_rate must resolve to
+  # one constant set, built at sigma = 1 (the frame the quadrature grids
+  # are sized for). At the old bare-scale build the scale-2.5 frame drifted
+  # the saddle by -0.10 in log J and the q = 6 identity by -0.008.
+  d = 0.5 * log(6)
+  a = bgms:::zratio_cell_constants(d, pairwise_scale = 0.5, scale_rate = 2)
+  b = bgms:::zratio_cell_constants(d, pairwise_scale = 0.25, scale_rate = 4)
+  e = bgms:::zratio_cell_constants(
+    d, pairwise_scale = 2.5, scale_rate = 0.4, scale_eta = 1
+  )
+  expect_identical(a, b)
+  expect_identical(a, e)
+  expect_identical(a$sigma, 1)
+  expect_identical(a$beta, 1)
+})
+
+test_that("hierarchical graph marginal holds at a non-unit slab scale", {
+  skip_on_cran()
+  # pairwise scale 2.5 (the sample_ggm_prior default) with eta = 1 is the
+  # same physical cell as scale 0.5 / rate 2; the graph law must hold there
+  # identically.
+  d = sample_ggm_prior(
+    p = 6L, n_samples = 6000L, n_warmup = 1500L,
+    interaction_prior = normal_prior(scale = 2.5),
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    spec = "hierarchical", edge_inclusion_prob = 0.3,
+    update_method = "adaptive-metropolis", delta = 0.5 * log(6),
+    seed = 11L, verbose = FALSE
+  )
+  expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02)
+})
+
 test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
   skip_on_cran()
   d = hier_prior_run(

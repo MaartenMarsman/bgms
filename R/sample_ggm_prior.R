@@ -336,10 +336,8 @@ sample_ggm_prior = function(
         format(sp$scale_shape)
       ))
     }
-    zc = zratio_constants(
-      delta = delta,
-      sigma = 2 * ip$pairwise_scale,
-      beta = sp$scale_rate / 2
+    zc = zratio_cell_constants(
+      delta, ip$pairwise_scale, sp$scale_rate, sp$scale_eta
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
