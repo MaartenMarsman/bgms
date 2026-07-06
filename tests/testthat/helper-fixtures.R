@@ -49,8 +49,10 @@
 # Ensure bgms package is loaded
 library(bgms)
 
-# Suppress informational messages during tests
-options(bgms.verbose = FALSE)
+# Advisory output is quieted for the test run in setup.R, not here. Helper files
+# are sourced by devtools::load_all() (setup files are not), so setting the
+# option here would leak bgms.verbose = FALSE into interactive development
+# sessions and silence fit-time messages and progress bars.
 
 # ------------------------------------------------------------------------------
 # 1. Session-Cached Model Fixtures

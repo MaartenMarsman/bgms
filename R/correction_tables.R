@@ -253,7 +253,7 @@ sweep_prior_edge_density = function(p, theta, delta,
                                     n_seeds = 3L,
                                     update_method = "gibbs",
                                     cores = 1L, base_seed = 1L,
-                                    verbose = FALSE) {
+                                    show_progress = FALSE) {
   cores = normalize_builder_cores(cores)
   num_pairs = p * (p - 1) / 2
   cells = expand.grid(theta = theta, seed = seq_len(n_seeds))
@@ -272,31 +272,42 @@ sweep_prior_edge_density = function(p, theta, delta,
     mean(draws$edge_indicators)
   }
 
-  # A progress bar is drawn only in an interactive session; in batch runs
-  # (scripts, R CMD check, the test suite) the one-line build announcement
-  # in ggm_correction_table() is the only output.
-  show_bar = verbose && interactive() && cores == 1L
-  edens_cells = if(cores > 1L) {
-    if(verbose) {
-      message(sprintf(
-        "Sweeping %d prior cells on %d cores.", nrow(cells), cores
-      ))
-    }
-    unlist(parallel::mclapply(
-      seq_len(nrow(cells)), one_cell,
-      mc.cores = cores, mc.preschedule = FALSE
-    ))
-  } else if(show_bar) {
-    pb = new_correction_progress(nrow(cells))
+  # The bar follows display_progress (like the sampler's own bar), not the
+  # advisory bgms.verbose flag. It redraws in place with a carriage return, so
+  # it is drawn only in an interactive session; batch runs (scripts, R CMD
+  # check, the test suite) rely on the one-line build announcement in
+  # ggm_correction_table(). A parallel sweep forks the cells in batches of
+  # `cores` and advances the bar as each batch of chains completes.
+  n_cells = nrow(cells)
+  draw_bar = show_progress && interactive()
+  pb = NULL
+  if(draw_bar) {
+    pb = new_correction_progress(n_cells)
     on.exit(pb$close(), add = TRUE)
     pb$update(0L)
-    vapply(seq_len(nrow(cells)), function(k) {
+  }
+  edens_cells = if(cores > 1L) {
+    out = numeric(n_cells)
+    done = 0L
+    for(batch in split(seq_len(n_cells), ceiling(seq_len(n_cells) / cores))) {
+      out[batch] = as.numeric(unlist(parallel::mclapply(
+        batch, one_cell,
+        mc.cores = cores, mc.preschedule = FALSE
+      )))
+      done = done + length(batch)
+      if(draw_bar) {
+        pb$update(done)
+      }
+    }
+    out
+  } else {
+    vapply(seq_len(n_cells), function(k) {
       v = one_cell(k)
-      pb$update(k)
+      if(draw_bar) {
+        pb$update(k)
+      }
       v
     }, numeric(1))
-  } else {
-    vapply(seq_len(nrow(cells)), one_cell, numeric(1))
   }
   if(anyNA(edens_cells)) {
     stop("Correction-table sweep: a prior chain failed.")
@@ -347,7 +358,7 @@ build_ggm_correction_table = function(
   precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
-  cores = 1L, base_seed = 1L, verbose = FALSE
+  cores = 1L, base_seed = 1L, show_progress = FALSE
 ) {
   update_method = match.arg(update_method)
   if(is.null(delta)) {
@@ -361,7 +372,7 @@ build_ggm_correction_table = function(
     precision_scale_prior = precision_scale_prior,
     n_samples = n_samples, n_warmup = n_warmup, n_seeds = n_seeds,
     update_method = update_method, cores = cores, base_seed = base_seed,
-    verbose = verbose
+    show_progress = show_progress
   )
 
   table = correction_table_from_edens(
@@ -477,13 +488,20 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
   interaction_prior = correction_interaction_prior(prior)
   precision_scale_prior = correction_scale_prior(prior)
 
+  # The build announcement follows the advisory bgms.verbose flag; the progress
+  # bar follows display_progress (progress_type 0 is "none"), matching the
+  # sampler's own bar.
+  show_progress = is.null(sampler$progress_type) ||
+    !identical(as.integer(sampler$progress_type), 0L)
+
   table = ggm_correction_table(
     p = num_continuous, delta = prior$delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     update_method = "gibbs",
     cores = sampler$cores,
-    verbose = isTRUE(sampler$verbose)
+    verbose = isTRUE(sampler$verbose),
+    show_progress = show_progress
   )
   if(identical(prior$edge_prior, "Stochastic-Block") &&
     is.null(table$fprime)) {
@@ -521,7 +539,8 @@ ggm_correction_table = function(
   precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
-  cores = 1L, base_seed = 1L, refresh = FALSE, verbose = FALSE
+  cores = 1L, base_seed = 1L, refresh = FALSE, verbose = FALSE,
+  show_progress = FALSE
 ) {
   update_method = match.arg(update_method)
   if(is.null(delta)) {
@@ -564,7 +583,7 @@ ggm_correction_table = function(
     precision_scale_prior = precision_scale_prior,
     n_grid = n_grid, n_samples = n_samples, n_warmup = n_warmup,
     n_seeds = n_seeds, update_method = update_method,
-    cores = cores, base_seed = base_seed, verbose = verbose
+    cores = cores, base_seed = base_seed, show_progress = show_progress
   )
 
   if(use_cache) {
