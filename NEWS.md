@@ -12,6 +12,9 @@
 
 ## New features
 
+* `sample_graph_prior()`: draws edge-inclusion indicators, together with any edge-prior hyperparameters, from the graph level of the spike-and-slab prior. Under the hierarchical specification the draw is ancestral and exact; under the joint specification it runs the zero-data prior chain, so the draws carry the per-graph normalizer tilt. Hyperparameters can be fixed instead of sampled (`theta` for Bernoulli and Beta-Bernoulli priors, `allocations` plus `block_probs` for the Stochastic-Block prior).
+* `sample_sbm_prior()`: ancestral draws of block allocations and pair-inclusion probabilities from the MFM-SBM edge-prior hyperprior.
+* The edge-prior correction table now announces itself only when it actually builds (a cache hit is silent), states that the build is one-time and cached, and reports progress (a progress bar on one core, a cell-and-core count otherwise).
 * Gaussian graphical models (GGM): `bgm(x, variable_type = "continuous")` fits a GGM with Bayesian edge selection. Sampling uses NUTS on a free-element Cholesky (theta-space) parameterization of the precision matrix, which keeps the precision matrix positive-definite by construction; adaptive-metropolis is also available.
 * GGM Gibbs sampler: `update_method = "gibbs"` fits a GGM with a conjugate row-by-row update of the precision matrix, with or without edge selection. It needs no step-size or proposal tuning and supports a Normal or Cauchy prior on the edges. Continuous data only.
 * Gibbs warmup staging: with `update_method = "gibbs"` and edge selection, the first 15% of the warmup runs the full model so the precision matrix settles, and edge selection is active for the remaining 85%. Previously edge selection only started at the first retained iteration, so the graph's equilibration happened inside the retained samples. Both windows scale with the warmup budget; the warmup default is unchanged.

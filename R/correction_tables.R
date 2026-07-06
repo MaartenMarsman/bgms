@@ -154,6 +154,92 @@ normalize_builder_cores = function(cores) {
 
 
 # ------------------------------------------------------------------
+# new_correction_progress (internal)
+# ------------------------------------------------------------------
+# In-place progress bar matching the bgms MCMC bar (see the theme and
+# bar-width logic in src/utils/progress_manager.cpp): tortoise-shell
+# brackets, a heavy horizontal rule filled in blue and empty in gray,
+# a sub-cell partial glyph, and a "prefix: <bar> cur/tot (xx.x%)"
+# layout redrawn with a carriage return. Unicode + ANSI colour when the
+# session is UTF-8, an ASCII "[=== ]" fallback otherwise. Returns
+# update(current) and close(); the caller decides whether to draw it.
+# ------------------------------------------------------------------
+new_correction_progress = function(total, prefix = "Correction table") {
+  unicode = isTRUE(l10n_info()[["UTF-8"]])
+  is_rstudio = Sys.getenv("RSTUDIO") == "1"
+
+  # Bar width, mirroring progress_manager.cpp so the bar does not wrap.
+  console_width = if(is_rstudio) {
+    max(0L, as.integer(getOption("width", 80L))) + 3L
+  } else {
+    80L
+  }
+  line_width = if(is_rstudio) {
+    max(10L, min(console_width - 25L, 70L))
+  } else {
+    70L
+  }
+  bar_width = if(line_width <= 5L) {
+    0L
+  } else if(line_width < 20L) {
+    line_width - 10L
+  } else if(line_width < 40L) {
+    line_width - 15L
+  } else if(line_width > 70L) {
+    40L
+  } else {
+    line_width - 30L
+  }
+  if(is_rstudio) {
+    bar_width = if(bar_width > 30L) bar_width - 20L else 10L
+  }
+
+  if(unicode) {
+    # Tortoise-shell brackets (U+2997/U+2998), heavy horizontal rule
+    # (U+2501) filled/empty, heavy sub-cell (U+257A); ANSI 38;5;73 blue
+    # and 37 gray, matching progress_manager.cpp.
+    lhs = "\u2997"
+    rhs = "\u2998"
+    filled = "\u001b[38;5;73m\u2501\u001b[39m"
+    partial_more = filled
+    partial_less = "\u001b[37m\u257a\u001b[39m"
+    empty = "\u001b[37m\u2501\u001b[39m"
+  } else {
+    lhs = "["
+    rhs = "]"
+    filled = "="
+    partial_more = " "
+    partial_less = " "
+    empty = " "
+  }
+
+  draw = function(current) {
+    frac = if(total > 0L) current / total else 1
+    exact = frac * bar_width
+    n_filled = min(as.integer(exact), bar_width)
+    bar = strrep(filled, n_filled)
+    if(n_filled < bar_width) {
+      part = exact - n_filled
+      if(part > 0) {
+        bar = paste0(bar, if(part > 0.5) partial_more else partial_less)
+        n_filled = n_filled + 1L
+      }
+    }
+    if(n_filled < bar_width) {
+      bar = paste0(bar, strrep(empty, bar_width - n_filled))
+    }
+    cat(sprintf(
+      "\r%s: %s%s%s %d/%d (%.1f%%)", prefix, lhs, bar, rhs,
+      current, total, 100 * frac
+    ))
+    utils::flush.console()
+  }
+
+  list(update = draw, close = function() cat("\n"))
+}
+
+
+# ------------------------------------------------------------------
 # sweep_prior_edge_density (internal)
 # ------------------------------------------------------------------
 # Run the tilted prior chain at each theta on the grid and record the
@@ -166,7 +252,8 @@ sweep_prior_edge_density = function(p, theta, delta,
                                     n_samples = 2000L, n_warmup = 500L,
                                     n_seeds = 3L,
                                     update_method = "gibbs",
-                                    cores = 1L, base_seed = 1L) {
+                                    cores = 1L, base_seed = 1L,
+                                    verbose = FALSE) {
   cores = normalize_builder_cores(cores)
   num_pairs = p * (p - 1) / 2
   cells = expand.grid(theta = theta, seed = seq_len(n_seeds))
@@ -185,11 +272,29 @@ sweep_prior_edge_density = function(p, theta, delta,
     mean(draws$edge_indicators)
   }
 
+  # A progress bar is drawn only in an interactive session; in batch runs
+  # (scripts, R CMD check, the test suite) the one-line build announcement
+  # in ggm_correction_table() is the only output.
+  show_bar = verbose && interactive() && cores == 1L
   edens_cells = if(cores > 1L) {
+    if(verbose) {
+      message(sprintf(
+        "Sweeping %d prior cells on %d cores.", nrow(cells), cores
+      ))
+    }
     unlist(parallel::mclapply(
       seq_len(nrow(cells)), one_cell,
       mc.cores = cores, mc.preschedule = FALSE
     ))
+  } else if(show_bar) {
+    pb = new_correction_progress(nrow(cells))
+    on.exit(pb$close(), add = TRUE)
+    pb$update(0L)
+    vapply(seq_len(nrow(cells)), function(k) {
+      v = one_cell(k)
+      pb$update(k)
+      v
+    }, numeric(1))
   } else {
     vapply(seq_len(nrow(cells)), one_cell, numeric(1))
   }
@@ -242,7 +347,7 @@ build_ggm_correction_table = function(
   precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
-  cores = 1L, base_seed = 1L
+  cores = 1L, base_seed = 1L, verbose = FALSE
 ) {
   update_method = match.arg(update_method)
   if(is.null(delta)) {
@@ -255,7 +360,8 @@ build_ggm_correction_table = function(
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     n_samples = n_samples, n_warmup = n_warmup, n_seeds = n_seeds,
-    update_method = update_method, cores = cores, base_seed = base_seed
+    update_method = update_method, cores = cores, base_seed = base_seed,
+    verbose = verbose
   )
 
   table = correction_table_from_edens(
@@ -371,18 +477,13 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
   interaction_prior = correction_interaction_prior(prior)
   precision_scale_prior = correction_scale_prior(prior)
 
-  if(isTRUE(sampler$verbose)) {
-    message(
-      "Edge-prior correction: building or loading the normalizing-constant ",
-      "table for this model (cached across fits)."
-    )
-  }
   table = ggm_correction_table(
     p = num_continuous, delta = prior$delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     update_method = "gibbs",
-    cores = sampler$cores
+    cores = sampler$cores,
+    verbose = isTRUE(sampler$verbose)
   )
   if(identical(prior$edge_prior, "Stochastic-Block") &&
     is.null(table$fprime)) {
@@ -420,7 +521,7 @@ ggm_correction_table = function(
   precision_scale_prior = gamma_prior(shape = 1, eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
-  cores = 1L, base_seed = 1L, refresh = FALSE
+  cores = 1L, base_seed = 1L, refresh = FALSE, verbose = FALSE
 ) {
   update_method = match.arg(update_method)
   if(is.null(delta)) {
@@ -451,13 +552,19 @@ ggm_correction_table = function(
     }
   }
 
+  if(verbose) {
+    message(
+      "Building the edge-selection prior correction table (one-time for ",
+      "this model size and prior; cached for later fits)."
+    )
+  }
   table = build_ggm_correction_table(
     p = p, delta = delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     n_grid = n_grid, n_samples = n_samples, n_warmup = n_warmup,
     n_seeds = n_seeds, update_method = update_method,
-    cores = cores, base_seed = base_seed
+    cores = cores, base_seed = base_seed, verbose = verbose
   )
 
   if(use_cache) {
