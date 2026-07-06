@@ -775,8 +775,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // zratio_audit_edges
-Rcpp::List zratio_audit_edges(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int n_sweep, int burn, int seed);
-RcppExport SEXP _bgms_zratio_audit_edges(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP) {
+Rcpp::List zratio_audit_edges(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int n_sweep, int burn, int seed, bool slab_cauchy);
+RcppExport SEXP _bgms_zratio_audit_edges(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP, SEXP slab_cauchySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -794,7 +794,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
     Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(zratio_audit_edges(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed));
+    Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_audit_edges(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed, slab_cauchy));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -835,8 +836,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // zratio_test_calibrated_eval
-Rcpp::List zratio_test_calibrated_eval(Rcpp::List graphs, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int seed, int n_sweep, int burn, int freeze_after);
-RcppExport SEXP _bgms_zratio_test_calibrated_eval(SEXP graphsSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP seedSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP freeze_afterSEXP) {
+Rcpp::List zratio_test_calibrated_eval(Rcpp::List graphs, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double sigma, double beta, int seed, int n_sweep, int burn, int freeze_after, bool slab_cauchy);
+RcppExport SEXP _bgms_zratio_test_calibrated_eval(SEXP graphsSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP sigmaSEXP, SEXP betaSEXP, SEXP seedSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP freeze_afterSEXP, SEXP slab_cauchySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -855,7 +856,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
     Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
     Rcpp::traits::input_parameter< int >::type freeze_after(freeze_afterSEXP);
-    rcpp_result_gen = Rcpp::wrap(zratio_test_calibrated_eval(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after));
+    Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_calibrated_eval(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after, slab_cauchy));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -921,10 +923,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_compute_Vn_mfm_sbm", (DL_FUNC) &_bgms_compute_Vn_mfm_sbm, 4},
     {"_bgms_test_warmup_schedule", (DL_FUNC) &_bgms_test_warmup_schedule, 5},
     {"_bgms_zratio_scan_graph", (DL_FUNC) &_bgms_zratio_scan_graph, 7},
-    {"_bgms_zratio_audit_edges", (DL_FUNC) &_bgms_zratio_audit_edges, 14},
+    {"_bgms_zratio_audit_edges", (DL_FUNC) &_bgms_zratio_audit_edges, 15},
     {"_bgms_zratio_test_eval", (DL_FUNC) &_bgms_zratio_test_eval, 8},
     {"_bgms_zratio_test_saddle", (DL_FUNC) &_bgms_zratio_test_saddle, 8},
-    {"_bgms_zratio_test_calibrated_eval", (DL_FUNC) &_bgms_zratio_test_calibrated_eval, 15},
+    {"_bgms_zratio_test_calibrated_eval", (DL_FUNC) &_bgms_zratio_test_calibrated_eval, 16},
     {"_bgms_zratio_test_precompute", (DL_FUNC) &_bgms_zratio_test_precompute, 10},
     {NULL, NULL, 0}
 };

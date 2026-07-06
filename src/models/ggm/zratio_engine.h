@@ -119,16 +119,21 @@ public:
     /**
      * Set the standardized-cell prior constants and RNG the block-Gibbs
      * oracle samples under, without entering calibration mode. rng must
-     * outlive the engine.
+     * outlive the engine. slab_cauchy selects the Cauchy slab family: the
+     * block couplings then run omega-augmented (scale-mixture of normals)
+     * and the endpoint legs mix per sweep, matching the marginal-Cauchy
+     * normalizer the tables integrate.
      */
     void set_oracle_params(double delta, double sigma, double beta,
-                           SafeRNG* rng, int n_sweep = 300, int burn = 30) {
+                           SafeRNG* rng, int n_sweep = 300, int burn = 30,
+                           bool slab_cauchy = false) {
         delta_ = delta;
         sigma_ = sigma;
         beta_ = beta;
         rng_ = rng;
         n_sweep_ = n_sweep;
         burn_ = burn;
+        oracle_slab_cauchy_ = slab_cauchy;
     }
 
     /**
@@ -144,11 +149,13 @@ public:
      *
      * (delta, sigma, beta) are the standardized-cell prior constants the
      * oracle samples under; rng must outlive the engine (the model's
-     * chain RNG).
+     * chain RNG). slab_cauchy selects the Cauchy slab family for the
+     * oracle (see set_oracle_params).
      */
     void enable_calibration(double delta, double sigma, double beta,
                             SafeRNG* rng, int n_sweep = 300, int burn = 30,
-                            double maha_thresh = 9.0, int min_anchors = 6);
+                            double maha_thresh = 9.0, int min_anchors = 6,
+                            bool slab_cauchy = false);
 
     /** Refit and freeze: pack coefficients + hull box into addc[6..22]. */
     void freeze_calibration();
@@ -183,10 +190,11 @@ public:
     const arma::vec& anchors_y() const { return ay_; }
 
 private:
-    void gibbs_sweep_(arma::mat& k_blk,
+    void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr) const;
     bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
-                        const arma::uvec& sj, double& w, double& p1,
+                        const arma::uvec& sj, const arma::vec& wsi,
+                        const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
     void refit_();
 
@@ -207,6 +215,7 @@ private:
     // Online-calibration state (inert unless enable_calibration ran).
     bool calibration_enabled_ = false;
     bool frozen_ = true;
+    bool oracle_slab_cauchy_ = false;
     double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5;
     SafeRNG* rng_ = nullptr;
     int n_sweep_ = 300, burn_ = 30;

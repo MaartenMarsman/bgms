@@ -290,7 +290,8 @@ build_output_mixed_mrf = function(spec, raw) {
   # triangles without diagonals; the audit reads the Gyy segment.
   if(!is.null(zratio_chains)) {
     zc = zratio_cell_constants(
-      pr$delta, pr$pairwise_scale, pr$scale_rate, pr$scale_eta
+      pr$delta, pr$pairwise_scale, pr$scale_rate, pr$scale_eta,
+      slab = pr$interaction_prior_type
     )
     results$zratio_diag = summarize_zratio_diagnostics(
       zratio_chains, zc,

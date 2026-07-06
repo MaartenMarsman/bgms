@@ -278,7 +278,8 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
       addc, zratio_spec$tg, zratio_spec$ihat, zratio_spec$ghat,
       zratio_spec$wt, zratio_spec$psi0,
       zratio_spec$delta, zratio_spec$sigma, zratio_spec$beta,
-      as.integer(audit_sweep), 30L, as.integer(seed + g)
+      as.integer(audit_sweep), 30L, as.integer(seed + g),
+      identical(zratio_spec$slab, "cauchy")
     )
     err[sel] = audit$err
   }

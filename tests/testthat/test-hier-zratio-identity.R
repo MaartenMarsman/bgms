@@ -64,7 +64,8 @@ test_that("Z-ratio constants build in the standardized cell", {
   a = bgms:::zratio_cell_constants(d, pairwise_scale = 0.5, scale_rate = 2)
   b = bgms:::zratio_cell_constants(d, pairwise_scale = 0.25, scale_rate = 4)
   e = bgms:::zratio_cell_constants(
-    d, pairwise_scale = 2.5, scale_rate = 0.4, scale_eta = 1
+    d,
+    pairwise_scale = 2.5, scale_rate = 0.4, scale_eta = 1
   )
   expect_identical(a, b)
   expect_identical(a, e)
@@ -86,6 +87,22 @@ test_that("hierarchical graph marginal holds at a non-unit slab scale", {
     seed = 11L, verbose = FALSE
   )
   expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02)
+})
+
+test_that("hierarchical graph marginal holds for the Cauchy slab", {
+  skip_on_cran()
+  # The Cauchy slab needs its own (marginal-Cauchy) Z-ratio constants; with
+  # the Normal tables this cell read 0.247 for a 0.30 edge prior.
+  for(um in c("adaptive-metropolis", "gibbs")) {
+    d = sample_ggm_prior(
+      p = 6L, n_samples = 6000L, n_warmup = 1500L,
+      interaction_prior = cauchy_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+      spec = "hierarchical", edge_inclusion_prob = 0.3,
+      update_method = um, delta = 0.5 * log(6), seed = 7L, verbose = FALSE
+    )
+    expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02, label = um)
+  }
 })
 
 test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
