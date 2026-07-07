@@ -294,10 +294,9 @@ build_output_bgm = function(spec, raw) {
 
   # --- Z-ratio alarm suite (hierarchical graph-prior spec) ----------------------
   if(!is.null(zratio_chains)) {
-    zc = zratio_constants(
-      delta = p$delta,
-      sigma = 2 * p$pairwise_scale,
-      beta = p$scale_rate / 2
+    zc = zratio_cell_constants(
+      p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
+      slab = p$interaction_prior_type
     )
     results$zratio_diag = summarize_zratio_diagnostics(
       zratio_chains, zc,

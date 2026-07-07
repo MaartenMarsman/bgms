@@ -336,15 +336,14 @@ sample_ggm_prior = function(
         format(sp$scale_shape)
       ))
     }
-    zc = zratio_constants(
-      delta = delta,
-      sigma = 2 * ip$pairwise_scale,
-      beta = sp$scale_rate / 2
+    zc = zratio_cell_constants(
+      delta, ip$pairwise_scale, sp$scale_rate, sp$scale_eta,
+      slab = ip$interaction_prior_type
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, sigma = zc$sigma, beta = zc$beta,
+      delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
       )

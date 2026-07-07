@@ -289,10 +289,9 @@ build_output_mixed_mrf = function(spec, raw) {
   # The indicator vector is [Gxx upper, Gyy upper, Gxy row-major], both
   # triangles without diagonals; the audit reads the Gyy segment.
   if(!is.null(zratio_chains)) {
-    zc = zratio_constants(
-      delta = pr$delta,
-      sigma = 2 * pr$pairwise_scale,
-      beta = pr$scale_rate / 2
+    zc = zratio_cell_constants(
+      pr$delta, pr$pairwise_scale, pr$scale_rate, pr$scale_eta,
+      slab = pr$interaction_prior_type
     )
     results$zratio_diag = summarize_zratio_diagnostics(
       zratio_chains, zc,

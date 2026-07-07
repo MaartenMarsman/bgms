@@ -161,8 +161,8 @@ zratio_scan_graph <- function(G, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_scan_graph`, G, addc, tg, ihat, ghat, wt, psi0)
 }
 
-zratio_audit_edges <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed) {
-    .Call(`_bgms_zratio_audit_edges`, G, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, n_sweep, burn, seed)
+zratio_audit_edges <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy = FALSE) {
+    .Call(`_bgms_zratio_audit_edges`, G, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy)
 }
 
 zratio_test_eval <- function(G, edges, addc, tg, ihat, ghat, wt, psi0) {
@@ -173,8 +173,8 @@ zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
 }
 
-zratio_test_calibrated_eval <- function(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after) {
-    .Call(`_bgms_zratio_test_calibrated_eval`, graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, sigma, beta, seed, n_sweep, burn, freeze_after)
+zratio_test_calibrated_eval <- function(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, seed, n_sweep, burn, freeze_after, slab_cauchy = FALSE) {
+    .Call(`_bgms_zratio_test_calibrated_eval`, graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, seed, n_sweep, burn, freeze_after, slab_cauchy)
 }
 
 zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max) {

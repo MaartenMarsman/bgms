@@ -53,10 +53,14 @@ struct ZRatioBlock {
  *            design, order bre, m, cne, maxbd, dens); outside the box the
  *            correction is zeroed so the frozen kernel never extrapolates.
  *
- * Conventions (bare scale): K_ii ~ Exp(beta), slab K_ij ~ N(0, sigma^2),
- * tilt |K|^delta; sigma = 2 * pairwise_scale, beta = scale_rate / 2 in bgms
- * parameter units. Reference: SV/Z sbc_prior_chain_exact.cpp and the
- * z_graph_prior deployed kernel (hier_chain_data.cpp).
+ * Conventions (standardized cell): K_ii ~ Exp(beta), slab K_ij ~ N(0,
+ * sigma^2), tilt |K|^delta. The between-graph ratio is invariant under the
+ * diagonal congruence Theta = A K A, so the constants are built at
+ * sigma = 1, beta = eta = pairwise_scale * scale_rate in bgms parameter
+ * units (R/zratio_tables.R, zratio_cell_constants), and the same cell
+ * serves every user scale choice. Reference: SV/Z
+ * sbc_prior_chain_exact.cpp and the z_graph_prior deployed kernel
+ * (hier_chain_data.cpp).
  */
 class ZRatioEngine {
 public:
@@ -113,18 +117,24 @@ public:
                     double& oracle_out, ZRatioBlock& bl_out);
 
     /**
-     * Set the bare-scale prior constants and RNG the block-Gibbs oracle
-     * samples under, without entering calibration mode. rng must outlive
-     * the engine.
+     * Set the standardized-cell prior constants and RNG the block-Gibbs
+     * oracle samples under, without entering calibration mode. The frame is
+     * standardized (unit slab scale), so only the diagonal rate eta is free;
+     * sigma is fixed to 1. rng must outlive the engine. slab_cauchy selects
+     * the Cauchy slab family: the block couplings then run omega-augmented
+     * (scale-mixture of normals) and the endpoint legs mix per sweep,
+     * matching the marginal-Cauchy normalizer the tables integrate.
      */
-    void set_oracle_params(double delta, double sigma, double beta,
-                           SafeRNG* rng, int n_sweep = 300, int burn = 30) {
+    void set_oracle_params(double delta, double eta, SafeRNG* rng,
+                           int n_sweep = 300, int burn = 30,
+                           bool slab_cauchy = false) {
         delta_ = delta;
-        sigma_ = sigma;
-        beta_ = beta;
+        sigma_ = 1.0;
+        beta_ = eta;
         rng_ = rng;
         n_sweep_ = n_sweep;
         burn_ = burn;
+        oracle_slab_cauchy_ = slab_cauchy;
     }
 
     /**
@@ -138,12 +148,15 @@ public:
      * box into the addc layout, after which the engine behaves exactly
      * like one constructed with a full 23-slot constant block.
      *
-     * (delta, sigma, beta) are the bare-scale prior constants the oracle
-     * samples under; rng must outlive the engine (the model's chain RNG).
+     * (delta, eta) are the standardized-cell prior constants the oracle
+     * samples under (unit slab scale, diagonal rate eta); rng must outlive
+     * the engine (the model's chain RNG). slab_cauchy selects the Cauchy
+     * slab family for the oracle (see set_oracle_params).
      */
-    void enable_calibration(double delta, double sigma, double beta,
-                            SafeRNG* rng, int n_sweep = 300, int burn = 30,
-                            double maha_thresh = 9.0, int min_anchors = 6);
+    void enable_calibration(double delta, double eta, SafeRNG* rng,
+                            int n_sweep = 300, int burn = 30,
+                            double maha_thresh = 9.0, int min_anchors = 6,
+                            bool slab_cauchy = false);
 
     /** Refit and freeze: pack coefficients + hull box into addc[6..22]. */
     void freeze_calibration();
@@ -178,10 +191,11 @@ public:
     const arma::vec& anchors_y() const { return ay_; }
 
 private:
-    void gibbs_sweep_(arma::mat& k_blk,
+    void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr) const;
     bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
-                        const arma::uvec& sj, double& w, double& p1,
+                        const arma::uvec& sj, const arma::vec& wsi,
+                        const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
     void refit_();
 
@@ -202,6 +216,7 @@ private:
     // Online-calibration state (inert unless enable_calibration ran).
     bool calibration_enabled_ = false;
     bool frozen_ = true;
+    bool oracle_slab_cauchy_ = false;
     double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5;
     SafeRNG* rng_ = nullptr;
     int n_sweep_ = 300, burn_ = 30;

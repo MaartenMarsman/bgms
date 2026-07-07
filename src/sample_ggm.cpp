@@ -124,11 +124,13 @@ Rcpp::List sample_ggm(
             zratio_window = Rcpp::as<int>(zs["calibration_window"]);
         }
         if (zratio_window > 0) {
+            bool zr_cauchy = zs.containsElementNamed("slab") &&
+                Rcpp::as<std::string>(zs["slab"]) == "cauchy";
             // The rng pointer is rebound per chain clone by GGMModel.
             engine->enable_calibration(
                 Rcpp::as<double>(zs["delta"]),
-                Rcpp::as<double>(zs["sigma"]),
-                Rcpp::as<double>(zs["beta"]), nullptr);
+                Rcpp::as<double>(zs["eta"]), nullptr, 300, 30, 9.0, 6,
+                zr_cauchy);
         }
         model.set_zratio_engine(std::move(engine));
     }

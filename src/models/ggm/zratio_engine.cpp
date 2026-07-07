@@ -245,19 +245,21 @@ bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
     return true;
 }
 
-void ZRatioEngine::enable_calibration(double delta, double sigma, double beta,
-                                      SafeRNG* rng, int n_sweep, int burn,
-                                      double maha_thresh, int min_anchors) {
+void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
+                                      int n_sweep, int burn,
+                                      double maha_thresh, int min_anchors,
+                                      bool slab_cauchy) {
     calibration_enabled_ = true;
     frozen_ = false;
     delta_ = delta;
-    sigma_ = sigma;
-    beta_ = beta;
+    sigma_ = 1.0;
+    beta_ = eta;
     rng_ = rng;
     n_sweep_ = n_sweep;
     burn_ = burn;
     maha_thresh_ = maha_thresh;
     min_anchors_ = min_anchors;
+    oracle_slab_cauchy_ = slab_cauchy;
 }
 
 void ZRatioEngine::refit_() {
@@ -290,7 +292,7 @@ void ZRatioEngine::freeze_calibration() {
     addc_ = packed;
 }
 
-void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk,
+void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                                 const std::vector<arma::uvec>& nbr) const {
     const int m = static_cast<int>(k_blk.n_rows);
     const double s2i = 1.0 / (sigma_ * sigma_);
@@ -312,7 +314,13 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk,
             }
             arma::mat c_mat = a_inv.submat(idx_a, idx_a);
             arma::mat m_mat = 2.0 * beta_ * c_mat;
-            m_mat.diag() += s2i;
+            if (oracle_slab_cauchy_) {
+                for (int j = 0; j < nq; ++j) {
+                    m_mat(j, j) += s2i / omega_blk(i, ni[j]);
+                }
+            } else {
+                m_mat.diag() += s2i;
+            }
             arma::mat r_chol;
             if (!arma::chol(r_chol, m_mat)) continue;
             arma::vec z(nq);
@@ -325,6 +333,16 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk,
                 k_blk(i, ni[j]) = bvec[j];
             }
             k_blk(i, i) = xi + quad;
+            if (oracle_slab_cauchy_) {
+                // Conjugate omega | k ~ IG(1, 1/2 + k^2 / (2 sigma^2)).
+                for (int j = 0; j < nq; ++j) {
+                    const double b = bvec[j];
+                    const double ig_rate = 0.5 + 0.5 * b * b * s2i;
+                    const double wo = ig_rate / rexp(*rng_, 1.0);
+                    omega_blk(i, ni[j]) = wo;
+                    omega_blk(ni[j], i) = wo;
+                }
+            }
         } else {
             k_blk(i, i) = rgamma(*rng_, delta_ + 1.0, beta_);
         }
@@ -332,13 +350,36 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk,
 }
 
 bool ZRatioEngine::inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
-                                  const arma::uvec& sj, double& w, double& p1,
+                                  const arma::uvec& sj, const arma::vec& wsi,
+                                  const arma::vec& wsj, double& w, double& p1,
                                   double& p2) const {
     const double t2 = 2.0 * beta_ * sigma_ * sigma_;
     arma::mat r_inv;
     if (!arma::inv_sympd(r_inv, k_blk)) return false;
     arma::mat rii = r_inv.submat(si, si), rjj = r_inv.submat(sj, sj),
               rij = r_inv.submat(si, sj);
+    const double s4 = sigma_ * sigma_ * sigma_ * sigma_, s8 = s4 * s4;
+    if (oracle_slab_cauchy_) {
+        // Leg-dressed recipe under the scale-mixture slab: with
+        // Wi = diag(sqrt(omega_leg)), Mi = (I + t2 Wi Rii Wi)^{-1} and
+        // P = (Wi Mi Wi) Rij (Wj Mj Wj) Rij^T; reduces to the plain
+        // resolvent form at omega = 1.
+        arma::mat di = arma::diagmat(wsi), dj = arma::diagmat(wsj);
+        arma::mat mi, mj;
+        if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) +
+                                     t2 * di * rii * di)) {
+            return false;
+        }
+        if (!arma::inv_sympd(mj, arma::eye(sj.n_elem, sj.n_elem) +
+                                     t2 * dj * rjj * dj)) {
+            return false;
+        }
+        arma::mat p_mat = (di * mi * di) * rij * (dj * mj * dj) * rij.t();
+        w = std::sqrt(arma::det(mi) * arma::det(mj));
+        p1 = s4 * arma::trace(p_mat);
+        p2 = s8 * arma::accu(p_mat % p_mat.t());
+        return true;
+    }
     arma::mat mi, mj;
     if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) + t2 * rii)) {
         return false;
@@ -350,7 +391,6 @@ bool ZRatioEngine::inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
     // values of Mi^.5 Rij Mj^.5, sum u_k = sigma^4 tr(P) and sum u_k^2 =
     // sigma^8 tr(P^2) for P = Mi Rij Mj Rij^T.
     arma::mat p_mat = mi * rij * mj * rij.t();
-    const double s4 = sigma_ * sigma_ * sigma_ * sigma_, s8 = s4 * s4;
     w = std::sqrt(arma::det(mi) * arma::det(mj));
     p1 = s4 * arma::trace(p_mat);
     p2 = s8 * arma::accu(p_mat % p_mat.t());
@@ -371,16 +411,31 @@ bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
         nbr[i] = arma::uvec(v);
     }
     arma::mat k_blk(m, m, arma::fill::zeros);
+    arma::mat omega_blk;
+    if (oracle_slab_cauchy_) omega_blk.ones(m, m);
     for (int l = 0; l < m; ++l) {
         k_blk(l, l) = rexp(*rng_, beta_) + m;
     }
-    for (int s = 0; s < burn_; ++s) gibbs_sweep_(k_blk, nbr);
+    for (int s = 0; s < burn_; ++s) gibbs_sweep_(k_blk, omega_blk, nbr);
     double sw = 0, sw1 = 0, sw2 = 0;
     long kept = 0;
+    arma::vec wsi, wsj;
     for (int s = 0; s < n_sweep_; ++s) {
-        gibbs_sweep_(k_blk, nbr);
+        gibbs_sweep_(k_blk, omega_blk, nbr);
+        if (oracle_slab_cauchy_) {
+            // Fresh leg weights per kept sweep: sqrt(omega) = 1/|z| with z
+            // standard normal; the sweep average carries the mixture.
+            wsi.set_size(si.n_elem);
+            wsj.set_size(sj.n_elem);
+            for (arma::uword k = 0; k < wsi.n_elem; ++k) {
+                wsi[k] = 1.0 / std::abs(rnorm(*rng_, 0.0, 1.0));
+            }
+            for (arma::uword k = 0; k < wsj.n_elem; ++k) {
+                wsj[k] = 1.0 / std::abs(rnorm(*rng_, 0.0, 1.0));
+            }
+        }
         double w, p1, p2;
-        if (inner_moments_(k_blk, si, sj, w, p1, p2)) {
+        if (inner_moments_(k_blk, si, sj, wsi, wsj, w, p1, p2)) {
             sw += w;
             sw1 += w * p1;
             sw2 += w * p2;

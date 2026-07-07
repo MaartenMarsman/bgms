@@ -13,15 +13,15 @@
 # ------------------------------------------------------------------------------
 # zratio_eta
 # ------------------------------------------------------------------------------
-# Standardized prior-scale regime index: eta = sigma * beta in the bare frame
-# (sigma = 1, beta = eta after standardization). Drives the verdict threshold.
+# Standardized prior-scale regime index: the diagonal rate eta in the
+# standardized frame (unit slab scale). Drives the verdict threshold.
 #
-# @param zratio_spec  Z-ratio spec list with bare-scale sigma and beta.
+# @param zratio_spec  Z-ratio spec list carrying the standardized eta.
 #
 # Returns: Numeric scalar eta.
 # ------------------------------------------------------------------------------
 zratio_eta = function(zratio_spec) {
-  zratio_spec$sigma * zratio_spec$beta
+  zratio_spec$eta
 }
 
 # ------------------------------------------------------------------------------
@@ -277,8 +277,9 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
       graphs[[g]], edges,
       addc, zratio_spec$tg, zratio_spec$ihat, zratio_spec$ghat,
       zratio_spec$wt, zratio_spec$psi0,
-      zratio_spec$delta, zratio_spec$sigma, zratio_spec$beta,
-      as.integer(audit_sweep), 30L, as.integer(seed + g)
+      zratio_spec$delta, zratio_spec$eta,
+      as.integer(audit_sweep), 30L, as.integer(seed + g),
+      identical(zratio_spec$slab, "cauchy")
     )
     err[sel] = audit$err
   }
@@ -318,8 +319,9 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
 #' visited-density band). The verdict flags a chain when the maximum of its
 #' targeted (or, without a fit, random) and additive-zone audit errors
 #' exceeds the regime threshold: 0.01 at \eqn{\eta = 1}, 0.02 at
-#' \eqn{\eta = 2}, 0.04 at \eqn{\eta \ge 3}, with
-#' \eqn{\eta = \sigma \beta} in the bare prior scale. A quiet verdict bounds
+#' \eqn{\eta = 2}, 0.04 at \eqn{\eta \ge 3}, where \eqn{\eta} is the
+#' diagonal rate in the standardized (unit slab scale) frame. A quiet
+#' verdict bounds
 #' the pointwise approximation error on visited graphs; coherent sub-margin
 #' bias that accumulates through inclusion-probability feedback (prior-only
 #' chains at large \eqn{p}) is outside its reach.
@@ -331,8 +333,8 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
 #'   active.
 #' @param zratio_spec The Z-ratio specification list used for the run:
 #'   quadrature tables \code{tg}, \code{ihat}, \code{ghat}, \code{wt},
-#'   isolated-edge ratio \code{psi0}, and the bare-scale constants
-#'   \code{delta}, \code{sigma}, \code{beta}.
+#'   isolated-edge ratio \code{psi0}, and the standardized-cell constants
+#'   \code{delta} and \code{eta}.
 #' @param num_nodes Integer: number of nodes \eqn{p}.
 #' @param n_graphs Integer: visited graphs scanned per chain (default 12).
 #' @param top_k Integer: picks per targeted rule and additive-zone top-m
@@ -361,7 +363,7 @@ zratio_audit_chain = function(chain, zratio_spec, num_nodes, n_graphs, top_k,
 #'       flags (\code{drift_density}, \code{drift_theta}), and regime
 #'       context (\code{a1a_out_frac}, \code{m32_frac},
 #'       \code{dens_out_frac}).}
-#'     \item{\code{eta}}{Regime index \eqn{\sigma \beta}.}
+#'     \item{\code{eta}}{Regime index: the standardized diagonal rate.}
 #'     \item{\code{tau}}{Verdict threshold at this \code{eta}.}
 #'     \item{\code{verdict_flagged}}{Logical: any chain flagged.}
 #'     \item{\code{calibration_incomplete}}{Logical: any chain's

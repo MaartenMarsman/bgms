@@ -53,6 +53,91 @@ test_that("hierarchical graph marginal matches Bernoulli(p); joint does not", {
   }
 })
 
+test_that("Z-ratio constants build in the standardized cell", {
+  skip_on_cran()
+  # The between-graph ratio depends on (delta, eta) only, so every user
+  # frame with the same eta = pairwise_scale * scale_rate must resolve to
+  # one constant set, built at sigma = 1 (the frame the quadrature grids
+  # are sized for). At the old bare-scale build the scale-2.5 frame drifted
+  # the saddle by -0.10 in log J and the q = 6 identity by -0.008.
+  d = 0.5 * log(6)
+  a = bgms:::zratio_cell_constants(d, pairwise_scale = 0.5, scale_rate = 2)
+  b = bgms:::zratio_cell_constants(d, pairwise_scale = 0.25, scale_rate = 4)
+  e = bgms:::zratio_cell_constants(
+    d,
+    pairwise_scale = 2.5, scale_rate = 0.4, scale_eta = 1
+  )
+  expect_identical(a, b)
+  expect_identical(a, e)
+  expect_identical(a$eta, 1)
+})
+
+test_that("hierarchical graph marginal holds at a non-unit slab scale", {
+  skip_on_cran()
+  # pairwise scale 2.5 (the sample_ggm_prior default) with eta = 1 is the
+  # same physical cell as scale 0.5 / rate 2; the graph law must hold there
+  # identically.
+  d = sample_ggm_prior(
+    p = 6L, n_samples = 6000L, n_warmup = 1500L,
+    interaction_prior = normal_prior(scale = 2.5),
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    spec = "hierarchical", edge_inclusion_prob = 0.3,
+    update_method = "adaptive-metropolis", delta = 0.5 * log(6),
+    seed = 11L, verbose = FALSE
+  )
+  expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02)
+})
+
+test_that("hierarchical graph marginal holds for the Cauchy slab", {
+  skip_on_cran()
+  # The Cauchy slab needs its own (marginal-Cauchy) Z-ratio constants; with
+  # the Normal tables this cell read 0.247 for a 0.30 edge prior.
+  for(um in c("adaptive-metropolis", "gibbs")) {
+    d = sample_ggm_prior(
+      p = 6L, n_samples = 6000L, n_warmup = 1500L,
+      interaction_prior = cauchy_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+      spec = "hierarchical", edge_inclusion_prob = 0.3,
+      update_method = um, delta = 0.5 * log(6), seed = 7L, verbose = FALSE
+    )
+    expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02, label = um)
+  }
+})
+
+test_that("Cauchy graph law holds at dense high q (coupling regime)", {
+  skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the dense high-q Cauchy identity"
+  )
+  # The single-edge memo flags the Gaussian-mixture slab as a coupling-
+  # sensitive case (the additive moment approximation weakens on dense
+  # blocks). At dense high q (q = 15, 20; p_inc = 0.5, 0.7) the deployed
+  # system -- additive saddle + warm-up OLS correction on maxbd >= 2 blocks
+  # (the default window engages at p >= 15) -- must still reproduce the edge
+  # prior. The marginal is the release-relevant statistic; the per-block
+  # alarm verdict is expected to flag here (it does for the Normal slab too)
+  # and is not asserted.
+  suppressMessages(library(parallel))
+  cells = expand.grid(
+    q = c(15L, 20L), p_inc = c(0.5, 0.7),
+    um = c("adaptive-metropolis", "gibbs"), stringsAsFactors = FALSE
+  )
+  devs = unlist(mclapply(seq_len(nrow(cells)), function(r) {
+    cl = cells[r, ]
+    d = sample_ggm_prior(
+      p = cl$q, n_samples = 6000L, n_warmup = 2000L,
+      interaction_prior = cauchy_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+      spec = "hierarchical", edge_inclusion_prob = cl$p_inc,
+      update_method = cl$um, delta = 0.5 * log(cl$q),
+      seed = 4000L + r, verbose = FALSE
+    )
+    mean(d$edge_indicators) - cl$p_inc
+  }, mc.cores = min(8L, nrow(cells))))
+  expect_lt(max(abs(devs)), 0.02)
+})
+
 test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
   skip_on_cran()
   d = hier_prior_run(
