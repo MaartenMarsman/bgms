@@ -70,7 +70,7 @@ test_that("the audit flags a defective frozen kernel", {
   skip_on_cran()
   p = 10
   delta = 0.5 * log(p)
-  zc = bgms:::zratio_constants(delta, sigma = 1, beta = 1)
+  zc = bgms:::zratio_constants(delta, eta = 1)
   # Pack a fit whose correction is a constant 0.05 on every coupled-bridge
   # block, with a hull box wide enough that the clamp never engages. The
   # oracle discrepancy on healthy blocks is O(0.001), so every targeted
@@ -114,7 +114,7 @@ test_that("the audit flags a defective frozen kernel", {
   )
   spec = list(
     tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat, wt = zc$wt, psi0 = zc$psi0,
-    delta = delta, sigma = 1, beta = 1
+    delta = delta, eta = 1
   )
   old = options(bgms.verbose = TRUE)
   on.exit(options(old), add = TRUE)

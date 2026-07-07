@@ -118,18 +118,19 @@ public:
 
     /**
      * Set the standardized-cell prior constants and RNG the block-Gibbs
-     * oracle samples under, without entering calibration mode. rng must
-     * outlive the engine. slab_cauchy selects the Cauchy slab family: the
-     * block couplings then run omega-augmented (scale-mixture of normals)
-     * and the endpoint legs mix per sweep, matching the marginal-Cauchy
-     * normalizer the tables integrate.
+     * oracle samples under, without entering calibration mode. The frame is
+     * standardized (unit slab scale), so only the diagonal rate eta is free;
+     * sigma is fixed to 1. rng must outlive the engine. slab_cauchy selects
+     * the Cauchy slab family: the block couplings then run omega-augmented
+     * (scale-mixture of normals) and the endpoint legs mix per sweep,
+     * matching the marginal-Cauchy normalizer the tables integrate.
      */
-    void set_oracle_params(double delta, double sigma, double beta,
-                           SafeRNG* rng, int n_sweep = 300, int burn = 30,
+    void set_oracle_params(double delta, double eta, SafeRNG* rng,
+                           int n_sweep = 300, int burn = 30,
                            bool slab_cauchy = false) {
         delta_ = delta;
-        sigma_ = sigma;
-        beta_ = beta;
+        sigma_ = 1.0;
+        beta_ = eta;
         rng_ = rng;
         n_sweep_ = n_sweep;
         burn_ = burn;
@@ -147,13 +148,13 @@ public:
      * box into the addc layout, after which the engine behaves exactly
      * like one constructed with a full 23-slot constant block.
      *
-     * (delta, sigma, beta) are the standardized-cell prior constants the
-     * oracle samples under; rng must outlive the engine (the model's
-     * chain RNG). slab_cauchy selects the Cauchy slab family for the
-     * oracle (see set_oracle_params).
+     * (delta, eta) are the standardized-cell prior constants the oracle
+     * samples under (unit slab scale, diagonal rate eta); rng must outlive
+     * the engine (the model's chain RNG). slab_cauchy selects the Cauchy
+     * slab family for the oracle (see set_oracle_params).
      */
-    void enable_calibration(double delta, double sigma, double beta,
-                            SafeRNG* rng, int n_sweep = 300, int burn = 30,
+    void enable_calibration(double delta, double eta, SafeRNG* rng,
+                            int n_sweep = 300, int burn = 30,
                             double maha_thresh = 9.0, int min_anchors = 6,
                             bool slab_cauchy = false);
 

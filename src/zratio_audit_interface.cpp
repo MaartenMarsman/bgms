@@ -72,9 +72,9 @@ arma::mat zratio_scan_graph(
 //   Measurement-only oracle audit of picked edges on one graph. Per edge:
 //   the deployed correction under `addc` versus the block-Gibbs local
 //   oracle discrepancy log(saddle on oracle moments) - log(additive), and
-//   the audit score |pred - oracle|. (delta, sigma, beta) are the
-//   standardized-cell prior constants; slab_cauchy selects the Cauchy
-//   slab family for the oracle. Rows with ok = 0 had a one-sided block,
+//   the audit score |pred - oracle|. (delta, eta) are the standardized-cell
+//   prior constants (unit slab scale); slab_cauchy selects the Cauchy slab
+//   family for the oracle. Rows with ok = 0 had a one-sided block,
 //   non-positive additive moments, or an oracle with no finite sweep;
 //   their scores are NA.
 // -----------------------------------------------------------------------------
@@ -90,8 +90,7 @@ Rcpp::List zratio_audit_edges(
     arma::vec wt,
     double psi0,
     double delta,
-    double sigma,
-    double beta,
+    double eta,
     int n_sweep,
     int burn,
     int seed,
@@ -99,8 +98,7 @@ Rcpp::List zratio_audit_edges(
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     SafeRNG rng(seed);
-    engine.set_oracle_params(delta, sigma, beta, &rng, n_sweep, burn,
-                             slab_cauchy);
+    engine.set_oracle_params(delta, eta, &rng, n_sweep, burn, slab_cauchy);
     const arma::uword n = edges.n_rows;
     arma::vec err(n), pred(n), oracle(n);
     arma::ivec ok(n);

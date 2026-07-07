@@ -245,15 +245,15 @@ bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
     return true;
 }
 
-void ZRatioEngine::enable_calibration(double delta, double sigma, double beta,
-                                      SafeRNG* rng, int n_sweep, int burn,
+void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
+                                      int n_sweep, int burn,
                                       double maha_thresh, int min_anchors,
                                       bool slab_cauchy) {
     calibration_enabled_ = true;
     frozen_ = false;
     delta_ = delta;
-    sigma_ = sigma;
-    beta_ = beta;
+    sigma_ = 1.0;
+    beta_ = eta;
     rng_ = rng;
     n_sweep_ = n_sweep;
     burn_ = burn;

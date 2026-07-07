@@ -187,8 +187,7 @@ Rcpp::List sample_mixed_mrf(
             // The rng pointer is rebound per chain clone by MixedMRFModel.
             engine->enable_calibration(
                 Rcpp::as<double>(zs["delta"]),
-                Rcpp::as<double>(zs["sigma"]),
-                Rcpp::as<double>(zs["beta"]), nullptr, 300, 30, 9.0, 6,
+                Rcpp::as<double>(zs["eta"]), nullptr, 300, 30, 9.0, 6,
                 zr_cauchy);
         }
         model.set_zratio_engine(std::move(engine));

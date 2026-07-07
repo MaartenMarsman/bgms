@@ -343,7 +343,7 @@ sample_ggm_prior = function(
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, sigma = zc$sigma, beta = zc$beta, slab = zc$slab,
+      delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
       )

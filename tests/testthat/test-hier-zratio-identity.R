@@ -69,8 +69,7 @@ test_that("Z-ratio constants build in the standardized cell", {
   )
   expect_identical(a, b)
   expect_identical(a, e)
-  expect_identical(a$sigma, 1)
-  expect_identical(a$beta, 1)
+  expect_identical(a$eta, 1)
 })
 
 test_that("hierarchical graph marginal holds at a non-unit slab scale", {

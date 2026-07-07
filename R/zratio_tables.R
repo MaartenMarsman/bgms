@@ -22,8 +22,7 @@
 # (sd_marginal_helpers.R, ks_validation_grid.R).
 
 # Golub-Welsch Gauss quadrature nodes/weights. kind: "laguerre" (weight
-# e^{-x} on (0, Inf)), "laguerre_half" (generalized Laguerre, weight
-# x^{-1/2} e^{-x} on (0, Inf)), "hermite" (weight e^{-x^2} on (-Inf, Inf)),
+# e^{-x} on (0, Inf)), "hermite" (weight e^{-x^2} on (-Inf, Inf)),
 # "legendre" (weight 1 on (-1, 1)).
 zratio_gauss_quad = function(n, kind) {
   k = seq_len(n - 1)
@@ -31,10 +30,6 @@ zratio_gauss_quad = function(n, kind) {
     a = 2 * seq_len(n) - 1
     b = k
     mu0 = 1
-  } else if(kind == "laguerre_half") {
-    a = 2 * seq_len(n) - 1.5
-    b = sqrt(k * (k - 0.5))
-    mu0 = gamma(0.5)
   } else if(kind == "hermite") {
     a = rep(0, n)
     b = sqrt(k / 2)
@@ -325,34 +320,37 @@ zratio_bridge_channel = function(delta, sigma, beta, slab = "normal",
 }
 
 # Standardized cell for one fit's Z-ratio constants. The between-graph
-# ratio depends on (delta, eta) only, so the constants are built at
-# sigma = 1, beta = eta, the frame the quadrature grids are sized for; user
-# scale choices with the same eta share one constant set. eta is the
-# user-specified standardized rate when the scale prior carries one, else
-# pairwise_scale * scale_rate (the same number up to rounding).
+# ratio depends on (delta, eta) only, so the constants take just those two:
+# eta is the user-specified standardized rate when the scale prior carries
+# one, else pairwise_scale * scale_rate (the same number up to rounding).
 zratio_cell_constants = function(delta, pairwise_scale, scale_rate,
                                  scale_eta = NA_real_, slab = "normal") {
   eta = if(is.finite(scale_eta)) scale_eta else pairwise_scale * scale_rate
-  zratio_constants(delta, sigma = 1, beta = eta, slab = slab)
+  zratio_constants(delta, eta, slab = slab)
 }
 
 # Session cache for zratio_constants: the constant set is deterministic per
-# (delta, sigma, beta) cell, and one fit resolves the same cell more than
-# once (sampler dispatch and diagnostics assembly).
+# (delta, eta, slab) cell, and one fit resolves the same cell more than once
+# (sampler dispatch and diagnostics assembly).
 zratio_constants_cache = new.env(parent = emptyenv())
 
-# Full fit-time constant set for one (delta, sigma, beta, slab) cell:
-# addc[1..6] (R indexing) = (w1, w2, ce1, ce2, cb1, cb2), the saddle grid,
-# and psi0 = I_spike(0)/G(0). The OLS-correction slots (7..13) and the hull
-# box (14..23) are absent here; the warm-up calibrator appends them.
-# The clique-2 channel draws seeded Monte Carlo samples, so the caller's RNG
+# Full fit-time constant set for one (delta, eta, slab) cell. The estimator
+# is defined in the standardized frame, so the slab has unit scale and the
+# diagonal rate is eta: the internal channel builders are evaluated at
+# sigma = 1, beta = eta (the frame the quadrature grids are sized for), and
+# no other scale is representable. addc[1..6] (R indexing) =
+# (w1, w2, ce1, ce2, cb1, cb2), plus the saddle grid and
+# psi0 = I_spike(0)/G(0). The OLS-correction slots (7..13) and the hull box
+# (14..23) are absent here; the warm-up calibrator appends them. The
+# clique-2 channel draws seeded Monte Carlo samples, so the caller's RNG
 # state is saved and restored. Results are served from a session cache keyed
 # on the cell.
-zratio_constants = function(delta, sigma, beta, slab = "normal") {
+zratio_constants = function(delta, eta, slab = "normal") {
   slab = match.arg(slab, c("normal", "cauchy"))
+  sigma = 1
+  beta = eta
   key = paste(
-    format(delta, digits = 17), format(sigma, digits = 17),
-    format(beta, digits = 17), slab,
+    format(delta, digits = 17), format(eta, digits = 17), slab,
     sep = "_"
   )
   cached = zratio_constants_cache[[key]]
@@ -385,8 +383,7 @@ zratio_constants = function(delta, sigma, beta, slab = "normal") {
   addc = c(w12[1], w12[2], e2[1] - 2 * w12[1], e2[2] - 2 * w12[2], cb[1], cb[2])
   out = list(
     delta = delta,
-    sigma = sigma,
-    beta = beta,
+    eta = eta,
     slab = slab,
     addc = addc,
     tg = grid$tg,

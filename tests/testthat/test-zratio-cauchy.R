@@ -107,7 +107,7 @@ test_that("Cauchy block-Gibbs oracle tracks the additive prediction", {
     audit = zratio_audit_edges(
       G, matrix(c(1L, 2L), 1, 2),
       zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
-      zc$delta, zc$sigma, zc$beta, 2000L, 50L, 42L,
+      zc$delta, zc$eta, 2000L, 50L, 42L,
       identical(slab, "cauchy")
     )
     expect_identical(as.integer(audit$ok), 1L, label = slab)

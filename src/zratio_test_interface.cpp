@@ -90,8 +90,7 @@ Rcpp::List zratio_test_calibrated_eval(
     arma::vec wt,
     double psi0,
     double delta,
-    double sigma,
-    double beta,
+    double eta,
     int seed,
     int n_sweep,
     int burn,
@@ -100,7 +99,7 @@ Rcpp::List zratio_test_calibrated_eval(
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     SafeRNG rng(seed);
-    engine.enable_calibration(delta, sigma, beta, &rng, n_sweep, burn, 9.0, 6,
+    engine.enable_calibration(delta, eta, &rng, n_sweep, burn, 9.0, 6,
                               slab_cauchy);
     arma::vec out(edges.n_rows);
     for (arma::uword e = 0; e < edges.n_rows; ++e) {
