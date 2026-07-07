@@ -104,6 +104,40 @@ test_that("hierarchical graph marginal holds for the Cauchy slab", {
   }
 })
 
+test_that("Cauchy graph law holds at dense high q (coupling regime)", {
+  skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the dense high-q Cauchy identity"
+  )
+  # The single-edge memo flags the Gaussian-mixture slab as a coupling-
+  # sensitive case (the additive moment approximation weakens on dense
+  # blocks). At dense high q (q = 15, 20; p_inc = 0.5, 0.7) the deployed
+  # system -- additive saddle + warm-up OLS correction on maxbd >= 2 blocks
+  # (the default window engages at p >= 15) -- must still reproduce the edge
+  # prior. The marginal is the release-relevant statistic; the per-block
+  # alarm verdict is expected to flag here (it does for the Normal slab too)
+  # and is not asserted.
+  suppressMessages(library(parallel))
+  cells = expand.grid(
+    q = c(15L, 20L), p_inc = c(0.5, 0.7),
+    um = c("adaptive-metropolis", "gibbs"), stringsAsFactors = FALSE
+  )
+  devs = unlist(mclapply(seq_len(nrow(cells)), function(r) {
+    cl = cells[r, ]
+    d = sample_ggm_prior(
+      p = cl$q, n_samples = 6000L, n_warmup = 2000L,
+      interaction_prior = cauchy_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+      spec = "hierarchical", edge_inclusion_prob = cl$p_inc,
+      update_method = cl$um, delta = 0.5 * log(cl$q),
+      seed = 4000L + r, verbose = FALSE
+    )
+    mean(d$edge_indicators) - cl$p_inc
+  }, mc.cores = min(8L, nrow(cells))))
+  expect_lt(max(abs(devs)), 0.02)
+})
+
 test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
   skip_on_cran()
   d = hier_prior_run(
