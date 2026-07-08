@@ -21,8 +21,11 @@
 //   Mediating-block descriptors for every upper-triangle pair of G whose
 //   block is two-sided. Returns a matrix with columns (i, j, ncn, cne,
 //   bre, maxbd, m, dens, pred, clamped); i, j are 1-based. `pred` is the
-//   deployed correction under `addc` (OLS value inside the hull, 0 outside
-//   it or without a packed fit) and `clamped` flags the hull fallback.
+//   deployed correction under `addc` (the OLS value for any block with
+//   maxbd >= 2, applied everywhere including past the calibration cloud; 0
+//   without a packed fit). `clamped` is retained for interface stability and
+//   is now always 0 (the frozen kernel no longer withholds the correction
+//   outside a hull box).
 // -----------------------------------------------------------------------------
 
 // [[Rcpp::export(name = "zratio_scan_graph")]]

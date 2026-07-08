@@ -48,10 +48,15 @@ struct ZRatioBlock {
  *            has bridge multiplicity >= 2.
  *   [12]     > 0.5 selects the direct ratio-scale correction (log J += fc
  *            after the cached saddle); the cache then keys on the counts
- *            only.
- *   [13..22] optional hull box (per-feature min/max of the calibration
- *            design, order bre, m, cne, maxbd, dens); outside the box the
- *            correction is zeroed so the frozen kernel never extrapolates.
+ *            only. Applied for every block with bridge multiplicity >= 2
+ *            (the single deployment gate); never re-gated on the block's
+ *            location in feature space.
+ *   [13..22] hull box of the calibration design (per-feature min/max,
+ *            order bre, m, cne, maxbd, dens), retained for diagnostics only.
+ *            The frozen kernel no longer gates on it: reverting to the biased
+ *            additive saddle outside a prior/size-dependent box is worse than
+ *            extrapolating the smooth ratio-scale surface, so the correction
+ *            extends past the training cloud.
  *
  * Conventions (standardized cell): K_ii ~ Exp(beta), slab K_ij ~ N(0,
  * sigma^2), tilt |K|^delta. The between-graph ratio is invariant under the
@@ -97,8 +102,9 @@ public:
     /**
      * Deployed OLS correction for one block under the current constant
      * block: 0 for maxbd < 2 or when no fit is packed (addc[12] <= 0.5),
-     * the OLS value inside the hull box, 0 outside it (clamped = true).
-     * Reads state only; no counters move.
+     * otherwise the OLS value (applied everywhere, including past the
+     * calibration cloud; clamped is always false, kept for interface
+     * stability). Reads state only; no counters move.
      */
     double deployed_correction(const ZRatioBlock& bl, bool& clamped) const;
 

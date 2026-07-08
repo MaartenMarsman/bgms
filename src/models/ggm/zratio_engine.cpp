@@ -205,25 +205,19 @@ double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
     if (bl.maxbd < 2) return 0.0;
     bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
     if (!direct) return 0.0;
+    // Single gate: once the edge has bridge multiplicity >= 2 the direct
+    // ratio-scale correction is applied everywhere. The correction is a
+    // smooth low-dimensional surface on the log-ratio scale, and the
+    // corrected value dominates the uncorrected additive saddle, most of all
+    // in the dense/large-block corner. Reverting to additive outside a
+    // calibration hull would reintroduce the additive bias exactly where it
+    // is largest, so the frozen kernel extrapolates the surface rather than
+    // gating on a prior/size-dependent box.
     double fc = addc_[6] + addc_[7] * static_cast<double>(bl.bre) +
                 addc_[8] * static_cast<double>(bl.m) +
                 addc_[9] * static_cast<double>(bl.cne) +
                 addc_[10] * static_cast<double>(bl.maxbd) +
                 addc_[11] * bl.dens;
-    if (addc_.n_elem >= 23) {
-        double bd = static_cast<double>(bl.bre), md = static_cast<double>(bl.m),
-               cd = static_cast<double>(bl.cne),
-               xd = static_cast<double>(bl.maxbd);
-        bool inside =
-            (bd >= addc_[13] && bd <= addc_[14] && md >= addc_[15] &&
-             md <= addc_[16] && cd >= addc_[17] && cd <= addc_[18] &&
-             xd >= addc_[19] && xd <= addc_[20] && bl.dens >= addc_[21] &&
-             bl.dens <= addc_[22]);
-        if (!inside) {
-            fc = 0.0;
-            clamped = true;
-        }
-    }
     return fc;
 }
 
