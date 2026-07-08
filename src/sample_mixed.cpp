@@ -169,6 +169,7 @@ Rcpp::List sample_mixed_mrf(
     // p(K_yy | Gamma_yy) = rho/Z(Gamma_yy). The constants are resolved at R
     // spec-build (zratio_constants); each chain clone deep-copies the engine.
     int zratio_window = 0;
+    int zratio_gauge_sweeps = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
         auto engine = std::make_shared<ZRatioEngine>(
@@ -181,14 +182,20 @@ Rcpp::List sample_mixed_mrf(
         if (zs.containsElementNamed("calibration_window")) {
             zratio_window = Rcpp::as<int>(zs["calibration_window"]);
         }
+        if (zs.containsElementNamed("gauge_sweeps")) {
+            zratio_gauge_sweeps = Rcpp::as<int>(zs["gauge_sweeps"]);
+        }
+        bool zr_cauchy = zs.containsElementNamed("slab") &&
+            Rcpp::as<std::string>(zs["slab"]) == "cauchy";
+        const double zr_delta = Rcpp::as<double>(zs["delta"]);
+        const double zr_eta = Rcpp::as<double>(zs["eta"]);
+        // The rng pointer is rebound per chain clone by MixedMRFModel.
         if (zratio_window > 0) {
-            bool zr_cauchy = zs.containsElementNamed("slab") &&
-                Rcpp::as<std::string>(zs["slab"]) == "cauchy";
-            // The rng pointer is rebound per chain clone by MixedMRFModel.
-            engine->enable_calibration(
-                Rcpp::as<double>(zs["delta"]),
-                Rcpp::as<double>(zs["eta"]), nullptr, 300, 30, 9.0, 6,
-                zr_cauchy);
+            engine->enable_calibration(zr_delta, zr_eta, nullptr, 300, 30, 9.0,
+                                       6, zr_cauchy);
+        } else {
+            engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
+                                      zr_cauchy);
         }
         model.set_zratio_engine(std::move(engine));
     }
@@ -235,6 +242,7 @@ Rcpp::List sample_mixed_mrf(
     config.max_tree_depth = max_tree_depth;
     config.learn_mass_matrix = learn_mass_matrix;
     config.zratio_calibration_window = zratio_window;
+    config.zratio_gauge_sweeps = zratio_gauge_sweeps;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup + zratio_window, 50, progress_type, true, progress_callback);

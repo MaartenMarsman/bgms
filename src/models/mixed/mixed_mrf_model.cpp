@@ -253,6 +253,16 @@ void MixedMRFModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         static_cast<double>(engine.cache_size()),
         engine.frozen() ? 1.0 : 0.0
     };
+    if (zratio_gauge_.n_sweeps > 0) {
+        chain_result.zratio_gauge_ran = true;
+        chain_result.zratio_gauge_D = zratio_gauge_.D();
+        chain_result.zratio_gauge_noise_floor = zratio_gauge_.noise_floor();
+        chain_result.zratio_gauge_se_mean = zratio_gauge_.se_mean();
+        chain_result.zratio_gauge_se_sd = zratio_gauge_.se_sd();
+        chain_result.zratio_gauge_n_ent = zratio_gauge_.n_ent;
+        chain_result.zratio_gauge_n_ref = zratio_gauge_.n_ref;
+        chain_result.zratio_gauge_n_capped = zratio_gauge_.n_capped;
+    }
 }
 
 
