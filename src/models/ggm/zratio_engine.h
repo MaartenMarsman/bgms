@@ -181,6 +181,24 @@ public:
                               const arma::uvec& sj, double& s1_out,
                               double& s2_out);
 
+    /**
+     * Block-local EXACT reference for the trust gauge: log R_e where
+     * R_e = mean_H{ W(H) <phi, I_N> } / mean_H{ W(H) <phi, I_G> } over
+     * n_draws rest-block precision draws H = K_R^{-1} of the mediating
+     * block. Unlike block_oracle_moments (two-moment saddle collapse) the
+     * endpoint couplings are integrated with the full product transform
+     * phi(t|H) = prod_k (1 + u_k t^2)^{-1/2}, u_k = sigma^4 s_k^2 over ALL
+     * singular values s_k of the cross-resolvent. Common random numbers
+     * across the two averages, endpoints analytic. Fills logR_out and
+     * mcse_out (batch-means MC standard error on the log scale). Returns
+     * false when no draw yields a finite pair. Draws from the live rng_;
+     * requires set_oracle_params / enable_calibration to have set the
+     * standardized-cell prior constants.
+     */
+    bool block_reference_logR(const arma::imat& a_blk, const arma::uvec& si,
+                              const arma::uvec& sj, int n_draws,
+                              double& logR_out, double& mcse_out);
+
     long cache_size() const { return static_cast<long>(cache_.size()); }
     long n_hit() const { return n_hit_; }
     long n_miss() const { return n_miss_; }
@@ -199,10 +217,18 @@ public:
 private:
     void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr) const;
+    /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
+    void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
+                     arma::mat& k_blk, arma::mat& omega_blk) const;
     bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
                         const arma::uvec& sj, const arma::vec& wsi,
                         const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
+    /** Per-draw full-product endpoint integrals for block_reference_logR. */
+    bool inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+                          const arma::uvec& sj, const arma::vec& wsi,
+                          const arma::vec& wsj, double& w, double& fN,
+                          double& gG, double& kappa2) const;
     void refit_();
 
     /** Pack the (nCN, cne, bre) additive-cache counts into one integer key. */
