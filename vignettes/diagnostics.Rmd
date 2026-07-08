@@ -184,6 +184,27 @@ The returned list contains the following fields (one value per chain):
 
 If these diagnostics suggest the chain was still settling, increase `warmup` and re-run the model. If diagnostics remain problematic after a substantial increase (for example, doubling or tripling `warmup`), consider re-fitting with `update_method = "adaptive-metropolis"` and comparing the posterior summaries. If the two samplers produce similar results, the estimates are likely trustworthy despite the warnings; if they differ substantially, that warrants further investigation of the model or data.
 
+# Z-ratio trust gauge
+
+The hierarchical graph prior (`precision_graph_prior = "hierarchical"`) accepts edge moves using an approximate normalizing-constant ratio. The trust gauge measures how often that approximation would have changed an accept/reject decision, by comparing it against a block-local Monte Carlo reference on the chain's own moves. It flags; it does not fix. The summary is returned as `fit$zratio_diag` and is available through `summarize_zratio_gauge()`.
+
+## D: the operational flag
+
+`D` is the fraction of edge moves that would flip under the exact ratio. A chain is green when `D` stays under 1% (beyond the reference's own Monte Carlo noise floor) and amber above it. Unlike a *p*-value, `D` is in direct impact units, so the same 1% tolerance applies at any number of variables and any graph prior.
+
+If a chain is amber, the approximation is materially affecting that chain's structure decisions in the regime it explored (typically a high prior scale and/or many variables). Options: reduce the prior scale toward the calibrated range, or treat the recovered structure as approximate and cross-check the flagged edges.
+
+## Two-tier reading: D and s_e
+
+The gauge reports both `D` and the log-ratio error `s_e`, read together the way E-BFMI and R-hat are read together:
+
+- `s_e` (in nats) answers *is the estimator biased at all?* It is sensitive and fires whenever the approximation is off, even when it changes no decisions.
+- `D` answers *does that bias change this chain's moves?* It is the operational flag. With strong data, `D` can be near zero even when `s_e` is non-zero, because the likelihood saturates the acceptances and the biased ratio flips nothing (correct self-calibration). So watch `D` for the flag; read `s_e` when you want to know whether the estimator itself is off (for example, a prior-only or weak-data run).
+
+## Relationship to R-hat
+
+R-hat catches mixing; the gauge catches estimator fidelity. They usually co-fire, but if every chain shares the same systematic ratio bias and still mixes, the chains agree and R-hat looks clean — the gauge is what closes that blind spot. Read them together.
+
 # Next steps
 
 - See *Getting Started* for a simple one-sample workflow.
