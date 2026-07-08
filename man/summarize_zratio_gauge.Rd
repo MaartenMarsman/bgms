@@ -56,8 +56,5 @@ draws$zratio_diagnostics$per_chain
 }
 \seealso{
 \code{\link{sample_ggm_prior}}
-
-Other diagnostics:
-\code{\link[=summarize_zratio_diagnostics]{summarize_zratio_diagnostics()}}
 }
 \concept{diagnostics}

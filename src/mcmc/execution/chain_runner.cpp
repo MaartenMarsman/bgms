@@ -118,8 +118,8 @@ void run_mcmc_chain(
         }
 
         // Z-ratio drift trace: graph density and edge-prior theta over the
-        // selection-enabled warmup stream. Feeds the end-of-warmup drift
-        // condition in summarize_zratio_diagnostics.
+        // selection-enabled warmup stream, surfaced in the zratio chain
+        // block for manual inspection of end-of-warmup calibration drift.
         if (config.zratio_calibration_window > 0 &&
             iter < schedule.total_warmup &&
             schedule.selection_enabled(iter) && model.has_edge_selection()) {

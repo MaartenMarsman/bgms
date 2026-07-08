@@ -221,24 +221,6 @@ double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
     return fc;
 }
 
-bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
-                              double& pred_out, double& oracle_out,
-                              ZRatioBlock& bl_out) {
-    bl_out = extract_block(G, i, j);
-    const ZRatioBlock& bl = bl_out;
-    if (!bl.valid) return false;
-    double s1 = bl.ncn * addc_[0] + bl.cne * addc_[2] + bl.bre * addc_[4];
-    double s2 = bl.ncn * addc_[1] + bl.cne * addc_[3] + bl.bre * addc_[5];
-    if (s1 <= 0 || s2 <= 0) return false;
-    const double log_r_add = MY_LOG(saddle_ratio(s1, s2));
-    bool clamped = false;
-    pred_out = deployed_correction(bl, clamped);
-    double s1b = 0, s2b = 0;
-    if (!block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) return false;
-    oracle_out = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
-    return true;
-}
-
 void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
                                       int n_sweep, int burn,
                                       double maha_thresh, int min_anchors,

@@ -109,20 +109,6 @@ public:
     double deployed_correction(const ZRatioBlock& bl, bool& clamped) const;
 
     /**
-     * Measurement-only audit of the edge (i, j): the deployed correction
-     * versus the block-Gibbs local oracle on the same block.
-     *
-     * On success fills pred_out (deployed correction), oracle_out
-     * (log(saddle on oracle moments) - log(additive saddle)) and bl_out,
-     * and returns true. Returns false for one-sided blocks, non-positive
-     * additive moments, or an oracle with no finite sweep. Requires
-     * set_oracle_params (or enable_calibration) to have run; feeds
-     * nothing back into the fit, caches, or counters.
-     */
-    bool audit_edge(const arma::imat& G, int i, int j, double& pred_out,
-                    double& oracle_out, ZRatioBlock& bl_out);
-
-    /**
      * Set the standardized-cell prior constants and RNG the block-Gibbs
      * oracle samples under, without entering calibration mode. The frame is
      * standardized (unit slab scale), so only the diagonal rate eta is free;
