@@ -23,7 +23,11 @@ test_that("engine reproduces the reference log Z-ratios (all cells/variants)", {
         res = zratio_test_eval(
           g, edges, addc, cell$tg, cell$ihat, cell$ghat, cell$wt, cell$psi0
         )
-        ref = cell$evals[[paste(gn, variant, sep = "_")]]
+        # The hull box (addc[13..22]) is inert since the deployed correction
+        # now applies to every maxbd >= 2 block: the "clamp" variant collapses
+        # onto the "direct" (correction-everywhere) reference.
+        ref_variant = if(variant == "clamp") "direct" else variant
+        ref = cell$evals[[paste(gn, ref_variant, sep = "_")]]
         expect_equal(
           as.numeric(res$log_zratio), unname(ref),
           tolerance = 1e-12,
