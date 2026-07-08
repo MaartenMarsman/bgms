@@ -438,11 +438,7 @@ sample_ggm_prior = function(
     out$allocations = t(results[[1L]]$allocation_samples)
   }
   if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
-    out$zratio_diagnostics = summarize_zratio_diagnostics(
-      results, zratio,
-      num_nodes = as.integer(p),
-      seed = as.integer(seed), verbose = verbose
-    )
+    out$zratio_diagnostics = summarize_zratio_gauge(results, verbose = verbose)
   }
   out
 }

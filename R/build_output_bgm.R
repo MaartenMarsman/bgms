@@ -292,18 +292,9 @@ build_output_bgm = function(spec, raw) {
     target_accept = s$target_accept
   )
 
-  # --- Z-ratio alarm suite (hierarchical graph-prior spec) ----------------------
+  # --- Z-ratio trust gauge (hierarchical graph-prior spec) ----------------------
   if(!is.null(zratio_chains)) {
-    zc = zratio_cell_constants(
-      p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
-      slab = p$interaction_prior_type
-    )
-    results$zratio_diag = summarize_zratio_diagnostics(
-      zratio_chains, zc,
-      num_nodes = num_variables,
-      seed = s$seed,
-      verbose = TRUE
-    )
+    results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
   }
 
   results$.bgm_spec = spec
