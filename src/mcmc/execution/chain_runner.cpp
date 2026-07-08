@@ -165,6 +165,26 @@ void run_mcmc_chain(
         }
     }
 
+    // In-chain Z-ratio trust gauge: K assessment sweeps on the frozen kernel.
+    // Each sweep is a deployed selection pass that also references non-trivial
+    // edge moves against the exact block-local reference; the graph evolves
+    // pair-by-pair as usual. Post-sampling, so no stored samples are touched.
+    if (config.zratio_gauge_sweeps > 0 && model.gauge_available() &&
+        model.has_edge_selection()) {
+        model.set_gauge_active(true, config.zratio_gauge_draws,
+                               config.zratio_gauge_cap);
+        for (int k = 0; k < config.zratio_gauge_sweeps; ++k) {
+            model.gauge_begin_sweep();
+            model.update_edge_indicators();
+            model.gauge_end_sweep();
+            if (pm.shouldExit()) {
+                chain_result.userInterrupt = true;
+                break;
+            }
+        }
+        model.set_gauge_active(false);
+    }
+
     // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
     // frozen constants) outlives the loop only through the chain result.
     model.collect_chain_diagnostics(chain_result);
@@ -306,13 +326,27 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 counters.names() = Rcpp::CharacterVector::create(
                     "n_hit", "n_miss", "n_pred", "n_add", "n_clamp",
                     "n_oracle", "n_anchors", "cache_size", "frozen");
-                chain_list["zratio"] = Rcpp::List::create(
+                Rcpp::List zr = Rcpp::List::create(
                     Rcpp::_["addc"] = chain.zratio_addc,
                     Rcpp::_["anchors_x"] = chain.zratio_anchors_x,
                     Rcpp::_["anchors_y"] = chain.zratio_anchors_y,
                     Rcpp::_["counters"] = counters,
                     Rcpp::_["warmup_density"] = chain.zratio_warmup_density,
                     Rcpp::_["warmup_theta"] = chain.zratio_warmup_theta);
+                if (chain.zratio_gauge_ran) {
+                    zr["gauge"] = Rcpp::List::create(
+                        Rcpp::_["D"] = chain.zratio_gauge_D,
+                        Rcpp::_["noise_floor"] = chain.zratio_gauge_noise_floor,
+                        Rcpp::_["se_mean"] = chain.zratio_gauge_se_mean,
+                        Rcpp::_["se_sd"] = chain.zratio_gauge_se_sd,
+                        Rcpp::_["n_ent"] =
+                            static_cast<double>(chain.zratio_gauge_n_ent),
+                        Rcpp::_["n_ref"] =
+                            static_cast<double>(chain.zratio_gauge_n_ref),
+                        Rcpp::_["n_capped"] =
+                            static_cast<double>(chain.zratio_gauge_n_capped));
+                }
+                chain_list["zratio"] = zr;
             }
         }
 

@@ -346,7 +346,8 @@ sample_ggm_prior = function(
       delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
-      )
+      ),
+      gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(

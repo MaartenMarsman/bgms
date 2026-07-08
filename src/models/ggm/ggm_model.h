@@ -8,6 +8,7 @@
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
 #include "models/ggm/zratio_engine.h"
+#include "models/zratio_gauge.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 
@@ -183,6 +184,21 @@ public:
     void on_warmup_end() override {
         if (zratio_engine_) zratio_engine_->freeze_calibration();
     }
+
+    /** Trust gauge available iff the hierarchical Z-ratio engine is attached. */
+    bool gauge_available() const override { return zratio_engine_ != nullptr; }
+
+    void set_gauge_active(bool on, int n_draws, int cap) override {
+        if (on) {
+            zratio_gauge_.reset();
+            zratio_gauge_.nE = static_cast<double>(get_num_pairwise());
+            zratio_gauge_.n_draws = n_draws;
+            zratio_gauge_.cap = cap;
+        }
+        zratio_gauge_.active = on;
+    }
+    void gauge_begin_sweep() override { zratio_gauge_.begin_sweep(); }
+    void gauge_end_sweep() override { zratio_gauge_.end_sweep(); }
 
     /**
      * Copy the Z-ratio engine's end-of-run state (counters, frozen
@@ -843,6 +859,8 @@ private:
     /// Per-edge Z-ratio engine (hierarchical prior spec); null on the
     /// joint spec. Deep-copied per chain clone (owns a mutable cache).
     std::shared_ptr<ZRatioEngine> zratio_engine_;
+    /// In-chain trust-gauge accumulator; active only during assessment sweeps.
+    ZRatioGauge zratio_gauge_;
 
 public:
     /**

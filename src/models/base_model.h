@@ -174,6 +174,30 @@ public:
     virtual void collect_chain_diagnostics(ChainResult& /*chain_result*/) const {}
 
     // =========================================================================
+    // In-chain Z-ratio trust gauge
+    // =========================================================================
+
+    /**
+     * Whether this model can run the trust gauge (hierarchical spec: a
+     * Z-ratio engine is attached). Default false.
+     */
+    virtual bool gauge_available() const { return false; }
+
+    /**
+     * Enable/disable the trust gauge and reset its accumulator on enable.
+     * While active, update_edge_indicators() also references non-trivial edge
+     * moves against the block-local exact reference. Default no-op.
+     */
+    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/ = 120,
+                                  int /*cap*/ = 25) {}
+
+    /** Start a new gauge assessment sweep (reset the per-sweep cap). */
+    virtual void gauge_begin_sweep() {}
+
+    /** Close the current gauge assessment sweep (pool its D). */
+    virtual void gauge_end_sweep() {}
+
+    // =========================================================================
     // Edge selection
     // =========================================================================
 

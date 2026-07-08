@@ -24,6 +24,16 @@ void GGMModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         static_cast<double>(engine.cache_size()),
         engine.frozen() ? 1.0 : 0.0
     };
+    if (zratio_gauge_.n_sweeps > 0) {
+        chain_result.zratio_gauge_ran = true;
+        chain_result.zratio_gauge_D = zratio_gauge_.D();
+        chain_result.zratio_gauge_noise_floor = zratio_gauge_.noise_floor();
+        chain_result.zratio_gauge_se_mean = zratio_gauge_.se_mean();
+        chain_result.zratio_gauge_se_sd = zratio_gauge_.se_sd();
+        chain_result.zratio_gauge_n_ent = zratio_gauge_.n_ent;
+        chain_result.zratio_gauge_n_ref = zratio_gauge_.n_ref;
+        chain_result.zratio_gauge_n_capped = zratio_gauge_.n_capped;
+    }
 }
 
 // =====================================================================
@@ -649,10 +659,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // Hierarchical spec: the delete ratio carries -log J with
         // J = Z(Gamma-)/Z(Gamma+) (the add ratio carries +log J below).
+        double log_j_del = 0.0;
         if (zratio_engine_) {
-            ln_alpha -= zratio_engine_->log_zratio(edge_indicators_,
+            log_j_del = zratio_engine_->log_zratio(edge_indicators_,
                                                    static_cast<int>(i),
                                                    static_cast<int>(j));
+            ln_alpha -= log_j_del;
         }
 
         ln_alpha += R::dnorm(precision_matrix_(i, j) / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
@@ -664,6 +676,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         // and its prior must be re-evaluated.
         ln_alpha += diagonal_prior_->logp(0.5 * precision_proposal_(j, j));
         ln_alpha -= diagonal_prior_->logp(0.5 * precision_matrix_(j, j));
+
+        if (zratio_gauge_.active) {
+            zratio_gauge_record(zratio_gauge_, zratio_engine_.get(),
+                                edge_indicators_, static_cast<int>(i),
+                                static_cast<int>(j), ln_alpha, log_j_del, -1);
+        }
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -710,10 +728,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         ln_alpha += MY_LOG(inclusion_probability_(i, j)) - MY_LOG(1.0 - inclusion_probability_(i, j));
 
         // Hierarchical spec: the add ratio carries +log J.
+        double log_j_add = 0.0;
         if (zratio_engine_) {
-            ln_alpha += zratio_engine_->log_zratio(edge_indicators_,
+            log_j_add = zratio_engine_->log_zratio(edge_indicators_,
                                                    static_cast<int>(i),
                                                    static_cast<int>(j));
+            ln_alpha += log_j_add;
         }
 
         // Slab in K_yy coords; proposal in K_ij coords. Jacobian |dK_yy/dK_ij| = 1/2.
@@ -727,6 +747,12 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
         // Proposal term: proposed edge value given it was generated from truncated normal
         ln_alpha -= R::dnorm(omega_prop_ij / constants_[3], 0.0, proposal_sd, true) - MY_LOG(constants_[3]);
+
+        if (zratio_gauge_.active) {
+            zratio_gauge_record(zratio_gauge_, zratio_engine_.get(),
+                                edge_indicators_, static_cast<int>(i),
+                                static_cast<int>(j), ln_alpha, log_j_add, 1);
+        }
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
@@ -856,10 +882,12 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     // ratio J = Z(Gamma-)/Z(Gamma+), state-invariant for the toggled edge,
     // so the delete reciprocal handles it with the same value.
     double log_A_add = log_odds + log_pslab0 - log_q0;
+    double log_j_conj = 0.0;
     if (zratio_engine_) {
-        log_A_add += zratio_engine_->log_zratio(edge_indicators_,
+        log_j_conj = zratio_engine_->log_zratio(edge_indicators_,
                                                 static_cast<int>(i),
                                                 static_cast<int>(j));
+        log_A_add += log_j_conj;
     }
     const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
@@ -871,6 +899,11 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
         double log_A = log_A_add;
         if (alpha_ne_1) {
             log_A += (alpha - 1.0) * (MY_LOG(kjj) - MY_LOG(constants_[5]));
+        }
+        if (zratio_gauge_.active) {
+            zratio_gauge_record(zratio_gauge_, zratio_engine_.get(),
+                                edge_indicators_, static_cast<int>(i),
+                                static_cast<int>(j), log_A, log_j_conj, 1);
         }
         if (MY_LOG(runif(rng_)) < log_A) {
             const double omega_ij_old = precision_matrix_(i, j);
@@ -893,6 +926,11 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
         if (alpha_ne_1) {
             log_A -= (alpha - 1.0)
                      * (MY_LOG(precision_matrix_(j, j)) - MY_LOG(constants_[5]));
+        }
+        if (zratio_gauge_.active) {
+            zratio_gauge_record(zratio_gauge_, zratio_engine_.get(),
+                                edge_indicators_, static_cast<int>(i),
+                                static_cast<int>(j), log_A, log_j_conj, -1);
         }
         if (MY_LOG(runif(rng_)) < log_A) {
             const double kjj = constants_[5];      // constrained_diagonal(0)
