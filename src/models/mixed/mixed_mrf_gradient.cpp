@@ -276,6 +276,23 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
                     - discrete_observations_dbl_.col(s) * precision_ss)
              + cross_bias(s);
 
+        // Numerator contribution to logp from discrete sufficient statistics
+        // (already in grad_obs_cache_ as counts, but logp needs the actual
+        // dot-products). Marginal self-interaction quadratic contribution,
+        // dot(x_s, rest), and the main-effect sums.
+        logp += precision_ss * arma::dot(
+            discrete_observations_dbl_.col(s),
+            discrete_observations_dbl_.col(s));
+        logp += arma::dot(discrete_observations_dbl_.col(s), rest);
+        if(is_ordinal_variable_(s)) {
+            for(int c = 1; c <= C_s; ++c) {
+                logp += static_cast<double>(counts_per_category_(c, s)) * temp_main_discrete(s, c - 1);
+            }
+        } else {
+            logp += temp_main_discrete(s, 0) * static_cast<double>(blume_capel_stats_(0, s))
+                  + temp_main_discrete(s, 1) * static_cast<double>(blume_capel_stats_(1, s));
+        }
+
         if(is_ordinal_variable_(s)) {
             arma::vec main_param = temp_main_discrete.row(s).cols(0, C_s - 1).t();
 
@@ -411,33 +428,6 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     arma::vec mean_grad_omrf = 2.0 * (temp_pairwise_cross.t() * sum_obs_minus_E_all);
     for(size_t j = 0; j < q_; ++j) {
         grad(main_effects_continuous_grad_offset_ + j) += mean_grad_omrf(j);
-    }
-
-    // Add numerator contribution to logp from discrete sufficient statistics
-    // (already in grad_obs_cache_ as counts, but logp needs the actual dot-products)
-    main_effects_discrete_offset = 0;
-    for(size_t s = 0; s < p_; ++s) {
-        int C_s = num_categories_(s);
-        arma::vec rest;
-        double precision_ss = temp_marginal(s, s);
-        rest = 2.0 * (X_marginal.col(s)
-                    - discrete_observations_dbl_.col(s) * precision_ss)
-             + cross_bias(s);
-        // Marginal self-interaction quadratic contribution
-        logp += precision_ss * arma::dot(
-            discrete_observations_dbl_.col(s),
-            discrete_observations_dbl_.col(s));
-        // Numerator: dot(x_s, rest) + main-effect sums
-        logp += arma::dot(discrete_observations_dbl_.col(s), rest);
-
-        if(is_ordinal_variable_(s)) {
-            for(int c = 1; c <= C_s; ++c) {
-                logp += static_cast<double>(counts_per_category_(c, s)) * temp_main_discrete(s, c - 1);
-            }
-        } else {
-            logp += temp_main_discrete(s, 0) * static_cast<double>(blume_capel_stats_(0, s))
-                  + temp_main_discrete(s, 1) * static_cast<double>(blume_capel_stats_(1, s));
-        }
     }
 
     // =========================================================================
