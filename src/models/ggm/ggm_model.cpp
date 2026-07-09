@@ -423,6 +423,11 @@ void GGMModel::apply_rank2_chol_smw_update_(const arma::uvec& support,
         const arma::vec b2 = inv_c01 * a1 + inv_c11 * a2;
         covariance_matrix_ -= a1 * b1.t();
         covariance_matrix_ -= a2 * b2.t();
+        // The outer products are symmetric in exact arithmetic but not in
+        // floating point (b1(j) rounds once, so a1(i) b1(j) != a1(j) b1(i));
+        // downstream chol() calls on Sigma-derived submatrices require exact
+        // symmetry. Reflect the upper triangle.
+        covariance_matrix_ = arma::symmatu(covariance_matrix_);
     }
 }
 
@@ -718,6 +723,9 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
     if (!std::isfinite(denom) || std::abs(denom) < 1e-14) {
         refresh_cholesky();
     } else {
+        // Exactly symmetric: entry (i,j) is coeff * (ci(i) * ci(j)) and IEEE
+        // multiplication commutes, so no symmatu reflection is needed here
+        // (unlike the rank-2 update, where b1/b2 round independently).
         covariance_matrix_ -= (alpha / denom) * (ci * ci.t());
     }
 }
