@@ -2,8 +2,7 @@
 # Phase 0: Fit-Object Contract Tests
 # ==============================================================================
 #
-# Regression tests for the fit-object contract documented in
-# dev/plans/fit-object-contract.md. These lock down:
+# Regression tests for the fit-object contract. These lock down:
 #
 #   1. Serialization round-trips (saveRDS / readRDS)
 #   2. Lazy summary computation semantics

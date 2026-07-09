@@ -18,8 +18,7 @@
 # scale_rate (priors act on K/2). The fixed quadrature grids below (cmax,
 # Cmax, Tmax, Laguerre ranges) are sized for the sigma = 1 frame, so every
 # consumer builds in the standardized cell (delta, sigma = 1, beta = eta)
-# via zratio_cell_constants(). Reference implementation: SV/Z don-validation
-# (sd_marginal_helpers.R, ks_validation_grid.R).
+# via zratio_cell_constants().
 
 # Golub-Welsch Gauss quadrature nodes/weights. kind: "laguerre" (weight
 # e^{-x} on (0, Inf)), "hermite" (weight e^{-x^2} on (-Inf, Inf)),

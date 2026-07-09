@@ -395,8 +395,7 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
 // the block-model hyperparameter updates read the correction locally off the
 // slope curve f'(local density) at each edge's min-endpoint expected degree
 // density, and the new-cluster collapsed marginal integrates the per-pair
-// curve f(theta). Reference implementation and validation: the z_graph_prior
-// design project (corrections (a)-(d) of its Section 4).
+// curve f(theta).
 // ----------------------------------------------------------------------------|
 
 // ----------------------------------------------------------------------------|

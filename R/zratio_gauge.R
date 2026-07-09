@@ -1,19 +1,18 @@
-#' @title Summarize the In-Chain Z-Ratio Trust Gauge
+#' @title Summarize the Hierarchical Prior Trust Gauge
 #'
-#' @description Reports the per-chain trust gauge for the hierarchical prior
-#' specification's per-edge Z-ratio kernel. During sampling the gauge compares,
-#' on each chain's own edge moves, the deployed approximate normalizing-constant
-#' ratio against a block-local exact Monte-Carlo reference and records
+#' @description Reports the per-chain trust gauge for the hierarchical graph
+#' prior. Under that prior the sampler decides each edge with a fast
+#' approximation; during sampling the gauge redoes a subset of each chain's own
+#' edge decisions with the exact calculation and records
 #' \code{flip_rate} = the fraction of add/remove decisions that would come out
-#' differently under the exact calculation. A chain is flagged when
-#' \code{flip_rate} exceeds the tolerance by more than the reference's own
-#' Monte-Carlo noise. \code{flip_rate} counts decisions rather than measuring a
-#' distance, so the same tolerance applies at any number of variables and any
-#' graph prior.
+#' differently. A chain is flagged when
+#' \code{flip_rate} exceeds the tolerance by more than the exact reference's
+#' own Monte-Carlo noise. \code{flip_rate} counts decisions rather than
+#' measuring a distance, so the same tolerance applies at any number of
+#' variables and any graph prior.
 #'
-#' The gauge reads the in-chain \code{zratio$gauge} block that the sampler
-#' attaches under the hierarchical specification; it does not re-scan the stored
-#' draws.
+#' The gauge reads the \code{zratio$gauge} block that the sampler attaches
+#' under the hierarchical prior; it does not re-scan the stored draws.
 #'
 #' @param chains List of per-chain sampler outputs, each carrying a
 #'   \code{zratio$gauge} block (\code{flip_rate}, \code{noise_floor},
