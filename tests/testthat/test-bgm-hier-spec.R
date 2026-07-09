@@ -89,7 +89,7 @@ test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   zd = fit@zratio_diag
   expect_false(is.null(zd))
   expect_equal(nrow(zd$per_chain), 2L)
-  expect_true(all(is.finite(zd$per_chain$D)))
+  expect_true(all(is.finite(zd$per_chain$flip_rate)))
   expect_true(all(zd$per_chain$n_ent >= 0))
   expect_false(zd$flagged)
   expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
@@ -145,7 +145,7 @@ test_that("mixed data supports the hierarchical spec on the continuous block", {
   )
   zd = fit@zratio_diag
   expect_false(is.null(zd))
-  expect_true(is.finite(zd$per_chain$D))
+  expect_true(is.finite(zd$per_chain$flip_rate))
   expect_false(zd$flagged)
   expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
 })

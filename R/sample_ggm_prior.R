@@ -439,6 +439,9 @@ sample_ggm_prior = function(
   }
   if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
     out$zratio_diagnostics = summarize_zratio_gauge(results, verbose = verbose)
+    if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
+      cat("See vignette('diagnostics') for guidance.\n")
+    }
   }
   out
 }

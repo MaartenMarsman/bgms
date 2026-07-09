@@ -297,6 +297,14 @@ build_output_bgm = function(spec, raw) {
     results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
   }
 
+  # Single vignette pointer covering both diagnostic blocks: print once if
+  # either the NUTS diagnostics or the trust gauge reported issues.
+  if(isTRUE(getOption("bgms.verbose", TRUE)) &&
+    (isTRUE(results$nuts_diag$has_issues) ||
+      isTRUE(results$zratio_diag$flagged))) {
+    cat("See vignette('diagnostics') for guidance.\n")
+  }
+
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
     results

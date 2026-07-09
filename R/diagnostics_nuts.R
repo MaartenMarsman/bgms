@@ -163,60 +163,61 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   divergence_rate = total_divergences / n_total
   depth_hit_rate = max_tree_depth_hits / n_total
 
-  if(verbose) {
-    issues = character(0)
+  # Build the issue list regardless of verbose so has_issues is always known
+  # (verbose only governs whether the block is printed). The vignette pointer
+  # is emitted once by the output builder as a shared footer, not per issue.
+  issues = character(0)
 
-    if(total_divergences > 0) {
-      if(divergence_rate > 0.001) {
-        issues = c(issues, sprintf(
-          "Divergences: %d (%.2f%%) - increase target acceptance or use adaptive-metropolis",
-          total_divergences, 100 * divergence_rate
-        ))
-      } else {
-        issues = c(issues, sprintf(
-          "Divergences: %d (%.3f%%) - check R-hat and ESS",
-          total_divergences, 100 * divergence_rate
-        ))
-      }
-    }
-
-    if(max_tree_depth_hits > 0) {
-      if(depth_hit_rate > 0.01) {
-        issues = c(issues, sprintf(
-          "Tree depth: %d hits (%.1f%%) - consider max_depth > %d",
-          max_tree_depth_hits, 100 * depth_hit_rate, nuts_max_depth
-        ))
-      } else {
-        issues = c(issues, sprintf(
-          "Tree depth: %d hits (%.2f%%) - check ESS",
-          max_tree_depth_hits, 100 * depth_hit_rate
-        ))
-      }
-    }
-
-    if(length(low_ebfmi_chains) > 0) {
+  if(total_divergences > 0) {
+    if(divergence_rate > 0.001) {
       issues = c(issues, sprintf(
-        "E-BFMI: %.3f in chain%s %s - see vignette('diagnostics') for guidance",
-        min_ebfmi,
-        if(length(low_ebfmi_chains) > 1) "s" else "",
-        paste(low_ebfmi_chains, collapse = ", ")
+        "Divergences: %d (%.2f%%) - increase target acceptance or use adaptive-metropolis",
+        total_divergences, 100 * divergence_rate
+      ))
+    } else {
+      issues = c(issues, sprintf(
+        "Divergences: %d (%.3f%%) - check R-hat and ESS",
+        total_divergences, 100 * divergence_rate
       ))
     }
+  }
 
-    incomplete_chains = which(warmup_check$warmup_incomplete)
-    if(length(incomplete_chains) > 0) {
+  if(max_tree_depth_hits > 0) {
+    if(depth_hit_rate > 0.01) {
       issues = c(issues, sprintf(
-        "Warmup may be incomplete: energy not stationary in chain%s %s - check R-hat and ESS",
-        if(length(incomplete_chains) > 1) "s" else "",
-        paste(incomplete_chains, collapse = ", ")
+        "Tree depth: %d hits (%.1f%%) - consider max_depth > %d",
+        max_tree_depth_hits, 100 * depth_hit_rate, nuts_max_depth
+      ))
+    } else {
+      issues = c(issues, sprintf(
+        "Tree depth: %d hits (%.2f%%) - check ESS",
+        max_tree_depth_hits, 100 * depth_hit_rate
       ))
     }
+  }
 
-    if(length(issues) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
-      cat("NUTS issues:\n")
-      for(issue in issues) {
-        cat("  -", issue, "\n")
-      }
+  if(length(low_ebfmi_chains) > 0) {
+    issues = c(issues, sprintf(
+      "E-BFMI: %.3f in chain%s %s",
+      min_ebfmi,
+      if(length(low_ebfmi_chains) > 1) "s" else "",
+      paste(low_ebfmi_chains, collapse = ", ")
+    ))
+  }
+
+  incomplete_chains = which(warmup_check$warmup_incomplete)
+  if(length(incomplete_chains) > 0) {
+    issues = c(issues, sprintf(
+      "Warmup may be incomplete: energy not stationary in chain%s %s - check R-hat and ESS",
+      if(length(incomplete_chains) > 1) "s" else "",
+      paste(incomplete_chains, collapse = ", ")
+    ))
+  }
+
+  if(verbose && length(issues) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+    cat("NUTS issues:\n")
+    for(issue in issues) {
+      cat("  -", issue, "\n")
     }
   }
 
@@ -229,6 +230,7 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     accept_prob = accept_prob_mat,
     ebfmi = ebfmi_per_chain,
     warmup_check = warmup_check,
+    has_issues = length(issues) > 0,
     summary = list(
       total_divergences = total_divergences,
       max_tree_depth_hits = max_tree_depth_hits,

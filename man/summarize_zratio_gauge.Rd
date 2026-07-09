@@ -8,22 +8,23 @@ summarize_zratio_gauge(chains, threshold = 0.01, verbose = TRUE)
 }
 \arguments{
 \item{chains}{List of per-chain sampler outputs, each carrying a
-\code{zratio$gauge} block (\code{D}, \code{noise_floor}, \code{se_mean},
-\code{se_sd}, \code{n_ent}, \code{n_ref}, \code{n_capped}).}
+\code{zratio$gauge} block (\code{flip_rate}, \code{noise_floor},
+\code{se_mean}, \code{se_sd}, \code{n_ent}, \code{n_ref}, \code{n_capped}).}
 
-\item{threshold}{Numeric flag threshold on \code{D} (default \code{0.01}).}
+\item{threshold}{Numeric flag threshold on \code{flip_rate} (default
+\code{0.01}).}
 
 \item{verbose}{Logical: message flagged chains (default \code{TRUE}).}
 }
 \value{
 An invisible named list:
 \describe{
-\item{\code{per_chain}}{Data frame, one row per chain: \code{D}, the
-\code{flag}, the signed mean and spread of the log-ratio error
+\item{\code{per_chain}}{Data frame, one row per chain: \code{flip_rate},
+the \code{flag}, the signed mean and spread of the log-ratio error
 (\code{se_mean}, \code{se_sd}), the reference \code{noise_floor}, and
 the pair counts (\code{n_ent} non-trivial seen, \code{n_ref}
 referenced, \code{n_capped} cap hits).}
-\item{\code{threshold}}{The flag tolerance on \code{D}.}
+\item{\code{threshold}}{The flag tolerance on \code{flip_rate}.}
 \item{\code{flagged}}{Logical: any chain flagged.}
 }
 }
@@ -32,11 +33,12 @@ Reports the per-chain trust gauge for the hierarchical prior
 specification's per-edge Z-ratio kernel. During sampling the gauge compares,
 on each chain's own edge moves, the deployed approximate normalizing-constant
 ratio against a block-local exact Monte-Carlo reference and records
-\code{D} = the fraction of accept/reject decisions that would flip under the
-exact ratio. A chain is flagged when \code{D} exceeds the tolerance by more
-than the reference's own Monte-Carlo noise floor. The gauge flags; it does
-not fix. \code{D} is in direct impact units, so the same tolerance applies at
-any number of variables and any graph prior.
+\code{flip_rate} = the fraction of add/remove decisions that would come out
+differently under the exact calculation. A chain is flagged when
+\code{flip_rate} exceeds the tolerance by more than the reference's own
+Monte-Carlo noise. \code{flip_rate} counts decisions rather than measuring a
+distance, so the same tolerance applies at any number of variables and any
+graph prior.
 
 The gauge reads the in-chain \code{zratio$gauge} block that the sampler
 attaches under the hierarchical specification; it does not re-scan the stored

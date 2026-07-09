@@ -335,7 +335,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                     Rcpp::_["warmup_theta"] = chain.zratio_warmup_theta);
                 if (chain.zratio_gauge_ran) {
                     zr["gauge"] = Rcpp::List::create(
-                        Rcpp::_["D"] = chain.zratio_gauge_D,
+                        Rcpp::_["flip_rate"] = chain.zratio_gauge_D,
                         Rcpp::_["noise_floor"] = chain.zratio_gauge_noise_floor,
                         Rcpp::_["se_mean"] = chain.zratio_gauge_se_mean,
                         Rcpp::_["se_sd"] = chain.zratio_gauge_se_sd,
