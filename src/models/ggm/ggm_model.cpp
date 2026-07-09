@@ -433,6 +433,19 @@ void GGMModel::apply_rank2_chol_smw_update_(const arma::uvec& support,
                 covariance_matrix_(c, r) = covariance_matrix_(r, c);
             }
         }
+        // Validate the touched rows of Sigma K = I. When K passes near a
+        // singular state (a tiny row-Gibbs xi draw at n = 0, delta = 0 makes
+        // this legitimate, not exceptional), Sigma legitimately blows up to
+        // ~1/xi; the SMW update that moves K away from that state then
+        // subtracts two huge outer products and cancellation destroys Sigma
+        // in absolute terms. Everything downstream (proposal constants,
+        // the row-Gibbs Schur matrix) reads Sigma and would write a
+        // non-positive-definite K from the garbage. The probe costs
+        // O(p |support|) -- the same order as the matvec above -- and
+        // repairs the cache from K the moment accuracy is lost.
+        if (!sigma_rows_consistent_(support)) {
+            refresh_cholesky();
+        }
     }
 }
 
@@ -732,6 +745,11 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
         // multiplication commutes, so no symmatu reflection is needed here
         // (unlike the rank-2 update, where b1/b2 round independently).
         covariance_matrix_ -= (alpha / denom) * (ci * ci.t());
+        // Same near-singular-passage guard as the rank-2 update.
+        const arma::uvec row_i = {static_cast<arma::uword>(i)};
+        if (!sigma_rows_consistent_(row_i)) {
+            refresh_cholesky();
+        }
     }
 }
 
@@ -1106,6 +1124,21 @@ void GGMModel::check_and_refresh_if_drift_() {
     if (!std::isfinite(drift) || drift > kCovDriftTol_) {
         refresh_cholesky();
     }
+}
+
+bool GGMModel::sigma_rows_consistent_(const arma::uvec& rows) const {
+    // (Sigma K)(r, r) = 1 exactly; both matrices are symmetric, so the
+    // check reads two contiguous columns per row. A violation means the
+    // SMW-maintained Sigma has lost absolute accuracy (near-singular
+    // passage), not that K is wrong -- K is the source of truth.
+    for (arma::uword k = 0; k < rows.n_elem; ++k) {
+        const arma::uword r = rows[k];
+        double d = arma::dot(covariance_matrix_.col(r), precision_matrix_.col(r));
+        if (!std::isfinite(d) || std::abs(d - 1.0) > kSigmaProbeTol_) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void GGMModel::refresh_cholesky() {

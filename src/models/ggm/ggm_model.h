@@ -871,6 +871,27 @@ private:
     static constexpr double kCovDriftTol_ = 1e-8;
 
     /**
+     * Check (Sigma K)(r, r) = 1 on the given rows.
+     *
+     * Guards the SMW-maintained covariance against catastrophic cancellation
+     * when K passes near a singular state (legitimate under the prior at
+     * delta = 0, where a row-Gibbs xi draw can be arbitrarily small): the
+     * update that moves K away from the near-singular state subtracts huge
+     * outer products and Sigma loses absolute accuracy. Callers refresh from
+     * K on violation before the drifted Sigma can corrupt proposal constants
+     * or the row-Gibbs Schur extraction (which would write a
+     * non-positive-definite K).
+     *
+     * @param rows  Row indices touched by the update just applied.
+     * @return false when any |(Sigma K)(r, r) - 1| exceeds kSigmaProbeTol_
+     *         or is non-finite.
+     */
+    bool sigma_rows_consistent_(const arma::uvec& rows) const;
+
+    /** Tolerance on |(Sigma K)(r, r) - 1| in the per-accept probe. */
+    static constexpr double kSigmaProbeTol_ = 1e-6;
+
+    /**
      * Recompute Cholesky and its inverse from the precision matrix.
      *
      * Used as a fallback when accumulated rank-1 updates/downdates
