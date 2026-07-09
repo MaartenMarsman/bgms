@@ -13,7 +13,7 @@
  * The block collects the common neighbours of the endpoints plus the
  * endpoints of 2-hop bridges between the exclusive neighbour sets; the
  * integer counts drive the additive saddle and the OLS correction, and
- * the adjacency + side memberships drive the block-Gibbs oracle.
+ * the adjacency + side memberships drive the exact Monte-Carlo evaluation.
  */
 struct ZRatioBlock {
     bool valid = false;   ///< false: one side empty (isolated-edge ratio)

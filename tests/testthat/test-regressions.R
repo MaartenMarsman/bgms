@@ -1,10 +1,11 @@
-# Regression tests for the 2026-07-03 codebase audit fixes (C1-C7, H1).
+# Regression tests pinning fixed defects in imputation row bookkeeping,
+# group-difference labels, summary scales, and mixed-model sampling paths.
 
 # ---------------------------------------------------------------------------
-# C1 - imputation row indices follow the group-sorted row order
+# imputation row indices follow the group-sorted row order
 # ---------------------------------------------------------------------------
 
-test_that("imputation targets the right rows when groups are interleaved (C1)", {
+test_that("imputation targets the right rows when groups are interleaved", {
   # 6 people, 2 ordinal variables, groups interleaved (1,2,1,2,1,2).
   x = data.frame(
     V1 = c(NA, 1, 2, 0, 1, 2),
@@ -29,10 +30,10 @@ test_that("imputation targets the right rows when groups are interleaved (C1)", 
 })
 
 # ---------------------------------------------------------------------------
-# C2 - difference labels attached to the right parameter for 3+ groups
+# difference labels attached to the right parameter for 3+ groups
 # ---------------------------------------------------------------------------
 
-test_that("pairwise difference summaries carry the right labels for 3 groups (C2)", {
+test_that("pairwise difference summaries carry the right labels for 3 groups", {
   skip_on_cran()
 
   set.seed(11)
@@ -67,10 +68,10 @@ test_that("pairwise difference summaries carry the right labels for 3 groups (C2
 })
 
 # ---------------------------------------------------------------------------
-# C5 - GGM summary() pairwise means on the association scale
+# GGM summary() pairwise means on the association scale
 # ---------------------------------------------------------------------------
 
-test_that("GGM summary() pairwise means match coef() (association scale) (C5)", {
+test_that("GGM summary() pairwise means match coef() (association scale)", {
   skip_on_cran()
 
   set.seed(5)
@@ -102,14 +103,14 @@ test_that("GGM summary() pairwise means match coef() (association scale) (C5)", 
 })
 
 # ---------------------------------------------------------------------------
-# C3 - mixed model imputes discrete-only missing data
+# mixed model imputes discrete-only missing data
 #
-# The bug left a cached mean stale and produced biased (not failed) sampling,
-# so there is no cheap deterministic check; this exercises the fixed path and
-# checks the results are well formed.
+# A stale cached mean biases sampling without failing, so there is no cheap
+# deterministic check; this exercises the path and checks the results are
+# well formed.
 # ---------------------------------------------------------------------------
 
-test_that("mixed model runs with missing values in discrete columns only (C3)", {
+test_that("mixed model runs with missing values in discrete columns only", {
   skip_on_cran()
 
   set.seed(303)
@@ -138,13 +139,13 @@ test_that("mixed model runs with missing values in discrete columns only (C3)", 
 })
 
 # ---------------------------------------------------------------------------
-# H1 - mixed NUTS gradient after imputation with edge selection
+# mixed NUTS gradient after imputation with edge selection
 #
-# Same situation as C3: wrong gradients degrade mixing rather than erroring.
-# This exercises the path that was affected (NUTS + imputation + selection).
+# Wrong gradients degrade mixing rather than erroring, so this exercises
+# the NUTS + imputation + selection path and checks well-formed output.
 # ---------------------------------------------------------------------------
 
-test_that("mixed NUTS runs with imputation and edge selection (H1)", {
+test_that("mixed NUTS runs with imputation and edge selection", {
   skip_on_cran()
 
   set.seed(404)
@@ -171,7 +172,7 @@ test_that("mixed NUTS runs with imputation and edge selection (H1)", {
 })
 
 # ---------------------------------------------------------------------------
-# C6 - fractional Dirichlet parameter can open new blocks
+# fractional Dirichlet parameter can open new blocks
 #
 # The type fix is verified at compile time. Showing the behaviour (the sampler
 # reaching three or more occupied blocks, which a value truncated to 0 forbids)
@@ -180,18 +181,18 @@ test_that("mixed NUTS runs with imputation and edge selection (H1)", {
 # fast unit test.
 # ---------------------------------------------------------------------------
 
-test_that("fractional Dirichlet parameter can open new blocks (C6)", {
+test_that("fractional Dirichlet parameter can open new blocks", {
   skip("needs simulated three-block data + long run; covered by block-recovery suite")
 })
 
 # ---------------------------------------------------------------------------
-# C4 - step-size search sign
+# step-size search sign
 #
 # The fix only affects warmup cost, not the target distribution, so a fast pass
 # / fail assertion is not available; warmup efficiency is measured by the
 # benchmark suite.
 # ---------------------------------------------------------------------------
 
-test_that("step-size search does not collapse the step size (C4)", {
+test_that("step-size search does not collapse the step size", {
   skip("warmup-efficiency only; no effect on the posterior to assert on")
 })

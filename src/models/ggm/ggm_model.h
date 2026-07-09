@@ -22,6 +22,8 @@
  *
  * The Cholesky factor of the precision matrix is maintained incrementally
  * through rank-1 updates/downdates after each element change.
+ *
+ * Inherits from BaseModel for compatibility with the generic MCMC framework.
  */
 class GGMModel : public BaseModel {
 public:
@@ -707,7 +709,6 @@ private:
      * acceptance reduces to the inclusion odds times p_slab(0)/q(0),
      * independent of the proposed value. No proposal-SD tuning. Used by the
      * Gibbs sampler in place of update_edge_indicator_parameter_pair.
-     * Source: Z manuscript, "Single-edge updates".
      */
     void update_edge_indicator_conjugate(size_t i, size_t j);
 

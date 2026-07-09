@@ -29,6 +29,14 @@ public:
       total_warmup(warmup.total_warmup),
       target_accept(target_accept_rate) {}
 
+  /**
+   * Robbins-Monro update of the proposal SDs for the masked entries.
+   * A no-op outside the warmup phase.
+   *
+   * @param index_mask         Entries equal to 1 are updated
+   * @param accept_prob_matrix Acceptance probabilities per entry
+   * @param iteration          Current iteration (1-based within warmup)
+   */
   void update(const arma::umat& index_mask,
               const arma::mat& accept_prob_matrix,
               int iteration) {

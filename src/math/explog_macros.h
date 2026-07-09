@@ -8,7 +8,7 @@
  *
  * Default behaviour:
  *   - **Windows:** Uses OpenLibM (`__ieee754_exp`, `custom_arma_exp`, etc.)
- *     because MSVC's `std::exp` / `std::log` are significantly slower.
+ *     because MSVC's `std::exp` / `std::log` are slower.
  *   - **macOS / Linux:** Uses `std::exp` / `arma::exp` etc.
  *
  * Override at build time:

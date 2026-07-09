@@ -92,7 +92,7 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
 
   # --- prior sub-list ---
   stopifnot(is.list(prior))
-  # All model types now carry interaction_prior_type
+  # All model types carry interaction_prior_type
   stopifnot(
     is.character(prior$interaction_prior_type),
     length(prior$interaction_prior_type) == 1L

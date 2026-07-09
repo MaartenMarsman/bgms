@@ -1,5 +1,5 @@
 # ==============================================================================
-# Phase 0: Fit-Object Contract Tests
+# Fit-Object Contract Tests
 # ==============================================================================
 #
 # Regression tests for the fit-object contract. These lock down:
@@ -7,9 +7,6 @@
 #   1. Serialization round-trips (saveRDS / readRDS)
 #   2. Lazy summary computation semantics
 #   3. names(fit) stability
-#
-# These tests exist to guard the contract before any structural refactor
-# (e.g. S7 migration).
 # ==============================================================================
 
 

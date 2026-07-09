@@ -348,7 +348,6 @@ coef.bgmCompare = function(object, ...) {
 #'
 #' @method $ bgmCompare
 #' @export
-#' @keywords internal
 `$.bgmCompare` = function(x, name) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, name)
@@ -372,7 +371,6 @@ coef.bgmCompare = function(object, ...) {
 #' @param ... Ignored.
 #' @method [[ bgmCompare
 #' @export
-#' @keywords internal
 `[[.bgmCompare` = function(x, name, ...) {
   if(inherits(x, "S7_object")) {
     if(is.character(name)) {
@@ -398,7 +396,6 @@ coef.bgmCompare = function(object, ...) {
 
 #' @method names bgmCompare
 #' @export
-#' @keywords internal
 names.bgmCompare = function(x) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, ".field_names")

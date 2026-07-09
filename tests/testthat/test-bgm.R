@@ -280,14 +280,14 @@ test_that("bgm OMRF output has correct parameter ordering", {
 
 
 # ==============================================================================
-# GGM Expanded Test Suite (Part D)
+# GGM Expanded Test Suite
 # ==============================================================================
 #
 # Tests for GGM correctness, convergence, and edge detection.
 # ==============================================================================
 
 
-# --- D.1: Multi-chain convergence ---------------------------------------------
+# --- Multi-chain convergence ---------------------------------------------
 
 test_that("bgm GGM multi-chain produces valid Rhat", {
   skip_on_cran()
@@ -327,7 +327,7 @@ test_that("bgm GGM multi-chain produces valid Rhat", {
 })
 
 
-# --- D.2: Sufficient statistics / MLE convergence -----------------------------
+# --- Sufficient statistics / MLE convergence -----------------------------
 
 test_that("bgm GGM posterior mean approaches MLE for large n", {
   # For large n without edge selection, the posterior mean should approach
@@ -381,7 +381,7 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
 })
 
 
-# --- D.3: Missing data handling -----------------------------------------------
+# --- Missing data handling -----------------------------------------------
 
 test_that("bgm GGM with listwise deletion drops rows correctly", {
   set.seed(42)
@@ -582,7 +582,7 @@ test_that("bgm GGM stores the training column means for prediction", {
 })
 
 
-# --- D.4: Larger p (Cholesky stability) ---------------------------------------
+# --- Larger p (Cholesky stability) ---------------------------------------
 
 test_that("bgm GGM with p = 15 produces valid output", {
   skip_on_cran()
@@ -631,7 +631,7 @@ test_that("bgm GGM with p = 15 produces valid output", {
 })
 
 
-# --- D.5: Edge detection power ------------------------------------------------
+# --- Edge detection power ------------------------------------------------
 
 test_that("bgm GGM edge selection discriminates true edges", {
   skip_on_cran()
@@ -699,7 +699,7 @@ test_that("bgm GGM edge selection discriminates true edges", {
 })
 
 
-# --- D.7: Conditional regression check ----------------------------------------
+# --- Conditional regression check ----------------------------------------
 
 # ==============================================================================
 # Mixed MRF End-to-End Tests

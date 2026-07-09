@@ -1,5 +1,5 @@
 # Tests for bgm(precision_graph_prior = "hierarchical"): eligibility validation
-# and the end-to-end fit with the Z-ratio engine and alarm suite attached.
+# and the end-to-end fit with the Z-ratio engine and trust gauge attached.
 
 hier_test_data = function(q = 10, n = 40, seed = 4) {
   set.seed(seed)

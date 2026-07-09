@@ -2,7 +2,7 @@
  * @file custom_explog.h
  * @brief Portable scalar exp() and log() from OpenLibM.
  *
- * The MSVC runtime's `std::exp` and `std::log` are significantly slower
+ * The MSVC runtime's `std::exp` and `std::log` are slower
  * than the glibc or macOS libm implementations. This caused bgms to run
  * much slower on Windows. To eliminate the platform gap, the package
  * ships stripped-down versions of the IEEE 754 exp and log from

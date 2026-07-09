@@ -5,9 +5,8 @@
 # Verify that the C++ conditional prediction functions produce values
 # matching hand-computed reference values for minimal networks.
 #
-# Ported from mixedGM::test-likelihood-correctness.R, adapted for
-# the bgms API surface: compute_conditional_probs (OMRF),
-# compute_conditional_ggm (GGM), compute_conditional_mixed (mixed MRF).
+# Covers compute_conditional_probs (OMRF), compute_conditional_ggm (GGM),
+# and compute_conditional_mixed (mixed MRF).
 #
 # ==============================================================================
 

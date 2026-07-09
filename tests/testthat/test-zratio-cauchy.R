@@ -89,7 +89,7 @@ test_that("Cauchy constants live in their own cache cell", {
   expect_identical(zc, zc2)
 })
 
-test_that("Cauchy block-Gibbs oracle tracks the additive prediction", {
+test_that("Cauchy exact Monte-Carlo evaluation tracks the additive prediction", {
   skip_on_cran()
   # Two common neighbours, no CN-CN edge: the additive form is the exact
   # no-edge baseline (kappa_2 = m * w1), so the oracle correction

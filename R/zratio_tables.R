@@ -185,8 +185,7 @@ zratio_node_channel = function(delta, sigma, beta, slab = "normal") {
 
 # Excess two-moment constants for the CN-CN edge channel: moments of the
 # connected 2-clique block minus twice the single-node constants. Estimated
-# by a seeded within-block Gibbs run (matches the reference implementation
-# draw for draw at the same seed). Cauchy slab: the block coupling runs
+# by a seeded within-block Gibbs run. Cauchy slab: the block coupling runs
 # omega-augmented (conjugate IG(1, 1/2 + k^2/(2 sigma^2)) refresh after
 # each draw), the four legs draw fresh prior weights sqrt(omega) = 1/|z|
 # per kept sweep, and the moments use the leg-dressed block recipe

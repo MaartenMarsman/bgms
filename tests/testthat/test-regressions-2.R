@@ -1,10 +1,11 @@
-# Regression tests for the 2026-07-03 audit high-confidence (H) fixes.
+# Regression tests pinning fixed defects in Blume-Capel handling, GGM
+# prediction and simulation scales, split-Rhat, and group-difference priors.
 
 # ---------------------------------------------------------------------------
-# H13 - mixed model with a single continuous variable
+# mixed model with a single continuous variable
 # ---------------------------------------------------------------------------
 
-test_that("mixed model with one continuous variable does not crash (H13)", {
+test_that("mixed model with one continuous variable does not crash", {
   skip_on_cran()
 
   set.seed(2)
@@ -26,10 +27,10 @@ test_that("mixed model with one continuous variable does not crash (H13)", {
 })
 
 # ---------------------------------------------------------------------------
-# H15 - OMRF SBM allocation samples carry node names, not edge names
+# OMRF SBM allocation samples carry node names, not edge names
 # ---------------------------------------------------------------------------
 
-test_that("OMRF SBM allocation samples carry node names (H15)", {
+test_that("OMRF SBM allocation samples carry node names", {
   skip_on_cran()
 
   set.seed(3)
@@ -49,10 +50,10 @@ test_that("OMRF SBM allocation samples carry node names (H15)", {
 })
 
 # ---------------------------------------------------------------------------
-# H16 - explicit integer baseline_category = 0L is honoured
+# explicit integer baseline_category = 0L is honoured
 # ---------------------------------------------------------------------------
 
-test_that("explicit baseline_category = 0L works for Blume-Capel (H16)", {
+test_that("explicit baseline_category = 0L works for Blume-Capel", {
   skip_on_cran()
 
   set.seed(4)
@@ -60,8 +61,8 @@ test_that("explicit baseline_category = 0L works for Blume-Capel (H16)", {
   x = matrix(sample(0:3, 60 * p, replace = TRUE), ncol = p)
   colnames(x) = paste0("V", seq_len(p))
 
-  # Passing integer 0L used to be read as "not provided" and errored with
-  # "baseline_category is required for Blume-Capel variables".
+  # An explicit integer 0L must be accepted as a provided baseline, not
+  # read as missing.
   expect_no_error(
     bgm(
       x,
@@ -73,10 +74,10 @@ test_that("explicit baseline_category = 0L works for Blume-Capel (H16)", {
 })
 
 # ---------------------------------------------------------------------------
-# H9 - Blume-Capel prediction/simulation on the original category scale
+# Blume-Capel prediction/simulation on the original category scale
 # ---------------------------------------------------------------------------
 
-test_that("Blume-Capel recode round-trips through the stored shift (H9)", {
+test_that("Blume-Capel recode round-trips through the stored shift", {
   # Data coded 2..5 shifts to internal 0..3; the reverse map restores 2..5.
   x = matrix(c(2, 3, 4, 5), ncol = 1)
   shift = c(2)
@@ -95,7 +96,7 @@ test_that("Blume-Capel recode round-trips through the stored shift (H9)", {
   expect_equal(as.numeric(original), c(2, 3, 4, 5))
 })
 
-test_that("simulate() returns Blume-Capel draws on the original scale (H9)", {
+test_that("simulate() returns Blume-Capel draws on the original scale", {
   skip_on_cran()
 
   set.seed(7)
@@ -120,10 +121,10 @@ test_that("simulate() returns Blume-Capel draws on the original scale (H9)", {
 })
 
 # ---------------------------------------------------------------------------
-# H10 - GGM prediction centers newdata on the training means
+# GGM prediction centers newdata on the training means
 # ---------------------------------------------------------------------------
 
-test_that("GGM predict uses stored training means, not newdata means (H10)", {
+test_that("GGM predict uses stored training means, not newdata means", {
   skip_on_cran()
 
   set.seed(8)
@@ -153,10 +154,10 @@ test_that("GGM predict uses stored training means, not newdata means (H10)", {
 })
 
 # ---------------------------------------------------------------------------
-# H17 - Rhat splits each chain so it detects within-chain drift (split-Rhat)
+# Rhat splits each chain so it detects within-chain drift (split-Rhat)
 # ---------------------------------------------------------------------------
 
-test_that("split_chains halves each chain (H17)", {
+test_that("split_chains halves each chain", {
   a = array(seq_len(10 * 2 * 3), dim = c(10, 2, 3))
   s = split_chains(a)
   expect_equal(dim(s), c(5L, 4L, 3L))
@@ -168,7 +169,7 @@ test_that("split_chains halves each chain (H17)", {
   expect_equal(as.vector(split_chains(odd)), c(1, 2, 3, 5, 6, 7))
 })
 
-test_that("split-Rhat flags a drifting chain that classic Rhat misses (H17)", {
+test_that("split-Rhat flags a drifting chain that classic Rhat misses", {
   set.seed(17)
   # A single chain that drifts: classic Gelman-Rubin needs >1 chain and returns
   # NA, but split-Rhat compares the two halves and sees the trend.
@@ -182,11 +183,11 @@ test_that("split-Rhat flags a drifting chain that classic Rhat misses (H17)", {
 })
 
 # ---------------------------------------------------------------------------
-# H8 - bgmCompare difference prior family is independent of the interaction
+# bgmCompare difference prior family is independent of the interaction
 # prior, defaulting to Cauchy
 # ---------------------------------------------------------------------------
 
-test_that("difference_family selects the difference prior independently (H8)", {
+test_that("difference_family selects the difference prior independently", {
   skip_on_cran()
 
   set.seed(8)
@@ -232,7 +233,7 @@ test_that("difference_family selects the difference prior independently (H8)", {
 })
 
 # ---------------------------------------------------------------------------
-# C5 follow-up - GGM summary with edge selection keeps the mixture columns,
+# GGM summary with edge selection keeps the mixture columns,
 # on the association scale
 # ---------------------------------------------------------------------------
 
@@ -261,7 +262,7 @@ test_that("GGM selection summary is a mixture summary on the association scale",
 })
 
 # ---------------------------------------------------------------------------
-# H10 follow-up - GGM simulate() returns data on the original scale
+# GGM simulate() returns data on the original scale
 # ---------------------------------------------------------------------------
 
 test_that("GGM simulate() draws are on the training data scale", {
@@ -287,11 +288,11 @@ test_that("GGM simulate() draws are on the training data scale", {
 })
 
 # ---------------------------------------------------------------------------
-# H9 follow-up - bgmCompare Blume-Capel prediction/simulation on the original
+# bgmCompare Blume-Capel prediction/simulation on the original
 # category scale
 # ---------------------------------------------------------------------------
 
-test_that("bgmCompare handles Blume-Capel variables coded 1-5 (H9)", {
+test_that("bgmCompare handles Blume-Capel variables coded 1-5", {
   skip_on_cran()
 
   set.seed(11)
@@ -324,7 +325,7 @@ test_that("bgmCompare handles Blume-Capel variables coded 1-5 (H9)", {
 })
 
 # ---------------------------------------------------------------------------
-# H11 - parallel dispatch keeps the R API on the main thread
+# parallel dispatch keeps the R API on the main thread
 #
 # Chains run under a helper-thread parallelFor while the main thread polls
 # for interrupts, progress, and the R callback. Chain seeding is independent
@@ -332,7 +333,7 @@ test_that("bgmCompare handles Blume-Capel variables coded 1-5 (H9)", {
 # and the callback must fire during a parallel run.
 # ---------------------------------------------------------------------------
 
-test_that("serial and parallel dispatch produce identical draws (H11)", {
+test_that("serial and parallel dispatch produce identical draws", {
   skip_on_cran()
 
   set.seed(11)
@@ -355,7 +356,7 @@ test_that("serial and parallel dispatch produce identical draws (H11)", {
   expect_identical(serial$raw_samples$main, parallel$raw_samples$main)
 })
 
-test_that("the progress callback fires during a parallel run (H11)", {
+test_that("the progress callback fires during a parallel run", {
   skip_on_cran()
 
   set.seed(12)

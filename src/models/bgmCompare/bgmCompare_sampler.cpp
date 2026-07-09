@@ -1423,7 +1423,7 @@ void gibbs_update_step_bgmcompare (
     }
   }
 
-  /* --- 2b.  proposal-sd tuning during Stage-3b ------------------------------ */
+  // --- 2b.  proposal-sd tuning during Stage-3b ---
   tune_proposal_sd_bgmcompare(
     proposal_sd_main, proposal_sd_pair, main_effects,
     pairwise_effects, main_effect_indices, pairwise_effect_indices,

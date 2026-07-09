@@ -2,7 +2,7 @@
 # Tests for the GGM free-element Cholesky gradient engine.
 #
 # Validates the C++ logp_and_gradient against central finite differences
-# for the same test configurations used in Phase 0 (R prototype).
+# across a grid of test configurations.
 # --------------------------------------------------------------------------- #
 
 # ---- Helpers ----------------------------------------------------------------

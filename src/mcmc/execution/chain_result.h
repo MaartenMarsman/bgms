@@ -47,7 +47,6 @@ public:
     arma::ivec  treedepth_samples;
     /// NUTS divergent transition flags (n_iter).
     arma::ivec  divergent_samples;
-    /// NUTS non-reversible step flags (n_iter).
     /// NUTS energy diagnostic (n_iter).
     arma::vec   energy_samples;
     /// NUTS mean per-trajectory Metropolis acceptance (n_iter).

@@ -97,9 +97,8 @@ arma::vec compute_denom_blume_capel(
  *  - If |bound| <= 709 (EXP_BOUND): uses cheaper direct pre-exp computation
  *  - Else: clips bound at zero and applies stabilized scaling
  *
- * Empirical tests showed:
- *   - Clipping necessary for bound < -709
- *   - Bounds improve stability when large
+ * Clipping is required for bound < -709; the bounds improve stability
+ * when large.
  *
  * Returns:
  *   probs: num_persons × (num_cats + 1) matrix of probabilities (row-normalized)

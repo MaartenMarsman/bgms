@@ -7,14 +7,14 @@
 #include "math/explog_macros.h"
 
 
-// =============================================================================
-// BaseParameterPrior — abstract base for real-valued parameter priors
-//
-// Follows the same polymorphic pattern as BaseEdgePrior. Each subclass stores
-// its own hyperparameters and provides logp/grad evaluated at a point x.
-//
-// Used for interaction parameters, threshold parameters, and continuous means.
-// =============================================================================
+/**
+ * BaseParameterPrior — abstract base for real-valued parameter priors.
+ *
+ * Follows the same polymorphic pattern as BaseEdgePrior. Each subclass stores
+ * its own hyperparameters and provides logp/grad evaluated at a point x.
+ *
+ * Used for interaction parameters, threshold parameters, and continuous means.
+ */
 class BaseParameterPrior {
 public:
     virtual ~BaseParameterPrior() = default;
@@ -30,9 +30,9 @@ public:
 };
 
 
-// =============================================================================
-// CauchyPrior — Cauchy(0, scale)
-// =============================================================================
+/**
+ * CauchyPrior — Cauchy(0, scale).
+ */
 class CauchyPrior final : public BaseParameterPrior {
 public:
     explicit CauchyPrior(double scale) : scale_(scale) {}
@@ -58,9 +58,9 @@ private:
 };
 
 
-// =============================================================================
-// NormalPrior — Normal(0, scale)
-// =============================================================================
+/**
+ * NormalPrior — Normal(0, scale).
+ */
 class NormalPrior final : public BaseParameterPrior {
 public:
     explicit NormalPrior(double scale) : scale_(scale) {}
@@ -86,12 +86,12 @@ private:
 };
 
 
-// =============================================================================
-// BetaPrimePrior — logit-Beta(alpha, beta) prior
-//
-// If sigma(x) ~ Beta(alpha, beta), then x = logit(Y) where Y ~ Beta(a, b).
-// log p(x) = alpha * x - (alpha + beta) * log(1 + exp(x)) + const
-// =============================================================================
+/**
+ * BetaPrimePrior — logit-Beta(alpha, beta) prior.
+ *
+ * If sigma(x) ~ Beta(alpha, beta), then x = logit(Y) where Y ~ Beta(a, b).
+ * log p(x) = alpha * x - (alpha + beta) * log(1 + exp(x)) + const
+ */
 class BetaPrimePrior final : public BaseParameterPrior {
 public:
     BetaPrimePrior(double alpha, double beta)
@@ -117,12 +117,12 @@ private:
 };
 
 
-// =============================================================================
-// GammaScalePrior — Gamma(shape, rate) prior for positive parameters
-//
-// Used for precision matrix diagonal elements.
-// log p(x) = (shape - 1) * log(x) - rate * x + const
-// =============================================================================
+/**
+ * GammaScalePrior — Gamma(shape, rate) prior for positive parameters.
+ *
+ * Used for precision matrix diagonal elements.
+ * log p(x) = (shape - 1) * log(x) - rate * x + const
+ */
 class GammaScalePrior final : public BaseParameterPrior {
 public:
     GammaScalePrior(double shape, double rate)

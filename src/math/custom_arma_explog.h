@@ -5,7 +5,7 @@
  * Drop-in replacements for `arma::exp` and `arma::log` that call the
  * portable OpenLibM implementations from `custom_explog.h` instead of
  * the platform's libm. Used on Windows where MSVC's `std::exp` /
- * `std::log` are significantly slower. The `ARMA_MY_EXP` /
+ * `std::log` are slower. The `ARMA_MY_EXP` /
  * `ARMA_MY_LOG` macros in `explog_macros.h` resolve to these functions
  * on Windows and to `arma::exp` / `arma::log` elsewhere.
  *

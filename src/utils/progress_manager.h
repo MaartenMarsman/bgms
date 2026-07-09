@@ -16,13 +16,22 @@
 
 using Clock = std::chrono::steady_clock;
 
-// Interrupt checking functions
-// https://github.com/kforner/rcpp_progress/blob/d851ac62fd0314239e852392de7face5fa4bf48e/inst/include/interrupts.hpp#L24-L31
+/**
+ * Interrupt-check callback passed to R_ToplevelExec.
+ *
+ * Origin: rcpp_progress interrupt helpers,
+ * https://github.com/kforner/rcpp_progress/blob/d851ac62fd0314239e852392de7face5fa4bf48e/inst/include/interrupts.hpp#L24-L31
+ */
 static void chkIntFn(void *dummy) {
 	R_CheckUserInterrupt();
 }
 
-// this will call the above in a top-level context so it won't longjmp-out of your context
+/**
+ * Check for a pending user interrupt. Runs chkIntFn in a top-level context
+ * so the interrupt cannot longjmp out of the caller's context.
+ *
+ * @return true if the user has requested an interrupt
+ */
 inline bool checkInterrupt() {
 	return (R_ToplevelExec(chkIntFn, NULL) == FALSE);
 }
@@ -55,9 +64,29 @@ class ProgressManager {
 
 public:
 
+    /**
+     * Construct on the R main thread.
+     *
+     * @param nChains_          Number of parallel chains
+     * @param nIter_            Total iterations per chain
+     * @param nWarmup_          Warmup iterations per chain
+     * @param printEvery_       Print frequency in iterations
+     * @param progress_type     Bar style (0 = none, 1 = total, 2 = per-chain)
+     * @param useUnicode_       Use Unicode theme instead of ASCII
+     * @param progress_callback Optional R function called as callback(completed, total)
+     */
     ProgressManager(int nChains_, int nIter_, int nWarmup_, int printEvery_ = 10, int progress_type = 2, bool useUnicode_ = true, SEXP progress_callback = R_NilValue);
+
+    /**
+     * Record one completed iteration for a chain. Callable from any thread;
+     * printing and interrupt checks run only when called on the R main thread.
+     */
     void update(size_t chainId);
+
+    /** Print the final progress state and release the progress lines. */
     void finish();
+
+    /** @return true if a user interrupt was detected and chains should stop. */
     bool shouldExit() const;
 
 private:
