@@ -108,26 +108,26 @@
 #'   hyperpriors under the determinant tilt.
 #' @param calibration_window Non-negative integer or \code{NULL} (default).
 #'   Only for \code{spec = "hierarchical"}: length of the appended warm-up
-#'   window in which the normalizer-ratio approximation is calibrated
-#'   against exact Monte-Carlo evaluations and then frozen before
+#'   window in which the Z-ratio correction is calibrated online against a
+#'   block-Gibbs oracle and then frozen (with its hull clamp) before
 #'   sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
 #'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
 #'   never shortened; the window is appended.
 #' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
-#'   \code{spec = "hierarchical"}: run the trust gauge
+#'   \code{spec = "hierarchical"}: run the in-chain Z-ratio trust gauge
 #'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
 #'   the result; detected issues are printed when \code{verbose}. The gauge
-#'   redoes a subset of the chain's edge decisions with the exact
-#'   calculation and records how often the outcome differs.
+#'   references non-trivial edge moves against a block-local exact reference.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
 #'   positive-definite cone boundary. \code{delta = NULL} (default)
 #'   auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
 #'   dimension-adaptive rule \eqn{\delta(p) = c \log p} with
-#'   \eqn{c \in (0.3, 0.6)} (Marsman et al., in preparation). Pass
-#'   \code{delta = 0} for the untilted prior or a non-negative numeric to
-#'   override.
+#'   \eqn{c \in (0.3, 0.6)} discussed in the companion paper on
+#'   determinant-tilted spike-and-slab priors (Marsman et al., in
+#'   preparation). Pass \code{delta = 0} for the untilted prior (the
+#'   companion-paper baseline) or a non-negative numeric to override.
 #'
 #' @return A list with components
 #'   \describe{

@@ -1,6 +1,6 @@
-# Tests for the hierarchical-spec per-edge Z-ratio engine: parity against a
-# pre-generated exact-reference fixture (zratio_reference.rds), the fit-time
-# constant builders, and engine invariants.
+# Tests for the hierarchical-spec per-edge Z-ratio engine: parity against the
+# reference implementation (fixture generated from the z_graph_prior deployed
+# kernel), the fit-time constant builders, and engine invariants.
 
 fixture_path = testthat::test_path("fixtures", "zratio_reference.rds")
 

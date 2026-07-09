@@ -4,7 +4,8 @@
 // R-facing test entries for the hierarchical-spec per-edge Z-ratio engine.
 // Kept separate from the sampler dispatch: these drive ZRatioEngine in
 // isolation so its saddle map, neighbourhood counts, correction, clamp, and
-// cache can be tested without any chain machinery.
+// cache can be validated against the reference implementation (SV/Z
+// sbc_prior_chain_exact.cpp) without any chain machinery.
 // -----------------------------------------------------------------------------
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -52,7 +53,8 @@ Rcpp::List zratio_test_eval(
 //   Block-local EXACT reference log R_e for the edge (i, j) (1-based) on G,
 //   via block_reference_logR (full-product endpoint transform). Returns the
 //   reference, its batch-means MCSE, the deployed log J for the same edge,
-//   and block descriptors. Drives the trust-gauge reference in isolation.
+//   and block descriptors. Drives the trust-gauge reference in isolation for
+//   cross-checks against the R/Z prototype exact_route_logR.
 // -----------------------------------------------------------------------------
 
 // [[Rcpp::export(name = "zratio_test_reference")]]

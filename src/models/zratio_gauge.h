@@ -13,7 +13,7 @@
  * During K assessment sweeps (deployed selection passes) the gauge compares,
  * at every non-trivial edge move, the deployed log J against the block-local
  * exact reference log R_e and records D = the fraction of accept/reject
- * decisions that would flip under the exact ratio.
+ * decisions that would flip under the exact ratio. It flags; it does not fix.
  *
  * Per referenced pair, with the actual acceptance log-ratio ln_alpha and
  * sign (+1 add, -1 delete):
@@ -21,8 +21,8 @@
  *   la_ref   = ln_alpha - sign * s_e                 (exact acceptance ratio)
  *   dalpha   = | min(1,e^ln_alpha) - min(1,e^la_ref) |
  * Per sweep D_all = (n_ent / nE) * mean(dalpha over referenced pairs); the
- * chain D pools by averaging D_all over the K sweeps.
- * Non-trivial = m >= 2 (covers the additive zone, not only the
+ * chain D pools by averaging D_all over the K sweeps (matches the companion
+ * prototype). Non-trivial = m >= 2 (covers the additive zone, not only the
  * corrected zone); trivial blocks have an exact ratio and are skipped free.
  * Referenced pairs are capped per sweep; the uncapped remainder is counted
  * (n_ent) and never silently dropped.

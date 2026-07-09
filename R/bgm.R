@@ -118,9 +118,10 @@
 #'   dimension of the continuous precision matrix (the number of
 #'   variables for GGM, the number of continuous variables for mixed
 #'   MRF). The rule is the simple form of the dimension-adaptive scaling
-#'   \eqn{\delta(p) = c \log p} with \eqn{c \in (0.3, 0.6)}
+#'   \eqn{\delta(p) = c \log p} with \eqn{c \in (0.3, 0.6)} discussed in
+#'   the companion paper on determinant-tilted spike-and-slab priors
 #'   (Marsman et al., in preparation). Pass \code{delta = 0} for the
-#'   untilted prior or a non-negative
+#'   untilted prior (the companion-paper baseline) or a non-negative
 #'   numeric to override. Both NUTS and adaptive-Metropolis update paths
 #'   apply the tilt. Not allowed for pure ordinal models (no precision
 #'   matrix to tilt).
@@ -181,11 +182,11 @@
 #'     \item{"hierarchical"}{The hierarchical specification
 #'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 #'       normalized per graph, so the graph marginal is exactly the edge
-#'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
-#'       ratio with a fast local approximation, calibrated against exact
-#'       Monte-Carlo evaluations in an appended warm-up window (see
-#'       \code{calibration_window}). A trust gauge audits the approximation
-#'       during sampling
+#'       prior \eqn{\pi(\Gamma)}. Each between-edge move evaluates the
+#'       normalizer ratio by a deterministic local Z-ratio approximation,
+#'       calibrated online against a block-Gibbs oracle in an appended
+#'       warm-up window (see \code{calibration_window}) and gauged in-chain
+#'       against a block-local exact reference
 #'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
 #'       \code{fit$zratio_diag} and issues print like other sampler
 #'       warnings). Requires \code{edge_selection = TRUE}, a
@@ -202,9 +203,9 @@
 #'
 #' @param calibration_window Non-negative integer or \code{NULL} (default).
 #'   Only for \code{precision_graph_prior = "hierarchical"}: length of the
-#'   appended warm-up window in which the normalizer-ratio approximation is
-#'   calibrated against exact Monte-Carlo evaluations and then frozen before
-#'   sampling. \code{NULL} resolves to no window for
+#'   appended warm-up window in which the Z-ratio correction is calibrated
+#'   online against a block-Gibbs oracle and then frozen (with its hull
+#'   clamp) before sampling. \code{NULL} resolves to no window for
 #'   \code{p < 15} variables and 15 percent of \code{warmup} otherwise. The
 #'   adaptation warmup itself is never shortened; the window is appended.
 #'
