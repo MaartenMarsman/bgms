@@ -789,10 +789,16 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
     // +log J with J = Z(Gamma_yy-)/Z(Gamma_yy+) and the delete ratio -log J.
     // Mediating-block counts are read off the continuous subgraph; the
     // toggled edge's own state never enters.
+    double log_j_cont = 0.0;
     if (zratio_engine_) {
-        const double log_j = zratio_engine_->log_zratio(
-            continuous_subgraph(), i, j);
-        ln_alpha += (g_prop == 1) ? log_j : -log_j;
+        log_j_cont = zratio_engine_->log_zratio(continuous_subgraph(), i, j);
+        ln_alpha += (g_prop == 1) ? log_j_cont : -log_j_cont;
+    }
+
+    if (zratio_gauge_.active) {
+        zratio_gauge_record(zratio_gauge_, zratio_engine_.get(),
+                            continuous_subgraph(), i, j, ln_alpha, log_j_cont,
+                            g_prop == 1 ? 1 : -1);
     }
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {

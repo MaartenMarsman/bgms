@@ -88,7 +88,8 @@ run_sampler_ggm = function(spec) {
       delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         p$calibration_window, d$num_variables, s$warmup
-      )
+      ),
+      gauge_sweeps = 2L
     )
   } else {
     correction = ggm_edge_prior_correction(p, s, d$num_variables)
@@ -231,7 +232,8 @@ run_sampler_mixed_mrf = function(spec) {
       delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         p$calibration_window, d$num_continuous, s$warmup
-      )
+      ),
+      gauge_sweeps = 2L
     )
   } else {
     correction = ggm_edge_prior_correction(

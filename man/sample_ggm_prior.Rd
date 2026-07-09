@@ -115,10 +115,10 @@ percent of \code{n_warmup} otherwise. The adaptation warmup itself is
 never shortened; the window is appended.}
 
 \item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
-\code{spec = "hierarchical"}: run the post-sampling Z-ratio alarm suite
-(\code{\link{summarize_zratio_diagnostics}}) on the returned chain and
-attach the result; detected issues are printed when \code{verbose}.
-The audit spends a few dozen measurement-only block-Gibbs oracle calls.}
+\code{spec = "hierarchical"}: run the in-chain Z-ratio trust gauge
+(\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
+the result; detected issues are printed when \code{verbose}. The gauge
+references non-trivial edge moves against a block-local exact reference.}
 }
 \value{
 A list with components
@@ -153,8 +153,8 @@ matrix (\code{n_samples x p}) of sampled cluster allocations
 (1-based).}
 \item{\code{zratio_diagnostics}}{Only with
 \code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
-the alarm-suite summary from
-\code{\link{summarize_zratio_diagnostics}}.}
+the trust-gauge summary from
+\code{\link{summarize_zratio_gauge}}.}
 }
 }
 \description{

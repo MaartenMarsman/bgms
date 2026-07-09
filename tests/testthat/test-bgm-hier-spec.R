@@ -73,7 +73,7 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
   }
 })
 
-test_that("bgm fits the hierarchical spec and attaches the alarm suite", {
+test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   skip_on_cran()
   Y = hier_test_data(q = 12)
   fit = bgm(
@@ -89,10 +89,9 @@ test_that("bgm fits the hierarchical spec and attaches the alarm suite", {
   zd = fit@zratio_diag
   expect_false(is.null(zd))
   expect_equal(nrow(zd$per_chain), 2L)
-  expect_true(all(zd$per_chain$frozen))
-  expect_true(all(zd$per_chain$n_oracle > 0))
-  expect_false(zd$verdict_flagged)
-  expect_equal(length(zd$audits), 2L)
+  expect_true(all(is.finite(zd$per_chain$flip_rate)))
+  expect_true(all(zd$per_chain$n_ent >= 0))
+  expect_false(zd$flagged)
   expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
   # The joint-path hyperparameter correction must not run on this path;
   # inclusion-parameter samples come from the clean conjugate draw.
@@ -110,26 +109,6 @@ test_that("the joint default is unchanged", {
   )
   expect_equal(fit@arguments$precision_graph_prior, "joint")
   expect_null(fit@zratio_diag)
-})
-
-test_that("mixed indicator layout rebuilds the continuous subgraph", {
-  q = 5
-  G = matrix(0L, q, q)
-  G[1, 4] = G[4, 1] = 1L
-  G[2, 3] = G[3, 2] = 1L
-  diag(G) = 1L
-  # Row-major upper triangle without diagonal, as the mixed chain emits it.
-  rowmajor = integer(q * (q - 1) / 2)
-  e = 1L
-  for(i in seq_len(q - 1)) {
-    for(j in (i + 1):q) {
-      rowmajor[e] = G[i, j]
-      e = e + 1L
-    }
-  }
-  expect_identical(
-    bgms:::zratio_indicator_graph(rowmajor, q, include_diag = FALSE), G
-  )
 })
 
 test_that("mixed data supports the hierarchical spec on the continuous block", {
@@ -166,7 +145,7 @@ test_that("mixed data supports the hierarchical spec on the continuous block", {
   )
   zd = fit@zratio_diag
   expect_false(is.null(zd))
-  expect_true(zd$per_chain$frozen)
-  expect_false(zd$verdict_flagged)
+  expect_true(is.finite(zd$per_chain$flip_rate))
+  expect_false(zd$flagged)
   expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
 })

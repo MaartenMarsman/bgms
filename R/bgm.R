@@ -185,10 +185,11 @@
 #'       prior \eqn{\pi(\Gamma)}. Each between-edge move evaluates the
 #'       normalizer ratio by a deterministic local Z-ratio approximation,
 #'       calibrated online against a block-Gibbs oracle in an appended
-#'       warm-up window (see \code{calibration_window}) and audited after
-#'       sampling (\code{\link{summarize_zratio_diagnostics}}; the summary
-#'       is returned as \code{fit$zratio_diag} and issues print like other
-#'       sampler warnings). Requires \code{edge_selection = TRUE}, a
+#'       warm-up window (see \code{calibration_window}) and gauged in-chain
+#'       against a block-local exact reference
+#'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
+#'       \code{fit$zratio_diag} and issues print like other sampler
+#'       warnings). Requires \code{edge_selection = TRUE}, a
 #'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior, a
 #'       shape-1 \code{gamma_prior()} (or \code{exponential_prior()})
 #'       precision scale prior, and continuous data — either all-continuous

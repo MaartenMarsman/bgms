@@ -49,6 +49,55 @@ Rcpp::List zratio_test_eval(
 }
 
 // -----------------------------------------------------------------------------
+// zratio_test_reference:
+//   Block-local EXACT reference log R_e for the edge (i, j) (1-based) on G,
+//   via block_reference_logR (full-product endpoint transform). Returns the
+//   reference, its batch-means MCSE, the deployed log J for the same edge,
+//   and block descriptors. Drives the trust-gauge reference in isolation for
+//   cross-checks against the R/Z prototype exact_route_logR.
+// -----------------------------------------------------------------------------
+
+// [[Rcpp::export(name = "zratio_test_reference")]]
+Rcpp::List zratio_test_reference(
+    arma::imat G,
+    int i,
+    int j,
+    arma::vec addc,
+    arma::vec tg,
+    arma::vec ihat,
+    arma::vec ghat,
+    arma::vec wt,
+    double psi0,
+    double delta,
+    double eta,
+    int n_draws,
+    int burn,
+    int seed,
+    bool slab_cauchy = false
+) {
+    ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
+    SafeRNG rng(seed);
+    engine.set_oracle_params(delta, eta, &rng, n_draws, burn, slab_cauchy);
+    ZRatioBlock bl = engine.extract_block(G, i - 1, j - 1);
+    if (!bl.valid) {
+        return Rcpp::List::create(Rcpp::_["valid"] = false);
+    }
+    double logR = NA_REAL, mcse = NA_REAL;
+    bool ok =
+        engine.block_reference_logR(bl.a_blk, bl.si, bl.sj, n_draws, logR, mcse);
+    return Rcpp::List::create(
+        Rcpp::_["valid"] = true,
+        Rcpp::_["ok"] = ok,
+        Rcpp::_["logR"] = logR,
+        Rcpp::_["mcse"] = mcse,
+        Rcpp::_["m"] = bl.m,
+        Rcpp::_["maxbd"] = bl.maxbd,
+        Rcpp::_["ncn"] = bl.ncn,
+        Rcpp::_["log_zratio"] = engine.log_zratio(G, i - 1, j - 1)
+    );
+}
+
+// -----------------------------------------------------------------------------
 // zratio_test_saddle:
 //   The bare two-moment saddle map at (s1, s2), for closed-form checks.
 // -----------------------------------------------------------------------------

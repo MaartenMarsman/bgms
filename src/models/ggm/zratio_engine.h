@@ -48,10 +48,15 @@ struct ZRatioBlock {
  *            has bridge multiplicity >= 2.
  *   [12]     > 0.5 selects the direct ratio-scale correction (log J += fc
  *            after the cached saddle); the cache then keys on the counts
- *            only.
- *   [13..22] optional hull box (per-feature min/max of the calibration
- *            design, order bre, m, cne, maxbd, dens); outside the box the
- *            correction is zeroed so the frozen kernel never extrapolates.
+ *            only. Applied for every block with bridge multiplicity >= 2
+ *            (the single deployment gate); never re-gated on the block's
+ *            location in feature space.
+ *   [13..22] hull box of the calibration design (per-feature min/max,
+ *            order bre, m, cne, maxbd, dens), retained for diagnostics only.
+ *            The frozen kernel no longer gates on it: reverting to the biased
+ *            additive saddle outside a prior/size-dependent box is worse than
+ *            extrapolating the smooth ratio-scale surface, so the correction
+ *            extends past the training cloud.
  *
  * Conventions (standardized cell): K_ii ~ Exp(beta), slab K_ij ~ N(0,
  * sigma^2), tilt |K|^delta. The between-graph ratio is invariant under the
@@ -97,24 +102,11 @@ public:
     /**
      * Deployed OLS correction for one block under the current constant
      * block: 0 for maxbd < 2 or when no fit is packed (addc[12] <= 0.5),
-     * the OLS value inside the hull box, 0 outside it (clamped = true).
-     * Reads state only; no counters move.
+     * otherwise the OLS value (applied everywhere, including past the
+     * calibration cloud; clamped is always false, kept for interface
+     * stability). Reads state only; no counters move.
      */
     double deployed_correction(const ZRatioBlock& bl, bool& clamped) const;
-
-    /**
-     * Measurement-only audit of the edge (i, j): the deployed correction
-     * versus the block-Gibbs local oracle on the same block.
-     *
-     * On success fills pred_out (deployed correction), oracle_out
-     * (log(saddle on oracle moments) - log(additive saddle)) and bl_out,
-     * and returns true. Returns false for one-sided blocks, non-positive
-     * additive moments, or an oracle with no finite sweep. Requires
-     * set_oracle_params (or enable_calibration) to have run; feeds
-     * nothing back into the fit, caches, or counters.
-     */
-    bool audit_edge(const arma::imat& G, int i, int j, double& pred_out,
-                    double& oracle_out, ZRatioBlock& bl_out);
 
     /**
      * Set the standardized-cell prior constants and RNG the block-Gibbs
@@ -175,6 +167,24 @@ public:
                               const arma::uvec& sj, double& s1_out,
                               double& s2_out);
 
+    /**
+     * Block-local EXACT reference for the trust gauge: log R_e where
+     * R_e = mean_H{ W(H) <phi, I_N> } / mean_H{ W(H) <phi, I_G> } over
+     * n_draws rest-block precision draws H = K_R^{-1} of the mediating
+     * block. Unlike block_oracle_moments (two-moment saddle collapse) the
+     * endpoint couplings are integrated with the full product transform
+     * phi(t|H) = prod_k (1 + u_k t^2)^{-1/2}, u_k = sigma^4 s_k^2 over ALL
+     * singular values s_k of the cross-resolvent. Common random numbers
+     * across the two averages, endpoints analytic. Fills logR_out and
+     * mcse_out (batch-means MC standard error on the log scale). Returns
+     * false when no draw yields a finite pair. Draws from the live rng_;
+     * requires set_oracle_params / enable_calibration to have set the
+     * standardized-cell prior constants.
+     */
+    bool block_reference_logR(const arma::imat& a_blk, const arma::uvec& si,
+                              const arma::uvec& sj, int n_draws,
+                              double& logR_out, double& mcse_out);
+
     long cache_size() const { return static_cast<long>(cache_.size()); }
     long n_hit() const { return n_hit_; }
     long n_miss() const { return n_miss_; }
@@ -193,10 +203,18 @@ public:
 private:
     void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr) const;
+    /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
+    void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
+                     arma::mat& k_blk, arma::mat& omega_blk) const;
     bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
                         const arma::uvec& sj, const arma::vec& wsi,
                         const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
+    /** Per-draw full-product endpoint integrals for block_reference_logR. */
+    bool inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+                          const arma::uvec& sj, const arma::vec& wsi,
+                          const arma::vec& wsj, double& w, double& fN,
+                          double& gG, double& kappa2) const;
     void refit_();
 
     /** Pack the (nCN, cne, bre) additive-cache counts into one integer key. */

@@ -114,10 +114,10 @@
 #'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
 #'   never shortened; the window is appended.
 #' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
-#'   \code{spec = "hierarchical"}: run the post-sampling Z-ratio alarm suite
-#'   (\code{\link{summarize_zratio_diagnostics}}) on the returned chain and
-#'   attach the result; detected issues are printed when \code{verbose}.
-#'   The audit spends a few dozen measurement-only block-Gibbs oracle calls.
+#'   \code{spec = "hierarchical"}: run the in-chain Z-ratio trust gauge
+#'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
+#'   the result; detected issues are printed when \code{verbose}. The gauge
+#'   references non-trivial edge moves against a block-local exact reference.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -161,8 +161,8 @@
 #'       (1-based).}
 #'     \item{\code{zratio_diagnostics}}{Only with
 #'       \code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
-#'       the alarm-suite summary from
-#'       \code{\link{summarize_zratio_diagnostics}}.}
+#'       the trust-gauge summary from
+#'       \code{\link{summarize_zratio_gauge}}.}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -346,7 +346,8 @@ sample_ggm_prior = function(
       delta = zc$delta, eta = zc$eta, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
-      )
+      ),
+      gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
@@ -437,11 +438,10 @@ sample_ggm_prior = function(
     out$allocations = t(results[[1L]]$allocation_samples)
   }
   if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
-    out$zratio_diagnostics = summarize_zratio_diagnostics(
-      results, zratio,
-      num_nodes = as.integer(p),
-      seed = as.integer(seed), verbose = verbose
-    )
+    out$zratio_diagnostics = summarize_zratio_gauge(results, verbose = verbose)
+    if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
+      cat("See vignette('diagnostics') for guidance.\n")
+    }
   }
   out
 }

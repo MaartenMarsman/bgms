@@ -79,6 +79,20 @@ public:
     /// Whether Z-ratio engine diagnostics are stored.
     bool        has_zratio_diagnostics = false;
 
+    /// In-chain trust gauge (hierarchical spec): D = fraction of edge moves
+    /// that would flip under the exact ratio, its reference-noise floor, the
+    /// signed-mean and spread of the log-ratio error s_e, and the pair
+    /// counts (non-trivial seen / referenced / cap hits). Populated only when
+    /// the gauge ran (gauge_ran = true).
+    double      zratio_gauge_D = 0.0;
+    double      zratio_gauge_noise_floor = 0.0;
+    double      zratio_gauge_se_mean = 0.0;
+    double      zratio_gauge_se_sd = 0.0;
+    long        zratio_gauge_n_ent = 0;
+    long        zratio_gauge_n_ref = 0;
+    long        zratio_gauge_n_capped = 0;
+    bool        zratio_gauge_ran = false;
+
     /**
      * Reserve storage for samples
      * @param param_dim  Number of parameters per sample

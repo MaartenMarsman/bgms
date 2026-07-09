@@ -285,22 +285,17 @@ build_output_mixed_mrf = function(spec, raw) {
     target_accept = s$target_accept
   )
 
-  # --- Z-ratio alarm suite (hierarchical spec on the continuous block) ---------
-  # The indicator vector is [Gxx upper, Gyy upper, Gxy row-major], both
-  # triangles without diagonals; the audit reads the Gyy segment.
+  # --- Z-ratio trust gauge (hierarchical spec on the continuous block) ---------
   if(!is.null(zratio_chains)) {
-    zc = zratio_cell_constants(
-      pr$delta, pr$pairwise_scale, pr$scale_rate, pr$scale_eta,
-      slab = pr$interaction_prior_type
-    )
-    results$zratio_diag = summarize_zratio_diagnostics(
-      zratio_chains, zc,
-      num_nodes = q,
-      seed = s$seed,
-      verbose = TRUE,
-      layout_offset = as.integer(p * (p - 1) / 2),
-      layout_diag = FALSE
-    )
+    results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
+  }
+
+  # Single vignette pointer covering both diagnostic blocks: print once if
+  # either the NUTS diagnostics or the trust gauge reported issues.
+  if(isTRUE(getOption("bgms.verbose", TRUE)) &&
+    (isTRUE(results$nuts_diag$has_issues) ||
+      isTRUE(results$zratio_diag$flagged))) {
+    cat("See vignette('diagnostics') for guidance.\n")
   }
 
   results$.bgm_spec = spec

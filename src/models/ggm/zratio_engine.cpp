@@ -205,44 +205,20 @@ double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
     if (bl.maxbd < 2) return 0.0;
     bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
     if (!direct) return 0.0;
+    // Single gate: once the edge has bridge multiplicity >= 2 the direct
+    // ratio-scale correction is applied everywhere. The correction is a
+    // smooth low-dimensional surface on the log-ratio scale, and the
+    // corrected value dominates the uncorrected additive saddle, most of all
+    // in the dense/large-block corner. Reverting to additive outside a
+    // calibration hull would reintroduce the additive bias exactly where it
+    // is largest, so the frozen kernel extrapolates the surface rather than
+    // gating on a prior/size-dependent box.
     double fc = addc_[6] + addc_[7] * static_cast<double>(bl.bre) +
                 addc_[8] * static_cast<double>(bl.m) +
                 addc_[9] * static_cast<double>(bl.cne) +
                 addc_[10] * static_cast<double>(bl.maxbd) +
                 addc_[11] * bl.dens;
-    if (addc_.n_elem >= 23) {
-        double bd = static_cast<double>(bl.bre), md = static_cast<double>(bl.m),
-               cd = static_cast<double>(bl.cne),
-               xd = static_cast<double>(bl.maxbd);
-        bool inside =
-            (bd >= addc_[13] && bd <= addc_[14] && md >= addc_[15] &&
-             md <= addc_[16] && cd >= addc_[17] && cd <= addc_[18] &&
-             xd >= addc_[19] && xd <= addc_[20] && bl.dens >= addc_[21] &&
-             bl.dens <= addc_[22]);
-        if (!inside) {
-            fc = 0.0;
-            clamped = true;
-        }
-    }
     return fc;
-}
-
-bool ZRatioEngine::audit_edge(const arma::imat& G, int i, int j,
-                              double& pred_out, double& oracle_out,
-                              ZRatioBlock& bl_out) {
-    bl_out = extract_block(G, i, j);
-    const ZRatioBlock& bl = bl_out;
-    if (!bl.valid) return false;
-    double s1 = bl.ncn * addc_[0] + bl.cne * addc_[2] + bl.bre * addc_[4];
-    double s2 = bl.ncn * addc_[1] + bl.cne * addc_[3] + bl.bre * addc_[5];
-    if (s1 <= 0 || s2 <= 0) return false;
-    const double log_r_add = MY_LOG(saddle_ratio(s1, s2));
-    bool clamped = false;
-    pred_out = deployed_correction(bl, clamped);
-    double s1b = 0, s2b = 0;
-    if (!block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) return false;
-    oracle_out = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
-    return true;
 }
 
 void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
@@ -397,12 +373,73 @@ bool ZRatioEngine::inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
     return true;
 }
 
-bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
-                                        const arma::uvec& si,
-                                        const arma::uvec& sj, double& s1_out,
-                                        double& s2_out) {
+// Symmetric PSD square root via eigendecomposition with nonneg clamping.
+static arma::mat sympd_sqrt_(const arma::mat& a) {
+    arma::vec ev;
+    arma::mat vecs;
+    arma::eig_sym(ev, vecs, 0.5 * (a + a.t()));
+    ev = arma::clamp(ev, 0.0, arma::datum::inf);
+    return vecs * arma::diagmat(arma::sqrt(ev)) * vecs.t();
+}
+
+bool ZRatioEngine::inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+                                    const arma::uvec& sj, const arma::vec& wsi,
+                                    const arma::vec& wsj, double& w, double& fN,
+                                    double& gG, double& kappa2) const {
+    const double t2 = 2.0 * beta_ * sigma_ * sigma_;
+    const double s4 = sigma_ * sigma_ * sigma_ * sigma_;
+    arma::mat r_inv;
+    if (!arma::inv_sympd(r_inv, k_blk)) return false;
+    arma::mat rii = r_inv.submat(si, si), rjj = r_inv.submat(sj, sj),
+              rij = r_inv.submat(si, sj);
+    arma::mat mi, mj, lh, rh;
+    if (oracle_slab_cauchy_) {
+        arma::mat di = arma::diagmat(wsi), dj = arma::diagmat(wsj);
+        if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) +
+                                     t2 * di * rii * di)) {
+            return false;
+        }
+        if (!arma::inv_sympd(mj, arma::eye(sj.n_elem, sj.n_elem) +
+                                     t2 * dj * rjj * dj)) {
+            return false;
+        }
+        lh = di * mi * di;
+        rh = dj * mj * dj;
+    } else {
+        if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) + t2 * rii)) {
+            return false;
+        }
+        if (!arma::inv_sympd(mj, arma::eye(sj.n_elem, sj.n_elem) + t2 * rjj)) {
+            return false;
+        }
+        lh = mi;
+        rh = mj;
+    }
+    w = std::sqrt(arma::det(mi) * arma::det(mj));
+    // Singular values s_k of Lh^.5 Rij Rh^.5; u_k = sigma^4 s_k^2 (== the
+    // eigenvalues of the moment matrix P, so kappa2 = sigma^4 tr(P)).
+    arma::vec sv;
+    if (!arma::svd(sv, sympd_sqrt_(lh) * rij * sympd_sqrt_(rh))) return false;
+    arma::vec u = s4 * (sv % sv);
+    kappa2 = arma::accu(u);
+    // phi(t) = prod_k (1 + u_k t^2)^{-1/2} over the tilt grid.
+    arma::vec tg2 = tg_ % tg_;
+    arma::vec logphi(tg_.n_elem, arma::fill::zeros);
+    for (arma::uword k = 0; k < u.n_elem; ++k) {
+        logphi += -0.5 * arma::log1p(u[k] * tg2);
+    }
+    arma::vec phi = arma::exp(logphi);
+    fN = arma::accu(wt_ % ihat_ % phi);
+    gG = arma::accu(wt_ % ghat_ % phi);
+    return std::isfinite(w) && w > 0.0 && std::isfinite(fN) &&
+           std::isfinite(gG);
+}
+
+void ZRatioEngine::init_block_(const arma::imat& a_blk,
+                               std::vector<arma::uvec>& nbr, arma::mat& k_blk,
+                               arma::mat& omega_blk) const {
     const int m = static_cast<int>(a_blk.n_rows);
-    std::vector<arma::uvec> nbr(m);
+    nbr.assign(m, arma::uvec());
     for (int i = 0; i < m; ++i) {
         std::vector<arma::uword> v;
         for (int j = 0; j < m; ++j) {
@@ -410,13 +447,22 @@ bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
         }
         nbr[i] = arma::uvec(v);
     }
-    arma::mat k_blk(m, m, arma::fill::zeros);
-    arma::mat omega_blk;
+    k_blk.zeros(m, m);
     if (oracle_slab_cauchy_) omega_blk.ones(m, m);
+    else omega_blk.reset();
     for (int l = 0; l < m; ++l) {
         k_blk(l, l) = rexp(*rng_, beta_) + m;
     }
     for (int s = 0; s < burn_; ++s) gibbs_sweep_(k_blk, omega_blk, nbr);
+}
+
+bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
+                                        const arma::uvec& si,
+                                        const arma::uvec& sj, double& s1_out,
+                                        double& s2_out) {
+    std::vector<arma::uvec> nbr;
+    arma::mat k_blk, omega_blk;
+    init_block_(a_blk, nbr, k_blk, omega_blk);
     double sw = 0, sw1 = 0, sw2 = 0;
     long kept = 0;
     arma::vec wsi, wsj;
@@ -445,6 +491,77 @@ bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
     if (kept == 0 || sw <= 0) return false;
     s1_out = sw1 / sw;
     s2_out = sw2 / sw;
+    return true;
+}
+
+bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
+                                        const arma::uvec& si,
+                                        const arma::uvec& sj, int n_draws,
+                                        double& logR_out, double& mcse_out) {
+    std::vector<arma::uvec> nbr;
+    arma::mat k_blk, omega_blk;
+    init_block_(a_blk, nbr, k_blk, omega_blk);
+    std::vector<double> wf, wg;   // per-draw W*<phi,I_N> and W*<phi,I_G>
+    wf.reserve(n_draws);
+    wg.reserve(n_draws);
+    arma::vec wsi, wsj;
+    for (int s = 0; s < n_draws; ++s) {
+        gibbs_sweep_(k_blk, omega_blk, nbr);
+        if (oracle_slab_cauchy_) {
+            wsi.set_size(si.n_elem);
+            wsj.set_size(sj.n_elem);
+            for (arma::uword k = 0; k < wsi.n_elem; ++k) {
+                wsi[k] = 1.0 / std::abs(rnorm(*rng_, 0.0, 1.0));
+            }
+            for (arma::uword k = 0; k < wsj.n_elem; ++k) {
+                wsj[k] = 1.0 / std::abs(rnorm(*rng_, 0.0, 1.0));
+            }
+        }
+        double w, fN, gG, k2;
+        if (inner_reference_(k_blk, si, sj, wsi, wsj, w, fN, gG, k2)) {
+            wf.push_back(w * fN);
+            wg.push_back(w * gG);
+        }
+    }
+    const int n = static_cast<int>(wf.size());
+    if (n == 0) return false;
+    double nf = 0, dg = 0;
+    for (int i = 0; i < n; ++i) {
+        nf += wf[i];
+        dg += wg[i];
+    }
+    if (!(nf > 0.0) || !(dg > 0.0)) return false;
+    const double ratio = nf / dg;
+    // Batch-means MC standard error of the ratio, mapped to the log scale
+    // (delta method). Common random numbers across the two averages already
+    // cancel most of the ratio's noise.
+    const int nb =
+        std::max(10, static_cast<int>(std::floor(std::sqrt((double)n))));
+    std::vector<double> batch;
+    batch.reserve(nb);
+    for (int b = 0; b < nb; ++b) {
+        int lo = static_cast<int>((long)b * n / nb);
+        int hi = static_cast<int>((long)(b + 1) * n / nb);
+        double bnf = 0, bdg = 0;
+        for (int i = lo; i < hi; ++i) {
+            bnf += wf[i];
+            bdg += wg[i];
+        }
+        if (hi > lo && bdg > 0.0) batch.push_back(bnf / bdg);
+    }
+    double mcse = 0.0;
+    const int nB = static_cast<int>(batch.size());
+    if (nB > 1) {
+        double mb = 0;
+        for (double x : batch) mb += x;
+        mb /= nB;
+        double vb = 0;
+        for (double x : batch) vb += (x - mb) * (x - mb);
+        vb /= (nB - 1);
+        mcse = std::sqrt(vb / nB);
+    }
+    logR_out = std::log(ratio);
+    mcse_out = mcse / ratio;
     return true;
 }
 
