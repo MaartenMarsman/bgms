@@ -384,7 +384,7 @@ double MixedMRFModel::log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const {
 // Then recomputes inv_cholesky_of_precision_ and covariance_continuous_.
 // =============================================================================
 
-void MixedMRFModel::cholesky_update_after_precision_edge(
+bool MixedMRFModel::cholesky_update_after_precision_edge(
     double old_ij, double old_jj, int i, int j)
 {
     cont_v2_[0] = old_ij - precision_proposal_(i, j);
@@ -406,8 +406,9 @@ void MixedMRFModel::cholesky_update_after_precision_edge(
     // decomposition from scratch (mirrors GGMModel's drift-guard).
     // pairwise_effects_continuous_ already holds the accepted value here, so
     // the rebuild reconstructs the accepted state.
-    if (down_ok &&
-        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+    bool incremental = down_ok &&
+        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
+    if (incremental) {
         covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
         log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     } else {
@@ -418,6 +419,8 @@ void MixedMRFModel::cholesky_update_after_precision_edge(
     cont_vf1_[j] = 0.0;
     cont_vf2_[i] = 0.0;
     cont_vf2_[j] = 0.0;
+
+    return incremental;
 }
 
 
@@ -427,7 +430,7 @@ void MixedMRFModel::cholesky_update_after_precision_edge(
 // Rank-1 Cholesky update after accepting a diagonal precision change.
 // =============================================================================
 
-void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
+bool MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
     double delta = old_ii - precision_proposal_(i, i);
     bool downdate = delta > 0.0;
 
@@ -442,8 +445,9 @@ void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
     // Update the inverse Cholesky; fall back to a full rebuild if the
     // downdate lost positive definiteness or on drift (mirrors GGMModel's
     // drift-guard).
-    if (down_ok &&
-        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_))) {
+    bool incremental = down_ok &&
+        arma::inv(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_));
+    if (incremental) {
         covariance_continuous_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
         log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     } else {
@@ -451,6 +455,8 @@ void MixedMRFModel::cholesky_update_after_precision_diag(double old_ii, int i) {
     }
 
     cont_vf1_[i] = 0.0;
+
+    return incremental;
 }
 
 
@@ -492,7 +498,8 @@ double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, s
     precision_proposal_(j, j) = theta_prop_jj;
 
     arma::mat cov_prop;
-    double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
+    double ggm_ratio = log_ggm_ratio_edge(i, j, cov_prop);
+    double ln_alpha = ggm_ratio;
 
     // Determinant-tilt prior on the Kyy block: |Kyy|^delta contributes
     //   delta * (log|Kyy_prop| - log|Kyy_curr|)
@@ -529,9 +536,11 @@ double MixedMRFModel::update_pairwise_effects_continuous_offdiag(int i, int j, s
         pairwise_effects_continuous_(j, i) = -0.5 * theta_prop_ij;
         pairwise_effects_continuous_(j, j) = -0.5 * theta_prop_jj;
 
-        cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j);
-        recompute_marginal_interactions();
-        recompute_am_caches();
+        if (cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j)) {
+            adopt_kyy_proposal_caches(ggm_ratio, /*rank2=*/true);
+        } else {
+            recompute_am_caches();
+        }
     }
 
     if (rm_weight) {
@@ -569,7 +578,8 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
     precision_proposal_(i, i) = theta_ii_prop;
 
     arma::mat cov_prop;
-    double ln_alpha = log_ggm_ratio_diag(i, cov_prop);
+    double ggm_ratio = log_ggm_ratio_diag(i, cov_prop);
+    double ln_alpha = ggm_ratio;
 
     // Determinant-tilt prior: rank-1 lemma, O(1) via the cached covariance.
     if (determinant_tilt_yy_ != 0.0) {
@@ -594,9 +604,11 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
         // Store: pairwise_effects_continuous_ = -1/2 * precision
         pairwise_effects_continuous_(i, i) = -0.5 * theta_ii_prop;
 
-        cholesky_update_after_precision_diag(old_theta_ii, i);
-        recompute_marginal_interactions();
-        recompute_am_caches();
+        if (cholesky_update_after_precision_diag(old_theta_ii, i)) {
+            adopt_kyy_proposal_caches(ggm_ratio, /*rank2=*/false);
+        } else {
+            recompute_am_caches();
+        }
     }
 
     if (rm_weight) {
@@ -664,8 +676,7 @@ double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> 
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_cross_(i, j) = proposed;
-        recompute_marginal_interactions();
-        recompute_am_caches();
+        adopt_cross_proposal_caches(i, j, delta, u, ggm_prop);
     }
 
     if (rm_weight) {
@@ -790,7 +801,8 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 
     // --- Likelihood ratio ---
     arma::mat cov_prop;
-    double ln_alpha = log_ggm_ratio_edge(i, j, cov_prop);
+    double ggm_ratio = log_ggm_ratio_edge(i, j, cov_prop);
+    double ln_alpha = ggm_ratio;
 
     // Determinant-tilt prior: see update_pairwise_effects_continuous_offdiag.
     if (determinant_tilt_yy_ != 0.0) {
@@ -862,9 +874,11 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
 
         set_gyy(i, j, g_prop);
         constraint_dirty_ = true;
-        cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j);
-        recompute_marginal_interactions();
-        recompute_am_caches();
+        if (cholesky_update_after_precision_edge(old_theta_ij, old_theta_jj, i, j)) {
+            adopt_kyy_proposal_caches(ggm_ratio, /*rank2=*/true);
+        } else {
+            recompute_am_caches();
+        }
     }
 }
 
@@ -945,7 +959,6 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
         pairwise_effects_cross_(i, j) = k_prop;
         set_gxy(i, j, g_prop);
         constraint_dirty_ = true;
-        recompute_marginal_interactions();
-        recompute_am_caches();
+        adopt_cross_proposal_caches(i, j, delta, u, ggm_prop);
     }
 }

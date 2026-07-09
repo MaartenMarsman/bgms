@@ -6,6 +6,7 @@
 // gradient, and within-model MH update bodies live in the sibling translation units
 // (mixed_mrf_likelihoods.cpp, mixed_mrf_gradient.cpp, mixed_mrf_metropolis.cpp).
 #include <RcppArmadillo.h>
+#include <utility>
 #include "models/mixed/mixed_mrf_model.h"
 #include "mcmc/execution/chain_result.h"
 #include "math/explog_macros.h"
@@ -348,6 +349,12 @@ void MixedMRFModel::refresh_marginal_interactions_entry(int i, int j) {
 }
 
 void MixedMRFModel::recompute_am_caches() {
+    // Full refresh: the accept paths maintain marginal_interactions_,
+    // cross_term_, the matvecs, conditional_mean_, and the log-likelihood
+    // values by low-rank updates within a sweep; recomputing everything from
+    // the parameters here bounds the accumulated floating-point drift to one
+    // sweep.
+    recompute_marginal_interactions();
     marginal_matvec_ = discrete_observations_dbl_ * marginal_interactions_;
     cross_matvec_ = discrete_observations_dbl_ * pairwise_effects_cross_;
     cross_bias_ = 2.0 * pairwise_effects_cross_ * main_effects_continuous_;
@@ -371,6 +378,56 @@ void MixedMRFModel::recompute_conditional_mean_from_cross_matvec() {
     // M = μ_y' + 2 X A_xy Σ_yy with X A_xy read from the sweep cache.
     conditional_mean_ = 2.0 * cross_matvec_ * covariance_continuous_;
     conditional_mean_.each_row() += main_effects_continuous_.t();
+}
+
+void MixedMRFModel::adopt_kyy_proposal_caches(double ggm_ratio, bool rank2) {
+    // The proposal scratch holds the accepted per-variable state.
+    std::swap(marginal_matvec_, marginal_matvec_prop_);
+    std::swap(ll_marginal_cache_, ll_marginal_prop_);
+
+    // M and the cross term move by 2 A_xy ΔΣ A_xy' = 2 A_xy E, with
+    // E = ΔΣ A_xy' cached by omrf_ratio_for_covariance_change. The diagonal
+    // is overwritten with mdiag_prop_ so it matches the values the adopted
+    // per-variable marginals were computed with.
+    arma::mat m_delta = 2.0 * (pairwise_effects_cross_ * cross_delta_scratch_);
+    cross_term_ += m_delta;
+    marginal_interactions_ += m_delta;
+    marginal_interactions_.diag() = mdiag_prop_;
+    cross_term_.diag() = mdiag_prop_ - pairwise_effects_discrete_.diag();
+
+    // Conditional mean: ΔM = a1 s2' + a2 s1' (rank 1: a1 s1'), the same
+    // factors the accepted GGM ratio was evaluated with.
+    if(rank2) {
+        conditional_mean_ += cont_a1_ * cont_s2_.t() + cont_a2_ * cont_s1_.t();
+    } else {
+        conditional_mean_ += cont_a1_ * cont_s1_.t();
+    }
+    ll_ggm_cache_ += ggm_ratio;
+}
+
+void MixedMRFModel::adopt_cross_proposal_caches(
+    int i, int j, double delta, const arma::vec& u, double ggm_prop)
+{
+    std::swap(marginal_matvec_, marginal_matvec_prop_);
+    std::swap(ll_marginal_cache_, ll_marginal_prop_);
+    cross_bias_ = cross_bias_prop_;
+    ll_ggm_cache_ = ggm_prop;
+
+    // ΔM = 2δ (e_i u' + u e_i') + 2δ² Σ_jj e_i e_i' touches row and column i
+    // of M and the cross term; the (i, i) entry is overwritten with
+    // mdiag_prop_(i), matching the adopted per-variable marginals.
+    marginal_interactions_.row(i) += (2.0 * delta) * u.t();
+    marginal_interactions_.col(i) += (2.0 * delta) * u;
+    marginal_interactions_(i, i) = mdiag_prop_(i);
+    cross_term_.row(i) += (2.0 * delta) * u.t();
+    cross_term_.col(i) += (2.0 * delta) * u;
+    cross_term_(i, i) = mdiag_prop_(i) - pairwise_effects_discrete_(i, i);
+
+    // X · A_xy moves in column j only; the conditional mean by the rank-1
+    // shift the accepted GGM ratio was evaluated with.
+    cross_matvec_.col(j) += delta * discrete_observations_dbl_.col(i);
+    conditional_mean_ += (2.0 * delta) * discrete_observations_dbl_.col(i)
+                       * covariance_continuous_.row(j);
 }
 
 

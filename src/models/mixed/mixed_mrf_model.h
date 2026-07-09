@@ -426,6 +426,9 @@ private:
     arma::mat inv_cholesky_of_precision_;   ///< q x q R^{-1} (upper triangular)
     arma::mat covariance_continuous_;       ///< q x q Σ = Precision^{-1}
     double log_det_precision_;              ///< log|Precision|
+    // marginal_interactions_, cross_term_, and conditional_mean_ are updated
+    // by low-rank formulas on the AM accept paths and refreshed in full at
+    // each sweep top (recompute_am_caches) and by set_vectorized_parameters.
     arma::mat marginal_interactions_;                       ///< p x p marginal PL interaction matrix
     arma::mat cross_term_;                  ///< p x p cached 2 A_xy Σ A_xy' (marginal PL cross term)
     arma::mat conditional_mean_;            ///< n x q conditional mean
@@ -448,6 +451,7 @@ private:
     arma::vec mdiag_prop_;            ///< p      proposed diag(M')
     arma::vec ll_marginal_prop_;      ///< p      proposed per-variable marginals
     arma::vec cross_bias_prop_;       ///< p      proposed rest-score offsets
+    arma::mat cross_delta_scratch_;   ///< q x p  ΔΣ · A_xy' from the last covariance-change ratio
     arma::vec matvec_col_i_scratch_;  ///< n      saved matvec column (exact reject restore)
     arma::vec matvec_col_j_scratch_;  ///< n      saved matvec column (exact reject restore)
 
@@ -541,8 +545,29 @@ private:
     /** Refresh marginal_interactions_(i,j)/(j,i) from pairwise_effects_discrete_ and the cached cross_term_. Valid only while pairwise_effects_cross_ and covariance_continuous_ are unchanged since the last cross_term_ refresh. */
     void refresh_marginal_interactions_entry(int i, int j);
 
-    /** Rebuild all AM sweep caches (matvecs, cross bias, per-variable marginals, GGM value). */
+    /** Rebuild all AM sweep caches in full (marginal interactions, matvecs,
+        cross bias, per-variable marginals, GGM value). Called at the top of
+        each MH/indicator sweep, it resets the floating-point drift the
+        low-rank accept-path updates accumulate within a sweep. */
     void recompute_am_caches();
+
+    /** Adopt the proposal buffers as the current AM caches after an accepted
+        Kyy precision move: swaps marginal_matvec_/ll_marginal_cache_ with the
+        proposal scratch, applies the 2 A_xy ΔΣ A_xy' update to
+        marginal_interactions_/cross_term_ via cross_delta_scratch_, shifts
+        conditional_mean_ by the low-rank factors in cont_a*_/cont_s*_, and
+        advances ll_ggm_cache_ by ggm_ratio. rank2 selects the edge (rank-2)
+        or diagonal (rank-1) conditional-mean shift. */
+    void adopt_kyy_proposal_caches(double ggm_ratio, bool rank2);
+
+    /** Adopt the proposal buffers as the current AM caches after an accepted
+        A_xy(i, j) move of size delta: swaps the marginal scratch, applies the
+        rank-2 row/column-i update to marginal_interactions_/cross_term_ using
+        u = A_xy Σ[:,j] (evaluated at the pre-accept A_xy), rank-1-updates
+        cross_matvec_.col(j) and conditional_mean_, and sets ll_ggm_cache_ to
+        ggm_prop. */
+    void adopt_cross_proposal_caches(int i, int j, double delta,
+                                     const arma::vec& u, double ggm_prop);
 
     /** Recompute conditional_mean_ as 2 · cross_matvec_ · Σ + μ_y' (requires a fresh cross_matvec_). */
     void recompute_conditional_mean_from_cross_matvec();
@@ -593,8 +618,9 @@ private:
     double log_conditional_ggm() const;
 
     /** OMRF part of an MH ratio for a proposed covariance Σ'. Fills the
-        proposal scratch (matvec, diag, per-variable marginals) and returns
-        Σ_s L'_s − Σ_s L_s. Members are not mutated. */
+        proposal scratch (matvec, diag, per-variable marginals) plus
+        cross_delta_scratch_ = ΔΣ A_xy' and returns Σ_s L'_s − Σ_s L_s.
+        The current-state caches are not mutated. */
     double omrf_ratio_for_covariance_change(const arma::mat& cov_prop);
 
     // =========================================================================
@@ -650,11 +676,16 @@ private:
      */
     double log_det_ratio_yy_diag(int i) const;
 
-    /** Rank-1 Cholesky update after accepting an off-diagonal precision change. */
-    void cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);
+    /** Rank-1 Cholesky update after accepting an off-diagonal precision
+        change. Returns true when the factors advanced incrementally; false
+        when the decomposition was rebuilt from scratch, in which case the
+        proposal buffers no longer match the state and the caller must rebuild
+        the AM caches in full. */
+    bool cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);
 
-    /** Rank-1 Cholesky update after accepting a diagonal precision change. */
-    void cholesky_update_after_precision_diag(double old_ii, int i);
+    /** Rank-1 Cholesky update after accepting a diagonal precision change.
+        Same return convention as cholesky_update_after_precision_edge. */
+    bool cholesky_update_after_precision_diag(double old_ii, int i);
 
     // --- Parameter update sweeps ---
 
