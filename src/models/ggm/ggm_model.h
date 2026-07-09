@@ -810,10 +810,18 @@ private:
      * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
      * full-vector inputs.
      *
+     * `update_L` controls whether chol(K) is advanced. The edge accept needs
+     * it true (the between-step reads chol(K)/log-det immediately). The
+     * row-block Gibbs sweep passes false: chol(K) is never read between rows
+     * (the row draw reads only Sigma), so the per-row Givens passes are
+     * skipped and chol(K) is rebuilt once via refresh_cholesky() at the end
+     * of the sweep. Sigma is always maintained so the next row's Schur
+     * extraction is exact.
+     *
      * Sigma is maintained incrementally, so floating-point error accumulates
      * across accepts; check_and_refresh_if_drift_() bounds it once per sweep.
      */
-    void apply_rank2_chol_smw_update_();
+    void apply_rank2_chol_smw_update_(bool update_L = true);
 
     /**
      * Update the Cholesky factor after changing a diagonal element.

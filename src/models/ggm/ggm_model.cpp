@@ -343,7 +343,7 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::apply_rank2_chol_smw_update_()
+void GGMModel::apply_rank2_chol_smw_update_(bool update_L)
 {
     // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
     // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
@@ -352,14 +352,20 @@ void GGMModel::apply_rank2_chol_smw_update_()
     u1_ = (vf1_ + vf2_) / sqrt(2);
     u2_ = (vf1_ - vf2_) / sqrt(2);
 
-    // chol(K) update (2 x O(p^2)). A failed downdate means K_new is not
-    // numerically PD along this route; rebuild all factors from K.
-    cholesky_update(cholesky_of_precision_, u1_);
-    if (!cholesky_downdate(cholesky_of_precision_, u2_)) {
-        refresh_cholesky();
-        return;
+    // chol(K) update (2 x O(p^2)). Needed when a caller reads chol(K) or the
+    // log-det before the next full refresh (the edge accept does). The
+    // row-block Gibbs sweep passes update_L = false: the row draw reads only
+    // Sigma, and chol(K) is rebuilt once via refresh_cholesky() at sweep end.
+    // A failed downdate means K_new is not numerically PD along this route;
+    // rebuild all factors from K.
+    if (update_L) {
+        cholesky_update(cholesky_of_precision_, u1_);
+        if (!cholesky_downdate(cholesky_of_precision_, u2_)) {
+            refresh_cholesky();
+            return;
+        }
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
     }
-    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
 
     // Sherman-Morrison-Woodbury rank-2 update of covariance_matrix_ = inv(K),
     // O(p^2) total:
@@ -566,7 +572,10 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     vf2_[i] = (kii_new - kii_old) / 2.0;
     for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
 
-    apply_rank2_chol_smw_update_();
+    // Defer the chol(K) Givens passes: nothing reads chol(K) between rows of
+    // the sweep. Sigma is still refreshed so the next row's Schur extraction
+    // is exact; chol(K) is rebuilt once in do_one_gibbs_step after the sweep.
+    apply_rank2_chol_smw_update_(/*update_L=*/false);
 
     vf1_[i] = 0.0;
     vf2_[i] = 0.0;
@@ -580,6 +589,12 @@ void GGMModel::do_one_gibbs_step(int /*iteration*/) {
     for (size_t i = 0; i < p_; ++i) {
         update_row_block_gibbs(i);
     }
+    // chol(K) was deferred during the sweep -- the row draws read only Sigma,
+    // so the 2p per-row Givens passes were skipped. One O(p^3) factorisation
+    // here restores chol(K), inv chol(K), the log-det, and an exact Sigma
+    // (clearing the SMW drift the sweep accumulates), ready for the
+    // edge-indicator between-step that reads them next.
+    refresh_cholesky();
     refresh_cauchy_omega_();
 }
 
