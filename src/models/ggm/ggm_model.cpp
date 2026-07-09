@@ -490,17 +490,22 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     const bool   cauchy = slab_is_cauchy_();
     const double s_ii  = suf_stat_(i, i);
 
-    // Active neighbour set N_i (in row order).
-    std::vector<size_t> Ni;
-    Ni.reserve(p_ - 1);
+    // Active neighbour set N_i (in row order). Reuse gibbs_Ni_ -- clearing a
+    // std::vector keeps its capacity, so this avoids a per-row reserve(p-1).
+    gibbs_Ni_.clear();
     for (size_t k = 0; k < p_; ++k) {
-        if (k != i && edge_indicators_(i, k) == 1) Ni.push_back(k);
+        if (k != i && edge_indicators_(i, k) == 1)
+            gibbs_Ni_.push_back(static_cast<arma::uword>(k));
     }
+    const std::vector<arma::uword>& Ni = gibbs_Ni_;
     const size_t q = Ni.size();
 
     // Stash old K column entries so the rank-2 update can encode the delta.
+    // beta_old and the other per-row buffers below alias reused members:
+    // set_size keeps the existing allocation when q fits.
     const double kii_old = precision_matrix_(i, i);
-    arma::vec beta_old(q);
+    arma::vec& beta_old = gibbs_beta_old_;
+    beta_old.set_size(q);
     for (size_t k = 0; k < q; ++k) beta_old(k) = precision_matrix_(i, Ni[k]);
 
     // xi shape: n/2 + delta + 1 (alpha = 1). The determinant tilt |K|^delta
@@ -519,9 +524,11 @@ void GGMModel::update_row_block_gibbs(size_t i) {
         // C = (A^{-1})_{N_i, N_i} via Schur on Sigma:
         //   C_{kl} = Sigma_{N_i[k], N_i[l]} - Sigma_{N_i[k], i} Sigma_{i, N_i[l]} / Sigma_{ii}
         const double sigma_ii = covariance_matrix_(i, i);
-        arma::vec sigma_iNi(q);
+        arma::vec& sigma_iNi = gibbs_sigma_iNi_;
+        sigma_iNi.set_size(q);
         for (size_t k = 0; k < q; ++k) sigma_iNi(k) = covariance_matrix_(i, Ni[k]);
-        arma::mat C(q, q);
+        arma::mat& C = gibbs_C_;
+        C.set_size(q, q);
         for (size_t k = 0; k < q; ++k) {
             for (size_t l = 0; l < q; ++l) {
                 C(k, l) = covariance_matrix_(Ni[k], Ni[l])
@@ -549,7 +556,8 @@ void GGMModel::update_row_block_gibbs(size_t i) {
         }
 
         // S_{N_i, i} vector.
-        arma::vec s_Ni_i(q);
+        arma::vec& s_Ni_i = gibbs_s_Ni_i_;
+        s_Ni_i.set_size(q);
         for (size_t k = 0; k < q; ++k) s_Ni_i(k) = suf_stat_(Ni[k], i);
 
         // Mean mu = -M^{-1} S_{N_i, i}. Two triangular solves: L y = -S, L^T mu = y.
@@ -597,15 +605,15 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
 
     // Support of the rank-2 update: {i} + N_i. The SMW matvec gathers only
-    // these columns of Sigma (O(p q) vs dense O(p^2)).
-    arma::uvec support(q + 1);
-    support[0] = static_cast<arma::uword>(i);
-    for (size_t k = 0; k < q; ++k) support[k + 1] = Ni[k];
+    // these columns of Sigma (O(p q) vs dense O(p^2)). Reuse gibbs_support_.
+    gibbs_support_.set_size(q + 1);
+    gibbs_support_[0] = static_cast<arma::uword>(i);
+    for (size_t k = 0; k < q; ++k) gibbs_support_[k + 1] = Ni[k];
 
     // Defer the chol(K) Givens passes: nothing reads chol(K) between rows of
     // the sweep. Sigma is still refreshed so the next row's Schur extraction
     // is exact; chol(K) is rebuilt once in do_one_gibbs_step after the sweep.
-    apply_rank2_chol_smw_update_(support, /*update_L=*/false);
+    apply_rank2_chol_smw_update_(gibbs_support_, /*update_L=*/false);
 
     vf1_[i] = 0.0;
     vf2_[i] = 0.0;

@@ -594,6 +594,22 @@ private:
     arma::vec u2_ = arma::zeros<arma::vec>(p_);
 
     /**
+     * Row-block Gibbs per-row scratch, reused across the p rows of a sweep so
+     * the within-step does not churn the allocator. These are the buffers
+     * filled element-by-element (loops) or via set_size, which Armadillo
+     * resizes by reusing the existing allocation when it fits -- unlike the
+     * solve/chol/matmul results, which materialise a temporary and are left
+     * as locals. gibbs_Ni_ in particular replaces a per-row std::vector with
+     * a reserve(p-1) that allocated ~p on every call.
+     */
+    std::vector<arma::uword> gibbs_Ni_;
+    arma::uvec gibbs_support_;
+    arma::vec gibbs_beta_old_;
+    arma::vec gibbs_sigma_iNi_;
+    arma::vec gibbs_s_Ni_i_;
+    arma::mat gibbs_C_;
+
+    /**
      * Propose a new off-diagonal precision entry via a normal perturbation
      * on an unconstrained reparameterization. Accepts or rejects with a
      * Metropolis ratio using the Gaussian likelihood and Cauchy prior.
