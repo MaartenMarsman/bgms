@@ -799,8 +799,9 @@ private:
      * Given vf1_, vf2_ of length p, this carries out
      *   K_new     = K_old + vf1 vf2^T + vf2 vf1^T
      *   chol(K)  <- Givens update + downdate on u1 = (vf1+vf2)/sqrt2, u2 = (vf1-vf2)/sqrt2
-     *   Sigma    <- inv(L) inv(L)^T, with a fallback to refresh_cholesky() when
-     *               accumulated updates make the triangular inverse fail.
+     *   Sigma    <- Sherman-Morrison-Woodbury rank-2 update (O(p^2)), with a
+     *               fallback to refresh_cholesky() when the downdate fails or
+     *               the 2x2 capacitance is near-singular.
      *
      * Inputs are taken from the model's vf1_, vf2_ scratch members so callers
      * can populate them in-place without an extra copy. The helper does not
@@ -808,19 +809,36 @@ private:
      * post-update entries it represents. Generic in vf1, vf2: the edge update
      * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
      * full-vector inputs.
+     *
+     * Sigma is maintained incrementally, so floating-point error accumulates
+     * across accepts; check_and_refresh_if_drift_() bounds it once per sweep.
      */
     void apply_rank2_chol_smw_update_();
 
     /**
      * Update the Cholesky factor after changing a diagonal element.
      *
-     * Applies a rank-1 update and recomputes the inverse Cholesky
-     * factor and covariance matrix.
+     * Applies a rank-1 Givens update to chol(K) and a Sherman-Morrison
+     * rank-1 update (O(p^2)) to the covariance matrix, with a fallback to
+     * refresh_cholesky() when the downdate fails or the scalar capacitance
+     * is near-singular.
      *
      * @param omega_ii_old  Previous value of omega(i,i)
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
+
+    /**
+     * Refresh all factors if the SMW-maintained covariance has drifted.
+     *
+     * Computes max_i |diag(Sigma K) - 1| in O(p^2) and calls
+     * refresh_cholesky() when it exceeds kCovDriftTol_. Called once per
+     * Metropolis sweep, proposal-sd tuning sweep, and edge-indicator sweep.
+     */
+    void check_and_refresh_if_drift_();
+
+    /** Tolerance on max_i |diag(Sigma K) - 1| before a full factor refresh. */
+    static constexpr double kCovDriftTol_ = 1e-8;
 
     /**
      * Recompute Cholesky and its inverse from the precision matrix.
