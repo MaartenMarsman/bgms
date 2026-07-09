@@ -60,8 +60,9 @@ double MixedMRFModel::update_main_effect(int s, int c, std::optional<double> rm_
 // update_continuous_mean
 // =============================================================================
 // MH update for one continuous mean parameter main_effects_continuous_(j).
-// The accept/reject uses log_conditional_ggm() + Normal(0, 1) prior.
-// Must save/restore conditional_mean_ around the proposal.
+// The accept/reject uses the cached GGM value plus a rank-1 quadratic-form
+// delta, and a Normal(0, 1) prior. conditional_mean_ is only touched on
+// accept (column-j shift by delta).
 // =============================================================================
 
 double MixedMRFModel::update_continuous_mean(int j, std::optional<double> rm_weight) {
@@ -75,12 +76,22 @@ double MixedMRFModel::update_continuous_mean(int j, std::optional<double> rm_wei
 
     // Proposed state: μ_j moves column j of the conditional mean and the
     // rest-score offsets 2 A_xy μ; everything else is unchanged.
-    matvec_col_j_scratch_ = conditional_mean_.col(j);
+    //
+    // GGM part: ΔM = delta · 1 e_j' with K unchanged, so
+    //   quad_prop - quad_curr = -2 delta (1'D) K[:,j] + n delta² K_jj,
+    // read off the residual column sums (D = Y - conditional mean).
+    arma::rowvec resid_colsum = arma::sum(continuous_observations_, 0)
+                              - arma::sum(conditional_mean_, 0);
+    double quad_delta =
+        -2.0 * delta * arma::dot(resid_colsum,
+                                 -2.0 * pairwise_effects_continuous_.col(j))
+        + static_cast<double>(n_) * delta * delta
+              * (-2.0 * pairwise_effects_continuous_(j, j));
+    double ggm_prop = ll_ggm_cache_ - quad_delta / 2.0;
+
     main_effects_continuous_(j) = proposed;
-    conditional_mean_.col(j) += delta;
     cross_bias_prop_ = cross_bias_ + (2.0 * delta) * pairwise_effects_cross_.col(j);
 
-    double ggm_prop = log_conditional_ggm();
     for(size_t s = 0; s < p_; ++s)
         ll_marginal_prop_(s) = log_marginal_omrf_from(
             s, marginal_matvec_, marginal_interactions_(s, s), cross_bias_prop_(s));
@@ -92,8 +103,8 @@ double MixedMRFModel::update_continuous_mean(int j, std::optional<double> rm_wei
 
     if(MY_LOG(runif(rng_)) >= ln_alpha) {
         main_effects_continuous_(j) = current_val;  // reject
-        conditional_mean_.col(j) = matvec_col_j_scratch_;
     } else {
+        conditional_mean_.col(j) += delta;
         ll_ggm_cache_ = ggm_prop;
         ll_marginal_cache_ = ll_marginal_prop_;
         cross_bias_ = cross_bias_prop_;
@@ -195,12 +206,15 @@ double MixedMRFModel::precision_constrained_diagonal(double x) const {
 // =============================================================================
 // log_ggm_ratio_edge
 // =============================================================================
-// Log-likelihood ratio for a rank-2 off-diagonal precision change using the
-// matrix determinant lemma for the log-det part and Woodbury for the
-// quadratic-form part.  Assumes precision_proposal_ is filled.
-//
-// TODO: replace the O(npq + nq²) quadratic-form computation with
-// an O(nq) rank-2 shortcut.
+// Log-likelihood ratio for a rank-2 off-diagonal precision change: matrix
+// determinant lemma for the log-det part, Woodbury for the proposed
+// covariance, and a rank-2 expansion of the quadratic-form difference.
+// With ΔK = vf1 vf2' + vf2 vf1' and ΔΣ = -(w1 s2' + w2 s1'), the conditional
+// mean moves by ΔM = a1 s2' + a2 s1' (a_k = -2 X A_xy w_k) and
+//   quad_prop - quad_curr = -2 tr(ΔM' D K) + tr(K ΔM' ΔM) + tr(ΔK D_p' D_p),
+// D = Y - conditional mean, D_p = D - ΔM: O(nq + q²) dot products instead of
+// the O(nq²) from-scratch quadratic forms. Assumes precision_proposal_ is
+// filled.
 // =============================================================================
 
 double MixedMRFModel::log_det_ratio_yy_edge(int i, int j) const {
@@ -225,17 +239,14 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) 
     size_t ui = static_cast<size_t>(i);
     size_t uj = static_cast<size_t>(j);
 
-    // Current precision (positive-definite)
-    arma::mat precision_curr = -2.0 * pairwise_effects_continuous_;
-
     // --- Log-determinant ratio via matrix determinant lemma ---
     // ΔΩ has 3 nonzero entries: (i,j), (j,i), (j,j).
     // Ui = old - new off-diag, Uj = (old - new diag) / 2. The same Ui/Uj also
     // drive the Woodbury covariance update below, so they are kept here; the
     // log-det ratio itself is the canonical rank-2 det-lemma in
     // log_det_ratio_yy_edge (recomputes the identical Ui/Uj internally).
-    double Ui = precision_curr(ui, uj) - precision_proposal_(ui, uj);
-    double Uj = (precision_curr(uj, uj) - precision_proposal_(uj, uj)) / 2.0;
+    double Ui = -2.0 * pairwise_effects_continuous_(ui, uj) - precision_proposal_(ui, uj);
+    double Uj = (-2.0 * pairwise_effects_continuous_(uj, uj) - precision_proposal_(uj, uj)) / 2.0;
 
     double logdet_ratio = log_det_ratio_yy_edge(i, j);
 
@@ -243,8 +254,10 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) 
     // ΔΩ = vf1 vf2' + vf2 vf1' where vf1 = [0,...,-1,...] (j-th),
     //   vf2 = [0,...,Ui,...,Uj,...] (i-th and j-th).
     // s1 = Σ vf1 = -Σ[:,j], s2 = Σ vf2 = Ui*Σ[:,i] + Uj*Σ[:,j]
-    arma::vec s1 = -covariance_continuous_.col(uj);
-    arma::vec s2 = Ui * covariance_continuous_.col(ui) + Uj * covariance_continuous_.col(uj);
+    cont_s1_ = -covariance_continuous_.col(uj);
+    cont_s2_ = Ui * covariance_continuous_.col(ui) + Uj * covariance_continuous_.col(uj);
+    const arma::vec& s1 = cont_s1_;
+    const arma::vec& s2 = cont_s2_;
 
     // 2×2 core matrix T = I + [vf2,vf1]' [s1,s2]
     // T = [1 + vf2's1,  vf2's2;  vf1's1,  1 + vf1's2]
@@ -267,21 +280,44 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) 
     arma::vec w2 = inv_t12 * s1 + inv_t22 * s2;  // coefficient for s1' row
     arma::mat cov_prop = covariance_continuous_ - w1 * s2.t() - w2 * s1.t();
 
-    // --- Proposed conditional mean ---
-    // M' = μ_y' + 2 X A_xy Σ', with X A_xy read from the sweep cache.
-    arma::mat cond_mean_prop = 2.0 * cross_matvec_ * cov_prop;
-    cond_mean_prop.each_row() += main_effects_continuous_.t();
+    // --- Quadratic-form difference through the rank-2 structure ---
+    // ΔΣ = -(w1 s2' + w2 s1'), so ΔM = 2 X A_xy ΔΣ = a1 s2' + a2 s1' with
+    // a_k = -2 (X A_xy) w_k read off the sweep cache.
+    cont_a1_ = -2.0 * (cross_matvec_ * w1);
+    cont_a2_ = -2.0 * (cross_matvec_ * w2);
+    resid_scratch_ = continuous_observations_ - conditional_mean_;
+    const arma::mat& D = resid_scratch_;
 
-    // --- Quadratic form difference ---
-    arma::mat D_curr = continuous_observations_ - conditional_mean_;
-    arma::mat D_prop = continuous_observations_ - cond_mean_prop;
+    // K s and D' a contractions (K = -2 A_yy)
+    arma::vec k1 = -2.0 * (pairwise_effects_continuous_ * s1);
+    arma::vec k2 = -2.0 * (pairwise_effects_continuous_ * s2);
+    arma::vec g1 = D.t() * cont_a1_;
+    arma::vec g2 = D.t() * cont_a2_;
 
-    double quad_curr = arma::accu((D_curr * precision_curr) % D_curr);
-    double quad_prop = arma::accu((D_prop * precision_proposal_) % D_prop);
+    // -2 tr(ΔM' D K)
+    double quad_lin = -2.0 * (arma::dot(g1, k2) + arma::dot(g2, k1));
+
+    // tr(K ΔM' ΔM)
+    double a11 = arma::dot(cont_a1_, cont_a1_);
+    double a12 = arma::dot(cont_a1_, cont_a2_);
+    double a22 = arma::dot(cont_a2_, cont_a2_);
+    double quad_sq = a11 * arma::dot(s2, k2)
+                   + a12 * (arma::dot(s1, k2) + arma::dot(s2, k1))
+                   + a22 * arma::dot(s1, k1);
+
+    // tr(ΔΩ D_p' D_p) = 2 (D_p vf2)'(D_p vf1) with D_p = D - ΔM
+    double s2_vf2 = Ui * s2(ui) + Uj * s2(uj);
+    double s1_vf2 = Ui * s1(ui) + Uj * s1(uj);
+    arma::vec dp_vf1 = -D.col(uj) + s2(uj) * cont_a1_ + s1(uj) * cont_a2_;
+    arma::vec dp_vf2 = Ui * D.col(ui) + Uj * D.col(uj)
+                     - s2_vf2 * cont_a1_ - s1_vf2 * cont_a2_;
+    double quad_dk = 2.0 * arma::dot(dp_vf2, dp_vf1);
+
+    double quad_delta = quad_lin + quad_sq + quad_dk;
 
     double n = static_cast<double>(n_);
     cov_prop_out = std::move(cov_prop);
-    return n / 2.0 * logdet_ratio - (quad_prop - quad_curr) / 2.0;
+    return n / 2.0 * logdet_ratio - quad_delta / 2.0;
 }
 
 
@@ -289,7 +325,8 @@ double MixedMRFModel::log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) 
 // log_ggm_ratio_diag
 // =============================================================================
 // Log-likelihood ratio for a rank-1 diagonal precision change.
-// Same structure as log_ggm_ratio_edge but simpler (Ui = 0).
+// Same structure as log_ggm_ratio_edge but simpler (Ui = 0): the
+// quadratic-form difference contracts through ΔΣ = c s s' in O(nq).
 // =============================================================================
 
 double MixedMRFModel::log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const {
@@ -308,26 +345,34 @@ double MixedMRFModel::log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const {
 
     // --- Proposed covariance via Sherman-Morrison (rank-1 special case) ---
     // ΔΩ = -2Uj * e_i e_i', so Σ' = Σ + 2Uj * Σ[:,i] Σ[i,:]' / (1 - 2Uj * Σ(i,i))
-    arma::vec s = covariance_continuous_.col(ui);
+    cont_s1_ = covariance_continuous_.col(ui);
+    const arma::vec& s = cont_s1_;
     double denom = 1.0 - 2.0 * Uj * covariance_continuous_(ui, ui);
-    arma::mat cov_prop = covariance_continuous_ + (2.0 * Uj / denom) * s * s.t();
+    double coef = 2.0 * Uj / denom;
+    arma::mat cov_prop = covariance_continuous_ + coef * s * s.t();
 
-    // --- Proposed conditional mean ---
-    arma::mat cond_mean_prop = 2.0 * cross_matvec_ * cov_prop;
-    cond_mean_prop.each_row() += main_effects_continuous_.t();
+    // --- Quadratic-form difference through the rank-1 structure ---
+    // ΔΣ = coef * s s', so ΔM = 2 X A_xy ΔΣ = a s' with a = 2 coef (X A_xy) s;
+    //   quad_prop - quad_curr
+    //     = -2 (D'a)·(K s) + (a·a) (s'K s) - 2Uj ||D_p[:,i]||²,
+    // D = Y - conditional mean, D_p[:,i] = D[:,i] - s(i) a.
+    cont_a1_ = (2.0 * coef) * (cross_matvec_ * s);
+    resid_scratch_ = continuous_observations_ - conditional_mean_;
+    const arma::mat& D = resid_scratch_;
 
-    // --- Quadratic form difference ---
-    arma::mat D_curr = continuous_observations_ - conditional_mean_;
-    arma::mat D_prop = continuous_observations_ - cond_mean_prop;
+    arma::vec k = -2.0 * (pairwise_effects_continuous_ * s);
+    arma::vec g = D.t() * cont_a1_;
 
-    // Precision for quadratic form: only diagonal changed
-    arma::mat precision_curr = -2.0 * pairwise_effects_continuous_;
-    double quad_curr = arma::accu((D_curr * precision_curr) % D_curr);
-    double quad_prop = arma::accu((D_prop * precision_proposal_) % D_prop);
+    double quad_lin = -2.0 * arma::dot(g, k);
+    double quad_sq = arma::dot(cont_a1_, cont_a1_) * arma::dot(s, k);
+    arma::vec dp_col = D.col(ui) - s(ui) * cont_a1_;
+    double quad_dk = -2.0 * Uj * arma::dot(dp_col, dp_col);
+
+    double quad_delta = quad_lin + quad_sq + quad_dk;
 
     double n = static_cast<double>(n_);
     cov_prop_out = std::move(cov_prop);
-    return n / 2.0 * logdet_ratio - (quad_prop - quad_curr) / 2.0;
+    return n / 2.0 * logdet_ratio - quad_delta / 2.0;
 }
 
 
@@ -566,8 +611,8 @@ double MixedMRFModel::update_pairwise_effects_continuous_diag(int i, std::option
 // update_pairwise_cross
 // =============================================================================
 // MH update for one cross-type interaction pairwise_effects_cross_(i, j).
-// Acceptance: sum_s log_marginal_omrf(s) + log_conditional_ggm() + Cauchy prior.
-// Must save/restore conditional_mean_ and marginal_interactions_ around the proposal.
+// Acceptance: sum_s log_marginal_omrf(s) + a rank-1 GGM quadratic-form delta
+// + Cauchy prior. Parameters and conditional_mean_ are only touched on accept.
 // =============================================================================
 
 double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> rm_weight) {
@@ -596,12 +641,18 @@ double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> 
     cross_bias_prop_ = cross_bias_;
     cross_bias_prop_(i) += 2.0 * delta * main_effects_continuous_(j);
 
-    cond_mean_scratch_ = conditional_mean_;
-    conditional_mean_ += (2.0 * delta) * discrete_observations_dbl_.col(i)
-                       * covariance_continuous_.row(j);
-    pairwise_effects_cross_(i, j) = proposed;
+    // GGM part: the conditional-mean shift is ΔM_y = a v' with
+    // a = 2 delta x_i, v = Σ[:,j]; K is unchanged, so
+    //   quad_prop - quad_curr = -2 (D'a)·(K v) + (a·a) (v'K v),
+    // D = Y - conditional mean.
+    arma::vec a = (2.0 * delta) * discrete_observations_dbl_.col(i);
+    arma::vec kv = -2.0 * (pairwise_effects_continuous_ * covariance_continuous_.col(j));
+    resid_scratch_ = continuous_observations_ - conditional_mean_;
+    arma::vec g = resid_scratch_.t() * a;
+    double quad_delta = -2.0 * arma::dot(g, kv)
+        + arma::dot(a, a) * arma::dot(covariance_continuous_.col(j), kv);
+    double ggm_prop = ll_ggm_cache_ - quad_delta / 2.0;
 
-    double ggm_prop = log_conditional_ggm();
     for(size_t s = 0; s < p_; ++s)
         ll_marginal_prop_(s) = log_marginal_omrf_from(
             s, marginal_matvec_prop_, mdiag_prop_(s), cross_bias_prop_(s));
@@ -611,10 +662,8 @@ double MixedMRFModel::update_pairwise_cross(int i, int j, std::optional<double> 
 
     double ln_alpha = ll_prop - ll_curr;
 
-    if(MY_LOG(runif(rng_)) >= ln_alpha) {
-        pairwise_effects_cross_(i, j) = current_val;  // reject
-        std::swap(conditional_mean_, cond_mean_scratch_);
-    } else {
+    if(MY_LOG(runif(rng_)) < ln_alpha) {
+        pairwise_effects_cross_(i, j) = proposed;
         recompute_marginal_interactions();
         recompute_am_caches();
     }
@@ -843,8 +892,9 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     }
 
     // --- Likelihood ratio ---
-    // Same rank-2 M update and rank-1 conditional-mean shift as
-    // update_pairwise_cross, with delta = k_prop - k_curr.
+    // Same rank-2 M update and rank-1 GGM quadratic-form delta as
+    // update_pairwise_cross, with delta = k_prop - k_curr. Parameters and
+    // conditional_mean_ are only touched on accept.
     double delta = k_prop - k_curr;
     double ll_curr = ll_ggm_cache_ + arma::accu(ll_marginal_cache_);
 
@@ -861,21 +911,19 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
     cross_bias_prop_ = cross_bias_;
     cross_bias_prop_(i) += 2.0 * delta * main_effects_continuous_(j);
 
-    cond_mean_scratch_ = conditional_mean_;
-    conditional_mean_ += (2.0 * delta) * discrete_observations_dbl_.col(i)
-                       * covariance_continuous_.row(j);
-    pairwise_effects_cross_(i, j) = k_prop;
+    arma::vec a = (2.0 * delta) * discrete_observations_dbl_.col(i);
+    arma::vec kv = -2.0 * (pairwise_effects_continuous_ * covariance_continuous_.col(j));
+    resid_scratch_ = continuous_observations_ - conditional_mean_;
+    arma::vec g = resid_scratch_.t() * a;
+    double quad_delta = -2.0 * arma::dot(g, kv)
+        + arma::dot(a, a) * arma::dot(covariance_continuous_.col(j), kv);
+    double ggm_prop = ll_ggm_cache_ - quad_delta / 2.0;
 
-    double ggm_prop = log_conditional_ggm();
     for(size_t s = 0; s < p_; ++s)
         ll_marginal_prop_(s) = log_marginal_omrf_from(
             s, marginal_matvec_prop_, mdiag_prop_(s), cross_bias_prop_(s));
 
     double ll_prop = ggm_prop + arma::accu(ll_marginal_prop_);
-
-    // Restore; the accept branch re-applies
-    pairwise_effects_cross_(i, j) = k_curr;
-    std::swap(conditional_mean_, cond_mean_scratch_);
 
     double ln_alpha = ll_prop - ll_curr;
 

@@ -450,7 +450,15 @@ private:
     arma::vec cross_bias_prop_;       ///< p      proposed rest-score offsets
     arma::vec matvec_col_i_scratch_;  ///< n      saved matvec column (exact reject restore)
     arma::vec matvec_col_j_scratch_;  ///< n      saved matvec column (exact reject restore)
-    arma::mat cond_mean_scratch_;     ///< n x q  saved conditional mean (exact reject restore)
+
+    // Low-rank GGM-ratio scratch. Filled by log_ggm_ratio_edge/_diag with the
+    // factors of the proposed conditional-mean change ΔM = a1 s2' + a2 s1'
+    // (rank 1: a1 s1'). Mutable because the ratio evaluations are const.
+    mutable arma::mat resid_scratch_; ///< n x q  residual Y − conditional mean
+    mutable arma::vec cont_s1_;       ///< q      Σ-image factor of ΔΣ
+    mutable arma::vec cont_s2_;       ///< q      Σ-image factor of ΔΣ
+    mutable arma::vec cont_a1_;       ///< n      conditional-mean delta coefficient
+    mutable arma::vec cont_a2_;       ///< n      conditional-mean delta coefficient
 
     // Rank-1 Cholesky update workspace
     std::array<double, 6> cont_constants_{};  ///< Reparameterization constants
@@ -609,7 +617,9 @@ private:
      * Assumes precision_proposal_ is already filled by the caller. Writes the
      * proposed covariance Σ' (computed via Woodbury) to cov_prop_out so callers
      * can use it to recompute marginal_interactions_ for the OMRF likelihood
-     * ratio at the proposed Kyy.
+     * ratio at the proposed Kyy. The quadratic-form difference is evaluated
+     * through the rank-2 structure of ΔΣ in O(nq + q²); the factors of the
+     * conditional-mean change are left in cont_a1_/cont_a2_/cont_s1_/cont_s2_.
      */
     double log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) const;
 
@@ -617,6 +627,9 @@ private:
      * Log-likelihood ratio for a proposed diagonal precision change (rank-1).
      * Assumes precision_proposal_ is already filled by the caller. Writes the
      * proposed covariance Σ' (computed via Sherman-Morrison) to cov_prop_out.
+     * The quadratic-form difference is evaluated through the rank-1 structure
+     * of ΔΣ in O(nq); the factors of the conditional-mean change are left in
+     * cont_a1_/cont_s1_.
      */
     double log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const;
 

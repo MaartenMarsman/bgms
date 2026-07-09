@@ -361,7 +361,6 @@ void MixedMRFModel::recompute_am_caches() {
         cross_bias_prop_.set_size(p_);
         matvec_col_i_scratch_.set_size(n_);
         matvec_col_j_scratch_.set_size(n_);
-        cond_mean_scratch_.set_size(n_, q_);
     }
     for(size_t s = 0; s < p_; ++s)
         ll_marginal_cache_(s) = log_marginal_omrf_cached(s);
