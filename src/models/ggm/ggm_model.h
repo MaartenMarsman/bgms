@@ -594,6 +594,22 @@ private:
     arma::vec u2_ = arma::zeros<arma::vec>(p_);
 
     /**
+     * Row-block Gibbs per-row scratch, reused across the p rows of a sweep so
+     * the within-step does not churn the allocator. These are the buffers
+     * filled element-by-element (loops) or via set_size, which Armadillo
+     * resizes by reusing the existing allocation when it fits -- unlike the
+     * solve/chol/matmul results, which materialise a temporary and are left
+     * as locals. gibbs_Ni_ in particular replaces a per-row std::vector with
+     * a reserve(p-1) that allocated ~p on every call.
+     */
+    std::vector<arma::uword> gibbs_Ni_;
+    arma::uvec gibbs_support_;
+    arma::vec gibbs_beta_old_;
+    arma::vec gibbs_sigma_iNi_;
+    arma::vec gibbs_s_Ni_i_;
+    arma::mat gibbs_C_;
+
+    /**
      * Propose a new off-diagonal precision entry via a normal perturbation
      * on an unconstrained reparameterization. Accepts or rejects with a
      * Metropolis ratio using the Gaussian likelihood and Cauchy prior.
@@ -799,8 +815,9 @@ private:
      * Given vf1_, vf2_ of length p, this carries out
      *   K_new     = K_old + vf1 vf2^T + vf2 vf1^T
      *   chol(K)  <- Givens update + downdate on u1 = (vf1+vf2)/sqrt2, u2 = (vf1-vf2)/sqrt2
-     *   Sigma    <- inv(L) inv(L)^T, with a fallback to refresh_cholesky() when
-     *               accumulated updates make the triangular inverse fail.
+     *   Sigma    <- Sherman-Morrison-Woodbury rank-2 update (O(p^2)), with a
+     *               fallback to refresh_cholesky() when the downdate fails or
+     *               the 2x2 capacitance is near-singular.
      *
      * Inputs are taken from the model's vf1_, vf2_ scratch members so callers
      * can populate them in-place without an extra copy. The helper does not
@@ -808,19 +825,71 @@ private:
      * post-update entries it represents. Generic in vf1, vf2: the edge update
      * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
      * full-vector inputs.
+     *
+     * `support` lists the nonzero indices of vf1/vf2 ({i,j} for an edge
+     * accept, {i} + N_i for a row-Gibbs row); the SMW matvec Sigma * u
+     * touches only those columns, O(p |support|) instead of a dense O(p^2)
+     * gemv, with a dense fallback when the support is near-full.
+     *
+     * `update_L` controls whether chol(K) is advanced. The edge accept needs
+     * it true (the between-step reads chol(K)/log-det immediately). The
+     * row-block Gibbs sweep passes false: chol(K) is never read between rows
+     * (the row draw reads only Sigma), so the per-row Givens passes are
+     * skipped and chol(K) is rebuilt once via refresh_cholesky() at the end
+     * of the sweep. Sigma is always maintained so the next row's Schur
+     * extraction is exact.
+     *
+     * Sigma is maintained incrementally, so floating-point error accumulates
+     * across accepts; check_and_refresh_if_drift_() bounds it once per sweep.
      */
-    void apply_rank2_chol_smw_update_();
+    void apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                      bool update_L = true);
 
     /**
      * Update the Cholesky factor after changing a diagonal element.
      *
-     * Applies a rank-1 update and recomputes the inverse Cholesky
-     * factor and covariance matrix.
+     * Applies a rank-1 Givens update to chol(K) and a Sherman-Morrison
+     * rank-1 update (O(p^2)) to the covariance matrix, with a fallback to
+     * refresh_cholesky() when the downdate fails or the scalar capacitance
+     * is near-singular.
      *
      * @param omega_ii_old  Previous value of omega(i,i)
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
+
+    /**
+     * Refresh all factors if the SMW-maintained covariance has drifted.
+     *
+     * Computes max_i |diag(Sigma K) - 1| in O(p^2) and calls
+     * refresh_cholesky() when it exceeds kCovDriftTol_. Called once per
+     * Metropolis sweep, proposal-sd tuning sweep, and edge-indicator sweep.
+     */
+    void check_and_refresh_if_drift_();
+
+    /** Tolerance on max_i |diag(Sigma K) - 1| before a full factor refresh. */
+    static constexpr double kCovDriftTol_ = 1e-8;
+
+    /**
+     * Check (Sigma K)(r, r) = 1 on the given rows.
+     *
+     * Guards the SMW-maintained covariance against catastrophic cancellation
+     * when K passes near a singular state (legitimate under the prior at
+     * delta = 0, where a row-Gibbs xi draw can be arbitrarily small): the
+     * update that moves K away from the near-singular state subtracts huge
+     * outer products and Sigma loses absolute accuracy. Callers refresh from
+     * K on violation before the drifted Sigma can corrupt proposal constants
+     * or the row-Gibbs Schur extraction (which would write a
+     * non-positive-definite K).
+     *
+     * @param rows  Row indices touched by the update just applied.
+     * @return false when any |(Sigma K)(r, r) - 1| exceeds kSigmaProbeTol_
+     *         or is non-finite.
+     */
+    bool sigma_rows_consistent_(const arma::uvec& rows) const;
+
+    /** Tolerance on |(Sigma K)(r, r) - 1| in the per-accept probe. */
+    static constexpr double kSigmaProbeTol_ = 1e-6;
 
     /**
      * Recompute Cholesky and its inverse from the precision matrix.

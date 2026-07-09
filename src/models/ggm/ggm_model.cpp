@@ -333,7 +333,9 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     vf2_[i] = v2_[0];
     vf2_[j] = v2_[1];
 
-    apply_rank2_chol_smw_update_();
+    const arma::uvec support =
+        {static_cast<arma::uword>(i), static_cast<arma::uword>(j)};
+    apply_rank2_chol_smw_update_(support);
 
     // reset for next iteration
     vf1_[i] = 0.0;
@@ -343,27 +345,107 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::apply_rank2_chol_smw_update_()
+void GGMModel::apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                            bool update_L)
 {
-    // we now have
-    // aOmega_prop - (aOmega + vf1 %*% t(vf2) + vf2 %*% t(vf1))
-
+    // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
+    // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
+    // change of basis diagonalises the symmetric rank-2 update so the chol
+    // factor advances via one rank-1 update + one rank-1 downdate.
+    //
+    // `support` lists the nonzero indices of vf1/vf2 (hence of u1/u2): {i,j}
+    // for the edge accept, {i} + N_i for a row-Gibbs row. Sigma * u then
+    // touches only those columns -- O(p |support|) instead of the dense
+    // O(p^2) gemv.
     u1_ = (vf1_ + vf2_) / sqrt(2);
     u2_ = (vf1_ - vf2_) / sqrt(2);
 
-    // update phi (2x O(p^2))
-    cholesky_update(cholesky_of_precision_, u1_);
-    bool ok = cholesky_downdate(cholesky_of_precision_, u2_);
+    // chol(K) update (2 x O(p^2)). Needed when a caller reads chol(K) or the
+    // log-det before the next full refresh (the edge accept does). The
+    // row-block Gibbs sweep passes update_L = false: the row draw reads only
+    // Sigma, and chol(K) is rebuilt once via refresh_cholesky() at sweep end.
+    // A failed downdate means K_new is not numerically PD along this route;
+    // rebuild all factors from K.
+    if (update_L) {
+        cholesky_update(cholesky_of_precision_, u1_);
+        if (!cholesky_downdate(cholesky_of_precision_, u2_)) {
+            refresh_cholesky();
+            return;
+        }
+        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+    }
 
-    // update inverse — fall back to full recomputation if the downdate lost
-    // positive definiteness or rank-1 updates have caused numerical drift
-    ok = ok && arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                           arma::eye(p_, p_), arma::solve_opts::fast);
-    if (!ok) {
+    // Sherman-Morrison-Woodbury rank-2 update of covariance_matrix_ = inv(K),
+    // O(p^2) total:
+    //   K_new = K_old + M D M^T, M = [u1, u2], D = diag(+1, -1)
+    //   inv(K_new) = inv(K_old) - A C^{-1} A^T,
+    //     A = inv(K_old) M = [a1, a2],
+    //     C = D^{-1} + M^T inv(K_old) M = diag(+1, -1) + symmetric 2x2.
+    // Capacitance singularity (|det C| ~ 0) falls back to refresh_cholesky().
+    // inv_cholesky_of_precision_ is not maintained here: only
+    // refresh_cholesky() and set_vectorized_parameters() write it, and
+    // nothing reads it between accepts.
+    // a1 = Sigma u1, a2 = Sigma u2 (both dense length p -- the outer-product
+    // Sigma updates below stay O(p^2)). u1/u2 are zero outside `support`, so
+    // when the support is small we gather just those columns once and matvec
+    // against them (O(p |support|)); when it is near-full the gather copy
+    // costs more than the dense gemv, so fall back. Gather wins while
+    // ~3 |support| < 2p.
+    arma::vec a1, a2;
+    if (3 * support.n_elem < 2 * p_) {
+        const arma::mat Scols = covariance_matrix_.cols(support);
+        a1 = Scols * u1_.elem(support);
+        a2 = Scols * u2_.elem(support);
+    } else {
+        a1 = covariance_matrix_ * u1_;
+        a2 = covariance_matrix_ * u2_;
+    }
+    // u1/u2 vanish off `support`, so the capacitance dots restrict to it.
+    const arma::vec u1s = u1_.elem(support);
+    const arma::vec u2s = u2_.elem(support);
+    double c11 =  1.0 + arma::dot(u1s, a1.elem(support));
+    double c12 =        arma::dot(u1s, a2.elem(support));
+    double c22 = -1.0 + arma::dot(u2s, a2.elem(support));
+    double det = c11 * c22 - c12 * c12;
+    if (!std::isfinite(det) || std::abs(det) < 1e-14) {
         refresh_cholesky();
     } else {
-        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
-        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+        const double inv_c00 =  c22 / det;
+        const double inv_c11 =  c11 / det;
+        const double inv_c01 = -c12 / det;
+        // Delta Sigma = -inv_c00 a1 a1^T - inv_c11 a2 a2^T
+        //               - inv_c01 (a1 a2^T + a2 a1^T)
+        // regrouped as two rank-1 outer products with bundled weights:
+        //   Delta Sigma = -(a1 b1^T + a2 b2^T),
+        //     b1 = inv_c00 a1 + inv_c01 a2,
+        //     b2 = inv_c01 a1 + inv_c11 a2.
+        const arma::vec b1 = inv_c00 * a1 + inv_c01 * a2;
+        const arma::vec b2 = inv_c01 * a1 + inv_c11 * a2;
+        covariance_matrix_ -= a1 * b1.t();
+        covariance_matrix_ -= a2 * b2.t();
+        // The outer products are symmetric in exact arithmetic but not in
+        // floating point (b1(j) rounds once, so a1(i) b1(j) != a1(j) b1(i));
+        // downstream chol() calls on Sigma-derived submatrices require exact
+        // symmetry. Mirror the upper triangle in place -- symmatu on a
+        // self-assignment would materialise a p x p temporary per accept.
+        for (arma::uword c = 1; c < p_; ++c) {
+            for (arma::uword r = 0; r < c; ++r) {
+                covariance_matrix_(c, r) = covariance_matrix_(r, c);
+            }
+        }
+        // Validate the touched rows of Sigma K = I. When K passes near a
+        // singular state (a tiny row-Gibbs xi draw at n = 0, delta = 0 makes
+        // this legitimate, not exceptional), Sigma legitimately blows up to
+        // ~1/xi; the SMW update that moves K away from that state then
+        // subtracts two huge outer products and cancellation destroys Sigma
+        // in absolute terms. Everything downstream (proposal constants,
+        // the row-Gibbs Schur matrix) reads Sigma and would write a
+        // non-positive-definite K from the garbage. The probe costs
+        // O(p |support|) -- the same order as the matvec above -- and
+        // repairs the cache from K the moment accuracy is lost.
+        if (!sigma_rows_consistent_(support)) {
+            refresh_cholesky();
+        }
     }
 }
 
@@ -431,17 +513,22 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     const bool   cauchy = slab_is_cauchy_();
     const double s_ii  = suf_stat_(i, i);
 
-    // Active neighbour set N_i (in row order).
-    std::vector<size_t> Ni;
-    Ni.reserve(p_ - 1);
+    // Active neighbour set N_i (in row order). Reuse gibbs_Ni_ -- clearing a
+    // std::vector keeps its capacity, so this avoids a per-row reserve(p-1).
+    gibbs_Ni_.clear();
     for (size_t k = 0; k < p_; ++k) {
-        if (k != i && edge_indicators_(i, k) == 1) Ni.push_back(k);
+        if (k != i && edge_indicators_(i, k) == 1)
+            gibbs_Ni_.push_back(static_cast<arma::uword>(k));
     }
+    const std::vector<arma::uword>& Ni = gibbs_Ni_;
     const size_t q = Ni.size();
 
     // Stash old K column entries so the rank-2 update can encode the delta.
+    // beta_old and the other per-row buffers below alias reused members:
+    // set_size keeps the existing allocation when q fits.
     const double kii_old = precision_matrix_(i, i);
-    arma::vec beta_old(q);
+    arma::vec& beta_old = gibbs_beta_old_;
+    beta_old.set_size(q);
     for (size_t k = 0; k < q; ++k) beta_old(k) = precision_matrix_(i, Ni[k]);
 
     // xi shape: n/2 + delta + 1 (alpha = 1). The determinant tilt |K|^delta
@@ -460,9 +547,11 @@ void GGMModel::update_row_block_gibbs(size_t i) {
         // C = (A^{-1})_{N_i, N_i} via Schur on Sigma:
         //   C_{kl} = Sigma_{N_i[k], N_i[l]} - Sigma_{N_i[k], i} Sigma_{i, N_i[l]} / Sigma_{ii}
         const double sigma_ii = covariance_matrix_(i, i);
-        arma::vec sigma_iNi(q);
+        arma::vec& sigma_iNi = gibbs_sigma_iNi_;
+        sigma_iNi.set_size(q);
         for (size_t k = 0; k < q; ++k) sigma_iNi(k) = covariance_matrix_(i, Ni[k]);
-        arma::mat C(q, q);
+        arma::mat& C = gibbs_C_;
+        C.set_size(q, q);
         for (size_t k = 0; k < q; ++k) {
             for (size_t l = 0; l < q; ++l) {
                 C(k, l) = covariance_matrix_(Ni[k], Ni[l])
@@ -490,7 +579,8 @@ void GGMModel::update_row_block_gibbs(size_t i) {
         }
 
         // S_{N_i, i} vector.
-        arma::vec s_Ni_i(q);
+        arma::vec& s_Ni_i = gibbs_s_Ni_i_;
+        s_Ni_i.set_size(q);
         for (size_t k = 0; k < q; ++k) s_Ni_i(k) = suf_stat_(Ni[k], i);
 
         // Mean mu = -M^{-1} S_{N_i, i}. Two triangular solves: L y = -S, L^T mu = y.
@@ -537,7 +627,16 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     vf2_[i] = (kii_new - kii_old) / 2.0;
     for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
 
-    apply_rank2_chol_smw_update_();
+    // Support of the rank-2 update: {i} + N_i. The SMW matvec gathers only
+    // these columns of Sigma (O(p q) vs dense O(p^2)). Reuse gibbs_support_.
+    gibbs_support_.set_size(q + 1);
+    gibbs_support_[0] = static_cast<arma::uword>(i);
+    for (size_t k = 0; k < q; ++k) gibbs_support_[k + 1] = Ni[k];
+
+    // Defer the chol(K) Givens passes: nothing reads chol(K) between rows of
+    // the sweep. Sigma is still refreshed so the next row's Schur extraction
+    // is exact; chol(K) is rebuilt once in do_one_gibbs_step after the sweep.
+    apply_rank2_chol_smw_update_(gibbs_support_, /*update_L=*/false);
 
     vf1_[i] = 0.0;
     vf2_[i] = 0.0;
@@ -551,6 +650,12 @@ void GGMModel::do_one_gibbs_step(int /*iteration*/) {
     for (size_t i = 0; i < p_; ++i) {
         update_row_block_gibbs(i);
     }
+    // chol(K) was deferred during the sweep -- the row draws read only Sigma,
+    // so the 2p per-row Givens passes were skipped. One O(p^3) factorisation
+    // here restores chol(K), inv chol(K), the log-det, and an exact Sigma
+    // (clearing the SMW drift the sweep accumulates), ready for the
+    // edge-indicator between-step that reads them next.
+    refresh_cholesky();
     refresh_cauchy_omega_();
 }
 
@@ -616,19 +721,36 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
     else
         cholesky_update(cholesky_of_precision_, vf1_);
 
-    // update inverse — fall back to full recomputation if the downdate lost
-    // positive definiteness or rank-1 updates have caused numerical drift
-    ok = ok && arma::solve(inv_cholesky_of_precision_, arma::trimatu(cholesky_of_precision_),
-                           arma::eye(p_, p_), arma::solve_opts::fast);
-    if (!ok) {
-        refresh_cholesky();
-    } else {
-        covariance_matrix_ = inv_cholesky_of_precision_ * inv_cholesky_of_precision_.t();
-        log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
-    }
-
     // reset for next iteration
     vf1_(i) = 0.0;
+
+    if (!ok) {
+        refresh_cholesky();
+        return;
+    }
+    log_det_precision_ = cholesky_helpers::get_log_det(cholesky_of_precision_);
+
+    // SMW rank-1 update of covariance_matrix_ = inv(K), O(p^2):
+    //   K_new = K_old + alpha e_i e_i^T, alpha = K_new(i,i) - K_old(i,i)
+    //   inv(K_new) = inv(K_old) - alpha / (1 + alpha Sigma_ii) c_i c_i^T,
+    //     c_i = Sigma.col(i).
+    // Near-singular denominator falls back to refresh_cholesky().
+    double alpha = precision_proposal_(i, i) - omega_ii_old;
+    arma::vec ci = covariance_matrix_.col(i);
+    double denom = 1.0 + alpha * ci(i);
+    if (!std::isfinite(denom) || std::abs(denom) < 1e-14) {
+        refresh_cholesky();
+    } else {
+        // Exactly symmetric: entry (i,j) is coeff * (ci(i) * ci(j)) and IEEE
+        // multiplication commutes, so no symmatu reflection is needed here
+        // (unlike the rank-2 update, where b1/b2 round independently).
+        covariance_matrix_ -= (alpha / denom) * (ci * ci.t());
+        // Same near-singular-passage guard as the rank-2 update.
+        const arma::uvec row_i = {static_cast<arma::uword>(i)};
+        if (!sigma_rows_consistent_(row_i)) {
+            refresh_cholesky();
+        }
+    }
 }
 
 
@@ -807,6 +929,10 @@ void GGMModel::do_one_metropolis_step(int iteration) {
     if (metropolis_adapter_) {
         metropolis_adapter_->update(index_mask, accept_prob, iteration);
     }
+
+    // Catch SMW-accumulated drift in covariance_matrix_ over a long chain.
+    // O(p^2); the refresh path is only taken when drift exceeds tolerance.
+    check_and_refresh_if_drift_();
 }
 
 void GGMModel::init_metropolis_adaptation(const WarmupSchedule& schedule) {
@@ -831,6 +957,8 @@ void GGMModel::update_edge_indicators() {
             update_edge_indicator_parameter_pair(i, j);
         }
     }
+    // SMW drift check; same rationale as the end-of-Metropolis-step path.
+    check_and_refresh_if_drift_();
 }
 
 void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
@@ -982,6 +1110,35 @@ void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {
 
     // Invalidate gradient cache after MH updates
     invalidate_gradient_cache();
+
+    // SMW drift check; same rationale as the end-of-Metropolis-step path.
+    check_and_refresh_if_drift_();
+}
+
+void GGMModel::check_and_refresh_if_drift_() {
+    // diag(Sigma * K) should be ones. Max abs deviation in O(p^2) via the
+    // elementwise product: K is symmetric, so sum(Sigma.row(i) % K.row(i))
+    // equals (Sigma * K)(i, i).
+    arma::vec d = arma::sum(covariance_matrix_ % precision_matrix_, 1) - 1.0;
+    double drift = arma::abs(d).max();
+    if (!std::isfinite(drift) || drift > kCovDriftTol_) {
+        refresh_cholesky();
+    }
+}
+
+bool GGMModel::sigma_rows_consistent_(const arma::uvec& rows) const {
+    // (Sigma K)(r, r) = 1 exactly; both matrices are symmetric, so the
+    // check reads two contiguous columns per row. A violation means the
+    // SMW-maintained Sigma has lost absolute accuracy (near-singular
+    // passage), not that K is wrong -- K is the source of truth.
+    for (arma::uword k = 0; k < rows.n_elem; ++k) {
+        const arma::uword r = rows[k];
+        double d = arma::dot(covariance_matrix_.col(r), precision_matrix_.col(r));
+        if (!std::isfinite(d) || std::abs(d - 1.0) > kSigmaProbeTol_) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void GGMModel::refresh_cholesky() {
