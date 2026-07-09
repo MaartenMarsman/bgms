@@ -86,15 +86,19 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE) {
       pc = per_chain[i, ]
       if(pc$flag) {
         cat(sprintf(
-          paste0("  - Chain %d: %.1f%% of edge-toggle decisions in the ",
-                 "approximate chain differ from the exact reference - ",
-                 "increase calibration_window\n"),
+          paste0(
+            "  - Chain %d: %.1f%% of edge-toggle decisions in the ",
+            "approximate chain differ from the exact reference - ",
+            "increase calibration_window\n"
+          ),
           pc$chain, 100 * pc$flip_rate
         ))
       }
     }
   }
 
-  invisible(list(per_chain = per_chain, threshold = threshold,
-                 flagged = flagged))
+  invisible(list(
+    per_chain = per_chain, threshold = threshold,
+    flagged = flagged
+  ))
 }
