@@ -669,7 +669,7 @@ double corrected_log_marginal_mfm_sbm(const arma::uvec& cluster_assign,
 static arma::uword sample_cluster_log(const arma::vec& log_weights,
                                       SafeRNG& rng) {
   double mx = log_weights.max();
-  arma::vec w = arma::exp(log_weights - mx);
+  arma::vec w = ARMA_MY_EXP(log_weights - mx);
   double u = runif(rng) * arma::accu(w);
   double cum = 0;
   for(arma::uword c = 0; c < w.n_elem; c++) {
