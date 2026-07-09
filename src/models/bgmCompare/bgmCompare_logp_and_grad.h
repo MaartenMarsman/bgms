@@ -211,6 +211,7 @@ double log_pseudoposterior_main_component(
  * Uses pre-computed residual matrices adjusted by delta to avoid full
  * recomputation. Used by element-wise Metropolis updates.
  *
+ * @param obs_double_groups  Per-group observation matrices converted to double
  * @param residual_matrices  Pre-computed residual matrices per group
  * @param variable1          First variable index
  * @param variable2          Second variable index
@@ -224,8 +225,7 @@ double log_pseudoposterior_pair_component(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
-    const arma::imat& group_indices,
+    const std::vector<arma::mat>& obs_double_groups,
     const arma::ivec& num_categories,
     const std::vector<arma::mat>& pairwise_stats_group,
     const std::vector<arma::mat>& residual_matrices,

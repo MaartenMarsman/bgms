@@ -446,7 +446,7 @@ void update_pairwise_effects_metropolis_bgmcompare (
       double delta = theta - current;
       return log_pseudoposterior_pair_component(
         main_effects, pairwise_effects, main_effect_indices,
-        pairwise_effect_indices, projection, observations, group_indices,
+        pairwise_effect_indices, projection, obs_double_groups,
         num_categories, pairwise_stats, residual_matrices, num_groups,
         inclusion_indicator, is_ordinal_variable, baseline_category,
         var1, var2, h, delta,
@@ -1002,7 +1002,7 @@ void tune_proposal_sd_bgmcompare(
           return log_pseudoposterior_pair_component(
             main_effects, pairwise_effects,
             main_effect_indices, pairwise_effect_indices,
-            projection, observations, group_indices,
+            projection, obs_double_groups,
             num_categories, pairwise_stats, residual_matrices, num_groups,
             inclusion_indicator, is_ordinal_variable, baseline_category,
             v1, v2, h, delta,
