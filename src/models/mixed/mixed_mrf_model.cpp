@@ -746,7 +746,7 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
     //    excluded-edge zeros enforced by the null-space parameterization
     size_t chol_dim = chol_constraint_structure_.active_dim;
     arma::vec theta_yy = params.subvec(idx, idx + chol_dim - 1);
-    ForwardMapResult fm = yy_engine_.forward_map(theta_yy);
+    const ForwardMapResult& fm = yy_engine_.forward_map(theta_yy);
     cholesky_of_precision_ = fm.Phi;
     pairwise_effects_continuous_ = -0.5 * fm.K;
     bool ok = arma::solve(inv_cholesky_of_precision_,

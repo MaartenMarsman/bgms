@@ -133,7 +133,7 @@ void GGMModel::set_vectorized_parameters(const arma::vec& parameters) {
     ensure_constraint_structure();
 
     // Run forward map: theta -> Phi -> K
-    ForwardMapResult fm = gradient_engine_.forward_map(parameters);
+    const ForwardMapResult& fm = gradient_engine_.forward_map(parameters);
 
     // Update internal state
     precision_matrix_ = fm.K;

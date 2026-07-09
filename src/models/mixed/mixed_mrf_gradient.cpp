@@ -202,7 +202,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     //     which enforces excluded-edge zeros through the null-space bases ---
     size_t chol_offset = static_cast<size_t>(chol_grad_offset_);
     size_t chol_dim = chol_constraint_structure_.active_dim;
-    ForwardMapResult fm = yy_engine_.forward_map(
+    const ForwardMapResult& fm = yy_engine_.forward_map(
         arma::vec(parameters.subvec(chol_offset, chol_offset + chol_dim - 1)));
     const arma::mat& temp_cholesky = fm.Phi;
 
