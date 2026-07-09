@@ -704,6 +704,9 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
     }
 
     // ---- Per-variable: joint computation of log-normalizer and gradient ----
+    // Expected-score vectors are collected per variable so the pairwise
+    // gradient reduces to one X^T * E GEMM after the loop.
+    arma::mat expected_scores(n_, p_, arma::fill::none);
     int offset = 0;
     for (int variable = 0; variable < num_variables; variable++) {
         const int num_cats = num_categories_(variable);
@@ -728,15 +731,10 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
                 gradient(offset + cat) -= arma::accu(logz_out_.probs.col(cat + 1));
             }
 
-            // Pairwise gradient contributions (vectorized using BLAS)
+            // Expected value E_s[c+1|rest] per observation (pairwise gradient
+            // is assembled in one GEMM after the loop)
             arma::vec weights = arma::regspace<arma::vec>(1, num_cats);
-            arma::vec E = logz_out_.probs.cols(1, num_cats) * weights;
-            arma::vec pw_grad = observations_double_t_ * E;
-            for (int j = 0; j < num_variables; j++) {
-                if (edge_indicators_(variable, j) == 0 || variable == j) continue;
-                int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= 2.0 * pw_grad(j);
-            }
+            expected_scores.col(variable) = logz_out_.probs.cols(1, num_cats) * weights;
             offset += num_cats;
         } else {
             const int ref = baseline_category_(variable);
@@ -759,15 +757,23 @@ std::pair<double, arma::vec> OMRFModel::logp_and_gradient(const arma::vec& param
             gradient(offset)     -= arma::accu(logz_out_.probs * score);
             gradient(offset + 1) -= arma::accu(logz_out_.probs * sq_score);
 
-            // Pairwise gradient contributions (vectorized using BLAS)
-            arma::vec E = logz_out_.probs * score;
-            arma::vec pw_grad = observations_double_t_ * E;
-            for (int j = 0; j < num_variables; j++) {
-                if (edge_indicators_(variable, j) == 0 || variable == j) continue;
-                int location = (variable < j) ? index_matrix_cache_(variable, j) : index_matrix_cache_(j, variable);
-                gradient(location) -= 2.0 * pw_grad(j);
-            }
+            // Expected score per observation (pairwise gradient is assembled
+            // in one GEMM after the loop)
+            expected_scores.col(variable) = logz_out_.probs * score;
             offset += 2;
+        }
+    }
+
+    // ---- Pairwise gradient contributions ----
+    // One X^T * E GEMM for all variables; edge (i, j) collects the
+    // variable-i and variable-j conditional contributions.
+    arma::mat pw_grad_all = observations_double_t_ * expected_scores;
+    for (int i = 0; i < num_variables - 1; i++) {
+        for (int j = i + 1; j < num_variables; j++) {
+            if (edge_indicators_(i, j) == 0) continue;
+            int location = index_matrix_cache_(i, j);
+            gradient(location) -= 2.0 * pw_grad_all(j, i);
+            gradient(location) -= 2.0 * pw_grad_all(i, j);
         }
     }
 
