@@ -426,8 +426,13 @@ void GGMModel::apply_rank2_chol_smw_update_(const arma::uvec& support,
         // The outer products are symmetric in exact arithmetic but not in
         // floating point (b1(j) rounds once, so a1(i) b1(j) != a1(j) b1(i));
         // downstream chol() calls on Sigma-derived submatrices require exact
-        // symmetry. Reflect the upper triangle.
-        covariance_matrix_ = arma::symmatu(covariance_matrix_);
+        // symmetry. Mirror the upper triangle in place -- symmatu on a
+        // self-assignment would materialise a p x p temporary per accept.
+        for (arma::uword c = 1; c < p_; ++c) {
+            for (arma::uword r = 0; r < c; ++r) {
+                covariance_matrix_(c, r) = covariance_matrix_(r, c);
+            }
+        }
     }
 }
 
