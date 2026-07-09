@@ -1,7 +1,65 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include "models/bgmCompare/bgmCompare_helper.h"
+#include "models/bgmCompare/bgmCompare_state.h"
 #include "utils/common_helpers.h"
+
+
+
+// Converts the integer observations to double, whole-matrix and per group.
+// Weight and residual members are left untouched; call
+// rebuild_sweep_state_weights() afterwards to make the state consistent.
+void initialize_sweep_state_observations(
+    CompareSweepState& state,
+    const arma::imat& observations,
+    const arma::imat& group_indices,
+    const int num_groups
+) {
+  state.obs_double_all = arma::conv_to<arma::mat>::from(observations);
+  state.obs_double.resize(num_groups);
+  for (int g = 0; g < num_groups; g++) {
+    const int r0 = group_indices(g, 0);
+    const int r1 = group_indices(g, 1);
+    state.obs_double[g] = state.obs_double_all.rows(r0, r1);
+  }
+}
+
+
+
+// Recomputes the per-group effective pairwise weights from the current
+// pairwise effects and inclusion indicators, and the residual matrices as
+// one matrix product per group.
+void rebuild_sweep_state_weights(
+    CompareSweepState& state,
+    const arma::mat& pairwise_effects,
+    const arma::imat& pairwise_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const int num_groups
+) {
+  const int num_variables = inclusion_indicator.n_rows;
+  state.pairwise_group.resize(num_groups);
+  state.residual.resize(num_groups);
+
+  for (int g = 0; g < num_groups; g++) {
+    const arma::vec proj_g = projection.row(g).t();
+
+    arma::mat& pairwise_g = state.pairwise_group[g];
+    pairwise_g.zeros(num_variables, num_variables);
+    for (int v = 0; v < num_variables - 1; v++) {
+      for (int u = v + 1; u < num_variables; u++) {
+        double w = compute_group_pairwise_effects(
+          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
+          inclusion_indicator, proj_g
+        );
+        pairwise_g(v, u) = w;
+        pairwise_g(u, v) = w;
+      }
+    }
+
+    state.residual[g] = state.obs_double[g] * pairwise_g;
+  }
+}
 
 
 
