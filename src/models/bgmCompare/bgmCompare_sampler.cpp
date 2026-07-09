@@ -58,9 +58,10 @@
 //
 // Notes:
 //  - The function updates both raw data and sufficient statistics in-place.
-//  - Group-specific pairwise effects are recomputed per missing entry.
-//  - For efficiency, you may consider incremental updates to `pairwise_stats`
-//    instead of full recomputation (`obs.t() * obs`) after each change.
+//  - Group-specific pairwise effects are built once per group; parameters
+//    are constant across the imputation pass.
+//  - `pairwise_stats` is updated incrementally: a changed cell only alters
+//    row and column `variable` of the group crossproduct.
 void impute_missing_bgmcompare(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -89,6 +90,24 @@ void impute_missing_bgmcompare(
   double exponent, cumsum, u;
   int score, person, variable, new_value, old_value, group;
 
+  // Group-specific pairwise effect matrices; the parameters are constant
+  // across the imputation pass, so one build per group suffices.
+  std::vector<arma::mat> group_pairwise_effects(num_groups);
+  for(int g = 0; g < num_groups; g++) {
+    const arma::vec proj_g = projection.row(g).t();
+    group_pairwise_effects[g].zeros(num_variables, num_variables);
+    for(int v1 = 0; v1 < num_variables-1; v1++) {
+      for(int v2 = v1 + 1; v2 < num_variables; v2++) {
+        double w = compute_group_pairwise_effects(
+            v1, v2, num_groups, pairwise_effects, pairwise_effect_indices,
+            inclusion_indicator, proj_g
+        );
+        group_pairwise_effects[g](v1, v2) = w;
+        group_pairwise_effects[g](v2, v1) = w;
+      }
+    }
+  }
+
   //Impute missing data
   for(int missing = 0; missing < num_missings; missing++) {
     // Identify the observation to impute
@@ -101,21 +120,8 @@ void impute_missing_bgmcompare(
     arma::vec group_main_effects = compute_group_main_effects(
       variable, num_groups, main_effects,  main_effect_indices, proj_g);
 
-    // Generate a new observation based on the model
-    arma::mat group_pairwise_effects(num_variables, num_variables, arma::fill::zeros);
-    for(int v1 = 0; v1 < num_variables-1; v1++) {
-      for(int v2 = v1 + 1; v2 < num_variables; v2++) {
-        double w = compute_group_pairwise_effects(
-            v1, v2, num_groups, pairwise_effects, pairwise_effect_indices,
-            inclusion_indicator, proj_g
-        );
-        group_pairwise_effects(v1, v2) = w;
-        group_pairwise_effects(v2, v1) = w;
-      }
-    }
-
     double rest_score =
-      arma::as_scalar(observations.row(person) * group_pairwise_effects.col(variable));
+      arma::as_scalar(observations.row(person) * group_pairwise_effects[group].col(variable));
 
     if(is_ordinal_variable[variable] == true) {
       // For regular binary or ordinal variables
@@ -159,27 +165,32 @@ void impute_missing_bgmcompare(
 
       // Update sufficient statistics for main effects
       if(is_ordinal_variable[variable] == true) {
-        arma::imat counts_per_category_group = counts_per_category[group];
+        arma::imat& counts_per_category_group = counts_per_category[group];
         if(old_value > 0)
           counts_per_category_group(old_value-1, variable)--;
         if(new_value > 0)
           counts_per_category_group(new_value-1, variable)++;
-        counts_per_category[group] = counts_per_category_group;
       } else {
-        arma::imat blume_capel_stats_group = blume_capel_stats[group];
+        arma::imat& blume_capel_stats_group = blume_capel_stats[group];
         blume_capel_stats_group(0, variable) -= old_value;
         blume_capel_stats_group(0, variable) += new_value;
         blume_capel_stats_group(1, variable) -= old_value * old_value;
         blume_capel_stats_group(1, variable) += new_value * new_value;
-        blume_capel_stats[group] = blume_capel_stats_group;
       }
 
-      // Update sufficient statistics for pairwise effects
-      const int r0 = group_indices(group, 0);
-      const int r1 = group_indices(group, 1);
-      arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
-      arma::mat pairwise_stats_group = obs.t() * obs; // crossprod
-      pairwise_stats[group] = pairwise_stats_group;
+      // Update sufficient statistics for pairwise effects. In the group
+      // crossproduct X.t() * X only row and column `variable` depend on the
+      // changed cell: with delta = new_value - old_value and x the person's
+      // row (which already holds new_value), entry (u, variable) gains
+      // delta * x(u), symmetrically; the diagonal gain 2 * delta * new_value
+      // - delta^2 equals new_value^2 - old_value^2.
+      const double delta = static_cast<double>(new_value - old_value);
+      const arma::rowvec obs_row =
+        arma::conv_to<arma::rowvec>::from(observations.row(person));
+      arma::mat& pairwise_stats_group = pairwise_stats[group];
+      pairwise_stats_group.col(variable) += delta * obs_row.t();
+      pairwise_stats_group.row(variable) += delta * obs_row;
+      pairwise_stats_group(variable, variable) -= delta * delta;
     }
   }
   return;
