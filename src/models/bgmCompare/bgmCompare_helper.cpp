@@ -22,13 +22,17 @@ void initialize_sweep_state_observations(
     const int r1 = group_indices(g, 1);
     state.obs_double[g] = state.obs_double_all.rows(r0, r1);
   }
+
+  const int num_variables = observations.n_cols;
+  state.log_normalizer.zeros(num_variables, num_groups);
+  state.normalizer_valid.zeros(num_variables);
 }
 
 
 
 // Recomputes the per-group effective pairwise weights from the current
 // pairwise effects and inclusion indicators, and the residual matrices as
-// one matrix product per group.
+// one matrix product per group. Invalidates the normalizer cache.
 void rebuild_sweep_state_weights(
     CompareSweepState& state,
     const arma::mat& pairwise_effects,
@@ -59,6 +63,8 @@ void rebuild_sweep_state_weights(
 
     state.residual[g] = state.obs_double[g] * pairwise_g;
   }
+
+  state.normalizer_valid.zeros();
 }
 
 

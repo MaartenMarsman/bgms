@@ -199,6 +199,186 @@ void impute_missing_bgmcompare(
 
 
 
+// Performs one cached random-walk Metropolis update of a single main-effect
+// parameter (row, h) of `variable`.
+//
+// The current-state log-pseudoposterior is reconstructed from the sweep
+// state's per-variable normalizer cache, computing and caching the
+// normalizer sums on a miss; only the proposed state is evaluated in full.
+// On acceptance the parameter and the variable's cached normalizer sums are
+// updated in place. Shared by the Metropolis sweep and the proposal-sd tuner.
+static StepResult metropolis_update_main_effect_cached(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const arma::ivec& num_categories,
+    CompareSweepState& sweep_state,
+    const int num_groups,
+    const std::vector<arma::imat>& counts_per_category,
+    const std::vector<arma::imat>& blume_capel_stats,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const int row,
+    const int variable,
+    const int category,
+    const int par,
+    const int h,
+    const double proposal_sd,
+    SafeRNG& rng,
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior
+) {
+  const double current = main_effects(row, h);
+
+  auto component = [&](const arma::vec* norm_in, arma::vec* norm_out) {
+    return log_pseudoposterior_main_component(
+      main_effects, main_effect_indices, projection,
+      sweep_state.residual, num_categories, counts_per_category,
+      blume_capel_stats, num_groups, inclusion_indicator,
+      is_ordinal_variable, baseline_category,
+      variable, category, par, h,
+      difference_prior, threshold_prior,
+      norm_in, norm_out
+    );
+  };
+
+  // Current-state value: reconstruct from the cached per-group normalizer
+  // sums, or compute and cache them on a miss.
+  double logp_current;
+  if (sweep_state.normalizer_valid(variable)) {
+    const arma::vec norm_cur = sweep_state.log_normalizer.row(variable).t();
+    logp_current = component(&norm_cur, nullptr);
+  } else {
+    arma::vec norm_cur(num_groups);
+    logp_current = component(nullptr, &norm_cur);
+    sweep_state.log_normalizer.row(variable) = norm_cur.t();
+    sweep_state.normalizer_valid(variable) = 1;
+  }
+
+  arma::vec norm_prop(num_groups);
+  auto log_post_proposed = [&](double theta) {
+    main_effects(row, h) = theta;
+    return component(nullptr, &norm_prop);
+  };
+
+  StepResult result = metropolis_step_cached(
+    current, proposal_sd, logp_current, log_post_proposed, rng
+  );
+  main_effects(row, h) = result.state[0];
+  if (result.state[0] != current) {
+    // Accepted: the proposed-state normalizer sums become current.
+    sweep_state.log_normalizer.row(variable) = norm_prop.t();
+  }
+
+  return result;
+}
+
+
+
+// Performs one cached random-walk Metropolis update of a single
+// pairwise-effect parameter (idx, h) of the pair (var1, var2).
+//
+// The current-state log-pseudoposterior is reconstructed from the sweep
+// state's normalizer cache of both endpoint variables, computing and caching
+// the normalizer sums on a miss; only the proposed state is evaluated in
+// full. On acceptance the parameter, the effective weights, the residual
+// columns, and both variables' cached normalizer sums are updated in place.
+// Shared by the Metropolis sweep and the proposal-sd tuner.
+static StepResult metropolis_update_pairwise_effect_cached(
+    arma::mat& main_effects,
+    arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const arma::ivec& num_categories,
+    CompareSweepState& sweep_state,
+    const int num_groups,
+    const std::vector<arma::mat>& pairwise_stats,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const int var1,
+    const int var2,
+    const int h,
+    const double proposal_sd,
+    SafeRNG& rng,
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior
+) {
+  const int idx = pairwise_effect_indices(var1, var2);
+  const double current = pairwise_effects(idx, h);
+
+  auto component = [&](double delta, const arma::mat* norm_in,
+                       arma::mat* norm_out) {
+    return log_pseudoposterior_pair_component(
+      main_effects, pairwise_effects, main_effect_indices,
+      pairwise_effect_indices, projection, sweep_state.obs_double,
+      num_categories, pairwise_stats, sweep_state.residual, num_groups,
+      inclusion_indicator, is_ordinal_variable, baseline_category,
+      var1, var2, h, delta,
+      interaction_prior, difference_prior,
+      norm_in, norm_out
+    );
+  };
+
+  // Current-state value: reconstruct from the cached per-group normalizer
+  // sums of both endpoints, or compute and cache them on a miss.
+  double logp_current;
+  arma::mat norm_cur(num_groups, 2);
+  if (sweep_state.normalizer_valid(var1) &&
+      sweep_state.normalizer_valid(var2)) {
+    norm_cur.col(0) = sweep_state.log_normalizer.row(var1).t();
+    norm_cur.col(1) = sweep_state.log_normalizer.row(var2).t();
+    logp_current = component(0.0, &norm_cur, nullptr);
+  } else {
+    logp_current = component(0.0, nullptr, &norm_cur);
+    sweep_state.log_normalizer.row(var1) = norm_cur.col(0).t();
+    sweep_state.log_normalizer.row(var2) = norm_cur.col(1).t();
+    sweep_state.normalizer_valid(var1) = 1;
+    sweep_state.normalizer_valid(var2) = 1;
+  }
+
+  arma::mat norm_prop(num_groups, 2);
+  auto log_post_proposed = [&](double theta) {
+    return component(theta - current, nullptr, &norm_prop);
+  };
+
+  StepResult result = metropolis_step_cached(
+    current, proposal_sd, logp_current, log_post_proposed, rng
+  );
+  const double value = result.state[0];
+
+  // Update the parameter and sweep state if the move was accepted
+  if (current != value) {
+    const double delta = value - current;
+    pairwise_effects(idx, h) = value;
+
+    for (int g = 0; g < num_groups; ++g) {
+      const arma::vec proj_g = projection.row(g).t();
+      double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
+
+      // Update pairwise_group for this group
+      sweep_state.pairwise_group[g](var1, var2) += delta_g;
+      sweep_state.pairwise_group[g](var2, var1) += delta_g;
+
+      // Update residual matrix columns
+      sweep_state.residual[g].col(var1) +=
+        sweep_state.obs_double[g].col(var2) * delta_g;
+      sweep_state.residual[g].col(var2) +=
+        sweep_state.obs_double[g].col(var1) * delta_g;
+    }
+
+    // The proposed-state normalizer sums become current.
+    sweep_state.log_normalizer.row(var1) = norm_prop.col(0).t();
+    sweep_state.log_normalizer.row(var2) = norm_prop.col(1).t();
+  }
+
+  return result;
+}
+
+
+
 // Updates main effect parameters in bgmCompare using a random-walk Metropolis step.
 //
 // For each variable, the function proposes new parameter values for either:
@@ -228,7 +408,8 @@ void impute_missing_bgmcompare(
 //  - projection: Group projection matrix.
 //  - num_categories: Number of categories for each variable.
 //  - sweep_state: Maintained per-group sweep state; the residual matrices
-//                 supply the rest scores (read-only here).
+//                 supply the rest scores, and accepted moves update the
+//                 per-variable normalizer cache.
 //  - num_groups: Number of groups (G).
 //  - counts_per_category, blume_capel_stats: Group-specific sufficient statistics.
 //  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel.
@@ -253,7 +434,7 @@ void update_main_effects_metropolis_bgmcompare (
     const arma::imat& inclusion_indicator,
     const arma::mat& projection,
     const arma::ivec& num_categories,
-    const CompareSweepState& sweep_state,
+    CompareSweepState& sweep_state,
     const int num_groups,
     const std::vector<arma::imat>& counts_per_category,
     const std::vector<arma::imat>& blume_capel_stats,
@@ -275,23 +456,13 @@ void update_main_effects_metropolis_bgmcompare (
   // --- helper for one update ---
   auto do_update = [&](int row, int variable, int category, int par, int h) {
     index_mask_main(row, h) = 1;
-    double& current = main_effects(row, h);
-    double proposal_sd = proposal_sd_main(row, h);
-
-    auto log_post = [&](double theta) {
-      main_effects(row, h) = theta;
-      return log_pseudoposterior_main_component(
-        main_effects, main_effect_indices, projection,
-        sweep_state.residual, num_categories, counts_per_category,
-        blume_capel_stats, num_groups, inclusion_indicator,
-        is_ordinal_variable, baseline_category,
-        variable, category, par, h,
-        difference_prior, threshold_prior
-      );
-    };
-
-    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
-    current = result.state[0];
+    StepResult result = metropolis_update_main_effect_cached(
+      main_effects, main_effect_indices, inclusion_indicator, projection,
+      num_categories, sweep_state, num_groups, counts_per_category,
+      blume_capel_stats, is_ordinal_variable, baseline_category,
+      row, variable, category, par, h, proposal_sd_main(row, h), rng,
+      difference_prior, threshold_prior
+    );
     accept_prob_main(row, h) = result.accept_prob;
   };
 
@@ -400,53 +571,18 @@ void update_pairwise_effects_metropolis_bgmcompare (
   arma::mat accept_prob_pair = arma::zeros<arma::mat>(num_pairs, num_groups);
   arma::umat index_mask_pair = arma::zeros<arma::umat>(num_pairs, num_groups);
 
-  // Maintained sweep state: group-specific effective weights, residual
-  // matrices, and double observation matrices.
-  std::vector<arma::mat>& pairwise_groups = sweep_state.pairwise_group;
-  std::vector<arma::mat>& residual_matrices = sweep_state.residual;
-  const std::vector<arma::mat>& obs_double_groups = sweep_state.obs_double;
-
-  // --- helper for one update using optimized residual-based function ---
+  // --- helper for one update using the cached pairwise Metropolis step ---
   auto do_update = [&](int var1, int var2, int h) {
     int idx = pairwise_effect_indices(var1, var2);
     index_mask_pair(idx, h) = 1;
-    double current = pairwise_effects(idx, h);
-    double proposal_sd = proposal_sd_pair(idx, h);
-
-    auto log_post = [&](double theta) {
-      double delta = theta - current;
-      return log_pseudoposterior_pair_component(
-        main_effects, pairwise_effects, main_effect_indices,
-        pairwise_effect_indices, projection, obs_double_groups,
-        num_categories, pairwise_stats, residual_matrices, num_groups,
-        inclusion_indicator, is_ordinal_variable, baseline_category,
-        var1, var2, h, delta,
-        interaction_prior, difference_prior
-      );
-    };
-
-    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
-    double value = result.state[0];
-
-    // Update residual matrices if move was accepted
-    if (current != value) {
-      double delta = value - current;
-      pairwise_effects(idx, h) = value;
-
-      for (int g = 0; g < num_groups; ++g) {
-        const arma::vec proj_g = projection.row(g).t();
-        double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
-
-        // Update pairwise_group for this group
-        pairwise_groups[g](var1, var2) += delta_g;
-        pairwise_groups[g](var2, var1) += delta_g;
-
-        // Update residual matrix columns
-        residual_matrices[g].col(var1) += obs_double_groups[g].col(var2) * delta_g;
-        residual_matrices[g].col(var2) += obs_double_groups[g].col(var1) * delta_g;
-      }
-    }
-
+    StepResult result = metropolis_update_pairwise_effect_cached(
+      main_effects, pairwise_effects, main_effect_indices,
+      pairwise_effect_indices, inclusion_indicator, projection,
+      num_categories, sweep_state, num_groups, pairwise_stats,
+      is_ordinal_variable, baseline_category,
+      var1, var2, h, proposal_sd_pair(idx, h), rng,
+      interaction_prior, difference_prior
+    );
     accept_prob_pair(idx, h) = result.accept_prob;
   };
 
@@ -871,23 +1007,16 @@ void tune_proposal_sd_bgmcompare(
       for (int c = 0; c < ncat; ++c) {
         int row = start + c;
         for (int h = 0; h < hmax; ++h) {
-          double& current = main_effects(row, h);
           double& prop_sd = proposal_sd_main_effects(row, h);
 
-          auto log_post = [&](double theta) {
-            main_effects(row, h) = theta;
-            return log_pseudoposterior_main_component(
-              main_effects, main_effect_indices, projection,
-              sweep_state.residual, num_categories, counts_per_category,
-              blume_capel_stats, num_groups, inclusion_indicator,
-              is_ordinal_variable, baseline_category,
-              var, c, -1, h,
-              difference_prior, threshold_prior
-            );
-          };
-
-          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-          current = result.state[0];
+          StepResult result = metropolis_update_main_effect_cached(
+            main_effects, main_effect_indices, inclusion_indicator,
+            projection, num_categories, sweep_state, num_groups,
+            counts_per_category, blume_capel_stats, is_ordinal_variable,
+            baseline_category,
+            row, var, c, -1, h, prop_sd, rng,
+            difference_prior, threshold_prior
+          );
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
@@ -898,23 +1027,16 @@ void tune_proposal_sd_bgmcompare(
       for (int par = 0; par < 2; ++par) {
         int row = start + par;
         for (int h = 0; h < hmax; ++h) {
-          double& current = main_effects(row, h);
           double& prop_sd = proposal_sd_main_effects(row, h);
 
-          auto log_post = [&](double theta) {
-            main_effects(row, h) = theta;
-            return log_pseudoposterior_main_component(
-              main_effects, main_effect_indices, projection,
-              sweep_state.residual, num_categories, counts_per_category,
-              blume_capel_stats, num_groups, inclusion_indicator,
-              is_ordinal_variable, baseline_category,
-              var, -1, par, h,
-              difference_prior, threshold_prior
-            );
-          };
-
-          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-          current = result.state[0];
+          StepResult result = metropolis_update_main_effect_cached(
+            main_effects, main_effect_indices, inclusion_indicator,
+            projection, num_categories, sweep_state, num_groups,
+            counts_per_category, blume_capel_stats, is_ordinal_variable,
+            baseline_category,
+            row, var, -1, par, h, prop_sd, rng,
+            difference_prior, threshold_prior
+          );
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
@@ -924,12 +1046,6 @@ void tune_proposal_sd_bgmcompare(
   }
 
   // --- PAIRWISE EFFECTS ---
-  // Maintained sweep state: group-specific effective weights, residual
-  // matrices, and double observation matrices.
-  std::vector<arma::mat>& pairwise_groups = sweep_state.pairwise_group;
-  std::vector<arma::mat>& residual_matrices = sweep_state.residual;
-  const std::vector<arma::mat>& obs_double_groups = sweep_state.obs_double;
-
   for (int v1 = 0; v1 < V - 1; ++v1) {
     for (int v2 = v1 + 1; v2 < V; ++v2) {
       int idx = pairwise_effect_indices(v1, v2);
@@ -937,40 +1053,16 @@ void tune_proposal_sd_bgmcompare(
       int hmax = group_differences ? num_groups : 1;
 
       for (int h = 0; h < hmax; ++h) {
-        double& current = pairwise_effects(idx, h);
         double& prop_sd = proposal_sd_pairwise_effects(idx, h);
 
-        auto log_post = [&](double theta) {
-          double delta = theta - current;
-          return log_pseudoposterior_pair_component(
-            main_effects, pairwise_effects,
-            main_effect_indices, pairwise_effect_indices,
-            projection, obs_double_groups,
-            num_categories, pairwise_stats, residual_matrices, num_groups,
-            inclusion_indicator, is_ordinal_variable, baseline_category,
-            v1, v2, h, delta,
-            interaction_prior, difference_prior
-          );
-        };
-
-        StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-        double value = result.state[0];
-
-        if (current != value) {
-          double delta = value - current;
-          current = value;
-
-          for (int g = 0; g < num_groups; ++g) {
-            const arma::vec proj_g = projection.row(g).t();
-            double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
-
-            pairwise_groups[g](v1, v2) += delta_g;
-            pairwise_groups[g](v2, v1) += delta_g;
-
-            residual_matrices[g].col(v1) += obs_double_groups[g].col(v2) * delta_g;
-            residual_matrices[g].col(v2) += obs_double_groups[g].col(v1) * delta_g;
-          }
-        }
+        StepResult result = metropolis_update_pairwise_effect_cached(
+          main_effects, pairwise_effects, main_effect_indices,
+          pairwise_effect_indices, inclusion_indicator, projection,
+          num_categories, sweep_state, num_groups, pairwise_stats,
+          is_ordinal_variable, baseline_category,
+          v1, v2, h, prop_sd, rng,
+          interaction_prior, difference_prior
+        );
 
         prop_sd = update_proposal_sd_with_robbins_monro(
           prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
@@ -1127,6 +1219,10 @@ void update_indicator_differences_metropolis_bgmcompare (
       inclusion_indicator(var, var) = proposed_ind;
       main_effects.rows(start, stop).cols(1, num_groups - 1) =
         proposed_main_effects.rows(start, stop).cols(1, num_groups - 1);
+
+      // The variable's main effects changed; its cached normalizer sums
+      // are stale.
+      sweep_state.normalizer_valid(var) = 0;
     }
   }
   } // end if (main_difference_selection)
@@ -1232,6 +1328,11 @@ void update_indicator_differences_metropolis_bgmcompare (
         sweep_state.residual[g].col(var2) +=
           sweep_state.obs_double[g].col(var1) * delta_g;
       }
+
+      // Both endpoints' rest scores changed; their cached normalizer sums
+      // are stale.
+      sweep_state.normalizer_valid(var1) = 0;
+      sweep_state.normalizer_valid(var2) = 0;
     }
   }
 }

@@ -22,12 +22,22 @@
  *  - imputation updates `obs_double` entries and one residual row per change;
  *  - NUTS updates and graph re-initialisation trigger a full weight rebuild
  *    via rebuild_sweep_state_weights().
+ *
+ * The state also caches the per-variable, per-group log-normalizer sums of
+ * the pseudolikelihood, `log_normalizer(v, g) = sum_i [bound_i + log
+ * denom_i]` at the current parameters and rest scores. A variable's row is
+ * valid while its main effects and its residual columns are unchanged:
+ * accepted Metropolis moves store the proposed-state normalizers, accepted
+ * indicator flips invalidate the affected variables, and weight rebuilds
+ * invalidate every variable.
  */
 struct CompareSweepState {
   arma::mat obs_double_all;              ///< Observations as double (n x V)
   std::vector<arma::mat> obs_double;     ///< Per-group observations as double (n_g x V)
   std::vector<arma::mat> pairwise_group; ///< Per-group effective pairwise weights (V x V)
   std::vector<arma::mat> residual;       ///< Per-group rest scores obs_double[g] * pairwise_group[g] (n_g x V)
+  arma::mat log_normalizer;              ///< Cached pseudolikelihood log-normalizer sums (V x G)
+  arma::uvec normalizer_valid;           ///< 1 if a variable's log_normalizer row is current (V)
 };
 
 /**
@@ -53,8 +63,9 @@ void initialize_sweep_state_observations(
  *
  * Recomputes `pairwise_group[g]` from the pairwise-effect matrix and the
  * inclusion indicators, and `residual[g]` as one matrix product per group.
- * Called after wholesale parameter changes (NUTS updates, graph
- * initialisation) and once at sampler start.
+ * Invalidates the normalizer cache for every variable. Called after
+ * wholesale parameter changes (NUTS updates, graph initialisation) and once
+ * at sampler start.
  *
  * @param[in,out] state           Sweep state with observation members filled
  * @param pairwise_effects        Pairwise-effect matrix (rows = pairs, cols = groups)

@@ -796,6 +796,10 @@ std::pair<double, arma::vec> logp_and_gradient(
 //  - par: Parameter index (0 = linear, 1 = quadratic; used for Blume–Capel).
 //  - h: Column index (0 = overall baseline, >0 = group difference).
 //  - difference_prior, threshold_prior: Parameter priors.
+//  - normalizers_in: If non-null, cached per-group log-normalizer sums for
+//    the variable (length G); the normalizer computation is skipped.
+//  - normalizers_out: If non-null, receives the computed per-group
+//    log-normalizer sums (length G). Ignored when normalizers_in is given.
 //
 // Returns:
 //  - The scalar log pseudoposterior contribution of the selected parameter.
@@ -822,7 +826,9 @@ double log_pseudoposterior_main_component(
     int par, // for Blume-Capel variables only
     int h, // Overall = 0, differences are 1,2,...
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    const arma::vec* normalizers_in,
+    arma::vec* normalizers_out
 ) {
   if(h > 0 && inclusion_indicator(variable, variable) == 0) {
     return 0.0; // No contribution if differences not included
@@ -851,6 +857,13 @@ double log_pseudoposterior_main_component(
     }
 
     // ---- pseudolikelihood normalizing constants (per variable) ----
+    // The caller may supply the variable's cached per-group log-normalizer
+    // sums for the current state.
+    if (normalizers_in != nullptr) {
+      log_pp -= (*normalizers_in)(group);
+      continue;
+    }
+
     // Rest scores come from the maintained residual matrix; the pairwise
     // effects do not change during main-effect updates.
     const arma::vec rest_score = residual_groups[group].col(variable);
@@ -878,7 +891,11 @@ double log_pseudoposterior_main_component(
     }
 
     // - sum_i [ bound_i + log denom_i ]
-    log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
+    const double normalizer = arma::accu(bound + ARMA_MY_LOG(denom));
+    log_pp -= normalizer;
+    if (normalizers_out != nullptr) {
+      (*normalizers_out)(group) = normalizer;
+    }
   }
 
   // ---- priors ----
@@ -941,6 +958,11 @@ double log_pseudoposterior_main_component(
 //  - variable1, variable2: Indices of the variable pair.
 //  - h: Column index (0 = baseline, > 0 = group difference).
 //  - delta: Parameter change (proposed - current).
+//  - normalizers_in: If non-null, cached per-group log-normalizer sums for
+//    the pair's endpoint variables (G x 2: column 0 = variable1, column 1 =
+//    variable2); the normalizer computation is skipped.
+//  - normalizers_out: If non-null, receives the computed per-group
+//    log-normalizer sums (G x 2). Ignored when normalizers_in is given.
 //
 // Returns:
 //  - The log pseudoposterior value at the proposed state.
@@ -968,7 +990,9 @@ double log_pseudoposterior_pair_component(
     int h,
     double delta,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    const arma::mat* normalizers_in,
+    arma::mat* normalizers_out
 ) {
   if(h > 0 && inclusion_indicator(variable1, variable2) == 0) {
     return 0.0;
@@ -986,6 +1010,25 @@ double log_pseudoposterior_pair_component(
   for (int group = 0; group < num_groups; ++group) {
     const arma::vec proj_g = projection.row(group).t();
 
+    // ---- data contribution pseudolikelihood ----
+    const arma::mat& pairwise_stats = pairwise_stats_group[group];
+    const double suff_pair = pairwise_stats(variable1, variable2);
+
+    if(h == 0) {
+      log_pp += 2.0 * suff_pair * proposed_value;
+    } else {
+      log_pp += 2.0 * suff_pair * proj_g(h-1) * proposed_value;
+    }
+
+    // ---- pseudolikelihood normalizing constants ----
+    // The caller may supply cached per-group log-normalizer sums for the
+    // pair's endpoint variables at the current state.
+    if (normalizers_in != nullptr) {
+      log_pp -= (*normalizers_in)(group, 0);
+      log_pp -= (*normalizers_in)(group, 1);
+      continue;
+    }
+
     // Compute group-specific delta: how much pairwise_group(var1,var2) changes for this group
     double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
 
@@ -998,19 +1041,9 @@ double log_pseudoposterior_pair_component(
       main_group(v, arma::span(0, me.n_elem - 1)) = me.t();
     }
 
-    // ---- data contribution pseudolikelihood ----
-    const arma::mat& pairwise_stats = pairwise_stats_group[group];
-    const double suff_pair = pairwise_stats(variable1, variable2);
-
-    if(h == 0) {
-      log_pp += 2.0 * suff_pair * proposed_value;
-    } else {
-      log_pp += 2.0 * suff_pair * proj_g(h-1) * proposed_value;
-    }
-
-    // ---- pseudolikelihood normalizing constants (using residual matrix + delta) ----
     const arma::mat& obs_g = obs_double_groups[group];
 
+    int slot = 0;
     for (int v : {variable1, variable2}) {
       const int num_cats = num_categories(v);
       const int other = (v == variable1) ? variable2 : variable1;
@@ -1033,7 +1066,12 @@ double log_pseudoposterior_pair_component(
         denom = compute_denom_blume_capel(rest_score, lin_effect, quad_effect, ref, num_cats, bound);
       }
 
-      log_pp -= arma::accu(bound + ARMA_MY_LOG(denom));
+      const double normalizer = arma::accu(bound + ARMA_MY_LOG(denom));
+      log_pp -= normalizer;
+      if (normalizers_out != nullptr) {
+        (*normalizers_out)(group, slot) = normalizer;
+      }
+      ++slot;
     }
   }
 
@@ -1050,16 +1088,16 @@ double log_pseudoposterior_pair_component(
 
 // Computes the log pseudolikelihood ratio for updating a single main-effect parameter (bgmCompare model).
 //
-// This function is used in MetropolisâHastings updates for main effects.
+// This function is used in Metropolis–Hastings updates for main effects.
 // It compares the likelihood of the data under the current vs. proposed
-// value of a single variableâs main-effect parameter, while keeping
+// value of a single variable’s main-effect parameter, while keeping
 // all other parameters fixed.
 //
 // Procedure:
 //  - For each group:
 //    * Compute group-specific main effects for the variable (current vs. proposed).
 //    * Add contributions from observed sufficient statistics
-//      (category counts or BlumeâCapel stats).
+//      (category counts or Blume–Capel stats).
 //    * Add the ratio of pseudolikelihood normalizing constants. The pairwise
 //      effects are identical in both states, so both sides share the rest
 //      scores held in the maintained residual matrices.
@@ -1068,14 +1106,14 @@ double log_pseudoposterior_pair_component(
 //  - current_main_effects: Matrix of main-effect parameters (current state).
 //  - proposed_main_effects: Matrix of main-effect parameters (candidate state).
 //  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
-//  - projection: Group projection matrix (num_groups Ã (num_groups â 1)).
-//  - residual_groups: Per-group rest-score matrices (persons Ã variables).
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
+//  - residual_groups: Per-group rest-score matrices (persons × variables).
 //  - num_categories: Number of categories per variable.
 //  - counts_per_category_group: Per-group category counts (for ordinal variables).
-//  - blume_capel_stats_group: Per-group sufficient statistics (for BlumeâCapel variables).
+//  - blume_capel_stats_group: Per-group sufficient statistics (for Blume–Capel variables).
 //  - num_groups: Number of groups.
-//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = BlumeâCapel).
-//  - baseline_category: Reference categories for BlumeâCapel variables.
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
 //  - variable: Index of the variable being updated.
 //
 // Returns:
@@ -1084,7 +1122,7 @@ double log_pseudoposterior_pair_component(
 // Notes:
 //  - Only the variable under update changes between current and proposed states;
 //    all other variables and pairwise effects remain fixed.
-//  - This function does not add prior contributions â only pseudolikelihood terms.
+//  - This function does not add prior contributions — only pseudolikelihood terms.
 double log_pseudolikelihood_ratio_main(
     const arma::mat& current_main_effects,
     const arma::mat& proposed_main_effects,
@@ -1168,7 +1206,7 @@ double log_pseudolikelihood_ratio_main(
 
 // Computes the log pseudolikelihood ratio for updating a single pairwise-effect parameter (bgmCompare model).
 //
-// This function is used in MetropolisâHastings updates for pairwise effects.
+// This function is used in Metropolis–Hastings updates for pairwise effects.
 // It compares the likelihood of the data under the current vs. proposed
 // value of a single interaction (var1,var2), while keeping all other
 // parameters fixed.
@@ -1188,16 +1226,16 @@ double log_pseudolikelihood_ratio_main(
 //  - current_pairwise_effects: Matrix of pairwise-effect parameters (current state).
 //  - proposed_pairwise_effects: Matrix of pairwise-effect parameters (candidate state).
 //  - main_effect_indices: Index ranges [row_start,row_end] for each variable.
-//  - pairwise_effect_indices: Lookup table mapping (var1,var2) â row in pairwise_effects.
-//  - projection: Group projection matrix (num_groups Ã (num_groups â 1)).
+//  - pairwise_effect_indices: Lookup table mapping (var1,var2) → row in pairwise_effects.
+//  - projection: Group projection matrix (num_groups × (num_groups − 1)).
 //  - obs_double_groups: Per-group observation matrices converted to double.
-//  - residual_groups: Per-group rest-score matrices (persons Ã variables).
+//  - residual_groups: Per-group rest-score matrices (persons × variables).
 //  - num_categories: Number of categories per variable.
 //  - pairwise_stats_group: Per-group pairwise sufficient statistics.
 //  - num_groups: Number of groups.
 //  - inclusion_indicator: Symmetric binary matrix of active variables (diag) and pairs (off-diag).
-//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = BlumeâCapel).
-//  - baseline_category: Reference categories for BlumeâCapel variables.
+//  - is_ordinal_variable: Indicator (1 = ordinal, 0 = Blume–Capel).
+//  - baseline_category: Reference categories for Blume–Capel variables.
 //  - var1, var2: Indices of the variable pair being updated.
 //
 // Returns:
@@ -1207,7 +1245,7 @@ double log_pseudolikelihood_ratio_main(
 //  - A temporary copy of `inclusion_indicator` is used to force the edge (var1,var2) as active.
 //  - Only the selected pair changes between current and proposed states;
 //    all other effects remain fixed.
-//  - This function does not add prior contributions â only pseudolikelihood terms.
+//  - This function does not add prior contributions — only pseudolikelihood terms.
 double log_pseudolikelihood_ratio_pairwise(
     const arma::mat& main_effects,
     const arma::mat& current_pairwise_effects,

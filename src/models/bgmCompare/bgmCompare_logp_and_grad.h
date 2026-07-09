@@ -183,6 +183,10 @@ std::pair<double, arma::vec> logp_and_gradient(
  * @param category   Category index (ordinal variables only)
  * @param par        Parameter index: 0 = linear, 1 = quadratic (Blume-Capel only)
  * @param h          Column index: 0 = overall baseline, >0 = group difference
+ * @param normalizers_in   Optional cached per-group log-normalizer sums for
+ *                         the variable (length G); skips their computation
+ * @param normalizers_out  Optional output for the computed per-group
+ *                         log-normalizer sums (length G)
  * @see gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_main_component(
@@ -202,7 +206,9 @@ double log_pseudoposterior_main_component(
     int par,
     int h,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    const arma::vec* normalizers_in = nullptr,
+    arma::vec* normalizers_out = nullptr
 );
 
 /**
@@ -217,6 +223,10 @@ double log_pseudoposterior_main_component(
  * @param variable2          Second variable index
  * @param h                  Column index: 0 = overall baseline, >0 = group difference
  * @param delta              Proposed change to pairwise_effects(idx, h)
+ * @param normalizers_in     Optional cached per-group log-normalizer sums for
+ *                           the endpoint variables (G x 2); skips their computation
+ * @param normalizers_out    Optional output for the computed per-group
+ *                           log-normalizer sums (G x 2)
  * @see gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_pair_component(
@@ -238,7 +248,9 @@ double log_pseudoposterior_pair_component(
     int h,
     double delta,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    const arma::mat* normalizers_in = nullptr,
+    arma::mat* normalizers_out = nullptr
 );
 
 
