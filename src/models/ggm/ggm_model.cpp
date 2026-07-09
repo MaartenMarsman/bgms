@@ -333,7 +333,9 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
     vf2_[i] = v2_[0];
     vf2_[j] = v2_[1];
 
-    apply_rank2_chol_smw_update_();
+    const arma::uvec support =
+        {static_cast<arma::uword>(i), static_cast<arma::uword>(j)};
+    apply_rank2_chol_smw_update_(support);
 
     // reset for next iteration
     vf1_[i] = 0.0;
@@ -343,12 +345,18 @@ void GGMModel::cholesky_update_after_edge(double omega_ij_old, double omega_jj_o
 
 }
 
-void GGMModel::apply_rank2_chol_smw_update_(bool update_L)
+void GGMModel::apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                            bool update_L)
 {
     // K_new = K_old + vf1 vf2^T + vf2 vf1^T = K_old + u1 u1^T - u2 u2^T,
     // where u1 = (vf1 + vf2) / sqrt(2), u2 = (vf1 - vf2) / sqrt(2). The
     // change of basis diagonalises the symmetric rank-2 update so the chol
     // factor advances via one rank-1 update + one rank-1 downdate.
+    //
+    // `support` lists the nonzero indices of vf1/vf2 (hence of u1/u2): {i,j}
+    // for the edge accept, {i} + N_i for a row-Gibbs row. Sigma * u then
+    // touches only those columns -- O(p |support|) instead of the dense
+    // O(p^2) gemv.
     u1_ = (vf1_ + vf2_) / sqrt(2);
     u2_ = (vf1_ - vf2_) / sqrt(2);
 
@@ -377,11 +385,27 @@ void GGMModel::apply_rank2_chol_smw_update_(bool update_L)
     // inv_cholesky_of_precision_ is not maintained here: only
     // refresh_cholesky() and set_vectorized_parameters() write it, and
     // nothing reads it between accepts.
-    arma::vec a1 = covariance_matrix_ * u1_;
-    arma::vec a2 = covariance_matrix_ * u2_;
-    double c11 =  1.0 + arma::dot(u1_, a1);
-    double c12 =        arma::dot(u1_, a2);
-    double c22 = -1.0 + arma::dot(u2_, a2);
+    // a1 = Sigma u1, a2 = Sigma u2 (both dense length p -- the outer-product
+    // Sigma updates below stay O(p^2)). u1/u2 are zero outside `support`, so
+    // when the support is small we gather just those columns once and matvec
+    // against them (O(p |support|)); when it is near-full the gather copy
+    // costs more than the dense gemv, so fall back. Gather wins while
+    // ~3 |support| < 2p.
+    arma::vec a1, a2;
+    if (3 * support.n_elem < 2 * p_) {
+        const arma::mat Scols = covariance_matrix_.cols(support);
+        a1 = Scols * u1_.elem(support);
+        a2 = Scols * u2_.elem(support);
+    } else {
+        a1 = covariance_matrix_ * u1_;
+        a2 = covariance_matrix_ * u2_;
+    }
+    // u1/u2 vanish off `support`, so the capacitance dots restrict to it.
+    const arma::vec u1s = u1_.elem(support);
+    const arma::vec u2s = u2_.elem(support);
+    double c11 =  1.0 + arma::dot(u1s, a1.elem(support));
+    double c12 =        arma::dot(u1s, a2.elem(support));
+    double c22 = -1.0 + arma::dot(u2s, a2.elem(support));
     double det = c11 * c22 - c12 * c12;
     if (!std::isfinite(det) || std::abs(det) < 1e-14) {
         refresh_cholesky();
@@ -572,10 +596,16 @@ void GGMModel::update_row_block_gibbs(size_t i) {
     vf2_[i] = (kii_new - kii_old) / 2.0;
     for (size_t k = 0; k < q; ++k) vf2_[Ni[k]] = beta_new(k) - beta_old(k);
 
+    // Support of the rank-2 update: {i} + N_i. The SMW matvec gathers only
+    // these columns of Sigma (O(p q) vs dense O(p^2)).
+    arma::uvec support(q + 1);
+    support[0] = static_cast<arma::uword>(i);
+    for (size_t k = 0; k < q; ++k) support[k + 1] = Ni[k];
+
     // Defer the chol(K) Givens passes: nothing reads chol(K) between rows of
     // the sweep. Sigma is still refreshed so the next row's Schur extraction
     // is exact; chol(K) is rebuilt once in do_one_gibbs_step after the sweep.
-    apply_rank2_chol_smw_update_(/*update_L=*/false);
+    apply_rank2_chol_smw_update_(support, /*update_L=*/false);
 
     vf1_[i] = 0.0;
     vf2_[i] = 0.0;

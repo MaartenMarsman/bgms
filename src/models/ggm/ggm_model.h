@@ -810,6 +810,11 @@ private:
      * passes sparse 2-entry vectors; the row-block Gibbs sweep reuses it with
      * full-vector inputs.
      *
+     * `support` lists the nonzero indices of vf1/vf2 ({i,j} for an edge
+     * accept, {i} + N_i for a row-Gibbs row); the SMW matvec Sigma * u
+     * touches only those columns, O(p |support|) instead of a dense O(p^2)
+     * gemv, with a dense fallback when the support is near-full.
+     *
      * `update_L` controls whether chol(K) is advanced. The edge accept needs
      * it true (the between-step reads chol(K)/log-det immediately). The
      * row-block Gibbs sweep passes false: chol(K) is never read between rows
@@ -821,7 +826,8 @@ private:
      * Sigma is maintained incrementally, so floating-point error accumulates
      * across accepts; check_and_refresh_if_drift_() bounds it once per sweep.
      */
-    void apply_rank2_chol_smw_update_(bool update_L = true);
+    void apply_rank2_chol_smw_update_(const arma::uvec& support,
+                                      bool update_L = true);
 
     /**
      * Update the Cholesky factor after changing a diagonal element.
