@@ -284,7 +284,6 @@ test_that("bgm OMRF output has correct parameter ordering", {
 # ==============================================================================
 #
 # Tests for GGM correctness, convergence, and edge detection.
-# See dev/plans/ggm_cleanup.md Part D for the design rationale.
 # ==============================================================================
 
 
