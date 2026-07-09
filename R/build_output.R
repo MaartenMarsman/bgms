@@ -354,7 +354,7 @@ build_output = function(spec, raw) {
 #     "/" (e.g. "4/5" when originals 4 and 5 merged into one category).
 #
 # Without a usable map (NULL, or an unnamed vector whose length != K+1) the
-# rescored indices 1..K are returned, matching older fits.
+# rescored indices 1..K are returned.
 ordinal_threshold_labels = function(num_categories_v, category_levels_v = NULL) {
   if(is.null(category_levels_v)) {
     return(seq_len(num_categories_v))

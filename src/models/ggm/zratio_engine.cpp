@@ -153,8 +153,8 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
 
     // Warm-up calibration: identical block signatures are served from the
     // correction cache; blocks inside the anchor cloud's Mahalanobis hull
-    // use the current fit; uncovered blocks call the block-Gibbs oracle,
-    // anchor the discrepancy, and refit.
+    // use the current fit; uncovered blocks run the exact Monte-Carlo
+    // evaluation, anchor the discrepancy, and refit.
     if (calibrating() && s1 > 0 && s2 > 0) {
         std::string ckey = std::to_string(ncn) + "_" + std::to_string(cne) +
                            "_" + std::to_string(bre) + "_" +

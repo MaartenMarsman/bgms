@@ -810,7 +810,7 @@ test_that("simulate() returns ordinal data on the original category scale", {
     )
   }
 
-  # The round trip no longer warns, and produces no NA prediction cells.
+  # The round trip must not warn and must produce no NA prediction cells.
   expect_no_warning(
     probs <- predict(fit, newdata = sim, type = "probabilities")
   )

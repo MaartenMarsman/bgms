@@ -1,16 +1,16 @@
 # --------------------------------------------------------------------------- #
-# Phase 3 <U+2014> Correctness validation for GGM NUTS sampler.
+# Correctness validation for the GGM NUTS sampler.
 #
 # Tests compare NUTS posterior to MH baseline using long chains.
 # Gated behind BGMS_RUN_SLOW_TESTS because they take several minutes.
 #
-# 3.1  Posterior moment comparison (means, variances, KS, bivariate)
-# 3.2  Edge selection accuracy (PIPs)
-# 3.3  Gradient near PD boundary
-# 3.4  NUTS diagnostics are well-behaved
+#   1. Posterior moment comparison (means, variances, KS, bivariate)
+#   2. Edge selection accuracy (PIPs)
+#   3. Gradient near PD boundary
+#   4. NUTS diagnostics are well-behaved
 #
 # TODO: add a proper Geweke JDT or SBC test for one-transition correctness
-# using the bgms prior directly and a fixed-kernel NUTS step (issue #TBD).
+# using the bgms prior directly and a fixed-kernel NUTS step.
 # --------------------------------------------------------------------------- #
 
 

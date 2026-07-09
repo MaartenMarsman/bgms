@@ -595,42 +595,52 @@ private:
 
     // --- Rank-1 precision proposal helpers (permutation-free) ---
 
-    // Extract reparameterization constants for the (i,j) off-diagonal precision update.
-    // Populates cont_constants_[0..5] from cholesky_of_precision_ and covariance_continuous_.
+    /**
+     * Extract reparameterization constants for the (i,j) off-diagonal precision update.
+     * Populates cont_constants_[0..5] from cholesky_of_precision_ and covariance_continuous_.
+     */
     void get_precision_constants(int i, int j);
 
-    // Constrained diagonal value for a proposed off-diagonal precision element.
+    /** Constrained diagonal value for a proposed off-diagonal precision element. */
     double precision_constrained_diagonal(double x) const;
 
-    // Log-likelihood ratio for a proposed off-diagonal precision change (rank-2).
-    // Assumes precision_proposal_ is already filled by the caller. Writes the
-    // proposed covariance Σ' (computed via Woodbury) to cov_prop_out so callers
-    // can use it to recompute marginal_interactions_ for the OMRF likelihood
-    // ratio at the proposed Kyy.
+    /**
+     * Log-likelihood ratio for a proposed off-diagonal precision change (rank-2).
+     * Assumes precision_proposal_ is already filled by the caller. Writes the
+     * proposed covariance Σ' (computed via Woodbury) to cov_prop_out so callers
+     * can use it to recompute marginal_interactions_ for the OMRF likelihood
+     * ratio at the proposed Kyy.
+     */
     double log_ggm_ratio_edge(int i, int j, arma::mat& cov_prop_out) const;
 
-    // Log-likelihood ratio for a proposed diagonal precision change (rank-1).
-    // Assumes precision_proposal_ is already filled by the caller. Writes the
-    // proposed covariance Σ' (computed via Sherman-Morrison) to cov_prop_out.
+    /**
+     * Log-likelihood ratio for a proposed diagonal precision change (rank-1).
+     * Assumes precision_proposal_ is already filled by the caller. Writes the
+     * proposed covariance Σ' (computed via Sherman-Morrison) to cov_prop_out.
+     */
     double log_ggm_ratio_diag(int i, arma::mat& cov_prop_out) const;
 
-    // log|Kyy_prop| - log|Kyy_curr| for a rank-2 off-diagonal proposal at
-    // (i, j), via the matrix-determinant lemma in O(q). Reads
-    // pairwise_effects_continuous_, precision_proposal_, and
-    // covariance_continuous_; assumes precision_proposal_ has the proposed
-    // Kyy at (i, j), (j, i), (j, j) already filled. Used to add the
-    // determinant-tilt term delta_yy * (log|Kyy_prop| - log|Kyy_curr|) to MH
-    // ratios.
+    /**
+     * log|Kyy_prop| - log|Kyy_curr| for a rank-2 off-diagonal proposal at
+     * (i, j), via the matrix-determinant lemma in O(q). Reads
+     * pairwise_effects_continuous_, precision_proposal_, and
+     * covariance_continuous_; assumes precision_proposal_ has the proposed
+     * Kyy at (i, j), (j, i), (j, j) already filled. Used to add the
+     * determinant-tilt term delta_yy * (log|Kyy_prop| - log|Kyy_curr|) to MH
+     * ratios.
+     */
     double log_det_ratio_yy_edge(int i, int j) const;
 
-    // log|Kyy_prop| - log|Kyy_curr| for a rank-1 diagonal proposal at i.
-    // Computed via the matrix-determinant lemma in O(1).
+    /**
+     * log|Kyy_prop| - log|Kyy_curr| for a rank-1 diagonal proposal at i.
+     * Computed via the matrix-determinant lemma in O(1).
+     */
     double log_det_ratio_yy_diag(int i) const;
 
-    // Rank-1 Cholesky update after accepting an off-diagonal precision change.
+    /** Rank-1 Cholesky update after accepting an off-diagonal precision change. */
     void cholesky_update_after_precision_edge(double old_ij, double old_jj, int i, int j);
 
-    // Rank-1 Cholesky update after accepting a diagonal precision change.
+    /** Rank-1 Cholesky update after accepting a diagonal precision change. */
     void cholesky_update_after_precision_diag(double old_ii, int i);
 
     // --- Parameter update sweeps ---
@@ -694,10 +704,12 @@ private:
     // Edge-indicator accessor helpers
     // =========================================================================
 
+    /** Read the discrete-discrete, continuous-continuous, or cross edge indicator. */
     int gxx(int i, int j) const { return edge_indicators_(i, j); }
     int gyy(int i, int j) const { return edge_indicators_(p_ + i, p_ + j); }
     int gxy(int i, int j) const { return edge_indicators_(i, p_ + j); }
 
+    /** Set the corresponding edge indicator symmetrically. */
     void set_gxx(int i, int j, int val) {
         edge_indicators_(i, j) = val;
         edge_indicators_(j, i) = val;

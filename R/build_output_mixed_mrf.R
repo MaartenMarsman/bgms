@@ -35,7 +35,7 @@ build_output_mixed_mrf = function(spec, raw) {
   num_categories = d$num_categories
   edge_selection = pr$edge_selection
 
-  # Keep the raw chains for the Z-ratio alarm suite: it needs the untouched
+  # Keep the raw chains for the Z-ratio trust gauge: it needs the untouched
   # indicator layout and the per-chain zratio block, both dropped by the
   # normalization below.
   zratio_chains = if(identical(pr$precision_graph_prior, "hierarchical")) {

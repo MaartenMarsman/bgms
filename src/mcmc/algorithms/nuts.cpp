@@ -26,12 +26,11 @@
 //     https://github.com/stan-dev/stan/blob/develop/src/stan/mcmc/hmc/nuts/base_nuts.hpp
 
 
-// Computes the generalized U-turn criterion for the NUTS algorithm
-//
-// @param p_sharp_minus  Sharp momentum (M^{-1} p) at backward end
-// @param p_sharp_plus   Sharp momentum (M^{-1} p) at forward end
-// @param rho            Sum of momenta along the trajectory
-// @return true if criterion satisfied (continue), false if U-turn detected (stop)
+// Computes the generalized U-turn criterion for the NUTS algorithm from the
+// sharp momenta (M^{-1} p) at the backward and forward trajectory ends and
+// rho, the sum of momenta along the trajectory. Returns true if the
+// criterion is satisfied (continue expanding), false if a U-turn is detected
+// (stop).
 bool compute_criterion(const arma::vec& p_sharp_minus,
                        const arma::vec& p_sharp_plus,
                        const arma::vec& rho) {
@@ -46,17 +45,13 @@ bool compute_criterion(const arma::vec& p_sharp_minus,
 // log_sum_weight. Sibling subtrees combine by symmetric multinomial
 // sampling in log-space (Stan's base_nuts.hpp).
 //
-// @param theta              Current position at the base of the tree
-// @param r                  Current momentum at the base of the tree
-// @param v                  Direction of expansion (-1 backward, +1 forward)
-// @param j                  Current tree depth
-// @param step_size          Step size used in leapfrog integration
-// @param H0                 Hamiltonian at the start of the trajectory
-// @param memo               Memoizer object for caching evaluations
-// @param inv_mass_diag      Diagonal of the inverse mass matrix
-// @param rng                RNG for the log-sum-exp progressive draws
-// @return BuildTreeResult with updated endpoints, candidate sample, log weight,
-//         and diagnostics.
+// Takes the position theta and momentum r at the base of the tree, the
+// expansion direction v (-1 backward, +1 forward), the tree depth j, the
+// leapfrog step size, the Hamiltonian H0 at the start of the trajectory, a
+// memoizer for caching evaluations, the diagonal of the inverse mass matrix,
+// and the RNG for the log-sum-exp progressive draws. Returns a
+// BuildTreeResult with updated endpoints, candidate sample, log weight, and
+// diagnostics.
 BuildTreeResult build_tree(
     const arma::vec& theta,
     const arma::vec& r,

@@ -303,7 +303,6 @@ coef.bgms = function(object, ...) {
 #'
 #' @method $ bgms
 #' @export
-#' @keywords internal
 `$.bgms` = function(x, name) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, name)
@@ -327,7 +326,6 @@ coef.bgms = function(object, ...) {
 #' @param ... Ignored.
 #' @method [[ bgms
 #' @export
-#' @keywords internal
 `[[.bgms` = function(x, name, ...) {
   if(inherits(x, "S7_object")) {
     if(is.character(name)) {
@@ -353,7 +351,6 @@ coef.bgms = function(object, ...) {
 
 #' @method names bgms
 #' @export
-#' @keywords internal
 names.bgms = function(x) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, ".field_names")

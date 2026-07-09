@@ -44,7 +44,7 @@
 struct SafeRNG {
   dqrng::xoshiro256plusplus eng;  ///< Underlying xoshiro256++ engine.
 
-  // Default constructor // TODO: perhaps delete this to require a seed
+  /** Default constructor: seeds the engine with 1. */
   SafeRNG() : eng(1) {}
 
   /**

@@ -13,7 +13,7 @@
  * The block collects the common neighbours of the endpoints plus the
  * endpoints of 2-hop bridges between the exclusive neighbour sets; the
  * integer counts drive the additive saddle and the OLS correction, and
- * the adjacency + side memberships drive the block-Gibbs oracle.
+ * the adjacency + side memberships drive the exact Monte-Carlo evaluation.
  */
 struct ZRatioBlock {
     bool valid = false;   ///< false: one side empty (isolated-edge ratio)
@@ -63,9 +63,7 @@ struct ZRatioBlock {
  * diagonal congruence Theta = A K A, so the constants are built at
  * sigma = 1, beta = eta = pairwise_scale * scale_rate in bgms parameter
  * units (R/zratio_tables.R, zratio_cell_constants), and the same cell
- * serves every user scale choice. Reference: SV/Z
- * sbc_prior_chain_exact.cpp and the z_graph_prior deployed kernel
- * (hier_chain_data.cpp).
+ * serves every user scale choice.
  */
 class ZRatioEngine {
 public:

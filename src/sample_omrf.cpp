@@ -15,33 +15,15 @@
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
 
-// R-exported function to sample from an OMRF model
-//
-// @param inputFromR          List with model specification
-// @param prior_inclusion_prob Prior inclusion probabilities (p x p matrix)
-// @param initial_edge_indicators Initial edge indicators (p x p integer matrix)
-// @param no_iter             Number of post-warmup iterations
-// @param no_warmup           Number of warmup iterations
-// @param no_chains           Number of parallel chains
-// @param edge_selection      Whether to do edge selection (spike-and-slab)
-// @param sampler_type        "adaptive-metropolis" or "nuts"
-// @param seed                Random seed
-// @param no_threads          Number of threads for parallel execution
-// @param progress_type       Progress bar type
-// @param progress_callback   R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue
-// @param edge_prior          Edge prior type: "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
-// @param na_impute           Whether to impute missing data
-// @param missing_index       Matrix of missing data indices (n_missing x 2, 0-based)
-// @param beta_bernoulli_alpha     Beta-Bernoulli alpha hyperparameter
-// @param beta_bernoulli_beta      Beta-Bernoulli beta hyperparameter
-// @param beta_bernoulli_alpha_between SBM between-cluster alpha
-// @param beta_bernoulli_beta_between  SBM between-cluster beta
-// @param dirichlet_alpha     Dirichlet alpha for SBM
-// @param lambda              Lambda for SBM
-// @param target_acceptance   Target acceptance rate for NUTS (default: 0.8)
-// @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
-//
-// @return List with per-chain results including samples and diagnostics
+// R-exported function to sample from an OMRF model. Takes the model
+// specification list, p x p prior inclusion probabilities and initial edge
+// indicators, iteration/warmup/chain counts, the sampler type
+// ("adaptive-metropolis" or "nuts") with target acceptance and max tree depth,
+// the edge prior ("Bernoulli", "Beta-Bernoulli", "Stochastic-Block") with its
+// Beta-Bernoulli/SBM hyperparameters, missing-data options (missing_index:
+// n_missing x 2, 0-based), seed, thread count, and progress settings
+// (progress_callback is called as callback(completed, total), or R_NilValue).
+// Returns a list of per-chain results with samples and diagnostics.
 // [[Rcpp::export]]
 Rcpp::List sample_omrf(
     const Rcpp::List& inputFromR,

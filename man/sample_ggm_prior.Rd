@@ -72,10 +72,9 @@ by \eqn{|K|^{\delta}}, softly repelling the chain from the
 positive-definite cone boundary. \code{delta = NULL} (default)
 auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
 dimension-adaptive rule \eqn{\delta(p) = c \log p} with
-\eqn{c \in (0.3, 0.6)} discussed in the companion paper on
-determinant-tilted spike-and-slab priors (Marsman et al., in
-preparation). Pass \code{delta = 0} for the untilted prior (the
-companion-paper baseline) or a non-negative numeric to override.}
+\eqn{c \in (0.3, 0.6)} (Marsman et al., in preparation). Pass
+\code{delta = 0} for the untilted prior or a non-negative numeric to
+override.}
 
 \item{spec}{One of \code{"conditional"} (default, sample
 \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
@@ -108,17 +107,18 @@ hyperpriors under the determinant tilt.}
 
 \item{calibration_window}{Non-negative integer or \code{NULL} (default).
 Only for \code{spec = "hierarchical"}: length of the appended warm-up
-window in which the Z-ratio correction is calibrated online against a
-block-Gibbs oracle and then frozen (with its hull clamp) before
+window in which the normalizer-ratio approximation is calibrated
+against exact Monte-Carlo evaluations and then frozen before
 sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
 percent of \code{n_warmup} otherwise. The adaptation warmup itself is
 never shortened; the window is appended.}
 
 \item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
-\code{spec = "hierarchical"}: run the in-chain Z-ratio trust gauge
+\code{spec = "hierarchical"}: run the trust gauge
 (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
 the result; detected issues are printed when \code{verbose}. The gauge
-references non-trivial edge moves against a block-local exact reference.}
+redoes a subset of the chain's edge decisions with the exact
+calculation and records how often the outcome differs.}
 }
 \value{
 A list with components

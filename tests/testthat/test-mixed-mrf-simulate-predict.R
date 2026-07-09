@@ -463,7 +463,7 @@ test_that("sample_mixed_mrf_gibbs: minimal mixed MRF (p=1, q=1)", {
 
 
 # ==============================================================================
-# 7. Edge cases (ported from mixedGM::test-edge-cases.R)
+# 7. Edge cases
 # ==============================================================================
 # Structural smoke tests for boundary configurations: many categories,
 # large p / small q, small p / large q, near-singular pairwise_cont, and

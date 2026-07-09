@@ -24,6 +24,17 @@ class BaseEdgePrior {
 public:
     virtual ~BaseEdgePrior() = default;
 
+    /**
+     * Resample the prior's latent state given the current edge indicators
+     * and write the resulting per-edge inclusion probabilities into
+     * inclusion_probability (symmetric, modified in place).
+     *
+     * @param edge_indicators       Current edge inclusion matrix (p x p)
+     * @param inclusion_probability Inclusion probability matrix (p x p), updated in place
+     * @param num_variables         Number of variables p
+     * @param num_pairwise          Number of variable pairs p(p-1)/2
+     * @param rng                   Random number generator
+     */
     virtual void update(
         const arma::imat& edge_indicators,
         arma::mat& inclusion_probability,
@@ -32,13 +43,19 @@ public:
         SafeRNG& rng
     ) = 0;
 
+    /** Deep copy for parallel chains. */
     virtual std::unique_ptr<BaseEdgePrior> clone() const = 0;
 
+    /** Whether the prior maintains cluster allocations (SBM). */
     virtual bool has_allocations() const { return false; }
+
+    /** Cluster allocations, 1-based; empty when has_allocations() is false. */
     virtual arma::ivec get_allocations() const { return arma::ivec(); }
 
     /** Whether the prior carries a sampled inclusion parameter (BB theta). */
     virtual bool has_inclusion_parameter() const { return false; }
+
+    /** Current inclusion parameter; NA_REAL when has_inclusion_parameter() is false. */
     virtual double get_inclusion_parameter() const {
         return NA_REAL;
     }
@@ -50,6 +67,7 @@ public:
  */
 class BernoulliEdgePrior : public BaseEdgePrior {
 public:
+    /** No-op: the inclusion probabilities are fixed. */
     void update(
         const arma::imat& /*edge_indicators*/,
         arma::mat& /*inclusion_probability*/,
@@ -80,6 +98,7 @@ public:
         : alpha_(alpha), beta_(beta),
           current_prob_(alpha / (alpha + beta)) {}
 
+    /** Attach the whole-graph logC(theta) correction table (GGM path). */
     void set_correction(const EdgePriorCorrection& correction) {
         correction_ = correction;
     }
@@ -117,6 +136,7 @@ public:
         return std::make_unique<BetaBernoulliEdgePrior>(*this);
     }
 
+    /** Always true: the shared inclusion probability theta is sampled. */
     bool has_inclusion_parameter() const override { return true; }
     double get_inclusion_parameter() const override { return current_prob_; }
 
@@ -153,6 +173,7 @@ public:
         initialized_(false)
     {}
 
+    /** Attach the per-pair correction curves and slope (mixed-MRF/GGM path). */
     void set_correction(const SBMCorrection& correction) {
         correction_ = correction;
     }

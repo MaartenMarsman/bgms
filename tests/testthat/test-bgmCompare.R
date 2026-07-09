@@ -147,7 +147,7 @@ test_that("bgmCompare without selection produces valid estimates", {
 test_that("bgmCompare with selection produces valid indicators", {
   data = generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 123)
 
-  # Test with single chain (previously caused bug in summarize_mixture_effect)
+  # A single chain exercises the single-chain path of summarize_mixture_effect
   fit = bgmCompare(
     x = data$x,
     group_indicator = data$group_indicator,

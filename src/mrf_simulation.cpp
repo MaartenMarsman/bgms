@@ -246,12 +246,9 @@ IntegerMatrix sample_bcomrf_gibbs(int num_states,
 //   3. Draw Z ~ N(0, I) of size (num_states x p).
 //   4. Return X = ones * means' + Z * L'.
 //
-// @param num_states   Number of observations to simulate.
-// @param precision    p x p positive-definite precision matrix (Omega).
-// @param means        p-vector of variable means (can be all zeros).
-// @param rng          Thread-safe random number generator.
-//
-// @return num_states x p matrix of simulated continuous observations.
+// Takes the number of observations, a p x p positive-definite precision
+// matrix Omega, a p-vector of means (can be all zeros), and a thread-safe
+// RNG. Returns a num_states x p matrix of simulated continuous observations.
 arma::mat simulate_ggm(
     int num_states,
     const arma::mat& precision,
@@ -283,14 +280,9 @@ arma::mat simulate_ggm(
 //   R Interface for GGM Simulation (standalone simulate_ggm)
 // ============================================================================
 
-// R-callable wrapper for single GGM simulation.
-//
-// @param num_states  Number of observations to simulate.
-// @param precision   p x p precision matrix (Omega).
-// @param means       p-vector of means (default zeros).
-// @param seed        Random seed for reproducibility.
-//
-// @return num_states x p numeric matrix.
+// R-callable wrapper for single GGM simulation. Takes the number of
+// observations, a p x p precision matrix Omega, a p-vector of means, and a
+// random seed. Returns a num_states x p numeric matrix.
 // [[Rcpp::export]]
 NumericMatrix sample_ggm_direct(int num_states,
                                 NumericMatrix precision,
@@ -435,22 +427,13 @@ public:
 };
 
 
-// Run parallel simulations across posterior draws
-//
-// @param pairwise_samples Matrix of pairwise samples (ndraws x n_pairwise)
-// @param main_samples Matrix of main/threshold samples (ndraws x n_main)
-// @param draw_indices 1-based indices of which draws to use
-// @param num_states Number of observations to simulate per draw
-// @param num_variables Number of variables
-// @param num_categories Number of categories per variable
-// @param variable_type Type of each variable ("ordinal" or "blume-capel")
-// @param baseline_category Baseline category for each variable
-// @param iter Number of Gibbs iterations per simulation
-// @param nThreads Number of parallel threads
-// @param seed Random seed
-// @param progress_type Progress bar type (0=none, 1=total, 2=per-chain)
-//
-// @return List of simulation results (each is an integer matrix)
+// Run parallel simulations across posterior draws. Takes pairwise samples
+// (ndraws x n_pairwise), main/threshold samples (ndraws x n_main), 1-based
+// draw indices, observations per draw, variable metadata (count, categories
+// per variable, "ordinal" or "blume-capel" type, baseline categories), Gibbs
+// iterations per simulation, thread count, seed, and progress bar type
+// (0 = none, 1 = total, 2 = per-chain). Returns a list of simulation results
+// (each an integer matrix).
 // [[Rcpp::export]]
 Rcpp::List run_simulation_parallel(
     const arma::mat& pairwise_samples,
@@ -633,19 +616,12 @@ public:
 };
 
 
-// Run parallel GGM simulations across posterior draws.
-//
-// @param pairwise_samples  Matrix of off-diagonal precision samples (ndraws x p*(p-1)/2)
-// @param main_samples      Matrix of diagonal precision samples (ndraws x p)
-// @param draw_indices      1-based indices of which draws to use
-// @param num_states        Number of observations to simulate per draw
-// @param num_variables     Number of variables
-// @param means             p-vector of variable means
-// @param nThreads          Number of parallel threads
-// @param seed              Random seed
-// @param progress_type     Progress bar type (0=none, 1=total, 2=per-chain)
-//
-// @return List of simulation results (each is a numeric matrix n x p)
+// Run parallel GGM simulations across posterior draws. Takes off-diagonal
+// precision samples (ndraws x p*(p-1)/2), diagonal precision samples
+// (ndraws x p), 1-based draw indices, observations per draw, the number of
+// variables, a p-vector of means, thread count, seed, and progress bar type
+// (0 = none, 1 = total, 2 = per-chain). Returns a list of simulation results
+// (each a numeric matrix n x p).
 // [[Rcpp::export]]
 Rcpp::List run_ggm_simulation_parallel(
     const arma::mat& pairwise_samples,
@@ -711,20 +687,15 @@ Rcpp::List run_ggm_simulation_parallel(
 // given (x_{-s}, y), then updates all continuous variables from the
 // conditional Gaussian.
 //
-// @param num_states      Number of observations to simulate.
-// @param pairwise_disc   p x p discrete pairwise interactions (diagonal zero).
-// @param pairwise_cross  p x q cross interactions.
-// @param pairwise_cont   q x q continuous interaction matrix (negative-definite).
-// @param mux             p x max_cats threshold / Blume-Capel parameters.
-// @param muy             q-vector of continuous means.
-// @param num_categories  p-vector: number of categories per discrete variable
-//                        (on top of baseline 0).
-// @param variable_type   p-vector: "ordinal" or "blume-capel".
-// @param baseline_category  p-vector: reference category per variable.
-// @param iter            Number of Gibbs iterations for burn-in.
-// @param rng             Thread-safe RNG.
-// @param x_out           Output: n x p integer matrix of discrete observations.
-// @param y_out           Output: n x q numeric matrix of continuous observations.
+// Takes the number of observations, the interaction blocks (pairwise_disc:
+// p x p with zero diagonal, pairwise_cross: p x q, pairwise_cont: q x q
+// negative-definite), mux (p x max_cats threshold / Blume-Capel parameters),
+// muy (q-vector of continuous means), per-variable metadata (num_categories:
+// counts on top of baseline 0; variable_type: "ordinal" or "blume-capel";
+// baseline_category: reference categories), the number of Gibbs burn-in
+// iterations, and a thread-safe RNG. Writes the n x p integer discrete
+// observations to x_out and the n x q numeric continuous observations to
+// y_out.
 void simulate_mixed_mrf(
     int num_states,
     const arma::mat& pairwise_disc,
@@ -1090,29 +1061,15 @@ public:
 };
 
 
-// Run parallel mixed MRF simulations across posterior draws.
-//
-// The R layer splits the flat parameter vector into the 5 component matrices
-// and passes them as separate sample matrices.
-//
-// @param mux_samples     ndraws x n_mux
-// @param disc_samples     ndraws x p*(p-1)/2
-// @param muy_samples     ndraws x q
-// @param cont_samples     ndraws x q*(q+1)/2
-// @param cross_samples     ndraws x p*q
-// @param draw_indices    1-based indices of which draws to use
-// @param num_states      Number of observations per draw
-// @param p               Number of discrete variables
-// @param q               Number of continuous variables
-// @param num_categories  p-vector: categories per discrete variable
-// @param variable_type_r p-vector: "ordinal" or "blume-capel"
-// @param baseline_category p-vector
-// @param iter            Gibbs burn-in iterations
-// @param nThreads        Number of threads
-// @param seed            Random seed
-// @param progress_type   Progress bar type
-//
-// @return List of lists, each containing "x" (integer matrix) and "y" (numeric matrix).
+// Run parallel mixed MRF simulations across posterior draws. The R layer
+// splits the flat parameter vector into 5 sample matrices: mux (ndraws x
+// n_mux), disc (ndraws x p*(p-1)/2), muy (ndraws x q), cont (ndraws x
+// q*(q+1)/2), cross (ndraws x p*q). Also takes 1-based draw indices,
+// observations per draw, the discrete/continuous variable counts p and q,
+// per-variable metadata (num_categories, "ordinal" or "blume-capel" type,
+// baseline categories), Gibbs burn-in iterations, thread count, seed, and
+// progress bar type. Returns a list of lists, each containing "x" (integer
+// matrix) and "y" (numeric matrix).
 // [[Rcpp::export]]
 Rcpp::List run_mixed_simulation_parallel(
     const arma::mat& mux_samples,

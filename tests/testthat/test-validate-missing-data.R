@@ -119,7 +119,7 @@ test_that("impute builds correct missing_index for multiple NAs", {
 # 7. GGM + impute now supported
 # ==============================================================================
 
-test_that("GGM + impute works (no longer errors)", {
+test_that("GGM + impute works", {
   x = matrix(rnorm(12), nrow = 4, ncol = 3)
   colnames(x) = paste0("V", 1:3)
   x[1, 2] = NA

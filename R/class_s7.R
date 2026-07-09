@@ -15,9 +15,8 @@
 #
 # names(fit) contract:
 # The .field_names property stores the set of names that names(fit)
-# should return, matching the previous S3 list-based behavior where
-# conditional fields only appear when present. This is computed during
-# construction.
+# returns; conditional fields appear only when present. This is computed
+# during construction.
 # ==============================================================================
 
 
