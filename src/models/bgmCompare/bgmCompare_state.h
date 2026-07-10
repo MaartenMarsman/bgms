@@ -19,7 +19,8 @@
  *  - accepted pairwise-effect moves and accepted difference-indicator flips
  *    update `pairwise_group` and two residual columns per group;
  *  - accepted main-effect moves leave the state untouched;
- *  - imputation updates `obs_double` entries and one residual row per change;
+ *  - imputation refills the observation matrices and triggers a full weight
+ *    rebuild once per pass;
  *  - NUTS updates and graph re-initialisation trigger a full weight rebuild
  *    via rebuild_sweep_state_weights().
  *
