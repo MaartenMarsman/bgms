@@ -428,7 +428,7 @@ bool ZRatioEngine::inner_reference_(const arma::mat& k_blk, const arma::uvec& si
     for (arma::uword k = 0; k < u.n_elem; ++k) {
         logphi += -0.5 * arma::log1p(u[k] * tg2);
     }
-    arma::vec phi = arma::exp(logphi);
+    arma::vec phi = ARMA_MY_EXP(logphi);
     fN = arma::accu(wt_ % ihat_ % phi);
     gG = arma::accu(wt_ % ghat_ % phi);
     return std::isfinite(w) && w > 0.0 && std::isfinite(fN) &&

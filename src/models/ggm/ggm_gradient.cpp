@@ -60,6 +60,24 @@ void GGMGradientEngine::build_Aq(
     }
 }
 
+void GGMGradientEngine::fill_Aq_t_(
+    const arma::mat& Phi,
+    const ColumnConstraints& col,
+    size_t q,
+    arma::mat& Aqt)
+{
+    // A_q^T (q x m_q) written directly into the QR working matrix: the same
+    // entries build_Aq produces, without materialising A_q and the .t()
+    // temporary per column.
+    Aqt.zeros(q, col.m_q);
+    for (size_t r = 0; r < col.m_q; ++r) {
+        size_t i = col.excluded_indices[r];
+        for (size_t l = 0; l <= i; ++l) {
+            Aqt(l, r) = Phi(l, i);
+        }
+    }
+}
+
 // =====================================================================
 // givens_qr
 // =====================================================================
@@ -83,10 +101,19 @@ void GGMGradientEngine::givens_qr(
     arma::vec& R_diag,
     std::vector<GivensRotation>& rots)
 {
-    size_t n = M.n_rows;
-    size_t m = M.n_cols;
     R = M;            // working copy, will become R
-    Q.eye(n, n);      // accumulate Q
+    givens_qr_inplace(Q, R, R_diag, rots);
+}
+
+void GGMGradientEngine::givens_qr_inplace(
+    arma::mat& Q,
+    arma::mat& R,
+    arma::vec& R_diag,
+    std::vector<GivensRotation>& rots)
+{
+    size_t n = R.n_rows;
+    size_t m = R.n_cols;
+    Q.eye(n, n);      // accumulate Q (reuses the allocation at same dims)
     rots.clear();
 
     for (size_t j = 0; j < m; ++j) {
@@ -133,8 +160,12 @@ void GGMGradientEngine::givens_qr(
 // forward_map
 // =====================================================================
 
-ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
-    ForwardMapResult result;
+const ForwardMapResult& GGMGradientEngine::forward_map(const arma::vec& theta) const {
+    // Fill the engine-owned workspace in place. zeros()/set_size/resize and
+    // the per-column assignments below reuse the existing allocations when
+    // the dimensions match, so steady-state calls (fixed graph between
+    // rebuilds) allocate nothing.
+    ForwardMapResult& result = fm_ws_;
     result.Phi.zeros(p_, p_);
     result.psi.set_size(p_);
     result.Nq.resize(p_);
@@ -142,8 +173,6 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
     result.givens_rotations.resize(p_);
     result.Q_full.resize(p_);
     result.R_full.resize(p_);
-
-    arma::mat Aq_buf;  // reusable buffer for A_q
 
     for (size_t q = 0; q < p_; ++q) {
         const auto& col = structure_->columns[q];
@@ -186,19 +215,18 @@ ForwardMapResult GGMGradientEngine::forward_map(const arma::vec& theta) const {
             // Fully constrained: x_q = 0
             // Givens QR for R_diag (Jacobian) and stored rotations
             if (m_q > 0) {
-                build_Aq(result.Phi, col, q, Aq_buf);
-                givens_qr(Aq_buf.t(),
-                          result.Q_full[q], result.R_full[q],
-                          result.R_diag[q], result.givens_rotations[q]);
+                fill_Aq_t_(result.Phi, col, q, result.R_full[q]);
+                givens_qr_inplace(result.Q_full[q], result.R_full[q],
+                                  result.R_diag[q],
+                                  result.givens_rotations[q]);
             }
             result.Nq[q].reset();
             // x_q stays zero (already zeroed)
         } else {
-            // General case: build A_q, Givens QR, null space
-            build_Aq(result.Phi, col, q, Aq_buf);
-            givens_qr(Aq_buf.t(),
-                      result.Q_full[q], result.R_full[q],
-                      result.R_diag[q], result.givens_rotations[q]);
+            // General case: build A_q^T, Givens QR, null space
+            fill_Aq_t_(result.Phi, col, q, result.R_full[q]);
+            givens_qr_inplace(result.Q_full[q], result.R_full[q],
+                              result.R_diag[q], result.givens_rotations[q]);
 
             // N_q = last d_q columns of Q
             result.Nq[q] = result.Q_full[q].cols(m_q, q - 1);
@@ -258,7 +286,7 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     const arma::vec& theta) const
 {
     // --- Forward pass: theta -> Phi, K via null-space constraints ---
-    ForwardMapResult fm = forward_map(theta);
+    const ForwardMapResult& fm = forward_map(theta);
     const arma::mat& Phi = fm.Phi;
     const arma::mat& K = fm.K;
     const arma::mat& S = *suf_stat_;
@@ -272,10 +300,12 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
                 arma::vec(theta.n_elem, arma::fill::zeros)};
     }
 
-    // P = Phi * S — reused for value and gradient.
+    // P = Phi * S — reused for value and gradient; written into the
+    // engine workspace so steady-state calls reuse the allocation.
     // Phi is upper triangular; trimatu dispatches to BLAS dtrmm,
     // halving the FLOP count vs dense gemm.
-    arma::mat P = arma::trimatu(Phi) * S;
+    arma::mat& P = P_ws_;
+    P = arma::trimatu(Phi) * S;
 
     // --- Log-posterior value ---
     double log_det_K = 2.0 * arma::accu(fm.psi);
@@ -317,7 +347,8 @@ std::pair<double, arma::vec> GGMGradientEngine::logp_and_gradient(
     // Diagonal prior: d/dPhi [log p(K_ii/2)]
     //   = (1/2) * grad(K_ii/2) * dK_ii/dPhi
     //   = (1/2) * grad(K_ii/2) * 2 Phi(:,i) = grad(K_ii/2) * Phi(:,i).
-    arma::mat Phi_bar = -P;
+    arma::mat& Phi_bar = Phi_bar_ws_;
+    Phi_bar = -P;
     for (size_t i = 0; i < p_; ++i) {
         double dg = diagonal_prior_->grad(0.5 * K(i, i));
         Phi_bar.col(i).head(i + 1) += dg * Phi.col(i).head(i + 1);
@@ -409,9 +440,20 @@ void GGMGradientEngine::theta_gradient_from_phi_bar(
         const auto& rotations = fm.givens_rotations[q];
         size_t n_rot = rotations.size();
 
-        // Initialize W_bar (R_bar) and Q_bar with seed adjoints.
-        arma::mat W_bar(q, m_q, arma::fill::zeros);
-        arma::mat Q_bar(q, q, arma::fill::zeros);
+        // Initialize W_bar (R_bar) and Q_bar with seed adjoints. All four
+        // per-column matrices live in the engine workspace: zeros()/copy
+        // assignment reuse the existing allocations at steady state, so the
+        // backward pass allocates nothing per leapfrog step.
+        if (Wbar_ws_.size() < p_) {
+            Wbar_ws_.resize(p_);
+            Qbar_ws_.resize(p_);
+            Qwork_ws_.resize(p_);
+            Wwork_ws_.resize(p_);
+        }
+        arma::mat& W_bar = Wbar_ws_[q];
+        arma::mat& Q_bar = Qbar_ws_[q];
+        W_bar.zeros(q, m_q);
+        Q_bar.zeros(q, q);
 
         size_t rank = std::min(m_q, q);
         const arma::mat& R = fm.R_full[q];
@@ -428,8 +470,10 @@ void GGMGradientEngine::theta_gradient_from_phi_bar(
             }
         }
 
-        arma::mat Q_work = fm.Q_full[q];
-        arma::mat W_work = fm.R_full[q];
+        arma::mat& Q_work = Qwork_ws_[q];
+        arma::mat& W_work = Wwork_ws_[q];
+        Q_work = fm.Q_full[q];
+        W_work = fm.R_full[q];
 
         for (size_t k = n_rot; k-- > 0; ) {
             const auto& rot = rotations[k];

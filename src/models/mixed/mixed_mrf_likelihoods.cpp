@@ -129,7 +129,10 @@ double MixedMRFModel::log_conditional_ggm() const {
 
 double MixedMRFModel::omrf_ratio_for_covariance_change(const arma::mat& cov_prop) {
     arma::mat delta_sigma = cov_prop - covariance_continuous_;
-    arma::mat E = delta_sigma * pairwise_effects_cross_.t();  // q x p
+    // E = ΔΣ A_xy' is kept in cross_delta_scratch_ for the accept path
+    // (adopt_kyy_proposal_caches applies 2 A_xy E to M and the cross term).
+    cross_delta_scratch_ = delta_sigma * pairwise_effects_cross_.t();  // q x p
+    const arma::mat& E = cross_delta_scratch_;
 
     marginal_matvec_prop_ = marginal_matvec_ + 2.0 * (cross_matvec_ * E);
     for(size_t s = 0; s < p_; ++s) {

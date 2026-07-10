@@ -58,7 +58,7 @@ Rcpp::List ggm_test_forward_map(
     GGMGradientEngine engine;
     engine.rebuild(cs, 100, dummy_S, ip, dp);
 
-    ForwardMapResult fm = engine.forward_map(theta);
+    const ForwardMapResult& fm = engine.forward_map(theta);
 
     return Rcpp::List::create(
         Rcpp::Named("Phi") = Rcpp::wrap(fm.Phi),

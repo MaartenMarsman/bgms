@@ -835,16 +835,15 @@ double log_pseudoposterior_main_component(
   }
 
   const int num_variables = observations.n_cols;
-  const int max_num_categories = num_categories.max();
   double log_pp = 0.0;
+
+  // group-specific pairwise weights of `variable` with all other variables
+  arma::vec pairwise_col(num_variables, arma::fill::zeros);
 
   // --- per group ---
   for (int group = 0; group < num_groups; ++group) {
-    const arma::imat counts_per_category = counts_per_category_group[group];
-    const arma::imat blume_capel_stats = blume_capel_stats_group[group];
-
-    arma::mat main_group(num_variables, max_num_categories, arma::fill::zeros);
-    arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
+    const arma::imat& counts_per_category = counts_per_category_group[group];
+    const arma::imat& blume_capel_stats = blume_capel_stats_group[group];
 
     const arma::vec proj_g = projection.row(group).t(); // length = num_groups-1
 
@@ -853,27 +852,21 @@ double log_pseudoposterior_main_component(
       variable, num_groups, main_effects, main_effect_indices, proj_g
     );
 
-    // store into row v
-    main_group(variable, arma::span(0, me.n_elem - 1)) = me.t();
-
-    // upper triangle incl. base value; mirror to keep symmetry
+    // pairwise weights with the other variables; entry `variable` stays zero
     for (int u = 0; u < num_variables; u++) {
       if(u == variable) continue;
-      double w = compute_group_pairwise_effects(
+      pairwise_col(u) = compute_group_pairwise_effects(
         variable, u, num_groups, pairwise_effects, pairwise_effect_indices,
         inclusion_indicator, proj_g
       );
-      pairwise_group(variable, u) = w;
-      pairwise_group(u, variable) = w;
     }
 
     // ---- data contribution pseudolikelihood (linear terms) ----
     if (is_ordinal_variable(variable)) {
-      const double val = main_group(variable, category);
-      log_pp += static_cast<double>(counts_per_category(category, variable)) * val;
+      log_pp += static_cast<double>(counts_per_category(category, variable)) *
+        me(category);
     } else {
-      log_pp += static_cast<double>(blume_capel_stats(par, variable)) *
-        main_group(variable, par);
+      log_pp += static_cast<double>(blume_capel_stats(par, variable)) * me(par);
     }
 
     // ---- data contribution pseudolikelihood (quadratic terms) ----
@@ -882,7 +875,7 @@ double log_pseudoposterior_main_component(
     const arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
 
     // ---- pseudolikelihood normalizing constants (per variable) ----
-    const arma::vec rest_score = obs * pairwise_group.col(variable);
+    const arma::vec rest_score = obs * pairwise_col;
     const int num_cats = num_categories(variable);
 
     // bound to stabilize exp; clamp at 0 (the reference-category exponent) so
@@ -892,14 +885,12 @@ double log_pseudoposterior_main_component(
     arma::vec denom(rest_score.n_elem, arma::fill::zeros);
 
     if (is_ordinal_variable(variable)) {
-      arma::vec main_eff = main_group.row(variable).cols(0, num_cats - 1).t();
       denom = compute_denom_ordinal(
-        rest_score, main_eff, bound
+        rest_score, me, bound
       );
     } else {
-      // linear/quadratic main effects from main_group
-      const double lin_effect  = main_group(variable, 0);
-      const double quad_effect = main_group(variable, 1);
+      const double lin_effect  = me(0);
+      const double quad_effect = me(1);
       const int ref = baseline_category(variable);
 
       denom = compute_denom_blume_capel(
@@ -959,8 +950,7 @@ double log_pseudoposterior_main_component(
 //  - main_effect_indices: Index ranges [row_start, row_end] for each variable.
 //  - pairwise_effect_indices: Lookup table mapping (var1, var2) to row in pairwise_effects.
 //  - projection: Group projection matrix (num_groups × (num_groups − 1)).
-//  - observations: Observation matrix (persons × variables).
-//  - group_indices: Row ranges [start, end] for each group in observations.
+//  - obs_double_groups: Per-group observation matrices converted to double.
 //  - num_categories: Number of categories per variable.
 //  - pairwise_stats_group: Per-group pairwise sufficient statistics.
 //  - residual_matrices: Per-group residual matrices (persons × variables).
@@ -987,8 +977,7 @@ double log_pseudoposterior_pair_component(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
-    const arma::imat& group_indices,
+    const std::vector<arma::mat>& obs_double_groups,
     const arma::ivec& num_categories,
     const std::vector<arma::mat>& pairwise_stats_group,
     const std::vector<arma::mat>& residual_matrices,
@@ -1007,7 +996,7 @@ double log_pseudoposterior_pair_component(
     return 0.0;
   }
 
-  const int num_variables = observations.n_cols;
+  const int num_variables = obs_double_groups[0].n_cols;
   const int max_num_categories = num_categories.max();
   double log_pp = 0.0;
   int idx = pairwise_effect_indices(variable1, variable2);
@@ -1042,19 +1031,14 @@ double log_pseudoposterior_pair_component(
     }
 
     // ---- pseudolikelihood normalizing constants (using residual matrix + delta) ----
-    const int r0 = group_indices(group, 0);
-    const int r1 = group_indices(group, 1);
-    
-    // Pre-convert observation columns for the two variables (needed for delta adjustment)
-    const arma::vec obs_var1 = arma::conv_to<arma::vec>::from(observations.col(variable1).rows(r0, r1));
-    const arma::vec obs_var2 = arma::conv_to<arma::vec>::from(observations.col(variable2).rows(r0, r1));
+    const arma::mat& obs_g = obs_double_groups[group];
 
     for (int v : {variable1, variable2}) {
       const int num_cats = num_categories(v);
-      const arma::vec& obs_other = (v == variable1) ? obs_var2 : obs_var1;
+      const int other = (v == variable1) ? variable2 : variable1;
 
       // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
-      arma::vec rest_score = residual_matrices[group].col(v) + obs_other * delta_g;
+      arma::vec rest_score = residual_matrices[group].col(v) + obs_g.col(other) * delta_g;
 
       // bound to stabilize exp; clamp at 0 so exp cannot overflow (the
       // Blume-Capel branch overwrites bound with its own max).

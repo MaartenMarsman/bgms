@@ -797,10 +797,12 @@ private:
 
 
     /**
-     * Update the Cholesky factor after changing an off-diagonal element.
+     * Refresh Sigma and log|K| after changing an off-diagonal element.
      *
-     * Decomposes the rank-2 change into two rank-1 updates and
-     * recomputes the inverse Cholesky factor and covariance matrix.
+     * Advances log_det_precision_ by the rank-2 determinant-lemma ratio,
+     * encodes the accepted (i,j)/(j,j) change as the vf1/vf2 rank-2 pair,
+     * and delegates the covariance update to apply_rank2_chol_smw_update_.
+     * chol(K) is not maintained per accept (rebuilt once per sweep).
      *
      * @param omega_ij_old  Previous value of omega(i,j)
      * @param omega_jj_old  Previous value of omega(j,j)
@@ -810,14 +812,13 @@ private:
     void cholesky_update_after_edge(double omega_ij_old, double omega_jj_old, size_t i, size_t j);
 
     /**
-     * Apply a symmetric rank-2 update to K, refresh chol(K), and refresh Sigma.
+     * Apply a symmetric rank-2 update to Sigma for a K update already written.
      *
-     * Given vf1_, vf2_ of length p, this carries out
-     *   K_new     = K_old + vf1 vf2^T + vf2 vf1^T
-     *   chol(K)  <- Givens update + downdate on u1 = (vf1+vf2)/sqrt2, u2 = (vf1-vf2)/sqrt2
-     *   Sigma    <- Sherman-Morrison-Woodbury rank-2 update (O(p^2)), with a
-     *               fallback to refresh_cholesky() when the downdate fails or
-     *               the 2x2 capacitance is near-singular.
+     * Given vf1_, vf2_ of length p, this refreshes
+     *   Sigma <- Sherman-Morrison-Woodbury rank-2 update (O(p^2)) for
+     *   K_new  = K_old + vf1 vf2^T + vf2 vf1^T,
+     * with a fallback to refresh_cholesky() when the 2x2 capacitance is
+     * near-singular.
      *
      * Inputs are taken from the model's vf1_, vf2_ scratch members so callers
      * can populate them in-place without an extra copy. The helper does not
@@ -831,44 +832,28 @@ private:
      * touches only those columns, O(p |support|) instead of a dense O(p^2)
      * gemv, with a dense fallback when the support is near-full.
      *
-     * `update_L` controls whether chol(K) is advanced. The edge accept needs
-     * it true (the between-step reads chol(K)/log-det immediately). The
-     * row-block Gibbs sweep passes false: chol(K) is never read between rows
-     * (the row draw reads only Sigma), so the per-row Givens passes are
-     * skipped and chol(K) is rebuilt once via refresh_cholesky() at the end
-     * of the sweep. Sigma is always maintained so the next row's Schur
-     * extraction is exact.
-     *
-     * Sigma is maintained incrementally, so floating-point error accumulates
-     * across accepts; check_and_refresh_if_drift_() bounds it once per sweep.
+     * chol(K) and log|K| are NOT maintained here. The accept paths advance
+     * log_det_precision_ by the determinant-lemma ratio before calling this
+     * helper, nothing reads chol(K) between accepts within a sweep, and every
+     * sweep (Metropolis, tuning, edge-indicator, row-Gibbs) ends with
+     * refresh_cholesky(), which rebuilds the factor and resets Sigma and the
+     * log-det exactly -- bounding the SMW floating-point drift per sweep.
      */
-    void apply_rank2_chol_smw_update_(const arma::uvec& support,
-                                      bool update_L = true);
+    void apply_rank2_chol_smw_update_(const arma::uvec& support);
 
     /**
-     * Update the Cholesky factor after changing a diagonal element.
+     * Refresh Sigma and log|K| after changing a diagonal element.
      *
-     * Applies a rank-1 Givens update to chol(K) and a Sherman-Morrison
-     * rank-1 update (O(p^2)) to the covariance matrix, with a fallback to
-     * refresh_cholesky() when the downdate fails or the scalar capacitance
-     * is near-singular.
+     * Advances log_det_precision_ by the rank-1 determinant-lemma ratio and
+     * applies a Sherman-Morrison rank-1 update (O(p^2)) to the covariance
+     * matrix, with a fallback to refresh_cholesky() when the scalar
+     * capacitance is near-singular. chol(K) is not maintained per accept
+     * (see apply_rank2_chol_smw_update_).
      *
      * @param omega_ii_old  Previous value of omega(i,i)
      * @param i             Diagonal index
      */
     void cholesky_update_after_diag(double omega_ii_old, size_t i);
-
-    /**
-     * Refresh all factors if the SMW-maintained covariance has drifted.
-     *
-     * Computes max_i |diag(Sigma K) - 1| in O(p^2) and calls
-     * refresh_cholesky() when it exceeds kCovDriftTol_. Called once per
-     * Metropolis sweep, proposal-sd tuning sweep, and edge-indicator sweep.
-     */
-    void check_and_refresh_if_drift_();
-
-    /** Tolerance on max_i |diag(Sigma K) - 1| before a full factor refresh. */
-    static constexpr double kCovDriftTol_ = 1e-8;
 
     /**
      * Check (Sigma K)(r, r) = 1 on the given rows.
@@ -892,12 +877,10 @@ private:
     static constexpr double kSigmaProbeTol_ = 1e-6;
 
     /**
-     * Recompute Cholesky and its inverse from the precision matrix.
-     *
-     * Used as a fallback when accumulated rank-1 updates/downdates
-     * cause numerical drift that makes the triangular inverse fail.
-     * Resets both cholesky_of_precision_ and inv_cholesky_of_precision_
-     * from precision_matrix_, then recomputes covariance_matrix_.
+     * Recompute chol(K), its inverse, Sigma, and log|K| from the precision
+     * matrix. Called once at the end of every sweep (the accept paths
+     * maintain only Sigma and the log-det incrementally) and when a
+     * per-accept probe or SMW capacitance guard detects a drifted Sigma.
      */
     void refresh_cholesky();
 

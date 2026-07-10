@@ -100,10 +100,17 @@ public:
      * computes Givens QR of A_q^T for the null-space basis N_q, sets
      * x_q = N_q f_q, and accumulates the Jacobian.
      *
+     * Returns a reference to the engine-owned workspace, valid until the
+     * next forward_map() call on this engine. Callers bind it by const
+     * reference; each chain clone owns its engine copy and the sampler is
+     * single-threaded within a chain, so reuse across leapfrog steps is
+     * safe and avoids reallocating the per-column QR matrices
+     * (O(p^3) doubles per call on sparse graphs).
+     *
      * @param theta  Parameter vector of length p + |E|
      * @return ForwardMapResult with Phi, K, log|det J|, and cached Givens data
      */
-    ForwardMapResult forward_map(const arma::vec& theta) const;
+    const ForwardMapResult& forward_map(const arma::vec& theta) const;
 
     /**
      * Combined log-posterior and gradient evaluation.
@@ -162,12 +169,34 @@ public:
         arma::vec& R_diag,
         std::vector<GivensRotation>& rots);
 
+    /**
+     * In-place variant of givens_qr: R holds M on entry and is factored in
+     * place; Q, R_diag, and rots are reset and filled. Existing allocations
+     * in Q/R_diag are reused when the dimensions match, so per-leapfrog
+     * callers do not reallocate the per-column QR matrices.
+     */
+    static void givens_qr_inplace(
+        arma::mat& Q,
+        arma::mat& R,
+        arma::vec& R_diag,
+        std::vector<GivensRotation>& rots);
+
     static void build_Aq(const arma::mat& Phi,
                          const ColumnConstraints& col,
                          size_t q,
                          arma::mat& Aq);
 
 private:
+    /**
+     * Fill Aqt with A_q^T (q x m_q) directly — the entries build_Aq produces,
+     * without materialising A_q and its .t() temporary. Aqt doubles as the
+     * in-place QR working matrix.
+     */
+    static void fill_Aq_t_(const arma::mat& Phi,
+                           const ColumnConstraints& col,
+                           size_t q,
+                           arma::mat& Aqt);
+
     const GraphConstraintStructure* structure_ = nullptr;
     size_t n_ = 0;
     size_t p_ = 0;
@@ -177,4 +206,20 @@ private:
     // Determinant-tilt exponent: adds delta_ * log|K| to the (unnormalised)
     // log-prior. delta_ = 0 recovers the untilted target.
     double delta_ = 0.0;
+
+    // Per-call workspace. Mutable because forward_map/logp_and_gradient are
+    // logically const; each chain clone owns its own engine copy and the
+    // sampler is single-threaded within a chain, so reuse across calls is
+    // safe. fm_ws_ is the object forward_map() returns a reference to; the
+    // vectors hold the backward pass's per-column scratch (two zero-filled
+    // and two copied q x q / q x m_q matrices per constrained column), all
+    // reused via zeros()/copy-assignment, which keep the existing
+    // allocation when the dimensions match.
+    mutable ForwardMapResult fm_ws_;
+    mutable arma::mat P_ws_;
+    mutable arma::mat Phi_bar_ws_;
+    mutable std::vector<arma::mat> Wbar_ws_;
+    mutable std::vector<arma::mat> Qbar_ws_;
+    mutable std::vector<arma::mat> Qwork_ws_;
+    mutable std::vector<arma::mat> Wwork_ws_;
 };
