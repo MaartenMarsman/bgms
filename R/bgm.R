@@ -91,8 +91,8 @@
 #' @param precision_scale_prior A prior specification object for the diagonal
 #'   elements of the precision matrix, created by one of:
 #'   \itemize{
-#'     \item \code{\link{gamma_prior}()}: Gamma prior (default).
-#'     \item \code{\link{exponential_prior}()}: Exponential prior.
+#'     \item \code{\link{exponential_prior}()}: Exponential prior (default).
+#'     \item \code{\link{gamma_prior}()}: Gamma prior.
 #'   }
 #'   Both constructors accept the rate in one of two frames: \code{rate}
 #'   (raw) or \code{eta} (standardized). \code{eta} is the rate on the
@@ -107,7 +107,7 @@
 #'   parameter (\code{cauchy_prior()} or \code{normal_prior()}).
 #'   Only used for models with continuous variables (GGM and mixed MRF).
 #'   Ignored for pure ordinal models.
-#'   Default: \code{gamma_prior(shape = 1, eta = 1)}.
+#'   Default: \code{exponential_prior(eta = 1)}.
 #'
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent on the continuous-block
@@ -405,7 +405,7 @@ bgm = function(
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),

@@ -9,7 +9,7 @@ sample_ggm_prior(
   n_samples,
   n_warmup = 2000,
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
   seed = 1L,
@@ -44,9 +44,9 @@ partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 \code{\link{exponential_prior}()}. Both accept the rate in the raw
 frame (\code{rate}) or the standardized frame (\code{eta}; the raw
 rate is derived as \code{eta / s} for interaction-prior scale
-\code{s}). Default: \code{gamma_prior(shape = 1, eta = 1)}; with the
+\code{s}). Default: \code{exponential_prior(eta = 1)}; with the
 default \code{cauchy_prior(scale = 2.5)} interaction prior this
-resolves to \eqn{K_{ii}/2 \sim \textrm{Gamma}(1, 0.4)}.}
+resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(0.4)}.}
 
 \item{step_size}{Positive numeric. Initial NUTS step size used to seed
 dual-averaging adaptation. Default \code{0.1}. Used only for
