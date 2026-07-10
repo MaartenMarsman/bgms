@@ -199,3 +199,77 @@ test_that("gamma-shape constants live in their own cache cell", {
   z3 = bgms:::zratio_cell_constants(d, 0.25, 4, scale_shape = 2)
   expect_identical(z2, z3)
 })
+
+test_that("calibrated engine tracks the block oracle at alpha = 2", {
+  skip_on_cran()
+  # Additive tables + warm-up calibration vs the long-run block-Gibbs
+  # oracle, both at the gamma-shape cell: internal consistency of the
+  # generalized constants and the independence-MH oracle sweep.
+  q = 10L
+  dlt = 0.5 * log(q)
+  et = 1
+  alpha = 2
+  zc = bgms:::zratio_constants(dlt, et, alpha = alpha)
+
+  set.seed(11)
+  graphs = list()
+  edges = NULL
+  while(is.null(edges) || nrow(edges) < 10) {
+    a = matrix(0L, q, q)
+    ut = which(upper.tri(a))
+    a[ut] = rbinom(length(ut), 1L, 0.3)
+    a = a + t(a)
+    diag(a) = 1L
+    pr = which(upper.tri(matrix(0, q, q)), arr.ind = TRUE)
+    for(r in sample(nrow(pr))) {
+      i = pr[r, 1]
+      j = pr[r, 2]
+      oth = setdiff(1:q, c(i, j))
+      sio = oth[a[i, oth] == 1 & a[j, oth] == 0]
+      sjo = oth[a[j, oth] == 1 & a[i, oth] == 0]
+      if(!length(sio) || !length(sjo)) next
+      bd = max(c(
+        0L, vapply(sio, function(x) sum(a[x, sjo]), 0L),
+        vapply(sjo, function(x) sum(a[sio, x]), 0L)
+      ))
+      if(bd >= 2) {
+        graphs[[length(graphs) + 1]] = a
+        edges = rbind(edges, c(i, j))
+      }
+    }
+  }
+  n = nrow(edges)
+
+  truth = vapply(seq_len(n), function(e) {
+    bgms:::zratio_test_calibrated_eval(
+      graphs[e], edges[e, , drop = FALSE], zc$addc, zc$tg, zc$ihat,
+      zc$ghat, zc$wt, zc$psi0, dlt, et,
+      seed = 900L + e, n_sweep = 2000L, burn = 50L, freeze_after = 0L,
+      alpha = alpha
+    )$log_zratio[1]
+  }, 0.0)
+
+  fz = ceiling(0.6 * n)
+  res = bgms:::zratio_test_calibrated_eval(
+    graphs, edges, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
+    dlt, et,
+    seed = 13L, n_sweep = 300L, burn = 30L, freeze_after = fz,
+    alpha = alpha
+  )
+  add = vapply(seq_len(n), function(e) {
+    as.numeric(bgms:::zratio_test_eval(
+      graphs[[e]], edges[e, , drop = FALSE], zc$addc, zc$tg, zc$ihat,
+      zc$ghat, zc$wt, zc$psi0
+    )$log_zratio)
+  }, 0.0)
+
+  est = as.numeric(res$log_zratio)
+  expect_true(res$frozen)
+  rmse = function(x) sqrt(mean((x - truth)^2))
+  # Both routes must track the oracle; at these block sizes the additive
+  # tables are already near-exact, so no beats-additive ordering is
+  # asserted.
+  expect_lt(rmse(est), 0.01)
+  expect_lt(rmse(add), 0.01)
+  expect_lt(max(abs(est - truth)), 0.05)
+})

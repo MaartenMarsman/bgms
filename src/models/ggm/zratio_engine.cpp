@@ -224,12 +224,13 @@ double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
 void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
                                       int n_sweep, int burn,
                                       double maha_thresh, int min_anchors,
-                                      bool slab_cauchy) {
+                                      bool slab_cauchy, double alpha) {
     calibration_enabled_ = true;
     frozen_ = false;
     delta_ = delta;
     sigma_ = 1.0;
     beta_ = eta;
+    alpha_ = alpha;
     rng_ = rng;
     n_sweep_ = n_sweep;
     burn_ = burn;
@@ -304,15 +305,29 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             arma::vec bvec = arma::solve(arma::trimatu(r_chol), z);
             double xi = rgamma(*rng_, delta_ + 1.0, beta_);
             double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
-            for (int j = 0; j < nq; ++j) {
-                k_blk(ni[j], i) = bvec[j];
-                k_blk(i, ni[j]) = bvec[j];
+            // The diagonal factor K_ii^(alpha - 1) couples the Gamma pivot
+            // to the row draw; the alpha = 1 conjugate conditional serves
+            // as an independence-Metropolis proposal with acceptance
+            // ratio (K_ii_new / K_ii_old)^(alpha - 1).
+            bool accept = true;
+            if (std::abs(alpha_ - 1.0) > 1e-12) {
+                const double kii_new = xi + quad;
+                const double kii_old = k_blk(i, i);
+                accept = std::log(runif(*rng_)) <
+                         (alpha_ - 1.0) * (std::log(kii_new) -
+                                           std::log(kii_old));
             }
-            k_blk(i, i) = xi + quad;
+            if (accept) {
+                for (int j = 0; j < nq; ++j) {
+                    k_blk(ni[j], i) = bvec[j];
+                    k_blk(i, ni[j]) = bvec[j];
+                }
+                k_blk(i, i) = xi + quad;
+            }
             if (oracle_slab_cauchy_) {
                 // Conjugate omega | k ~ IG(1, 1/2 + k^2 / (2 sigma^2)).
                 for (int j = 0; j < nq; ++j) {
-                    const double b = bvec[j];
+                    const double b = k_blk(ni[j], i);
                     const double ig_rate = 0.5 + 0.5 * b * b * s2i;
                     const double wo = ig_rate / rexp(*rng_, 1.0);
                     omega_blk(i, ni[j]) = wo;
@@ -320,7 +335,7 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                 }
             }
         } else {
-            k_blk(i, i) = rgamma(*rng_, delta_ + 1.0, beta_);
+            k_blk(i, i) = rgamma(*rng_, delta_ + alpha_, beta_);
         }
     }
 }
@@ -451,7 +466,9 @@ void ZRatioEngine::init_block_(const arma::imat& a_blk,
     if (oracle_slab_cauchy_) omega_blk.ones(m, m);
     else omega_blk.reset();
     for (int l = 0; l < m; ++l) {
-        k_blk(l, l) = rexp(*rng_, beta_) + m;
+        k_blk(l, l) = (alpha_ == 1.0 ? rexp(*rng_, beta_)
+                                     : rgamma(*rng_, alpha_, beta_)) +
+                      m;
     }
     for (int s = 0; s < burn_; ++s) gibbs_sweep_(k_blk, omega_blk, nbr);
 }
