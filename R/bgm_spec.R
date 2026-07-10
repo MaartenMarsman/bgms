@@ -376,8 +376,8 @@ bgm_spec = function(x,
   }
 
   # --- Hierarchical graph-prior spec eligibility --------------------------------
-  # The Z-ratio constants are derived for the Normal slab with an exponential
-  # (shape-1 Gamma) diagonal, on the continuous precision matrix, under edge
+  # The Z-ratio constants are derived for a Normal or Cauchy slab with a
+  # Gamma diagonal, on the continuous precision matrix, under edge
   # selection. Anything else keeps the joint specification.
   precision_graph_prior = match.arg(precision_graph_prior)
   if(precision_graph_prior == "hierarchical") {

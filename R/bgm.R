@@ -189,9 +189,8 @@
 #'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
 #'       \code{fit$zratio_diag} and issues print like other sampler
 #'       warnings). Requires \code{edge_selection = TRUE}, a
-#'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior, a
-#'       shape-1 \code{gamma_prior()} (or \code{exponential_prior()})
-#'       precision scale prior, and continuous data — either all-continuous
+#'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
+#'       and continuous data — either all-continuous
 #'       (GGM) or mixed with at least two continuous variables. On mixed data the
 #'       normalizer lives on the continuous block \eqn{K_{yy}}, so the
 #'       Z-ratio enters the continuous-continuous edge moves only, with the

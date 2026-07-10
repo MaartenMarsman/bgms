@@ -183,8 +183,7 @@ hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
 \eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
 per-graph normalizer ratio in each between-edge move is evaluated
 by the deterministic local Z-ratio approximation. Requires
-\code{normal_prior()} interactions and a shape-1 diagonal scale
-prior.
+\code{normal_prior()} or \code{cauchy_prior()} interactions.
 }
 }
 \details{

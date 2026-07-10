@@ -296,3 +296,31 @@ test_that("joint-spec chains run from the ancestral start for each prior", {
     expect_true(all(is.finite(draws$K_diag)))
   }
 })
+
+test_that("joint-spec gibbs matches adaptive-metropolis at a gamma-shape diagonal", {
+  skip_on_cran()
+  # The row-block Gibbs handles shape != 1 by treating the shape-1
+  # conjugate row draw as an independence-Metropolis proposal with
+  # acceptance (K_ii_new / K_ii_old)^(shape - 1). Adaptive Metropolis
+  # evaluates the same Gamma prior through the polymorphic density, so
+  # the two chains target the identical joint-spec prior and their
+  # diagonal laws must agree.
+  run = function(um) {
+    short_run(
+      p = 4L, n_samples = 6000L, n_warmup = 1500L,
+      interaction_prior = normal_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 2, rate = 2),
+      spec = "joint", update_method = um, seed = 7L
+    )
+  }
+  dg = run("gibbs")
+  da = run("adaptive-metropolis")
+  expect_lt(abs(mean(dg$K_diag) / mean(da$K_diag) - 1), 0.05)
+  # Per-column KS on near-independent thinned draws (pooling the columns
+  # would mix within-draw dependence into the test).
+  thin = seq(1, 6000L, by = 60L)
+  ks_p = vapply(1:4, function(j) {
+    suppressWarnings(ks.test(dg$K_diag[thin, j], da$K_diag[thin, j])$p.value)
+  }, 0.0)
+  expect_gt(min(ks_p), 0.005)
+})
