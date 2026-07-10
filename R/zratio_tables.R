@@ -10,25 +10,33 @@
 #   - the per-channel moment constants addc[0..5] for the additive counts
 #     (common-neighbour node, CN-CN edge, bridge edge),
 #   - psi0, the isolated-edge ratio I_spike(0)/G(0).
-# Conventions: K_ii ~ Exp(beta), slab K_ij ~ N(0, sigma^2), tilt
-# |K|^delta. The between-graph ratio Z(Gamma-)/Z(Gamma+) is invariant under
-# the diagonal congruence Theta = A K A (scale standardization of the
-# normalizer), so it depends on (delta, eta) alone, where in bgms parameter
-# units eta = (2 * pairwise_scale) * (scale_rate / 2) = pairwise_scale *
-# scale_rate (priors act on K/2). The fixed quadrature grids below (cmax,
-# Cmax, Tmax, Laguerre ranges) are sized for the sigma = 1 frame, so every
-# consumer builds in the standardized cell (delta, sigma = 1, beta = eta)
-# via zratio_cell_constants().
+# Conventions: K_ii ~ Gamma(alpha, beta) (alpha = 1 is the exponential
+# default), slab K_ij ~ N(0, sigma^2), tilt |K|^delta. The between-graph
+# ratio Z(Gamma-)/Z(Gamma+) is invariant under the diagonal congruence
+# Theta = A K A (scale standardization of the normalizer): the shape is
+# scale-invariant and the per-diagonal constants multiply both normalizers
+# identically, so the ratio depends on (delta, eta, alpha) alone, where in
+# bgms parameter units eta = (2 * pairwise_scale) * (scale_rate / 2) =
+# pairwise_scale * scale_rate (priors act on K/2). The fixed quadrature
+# grids below (cmax, Cmax, Tmax, Laguerre ranges) are sized for the
+# sigma = 1 frame, so every consumer builds in the standardized cell
+# (delta, sigma = 1, beta = eta) via zratio_cell_constants().
 
 # Golub-Welsch Gauss quadrature nodes/weights. kind: "laguerre" (weight
-# e^{-x} on (0, Inf)), "hermite" (weight e^{-x^2} on (-Inf, Inf)),
-# "legendre" (weight 1 on (-1, 1)).
-zratio_gauss_quad = function(n, kind) {
+# x^{glag_a} e^{-x} on (0, Inf); glag_a = 0 is the plain rule), "hermite"
+# (weight e^{-x^2} on (-Inf, Inf)), "legendre" (weight 1 on (-1, 1)).
+zratio_gauss_quad = function(n, kind, glag_a = 0) {
   k = seq_len(n - 1)
   if(kind == "laguerre") {
-    a = 2 * seq_len(n) - 1
-    b = k
-    mu0 = 1
+    if(glag_a == 0) {
+      a = 2 * seq_len(n) - 1
+      b = k
+      mu0 = 1
+    } else {
+      a = 2 * seq_len(n) - 1 + glag_a
+      b = sqrt(k * (k + glag_a))
+      mu0 = gamma(1 + glag_a)
+    }
   } else if(kind == "hermite") {
     a = rep(0, n)
     b = sqrt(k / 2)
@@ -66,18 +74,41 @@ zratio_omega_mixture = function(n) {
   list(t = q$nodes, w = sqrt(2 / pi) * q$weights)
 }
 
-# Closed-form spike pair integral
-#   I_spike(c) = 2 Gamma(nu) beta^{-nu} |c|^nu K_nu(2 beta |c|), nu = delta + 1,
-# with limit Gamma(nu)^2 beta^{-2 nu} at c = 0.
-zratio_ispike = function(c_val, delta, beta) {
-  nu = delta + 1
+# Spike pair integral
+#   I_spike(c) = int int (s1 s2)^(alpha - 1) (s1 s2 - c^2)_+^delta
+#                        e^{-beta (s1 + s2)} ds1 ds2,
+# with limit Gamma(nu)^2 beta^{-2 nu} at c = 0, nu = delta + alpha. At
+# alpha = 1 it is closed form,
+#   I_spike(c) = 2 Gamma(nu) beta^{-nu} |c|^nu K_nu(2 beta |c|).
+# For alpha != 1 the product substitution w = sqrt(s1 s2) reduces it to
+#   I_spike(c) = 4 int_{|c|}^Inf w^(2 alpha - 1) (w^2 - c^2)^delta
+#                                K_0(2 beta w) dw,
+# evaluated with the exponentially scaled Bessel so the integrand stays
+# O(1): shifting w = |c| + s pulls out e^{-2 beta |c|} and leaves
+#   4 e^{-2 beta c} int_0^Inf s^delta [(c + s)^(2 alpha - 1)
+#     (s + 2 c)^delta K0_scaled(2 beta (c + s))] e^{-2 beta s} ds,
+# a smooth remainder under the generalized Gauss-Laguerre weight
+# s^delta e^{-2 beta s}, vectorized across the c grid.
+zratio_ispike = function(c_val, delta, beta, alpha = 1) {
+  nu = delta + alpha
   ac = abs(c_val)
   out = numeric(length(ac))
   small = ac < 1e-8
   out[small] = gamma(nu)^2 * beta^(-2 * nu)
   if(any(!small)) {
     a = ac[!small]
-    out[!small] = 2 * gamma(nu) * beta^(-nu) * a^nu * besselK(2 * beta * a, nu)
+    if(alpha == 1) {
+      out[!small] = 2 * gamma(nu) * beta^(-nu) * a^nu *
+        besselK(2 * beta * a, nu)
+    } else {
+      gl = zratio_gauss_quad(96, "laguerre", glag_a = delta)
+      s = gl$nodes / (2 * beta)
+      w = gl$weights / (2 * beta)^(delta + 1)
+      cs = outer(a, s, "+")
+      f = cs^(2 * alpha - 1) * outer(2 * a, s, "+")^delta *
+        besselK(2 * beta * cs, 0, expon.scaled = TRUE)
+      out[!small] = 4 * exp(-2 * beta * a) * as.numeric(f %*% w)
+    }
   }
   out
 }
@@ -85,16 +116,18 @@ zratio_ispike = function(c_val, delta, beta) {
 # Slab pair integral G(c) tabulated on [0, cmax] with linear interpolation.
 # Inner S12 integral by the sin substitution (removes the boundary
 # singularity of (S11 S22 - S12^2)^delta); outer (S11, S22) by
-# Gauss-Laguerre with weight e^{-beta S}. The slab density multiplies at
-# the raw entry (the tilt sees the Schur-shifted entry), so the Cauchy
-# variant only swaps the density factor.
+# Gauss-Laguerre with weight S^(alpha - 1) e^{-beta S} (generalized axes
+# for alpha != 1, so a small-shape singularity lives in the quadrature
+# weight, never the integrand). The slab density multiplies at the raw
+# entry (the tilt sees the Schur-shifted entry), so the Cauchy variant
+# only swaps the density factor.
 zratio_pair_integrals = function(
-  delta, sigma, beta, slab = "normal",
+  delta, sigma, beta, slab = "normal", alpha = 1,
   cmax = 18, ngrid = 121, nlag = 48, nleg = 64
 ) {
-  gl = zratio_gauss_quad(nlag, "laguerre")
+  gl = zratio_gauss_quad(nlag, "laguerre", glag_a = alpha - 1)
   xq = gl$nodes / beta
-  wq = gl$weights / beta
+  wq = gl$weights / beta^alpha
   lg = zratio_gauss_quad(nleg, "legendre")
   th = lg$nodes * (pi / 2)
   wt = lg$weights * (pi / 2)
@@ -118,7 +151,7 @@ zratio_pair_integrals = function(
   cg = seq(0, cmax, length.out = ngrid)
   gv = vapply(cg, g_one, 0.0)
   list(
-    ispike = function(c_val) zratio_ispike(c_val, delta, beta),
+    ispike = function(c_val) zratio_ispike(c_val, delta, beta, alpha),
     g = approxfun(cg, gv, rule = 2),
     cg = cg,
     gv = gv
@@ -151,19 +184,23 @@ zratio_saddle_grid = function(
 
 # Two-moment constants for the common-neighbour node channel: weighted
 # moments of the single-node resolvent under the tilted diagonal prior,
-#   w_k = sigma^{4k} int x^{delta+1} (x + t2)^{-(2k+1)} e^{-beta x} dx / I(1).
+#   w_k = sigma^{4k} int x^{delta+alpha} (x + t2)^{-(2k+1)} e^{-beta x} dx
+#         / I(1)
+# (the node is isolated in the pair block, so the diagonal prior weight
+# x^(alpha-1) folds into the tilt exponent: delta + 1 at alpha = 1).
 # Cauchy slab: the two legs from the node to the toggled endpoints carry
 # independent mixture weights, K_leg | omega ~ N(0, sigma^2 omega), so the
 # resolvent splits per leg, (x + t2)^{-(2k+1)} ->
 # (x + t2 w_a)^{-(2k+1)/2} (x + t2 w_b)^{-(2k+1)/2} with prefactor
 # (w_a w_b)^k, and each leg mixes on the omega grid.
-zratio_node_channel = function(delta, sigma, beta, slab = "normal") {
+zratio_node_channel = function(delta, sigma, beta, slab = "normal",
+                               alpha = 1) {
   t2 = 2 * beta * sigma^2
   if(identical(slab, "cauchy")) {
     mx = zratio_omega_mixture(48)
-    gl = zratio_gauss_quad(96, "laguerre")
+    gl = zratio_gauss_quad(96, "laguerre", glag_a = alpha - 1)
     x = gl$nodes / beta
-    cx = (gl$weights / beta) * x^(delta + 1)
+    cx = (gl$weights / beta^alpha) * x^(delta + 1)
     tx = 2 * outer(x, mx$t)
     mix = function(p) as.numeric((tx + t2)^(-p) %*% mx$w)
     den = sum(cx * mix(0.5)^2)
@@ -174,7 +211,7 @@ zratio_node_channel = function(delta, sigma, beta, slab = "normal") {
   }
   ip = function(p) {
     integrate(
-      function(x) x^(delta + 1) * (x + t2)^(-p) * exp(-beta * x),
+      function(x) x^(delta + alpha) * (x + t2)^(-p) * exp(-beta * x),
       0, Inf,
       rel.tol = 1e-10
     )$value
@@ -185,7 +222,11 @@ zratio_node_channel = function(delta, sigma, beta, slab = "normal") {
 
 # Excess two-moment constants for the CN-CN edge channel: moments of the
 # connected 2-clique block minus twice the single-node constants. Estimated
-# by a seeded within-block Gibbs run. Cauchy slab: the block coupling runs
+# by a seeded within-block Gibbs run. At alpha != 1 the diagonal factor
+# K_ii^(alpha-1) couples the Gamma pivot to the off-diagonal draw, so the
+# row update proposes from the alpha = 1 conjugate conditional and accepts
+# with the independence-Metropolis ratio (K_ii_new / K_ii_old)^(alpha-1).
+# Cauchy slab: the block coupling runs
 # omega-augmented (conjugate IG(1, 1/2 + k^2/(2 sigma^2)) refresh after
 # each draw), the four legs draw fresh prior weights sqrt(omega) = 1/|z|
 # per kept sweep, and the moments use the leg-dressed block recipe
@@ -193,12 +234,18 @@ zratio_node_channel = function(delta, sigma, beta, slab = "normal") {
 #   P = (Wi Mi Wi) R (Wj Mj Wj) R,  p1 = sigma^4 tr P, p2 = sigma^8 tr P^2,
 # which reduces to the a2-resolvent form at omega = 1.
 zratio_clique2_moments = function(
-  delta, sigma, beta, slab = "normal", n_mc = 20000, burn = 60, seed = 7
+  delta, sigma, beta, slab = "normal", alpha = 1,
+  n_mc = 20000, burn = 60, seed = 7
 ) {
   t2 = 2 * beta * sigma^2
   cauchy = identical(slab, "cauchy")
+  general_shape = abs(alpha - 1) > 1e-12
   set.seed(seed)
-  k_mat = diag(rexp(2, beta) + 2, 2)
+  k_mat = if(general_shape) {
+    diag(rgamma(2, alpha, beta) + 2, 2)
+  } else {
+    diag(rexp(2, beta) + 2, 2)
+  }
   s2i = 1 / sigma^2
   om_e = 1
   p1 = p2 = w = numeric(n_mc)
@@ -210,12 +257,20 @@ zratio_clique2_moments = function(
       diag(m) = diag(m) + if(cauchy) 1 / (sigma^2 * om_e) else s2i
       r = chol(m)
       bvec = backsolve(r, rnorm(1))
-      k_mat[i, rest] = bvec
-      k_mat[rest, i] = bvec
-      k_mat[i, i] = rgamma(1, delta + 1, beta) +
+      kii_new = rgamma(1, delta + 1, beta) +
         as.numeric(t(bvec) %*% c_inv %*% bvec)
+      accept = TRUE
+      if(general_shape) {
+        accept = log(runif(1)) <
+          (alpha - 1) * (log(kii_new) - log(k_mat[i, i]))
+      }
+      if(accept) {
+        k_mat[i, rest] = bvec
+        k_mat[rest, i] = bvec
+        k_mat[i, i] = kii_new
+      }
       if(cauchy) {
-        om_e = (0.5 + bvec^2 / (2 * sigma^2)) / rexp(1)
+        om_e = (0.5 + k_mat[i, rest]^2 / (2 * sigma^2)) / rexp(1)
       }
     }
     if(s > burn) {
@@ -254,9 +309,9 @@ zratio_clique2_moments = function(
 # theta the leg resolvents factor, Da = d + t2 w_a kbb, Db = d + t2 w_b kaa,
 # with per-moment prefactors (w_a w_b)^k folded into the leg mixtures.
 zratio_bridge_channel = function(delta, sigma, beta, slab = "normal",
-                                 nlag = 64, nher = 80) {
+                                 alpha = 1, nlag = 64, nher = 80) {
   t2 = 2 * beta * sigma^2
-  gl = zratio_gauss_quad(nlag, "laguerre")
+  gl = zratio_gauss_quad(nlag, "laguerre", glag_a = alpha - 1)
   xa = gl$nodes / beta
   wa = gl$weights
   if(identical(slab, "cauchy")) {
@@ -318,37 +373,40 @@ zratio_bridge_channel = function(delta, sigma, beta, slab = "normal",
 }
 
 # Standardized cell for one fit's Z-ratio constants. The between-graph
-# ratio depends on (delta, eta) only, so the constants take just those two:
-# eta is the user-specified standardized rate when the scale prior carries
-# one, else pairwise_scale * scale_rate (the same number up to rounding).
+# ratio depends on (delta, eta, alpha) only: eta is the user-specified
+# standardized rate when the scale prior carries one, else
+# pairwise_scale * scale_rate (the same number up to rounding), and alpha
+# is the diagonal Gamma shape (1 for the exponential).
 zratio_cell_constants = function(delta, pairwise_scale, scale_rate,
-                                 scale_eta = NA_real_, slab = "normal") {
+                                 scale_eta = NA_real_, scale_shape = 1,
+                                 slab = "normal") {
   eta = if(is.finite(scale_eta)) scale_eta else pairwise_scale * scale_rate
-  zratio_constants(delta, eta, slab = slab)
+  zratio_constants(delta, eta, alpha = scale_shape, slab = slab)
 }
 
 # Session cache for zratio_constants: the constant set is deterministic per
-# (delta, eta, slab) cell, and one fit resolves the same cell more than once
-# (sampler dispatch and diagnostics assembly).
+# (delta, eta, alpha, slab) cell, and one fit resolves the same cell more
+# than once (sampler dispatch and diagnostics assembly).
 zratio_constants_cache = new.env(parent = emptyenv())
 
-# Full fit-time constant set for one (delta, eta, slab) cell. The estimator
-# is defined in the standardized frame, so the slab has unit scale and the
-# diagonal rate is eta: the internal channel builders are evaluated at
-# sigma = 1, beta = eta (the frame the quadrature grids are sized for), and
-# no other scale is representable. addc[1..6] (R indexing) =
-# (w1, w2, ce1, ce2, cb1, cb2), plus the saddle grid and
+# Full fit-time constant set for one (delta, eta, alpha, slab) cell. The
+# estimator is defined in the standardized frame, so the slab has unit
+# scale and the diagonal rate is eta: the internal channel builders are
+# evaluated at sigma = 1, beta = eta (the frame the quadrature grids are
+# sized for), and no other scale is representable. addc[1..6] (R indexing)
+# = (w1, w2, ce1, ce2, cb1, cb2), plus the saddle grid and
 # psi0 = I_spike(0)/G(0). The OLS-correction slots (7..13) and the hull box
 # (14..23) are absent here; the warm-up calibrator appends them. The
 # clique-2 channel draws seeded Monte Carlo samples, so the caller's RNG
 # state is saved and restored. Results are served from a session cache keyed
 # on the cell.
-zratio_constants = function(delta, eta, slab = "normal") {
+zratio_constants = function(delta, eta, alpha = 1, slab = "normal") {
   slab = match.arg(slab, c("normal", "cauchy"))
   sigma = 1
   beta = eta
   key = paste(
-    format(delta, digits = 17), format(eta, digits = 17), slab,
+    format(delta, digits = 17), format(eta, digits = 17),
+    format(alpha, digits = 17), slab,
     sep = "_"
   )
   cached = zratio_constants_cache[[key]]
@@ -367,21 +425,49 @@ zratio_constants = function(delta, eta, slab = "normal") {
       add = TRUE
     )
   }
-  pair = zratio_pair_integrals(delta, sigma, beta, slab)
+  pair = zratio_pair_integrals(delta, sigma, beta, slab, alpha)
+  if(abs(alpha - 1) > 1e-12) {
+    if(alpha < 0.5 || alpha > 5) {
+      warning(
+        "Z-ratio constants at diagonal shape ", format(alpha),
+        " lie outside the tuned range [0.5, 5]; ",
+        "the fixed quadrature grids may lose accuracy.",
+        call. = FALSE
+      )
+    }
+    tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
+    tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
+    if(!is.finite(tail_g) || !is.finite(tail_i) ||
+      tail_g > 1e-6 || tail_i > 1e-6) {
+      warning(
+        "Z-ratio pair integrals retain visible mass at the grid edge ",
+        "(delta = ", format(delta), ", eta = ", format(eta),
+        ", shape = ", format(alpha), "); ",
+        "the saddle tables may be truncated.",
+        call. = FALSE
+      )
+    }
+  }
   grid = zratio_saddle_grid(pair)
-  w12 = zratio_node_channel(delta, sigma, beta, slab)
+  w12 = zratio_node_channel(delta, sigma, beta, slab, alpha)
   # The omega-augmented chain mixes slower than the Normal one, so the
   # Cauchy cell runs longer; the Normal cell keeps its draw-for-draw
-  # reference length.
+  # reference length. The alpha != 1 chain loses draws to the
+  # independence-MH rejections, so it runs longer too.
   e2 = zratio_clique2_moments(
-    delta, sigma, beta, slab,
-    n_mc = if(identical(slab, "cauchy")) 60000 else 20000
+    delta, sigma, beta, slab, alpha,
+    n_mc = if(identical(slab, "cauchy") || abs(alpha - 1) > 1e-12) {
+      60000
+    } else {
+      20000
+    }
   )
-  cb = zratio_bridge_channel(delta, sigma, beta, slab)
+  cb = zratio_bridge_channel(delta, sigma, beta, slab, alpha)
   addc = c(w12[1], w12[2], e2[1] - 2 * w12[1], e2[2] - 2 * w12[2], cb[1], cb[2])
   out = list(
     delta = delta,
     eta = eta,
+    alpha = alpha,
     slab = slab,
     addc = addc,
     tg = grid$tg,
