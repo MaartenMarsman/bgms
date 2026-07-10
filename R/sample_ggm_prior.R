@@ -325,25 +325,15 @@ sample_ggm_prior = function(
         ip$interaction_prior_type
       ))
     }
-    if(abs(sp$scale_shape - 1) > 1e-12) {
-      stop(sprintf(
-        paste0(
-          "spec = \"hierarchical\" requires shape = 1 on the diagonal ",
-          "scale prior; the Z-ratio normalizer is derived for the ",
-          "exponential diagonal. Got shape = %s. Use ",
-          "gamma_prior(shape = 1) or exponential_prior()."
-        ),
-        format(sp$scale_shape)
-      ))
-    }
     zc = zratio_cell_constants(
       delta, ip$pairwise_scale, sp$scale_rate, sp$scale_eta,
+      scale_shape = sp$scale_shape,
       slab = ip$interaction_prior_type
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, slab = zc$slab,
+      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
       ),

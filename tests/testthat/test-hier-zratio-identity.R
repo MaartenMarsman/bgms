@@ -20,16 +20,43 @@ hier_prior_run = function(q, delta, sigma, p_inc, um, edge_prior = NULL,
   )
 }
 
-test_that("hierarchical spec requires the shape-1 diagonal", {
-  expect_error(
-    sample_ggm_prior(
-      p = 4, n_samples = 5, n_warmup = 5, spec = "hierarchical",
-      interaction_prior = normal_prior(scale = 1),
-      precision_scale_prior = gamma_prior(shape = 2, rate = 1),
-      verbose = FALSE
-    ),
-    "shape = 1"
+test_that("hierarchical graph marginal holds at gamma shapes", {
+  skip_on_cran()
+  # The generalized constants carry the diagonal Gamma shape through every
+  # channel and the oracle sweep; the graph law must hold away from the
+  # exponential (shape = 1) cell on both update methods.
+  for(shape in c(0.5, 2)) {
+    for(um in c("adaptive-metropolis", "gibbs")) {
+      d = sample_ggm_prior(
+        p = 6L, n_samples = 6000L, n_warmup = 1500L,
+        interaction_prior = normal_prior(scale = 0.5),
+        precision_scale_prior = gamma_prior(shape = shape, rate = 2),
+        spec = "hierarchical", edge_inclusion_prob = 0.3,
+        update_method = um, delta = 0.5 * log(6), seed = 7L,
+        verbose = FALSE
+      )
+      expect_lt(
+        abs(mean(d$edge_indicators) - 0.3), 0.02,
+        label = paste0("shape = ", shape, ", ", um)
+      )
+    }
+  }
+})
+
+test_that("gamma-shape constants build in the standardized cell", {
+  skip_on_cran()
+  # Same eta and shape, different frames: one constant set.
+  d = 0.5 * log(6)
+  a = bgms:::zratio_cell_constants(
+    d,
+    pairwise_scale = 0.5, scale_rate = 2, scale_shape = 2
   )
+  b = bgms:::zratio_cell_constants(
+    d,
+    pairwise_scale = 0.25, scale_rate = 4, scale_shape = 2
+  )
+  expect_identical(a, b)
+  expect_identical(a$alpha, 2)
 })
 
 test_that("hierarchical graph marginal matches Bernoulli(p); joint does not", {

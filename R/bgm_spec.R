@@ -414,18 +414,6 @@ bgm_spec = function(x,
         interaction_prior_type
       ))
     }
-    if(abs(scale_shape - 1) > 1e-12) {
-      stop(sprintf(
-        paste0(
-          "precision_graph_prior = \"hierarchical\" requires shape = 1 on the ",
-          "precision scale prior; the Z-ratio normalizer is derived for ",
-          "the exponential diagonal. Got shape = %s. Use ",
-          "gamma_prior(shape = 1) or exponential_prior(), or keep ",
-          "precision_graph_prior = \"joint\"."
-        ),
-        format(scale_shape)
-      ))
-    }
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
