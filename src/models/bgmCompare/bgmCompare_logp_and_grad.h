@@ -174,22 +174,26 @@ std::pair<double, arma::vec> logp_and_gradient(
  * Log-pseudoposterior contribution of a single main-effect parameter.
  *
  * Used by element-wise Metropolis updates. Evaluates the pseudolikelihood
- * and prior for one (variable, category/par, column h) entry.
+ * and prior for one (variable, category/par, column h) entry. Rest scores
+ * are read from the maintained residual matrices; the pairwise effects do
+ * not change during main-effect updates.
  *
+ * @param residual_groups  Per-group rest-score matrices (n_g x V)
  * @param variable   Variable index
  * @param category   Category index (ordinal variables only)
  * @param par        Parameter index: 0 = linear, 1 = quadratic (Blume-Capel only)
  * @param h          Column index: 0 = overall baseline, >0 = group difference
+ * @param normalizers_in   Optional cached per-group log-normalizer sums for
+ *                         the variable (length G); skips their computation
+ * @param normalizers_out  Optional output for the computed per-group
+ *                         log-normalizer sums (length G)
  * @see gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_main_component(
     const arma::mat& main_effects,
-    const arma::mat& pairwise_effects,
     const arma::imat& main_effect_indices,
-    const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
-    const arma::imat& group_indices,
+    const std::vector<arma::mat>& residual_groups,
     const arma::ivec& num_categories,
     const std::vector<arma::imat>& counts_per_category_group,
     const std::vector<arma::imat>& blume_capel_stats_group,
@@ -202,7 +206,9 @@ double log_pseudoposterior_main_component(
     int par,
     int h,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    const arma::vec* normalizers_in = nullptr,
+    arma::vec* normalizers_out = nullptr
 );
 
 /**
@@ -217,6 +223,10 @@ double log_pseudoposterior_main_component(
  * @param variable2          Second variable index
  * @param h                  Column index: 0 = overall baseline, >0 = group difference
  * @param delta              Proposed change to pairwise_effects(idx, h)
+ * @param normalizers_in     Optional cached per-group log-normalizer sums for
+ *                           the endpoint variables (G x 2); skips their computation
+ * @param normalizers_out    Optional output for the computed per-group
+ *                           log-normalizer sums (G x 2)
  * @see gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_pair_component(
@@ -238,7 +248,9 @@ double log_pseudoposterior_pair_component(
     int h,
     double delta,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    const arma::mat* normalizers_in = nullptr,
+    arma::mat* normalizers_out = nullptr
 );
 
 
@@ -247,27 +259,25 @@ double log_pseudoposterior_pair_component(
  *
  * Compares proposed vs. current main-effect parameters across all groups,
  * combining sufficient-statistic differences with normalizing-constant ratios.
+ * Both states share the rest scores held in the maintained residual matrices.
  * Used by the Metropolis-Hastings indicator update for main effects.
  *
  * @param current_main_effects   Current main-effect matrix
  * @param proposed_main_effects  Proposed main-effect matrix
+ * @param residual_groups        Per-group rest-score matrices (n_g x V)
  * @param variable               Variable whose main effect is being toggled
  * @see gradient() for remaining parameter descriptions
  */
 double log_pseudolikelihood_ratio_main(
     const arma::mat& current_main_effects,
     const arma::mat& proposed_main_effects,
-    const arma::mat& current_pairwise_effects,
     const arma::imat& main_effect_indices,
-    const arma::imat& pairwise_effect_indices,
     const arma::mat&  projection,
-    const arma::imat& observations,
-    const arma::imat& group_indices,
+    const std::vector<arma::mat>& residual_groups,
     const arma::ivec& num_categories,
     const std::vector<arma::imat>& counts_per_category_group,
     const std::vector<arma::imat>& blume_capel_stats_group,
     const int num_groups,
-    const arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const int variable
@@ -278,10 +288,15 @@ double log_pseudolikelihood_ratio_main(
  *
  * Compares proposed vs. current pairwise-effect parameters for a single edge,
  * summing the data contribution and normalizing-constant ratios for both
- * endpoint variables. Used by the Metropolis-Hastings indicator update.
+ * endpoint variables. Current-state rest scores come from the maintained
+ * residual matrices; proposed-state rest scores adjust them by the change in
+ * the group-specific effective weight. Used by the Metropolis-Hastings
+ * indicator update.
  *
  * @param current_pairwise_effects   Current pairwise-effect matrix
  * @param proposed_pairwise_effects  Proposed pairwise-effect matrix
+ * @param obs_double_groups          Per-group observation matrices as double
+ * @param residual_groups            Per-group rest-score matrices (n_g x V)
  * @param var1                       First variable index
  * @param var2                       Second variable index
  * @see gradient() for remaining parameter descriptions
@@ -293,8 +308,8 @@ double log_pseudolikelihood_ratio_pairwise(
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
-    const arma::imat& group_indices,
+    const std::vector<arma::mat>& obs_double_groups,
+    const std::vector<arma::mat>& residual_groups,
     const arma::ivec& num_categories,
     const std::vector<arma::mat>& pairwise_stats_group,
     const int num_groups,
