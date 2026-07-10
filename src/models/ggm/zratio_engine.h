@@ -58,12 +58,13 @@ struct ZRatioBlock {
  *            extrapolating the smooth ratio-scale surface, so the correction
  *            extends past the training cloud.
  *
- * Conventions (standardized cell): K_ii ~ Exp(beta), slab K_ij ~ N(0,
- * sigma^2), tilt |K|^delta. The between-graph ratio is invariant under the
- * diagonal congruence Theta = A K A, so the constants are built at
- * sigma = 1, beta = eta = pairwise_scale * scale_rate in bgms parameter
- * units (R/zratio_tables.R, zratio_cell_constants), and the same cell
- * serves every user scale choice.
+ * Conventions (standardized cell): K_ii ~ Gamma(alpha, beta) (alpha = 1 is
+ * the exponential default), slab K_ij ~ N(0, sigma^2), tilt |K|^delta. The
+ * between-graph ratio is invariant under the diagonal congruence
+ * Theta = A K A, so the constants are built at sigma = 1,
+ * beta = eta = pairwise_scale * scale_rate in bgms parameter units
+ * (R/zratio_tables.R, zratio_cell_constants), and the same
+ * (delta, eta, alpha) cell serves every user scale choice.
  */
 class ZRatioEngine {
 public:
@@ -117,10 +118,11 @@ public:
      */
     void set_oracle_params(double delta, double eta, SafeRNG* rng,
                            int n_sweep = 300, int burn = 30,
-                           bool slab_cauchy = false) {
+                           bool slab_cauchy = false, double alpha = 1.0) {
         delta_ = delta;
         sigma_ = 1.0;
         beta_ = eta;
+        alpha_ = alpha;
         rng_ = rng;
         n_sweep_ = n_sweep;
         burn_ = burn;
@@ -138,15 +140,16 @@ public:
      * box into the addc layout, after which the engine behaves exactly
      * like one constructed with a full 23-slot constant block.
      *
-     * (delta, eta) are the standardized-cell prior constants the oracle
-     * samples under (unit slab scale, diagonal rate eta); rng must outlive
-     * the engine (the model's chain RNG). slab_cauchy selects the Cauchy
-     * slab family for the oracle (see set_oracle_params).
+     * (delta, eta, alpha) are the standardized-cell prior constants the
+     * oracle samples under (unit slab scale, diagonal rate eta, diagonal
+     * Gamma shape alpha); rng must outlive the engine (the model's chain
+     * RNG). slab_cauchy selects the Cauchy slab family for the oracle (see
+     * set_oracle_params).
      */
     void enable_calibration(double delta, double eta, SafeRNG* rng,
                             int n_sweep = 300, int burn = 30,
                             double maha_thresh = 9.0, int min_anchors = 6,
-                            bool slab_cauchy = false);
+                            bool slab_cauchy = false, double alpha = 1.0);
 
     /** Refit and freeze: pack coefficients + hull box into addc[6..22]. */
     void freeze_calibration();
@@ -233,7 +236,7 @@ private:
     bool calibration_enabled_ = false;
     bool frozen_ = true;
     bool oracle_slab_cauchy_ = false;
-    double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5;
+    double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5, alpha_ = 1.0;
     SafeRNG* rng_ = nullptr;
     int n_sweep_ = 300, burn_ = 30;
     double maha_thresh_ = 9.0;

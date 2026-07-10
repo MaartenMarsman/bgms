@@ -13,7 +13,7 @@ bgm(
   interaction_prior = cauchy_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
@@ -114,8 +114,8 @@ Default: \code{normal_prior(scale = 1)}.}
 \item{precision_scale_prior}{A prior specification object for the diagonal
 elements of the precision matrix, created by one of:
 \itemize{
-\item \code{\link{gamma_prior}()}: Gamma prior (default).
-\item \code{\link{exponential_prior}()}: Exponential prior.
+\item \code{\link{exponential_prior}()}: Exponential prior (default).
+\item \code{\link{gamma_prior}()}: Gamma prior.
 }
 Both constructors accept the rate in one of two frames: \code{rate}
 (raw) or \code{eta} (standardized). \code{eta} is the rate on the
@@ -130,7 +130,7 @@ changes. It requires an \code{interaction_prior} with a scale
 parameter (\code{cauchy_prior()} or \code{normal_prior()}).
 Only used for models with continuous variables (GGM and mixed MRF).
 Ignored for pure ordinal models.
-Default: \code{gamma_prior(shape = 1, eta = 1)}.}
+Default: \code{exponential_prior(eta = 1)}.}
 
 \item{delta}{Non-negative numeric, or \code{NULL} for the dimension-
 adaptive default. Determinant-tilt exponent on the continuous-block
@@ -202,9 +202,8 @@ during sampling
 (\code{\link{summarize_zratio_gauge}}; the summary is returned as
 \code{fit$zratio_diag} and issues print like other sampler
 warnings). Requires \code{edge_selection = TRUE}, a
-\code{normal_prior()} or \code{cauchy_prior()} interaction prior, a
-shape-1 \code{gamma_prior()} (or \code{exponential_prior()})
-precision scale prior, and continuous data — either all-continuous
+\code{normal_prior()} or \code{cauchy_prior()} interaction prior,
+and continuous data — either all-continuous
 (GGM) or mixed with at least two continuous variables. On mixed data the
 normalizer lives on the continuous block \eqn{K_{yy}}, so the
 Z-ratio enters the continuous-continuous edge moves only, with the

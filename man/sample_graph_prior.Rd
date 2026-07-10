@@ -10,7 +10,7 @@ sample_graph_prior(
   edge_prior = bernoulli_prior(0.5),
   spec = c("hierarchical", "joint"),
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   delta = NULL,
   theta = NULL,
   allocations = NULL,
@@ -135,7 +135,7 @@ g = sample_graph_prior(
   p = 6, n_samples = 500,
   edge_prior = bernoulli_prior(0.3), spec = "joint",
   interaction_prior = normal_prior(scale = 0.5),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+  precision_scale_prior = exponential_prior(rate = 2),
   seed = 11, verbose = FALSE
 )
 mean(g$edge_indicators) # shifted away from 0.3 by the Z(Gamma) tilt

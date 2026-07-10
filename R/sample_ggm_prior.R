@@ -26,8 +26,7 @@
 #'     \eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
 #'     per-graph normalizer ratio in each between-edge move is evaluated
 #'     by the deterministic local Z-ratio approximation. Requires
-#'     \code{normal_prior()} interactions and a shape-1 diagonal scale
-#'     prior.
+#'     \code{normal_prior()} or \code{cauchy_prior()} interactions.
 #' }
 #'
 #' @details
@@ -66,9 +65,9 @@
 #'   \code{\link{exponential_prior}()}. Both accept the rate in the raw
 #'   frame (\code{rate}) or the standardized frame (\code{eta}; the raw
 #'   rate is derived as \code{eta / s} for interaction-prior scale
-#'   \code{s}). Default: \code{gamma_prior(shape = 1, eta = 1)}; with the
+#'   \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
 #'   default \code{cauchy_prior(scale = 2.5)} interaction prior this
-#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Gamma}(1, 0.4)}.
+#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(0.4)}.
 #' @param step_size Positive numeric. Initial NUTS step size used to seed
 #'   dual-averaging adaptation. Default \code{0.1}. Used only for
 #'   \code{spec = "conditional"} (NUTS path); ignored for the
@@ -196,7 +195,7 @@ sample_ggm_prior = function(
   n_samples,
   n_warmup = 2e3,
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
   seed = 1L,
@@ -325,25 +324,15 @@ sample_ggm_prior = function(
         ip$interaction_prior_type
       ))
     }
-    if(abs(sp$scale_shape - 1) > 1e-12) {
-      stop(sprintf(
-        paste0(
-          "spec = \"hierarchical\" requires shape = 1 on the diagonal ",
-          "scale prior; the Z-ratio normalizer is derived for the ",
-          "exponential diagonal. Got shape = %s. Use ",
-          "gamma_prior(shape = 1) or exponential_prior()."
-        ),
-        format(sp$scale_shape)
-      ))
-    }
     zc = zratio_cell_constants(
       delta, ip$pairwise_scale, sp$scale_rate, sp$scale_eta,
+      scale_shape = sp$scale_shape,
       slab = ip$interaction_prior_type
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, slab = zc$slab,
+      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         calibration_window, p, n_warmup
       ),

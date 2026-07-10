@@ -71,11 +71,13 @@ Rcpp::List zratio_test_reference(
     int n_draws,
     int burn,
     int seed,
-    bool slab_cauchy = false
+    bool slab_cauchy = false,
+    double alpha = 1.0
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     SafeRNG rng(seed);
-    engine.set_oracle_params(delta, eta, &rng, n_draws, burn, slab_cauchy);
+    engine.set_oracle_params(delta, eta, &rng, n_draws, burn, slab_cauchy,
+                             alpha);
     ZRatioBlock bl = engine.extract_block(G, i - 1, j - 1);
     if (!bl.valid) {
         return Rcpp::List::create(Rcpp::_["valid"] = false);
@@ -142,12 +144,13 @@ Rcpp::List zratio_test_calibrated_eval(
     int n_sweep,
     int burn,
     int freeze_after,
-    bool slab_cauchy = false
+    bool slab_cauchy = false,
+    double alpha = 1.0
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     SafeRNG rng(seed);
     engine.enable_calibration(delta, eta, &rng, n_sweep, burn, 9.0, 6,
-                              slab_cauchy);
+                              slab_cauchy, alpha);
     arma::vec out(edges.n_rows);
     for (arma::uword e = 0; e < edges.n_rows; ++e) {
         if (freeze_after > 0 &&

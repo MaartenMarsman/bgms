@@ -355,7 +355,7 @@ ggm_correction_cell = function(p, delta, interaction_prior,
 build_ggm_correction_table = function(
   p, delta = NULL,
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
   cores = 1L, base_seed = 1L, show_progress = FALSE
@@ -536,7 +536,7 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
 ggm_correction_table = function(
   p, delta = NULL,
   interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   n_grid = 120L, n_samples = 2000L, n_warmup = 500L, n_seeds = 3L,
   update_method = c("gibbs", "adaptive-metropolis"),
   cores = 1L, base_seed = 1L, refresh = FALSE, verbose = FALSE,

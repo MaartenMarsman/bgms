@@ -575,3 +575,30 @@ test_that("prior info is stored in .bgm_spec", {
   expect_equal(spec$prior$threshold_prior_type, "normal")
   expect_equal(spec$prior$threshold_scale, 0.5)
 })
+
+test_that("the exponential default matches gamma_prior(shape = 1, eta = 1) exactly", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+
+  fit_default = bgm(Y,
+    variable_type = "continuous",
+    iter = 25, warmup = 50, chains = 1, seed = 7,
+    display_progress = "none"
+  )
+  fit_gamma = bgm(Y,
+    variable_type = "continuous",
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    iter = 25, warmup = 50, chains = 1, seed = 7,
+    display_progress = "none"
+  )
+
+  p_default = fit_default$.bgm_spec$prior
+  p_gamma = fit_gamma$.bgm_spec$prior
+  expect_equal(p_default$scale_prior_type, "exponential")
+  expect_equal(p_gamma$scale_prior_type, "gamma")
+  expect_identical(p_default$scale_shape, p_gamma$scale_shape)
+  expect_identical(p_default$scale_rate, p_gamma$scale_rate)
+  expect_identical(p_default$scale_eta, p_gamma$scale_eta)
+
+  expect_identical(fit_default$raw_samples, fit_gamma$raw_samples)
+})

@@ -37,12 +37,13 @@ skip_unless_slow_sbc = function() {
 # selection). The prior is specified on the partial-association scale
 # Omega = -K/2 to match the bgms sampler convention:
 #   Omega_ij    ~ Cauchy(0, scale)         (off-diagonal, i < j, symmetrised)
-#   -Omega_ii   ~ Gamma(1, 1)              (diagonal, positive)
+#   -Omega_ii   ~ Gamma(shape, rate)       (diagonal, positive)
 # Implies on K:
 #   K_ij = -2 * Omega_ij ~ Cauchy(0, 2*scale)
-#   K_ii =  2 * (-Omega_ii) ~ 2 * Gamma(1, 1) = Gamma(1, 1/2)
+#   K_ii =  2 * (-Omega_ii) ~ 2 * Gamma(shape, rate)
 # Rejection-samples until K is positive definite.
-draw_prior_K = function(p, scale = 2.5, max_tries = 10000) {
+draw_prior_K = function(p, scale = 2.5, shape = 1, rate = 1,
+                        max_tries = 10000) {
   for(attempt in seq_len(max_tries)) {
     K = matrix(0, p, p)
 
@@ -55,9 +56,9 @@ draw_prior_K = function(p, scale = 2.5, max_tries = 10000) {
       }
     }
 
-    # Diagonal: -Omega_ii ~ Gamma(1, 1), K_ii = 2 * (-Omega_ii)
+    # Diagonal: -Omega_ii ~ Gamma(shape, rate), K_ii = 2 * (-Omega_ii)
     for(i in seq_len(p)) {
-      K[i, i] = 2 * rgamma(1, shape = 1, rate = 1)
+      K[i, i] = 2 * rgamma(1, shape = shape, rate = rate)
     }
 
     # Check positive definiteness
@@ -619,5 +620,83 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
   chisq_p = chisq.test(counts)$p.value
   expect_true(chisq_p > 0.001,
     info = sprintf("SBC global chi-squared (joint) p=%.4f", chisq_p)
+  )
+})
+
+
+# ---- SBC test: gamma-shape diagonal (Gibbs, no edge selection) ----------------
+
+test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
+  skip_unless_slow_sbc()
+
+  # The row-block Gibbs corrects its shape-1 conjugate row proposal by an
+  # independence-Metropolis accept at shape != 1; uniform ranks under a
+  # Gamma(2, 1) diagonal certify the corrected sweep against the prior
+  # predictive.
+  p = 3
+  n = 100
+  R = 200
+  L = 999
+  thin = 5
+  L_raw = L * thin
+  scale = 2.5
+  shape = 2
+
+  set.seed(2029)
+
+  prior_draws = vector("list", R)
+  for(r in seq_len(R)) {
+    prior_draws[[r]] = draw_prior_K(p, scale, shape = shape)
+  }
+
+  n_off = p * (p - 1) / 2
+  n_params = n_off + p
+  ranks = matrix(NA_real_, nrow = R, ncol = n_params)
+
+  for(r in seq_len(R)) {
+    K_true = prior_draws[[r]]
+    Sigma = solve(K_true)
+    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    dat = as.data.frame(X)
+    colnames(dat) = paste0("V", seq_len(p))
+
+    fit = bgm(dat,
+      variable_type = "continuous",
+      iter = L_raw, warmup = 5000, chains = 1,
+      edge_selection = FALSE, update_method = "gibbs",
+      pairwise_scale = scale, delta = 0,
+      precision_scale_prior = gamma_prior(shape = shape, rate = 1),
+      display_progress = "none", seed = 2029L + r
+    )
+
+    thin_idx = seq(1, L_raw, by = thin)
+    ranks[r, ] = compute_sbc_ranks(K_true, p, fit, thin_idx = thin_idx)
+    if(r == 1) colnames(ranks) = names(ranks[1, ])
+  }
+
+  n_fail_ks = 0
+  for(j in seq_len(ncol(ranks))) {
+    u = ranks[, j] / (L + 1)
+    p_val = suppressWarnings(ks.test(u, "punif")$p.value)
+    if(p_val <= 0.01) n_fail_ks = n_fail_ks + 1
+  }
+
+  max_fail = max(1, ceiling(n_params * 0.01 * 2))
+  expect_true(n_fail_ks <= max_fail,
+    info = sprintf(
+      "SBC KS (gibbs, shape 2): %d/%d parameters failed (limit %d)",
+      n_fail_ks, n_params, max_fail
+    )
+  )
+
+  all_ranks = as.vector(ranks)
+  bins = cut(all_ranks / (L + 1),
+    breaks = seq(0, 1, length.out = 21),
+    include.lowest = TRUE
+  )
+  counts = tabulate(bins, nbins = 20)
+  chisq_p = chisq.test(counts)$p.value
+  expect_true(chisq_p > 0.001,
+    info = sprintf("SBC global chi-squared (gibbs, shape 2) p=%.4f", chisq_p)
   )
 })

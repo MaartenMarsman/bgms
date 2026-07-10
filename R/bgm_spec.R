@@ -261,7 +261,7 @@ bgm_spec = function(x,
                     means_scale = 1,
                     means_alpha = NA_real_,
                     means_beta = NA_real_,
-                    scale_prior_type = "gamma",
+                    scale_prior_type = "exponential",
                     scale_shape = 1,
                     scale_rate = 1,
                     scale_eta = NA_real_,
@@ -376,8 +376,8 @@ bgm_spec = function(x,
   }
 
   # --- Hierarchical graph-prior spec eligibility --------------------------------
-  # The Z-ratio constants are derived for the Normal slab with an exponential
-  # (shape-1 Gamma) diagonal, on the continuous precision matrix, under edge
+  # The Z-ratio constants are derived for a Normal or Cauchy slab with a
+  # Gamma diagonal, on the continuous precision matrix, under edge
   # selection. Anything else keeps the joint specification.
   precision_graph_prior = match.arg(precision_graph_prior)
   if(precision_graph_prior == "hierarchical") {
@@ -412,18 +412,6 @@ bgm_spec = function(x,
           "\"joint\"."
         ),
         interaction_prior_type
-      ))
-    }
-    if(abs(scale_shape - 1) > 1e-12) {
-      stop(sprintf(
-        paste0(
-          "precision_graph_prior = \"hierarchical\" requires shape = 1 on the ",
-          "precision scale prior; the Z-ratio normalizer is derived for ",
-          "the exponential diagonal. Got shape = %s. Use ",
-          "gamma_prior(shape = 1) or exponential_prior(), or keep ",
-          "precision_graph_prior = \"joint\"."
-        ),
-        format(scale_shape)
       ))
     }
   }

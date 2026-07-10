@@ -146,7 +146,7 @@ prior_only_chain_pips = function(spec, iter, warmup) {
       p, chain_sampler, num_vars
     )
     conjugate_slab = p$interaction_prior_type %in% c("cauchy", "normal") &&
-      identical(p$scale_prior_type, "gamma")
+      p$scale_prior_type %in% c("gamma", "exponential")
     results = sample_ggm(
       inputFromR = list(
         n = 0L,

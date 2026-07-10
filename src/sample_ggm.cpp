@@ -131,16 +131,18 @@ Rcpp::List sample_ggm(
             Rcpp::as<std::string>(zs["slab"]) == "cauchy";
         const double zr_delta = Rcpp::as<double>(zs["delta"]);
         const double zr_eta = Rcpp::as<double>(zs["eta"]);
+        const double zr_alpha = zs.containsElementNamed("alpha")
+            ? Rcpp::as<double>(zs["alpha"]) : 1.0;
         // The rng pointer is rebound per chain clone by GGMModel.
         if (zratio_window > 0) {
             engine->enable_calibration(zr_delta, zr_eta, nullptr, 300, 30, 9.0,
-                                       6, zr_cauchy);
+                                       6, zr_cauchy, zr_alpha);
         } else {
             // No warm-up calibration (pre-packed constants): still hand the
             // engine the standardized-cell prior params so the trust gauge's
             // block-local reference can sample.
             engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
-                                      zr_cauchy);
+                                      zr_cauchy, zr_alpha);
         }
         model.set_zratio_engine(std::move(engine));
     }

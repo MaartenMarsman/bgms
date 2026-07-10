@@ -22,16 +22,6 @@ test_that("hierarchical spec eligibility is validated", {
     bgm(
       x = Y, variable_type = "continuous",
       interaction_prior = normal_prior(scale = 0.5),
-      precision_scale_prior = gamma_prior(shape = 2, rate = 2),
-      precision_graph_prior = "hierarchical",
-      update_method = "gibbs", display_progress = "none", verbose = FALSE
-    ),
-    "shape = 1"
-  )
-  expect_error(
-    bgm(
-      x = Y, variable_type = "continuous",
-      interaction_prior = normal_prior(scale = 0.5),
       precision_scale_prior = gamma_prior(shape = 1, rate = 2),
       edge_selection = FALSE,
       precision_graph_prior = "hierarchical",
@@ -48,6 +38,23 @@ test_that("hierarchical spec eligibility is validated", {
     ),
     "continuous"
   )
+})
+
+test_that("the hierarchical spec accepts a gamma-shape diagonal", {
+  skip_on_cran()
+  Y = hier_test_data(q = 8)
+  fit = bgm(
+    x = Y, variable_type = "continuous",
+    iter = 100, warmup = 150,
+    interaction_prior = normal_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 2, rate = 2),
+    precision_graph_prior = "hierarchical", calibration_window = 50,
+    update_method = "gibbs", chains = 1, cores = 1, seed = 7,
+    display_progress = "none", verbose = FALSE
+  )
+  s = summary(fit)
+  expect_true(all(is.finite(s$pairwise$mean)))
+  expect_false(is.null(fit@zratio_diag))
 })
 
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {

@@ -80,12 +80,13 @@ run_sampler_ggm = function(spec) {
   if(identical(p$precision_graph_prior, "hierarchical")) {
     zc = zratio_cell_constants(
       p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
+      scale_shape = p$scale_shape,
       slab = p$interaction_prior_type
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, slab = zc$slab,
+      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         p$calibration_window, d$num_variables, s$warmup
       ),
@@ -224,12 +225,13 @@ run_sampler_mixed_mrf = function(spec) {
   if(identical(p$precision_graph_prior, "hierarchical")) {
     zc = zratio_cell_constants(
       p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
+      scale_shape = p$scale_shape,
       slab = p$interaction_prior_type
     )
     zratio = list(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, slab = zc$slab,
+      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
       calibration_window = resolve_zratio_calibration_window(
         p$calibration_window, d$num_continuous, s$warmup
       ),
