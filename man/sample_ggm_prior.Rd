@@ -118,7 +118,12 @@ never shortened; the window is appended.}
 (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
 the result; detected issues are printed when \code{verbose}. The gauge
 redoes a subset of the chain's edge decisions with the exact
-calculation and records how often the outcome differs.}
+calculation and reports two alarms: how often the decision outcome
+differs (\code{flip_rate}), and the projected distortion of the mean
+inclusion probability from the measured error under the edge prior's
+feedback (\code{harm_pred}). Evidence-free sampling is the regime where
+the second alarm matters: a small consistent error can shift the graph
+marginal without flipping individual decisions.}
 }
 \value{
 A list with components

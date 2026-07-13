@@ -48,6 +48,13 @@ struct ZRatioGauge {
     double noise_sum = 0.0;   ///< sum of per-pair dalpha noise (reference MCSE)
     double se_mcse2_sum = 0.0; ///< sum of squared per-pair log-scale reference MCSE
 
+    // Per-referenced-pair record stream (bounded by cap * n_sweeps, so tens
+    // of entries): the audited edge, its signed log-ratio error, and the
+    // reference MCSE. Lets the summary weight each error by that edge's own
+    // inclusion sensitivity instead of pairing chain-level averages.
+    std::vector<int> rec_i, rec_j;
+    std::vector<double> rec_se, rec_mcse;
+
     void reset() {
         ent_sweep = ref_sweep = 0;
         dal_sum_sweep = 0.0;
@@ -56,6 +63,10 @@ struct ZRatioGauge {
         n_ent = n_ref = n_capped = 0;
         se_sum = se_sum2 = noise_sum = 0.0;
         se_mcse2_sum = 0.0;
+        rec_i.clear();
+        rec_j.clear();
+        rec_se.clear();
+        rec_mcse.clear();
     }
     void begin_sweep() { ent_sweep = 0; ref_sweep = 0; dal_sum_sweep = 0.0; }
     void end_sweep() {
@@ -132,4 +143,8 @@ inline void zratio_gauge_record(ZRatioGauge& g, ZRatioEngine* engine,
     g.se_sum2 += se * se;
     g.noise_sum += dnoise;
     g.se_mcse2_sum += mcse * mcse;
+    g.rec_i.push_back(i);
+    g.rec_j.push_back(j);
+    g.rec_se.push_back(se);
+    g.rec_mcse.push_back(mcse);
 }

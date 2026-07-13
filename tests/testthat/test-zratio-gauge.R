@@ -148,3 +148,49 @@ test_that("a known-biased evidence-free fit fires the harm channel", {
   expect_gt(pc$amplification, 5)
   expect_true(pc$harm_flag)
 })
+
+test_that("the harm channel weights errors by per-edge sensitivity", {
+  # Per-pair audit stream present: harm_pred = |mean(m_e s_e)| * A with a
+  # cluster-robust (per audited edge) resolution gate. Edge (0,1) is audited
+  # twice to exercise the clustering.
+  gauge = list(
+    flip_rate = 0.001, noise_floor = 1e-4, se_mean = mean(c(0.05, 0.03, 0.05)),
+    se_sd = 0.01, se_mcse = 0.002, n_ent = 100, n_ref = 3, n_capped = 0,
+    pair_i = c(0L, 0L, 0L), pair_j = c(1L, 2L, 1L),
+    pair_se = c(0.05, 0.03, 0.05), pair_mcse = c(0.002, 0.002, 0.002)
+  )
+  chains = list(list(zratio = list(gauge = gauge)))
+  a = 9; b = 1; E = 190; th = 0.9
+  pip = rep(th, E)
+  s = summarize_zratio_gauge(
+    chains, verbose = FALSE,
+    harm_inputs = list(pip = list(pip), a = a, b = b)
+  )
+  pc = s$per_chain
+
+  m = th * (1 - th)
+  theta_hat = (a + E * th) / (a + b + E)
+  gain = E * m / (theta_hat * (1 - theta_hat) * (a + b + E))
+  A = 1 / (1 - min(gain, 0.98))
+  expect_equal(pc$kappa, m * A)
+  x = m * c(0.05, 0.03, 0.05)
+  expect_equal(pc$harm_pred, abs(mean(x)) * A)
+  # Resolution gate: cluster-robust spread + reference noise.
+  cr = ((sum(x[c(1, 3)]) - 2 * mean(x))^2 + (x[2] - mean(x))^2) / 9
+  noise2 = sum((m * 0.002)^2 * 3) / 9
+  expect_true(abs(mean(x)) > 2 * sqrt(cr + noise2))
+  expect_true(pc$harm_flag)
+
+  # Heterogeneous sensitivities: errors on pinned edges must not count.
+  pip2 = rep(th, E)
+  pip2[1] = 0.999   # edge (0,1) pinned: m_e ~ 0
+  s2 = summarize_zratio_gauge(
+    chains, verbose = FALSE,
+    harm_inputs = list(pip = list(pip2), a = a, b = b)
+  )
+  m1 = 0.999 * (1 - 0.999); m2 = th * (1 - th)
+  x2 = c(m1 * 0.05, m2 * 0.03, m1 * 0.05)
+  expect_equal(s2$per_chain$harm_pred,
+               abs(mean(x2)) * s2$per_chain$amplification)
+  expect_lt(s2$per_chain$harm_pred, pc$harm_pred)
+})

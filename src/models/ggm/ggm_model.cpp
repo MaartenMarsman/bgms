@@ -34,6 +34,13 @@ void GGMModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         chain_result.zratio_gauge_n_ent = zratio_gauge_.n_ent;
         chain_result.zratio_gauge_n_ref = zratio_gauge_.n_ref;
         chain_result.zratio_gauge_n_capped = zratio_gauge_.n_capped;
+        chain_result.zratio_gauge_pair_i =
+            arma::conv_to<arma::ivec>::from(zratio_gauge_.rec_i);
+        chain_result.zratio_gauge_pair_j =
+            arma::conv_to<arma::ivec>::from(zratio_gauge_.rec_j);
+        chain_result.zratio_gauge_pair_se = arma::vec(zratio_gauge_.rec_se);
+        chain_result.zratio_gauge_pair_mcse =
+            arma::vec(zratio_gauge_.rec_mcse);
     }
 }
 

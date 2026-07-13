@@ -185,7 +185,10 @@
 #'       ratio with a fast local approximation, calibrated against exact
 #'       Monte-Carlo evaluations in an appended warm-up window (see
 #'       \code{calibration_window}). A trust gauge audits the approximation
-#'       during sampling
+#'       during sampling on two channels: the rate at which the chain's edge
+#'       decisions would differ under the exact calculation, and the
+#'       projected distortion of the inclusion probabilities from the
+#'       measured error under the edge prior's feedback
 #'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
 #'       \code{fit$zratio_diag} and issues print like other sampler
 #'       warnings). Requires \code{edge_selection = TRUE}, a

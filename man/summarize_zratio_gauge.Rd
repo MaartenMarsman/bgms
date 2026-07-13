@@ -43,7 +43,8 @@ its \code{flag}, the signed mean and spread of the log-ratio error
 \code{se_mean}, the reference \code{noise_floor}, the pair counts
 (\code{n_ent} non-trivial seen, \code{n_ref} referenced,
 \code{n_capped} cap hits), and the harm channel (\code{amplification},
-\code{harm_pred}, \code{harm_flag}).}
+\code{kappa} = the predicted mean-inclusion shift per nat of coherent
+error, \code{harm_pred}, \code{harm_flag}).}
 \item{\code{threshold}}{The flag tolerance on \code{flip_rate}.}
 \item{\code{harm_threshold}}{The flag tolerance on \code{harm_pred}.}
 \item{\code{flagged}}{Logical: any chain flagged on either channel.}
@@ -63,20 +64,26 @@ the exact reference's own Monte-Carlo noise. This channel detects error
 that changed decisions the chain actually made; it is insensitive to a
 small coherent error at chains whose decisions are far from their
 accept/reject boundaries.}
-\item{\code{harm_pred}}{The projected inclusion-probability distortion
-from the approximation error: \code{|se_mean| * m * A}, where
-\code{se_mean} is the signed mean log-ratio error against the exact
-reference, \code{m} is the chain's mean per-edge sensitivity
-\code{mean(p_e (1 - p_e))}, and \code{A = 1 / (1 - g)} is the
-inclusion-probability feedback amplification with linearized gain
-\code{g = E m / (theta (1 - theta) (a + b + E))} under a Beta-Bernoulli
+\item{\code{harm_pred}}{The projected distortion of the mean posterior
+inclusion probability under the measured approximation error, a
+first-order (linear-response) quantity targeted at coherent error:
+\code{harm_pred = |mean(m_e s_e)| * A}, where \code{s_e} is the signed
+log-ratio error of audited edge \code{e} against the exact reference,
+\code{m_e = p_e (1 - p_e)} is that edge's inclusion sensitivity, and
+\code{A = 1 / (1 - g)} is the inclusion-probability feedback
+amplification with linearized gain
+\code{g = E m / (theta (1 - theta) (a + b + E))},
+\code{m = mean(p_e (1 - p_e))} over all edges, under a Beta-Bernoulli
 edge prior (for a fixed inclusion probability \code{g = 0}, so
-\code{A = 1}). A chain is flagged on this channel when
-\code{harm_pred} exceeds the tolerance and \code{se_mean} is resolved
-above its own standard error, \code{|se_mean| > 2 se_se} with
-\code{se_se = sqrt(se_mcse^2 + se_sd^2 / n_ref)}. This channel detects
-coherent error whose equilibrium effect exceeds the tolerance even when
-no individual decision visibly flips. It is computed for Bernoulli and
+\code{A = 1}). When the per-pair audit stream is unavailable the
+unweighted form \code{|se_mean| * m * A} is used. A chain is flagged
+on this channel when \code{harm_pred} exceeds the tolerance and the
+weighted error is resolved above twice its standard error (per-edge
+cluster-robust spread plus the reference Monte-Carlo noise). This
+channel detects coherent error whose equilibrium effect exceeds the
+tolerance even when no individual decision visibly flips; it targets
+the mean-inclusion shift and does not bound edge-specific distortions
+that cancel in the mean. It is computed for Bernoulli and
 Beta-Bernoulli edge priors; under other priors it is \code{NA}.}
 }
 
