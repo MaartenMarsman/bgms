@@ -202,17 +202,33 @@ public:
     const arma::vec& anchors_y() const { return ay_; }
 
 private:
-    void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
-                      const std::vector<arma::uvec>& nbr) const;
+    /**
+     * Shared worker behind extract_block. With counts_only the scalar
+     * descriptors (valid, m, ncn, cne, bre, maxbd, dens) are read off G
+     * directly and the block adjacency and side-membership vectors are
+     * left empty; the values are identical to the full extraction.
+     */
+    void extract_block_(const arma::imat& G, int i, int j, bool counts_only,
+                        ZRatioBlock& bl) const;
+    /**
+     * One row-wise sweep of the block sampler. When sigma_out is non-null
+     * it receives the end-of-sweep block covariance k_blk^{-1} (the
+     * SMW-maintained Sigma, exact up to within-sweep drift); returns
+     * whether sigma_out holds a valid inverse (always true when sigma_out
+     * is null).
+     */
+    bool gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
+                      const std::vector<arma::uvec>& nbr,
+                      arma::mat* sigma_out = nullptr) const;
     /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
     void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
                      arma::mat& k_blk, arma::mat& omega_blk) const;
-    bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
+    bool inner_moments_(const arma::mat& r_inv, const arma::uvec& si,
                         const arma::uvec& sj, const arma::vec& wsi,
                         const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
     /** Per-draw full-product endpoint integrals for block_reference_logR. */
-    bool inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+    bool inner_reference_(const arma::mat& r_inv, const arma::uvec& si,
                           const arma::uvec& sj, const arma::vec& wsi,
                           const arma::vec& wsj, double& w, double& fN,
                           double& gG, double& kappa2) const;
@@ -248,4 +264,12 @@ private:
     arma::mat maha_sinv_;
     std::unordered_map<std::string, double> corr_cache_;
     long n_oracle_ = 0;
+
+    // Reused scratch for extract_block_. One engine serves one chain, and
+    // the counts pass runs once per edge proposal, so per-call heap
+    // allocation dominates the extraction cost without these.
+    mutable std::vector<char> xb_in_r_;
+    mutable std::vector<int> xb_excl_i_, xb_excl_j_, xb_rv_, xb_cn_, xb_sio_,
+        xb_sjo_;
+    mutable std::vector<unsigned char> xb_side_;
 };
