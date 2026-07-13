@@ -213,7 +213,7 @@ A flagged chain tells you the approximation is affecting that chain's recovered 
 
 If a flag persists after a substantial increase in `calibration_window`, narrow the prior scale toward its calibrated range, since a very wide scale is the other common cause of drift. Failing that, you can keep the recovered structure but treat the flagged edges as provisional, confirming them another way, for example by re-fitting the neighborhood of those edges with a narrower prior and checking that they survive.
 
-For evidence-free fits (prior-only sampling, or data too weak to pin the edges) under a Beta-Bernoulli edge prior, a `harm_pred` flag deserves extra weight: the learned inclusion probability amplifies a small per-edge lean, and lengthening the calibration window may not remove the residual. A direct check is available in that setting: the average posterior inclusion probability of a prior-only fit must equal the edge prior's mean, which for `beta_bernoulli_prior(a, b)` is `a / (a + b)`.
+For evidence-free fits (prior-only sampling, or data too weak to pin the edges) under a Beta-Bernoulli edge prior, a `harm_pred` flag deserves extra weight: the learned inclusion probability amplifies a small per-edge lean, and lengthening the calibration window may not remove the residual. In that setting prefer the joint prior specification, which computes the edge weights without this approximation. A direct check is also available: under either specification the average posterior inclusion probability of a prior-only fit must equal the edge prior's mean, which for `beta_bernoulli_prior(a, b)` is `a / (a + b)`.
 
 # Next steps
 
