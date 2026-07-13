@@ -309,7 +309,8 @@ build_output_bgm = function(spec, raw) {
       NULL
     }
     results$zratio_diag = summarize_zratio_gauge(
-      zratio_chains, verbose = TRUE, harm_inputs = harm_inputs
+      zratio_chains,
+      verbose = TRUE, harm_inputs = harm_inputs
     )
   }
 

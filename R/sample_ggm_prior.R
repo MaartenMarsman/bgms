@@ -437,7 +437,8 @@ sample_ggm_prior = function(
       a = ep$beta_bernoulli_alpha, b = ep$beta_bernoulli_beta
     )
     out$zratio_diagnostics = summarize_zratio_gauge(
-      results, verbose = verbose, harm_inputs = harm_inputs
+      results,
+      verbose = verbose, harm_inputs = harm_inputs
     )
     if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
       cat("See vignette('diagnostics') for guidance.\n")

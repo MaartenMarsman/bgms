@@ -147,8 +147,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         # reference-noise contribution of each record.
         n_rec = length(x)
         cl = split(seq_len(n_rec), idx)
-        cr = sum(vapply(cl, function(ii)
-          (sum(x[ii]) - length(ii) * mean(x))^2, numeric(1))) / n_rec^2
+        cr = sum(vapply(cl, function(ii) {
+          (sum(x[ii]) - length(ii) * mean(x))^2
+        }, numeric(1))) / n_rec^2
         noise2 = sum((m_rec * as.numeric(g$pair_mcse))^2) / n_rec^2
         se_num = sqrt(cr + noise2)
         harm_pred = num * amplification

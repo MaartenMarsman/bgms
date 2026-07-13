@@ -68,8 +68,10 @@ test_that("the reference MCSE shrinks with the draw count", {
   )
   expect_true(small$valid && large$valid)
   # Two estimates from independent streams agree within combined MCSE.
-  expect_lt(abs(small$logR - large$logR),
-            5 * sqrt(small$mcse^2 + large$mcse^2))
+  expect_lt(
+    abs(small$logR - large$logR),
+    5 * sqrt(small$mcse^2 + large$mcse^2)
+  )
   expect_lt(large$mcse, small$mcse)
 })
 
@@ -91,7 +93,8 @@ test_that("the harm channel computes the documented statistics", {
   th = 0.9
   pip = rep(th, E)
   s = summarize_zratio_gauge(
-    chains, verbose = FALSE,
+    chains,
+    verbose = FALSE,
     harm_inputs = list(pip = list(pip), a = a, b = b)
   )
   pc = s$per_chain
@@ -108,7 +111,8 @@ test_that("the harm channel computes the documented statistics", {
 
   # Fixed inclusion probability: no feedback, amplification 1.
   s_bern = summarize_zratio_gauge(
-    chains, verbose = FALSE,
+    chains,
+    verbose = FALSE,
     harm_inputs = list(pip = list(pip), a = NULL, b = NULL)
   )
   expect_equal(s_bern$per_chain$amplification, 1)
@@ -118,7 +122,8 @@ test_that("the harm channel computes the documented statistics", {
   gauge_noisy = gauge
   gauge_noisy$se_mcse = 0.2
   s_noisy = summarize_zratio_gauge(
-    list(list(zratio = list(gauge = gauge_noisy))), verbose = FALSE,
+    list(list(zratio = list(gauge = gauge_noisy))),
+    verbose = FALSE,
     harm_inputs = list(pip = list(pip), a = a, b = b)
   )
   expect_false(s_noisy$per_chain$harm_flag)
@@ -169,7 +174,8 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
   th = 0.9
   pip = rep(th, E)
   s = summarize_zratio_gauge(
-    chains, verbose = FALSE,
+    chains,
+    verbose = FALSE,
     harm_inputs = list(pip = list(pip), a = a, b = b)
   )
   pc = s$per_chain
@@ -189,15 +195,18 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
 
   # Heterogeneous sensitivities: errors on pinned edges must not count.
   pip2 = rep(th, E)
-  pip2[1] = 0.999   # edge (0,1) pinned: m_e ~ 0
+  pip2[1] = 0.999 # edge (0,1) pinned: m_e ~ 0
   s2 = summarize_zratio_gauge(
-    chains, verbose = FALSE,
+    chains,
+    verbose = FALSE,
     harm_inputs = list(pip = list(pip2), a = a, b = b)
   )
   m1 = 0.999 * (1 - 0.999)
   m2 = th * (1 - th)
   x2 = c(m1 * 0.05, m2 * 0.03, m1 * 0.05)
-  expect_equal(s2$per_chain$harm_pred,
-               abs(mean(x2)) * s2$per_chain$amplification)
+  expect_equal(
+    s2$per_chain$harm_pred,
+    abs(mean(x2)) * s2$per_chain$amplification
+  )
   expect_lt(s2$per_chain$harm_pred, pc$harm_pred)
 })
