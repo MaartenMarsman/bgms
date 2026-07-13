@@ -85,7 +85,10 @@ test_that("the harm channel computes the documented statistics", {
 
   # Beta-Bernoulli, exchangeable inclusion probabilities: the linearized
   # feedback gain is E * m / (theta (1 - theta) (a + b + E)).
-  a = 9; b = 1; E = 190; th = 0.9
+  a = 9
+  b = 1
+  E = 190
+  th = 0.9
   pip = rep(th, E)
   s = summarize_zratio_gauge(
     chains, verbose = FALSE,
@@ -160,7 +163,10 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
     pair_se = c(0.05, 0.03, 0.05), pair_mcse = c(0.002, 0.002, 0.002)
   )
   chains = list(list(zratio = list(gauge = gauge)))
-  a = 9; b = 1; E = 190; th = 0.9
+  a = 9
+  b = 1
+  E = 190
+  th = 0.9
   pip = rep(th, E)
   s = summarize_zratio_gauge(
     chains, verbose = FALSE,
@@ -188,7 +194,8 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
     chains, verbose = FALSE,
     harm_inputs = list(pip = list(pip2), a = a, b = b)
   )
-  m1 = 0.999 * (1 - 0.999); m2 = th * (1 - th)
+  m1 = 0.999 * (1 - 0.999)
+  m2 = th * (1 - th)
   x2 = c(m1 * 0.05, m2 * 0.03, m1 * 0.05)
   expect_equal(s2$per_chain$harm_pred,
                abs(mean(x2)) * s2$per_chain$amplification)
