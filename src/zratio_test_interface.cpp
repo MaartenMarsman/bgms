@@ -149,7 +149,7 @@ Rcpp::List zratio_test_calibrated_eval(
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     SafeRNG rng(seed);
-    engine.enable_calibration(delta, eta, &rng, n_sweep, burn, 9.0, 6,
+    engine.enable_calibration(delta, eta, &rng, n_sweep, burn, 1.0, 6,
                               slab_cauchy, alpha);
     arma::vec out(edges.n_rows);
     for (arma::uword e = 0; e < edges.n_rows; ++e) {

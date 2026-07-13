@@ -182,9 +182,10 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     }
 
     // Warm-up calibration: identical block signatures are served from the
-    // correction cache; blocks inside the anchor cloud's Mahalanobis hull
-    // use the current fit; uncovered blocks run the exact Monte-Carlo
-    // evaluation, anchor the discrepancy, and refit.
+    // correction cache; the leverage gate serves the current fit when its
+    // prediction variance at this block is small, and runs the exact
+    // Monte-Carlo evaluation (anchor + refit) when it is not. A hard
+    // anchor budget backstops the oracle count.
     if (calibrating() && s1 > 0 && s2 > 0) {
         std::string ckey = std::to_string(ncn) + "_" + std::to_string(cne) +
                            "_" + std::to_string(bre) + "_" +
@@ -199,9 +200,11 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
                        static_cast<double>(m), static_cast<double>(cne),
                        static_cast<double>(maxbdeg), dens};
         bool covered = false;
-        if (coef_.n_elem > 0 && maha_sinv_.n_elem > 0) {
-            arma::vec z = x.subvec(1, 5) - maha_mu_;
-            covered = arma::as_scalar(z.t() * maha_sinv_ * z) <= maha_thresh_;
+        if (coef_.n_elem > 0 && xtx_inv_.n_elem > 0) {
+            covered = arma::as_scalar(x.t() * xtx_inv_ * x) <= gate_kappa_;
+        }
+        if (!covered && coef_.n_elem > 0 && n_oracle_ >= max_anchors_) {
+            covered = true;   // anchor budget spent: serve the fit
         }
         if (covered) {
             n_pred_++;
@@ -254,8 +257,9 @@ double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
 
 void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
                                       int n_sweep, int burn,
-                                      double maha_thresh, int min_anchors,
-                                      bool slab_cauchy, double alpha) {
+                                      double gate_kappa, int min_anchors,
+                                      bool slab_cauchy, double alpha,
+                                      int max_anchors) {
     calibration_enabled_ = true;
     frozen_ = false;
     delta_ = delta;
@@ -265,8 +269,9 @@ void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
     rng_ = rng;
     n_sweep_ = n_sweep;
     burn_ = burn;
-    maha_thresh_ = maha_thresh;
+    gate_kappa_ = gate_kappa;
     min_anchors_ = min_anchors;
+    max_anchors_ = max_anchors;
     oracle_slab_cauchy_ = slab_cauchy;
 }
 
@@ -275,11 +280,7 @@ void ZRatioEngine::refit_() {
     arma::mat xtx = ax_.t() * ax_;
     xtx.diag() += 1e-8;
     coef_ = arma::solve(xtx, ax_.t() * ay_);
-    arma::mat feats = ax_.cols(1, 5);
-    maha_mu_ = arma::mean(feats, 0).t();
-    arma::mat s = arma::cov(feats);
-    s.diag() += 1e-6;
-    if (!arma::inv_sympd(maha_sinv_, s)) maha_sinv_.reset();
+    if (!arma::inv_sympd(xtx_inv_, xtx)) xtx_inv_.reset();
 }
 
 void ZRatioEngine::freeze_calibration() {

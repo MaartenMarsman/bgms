@@ -339,12 +339,17 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                         Rcpp::_["noise_floor"] = chain.zratio_gauge_noise_floor,
                         Rcpp::_["se_mean"] = chain.zratio_gauge_se_mean,
                         Rcpp::_["se_sd"] = chain.zratio_gauge_se_sd,
+                        Rcpp::_["se_mcse"] = chain.zratio_gauge_se_mcse,
                         Rcpp::_["n_ent"] =
                             static_cast<double>(chain.zratio_gauge_n_ent),
                         Rcpp::_["n_ref"] =
                             static_cast<double>(chain.zratio_gauge_n_ref),
                         Rcpp::_["n_capped"] =
-                            static_cast<double>(chain.zratio_gauge_n_capped));
+                            static_cast<double>(chain.zratio_gauge_n_capped),
+                        Rcpp::_["pair_i"] = chain.zratio_gauge_pair_i,
+                        Rcpp::_["pair_j"] = chain.zratio_gauge_pair_j,
+                        Rcpp::_["pair_se"] = chain.zratio_gauge_pair_se,
+                        Rcpp::_["pair_mcse"] = chain.zratio_gauge_pair_mcse);
                 }
                 chain_list["zratio"] = zr;
             }

@@ -135,8 +135,8 @@ Rcpp::List sample_ggm(
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
         // The rng pointer is rebound per chain clone by GGMModel.
         if (zratio_window > 0) {
-            engine->enable_calibration(zr_delta, zr_eta, nullptr, 300, 30, 9.0,
-                                       6, zr_cauchy, zr_alpha);
+            engine->enable_calibration(zr_delta, zr_eta, nullptr, 100, 30, 1.0,
+                                       6, zr_cauchy, zr_alpha, 100);
         } else {
             // No warm-up calibration (pre-packed constants): still hand the
             // engine the standardized-cell prior params so the trust gauge's

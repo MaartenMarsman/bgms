@@ -117,7 +117,12 @@
 #'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
 #'   the result; detected issues are printed when \code{verbose}. The gauge
 #'   redoes a subset of the chain's edge decisions with the exact
-#'   calculation and records how often the outcome differs.
+#'   calculation and reports two alarms: how often the decision outcome
+#'   differs (\code{flip_rate}), and the projected distortion of the mean
+#'   inclusion probability from the measured error under the edge prior's
+#'   feedback (\code{harm_pred}). Evidence-free sampling is the regime where
+#'   the second alarm matters: a small consistent error can shift the graph
+#'   marginal without flipping individual decisions.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -427,7 +432,14 @@ sample_ggm_prior = function(
     out$allocations = t(results[[1L]]$allocation_samples)
   }
   if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
-    out$zratio_diagnostics = summarize_zratio_gauge(results, verbose = verbose)
+    harm_inputs = zratio_harm_inputs(
+      list(colMeans(gamma_offdiag)), ep$edge_prior,
+      a = ep$beta_bernoulli_alpha, b = ep$beta_bernoulli_beta
+    )
+    out$zratio_diagnostics = summarize_zratio_gauge(
+      results,
+      verbose = verbose, harm_inputs = harm_inputs
+    )
     if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
       cat("See vignette('diagnostics') for guidance.\n")
     }

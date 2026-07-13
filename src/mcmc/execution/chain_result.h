@@ -87,10 +87,18 @@ public:
     double      zratio_gauge_noise_floor = 0.0;
     double      zratio_gauge_se_mean = 0.0;
     double      zratio_gauge_se_sd = 0.0;
+    double      zratio_gauge_se_mcse = 0.0;
     long        zratio_gauge_n_ent = 0;
     long        zratio_gauge_n_ref = 0;
     long        zratio_gauge_n_capped = 0;
     bool        zratio_gauge_ran = false;
+    /// Per-referenced-pair audit stream (edge endpoints, signed log-ratio
+    /// error, reference MCSE); bounded by the per-sweep cap times the number
+    /// of gauge sweeps.
+    arma::ivec  zratio_gauge_pair_i;
+    arma::ivec  zratio_gauge_pair_j;
+    arma::vec   zratio_gauge_pair_se;
+    arma::vec   zratio_gauge_pair_mcse;
 
     /**
      * Reserve storage for samples
