@@ -202,6 +202,14 @@ public:
     const arma::vec& anchors_y() const { return ay_; }
 
 private:
+    /**
+     * Shared worker behind extract_block. With counts_only the scalar
+     * descriptors (valid, m, ncn, cne, bre, maxbd, dens) are read off G
+     * directly and the block adjacency and side-membership vectors are
+     * left empty; the values are identical to the full extraction.
+     */
+    void extract_block_(const arma::imat& G, int i, int j, bool counts_only,
+                        ZRatioBlock& bl) const;
     void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr) const;
     /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */

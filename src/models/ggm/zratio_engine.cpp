@@ -18,8 +18,15 @@ double ZRatioEngine::saddle_ratio(double s1, double s2) const {
 
 ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
                                         int j) const {
-    const int q = static_cast<int>(G.n_rows);
     ZRatioBlock bl;
+    extract_block_(G, i, j, false, bl);
+    return bl;
+}
+
+void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
+                                  bool counts_only, ZRatioBlock& bl) const {
+    bl = ZRatioBlock();
+    const int q = static_cast<int>(G.n_rows);
 
     // Mediating block: common neighbours of (i, j) plus the endpoints of
     // 2-hop bridges between the exclusive neighbour sets. The toggled
@@ -50,18 +57,61 @@ ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
     const int m = static_cast<int>(rv.size());
     bl.m = m;
 
+    // Per-position side membership: bit 1 = adjacent to i, bit 2 = to j.
+    std::vector<unsigned char> side(m, 0);
     std::vector<int> cn, si_o, sj_o;
     for (int p = 0; p < m; p++) {
         bool si = (G(i, rv[p]) == 1), sj = (G(j, rv[p]) == 1);
+        if (si) side[p] |= 1;
+        if (sj) side[p] |= 2;
         if (si && sj) cn.push_back(p);
         else if (si) si_o.push_back(p);
         else if (sj) sj_o.push_back(p);
     }
     if ((cn.empty() && si_o.empty()) || (cn.empty() && sj_o.empty())) {
         // One side of the mediating block is empty: isolated-edge ratio.
-        return bl;
+        return;
     }
     bl.valid = true;
+
+    bl.ncn = static_cast<int>(cn.size());
+    for (size_t a = 0; a < cn.size(); a++) {
+        for (size_t b = a + 1; b < cn.size(); b++) {
+            if (G(rv[cn[a]], rv[cn[b]]) == 1) bl.cne++;
+        }
+    }
+    for (int a : si_o) {
+        for (int b : sj_o) {
+            if (G(rv[a], rv[b]) == 1) bl.bre++;
+        }
+    }
+    for (int a : si_o) {
+        int d = 0;
+        for (int b : sj_o) {
+            if (G(rv[a], rv[b]) == 1) d++;
+        }
+        if (d > bl.maxbd) bl.maxbd = d;
+    }
+    for (int b : sj_o) {
+        int d = 0;
+        for (int a : si_o) {
+            if (G(rv[a], rv[b]) == 1) d++;
+        }
+        if (d > bl.maxbd) bl.maxbd = d;
+    }
+
+    long block_edges = 0;
+    for (int a = 0; a < m; a++) {
+        for (int b = a + 1; b < m; b++) {
+            if (G(rv[a], rv[b]) == 1) block_edges++;
+        }
+    }
+    bl.dens = (m >= 2)
+        ? (static_cast<double>(block_edges) /
+           (static_cast<double>(m) * (m - 1) / 2.0))
+        : 0.0;
+
+    if (counts_only) return;
 
     bl.a_blk.zeros(m, m);
     for (int a = 0; a < m; a++) {
@@ -72,53 +122,22 @@ ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
         }
     }
 
-    bl.ncn = static_cast<int>(cn.size());
-    for (size_t a = 0; a < cn.size(); a++) {
-        for (size_t b = a + 1; b < cn.size(); b++) {
-            if (bl.a_blk(cn[a], cn[b]) == 1) bl.cne++;
-        }
-    }
-    for (int a : si_o) {
-        for (int b : sj_o) {
-            if (bl.a_blk(a, b) == 1) bl.bre++;
-        }
-    }
-    for (int a : si_o) {
-        int d = 0;
-        for (int b : sj_o) {
-            if (bl.a_blk(a, b) == 1) d++;
-        }
-        if (d > bl.maxbd) bl.maxbd = d;
-    }
-    for (int b : sj_o) {
-        int d = 0;
-        for (int a : si_o) {
-            if (bl.a_blk(a, b) == 1) d++;
-        }
-        if (d > bl.maxbd) bl.maxbd = d;
-    }
-
-    bl.dens = (m >= 2)
-        ? ((static_cast<double>(arma::accu(bl.a_blk)) / 2.0) /
-           (static_cast<double>(m) * (m - 1) / 2.0))
-        : 0.0;
-
     // Side memberships in ascending block position (CN nodes sit on both).
     std::vector<arma::uword> si_v, sj_v;
     for (int p = 0; p < m; p++) {
-        bool si = std::find(cn.begin(), cn.end(), p) != cn.end();
-        bool sio = std::find(si_o.begin(), si_o.end(), p) != si_o.end();
-        bool sjo = std::find(sj_o.begin(), sj_o.end(), p) != sj_o.end();
-        if (si || sio) si_v.push_back(p);
-        if (si || sjo) sj_v.push_back(p);
+        if (side[p] & 1) si_v.push_back(p);
+        if (side[p] & 2) sj_v.push_back(p);
     }
     bl.si = arma::uvec(si_v);
     bl.sj = arma::uvec(sj_v);
-    return bl;
 }
 
 double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
-    ZRatioBlock bl = extract_block(G, i, j);
+    // Counts-only extraction: every consumer below except the calibration
+    // oracle reads just the scalar descriptors, so the block adjacency and
+    // side vectors are materialised only on an actual oracle run.
+    ZRatioBlock bl;
+    extract_block_(G, i, j, true, bl);
     if (!bl.valid) {
         n_add_++;
         return MY_LOG(psi0_);
@@ -177,6 +196,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
             n_pred_++;
             return log_r_add + arma::dot(x, coef_);
         }
+        extract_block_(G, i, j, false, bl);
         double s1b = 0, s2b = 0, dl = 0;
         if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
             dl = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
@@ -269,27 +289,88 @@ void ZRatioEngine::freeze_calibration() {
     addc_ = packed;
 }
 
+// Rank-2 SMW refresh of sigma = k^{-1} after the column-i change
+// Delta K = e_i d^T + d e_i^T (d supported on {i} + N_i, d_i = half the
+// diagonal change). Woodbury with U = [e_i, d], J = [[0,1],[1,0]] gives
+// Sigma' = Sigma - [w1 w2] Cap^{-1} [w1 w2]^T, Cap = J + U^T Sigma U, a
+// 2x2 solve. The outer products are not FP-symmetric, so the result is
+// mirrored from the upper triangle. Returns false when Cap is numerically
+// singular; the caller then refreshes Sigma by a full factorisation.
+static bool smw_rank2_col_update_(arma::mat& sigma, int i,
+                                  const arma::uvec& ni, const arma::vec& d_i_ni,
+                                  double d_diag) {
+    const arma::uword m = sigma.n_rows;
+    arma::vec w1 = sigma.col(i);
+    arma::vec w2 = d_diag * w1;
+    for (arma::uword k = 0; k < ni.n_elem; ++k) {
+        w2 += d_i_ni[k] * sigma.col(ni[k]);
+    }
+    const double cap11 = w1[i];
+    const double cap12 = 1.0 + w2[i];
+    double cap22 = d_diag * w2[i];
+    for (arma::uword k = 0; k < ni.n_elem; ++k) {
+        cap22 += d_i_ni[k] * w2[ni[k]];
+    }
+    const double det = cap11 * cap22 - cap12 * cap12;
+    const double scale = std::abs(cap11) + std::abs(cap12) + std::abs(cap22);
+    if (!std::isfinite(det) || std::abs(det) <= 1e-12 * scale * scale) {
+        return false;
+    }
+    const double q11 = cap22 / det, q12 = -cap12 / det, q22 = cap11 / det;
+    arma::vec u1 = q11 * w1 + q12 * w2;
+    arma::vec u2 = q12 * w1 + q22 * w2;
+    for (arma::uword c = 0; c < m; ++c) {
+        for (arma::uword r = 0; r <= c; ++r) {
+            sigma(r, c) -= u1[r] * w1[c] + u2[r] * w2[c];
+        }
+    }
+    sigma = arma::symmatu(sigma);
+    return true;
+}
+
 void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                                 const std::vector<arma::uvec>& nbr) const {
     const int m = static_cast<int>(k_blk.n_rows);
     const double s2i = 1.0 / (sigma_ * sigma_);
+    // Maintained block covariance Sigma = k_blk^{-1}: one exact
+    // factorisation per sweep, rank-2 SMW refresh after each accepted row
+    // write. Row i's C = ((K_{-i,-i})^{-1})_{N_i, N_i} then extracts in
+    // O(|N_i|^2) via the Schur identity instead of a per-row O(m^3)
+    // submatrix inversion. When Sigma is unavailable (factorisation or SMW
+    // failure) the sweep falls back to the per-row inversion.
+    arma::mat sigma_blk;
+    bool have_sigma = arma::inv_sympd(sigma_blk, k_blk);
+    arma::vec d_ni;
     for (int i = 0; i < m; ++i) {
         const arma::uvec& ni = nbr[i];
         if (ni.n_elem > 0) {
             const int nq = static_cast<int>(ni.n_elem);
-            arma::uvec rest(m - 1);
-            int p_ = 0;
-            for (int v = 0; v < m; ++v) {
-                if (v != i) rest[p_++] = v;
+            arma::mat c_mat(nq, nq);
+            if (have_sigma) {
+                const double sig_ii = sigma_blk(i, i);
+                for (int a = 0; a < nq; ++a) {
+                    const double sig_ai = sigma_blk(ni[a], i);
+                    for (int b = 0; b < nq; ++b) {
+                        c_mat(a, b) = sigma_blk(ni[a], ni[b]) -
+                                      sig_ai * sigma_blk(i, ni[b]) / sig_ii;
+                    }
+                }
+            } else {
+                arma::uvec rest(m - 1);
+                int p_ = 0;
+                for (int v = 0; v < m; ++v) {
+                    if (v != i) rest[p_++] = v;
+                }
+                arma::mat a_inv;
+                if (!arma::inv_sympd(a_inv, k_blk.submat(rest, rest))) continue;
+                arma::uvec idx_a(nq);
+                for (arma::uword j = 0; j < ni.n_elem; ++j) {
+                    idx_a[j] = (ni[j] < static_cast<arma::uword>(i))
+                                   ? ni[j]
+                                   : ni[j] - 1;
+                }
+                c_mat = a_inv.submat(idx_a, idx_a);
             }
-            arma::mat a_inv;
-            if (!arma::inv_sympd(a_inv, k_blk.submat(rest, rest))) continue;
-            arma::uvec idx_a(nq);
-            for (arma::uword j = 0; j < ni.n_elem; ++j) {
-                idx_a[j] = (ni[j] < static_cast<arma::uword>(i)) ? ni[j]
-                                                                 : ni[j] - 1;
-            }
-            arma::mat c_mat = a_inv.submat(idx_a, idx_a);
             arma::mat m_mat = 2.0 * beta_ * c_mat;
             if (oracle_slab_cauchy_) {
                 for (int j = 0; j < nq; ++j) {
@@ -318,11 +399,23 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                                            std::log(kii_old));
             }
             if (accept) {
+                double d_diag = 0.0;
+                if (have_sigma) {
+                    d_diag = (xi + quad - k_blk(i, i)) / 2.0;
+                    d_ni.set_size(nq);
+                    for (int j = 0; j < nq; ++j) {
+                        d_ni[j] = bvec[j] - k_blk(ni[j], i);
+                    }
+                }
                 for (int j = 0; j < nq; ++j) {
                     k_blk(ni[j], i) = bvec[j];
                     k_blk(i, ni[j]) = bvec[j];
                 }
                 k_blk(i, i) = xi + quad;
+                if (have_sigma &&
+                    !smw_rank2_col_update_(sigma_blk, i, ni, d_ni, d_diag)) {
+                    have_sigma = arma::inv_sympd(sigma_blk, k_blk);
+                }
             }
             if (oracle_slab_cauchy_) {
                 // Conjugate omega | k ~ IG(1, 1/2 + k^2 / (2 sigma^2)).
@@ -335,7 +428,17 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                 }
             }
         } else {
-            k_blk(i, i) = rgamma(*rng_, delta_ + alpha_, beta_);
+            const double kii_new = rgamma(*rng_, delta_ + alpha_, beta_);
+            if (have_sigma) {
+                const double d_diag = (kii_new - k_blk(i, i)) / 2.0;
+                k_blk(i, i) = kii_new;
+                if (!smw_rank2_col_update_(sigma_blk, i, arma::uvec(), d_ni,
+                                           d_diag)) {
+                    have_sigma = arma::inv_sympd(sigma_blk, k_blk);
+                }
+            } else {
+                k_blk(i, i) = kii_new;
+            }
         }
     }
 }
