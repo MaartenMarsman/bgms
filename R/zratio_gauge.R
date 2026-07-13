@@ -202,12 +202,11 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       if(pc$harm_flag) {
         cat(sprintf(
           paste0(
-            "  - Chain %d: the approximation error projects to a %.3f ",
-            "distortion of the inclusion probabilities (tolerance %.2f) - ",
-            "increase calibration_window; for evidence-free (prior-only) ",
-            "use, prefer the joint specification\n"
+            "  - Chain %d: the approximation biases the inclusion ",
+            "probabilities by an estimated %.2f - increase ",
+            "calibration_window\n"
           ),
-          pc$chain, pc$harm_pred, harm_threshold
+          pc$chain, pc$harm_pred
         ))
       }
     }
