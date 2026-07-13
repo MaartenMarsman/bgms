@@ -256,4 +256,12 @@ private:
     arma::mat maha_sinv_;
     std::unordered_map<std::string, double> corr_cache_;
     long n_oracle_ = 0;
+
+    // Reused scratch for extract_block_. One engine serves one chain, and
+    // the counts pass runs once per edge proposal, so per-call heap
+    // allocation dominates the extraction cost without these.
+    mutable std::vector<char> xb_in_r_;
+    mutable std::vector<int> xb_excl_i_, xb_excl_j_, xb_rv_, xb_cn_, xb_sio_,
+        xb_sjo_;
+    mutable std::vector<unsigned char> xb_side_;
 };

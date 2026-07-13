@@ -31,26 +31,31 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     // Mediating block: common neighbours of (i, j) plus the endpoints of
     // 2-hop bridges between the exclusive neighbour sets. The toggled
     // edge's own state never enters, so the value is state-invariant.
-    std::vector<bool> in_r(q, false);
+    std::vector<char>& in_r = xb_in_r_;
+    in_r.assign(q, 0);
     // Exclusive neighbour lists of i and j; the bridge scan below then runs
     // over the candidate pairs instead of the full q x q grid.
-    std::vector<int> excl_i, excl_j;
+    std::vector<int>& excl_i = xb_excl_i_;
+    std::vector<int>& excl_j = xb_excl_j_;
+    excl_i.clear();
+    excl_j.clear();
     for (int k = 0; k < q; k++) {
         if (k == i || k == j) continue;
         const bool near_i = (G(i, k) == 1), near_j = (G(j, k) == 1);
-        if (near_i && near_j) in_r[k] = true;
+        if (near_i && near_j) in_r[k] = 1;
         else if (near_i) excl_i.push_back(k);
         else if (near_j) excl_j.push_back(k);
     }
     for (int a : excl_i) {
         for (int b : excl_j) {
             if (G(a, b) == 1) {
-                in_r[a] = true;
-                in_r[b] = true;
+                in_r[a] = 1;
+                in_r[b] = 1;
             }
         }
     }
-    std::vector<int> rv;
+    std::vector<int>& rv = xb_rv_;
+    rv.clear();
     for (int k = 0; k < q; k++) {
         if (in_r[k]) rv.push_back(k);
     }
@@ -58,8 +63,14 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.m = m;
 
     // Per-position side membership: bit 1 = adjacent to i, bit 2 = to j.
-    std::vector<unsigned char> side(m, 0);
-    std::vector<int> cn, si_o, sj_o;
+    std::vector<unsigned char>& side = xb_side_;
+    side.assign(m, 0);
+    std::vector<int>& cn = xb_cn_;
+    std::vector<int>& si_o = xb_sio_;
+    std::vector<int>& sj_o = xb_sjo_;
+    cn.clear();
+    si_o.clear();
+    sj_o.clear();
     for (int p = 0; p < m; p++) {
         bool si = (G(i, rv[p]) == 1), sj = (G(j, rv[p]) == 1);
         if (si) side[p] |= 1;
@@ -383,7 +394,10 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             if (!arma::chol(r_chol, m_mat)) continue;
             arma::vec z(nq);
             for (int j = 0; j < nq; ++j) z[j] = rnorm(*rng_, 0.0, 1.0);
-            arma::vec bvec = arma::solve(arma::trimatu(r_chol), z);
+            // fast: skip the rcond estimate; r_chol just passed chol(), and
+            // the estimate costs as much as the back-substitution itself.
+            arma::vec bvec =
+                arma::solve(arma::trimatu(r_chol), z, arma::solve_opts::fast);
             double xi = rgamma(*rng_, delta_ + 1.0, beta_);
             double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
             // The diagonal factor K_ii^(alpha - 1) couples the Gamma pivot
