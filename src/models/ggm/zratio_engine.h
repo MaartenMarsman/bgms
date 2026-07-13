@@ -133,12 +133,18 @@ public:
      * Enable online calibration of the OLS correction during warm-up.
      *
      * While unfrozen, coupled-bridge blocks (maxbd >= 2) route through the
-     * calibrator: identical block signatures are served from a cache,
-     * blocks inside the anchor cloud's Mahalanobis hull use the current
-     * fit, and uncovered blocks call the block-Gibbs local oracle, add an
-     * anchor, and refit. freeze_calibration() packs the fit and its hull
-     * box into the addc layout, after which the engine behaves exactly
-     * like one constructed with a full 23-slot constant block.
+     * calibrator: identical block signatures are served from a cache;
+     * otherwise a leverage gate decides between the fit and the oracle.
+     * With x the block's design row and X the anchor design, the gate
+     * serves the current fit when the standardized prediction variance
+     * v(x) = x' (X'X + ridge)^{-1} x is at most gate_kappa, and calls the
+     * block-Gibbs local oracle (adding an anchor and refitting) when it
+     * exceeds it — so oracle runs concentrate where the surface is still
+     * uncertain and stop once the visited feature space is spanned, drift
+     * or no drift. max_anchors is a hard backstop on oracle runs.
+     * freeze_calibration() packs the fit and the anchor feature box into
+     * the addc layout, after which the engine behaves exactly like one
+     * constructed with a full 23-slot constant block.
      *
      * (delta, eta, alpha) are the standardized-cell prior constants the
      * oracle samples under (unit slab scale, diagonal rate eta, diagonal
@@ -147,9 +153,10 @@ public:
      * set_oracle_params).
      */
     void enable_calibration(double delta, double eta, SafeRNG* rng,
-                            int n_sweep = 300, int burn = 30,
-                            double maha_thresh = 9.0, int min_anchors = 6,
-                            bool slab_cauchy = false, double alpha = 1.0);
+                            int n_sweep = 100, int burn = 30,
+                            double gate_kappa = 1.0, int min_anchors = 6,
+                            bool slab_cauchy = false, double alpha = 1.0,
+                            int max_anchors = 100);
 
     /** Refit and freeze: pack coefficients + hull box into addc[6..22]. */
     void freeze_calibration();
@@ -255,13 +262,13 @@ private:
     double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5, alpha_ = 1.0;
     SafeRNG* rng_ = nullptr;
     int n_sweep_ = 300, burn_ = 30;
-    double maha_thresh_ = 9.0;
+    double gate_kappa_ = 1.0;
     int min_anchors_ = 6;
+    int max_anchors_ = 100;
     arma::mat ax_;                 // anchors: rows (1,bre,m,cne,maxbd,dens)
     arma::vec ay_;                 // anchors: log(oracle) - log(additive)
     arma::vec coef_;               // current OLS fit (empty before min_anchors)
-    arma::vec maha_mu_;
-    arma::mat maha_sinv_;
+    arma::mat xtx_inv_;            // (X'X + ridge)^{-1} for the leverage gate
     std::unordered_map<std::string, double> corr_cache_;
     long n_oracle_ = 0;
 
