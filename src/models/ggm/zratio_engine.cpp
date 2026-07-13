@@ -339,8 +339,9 @@ static bool smw_rank2_col_update_(arma::mat& sigma, int i,
     return true;
 }
 
-void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
-                                const std::vector<arma::uvec>& nbr) const {
+bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
+                                const std::vector<arma::uvec>& nbr,
+                                arma::mat* sigma_out) const {
     const int m = static_cast<int>(k_blk.n_rows);
     const double s2i = 1.0 / (sigma_ * sigma_);
     // Maintained block covariance Sigma = k_blk^{-1}: one exact
@@ -455,53 +456,58 @@ void ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             }
         }
     }
+    if (sigma_out == nullptr) return true;
+    if (have_sigma) {
+        *sigma_out = std::move(sigma_blk);
+        return true;
+    }
+    return arma::inv_sympd(*sigma_out, k_blk);
 }
 
-bool ZRatioEngine::inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
+bool ZRatioEngine::inner_moments_(const arma::mat& r_inv, const arma::uvec& si,
                                   const arma::uvec& sj, const arma::vec& wsi,
                                   const arma::vec& wsj, double& w, double& p1,
                                   double& p2) const {
     const double t2 = 2.0 * beta_ * sigma_ * sigma_;
-    arma::mat r_inv;
-    if (!arma::inv_sympd(r_inv, k_blk)) return false;
     arma::mat rii = r_inv.submat(si, si), rjj = r_inv.submat(sj, sj),
               rij = r_inv.submat(si, sj);
     const double s4 = sigma_ * sigma_ * sigma_ * sigma_, s8 = s4 * s4;
+    // Leg-dressed recipe under the scale-mixture slab: with
+    // Wi = diag(sqrt(omega_leg)), Mi = (I + t2 Wi Rii Wi)^{-1} and
+    // P = (Wi Mi Wi) Rij (Wj Mj Wj) Rij^T; reduces to the plain resolvent
+    // form at omega = 1 (the Normal-slab branch below).
+    //
+    // Both branches evaluate the moments through one Cholesky per side:
+    // with I + t2 Rii~ = Ri^T Ri and B = Ri^{-T} Rij~ Rj^{-1}, P is a
+    // similarity transform of B B^T, so tr(P) = ||B||_F^2 and
+    // tr(P^2) = ||B B^T||_F^2, while det(Mi) = prod(diag Ri)^{-2}. No
+    // explicit resolvent inverses are formed.
     if (oracle_slab_cauchy_) {
-        // Leg-dressed recipe under the scale-mixture slab: with
-        // Wi = diag(sqrt(omega_leg)), Mi = (I + t2 Wi Rii Wi)^{-1} and
-        // P = (Wi Mi Wi) Rij (Wj Mj Wj) Rij^T; reduces to the plain
-        // resolvent form at omega = 1.
-        arma::mat di = arma::diagmat(wsi), dj = arma::diagmat(wsj);
-        arma::mat mi, mj;
-        if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) +
-                                     t2 * di * rii * di)) {
-            return false;
-        }
-        if (!arma::inv_sympd(mj, arma::eye(sj.n_elem, sj.n_elem) +
-                                     t2 * dj * rjj * dj)) {
-            return false;
-        }
-        arma::mat p_mat = (di * mi * di) * rij * (dj * mj * dj) * rij.t();
-        w = std::sqrt(arma::det(mi) * arma::det(mj));
-        p1 = s4 * arma::trace(p_mat);
-        p2 = s8 * arma::accu(p_mat % p_mat.t());
-        return true;
+        rii.each_col() %= wsi;
+        rii.each_row() %= wsi.t();
+        rjj.each_col() %= wsj;
+        rjj.each_row() %= wsj.t();
+        rij.each_col() %= wsi;
+        rij.each_row() %= wsj.t();
     }
-    arma::mat mi, mj;
-    if (!arma::inv_sympd(mi, arma::eye(si.n_elem, si.n_elem) + t2 * rii)) {
-        return false;
-    }
-    if (!arma::inv_sympd(mj, arma::eye(sj.n_elem, sj.n_elem) + t2 * rjj)) {
-        return false;
-    }
-    // Moments via traces: with u_k = (sigma^2 s_k)^2 and s_k the singular
-    // values of Mi^.5 Rij Mj^.5, sum u_k = sigma^4 tr(P) and sum u_k^2 =
-    // sigma^8 tr(P^2) for P = Mi Rij Mj Rij^T.
-    arma::mat p_mat = mi * rij * mj * rij.t();
-    w = std::sqrt(arma::det(mi) * arma::det(mj));
-    p1 = s4 * arma::trace(p_mat);
-    p2 = s8 * arma::accu(p_mat % p_mat.t());
+    rii *= t2;
+    rii.diag() += 1.0;
+    rjj *= t2;
+    rjj.diag() += 1.0;
+    arma::mat ri, rj;
+    if (!arma::chol(ri, rii)) return false;
+    if (!arma::chol(rj, rjj)) return false;
+    arma::mat x = arma::solve(arma::trimatl(ri.t()), rij,
+                              arma::solve_opts::fast);
+    arma::mat b = arma::solve(arma::trimatl(rj.t()), x.t(),
+                              arma::solve_opts::fast)
+                      .t();
+    const double wdet = arma::prod(ri.diag()) * arma::prod(rj.diag());
+    if (!(wdet > 0.0) || !std::isfinite(wdet)) return false;
+    w = 1.0 / wdet;
+    arma::mat c = b * b.t();
+    p1 = s4 * arma::accu(b % b);
+    p2 = s8 * arma::accu(c % c);
     return true;
 }
 
@@ -514,14 +520,12 @@ static arma::mat sympd_sqrt_(const arma::mat& a) {
     return vecs * arma::diagmat(arma::sqrt(ev)) * vecs.t();
 }
 
-bool ZRatioEngine::inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+bool ZRatioEngine::inner_reference_(const arma::mat& r_inv, const arma::uvec& si,
                                     const arma::uvec& sj, const arma::vec& wsi,
                                     const arma::vec& wsj, double& w, double& fN,
                                     double& gG, double& kappa2) const {
     const double t2 = 2.0 * beta_ * sigma_ * sigma_;
     const double s4 = sigma_ * sigma_ * sigma_ * sigma_;
-    arma::mat r_inv;
-    if (!arma::inv_sympd(r_inv, k_blk)) return false;
     arma::mat rii = r_inv.submat(si, si), rjj = r_inv.submat(sj, sj),
               rij = r_inv.submat(si, sj);
     arma::mat mi, mj, lh, rh;
@@ -600,8 +604,11 @@ bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
     double sw = 0, sw1 = 0, sw2 = 0;
     long kept = 0;
     arma::vec wsi, wsj;
+    arma::mat sigma_blk;
     for (int s = 0; s < n_sweep_; ++s) {
-        gibbs_sweep_(k_blk, omega_blk, nbr);
+        // The leg draws below run on every sweep (sigma-valid or not) so
+        // the draw stream matches the sweep count.
+        const bool have_sig = gibbs_sweep_(k_blk, omega_blk, nbr, &sigma_blk);
         if (oracle_slab_cauchy_) {
             // Fresh leg weights per kept sweep: sqrt(omega) = 1/|z| with z
             // standard normal; the sweep average carries the mixture.
@@ -615,7 +622,7 @@ bool ZRatioEngine::block_oracle_moments(const arma::imat& a_blk,
             }
         }
         double w, p1, p2;
-        if (inner_moments_(k_blk, si, sj, wsi, wsj, w, p1, p2)) {
+        if (have_sig && inner_moments_(sigma_blk, si, sj, wsi, wsj, w, p1, p2)) {
             sw += w;
             sw1 += w * p1;
             sw2 += w * p2;
@@ -639,8 +646,9 @@ bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
     wf.reserve(n_draws);
     wg.reserve(n_draws);
     arma::vec wsi, wsj;
+    arma::mat sigma_blk;
     for (int s = 0; s < n_draws; ++s) {
-        gibbs_sweep_(k_blk, omega_blk, nbr);
+        const bool have_sig = gibbs_sweep_(k_blk, omega_blk, nbr, &sigma_blk);
         if (oracle_slab_cauchy_) {
             wsi.set_size(si.n_elem);
             wsj.set_size(sj.n_elem);
@@ -652,7 +660,8 @@ bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
             }
         }
         double w, fN, gG, k2;
-        if (inner_reference_(k_blk, si, sj, wsi, wsj, w, fN, gG, k2)) {
+        if (have_sig &&
+            inner_reference_(sigma_blk, si, sj, wsi, wsj, w, fN, gG, k2)) {
             wf.push_back(w * fN);
             wg.push_back(w * gG);
         }

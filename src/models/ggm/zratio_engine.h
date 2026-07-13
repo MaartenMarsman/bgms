@@ -210,17 +210,25 @@ private:
      */
     void extract_block_(const arma::imat& G, int i, int j, bool counts_only,
                         ZRatioBlock& bl) const;
-    void gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
-                      const std::vector<arma::uvec>& nbr) const;
+    /**
+     * One row-wise sweep of the block sampler. When sigma_out is non-null
+     * it receives the end-of-sweep block covariance k_blk^{-1} (the
+     * SMW-maintained Sigma, exact up to within-sweep drift); returns
+     * whether sigma_out holds a valid inverse (always true when sigma_out
+     * is null).
+     */
+    bool gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
+                      const std::vector<arma::uvec>& nbr,
+                      arma::mat* sigma_out = nullptr) const;
     /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
     void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
                      arma::mat& k_blk, arma::mat& omega_blk) const;
-    bool inner_moments_(const arma::mat& k_blk, const arma::uvec& si,
+    bool inner_moments_(const arma::mat& r_inv, const arma::uvec& si,
                         const arma::uvec& sj, const arma::vec& wsi,
                         const arma::vec& wsj, double& w, double& p1,
                         double& p2) const;
     /** Per-draw full-product endpoint integrals for block_reference_logR. */
-    bool inner_reference_(const arma::mat& k_blk, const arma::uvec& si,
+    bool inner_reference_(const arma::mat& r_inv, const arma::uvec& si,
                           const arma::uvec& sj, const arma::vec& wsi,
                           const arma::vec& wsj, double& w, double& fN,
                           double& gG, double& kappa2) const;
