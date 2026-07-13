@@ -1,5 +1,10 @@
 # bgms 0.2.0.0
 
+## Changes since the 0.2.0.0 development build
+
+* Hierarchical graph-prior calibration acquires exact-reference anchors only where the correction surface is uncertain (a leverage gate on the anchor design), instead of on every new region of graph space. Warmup calibration cost no longer explodes with model size (a pathological 50-variable fit drops from 28s to 7s of warmup), with the correction surface statistically unchanged. Same-seed hierarchical fits produce different (statistically equivalent) draws than earlier 0.2.0.0 builds, because the calibrator consumes a different random-number stream.
+* The hierarchical prior trust gauge gained a second alarm channel: `harm_pred` projects the measured approximation error onto the inclusion-probability scale, using the chain's own edge sensitivities and the edge-prior feedback amplification, and flags when the projected distortion exceeds 0.01. This catches a consistent error that shifts the recovered network without changing individual edge decisions, which the `flip_rate` channel cannot see at chains whose decisions are far from their accept/reject boundaries. Reported per chain in `fit$zratio_diag` (`amplification`, `harm_pred`, `harm_flag`, plus the `se_mcse`/`se_se` uncertainty of the error estimate); computed for Bernoulli and Beta-Bernoulli edge priors. See the diagnostics vignette.
+
 ## Breaking changes
 
 * `update_method = "hamiltonian-mc"` has been removed. Use `update_method = "nuts"` instead. NUTS dynamically adapts trajectory length and is more reliable, especially with edge selection on GGM models.
