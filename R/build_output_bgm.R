@@ -294,7 +294,23 @@ build_output_bgm = function(spec, raw) {
 
   # --- Z-ratio trust gauge (hierarchical graph-prior spec) ----------------------
   if(!is.null(zratio_chains)) {
-    results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
+    # Harm channel inputs: per-chain edge-inclusion probabilities from the
+    # normalized chains (indicator_samples is iters x off-diagonal edges) and
+    # the edge-prior identity from the spec.
+    harm_inputs = if(edge_selection) {
+      pip = lapply(raw, function(ch) {
+        if(is.null(ch$indicator_samples)) NULL else colMeans(ch$indicator_samples)
+      })
+      zratio_harm_inputs(
+        pip, p$edge_prior,
+        a = p$beta_bernoulli_alpha, b = p$beta_bernoulli_beta
+      )
+    } else {
+      NULL
+    }
+    results$zratio_diag = summarize_zratio_gauge(
+      zratio_chains, verbose = TRUE, harm_inputs = harm_inputs
+    )
   }
 
   # Single vignette pointer covering both diagnostic blocks: print once if

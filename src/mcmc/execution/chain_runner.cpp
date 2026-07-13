@@ -339,6 +339,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                         Rcpp::_["noise_floor"] = chain.zratio_gauge_noise_floor,
                         Rcpp::_["se_mean"] = chain.zratio_gauge_se_mean,
                         Rcpp::_["se_sd"] = chain.zratio_gauge_se_sd,
+                        Rcpp::_["se_mcse"] = chain.zratio_gauge_se_mcse,
                         Rcpp::_["n_ent"] =
                             static_cast<double>(chain.zratio_gauge_n_ent),
                         Rcpp::_["n_ref"] =

@@ -4,41 +4,81 @@
 \alias{summarize_zratio_gauge}
 \title{Summarize the Hierarchical Prior Trust Gauge}
 \usage{
-summarize_zratio_gauge(chains, threshold = 0.01, verbose = TRUE)
+summarize_zratio_gauge(
+  chains,
+  threshold = 0.01,
+  verbose = TRUE,
+  harm_inputs = NULL,
+  harm_threshold = 0.01
+)
 }
 \arguments{
 \item{chains}{List of per-chain sampler outputs, each carrying a
 \code{zratio$gauge} block (\code{flip_rate}, \code{noise_floor},
-\code{se_mean}, \code{se_sd}, \code{n_ent}, \code{n_ref}, \code{n_capped}).}
+\code{se_mean}, \code{se_sd}, \code{se_mcse}, \code{n_ent}, \code{n_ref},
+\code{n_capped}).}
 
 \item{threshold}{Numeric flag threshold on \code{flip_rate} (default
 \code{0.01}).}
 
 \item{verbose}{Logical: message flagged chains (default \code{TRUE}).}
+
+\item{harm_inputs}{Optional list enabling the \code{harm_pred} channel:
+\code{pip} (a list with one numeric vector of posterior edge-inclusion
+probabilities per chain) and, for a Beta-Bernoulli edge prior, its shape
+parameters \code{a} and \code{b} (\code{NULL} for a fixed inclusion
+probability). When \code{NULL} (default) the \code{harm_pred} columns are
+\code{NA} and only the \code{flip_rate} channel flags.}
+
+\item{harm_threshold}{Numeric flag threshold on \code{harm_pred}, in
+inclusion-probability units (default \code{0.01}).}
 }
 \value{
 An invisible named list:
 \describe{
 \item{\code{per_chain}}{Data frame, one row per chain: \code{flip_rate},
-the \code{flag}, the signed mean and spread of the log-ratio error
-(\code{se_mean}, \code{se_sd}), the reference \code{noise_floor}, and
-the pair counts (\code{n_ent} non-trivial seen, \code{n_ref}
-referenced, \code{n_capped} cap hits).}
+its \code{flag}, the signed mean and spread of the log-ratio error
+(\code{se_mean}, \code{se_sd}), the reference-noise component
+\code{se_mcse} and combined standard error \code{se_se} of
+\code{se_mean}, the reference \code{noise_floor}, the pair counts
+(\code{n_ent} non-trivial seen, \code{n_ref} referenced,
+\code{n_capped} cap hits), and the harm channel (\code{amplification},
+\code{harm_pred}, \code{harm_flag}).}
 \item{\code{threshold}}{The flag tolerance on \code{flip_rate}.}
-\item{\code{flagged}}{Logical: any chain flagged.}
+\item{\code{harm_threshold}}{The flag tolerance on \code{harm_pred}.}
+\item{\code{flagged}}{Logical: any chain flagged on either channel.}
 }
 }
 \description{
 Reports the per-chain trust gauge for the hierarchical graph
 prior. Under that prior the sampler decides each edge with a fast
 approximation; during sampling the gauge redoes a subset of each chain's own
-edge decisions with the exact calculation and records
-\code{flip_rate} = the fraction of add/remove decisions that would come out
-differently. A chain is flagged when
-\code{flip_rate} exceeds the tolerance by more than the exact reference's
-own Monte-Carlo noise. \code{flip_rate} counts decisions rather than
-measuring a distance, so the same tolerance applies at any number of
-variables and any graph prior.
+edge decisions with the exact calculation and records two statistics per
+chain:
+\describe{
+\item{\code{flip_rate}}{The fraction of add/remove decisions that would
+come out differently under the exact calculation. A chain is flagged on
+this channel when \code{flip_rate} exceeds the tolerance by more than
+the exact reference's own Monte-Carlo noise. This channel detects error
+that changed decisions the chain actually made; it is insensitive to a
+small coherent error at chains whose decisions are far from their
+accept/reject boundaries.}
+\item{\code{harm_pred}}{The projected inclusion-probability distortion
+from the approximation error: \code{|se_mean| * m * A}, where
+\code{se_mean} is the signed mean log-ratio error against the exact
+reference, \code{m} is the chain's mean per-edge sensitivity
+\code{mean(p_e (1 - p_e))}, and \code{A = 1 / (1 - g)} is the
+inclusion-probability feedback amplification with linearized gain
+\code{g = E m / (theta (1 - theta) (a + b + E))} under a Beta-Bernoulli
+edge prior (for a fixed inclusion probability \code{g = 0}, so
+\code{A = 1}). A chain is flagged on this channel when
+\code{harm_pred} exceeds the tolerance and \code{se_mean} is resolved
+above its own standard error, \code{|se_mean| > 2 se_se} with
+\code{se_se = sqrt(se_mcse^2 + se_sd^2 / n_ref)}. This channel detects
+coherent error whose equilibrium effect exceeds the tolerance even when
+no individual decision visibly flips. It is computed for Bernoulli and
+Beta-Bernoulli edge priors; under other priors it is \code{NA}.}
+}
 
 The gauge reads the \code{zratio$gauge} block that the sampler attaches
 under the hierarchical prior; it does not re-scan the stored draws.

@@ -260,6 +260,7 @@ void MixedMRFModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         chain_result.zratio_gauge_noise_floor = zratio_gauge_.noise_floor();
         chain_result.zratio_gauge_se_mean = zratio_gauge_.se_mean();
         chain_result.zratio_gauge_se_sd = zratio_gauge_.se_sd();
+        chain_result.zratio_gauge_se_mcse = zratio_gauge_.se_mcse();
         chain_result.zratio_gauge_n_ent = zratio_gauge_.n_ent;
         chain_result.zratio_gauge_n_ref = zratio_gauge_.n_ref;
         chain_result.zratio_gauge_n_capped = zratio_gauge_.n_capped;

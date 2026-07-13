@@ -427,7 +427,13 @@ sample_ggm_prior = function(
     out$allocations = t(results[[1L]]$allocation_samples)
   }
   if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
-    out$zratio_diagnostics = summarize_zratio_gauge(results, verbose = verbose)
+    harm_inputs = zratio_harm_inputs(
+      list(colMeans(gamma_offdiag)), ep$edge_prior,
+      a = ep$beta_bernoulli_alpha, b = ep$beta_bernoulli_beta
+    )
+    out$zratio_diagnostics = summarize_zratio_gauge(
+      results, verbose = verbose, harm_inputs = harm_inputs
+    )
     if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
       cat("See vignette('diagnostics') for guidance.\n")
     }

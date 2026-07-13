@@ -46,6 +46,7 @@ struct ZRatioGauge {
     long n_capped = 0;    ///< cap hits (non-trivial pairs not referenced)
     double se_sum = 0.0, se_sum2 = 0.0;
     double noise_sum = 0.0;   ///< sum of per-pair dalpha noise (reference MCSE)
+    double se_mcse2_sum = 0.0; ///< sum of squared per-pair log-scale reference MCSE
 
     void reset() {
         ent_sweep = ref_sweep = 0;
@@ -54,6 +55,7 @@ struct ZRatioGauge {
         n_sweeps = 0;
         n_ent = n_ref = n_capped = 0;
         se_sum = se_sum2 = noise_sum = 0.0;
+        se_mcse2_sum = 0.0;
     }
     void begin_sweep() { ent_sweep = 0; ref_sweep = 0; dal_sum_sweep = 0.0; }
     void end_sweep() {
@@ -80,6 +82,14 @@ struct ZRatioGauge {
                (static_cast<double>(n_sweeps) * nE)) *
                   (noise_sum / static_cast<double>(n_ref))
             : 0.0;
+    }
+    /// Reference-noise component of the standard error of se_mean(): the
+    /// per-pair MC errors are independent across referenced pairs (fresh
+    /// draws per reference), so the noise part is sqrt(sum mcse^2) / n.
+    double se_mcse() const {
+        return n_ref > 0
+            ? std::sqrt(se_mcse2_sum) / static_cast<double>(n_ref)
+            : NA_REAL;
     }
 };
 
@@ -121,4 +131,5 @@ inline void zratio_gauge_record(ZRatioGauge& g, ZRatioEngine* engine,
     g.se_sum += se;
     g.se_sum2 += se * se;
     g.noise_sum += dnoise;
+    g.se_mcse2_sum += mcse * mcse;
 }

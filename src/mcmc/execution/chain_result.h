@@ -87,6 +87,7 @@ public:
     double      zratio_gauge_noise_floor = 0.0;
     double      zratio_gauge_se_mean = 0.0;
     double      zratio_gauge_se_sd = 0.0;
+    double      zratio_gauge_se_mcse = 0.0;
     long        zratio_gauge_n_ent = 0;
     long        zratio_gauge_n_ref = 0;
     long        zratio_gauge_n_capped = 0;
