@@ -45,15 +45,35 @@ check_warmup_complete = function(energy_mat) {
     ))
   }
 
-  mid = floor(n / 2)
+  # Per-chain NA result for chains with too little usable energy to assess.
+  na_result = list(
+    warmup_incomplete = FALSE,
+    energy_slope = NA_real_,
+    slope_significant = FALSE,
+    ebfmi_first_half = NA_real_,
+    ebfmi_second_half = NA_real_,
+    var_ratio = NA_real_
+  )
 
   results = lapply(seq_len(nchains), function(chain) {
+    # An interrupted or degenerate run leaves the energy trace partly or
+    # fully NA; assess the finite draws only.
     energy = energy_mat[chain, ]
+    energy = energy[is.finite(energy)]
+    n_chain = length(energy)
+
+    # Too few usable values to split and regress: return NA diagnostics
+    # rather than fitting lm/var on empty data.
+    if(n_chain < 20) {
+      return(na_result)
+    }
+
+    mid = floor(n_chain / 2)
     first_half = energy[1:mid]
-    second_half = energy[(mid + 1):n]
+    second_half = energy[(mid + 1):n_chain]
 
     # Linear trend in energy
-    time_idx = seq_len(n)
+    time_idx = seq_len(n_chain)
     trend_lm = stats::lm(energy ~ time_idx)
     slope = stats::coef(trend_lm)[2]
     slope_se = summary(trend_lm)$coefficients[2, 2]
