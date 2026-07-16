@@ -47,8 +47,9 @@ inline bool checkInterrupt() {
  * per-chain counters and the exit flag are atomics, so update() and
  * shouldExit() may be called from any thread. All R API interaction (the
  * interrupt check, console output, and the R callback) happens only on the
- * construction thread: update() drives it when chain 0 runs on that thread and
- * skips it otherwise, so a worker thread never touches the R interpreter.
+ * construction thread: update() drives it from whichever chains that thread
+ * executes and skips the display on worker threads, so a worker thread never
+ * touches the R interpreter.
  *
  * Key features:
  * - Multi-chain progress tracking with atomic counters
@@ -134,6 +135,7 @@ private:
     bool useUnicode = true;            // Use Unicode vs ASCII theme
     std::vector<std::atomic<size_t>> progress; // Per-chain progress counters
     std::thread::id main_thread_id;    // Thread the manager was constructed on (the R main thread)
+    size_t main_thread_updates_ = 0;   // update() calls seen on the main thread; throttles poll() (main-thread only, no atomic)
 
     // internal config parameters/ data
     size_t no_spaces_for_total;     // Spacing for total line alignment

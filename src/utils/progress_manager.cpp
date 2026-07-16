@@ -58,16 +58,18 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
 }
 
 void ProgressManager::update(size_t chainId) {
-  const size_t count = progress[chainId].fetch_add(1, std::memory_order_relaxed) + 1;
+  progress[chainId].fetch_add(1, std::memory_order_relaxed);
 
-  // Every chain counts (atomically), but only chain 0 drives the display, and
-  // only when it runs on the R main thread. The R API (interrupt check,
-  // printing, callback) is not safe off the main thread; when the scheduler
-  // happens to run chain 0 on a worker thread the display is skipped that
-  // iteration rather than corrupting the interpreter.
-  if (chainId != 0) return;
+  // Every chain counts (atomically). The display is driven by whichever
+  // chain(s) the R main thread executes: the main thread always participates
+  // in the parallel_for, so progress advances no matter which chain the
+  // scheduler places on it -- unlike gating on chain 0, which stalls the
+  // display whenever chain 0 lands on a worker thread. The R API (interrupt
+  // check, printing, callback) is not safe off the main thread, so worker
+  // iterations only bump the counter. main_thread_updates_ is touched solely
+  // on the main thread and needs no atomicity.
   if (std::this_thread::get_id() != main_thread_id) return;
-  if (count % printEvery == 0) poll();
+  if (++main_thread_updates_ % printEvery == 0) poll();
 }
 
 void ProgressManager::poll() {
