@@ -133,6 +133,16 @@ Rcpp::List sample_ggm(
         const double zr_eta = Rcpp::as<double>(zs["eta"]);
         const double zr_alpha = zs.containsElementNamed("alpha")
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
+        // Option-B surfaces (built once in R at the analysis eta) replace the
+        // online OLS correction: attach them so log_zratio decomposes each
+        // block and sums per-component surface moments. run_sampler zeros the
+        // calibration window when the surface is present, so the OLS path stays
+        // in place but dormant.
+        if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
+            Rcpp::List zsurf(zs["surface"]);
+            engine->set_surface(surface_family_from_list(zsurf["cn"]),
+                                surface_family_from_list(zsurf["bip"]));
+        }
         // The rng pointer is rebound per chain clone by GGMModel.
         if (zratio_window > 0) {
             engine->enable_calibration(zr_delta, zr_eta, nullptr, 100, 30, 1.0,

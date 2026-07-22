@@ -235,23 +235,6 @@ Rcpp::List zratio_test_calibrated_eval(
 //   for validation against the R deploy_surface.
 // -----------------------------------------------------------------------------
 
-static SurfaceFamily parse_surface_family_(const Rcpp::List& s) {
-    SurfaceFamily f;
-    f.c1 = Rcpp::as<arma::vec>(s["c1"]);
-    f.c2 = Rcpp::as<arma::vec>(s["c2"]);
-    f.size_lo = Rcpp::as<double>(s["size_lo"]);
-    f.size_hi = Rcpp::as<double>(s["size_hi"]);
-    f.dens_lo = Rcpp::as<double>(s["dens_lo"]);
-    f.dens_hi = Rcpp::as<double>(s["dens_hi"]);
-    f.l1_lo = Rcpp::as<double>(s["l1_lo"]);
-    f.l1_hi = Rcpp::as<double>(s["l1_hi"]);
-    f.l2_lo = Rcpp::as<double>(s["l2_lo"]);
-    f.l2_hi = Rcpp::as<double>(s["l2_hi"]);
-    f.size_min = Rcpp::as<double>(s["size_min"]);
-    f.valid = true;
-    return f;
-}
-
 // [[Rcpp::export(name = "zratio_test_surface_eval")]]
 Rcpp::List zratio_test_surface_eval(
     arma::imat G,
@@ -271,8 +254,8 @@ Rcpp::List zratio_test_surface_eval(
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
     engine.set_oracle_params(delta, eta, nullptr, 300, 30, slab_cauchy, alpha);
-    engine.set_surface(parse_surface_family_(surface["cn"]),
-                       parse_surface_family_(surface["bip"]));
+    engine.set_surface(surface_family_from_list(surface["cn"]),
+                       surface_family_from_list(surface["bip"]));
     double s1 = NA_REAL, s2 = NA_REAL, logr = NA_REAL;
     std::vector<SurfaceComp> comps;
     bool valid = engine.surface_moments(G, i - 1, j - 1, s1, s2, logr, comps);

@@ -69,6 +69,24 @@ struct SurfaceComp {
     bool used_surface = false;
 };
 
+/** Build a SurfaceFamily from its R list (9 coeffs, hulls, ranges, size_min). */
+inline SurfaceFamily surface_family_from_list(const Rcpp::List& s) {
+    SurfaceFamily f;
+    f.c1 = Rcpp::as<arma::vec>(s["c1"]);
+    f.c2 = Rcpp::as<arma::vec>(s["c2"]);
+    f.size_lo = Rcpp::as<double>(s["size_lo"]);
+    f.size_hi = Rcpp::as<double>(s["size_hi"]);
+    f.dens_lo = Rcpp::as<double>(s["dens_lo"]);
+    f.dens_hi = Rcpp::as<double>(s["dens_hi"]);
+    f.l1_lo = Rcpp::as<double>(s["l1_lo"]);
+    f.l1_hi = Rcpp::as<double>(s["l1_hi"]);
+    f.l2_lo = Rcpp::as<double>(s["l2_lo"]);
+    f.l2_hi = Rcpp::as<double>(s["l2_hi"]);
+    f.size_min = Rcpp::as<double>(s["size_min"]);
+    f.valid = f.c1.n_elem == 9 && f.c2.n_elem == 9;
+    return f;
+}
+
 /**
  * Deterministic per-edge normalizing-constant ratio for the hierarchical
  * prior specification p(K | Gamma) = rho_Gamma(K) / Z(Gamma).

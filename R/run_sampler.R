@@ -92,6 +92,31 @@ run_sampler_ggm = function(spec) {
       ),
       gauge_sweeps = 2L
     )
+    # Option-B absolute-moment surface: build once at the analysis's own
+    # (eta, delta) and let the engine deploy it per component in place of the
+    # online OLS correction. eta is a build parameter, not a switch. Fenced to
+    # the validated alpha = 1 Normal-slab cell; alpha != 1 / Cauchy returns NULL
+    # and keeps the additive path.
+    surf = build_surfaces_allmc(
+      zc,
+      max_size = min(d$num_variables, 44L),
+      cores = zratio_surface_build_cores()
+    )
+    if(!is.null(surf)) {
+      zratio$surface = surf
+      zratio$calibration_window = 0L   # surface replaces the OLS warmup
+    } else if(identical(zc$slab, "normal") && abs(zc$alpha - 1) > 1e-12 &&
+              isTRUE(s$verbose)) {
+      # Normal slab but a non-exponential precision diagonal: the user is in the
+      # surface's slab family but the alpha != 1 cell is not yet validated, so
+      # the engine keeps the additive path. Cauchy is the package default and
+      # its additive path is unchanged, so it is fenced silently.
+      message(
+        "z-ratio: precision shape alpha = ", format(zc$alpha),
+        " -> additive path (absolute-moment surface validated only for the ",
+        "alpha = 1 Normal slab)."
+      )
+    }
   } else {
     correction = ggm_edge_prior_correction(p, s, d$num_variables)
   }
