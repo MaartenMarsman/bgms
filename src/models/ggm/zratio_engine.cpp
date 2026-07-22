@@ -5,6 +5,14 @@
 #include <vector>
 #include <cmath>
 
+// The additive second spectral moment dips slightly negative at large blocks
+// (>=3-body error in the additive estimator). The true S2 is variance-like and
+// always >= 0, and Phi_2 is ~flat in S2, so flooring a non-positive additive S2
+// to this epsilon clamps the estimator to its valid domain without altering any
+// already-valid cell; it keeps the saddle finite, opens the calibration gate,
+// and lets the correction anchor.
+static constexpr double kS2Floor = 1e-3;
+
 double ZRatioEngine::saddle_ratio(double s1, double s2) const {
     if (s1 <= 0 || s2 <= 0) return 1.0;
     double eh = s1 * s1 / (2.0 * s2), ur = s2 / s1, nf = 0, dg = 0;
@@ -159,6 +167,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
 
     double s1 = ncn * addc_[0] + cne * addc_[2] + bre * addc_[4];
     double s2 = ncn * addc_[1] + cne * addc_[3] + bre * addc_[5];
+    if (s2 <= 0.0) s2 = kS2Floor;
 
     // Additive saddle: depends only on (nCN, cne, bre), served from the
     // persistent count-key cache. Corrections ride on top post-cache, so
@@ -718,6 +727,7 @@ void ZRatioEngine::precompute_table(int ncn_max, int bre_max) {
             for (int bre = 0; bre <= bre_max; bre++) {
                 double s1 = ncn * c1 + cne * c3 + bre * c5;
                 double s2 = ncn * c2 + cne * c4 + bre * c6;
+                if (s2 <= 0.0) s2 = kS2Floor;
                 cache_[pack_count_key(ncn, cne, bre)] = saddle_ratio(s1, s2);
             }
         }
