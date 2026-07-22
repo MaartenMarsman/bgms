@@ -165,6 +165,10 @@ zratio_test_reference <- function(G, i, j, addc, tg, ihat, ghat, wt, psi0, delta
     .Call(`_bgms_zratio_test_reference`, G, i, j, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_draws, burn, seed, slab_cauchy, alpha)
 }
 
+zratio_block_oracle_moments <- function(a_blk, si, sj, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy = FALSE, alpha = 1.0) {
+    .Call(`_bgms_zratio_block_oracle_moments`, a_blk, si, sj, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy, alpha)
+}
+
 zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
 }
