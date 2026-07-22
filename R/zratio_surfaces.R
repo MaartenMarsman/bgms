@@ -76,7 +76,8 @@ zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
   all_rows = 0:(n - 1)
   r = zratio_block_oracle_moments(
     adj, all_rows, all_rows, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
-    zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed
+    zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
+    slab_cauchy = identical(zc$slab, "cauchy")
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = e / choose(n, 2), S1 = r$S1, S2 = r$S2)
@@ -94,7 +95,8 @@ zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
   sj = which(!bp$aside) - 1
   r = zratio_block_oracle_moments(
     bp$adj, si, sj, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
-    zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed
+    zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
+    slab_cauchy = identical(zc$slab, "cauchy")
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = ee / (na_ * nb_), S1 = r$S1, S2 = r$S2)
@@ -138,15 +140,17 @@ zratio_fit_surface_family = function(anchors) {
 }
 
 # Build both family surfaces (CN + bipartite) for one analysis. `zc` is the
-# fit-time cell (zratio_cell_constants); the surface is fenced to the validated
-# alpha = 1 Normal-slab cell (NULL otherwise, so the engine keeps additive).
+# fit-time cell (zratio_cell_constants). Built for the Normal slab and for the
+# Cauchy slab (a scale-mixture of normals the oracle draws directly, so the same
+# anchor machinery covers it). Fenced to the alpha = 1 diagonal: a non-unit
+# Gamma shape returns NULL (open problem) and the engine keeps the additive path.
 # max_size caps the anchor sizes at the reachable giant; components larger than
 # the trained hull clamp to its edge at deploy. Sparse, law-informed placement
 # with short chains (~800-1000 sweeps); the fit denoises. Returns
 # list(cn = <family>, bip = <family>) or NULL.
 build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
                                 seed0 = 700000L) {
-  if(!identical(zc$slab, "normal") || abs(zc$alpha - 1) > 1e-12) return(NULL)
+  if(abs(zc$alpha - 1) > 1e-12) return(NULL)
   cap = as.integer(max_size)
 
   cn_jobs = rbind(
