@@ -38,12 +38,18 @@ eval_surf = function(f, s2, size, dens) {
 make_graph1 = function() {
   q = 12
   G = matrix(0L, q, q)
-  ei = function(a, b) { G[a, b] <<- 1L; G[b, a] <<- 1L }
-  for(v in 3:6) { ei(1, v); ei(2, v) }         # CN nodes 3..6 adjacent to both
+  ei = function(a, b) {
+    G[a, b] <<- 1L
+    G[b, a] <<- 1L
+  }
+  for(v in 3:6) {                              # CN nodes 3..6 adjacent to both
+    ei(1, v)
+    ei(2, v)
+  }
   for(a in 3:5) for(b in (a + 1):6) ei(a, b)   # CN-CN complete K4
-  ei(1, 7); ei(1, 8)                           # A-side adjacent to i only
-  ei(2, 9); ei(2, 10); ei(2, 11)               # B-side adjacent to j only
-  ei(7, 9); ei(7, 10); ei(8, 10); ei(8, 11)    # bridges
+  for(b in c(7, 8)) ei(1, b)                   # A-side adjacent to i only
+  for(b in c(9, 10, 11)) ei(2, b)              # B-side adjacent to j only
+  for(e in list(c(7, 9), c(7, 10), c(8, 10), c(8, 11))) ei(e[1], e[2])  # bridges
   G
 }
 
@@ -106,9 +112,12 @@ test_that("alpha != 1 fences log_zratio to the additive path, bypassing the surf
 test_that("components below size_min fall back to additive (exact through pairwise overlap)", {
   q = 8
   G = matrix(0L, q, q)
-  ei = function(a, b) { G[a, b] <<- 1L; G[b, a] <<- 1L }
-  ei(1, 3); ei(2, 3); ei(1, 4); ei(2, 4); ei(3, 4)   # CN pair {3,4}, e 1
-  ei(1, 5); ei(2, 6); ei(5, 6)                        # single bridge 5-6
+  ei = function(a, b) {
+    G[a, b] <<- 1L
+    G[b, a] <<- 1L
+  }
+  for(e in list(c(1, 3), c(2, 3), c(1, 4), c(2, 4), c(3, 4))) ei(e[1], e[2])  # CN pair {3,4}, e 1
+  for(e in list(c(1, 5), c(2, 6), c(5, 6))) ei(e[1], e[2])                    # single bridge 5-6
   r = surf_eval(G, 1, 2, surface)
   cn = r$comp[r$comp$family == 0, ]
   bp = r$comp[r$comp$family == 1, ]
@@ -129,9 +138,12 @@ test_that("gold reference collapses to additive when every component is trivial"
   # exact additive moment -> identical logR, deterministically (no Monte Carlo).
   q = 8
   G = matrix(0L, q, q)
-  ei = function(a, b) { G[a, b] <<- 1L; G[b, a] <<- 1L }
-  ei(1, 3); ei(2, 3); ei(1, 4); ei(2, 4); ei(3, 4)
-  ei(1, 5); ei(2, 6); ei(5, 6)
+  ei = function(a, b) {
+    G[a, b] <<- 1L
+    G[b, a] <<- 1L
+  }
+  for(e in list(c(1, 3), c(2, 3), c(1, 4), c(2, 4), c(3, 4))) ei(e[1], e[2])
+  for(e in list(c(1, 5), c(2, 6), c(5, 6))) ei(e[1], e[2])
   gold = zratio_test_gold_moments(
     G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
     zc$delta, zc$eta, 1000L, 200L, 1L, FALSE, 1

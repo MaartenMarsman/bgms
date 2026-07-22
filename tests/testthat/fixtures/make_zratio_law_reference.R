@@ -14,10 +14,12 @@ OUT <- file.path(
 setwd(COMPANION)
 Sys.setenv(SURFB_FUNCS_ONLY = "1", S1_FUNCS_ONLY = "1", OMP_NUM_THREADS = "1")
 suppressPackageStartupMessages({
-  library(Rcpp); library(RcppArmadillo)
+  library(Rcpp)
+  library(RcppArmadillo)
 })
 source("R/scripts/surface-b.R")   # re_param2 (SURFB_FUNCS_ONLY: no driver)
-source("R/scripts/s1-correction.R"); s1_setup()   # law stack + cpp ports
+source("R/scripts/s1-correction.R")   # law stack + cpp ports
+s1_setup()
 LAW_BUDGET <<- 3000L               # well-converged reference
 
 q <- 50
@@ -34,7 +36,8 @@ for (cell in cells) {
   re_param2(cell$eta, cell$delta)
   rows <- list()
   for (r in seq_len(nrow(grid))) {
-    n <- grid$n[r]; dens <- grid$dens[r]
+    n <- grid$n[r]
+    dens <- grid$dens[r]
     D <- dens * (n - 1)
     res <- law_mu_cpp(D = D, n = n)
     rows[[length(rows) + 1]] <- data.frame(
