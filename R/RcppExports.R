@@ -185,3 +185,7 @@ zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn
     .Call(`_bgms_zratio_test_precompute`, G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max)
 }
 
+zratio_law_moments <- function(eta, delta, D, n, budget = 3000L) {
+    .Call(`_bgms_zratio_law_moments`, eta, delta, D, n, budget)
+}
+
