@@ -1,14 +1,20 @@
 # Generates tests/testthat/fixtures/zratio_law_reference.rds: companion R
 # eval_mu_law (via law_mu_cpp) moments at a handful of (eta, delta, n, dens)
 # CN cells. The bgms C++ port (zratio_law_moments) must reproduce these to
-# porting tolerance. Run from the companion working directory:
-#   Rscript tests/testthat/fixtures/make_zratio_law_reference.R
-# (edit COMPANION below if the ggm_paper checkout moves).
+# porting tolerance. The generator needs the (non-public) companion ggm_paper
+# sources; the committed .rds is the frozen reference the test reads, so this
+# script only needs re-running if the companion law changes. Run from the bgms
+# package root, pointing BGMS_GGM_PAPER at the ggm_paper checkout:
+#   BGMS_GGM_PAPER=/path/to/ggm_paper \
+#     Rscript tests/testthat/fixtures/make_zratio_law_reference.R
 
-COMPANION <- "/Users/maartenmarsman/Library/CloudStorage/Dropbox/Projecten/SV/ggm_paper"
-OUT <- file.path(
-  "/Users/maartenmarsman/Library/CloudStorage/Dropbox/Projecten/R/bgms",
-  "tests/testthat/fixtures/zratio_law_reference.rds"
+COMPANION <- Sys.getenv("BGMS_GGM_PAPER")
+if(!nzchar(COMPANION)) {
+  stop("Set BGMS_GGM_PAPER to the ggm_paper checkout (the companion sources).")
+}
+OUT <- normalizePath(
+  file.path("tests", "testthat", "fixtures", "zratio_law_reference.rds"),
+  mustWork = FALSE
 )
 
 setwd(COMPANION)
