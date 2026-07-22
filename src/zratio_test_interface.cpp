@@ -234,6 +234,45 @@ Rcpp::List zratio_test_surface_eval(
 }
 
 // -----------------------------------------------------------------------------
+// zratio_test_surface_batch:
+//   Set the Option-B surface once, then evaluate log_zratio for every edge in
+//   `edges` (1-based) on a SHARED engine, so the deploy-time surface cache
+//   persists across the sweep exactly as in the sampler. Returns the logR
+//   vector and the prediction/cache diagnostics, for parity and timing checks.
+// -----------------------------------------------------------------------------
+
+// [[Rcpp::export(name = "zratio_test_surface_batch")]]
+Rcpp::List zratio_test_surface_batch(
+    arma::imat G,
+    arma::imat edges,
+    arma::vec addc,
+    arma::vec tg,
+    arma::vec ihat,
+    arma::vec ghat,
+    arma::vec wt,
+    double psi0,
+    Rcpp::List surface,
+    double delta,
+    double eta,
+    bool slab_cauchy = false,
+    double alpha = 1.0
+) {
+    ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
+    engine.set_oracle_params(delta, eta, nullptr, 300, 30, slab_cauchy, alpha);
+    engine.set_surface(surface_family_from_list(surface["cn"]),
+                       surface_family_from_list(surface["bip"]));
+    arma::vec out(edges.n_rows);
+    for (arma::uword e = 0; e < edges.n_rows; ++e) {
+        out[e] = engine.log_zratio(G, edges(e, 0) - 1, edges(e, 1) - 1);
+    }
+    return Rcpp::List::create(
+        Rcpp::_["log_zratio"] = out,
+        Rcpp::_["n_pred"] = engine.n_pred(),
+        Rcpp::_["n_add"] = engine.n_add()
+    );
+}
+
+// -----------------------------------------------------------------------------
 // zratio_test_gold_moments:
 //   Per-component gold reference logR for the edge (i, j) (1-based) on G: the
 //   block-Gibbs oracle on each non-trivial component's own sub-adjacency,

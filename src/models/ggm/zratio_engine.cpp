@@ -27,12 +27,13 @@ double ZRatioEngine::saddle_ratio(double s1, double s2) const {
 ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
                                         int j) const {
     ZRatioBlock bl;
-    extract_block_(G, i, j, false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/true, bl);
     return bl;
 }
 
 void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
-                                  bool counts_only, ZRatioBlock& bl) const {
+                                  bool need_adjacency, bool need_counts,
+                                  ZRatioBlock& bl) const {
     bl = ZRatioBlock();
     const int q = static_cast<int>(G.n_rows);
 
@@ -94,43 +95,48 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.valid = true;
 
     bl.ncn = static_cast<int>(cn.size());
-    for (size_t a = 0; a < cn.size(); a++) {
-        for (size_t b = a + 1; b < cn.size(); b++) {
-            if (G(rv[cn[a]], rv[cn[b]]) == 1) bl.cne++;
+    // Scalar count descriptors (cne, bre, maxbd, dens) drive the additive
+    // saddle only; the surface deploy reads the adjacency instead, so skip
+    // these O(m^2) passes when the caller does not need the counts.
+    if (need_counts) {
+        for (size_t a = 0; a < cn.size(); a++) {
+            for (size_t b = a + 1; b < cn.size(); b++) {
+                if (G(rv[cn[a]], rv[cn[b]]) == 1) bl.cne++;
+            }
         }
-    }
-    for (int a : si_o) {
-        for (int b : sj_o) {
-            if (G(rv[a], rv[b]) == 1) bl.bre++;
-        }
-    }
-    for (int a : si_o) {
-        int d = 0;
-        for (int b : sj_o) {
-            if (G(rv[a], rv[b]) == 1) d++;
-        }
-        if (d > bl.maxbd) bl.maxbd = d;
-    }
-    for (int b : sj_o) {
-        int d = 0;
         for (int a : si_o) {
-            if (G(rv[a], rv[b]) == 1) d++;
+            for (int b : sj_o) {
+                if (G(rv[a], rv[b]) == 1) bl.bre++;
+            }
         }
-        if (d > bl.maxbd) bl.maxbd = d;
+        for (int a : si_o) {
+            int d = 0;
+            for (int b : sj_o) {
+                if (G(rv[a], rv[b]) == 1) d++;
+            }
+            if (d > bl.maxbd) bl.maxbd = d;
+        }
+        for (int b : sj_o) {
+            int d = 0;
+            for (int a : si_o) {
+                if (G(rv[a], rv[b]) == 1) d++;
+            }
+            if (d > bl.maxbd) bl.maxbd = d;
+        }
+
+        long block_edges = 0;
+        for (int a = 0; a < m; a++) {
+            for (int b = a + 1; b < m; b++) {
+                if (G(rv[a], rv[b]) == 1) block_edges++;
+            }
+        }
+        bl.dens = (m >= 2)
+            ? (static_cast<double>(block_edges) /
+               (static_cast<double>(m) * (m - 1) / 2.0))
+            : 0.0;
     }
 
-    long block_edges = 0;
-    for (int a = 0; a < m; a++) {
-        for (int b = a + 1; b < m; b++) {
-            if (G(rv[a], rv[b]) == 1) block_edges++;
-        }
-    }
-    bl.dens = (m >= 2)
-        ? (static_cast<double>(block_edges) /
-           (static_cast<double>(m) * (m - 1) / 2.0))
-        : 0.0;
-
-    if (counts_only) return;
+    if (!need_adjacency) return;
 
     bl.a_blk.zeros(m, m);
     for (int a = 0; a < m; a++) {
@@ -309,11 +315,157 @@ void ZRatioEngine::accumulate_surface_moments_(
     }
 }
 
+void ZRatioEngine::comp_moments_(int family, int sz, int e, int na, int nb,
+                                 double& c1, double& c2) {
+    const std::array<int, 5> key = {family, sz, e, na, nb};
+    auto it = comp_cache_.find(key);
+    if (it != comp_cache_.end()) {
+        c1 = it->second.first;
+        c2 = it->second.second;
+        return;
+    }
+    if (family == 0) {
+        const double dens =
+            (sz >= 2) ? e / (static_cast<double>(sz) * (sz - 1) / 2.0) : 0.0;
+        if (sz >= static_cast<int>(surf_cn_.size_min)) {
+            c1 = surface_eval_(surf_cn_, false, sz, dens);
+            c2 = surface_eval_(surf_cn_, true, sz, dens);
+        } else {
+            c1 = sz * addc_[0] + e * addc_[2];
+            c2 = sz * addc_[1] + e * addc_[3];
+        }
+    } else {
+        const double dens =
+            (na > 0 && nb > 0) ? e / static_cast<double>(na * nb) : 0.0;
+        if (sz >= static_cast<int>(surf_bip_.size_min)) {
+            c1 = surface_eval_(surf_bip_, false, sz, dens);
+            c2 = surface_eval_(surf_bip_, true, sz, dens);
+        } else {
+            c1 = e * addc_[4];
+            c2 = e * addc_[5];
+        }
+    }
+    comp_cache_.emplace(key, std::make_pair(c1, c2));
+}
+
+double ZRatioEngine::surface_logr_(const arma::imat& G) {
+    // Node sets left in the extract scratch: rv maps block positions to graph
+    // nodes; cn are the common-neighbour positions, sio/sjo the A-side
+    // (i-only) and B-side (j-only) positions. Adjacency is read from G through
+    // rv, so no block adjacency matrix is materialised.
+    const std::vector<int>& rv = xb_rv_;
+    const std::vector<int>& cn = xb_cn_;
+    const std::vector<int>& sio = xb_sio_;
+    const std::vector<int>& sjo = xb_sjo_;
+    const int m = static_cast<int>(rv.size());
+
+    sl_uf_.resize(m);
+    sl_sz_.resize(m);
+    sl_e_.resize(m);
+    sl_na_.resize(m);
+    sl_nb_.resize(m);
+    sl_sig_.clear();
+
+    // Common-neighbour clusters: connected components of the CN-CN subgraph
+    // under any intra-cluster edge. Union over CN pairs, then tally size and
+    // internal edges per component root.
+    for (int a : cn) {
+        sl_uf_[a] = a;
+        sl_sz_[a] = 0;
+        sl_e_[a] = 0;
+    }
+    for (size_t x = 0; x < cn.size(); ++x) {
+        for (size_t y = x + 1; y < cn.size(); ++y) {
+            if (G(rv[cn[x]], rv[cn[y]]) == 1) uf_union_(cn[x], cn[y]);
+        }
+    }
+    for (int a : cn) sl_sz_[uf_find_(a)]++;
+    for (size_t x = 0; x < cn.size(); ++x) {
+        for (size_t y = x + 1; y < cn.size(); ++y) {
+            if (G(rv[cn[x]], rv[cn[y]]) == 1) sl_e_[uf_find_(cn[x])]++;
+        }
+    }
+    for (int a : cn) {
+        if (uf_find_(a) == a) {
+            sl_sig_.push_back({0, sl_sz_[a], sl_e_[a], sl_sz_[a], 0});
+        }
+    }
+
+    // Bipartite bridges: connected components of the A-B subgraph under
+    // cross-side edges only. Union over cross pairs, then tally A/B side sizes
+    // and cross edges per component root (which may sit on either side).
+    for (int a : sio) {
+        sl_uf_[a] = a;
+        sl_sz_[a] = 0;
+        sl_e_[a] = 0;
+        sl_na_[a] = 0;
+        sl_nb_[a] = 0;
+    }
+    for (int b : sjo) {
+        sl_uf_[b] = b;
+        sl_sz_[b] = 0;
+        sl_e_[b] = 0;
+        sl_na_[b] = 0;
+        sl_nb_[b] = 0;
+    }
+    for (int a : sio) {
+        for (int b : sjo) {
+            if (G(rv[a], rv[b]) == 1) uf_union_(a, b);
+        }
+    }
+    for (int a : sio) {
+        const int r = uf_find_(a);
+        sl_sz_[r]++;
+        sl_na_[r]++;
+    }
+    for (int b : sjo) {
+        const int r = uf_find_(b);
+        sl_sz_[r]++;
+        sl_nb_[r]++;
+    }
+    for (int a : sio) {
+        for (int b : sjo) {
+            if (G(rv[a], rv[b]) == 1) sl_e_[uf_find_(a)]++;
+        }
+    }
+    for (int a : sio) {
+        if (uf_find_(a) == a) {
+            sl_sig_.push_back({1, sl_sz_[a], sl_e_[a], sl_na_[a], sl_nb_[a]});
+        }
+    }
+    for (int b : sjo) {
+        if (uf_find_(b) == b) {
+            sl_sig_.push_back({1, sl_sz_[b], sl_e_[b], sl_na_[b], sl_nb_[b]});
+        }
+    }
+
+    // Canonical multiset -> cached saddle. Accumulating in sorted order makes
+    // the sum bit-identical for any block with this multiset.
+    std::sort(sl_sig_.begin(), sl_sig_.end());
+    sl_key_.clear();
+    for (const std::array<int, 5>& t : sl_sig_) {
+        sl_key_.insert(sl_key_.end(), t.begin(), t.end());
+    }
+    auto it = surf_cache_.find(sl_key_);
+    if (it != surf_cache_.end()) return it->second;
+    double s1 = 0.0, s2 = 0.0;
+    for (const std::array<int, 5>& t : sl_sig_) {
+        double c1, c2;
+        comp_moments_(t[0], t[1], t[2], t[3], t[4], c1, c2);
+        s1 += c1;
+        s2 += c2;
+    }
+    if (s2 <= 0.0) s2 = kS2Floor;
+    const double logr = MY_LOG(saddle_ratio(s1, s2));
+    surf_cache_.emplace(sl_key_, logr);
+    return logr;
+}
+
 bool ZRatioEngine::gold_moments(const arma::imat& G, int i, int j,
                                 double& s1_out, double& s2_out,
                                 double& logr_out) {
     ZRatioBlock bl;
-    extract_block_(G, i, j, false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
     if (!bl.valid) {
         s1_out = 0.0;
         s2_out = 0.0;
@@ -392,7 +544,7 @@ bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
                                    std::vector<SurfaceComp>& comps) {
     comps.clear();
     ZRatioBlock bl;
-    extract_block_(G, i, j, false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
     if (!bl.valid) {
         s1_out = 0.0;
         s2_out = 0.0;
@@ -411,20 +563,19 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     // sum per-component moments. Otherwise (surface absent, or the alpha != 1
     // Gamma-shape fence) fall through to the additive-counts saddle.
     const bool surface_active = has_surface_ && std::abs(alpha_ - 1.0) < 1e-12;
-    // Counts-only extraction unless the surface path needs the adjacency and
-    // side vectors; every other consumer reads just the scalar descriptors.
+    // Neither branch needs the block adjacency matrix: the surface deploy reads
+    // adjacency from G through the extract scratch (surface_logr_), the additive
+    // saddle needs only the scalar counts.
     ZRatioBlock bl;
-    extract_block_(G, i, j, !surface_active, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/false,
+                   /*need_counts=*/!surface_active, bl);
     if (!bl.valid) {
         n_add_++;
         return MY_LOG(psi0_);
     }
     if (surface_active) {
-        double s1s = 0.0, s2s = 0.0;
-        accumulate_surface_moments_(bl, s1s, s2s, nullptr);
-        if (s2s <= 0.0) s2s = kS2Floor;
         n_pred_++;
-        return MY_LOG(saddle_ratio(s1s, s2s));
+        return surface_logr_(G);
     }
     const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre;
 

@@ -2,6 +2,9 @@
 
 #include <RcppArmadillo.h>
 #include <unordered_map>
+#include <map>
+#include <array>
+#include <utility>
 #include <string>
 #include <cstdint>
 
@@ -163,6 +166,10 @@ public:
         surf_cn_ = cn;
         surf_bip_ = bip;
         has_surface_ = cn.valid && bip.valid;
+        // Attaching a new surface invalidates the deploy-time caches, whose
+        // values are functions of the currently-attached surfaces.
+        surf_cache_.clear();
+        comp_cache_.clear();
     }
     bool has_surface() const { return has_surface_; }
 
@@ -261,13 +268,15 @@ public:
 
 private:
     /**
-     * Shared worker behind extract_block. With counts_only the scalar
-     * descriptors (valid, m, ncn, cne, bre, maxbd, dens) are read off G
-     * directly and the block adjacency and side-membership vectors are
-     * left empty; the values are identical to the full extraction.
+     * Shared worker behind extract_block. need_counts fills the scalar
+     * descriptors (cne, bre, maxbd, dens) for the additive saddle;
+     * need_adjacency fills the block adjacency and side-membership vectors for
+     * the surface deploy and the oracle. The two are independent: the surface
+     * hot path takes adjacency without the counts, the additive path the
+     * reverse. valid, m, and ncn are always set.
      */
-    void extract_block_(const arma::imat& G, int i, int j, bool counts_only,
-                        ZRatioBlock& bl) const;
+    void extract_block_(const arma::imat& G, int i, int j, bool need_adjacency,
+                        bool need_counts, ZRatioBlock& bl) const;
     /**
      * One row-wise sweep of the block sampler. When sigma_out is non-null
      * it receives the end-of-sweep block covariance k_blk^{-1} (the
@@ -316,6 +325,29 @@ private:
                                      double& s2_out,
                                      std::vector<SurfaceComp>* comps) const;
 
+    /**
+     * Hot-path surface logR for the deploy branch of log_zratio. Reads the
+     * mediating-block node sets left in the extract scratch (xb_rv_, xb_cn_,
+     * xb_sio_, xb_sjo_) after an extract_block_ pass with neither adjacency nor
+     * counts, finds the CN clusters and bipartite bridges by union-find over
+     * reused position-indexed scratch (no arma adjacency, no per-component heap
+     * allocation), forms the canonical component-descriptor multiset, and serves
+     * the saddle from surf_cache_ keyed on it. Option B makes a component's
+     * moments a function of (family, size, density) alone, so a block's logR
+     * depends only on this multiset; the cache therefore adds no approximation
+     * beyond what the surface already assumes, and accumulating in canonical
+     * order makes a hit bit-identical to a fresh evaluation. Matches the
+     * decompose_-based reference path (surface_moments) bit-for-bit.
+     */
+    double surface_logr_(const arma::imat& G);
+    /**
+     * Per-component (S1, S2) served from comp_cache_ keyed on the component
+     * descriptor (family, size, e, na, nb): surface_eval above size_min, else
+     * the additive per-component kernel. Mirrors accumulate_surface_moments_.
+     */
+    void comp_moments_(int family, int sz, int e, int na, int nb, double& c1,
+                       double& c2);
+
     /** Pack the (nCN, cne, bre) additive-cache counts into one integer key. */
     static std::uint64_t pack_count_key(int ncn, int cne, int bre) {
         return (static_cast<std::uint64_t>(ncn) << 42) |
@@ -331,6 +363,13 @@ private:
     bool has_surface_ = false;
     SurfaceFamily surf_cn_, surf_bip_;
     std::unordered_map<std::uint64_t, double> cache_;
+    // Deploy-time surface caches. surf_cache_: block component-descriptor
+    // multiset -> logR (skips the tilt-grid saddle on recurring blocks, the
+    // surface analogue of the additive count-key cache_). comp_cache_: single
+    // component descriptor -> (S1, S2) (skips the log/exp per recurring
+    // component on cache misses). Both cleared when a new surface is attached.
+    std::map<std::vector<int>, double> surf_cache_;
+    std::map<std::array<int, 5>, std::pair<double, double>> comp_cache_;
     long n_hit_ = 0, n_miss_ = 0;
     long n_pred_ = 0, n_add_ = 0;
 
@@ -348,4 +387,23 @@ private:
     mutable std::vector<int> xb_excl_i_, xb_excl_j_, xb_rv_, xb_cn_, xb_sio_,
         xb_sjo_;
     mutable std::vector<unsigned char> xb_side_;
+
+    // Reused scratch for surface_logr_ (one edge proposal at a time). The
+    // union-find and accumulator arrays are indexed by block position; once
+    // grown to the largest block seen they need no per-edge heap allocation.
+    std::vector<std::array<int, 5>> sl_sig_;
+    std::vector<int> sl_key_;
+    std::vector<int> sl_uf_, sl_sz_, sl_e_, sl_na_, sl_nb_;
+
+    int uf_find_(int x) {
+        while (sl_uf_[x] != x) {
+            sl_uf_[x] = sl_uf_[sl_uf_[x]];
+            x = sl_uf_[x];
+        }
+        return x;
+    }
+    void uf_union_(int a, int b) {
+        const int ra = uf_find_(a), rb = uf_find_(b);
+        if (ra != rb) sl_uf_[ra] = rb;
+    }
 };
