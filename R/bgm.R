@@ -61,11 +61,11 @@
 #' @param interaction_prior A prior specification object for pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 #'   }
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}.
 #'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
@@ -404,7 +404,7 @@ bgm = function(
   baseline_category,
   iter = 2e3,
   warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
@@ -455,7 +455,7 @@ bgm = function(
       "bgm(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -488,7 +488,7 @@ bgm = function(
       "0.2.0", "bgm(pairwise_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
