@@ -409,7 +409,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     // Surface (Option B) serves the alpha = 1 cell (Normal or Cauchy slab, both
     // built from the block-Gibbs oracle) when attached: decompose the block and
     // sum per-component moments. Otherwise (surface absent, or the alpha != 1
-    // Gamma-shape fence) fall through to the additive-counts saddle + OLS path.
+    // Gamma-shape fence) fall through to the additive-counts saddle.
     const bool surface_active = has_surface_ && std::abs(alpha_ - 1.0) < 1e-12;
     // Counts-only extraction unless the surface path needs the adjacency and
     // side vectors; every other consumer reads just the scalar descriptors.

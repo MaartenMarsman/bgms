@@ -165,9 +165,8 @@ public:
     void gauge_end_sweep() override { zratio_gauge_.end_sweep(); }
 
     /**
-     * Copy the Z-ratio engine's end-of-run state (counters, frozen
-     * constant block, calibration anchors) into the chain result. No-op
-     * without an engine.
+     * Copy the Z-ratio engine's end-of-run state (cache/hit counters and the
+     * trust-gauge block) into the chain result. No-op without an engine.
      */
     void collect_chain_diagnostics(ChainResult& chain_result) const override;
 

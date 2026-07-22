@@ -1,6 +1,7 @@
-# Tests for the mu-first CPA analytic CN law (zratio_law_moments): the
-# deterministic build-time anchor engine that replaces the Monte-Carlo oracle
-# for dense common-neighbour clusters. Two acceptance channels:
+# Tests for the mu-first CPA analytic CN law (zratio_law_moments): a dormant
+# deterministic anchor engine kept as large-q insurance and NOT wired into the
+# default build (the Monte-Carlo block oracle is the anchor source; see
+# zratio_law.h). Two acceptance channels:
 #   (a) porting fidelity  -- reproduces the companion R eval_mu_law on a fixture
 #       of certified cells to machine precision (both port identical numerics);
 #   (a') physical accuracy -- certified law cells match the all-MC block oracle

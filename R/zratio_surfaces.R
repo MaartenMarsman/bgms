@@ -148,10 +148,70 @@ zratio_fit_surface_family = function(anchors) {
 # the trained hull clamp to its edge at deploy. Sparse, law-informed placement
 # with short chains (~800-1000 sweeps); the fit denoises. Returns
 # list(cn = <family>, bip = <family>) or NULL.
+# Session cache for the one-time surface build. The surface depends only on the
+# fit cell (delta, eta, alpha, slab) and the size cap, never on the data, so it
+# is built once per cell and reused. Backed by disk (same directory and toggle
+# convention as the edge-selection correction tables) so the build is also
+# skipped across sessions.
+.zratio_surface_cache = new.env(parent = emptyenv())
+
+zratio_surface_cache_key = function(zc, max_size, seed0) {
+  sprintf(
+    "zratio_surf_v1_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
+    as.numeric(zc$delta), as.numeric(zc$eta), as.numeric(zc$alpha),
+    as.character(zc$slab), as.integer(max_size), as.integer(seed0)
+  )
+}
+
 build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
                                 seed0 = 700000L) {
   if(abs(zc$alpha - 1) > 1e-12) return(NULL)
   cap = as.integer(max_size)
+
+  # Get-or-build: the build is data-independent, so a repeat fit of the same
+  # cell returns the cached surface (session memory first, then disk) instead of
+  # re-running the anchor sweeps. Disable with
+  # options(bgms.zratio_surface_cache = FALSE); it also follows
+  # options(bgms.correction_table_cache) so one switch governs both.
+  use_cache = isTRUE(getOption(
+    "bgms.zratio_surface_cache",
+    getOption("bgms.correction_table_cache", TRUE)
+  ))
+  cache_file = NULL
+  if(use_cache) {
+    key = zratio_surface_cache_key(zc, cap, seed0)
+    hit = get0(key, envir = .zratio_surface_cache, inherits = FALSE)
+    if(!is.null(hit)) return(hit)
+    cache_dir = getOption(
+      "bgms.correction_cache_dir",
+      tools::R_user_dir("bgms", which = "cache")
+    )
+    cache_file = file.path(cache_dir, paste0(key, ".rds"))
+    if(file.exists(cache_file)) {
+      surf = tryCatch(readRDS(cache_file), error = function(e) NULL)
+      if(!is.null(surf)) {
+        assign(key, surf, envir = .zratio_surface_cache)
+        return(surf)
+      }
+    }
+  }
+
+  # The anchors self-seed per job (zratio_rand_conn_graph/bip call set.seed),
+  # which runs in-process at the default cores = 1 and would otherwise leave the
+  # caller's .Random.seed advanced after every fit. Save and restore it, matching
+  # zratio_constants (R/zratio_tables.R).
+  has_seed = exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  if(has_seed) {
+    old_seed = get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
+  } else {
+    on.exit(
+      if(exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        rm(list = ".Random.seed", envir = globalenv())
+      },
+      add = TRUE
+    )
+  }
 
   cn_jobs = rbind(
     expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
@@ -181,7 +241,15 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
   cn = zratio_fit_surface_family(cn_rows)
   bip = zratio_fit_surface_family(bip_rows)
   if(is.null(cn) || is.null(bip)) return(NULL)
-  list(cn = cn, bip = bip)
+  surf = list(cn = cn, bip = bip)
+  if(use_cache) {
+    assign(key, surf, envir = .zratio_surface_cache)
+    tryCatch({
+      dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
+      saveRDS(surf, cache_file)
+    }, error = function(e) NULL)
+  }
+  surf
 }
 
 # Parallelism for the one-time surface build. Anchors self-seed per job, so the
@@ -192,4 +260,14 @@ zratio_surface_build_cores = function() {
   cores = suppressWarnings(as.integer(getOption("bgms.zratio_surface_cores", 1L)))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
   cores
+}
+
+# Number of in-chain trust-gauge assessment sweeps. The gauge is a post-sampling
+# diagnostic (chain_runner.cpp), so it is OFF by default for production fits;
+# enable it with options(bgms.zratio_gauge_sweeps = 2L). The prior sampler wires
+# its own flag (sample_ggm_prior); this governs the deployed hierarchical path.
+zratio_gauge_sweeps = function() {
+  n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 0L)))
+  if(length(n) != 1L || is.na(n) || n < 0L) n = 0L
+  n
 }

@@ -28,7 +28,7 @@
 // determinant-tilt exponent delta on |Kyy|, the normalizing-constant
 // correction list for hierarchical edge priors (see R/correction_tables.R,
 // or R_NilValue), and the Z-ratio spec for the continuous block (constants +
-// calibration window, or R_NilValue for the joint spec). Progress_callback
+// surfaces, or R_NilValue for the joint spec). Progress_callback
 // is called as callback(completed, total), or R_NilValue.
 // Returns a list of per-chain results with samples and diagnostics.
 // [[Rcpp::export]]
@@ -162,8 +162,7 @@ Rcpp::List sample_mixed_mrf(
         const double zr_alpha = zs.containsElementNamed("alpha")
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
         // Option-B surfaces (built in R at the analysis eta on the continuous
-        // subgraph) replace the online OLS correction, exactly as on the GGM
-        // path; run_sampler zeros the calibration window when they are present.
+        // subgraph) are the deployed correction, exactly as on the GGM path.
         if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
             Rcpp::List zsurf(zs["surface"]);
             engine->set_surface(surface_family_from_list(zsurf["cn"]),

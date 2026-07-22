@@ -197,7 +197,7 @@ prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
 ratio with a fast local approximation: a theta-independent
 absolute-moment surface built once at the start of the analysis from
 block-Gibbs anchors. A trust gauge audits the approximation
-during sampling on two channels: the rate at which the chain's edge
+after sampling on two channels: the rate at which the chain's edge
 decisions would differ under the exact calculation, and the
 projected distortion of the inclusion probabilities from the
 measured error under the edge prior's feedback

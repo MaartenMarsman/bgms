@@ -395,11 +395,10 @@ zratio_constants_cache = new.env(parent = emptyenv())
 # evaluated at sigma = 1, beta = eta (the frame the quadrature grids are
 # sized for), and no other scale is representable. addc[1..6] (R indexing)
 # = (w1, w2, ce1, ce2, cb1, cb2), plus the saddle grid and
-# psi0 = I_spike(0)/G(0). The OLS-correction slots (7..13) and the hull box
-# (14..23) are absent here; the warm-up calibrator appends them. The
-# clique-2 channel draws seeded Monte Carlo samples, so the caller's RNG
-# state is saved and restored. Results are served from a session cache keyed
-# on the cell.
+# psi0 = I_spike(0)/G(0); these six additive constants are the whole addc
+# vector the engine reads. The clique-2 channel draws seeded Monte Carlo
+# samples, so the caller's RNG state is saved and restored. Results are served
+# from a session cache keyed on the cell.
 zratio_constants = function(delta, eta, alpha = 1, slab = "normal") {
   slab = match.arg(slab, c("normal", "cauchy"))
   sigma = 1

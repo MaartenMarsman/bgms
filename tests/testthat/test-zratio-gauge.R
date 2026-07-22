@@ -139,15 +139,17 @@ test_that("the harm channel computes the documented statistics", {
 
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
-  # Bare additive kernel (calibration_window = 0) under a dense-leaning
-  # Beta-Bernoulli prior with no data: the feedback-amplified regime where
-  # the flip rate stays quiet but the projected distortion is first-order.
+  # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
+  # data: the feedback-amplified regime where the flip rate stays quiet but the
+  # projected distortion is first-order. The additive kernel is reached through
+  # the non-unit Gamma-diagonal fence (shape = 2), where the surface is not
+  # deployed and the engine falls back to the additive-counts saddle.
   f = sample_ggm_prior(
     p = 16L, n_samples = 1200L, n_warmup = 500L,
     interaction_prior = normal_prior(scale = 0.5),
-    precision_scale_prior = gamma_prior(shape = 1, rate = 6),
+    precision_scale_prior = gamma_prior(shape = 2, rate = 6),
     spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
-    update_method = "gibbs", calibration_window = 0L,
+    update_method = "gibbs",
     zratio_diagnostics = TRUE, seed = 7L, verbose = FALSE
   )
   pc = f$zratio_diagnostics$per_chain

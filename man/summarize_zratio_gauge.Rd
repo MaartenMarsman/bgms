@@ -53,9 +53,9 @@ error, \code{harm_pred}, \code{harm_flag}).}
 \description{
 Reports the per-chain trust gauge for the hierarchical graph
 prior. Under that prior the sampler decides each edge with a fast
-approximation; during sampling the gauge redoes a subset of each chain's own
-edge decisions with the exact calculation and records two statistics per
-chain:
+approximation; in a set of assessment sweeps after sampling the gauge redoes
+a subset of each chain's own edge decisions with the exact calculation and
+records two statistics per chain:
 \describe{
 \item{\code{flip_rate}}{The fraction of add/remove decisions that would
 come out differently under the exact calculation. A chain is flagged on

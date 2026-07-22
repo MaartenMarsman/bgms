@@ -293,7 +293,9 @@ build_output_bgm = function(spec, raw) {
   )
 
   # --- Z-ratio trust gauge (hierarchical graph-prior spec) ----------------------
-  if(!is.null(zratio_chains)) {
+  # Only when the in-chain gauge actually ran; it is off by default
+  # (options(bgms.zratio_gauge_sweeps = 0)), so guard against empty output.
+  if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
     # Harm channel inputs: per-chain edge-inclusion probabilities from the
     # normalized chains (indicator_samples is iters x off-diagonal edges) and
     # the edge-prior identity from the spec.

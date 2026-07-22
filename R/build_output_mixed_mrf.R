@@ -286,7 +286,8 @@ build_output_mixed_mrf = function(spec, raw) {
   )
 
   # --- Z-ratio trust gauge (hierarchical spec on the continuous block) ---------
-  if(!is.null(zratio_chains)) {
+  # Only when the in-chain gauge actually ran (off by default; see build_output_bgm).
+  if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
     results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
   }
 

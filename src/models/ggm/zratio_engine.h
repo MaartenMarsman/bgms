@@ -152,13 +152,12 @@ public:
     double saddle_ratio(double s1, double s2) const;
 
     /**
-     * Attach the Option-B absolute-moment surfaces. Once set (and the cell is
-     * the validated alpha = 1 Normal-slab family), log_zratio decomposes the
+     * Attach the Option-B absolute-moment surfaces. Once set (at the validated
+     * alpha = 1 diagonal, Normal or Cauchy slab), log_zratio decomposes the
      * mediating block into disjoint components and sums the per-component
      * surface moments into (S1, S2) instead of the additive-counts saddle. The
-     * additive + OLS path stays in place and is served whenever the surface is
-     * absent or the cell is fenced (alpha != 1 / Cauchy), so no OLS machinery is
-     * removed here.
+     * additive-counts saddle is served whenever the surface is absent or the
+     * cell is fenced (a non-unit Gamma diagonal shape, alpha != 1).
      */
     void set_surface(const SurfaceFamily& cn, const SurfaceFamily& bip) {
         surf_cn_ = cn;

@@ -2,9 +2,9 @@
 #'
 #' @description Reports the per-chain trust gauge for the hierarchical graph
 #' prior. Under that prior the sampler decides each edge with a fast
-#' approximation; during sampling the gauge redoes a subset of each chain's own
-#' edge decisions with the exact calculation and records two statistics per
-#' chain:
+#' approximation; in a set of assessment sweeps after sampling the gauge redoes
+#' a subset of each chain's own edge decisions with the exact calculation and
+#' records two statistics per chain:
 #' \describe{
 #'   \item{\code{flip_rate}}{The fraction of add/remove decisions that would
 #'     come out differently under the exact calculation. A chain is flagged on
@@ -218,6 +218,17 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
     harm_threshold = harm_threshold,
     flagged = flagged
   ))
+}
+
+# TRUE if any chain carries recorded trust-gauge output, i.e. the in-chain gauge
+# actually ran. Lets callers skip the summary (which errors on empty input) when
+# the gauge is disabled (options(bgms.zratio_gauge_sweeps = 0)).
+zratio_gauge_present = function(chains) {
+  isTRUE(any(vapply(
+    chains,
+    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge),
+    logical(1)
+  )))
 }
 
 #' @title Harm-Channel Inputs for the Trust Gauge

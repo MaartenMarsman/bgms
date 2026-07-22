@@ -86,7 +86,7 @@ void run_mcmc_chain(
             model.impute_missing();
         }
 
-        // Warmup/sampling boundary hook (e.g. freeze the Z-ratio calibrator)
+        // Warmup/sampling boundary hook (models with warmup-dependent state)
         if (iter == schedule.total_warmup) {
             model.on_warmup_end();
         }
