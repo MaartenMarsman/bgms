@@ -259,6 +259,23 @@ run_sampler_mixed_mrf = function(spec) {
       ),
       gauge_sweeps = 2L
     )
+    # Option-B surface on the continuous subgraph (same as the GGM path); sized
+    # on the number of continuous variables.
+    surf = build_surfaces_allmc(
+      zc,
+      max_size = min(d$num_continuous, 44L),
+      cores = zratio_surface_build_cores()
+    )
+    if(!is.null(surf)) {
+      zratio$surface = surf
+      zratio$calibration_window = 0L
+    } else if(abs(zc$alpha - 1) > 1e-12 && isTRUE(s$verbose)) {
+      message(
+        "z-ratio: precision shape alpha = ", format(zc$alpha),
+        " -> additive path (absolute-moment surface validated only for the ",
+        "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+      )
+    }
   } else {
     correction = ggm_edge_prior_correction(
       p, s, d$num_variables, d$num_continuous

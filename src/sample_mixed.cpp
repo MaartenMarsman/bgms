@@ -165,6 +165,14 @@ Rcpp::List sample_mixed_mrf(
         const double zr_eta = Rcpp::as<double>(zs["eta"]);
         const double zr_alpha = zs.containsElementNamed("alpha")
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
+        // Option-B surfaces (built in R at the analysis eta on the continuous
+        // subgraph) replace the online OLS correction, exactly as on the GGM
+        // path; run_sampler zeros the calibration window when they are present.
+        if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
+            Rcpp::List zsurf(zs["surface"]);
+            engine->set_surface(surface_family_from_list(zsurf["cn"]),
+                                surface_family_from_list(zsurf["bip"]));
+        }
         // The rng pointer is rebound per chain clone by MixedMRFModel.
         if (zratio_window > 0) {
             engine->enable_calibration(zr_delta, zr_eta, nullptr, 300, 30, 9.0,
