@@ -181,6 +181,10 @@ zratio_test_surface_eval <- function(G, i, j, addc, tg, ihat, ghat, wt, psi0, su
     .Call(`_bgms_zratio_test_surface_eval`, G, i, j, addc, tg, ihat, ghat, wt, psi0, surface, delta, eta, slab_cauchy, alpha)
 }
 
+zratio_test_gold_moments <- function(G, i, j, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy = FALSE, alpha = 1.0) {
+    .Call(`_bgms_zratio_test_gold_moments`, G, i, j, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy, alpha)
+}
+
 zratio_test_precompute <- function(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max) {
     .Call(`_bgms_zratio_test_precompute`, G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max)
 }

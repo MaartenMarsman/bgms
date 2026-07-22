@@ -69,6 +69,20 @@ struct SurfaceComp {
     bool used_surface = false;
 };
 
+/**
+ * One decomposed component in block-position coordinates, shared by the surface
+ * deploy and the gold (per-component oracle) reference so both score the
+ * identical decomposition. family 0 = CN cluster, 1 = bipartite bridge; nodes
+ * are block-adjacency row indices; aside (bipartite only) marks the A-side per
+ * node; (na, nb, e) are the side sizes and edge count.
+ */
+struct BlockComponent {
+    int family = 0;
+    std::vector<int> nodes;
+    std::vector<char> aside;
+    int na = 0, nb = 0, e = 0;
+};
+
 /** Build a SurfaceFamily from its R list (9 coeffs, hulls, ranges, size_min). */
 inline SurfaceFamily surface_family_from_list(const Rcpp::List& s) {
     SurfaceFamily f;
@@ -176,6 +190,18 @@ public:
     bool surface_moments(const arma::imat& G, int i, int j, double& s1_out,
                          double& s2_out, double& logr_out,
                          std::vector<SurfaceComp>& comps);
+
+    /**
+     * Gold reference for the edge (i, j) on the SAME decomposition the surface
+     * scores: each non-trivial component's moments come from the block-Gibbs
+     * oracle (block_oracle_moments, at the set_oracle_params sweep count),
+     * trivial components (CN size <= 2, single bridge) from the exact additive
+     * kernel; the sum feeds saddle_ratio. Isolates the surface's moment
+     * prediction from the closure, matching the companion's gold. Returns false
+     * for an invalid (isolated-edge) block.
+     */
+    bool gold_moments(const arma::imat& G, int i, int j, double& s1_out,
+                      double& s2_out, double& logr_out);
 
     /**
      * Extract the mediating block of the edge (i, j): common neighbours,
@@ -338,9 +364,16 @@ private:
                          double dens) const;
     /**
      * Decompose the block into disjoint CN clusters and bipartite bridge
-     * structures, accumulate per-component (S1, S2) — surface above size_min,
-     * additive below — and (when comps != nullptr) record each component.
-     * Requires the full block extraction (a_blk, si, sj).
+     * structures (block-position coordinates). Shared by the surface deploy and
+     * the gold reference so both score the identical decomposition. Requires
+     * the full block extraction (a_blk, si, sj).
+     */
+    void decompose_(const ZRatioBlock& bl,
+                    std::vector<BlockComponent>& out) const;
+    /**
+     * Accumulate per-component (S1, S2) — surface above size_min, additive
+     * below — from the shared decomposition, recording each component when
+     * comps != nullptr.
      */
     void accumulate_surface_moments_(const ZRatioBlock& bl, double& s1_out,
                                      double& s2_out,

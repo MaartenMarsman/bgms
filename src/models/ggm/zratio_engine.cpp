@@ -205,11 +205,9 @@ static std::vector<std::vector<int>> conn_components_(
     return out;
 }
 
-void ZRatioEngine::accumulate_surface_moments_(
-    const ZRatioBlock& bl, double& s1_out, double& s2_out,
-    std::vector<SurfaceComp>* comps) const {
-    s1_out = 0.0;
-    s2_out = 0.0;
+void ZRatioEngine::decompose_(const ZRatioBlock& bl,
+                              std::vector<BlockComponent>& out) const {
+    out.clear();
     const int m = bl.m;
     const arma::imat& A = bl.a_blk;
     // Per-position side: CN = adjacent to both endpoints, A-side = i-only,
@@ -226,37 +224,30 @@ void ZRatioEngine::accumulate_surface_moments_(
         else if (cj) { ab_nodes.push_back(p); is_A[p] = 0; }
     }
 
-    // -- CN clusters (edges among common neighbours) --------------------------
     const std::vector<char> dummy;
-    for (const auto& comp : conn_components_(A, cn_nodes, false, dummy)) {
-        const int sz = static_cast<int>(comp.size());
+    for (auto& comp : conn_components_(A, cn_nodes, false, dummy)) {
+        BlockComponent bc;
+        bc.family = 0;
         int e = 0;
         for (size_t a = 0; a < comp.size(); ++a) {
             for (size_t b = a + 1; b < comp.size(); ++b) {
                 if (A(comp[a], comp[b]) == 1) ++e;
             }
         }
-        const double dens =
-            (sz >= 2) ? e / (static_cast<double>(sz) * (sz - 1) / 2.0) : 0.0;
-        const bool used = sz >= static_cast<int>(surf_cn_.size_min);
-        double c1, c2;
-        if (used) {
-            c1 = surface_eval_(surf_cn_, false, sz, dens);
-            c2 = surface_eval_(surf_cn_, true, sz, dens);
-        } else {
-            c1 = sz * addc_[0] + e * addc_[2];
-            c2 = sz * addc_[1] + e * addc_[3];
-        }
-        s1_out += c1;
-        s2_out += c2;
-        if (comps) comps->push_back({0, sz, e, 0, 0, dens, c1, c2, used});
+        bc.na = static_cast<int>(comp.size());
+        bc.nb = 0;
+        bc.e = e;
+        bc.nodes = std::move(comp);
+        out.push_back(std::move(bc));
     }
-
-    // -- bipartite bridge structures (A-B edges only) -------------------------
-    for (const auto& comp : conn_components_(A, ab_nodes, true, is_A)) {
+    for (auto& comp : conn_components_(A, ab_nodes, true, is_A)) {
+        BlockComponent bc;
+        bc.family = 1;
+        bc.aside.resize(comp.size());
         int na = 0, nb = 0, e = 0;
-        for (int p : comp) {
-            if (is_A[p]) ++na;
+        for (size_t k = 0; k < comp.size(); ++k) {
+            bc.aside[k] = is_A[comp[k]];
+            if (is_A[comp[k]]) ++na;
             else ++nb;
         }
         for (size_t a = 0; a < comp.size(); ++a) {
@@ -267,22 +258,132 @@ void ZRatioEngine::accumulate_surface_moments_(
                 }
             }
         }
-        const int sz = na + nb;
-        const double dens =
-            (na > 0 && nb > 0) ? e / static_cast<double>(na * nb) : 0.0;
-        const bool used = sz >= static_cast<int>(surf_bip_.size_min);
-        double c1, c2;
-        if (used) {
-            c1 = surface_eval_(surf_bip_, false, sz, dens);
-            c2 = surface_eval_(surf_bip_, true, sz, dens);
+        bc.na = na;
+        bc.nb = nb;
+        bc.e = e;
+        bc.nodes = std::move(comp);
+        out.push_back(std::move(bc));
+    }
+}
+
+void ZRatioEngine::accumulate_surface_moments_(
+    const ZRatioBlock& bl, double& s1_out, double& s2_out,
+    std::vector<SurfaceComp>* comps) const {
+    s1_out = 0.0;
+    s2_out = 0.0;
+    std::vector<BlockComponent> parts;
+    decompose_(bl, parts);
+    for (const BlockComponent& bc : parts) {
+        const int sz = static_cast<int>(bc.nodes.size());
+        double c1, c2, dens;
+        bool used;
+        if (bc.family == 0) {
+            dens = (sz >= 2) ? bc.e / (static_cast<double>(sz) * (sz - 1) / 2.0)
+                             : 0.0;
+            used = sz >= static_cast<int>(surf_cn_.size_min);
+            if (used) {
+                c1 = surface_eval_(surf_cn_, false, sz, dens);
+                c2 = surface_eval_(surf_cn_, true, sz, dens);
+            } else {
+                c1 = sz * addc_[0] + bc.e * addc_[2];
+                c2 = sz * addc_[1] + bc.e * addc_[3];
+            }
         } else {
-            c1 = e * addc_[4];
-            c2 = e * addc_[5];
+            dens = (bc.na > 0 && bc.nb > 0)
+                       ? bc.e / static_cast<double>(bc.na * bc.nb) : 0.0;
+            used = sz >= static_cast<int>(surf_bip_.size_min);
+            if (used) {
+                c1 = surface_eval_(surf_bip_, false, sz, dens);
+                c2 = surface_eval_(surf_bip_, true, sz, dens);
+            } else {
+                c1 = bc.e * addc_[4];
+                c2 = bc.e * addc_[5];
+            }
         }
         s1_out += c1;
         s2_out += c2;
-        if (comps) comps->push_back({1, sz, e, na, nb, dens, c1, c2, used});
+        if (comps) {
+            comps->push_back(
+                {bc.family, sz, bc.e, bc.na, bc.nb, dens, c1, c2, used});
+        }
     }
+}
+
+bool ZRatioEngine::gold_moments(const arma::imat& G, int i, int j,
+                                double& s1_out, double& s2_out,
+                                double& logr_out) {
+    ZRatioBlock bl;
+    extract_block_(G, i, j, false, bl);
+    if (!bl.valid) {
+        s1_out = 0.0;
+        s2_out = 0.0;
+        logr_out = MY_LOG(psi0_);
+        return false;
+    }
+    std::vector<BlockComponent> parts;
+    decompose_(bl, parts);
+    double s1 = 0.0, s2 = 0.0;
+    for (const BlockComponent& bc : parts) {
+        const int sz = static_cast<int>(bc.nodes.size());
+        // Trivial components (CN size <= 2, single bridge) are exact through
+        // pairwise overlap; larger components use the block-Gibbs oracle on the
+        // component's own sub-adjacency.
+        if (bc.family == 0 && sz < 3) {
+            s1 += sz * addc_[0] + bc.e * addc_[2];
+            s2 += sz * addc_[1] + bc.e * addc_[3];
+            continue;
+        }
+        if (bc.family == 1 && sz < 3) {
+            s1 += bc.e * addc_[4];
+            s2 += bc.e * addc_[5];
+            continue;
+        }
+        arma::imat sub(sz, sz, arma::fill::zeros);
+        arma::uvec si, sj;
+        if (bc.family == 0) {
+            for (int a = 0; a < sz; ++a) {
+                for (int b = a + 1; b < sz; ++b) {
+                    if (bl.a_blk(bc.nodes[a], bc.nodes[b]) == 1) {
+                        sub(a, b) = sub(b, a) = 1;
+                    }
+                }
+            }
+            si = arma::regspace<arma::uvec>(0, sz - 1);
+            sj = si;
+        } else {
+            std::vector<arma::uword> ai, bi;
+            for (int a = 0; a < sz; ++a) {
+                if (bc.aside[a]) ai.push_back(a);
+                else bi.push_back(a);
+            }
+            for (int a = 0; a < sz; ++a) {
+                for (int b = a + 1; b < sz; ++b) {
+                    if (bc.aside[a] != bc.aside[b] &&
+                        bl.a_blk(bc.nodes[a], bc.nodes[b]) == 1) {
+                        sub(a, b) = sub(b, a) = 1;
+                    }
+                }
+            }
+            si = arma::uvec(ai);
+            sj = arma::uvec(bi);
+        }
+        double s1c = 0.0, s2c = 0.0;
+        if (block_oracle_moments(sub, si, sj, s1c, s2c)) {
+            s1 += s1c;
+            s2 += s2c;
+        } else if (bc.family == 0) {
+            s1 += sz * addc_[0] + bc.e * addc_[2];
+            s2 += sz * addc_[1] + bc.e * addc_[3];
+        } else {
+            s1 += bc.e * addc_[4];
+            s2 += bc.e * addc_[5];
+        }
+    }
+    if (s2 <= 0.0) s2 = kS2Floor;
+    s1_out = s1;
+    s2_out = s2;
+    logr_out = MY_LOG(saddle_ratio(s1, s2));
+    return true;
 }
 
 bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,

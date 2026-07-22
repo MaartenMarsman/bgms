@@ -288,6 +288,48 @@ Rcpp::List zratio_test_surface_eval(
             Rcpp::_["used_surface"] = used));
 }
 
+// -----------------------------------------------------------------------------
+// zratio_test_gold_moments:
+//   Per-component gold reference logR for the edge (i, j) (1-based) on G: the
+//   block-Gibbs oracle on each non-trivial component's own sub-adjacency,
+//   summed through the same saddle closure the surface uses. Drives the Stage-5
+//   gold edge-toggle comparison against the deployed surface and the additive
+//   baseline.
+// -----------------------------------------------------------------------------
+
+// [[Rcpp::export(name = "zratio_test_gold_moments")]]
+Rcpp::List zratio_test_gold_moments(
+    arma::imat G,
+    int i,
+    int j,
+    arma::vec addc,
+    arma::vec tg,
+    arma::vec ihat,
+    arma::vec ghat,
+    arma::vec wt,
+    double psi0,
+    double delta,
+    double eta,
+    int n_sweep,
+    int burn,
+    int seed,
+    bool slab_cauchy = false,
+    double alpha = 1.0
+) {
+    ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
+    SafeRNG rng(seed);
+    engine.set_oracle_params(delta, eta, &rng, n_sweep, burn, slab_cauchy,
+                             alpha);
+    double s1 = NA_REAL, s2 = NA_REAL, logr = NA_REAL;
+    bool valid = engine.gold_moments(G, i - 1, j - 1, s1, s2, logr);
+    return Rcpp::List::create(
+        Rcpp::_["valid"] = valid,
+        Rcpp::_["logR"] = logr,
+        Rcpp::_["S1"] = s1,
+        Rcpp::_["S2"] = s2
+    );
+}
+
 // [[Rcpp::export(name = "zratio_test_precompute")]]
 Rcpp::List zratio_test_precompute(
     arma::imat G,

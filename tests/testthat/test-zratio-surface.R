@@ -123,6 +123,39 @@ test_that("components below size_min fall back to additive (exact through pairwi
   expect_equal(bp$s2, zc$addc[6], tolerance = 1e-12)
 })
 
+test_that("gold reference collapses to additive when every component is trivial", {
+  # CN pair + single bridge: all components are trivial (size < 3), so gold
+  # (per-component oracle), additive, and the surface deploy all reduce to the
+  # exact additive moment -> identical logR, deterministically (no Monte Carlo).
+  q = 8
+  G = matrix(0L, q, q)
+  ei = function(a, b) { G[a, b] <<- 1L; G[b, a] <<- 1L }
+  ei(1, 3); ei(2, 3); ei(1, 4); ei(2, 4); ei(3, 4)
+  ei(1, 5); ei(2, 6); ei(5, 6)
+  gold = zratio_test_gold_moments(
+    G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
+    zc$delta, zc$eta, 1000L, 200L, 1L, FALSE, 1
+  )
+  addl = zratio_test_eval(
+    G, matrix(c(1, 2), 1, 2), zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0
+  )$log_zratio[1]
+  surf = surf_eval(G, 1, 2, surface)
+  expect_true(gold$valid)
+  expect_equal(gold$logR, addl, tolerance = 1e-12)
+  expect_equal(surf$logR, addl, tolerance = 1e-12)
+})
+
+test_that("gold reference is finite on a non-trivial block", {
+  r = zratio_test_gold_moments(
+    make_graph1(), 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
+    zc$delta, zc$eta, 800L, 150L, 7L, FALSE, 1
+  )
+  expect_true(r$valid)
+  expect_true(is.finite(r$logR))
+  expect_gt(r$S1, 0)
+  expect_gt(r$S2, 0)
+})
+
 test_that("size / density / log-moment clamps match the R predictor", {
   # Narrow hulls so every clamp fires: size_hi 4 (bip size 5 -> 4), dens_hi 0.5
   # (dens 0.667 -> 0.5), and a degenerate log-S2 range -> exp(-3.1).
