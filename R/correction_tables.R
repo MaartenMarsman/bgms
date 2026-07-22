@@ -26,6 +26,14 @@
 # construction. At high theta the chain can hit the positive-definite cone
 # boundary and return spuriously sparse graphs; the true d(theta) is monotone
 # increasing, so isotonic regression repairs those dips before the logs.
+#
+# This table serves the joint spec only and is theta-dependent by nature:
+# C(theta) = E[Z(Gamma) | theta] is a property of the graph law at a given
+# inclusion probability. The hierarchical spec's Option-B absolute-moment
+# surface corrects a different quantity -- the per-edge normalizer *ratio* of a
+# single toggle, which is theta-free -- and so does not and cannot replace this
+# table. Both corrections coexist: the surface on the hierarchical route, this
+# table on the joint route.
 # ==============================================================================
 
 
