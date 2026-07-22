@@ -241,18 +241,12 @@ void MixedMRFModel::collect_chain_diagnostics(ChainResult& chain_result) const {
     const ZRatioEngine& engine = *zratio_engine_;
     chain_result.has_zratio_diagnostics = true;
     chain_result.zratio_addc = engine.addc();
-    chain_result.zratio_anchors_x = engine.anchors_x();
-    chain_result.zratio_anchors_y = engine.anchors_y();
     chain_result.zratio_counters = {
         static_cast<double>(engine.n_hit()),
         static_cast<double>(engine.n_miss()),
         static_cast<double>(engine.n_pred()),
         static_cast<double>(engine.n_add()),
-        static_cast<double>(engine.n_clamp()),
-        static_cast<double>(engine.n_oracle()),
-        static_cast<double>(engine.n_anchors()),
-        static_cast<double>(engine.cache_size()),
-        engine.frozen() ? 1.0 : 0.0
+        static_cast<double>(engine.cache_size())
     };
     if (zratio_gauge_.n_sweeps > 0) {
         chain_result.zratio_gauge_ran = true;

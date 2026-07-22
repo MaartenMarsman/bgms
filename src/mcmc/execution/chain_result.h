@@ -60,21 +60,10 @@ public:
     /// Whether AM diagnostics are stored.
     bool        has_am_diagnostics = false;
 
-    /// Z-ratio engine constant block at end of run (frozen fit + hull when
-    /// the calibrator produced one; the 6-slot additive block otherwise).
+    /// Z-ratio engine additive constant block at end of run (6 slots).
     arma::vec   zratio_addc;
-    /// Z-ratio calibration anchor design rows (1, bre, m, cne, maxbd, dens).
-    arma::mat   zratio_anchors_x;
-    /// Z-ratio calibration anchor targets log(oracle) - log(additive).
-    arma::vec   zratio_anchors_y;
-    /// Z-ratio engine counters: n_hit, n_miss, n_pred, n_add, n_clamp,
-    /// n_oracle, n_anchors, cache_size, frozen (0/1).
+    /// Z-ratio engine counters: n_hit, n_miss, n_pred, n_add, cache_size.
     arma::vec   zratio_counters;
-    /// Graph density trace over the selection-enabled warmup iterations
-    /// (recorded only when a Z-ratio calibration window is configured).
-    std::vector<double> zratio_warmup_density;
-    /// Edge-prior inclusion parameter trace over the same iterations.
-    std::vector<double> zratio_warmup_theta;
     /// Whether Z-ratio engine diagnostics are stored.
     bool        has_zratio_diagnostics = false;
 

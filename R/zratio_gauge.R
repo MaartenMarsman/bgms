@@ -193,8 +193,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         cat(sprintf(
           paste0(
             "  - Chain %d: %.1f%% of edge-toggle decisions in the ",
-            "approximate chain differ from the exact reference - ",
-            "increase calibration_window\n"
+            "approximate chain differ from the exact reference - the ",
+            "z-ratio surface may be inaccurate here; consider ",
+            "precision_graph_prior = \"joint\"\n"
           ),
           pc$chain, 100 * pc$flip_rate
         ))
@@ -203,8 +204,8 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         cat(sprintf(
           paste0(
             "  - Chain %d: the approximation biases the inclusion ",
-            "probabilities by an estimated %.2f - increase ",
-            "calibration_window\n"
+            "probabilities by an estimated %.2f - the z-ratio surface may ",
+            "be inaccurate here; consider precision_graph_prior = \"joint\"\n"
           ),
           pc$chain, pc$harm_pred
         ))

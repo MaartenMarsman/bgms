@@ -23,11 +23,10 @@ test_that("engine reproduces the reference log Z-ratios (all cells/variants)", {
         res = zratio_test_eval(
           g, edges, addc, cell$tg, cell$ihat, cell$ghat, cell$wt, cell$psi0
         )
-        # The hull box (addc[13..22]) is inert since the deployed correction
-        # now applies to every maxbd >= 2 block: the "clamp" variant collapses
-        # onto the "direct" (correction-everywhere) reference.
-        ref_variant = if(variant == "clamp") "direct" else variant
-        ref = cell$evals[[paste(gn, ref_variant, sep = "_")]]
+        # The OLS correction slots (addc[6..22]) are inert: the engine reads
+        # only the 6 additive constants, so passing the extended blocks
+        # (direct/clamp) yields the same additive saddle as the base block.
+        ref = cell$evals[[paste(gn, "base", sep = "_")]]
         expect_equal(
           as.numeric(res$log_zratio), unname(ref),
           tolerance = 1e-12,
@@ -119,71 +118,4 @@ test_that("engine invariants: state-invariance, isolated edge, precompute", {
   )
   expect_equal(as.numeric(pre$log_zratio), as.numeric(lazy$log_zratio), tolerance = 1e-14)
   expect_true(pre$n_miss == 0)
-})
-
-test_that("online calibrator: oracle taper, freeze pack, accuracy gain", {
-  skip_on_cran()
-  skip_if_not(file.exists(fixture_path), "zratio_reference.rds not generated")
-  q = 14L
-  dlt = 0.5 * log(30)
-  et = 1
-  zc = bgms:::zratio_constants(dlt, et)
-
-  set.seed(4)
-  graphs = list()
-  edges = NULL
-  while(is.null(edges) || nrow(edges) < 24) {
-    a = matrix(0L, q, q)
-    ut = which(upper.tri(a))
-    a[ut] = rbinom(length(ut), 1L, 0.3)
-    a = a + t(a)
-    diag(a) = 1L
-    pr = which(upper.tri(matrix(0, q, q)), arr.ind = TRUE)
-    for(r in sample(nrow(pr))) {
-      i = pr[r, 1]
-      j = pr[r, 2]
-      oth = setdiff(1:q, c(i, j))
-      sio = oth[a[i, oth] == 1 & a[j, oth] == 0]
-      sjo = oth[a[j, oth] == 1 & a[i, oth] == 0]
-      if(!length(sio) || !length(sjo)) next
-      bd = max(c(
-        0L, vapply(sio, function(x) sum(a[x, sjo]), 0L),
-        vapply(sjo, function(x) sum(a[sio, x]), 0L)
-      ))
-      if(bd >= 2) {
-        graphs[[length(graphs) + 1]] = a
-        edges = rbind(edges, c(i, j))
-      }
-    }
-  }
-  n = nrow(edges)
-
-  truth = vapply(seq_len(n), function(e) {
-    bgms:::zratio_test_calibrated_eval(
-      graphs[e], edges[e, , drop = FALSE], zc$addc, zc$tg, zc$ihat,
-      zc$ghat, zc$wt, zc$psi0, dlt, et,
-      seed = 500L + e, n_sweep = 2000L, burn = 50L, freeze_after = 0L
-    )$log_zratio[1]
-  }, 0.0)
-
-  fz = ceiling(0.6 * n)
-  res = bgms:::zratio_test_calibrated_eval(
-    graphs, edges, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
-    dlt, et,
-    seed = 7L, n_sweep = 300L, burn = 30L, freeze_after = fz
-  )
-  add = vapply(seq_len(n), function(e) {
-    as.numeric(bgms:::zratio_test_eval(
-      graphs[[e]], edges[e, , drop = FALSE], zc$addc, zc$tg, zc$ihat,
-      zc$ghat, zc$wt, zc$psi0
-    )$log_zratio)
-  }, 0.0)
-
-  est = as.numeric(res$log_zratio)
-  expect_true(res$frozen)
-  expect_length(res$addc, 23) # coef + hull packed on freeze
-  expect_lte(res$n_oracle, fz) # oracle only during warm-up
-  rmse = function(x) sqrt(mean((x - truth)^2))
-  expect_lt(rmse(est), rmse(add)) # correction beats additive-only
-  expect_lt(max(abs(est - truth)), 0.02)
 })

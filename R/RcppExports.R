@@ -173,10 +173,6 @@ zratio_test_saddle <- function(s1, s2, addc, tg, ihat, ghat, wt, psi0) {
     .Call(`_bgms_zratio_test_saddle`, s1, s2, addc, tg, ihat, ghat, wt, psi0)
 }
 
-zratio_test_calibrated_eval <- function(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, seed, n_sweep, burn, freeze_after, slab_cauchy = FALSE, alpha = 1.0) {
-    .Call(`_bgms_zratio_test_calibrated_eval`, graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, seed, n_sweep, burn, freeze_after, slab_cauchy, alpha)
-}
-
 zratio_test_surface_eval <- function(G, i, j, addc, tg, ihat, ghat, wt, psi0, surface, delta, eta, slab_cauchy = FALSE, alpha = 1.0) {
     .Call(`_bgms_zratio_test_surface_eval`, G, i, j, addc, tg, ihat, ghat, wt, psi0, surface, delta, eta, slab_cauchy, alpha)
 }

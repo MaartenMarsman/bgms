@@ -60,7 +60,6 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           scale_eta = NA_real_,
                           delta = 0,
                           precision_graph_prior = "joint",
-                          calibration_window = NULL,
                           edge_prior_flat) {
   # Missing data
   md = validate_missing_data(
@@ -110,8 +109,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        precision_graph_prior = precision_graph_prior,
-        calibration_window = calibration_window
+        precision_graph_prior = precision_graph_prior
       ),
       edge_prior_spec_fields(ep)
     ),
@@ -227,7 +225,6 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
                                 scale_eta = NA_real_,
                                 delta = 0,
                                 precision_graph_prior = "joint",
-                                calibration_window = NULL,
                                 edge_prior_flat) {
   # Standardized-frame scale prior: derive the raw diagonal rate eta / s
   scale_rate = resolve_scale_rate(scale_rate, scale_eta, pairwise_scale)
@@ -373,8 +370,7 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
         scale_rate = scale_rate,
         scale_eta = scale_eta,
         delta = delta,
-        precision_graph_prior = precision_graph_prior,
-        calibration_window = calibration_window
+        precision_graph_prior = precision_graph_prior
       ),
       edge_prior_spec_fields(ep)
     ),

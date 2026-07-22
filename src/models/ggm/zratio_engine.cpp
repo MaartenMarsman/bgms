@@ -426,17 +426,16 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         n_pred_++;
         return MY_LOG(saddle_ratio(s1s, s2s));
     }
-    const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre, maxbdeg = bl.maxbd,
-              m = bl.m;
-    const double dens = bl.dens;
+    const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre;
 
     double s1 = ncn * addc_[0] + cne * addc_[2] + bre * addc_[4];
     double s2 = ncn * addc_[1] + cne * addc_[3] + bre * addc_[5];
     if (s2 <= 0.0) s2 = kS2Floor;
 
-    // Additive saddle: depends only on (nCN, cne, bre), served from the
-    // persistent count-key cache. Corrections ride on top post-cache, so
-    // corrected edges keep the compact key and full cache reuse.
+    // Additive saddle over (nCN, cne, bre), served from the persistent
+    // count-key cache. This is the hierarchical fence for the alpha != 1
+    // (Gamma-shape) cell; the alpha = 1 cell (Normal or Cauchy slab) is served
+    // by the surface branch above.
     const std::uint64_t sig = pack_count_key(ncn, cne, bre);
     double a;
     auto it = cache_.find(sig);
@@ -448,131 +447,8 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         a = saddle_ratio(s1, s2);
         cache_[sig] = a;
     }
-    const double log_r_add = MY_LOG(a);
-
-    if (maxbdeg < 2) {
-        n_add_++;
-        return log_r_add;
-    }
-
-    // Warm-up calibration: identical block signatures are served from the
-    // correction cache; the leverage gate serves the current fit when its
-    // prediction variance at this block is small, and runs the exact
-    // Monte-Carlo evaluation (anchor + refit) when it is not. A hard
-    // anchor budget backstops the oracle count.
-    if (calibrating() && s1 > 0 && s2 > 0) {
-        std::string ckey = std::to_string(ncn) + "_" + std::to_string(cne) +
-                           "_" + std::to_string(bre) + "_" +
-                           std::to_string(m) + "_" + std::to_string(maxbdeg) +
-                           "_" + std::to_string(std::lround(dens * 1000.0));
-        auto cit = corr_cache_.find(ckey);
-        if (cit != corr_cache_.end()) {
-            n_pred_++;
-            return log_r_add + cit->second;
-        }
-        arma::vec x = {1.0, static_cast<double>(bre),
-                       static_cast<double>(m), static_cast<double>(cne),
-                       static_cast<double>(maxbdeg), dens};
-        bool covered = false;
-        if (coef_.n_elem > 0 && xtx_inv_.n_elem > 0) {
-            covered = arma::as_scalar(x.t() * xtx_inv_ * x) <= gate_kappa_;
-        }
-        if (!covered && coef_.n_elem > 0 && n_oracle_ >= max_anchors_) {
-            covered = true;   // anchor budget spent: serve the fit
-        }
-        if (covered) {
-            n_pred_++;
-            return log_r_add + arma::dot(x, coef_);
-        }
-        extract_block_(G, i, j, false, bl);
-        double s1b = 0, s2b = 0, dl = 0;
-        if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
-            dl = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
-        }
-        n_oracle_++;
-        corr_cache_[ckey] = dl;
-        ax_.insert_rows(ax_.n_rows, x.t());
-        ay_.insert_rows(ay_.n_elem, arma::vec{dl});
-        refit_();
-        return log_r_add + dl;
-    }
-
-    // Frozen OLS correction on the log-ratio scale, zeroed outside the
-    // trained hull so the kernel never extrapolates.
-    bool clamped = false;
-    const double log_r_corr = deployed_correction(bl, clamped);
-    if (clamped) n_clamp_++;
-    if (log_r_corr != 0.0) n_pred_++;
-    else n_add_++;
-    return log_r_add + log_r_corr;
-}
-
-double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
-                                         bool& clamped) const {
-    clamped = false;
-    if (bl.maxbd < 2) return 0.0;
-    bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
-    if (!direct) return 0.0;
-    // Single gate: once the edge has bridge multiplicity >= 2 the direct
-    // ratio-scale correction is applied everywhere. The correction is a
-    // smooth low-dimensional surface on the log-ratio scale, and the
-    // corrected value dominates the uncorrected additive saddle, most of all
-    // in the dense/large-block corner. Reverting to additive outside a
-    // calibration hull would reintroduce the additive bias exactly where it
-    // is largest, so the frozen kernel extrapolates the surface rather than
-    // gating on a prior/size-dependent box.
-    double fc = addc_[6] + addc_[7] * static_cast<double>(bl.bre) +
-                addc_[8] * static_cast<double>(bl.m) +
-                addc_[9] * static_cast<double>(bl.cne) +
-                addc_[10] * static_cast<double>(bl.maxbd) +
-                addc_[11] * bl.dens;
-    return fc;
-}
-
-void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
-                                      int n_sweep, int burn,
-                                      double gate_kappa, int min_anchors,
-                                      bool slab_cauchy, double alpha,
-                                      int max_anchors) {
-    calibration_enabled_ = true;
-    frozen_ = false;
-    delta_ = delta;
-    sigma_ = 1.0;
-    beta_ = eta;
-    alpha_ = alpha;
-    rng_ = rng;
-    n_sweep_ = n_sweep;
-    burn_ = burn;
-    gate_kappa_ = gate_kappa;
-    min_anchors_ = min_anchors;
-    max_anchors_ = max_anchors;
-    oracle_slab_cauchy_ = slab_cauchy;
-}
-
-void ZRatioEngine::refit_() {
-    if (static_cast<int>(ay_.n_elem) < min_anchors_) return;
-    arma::mat xtx = ax_.t() * ax_;
-    xtx.diag() += 1e-8;
-    coef_ = arma::solve(xtx, ax_.t() * ay_);
-    if (!arma::inv_sympd(xtx_inv_, xtx)) xtx_inv_.reset();
-}
-
-void ZRatioEngine::freeze_calibration() {
-    if (!calibration_enabled_ || frozen_) return;
-    refit_();
-    frozen_ = true;
-    corr_cache_.clear();
-    if (coef_.n_elem == 0) return;   // no fit: pure additive kernel
-    arma::vec packed(23, arma::fill::zeros);
-    packed.subvec(0, 5) = addc_.subvec(0, 5);
-    packed.subvec(6, 11) = coef_;
-    packed[12] = 1.0;
-    arma::mat feats = ax_.cols(1, 5);
-    for (arma::uword c = 0; c < 5; ++c) {
-        packed[13 + 2 * c] = feats.col(c).min();
-        packed[14 + 2 * c] = feats.col(c).max();
-    }
-    addc_ = packed;
+    n_add_++;
+    return MY_LOG(a);
 }
 
 // Rank-2 SMW refresh of sigma = k^{-1} after the column-i change

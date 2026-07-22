@@ -12,8 +12,8 @@
  *
  * The block collects the common neighbours of the endpoints plus the
  * endpoints of 2-hop bridges between the exclusive neighbour sets; the
- * integer counts drive the additive saddle and the OLS correction, and
- * the adjacency + side memberships drive the exact Monte-Carlo evaluation.
+ * integer counts drive the additive saddle, and the adjacency + side
+ * memberships drive the exact Monte-Carlo evaluation and the surface deploy.
  */
 struct ZRatioBlock {
     bool valid = false;   ///< false: one side empty (isolated-edge ratio)
@@ -113,23 +113,11 @@ inline SurfaceFamily surface_family_from_list(const Rcpp::List& s) {
  * runs inside the acceptance step; distinct count tuples are evaluated once
  * and served from a persistent cache.
  *
- * Constant block `addc` (0-based):
- *   [0..5]   per-channel moment constants (CN node, CN-CN edge, bridge),
- *            built at fit time (R/zratio_tables.R).
- *   [6..11]  optional OLS correction (intercept, bre, m, cne, maxbdeg,
- *            dens), fit by the warm-up calibrator; engaged when the edge
- *            has bridge multiplicity >= 2.
- *   [12]     > 0.5 selects the direct ratio-scale correction (log J += fc
- *            after the cached saddle); the cache then keys on the counts
- *            only. Applied for every block with bridge multiplicity >= 2
- *            (the single deployment gate); never re-gated on the block's
- *            location in feature space.
- *   [13..22] hull box of the calibration design (per-feature min/max,
- *            order bre, m, cne, maxbd, dens), retained for diagnostics only.
- *            The frozen kernel no longer gates on it: reverting to the biased
- *            additive saddle outside a prior/size-dependent box is worse than
- *            extrapolating the smooth ratio-scale surface, so the correction
- *            extends past the training cloud.
+ * Constant block `addc` (0-based, 6 slots): per-channel moment constants
+ * [0,1] CN node (S1, S2), [2,3] CN-CN edge, [4,5] bridge, built at fit time
+ * (R/zratio_tables.R). The alpha = 1 cell is corrected by the theta-independent
+ * absolute-moment surface (set_surface); the alpha != 1 (Gamma-shape) cell
+ * falls back to the additive saddle over these constants.
  *
  * Conventions (standardized cell): K_ii ~ Gamma(alpha, beta) (alpha = 1 is
  * the exponential default), slab K_ij ~ N(0, sigma^2), tilt |K|^delta. The
@@ -212,22 +200,14 @@ public:
     ZRatioBlock extract_block(const arma::imat& G, int i, int j) const;
 
     /**
-     * Deployed OLS correction for one block under the current constant
-     * block: 0 for maxbd < 2 or when no fit is packed (addc[12] <= 0.5),
-     * otherwise the OLS value (applied everywhere, including past the
-     * calibration cloud; clamped is always false, kept for interface
-     * stability). Reads state only; no counters move.
-     */
-    double deployed_correction(const ZRatioBlock& bl, bool& clamped) const;
-
-    /**
      * Set the standardized-cell prior constants and RNG the block-Gibbs
-     * oracle samples under, without entering calibration mode. The frame is
-     * standardized (unit slab scale), so only the diagonal rate eta is free;
-     * sigma is fixed to 1. rng must outlive the engine. slab_cauchy selects
-     * the Cauchy slab family: the block couplings then run omega-augmented
-     * (scale-mixture of normals) and the endpoint legs mix per sweep,
-     * matching the marginal-Cauchy normalizer the tables integrate.
+     * oracle samples under. The frame is standardized (unit slab scale), so
+     * only the diagonal rate eta is free; sigma is fixed to 1. rng must
+     * outlive the engine. slab_cauchy selects the Cauchy slab family: the
+     * block couplings then run omega-augmented (scale-mixture of normals) and
+     * the endpoint legs mix per sweep, matching the marginal-Cauchy normalizer
+     * the tables integrate. Used by the offline surface build, the gold
+     * reference, and the trust gauge.
      */
     void set_oracle_params(double delta, double eta, SafeRNG* rng,
                            int n_sweep = 300, int burn = 30,
@@ -242,39 +222,6 @@ public:
         oracle_slab_cauchy_ = slab_cauchy;
     }
 
-    /**
-     * Enable online calibration of the OLS correction during warm-up.
-     *
-     * While unfrozen, coupled-bridge blocks (maxbd >= 2) route through the
-     * calibrator: identical block signatures are served from a cache;
-     * otherwise a leverage gate decides between the fit and the oracle.
-     * With x the block's design row and X the anchor design, the gate
-     * serves the current fit when the standardized prediction variance
-     * v(x) = x' (X'X + ridge)^{-1} x is at most gate_kappa, and calls the
-     * block-Gibbs local oracle (adding an anchor and refitting) when it
-     * exceeds it — so oracle runs concentrate where the surface is still
-     * uncertain and stop once the visited feature space is spanned, drift
-     * or no drift. max_anchors is a hard backstop on oracle runs.
-     * freeze_calibration() packs the fit and the anchor feature box into
-     * the addc layout, after which the engine behaves exactly like one
-     * constructed with a full 23-slot constant block.
-     *
-     * (delta, eta, alpha) are the standardized-cell prior constants the
-     * oracle samples under (unit slab scale, diagonal rate eta, diagonal
-     * Gamma shape alpha); rng must outlive the engine (the model's chain
-     * RNG). slab_cauchy selects the Cauchy slab family for the oracle (see
-     * set_oracle_params).
-     */
-    void enable_calibration(double delta, double eta, SafeRNG* rng,
-                            int n_sweep = 100, int burn = 30,
-                            double gate_kappa = 1.0, int min_anchors = 6,
-                            bool slab_cauchy = false, double alpha = 1.0,
-                            int max_anchors = 100);
-
-    /** Refit and freeze: pack coefficients + hull box into addc[6..22]. */
-    void freeze_calibration();
-
-    bool calibrating() const { return calibration_enabled_ && !frozen_; }
     void set_rng(SafeRNG* rng) { rng_ = rng; }
 
     /**
@@ -299,7 +246,7 @@ public:
      * across the two averages, endpoints analytic. Fills logR_out and
      * mcse_out (batch-means MC standard error on the log scale). Returns
      * false when no draw yields a finite pair. Draws from the live rng_;
-     * requires set_oracle_params / enable_calibration to have set the
+     * requires set_oracle_params to have set the
      * standardized-cell prior constants.
      */
     bool block_reference_logR(const arma::imat& a_blk, const arma::uvec& si,
@@ -311,15 +258,7 @@ public:
     long n_miss() const { return n_miss_; }
     long n_pred() const { return n_pred_; }
     long n_add() const { return n_add_; }
-    long n_clamp() const { return n_clamp_; }
-    long n_oracle() const { return n_oracle_; }
-    long n_anchors() const { return static_cast<long>(ay_.n_elem); }
-    bool frozen() const { return frozen_; }
     const arma::vec& addc() const { return addc_; }
-    /// Calibration anchor design rows (1, bre, m, cne, maxbd, dens).
-    const arma::mat& anchors_x() const { return ax_; }
-    /// Calibration anchor targets log(oracle) - log(additive).
-    const arma::vec& anchors_y() const { return ay_; }
 
 private:
     /**
@@ -352,7 +291,6 @@ private:
                           const arma::uvec& sj, const arma::vec& wsi,
                           const arma::vec& wsj, double& w, double& fN,
                           double& gG, double& kappa2) const;
-    void refit_();
 
     /**
      * exp(clamped raw-quadratic prediction) of a family surface at (size,
@@ -395,24 +333,14 @@ private:
     SurfaceFamily surf_cn_, surf_bip_;
     std::unordered_map<std::uint64_t, double> cache_;
     long n_hit_ = 0, n_miss_ = 0;
-    long n_pred_ = 0, n_add_ = 0, n_clamp_ = 0;
+    long n_pred_ = 0, n_add_ = 0;
 
-    // Online-calibration state (inert unless enable_calibration ran).
-    bool calibration_enabled_ = false;
-    bool frozen_ = true;
+    // Block-Gibbs oracle state (set by set_oracle_params; used by the surface
+    // build, the gold reference, and the trust gauge).
     bool oracle_slab_cauchy_ = false;
     double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5, alpha_ = 1.0;
     SafeRNG* rng_ = nullptr;
     int n_sweep_ = 300, burn_ = 30;
-    double gate_kappa_ = 1.0;
-    int min_anchors_ = 6;
-    int max_anchors_ = 100;
-    arma::mat ax_;                 // anchors: rows (1,bre,m,cne,maxbd,dens)
-    arma::vec ay_;                 // anchors: log(oracle) - log(additive)
-    arma::vec coef_;               // current OLS fit (empty before min_anchors)
-    arma::mat xtx_inv_;            // (X'X + ridge)^{-1} for the leverage gate
-    std::unordered_map<std::string, double> corr_cache_;
-    long n_oracle_ = 0;
 
     // Reused scratch for extract_block_. One engine serves one chain, and
     // the counts pass runs once per edge proposal, so per-call heap

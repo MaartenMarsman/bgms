@@ -105,13 +105,6 @@
 #'   sampler and cached across calls). With \code{FALSE} the plain conjugate
 #'   updates are used, whose hyperparameter marginals do not match the
 #'   hyperpriors under the determinant tilt.
-#' @param calibration_window Non-negative integer or \code{NULL} (default).
-#'   Only for \code{spec = "hierarchical"}: length of the appended warm-up
-#'   window in which the normalizer-ratio approximation is calibrated
-#'   against exact Monte-Carlo evaluations and then frozen before
-#'   sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
-#'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
-#'   never shortened; the window is appended.
 #' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
 #'   \code{spec = "hierarchical"}: run the trust gauge
 #'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
@@ -212,7 +205,6 @@ sample_ggm_prior = function(
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
   apply_correction = TRUE,
-  calibration_window = NULL,
   zratio_diagnostics = TRUE
 ) {
   spec = match.arg(spec)
@@ -338,11 +330,14 @@ sample_ggm_prior = function(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        calibration_window, p, n_warmup
-      ),
       gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
+    # Deploy the same Option-B surface the posterior chain uses, so the prior
+    # chain (SBC reference) carries an identical per-edge correction.
+    surf = build_surfaces_allmc(
+      zc, max_size = min(p, 44L), cores = zratio_surface_build_cores()
+    )
+    if(!is.null(surf)) zratio$surface = surf
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
       p = p, delta = delta,
@@ -445,25 +440,6 @@ sample_ggm_prior = function(
     }
   }
   out
-}
-
-
-# Internal helpers -------------------------------------------------------------
-
-# Length of the appended Stage-3d calibration window for the hierarchical
-# spec. NULL resolves the default: no window at small p (the additive kernel
-# passes the identity gates there and coupled-bridge blocks are rare),
-# 15 percent of the warmup budget otherwise. The user's warmup is untouched;
-# the window is appended.
-resolve_zratio_calibration_window = function(window, p, n_warmup) {
-  if(is.null(window)) {
-    window = if(p < 15) 0L else ceiling(0.15 * n_warmup)
-  }
-  if(!is.numeric(window) || length(window) != 1L || is.na(window) ||
-    window < 0) {
-    stop("'calibration_window' must be a single non-negative number or NULL.")
-  }
-  as.integer(window)
 }
 
 # Ancestral draw of the initial edge-indicator matrix for the joint-spec

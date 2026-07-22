@@ -182,9 +182,9 @@
 #'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 #'       normalized per graph, so the graph marginal is exactly the edge
 #'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
-#'       ratio with a fast local approximation, calibrated against exact
-#'       Monte-Carlo evaluations in an appended warm-up window (see
-#'       \code{calibration_window}). A trust gauge audits the approximation
+#'       ratio with a fast local approximation: a theta-independent
+#'       absolute-moment surface built once at the start of the analysis from
+#'       block-Gibbs anchors. A trust gauge audits the approximation
 #'       during sampling on two channels: the rate at which the chain's edge
 #'       decisions would differ under the exact calculation, and the
 #'       projected distortion of the inclusion probabilities from the
@@ -201,14 +201,6 @@
 #'       and cross edges are unchanged.}
 #'   }
 #'   Default: \code{"joint"}.
-#'
-#' @param calibration_window Non-negative integer or \code{NULL} (default).
-#'   Only for \code{precision_graph_prior = "hierarchical"}: length of the
-#'   appended warm-up window in which the normalizer-ratio approximation is
-#'   calibrated against exact Monte-Carlo evaluations and then frozen before
-#'   sampling. \code{NULL} resolves to no window for
-#'   \code{p < 15} variables and 15 percent of \code{warmup} otherwise. The
-#'   adaptation warmup itself is never shortened; the window is appended.
 #'
 #' @param inclusion_probability `r lifecycle::badge("deprecated")` Numeric
 #'   scalar. Use \code{edge_prior = bernoulli_prior(inclusion_probability)}
@@ -412,7 +404,6 @@ bgm = function(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   precision_graph_prior = c("joint", "hierarchical"),
-  calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -582,7 +573,6 @@ bgm = function(
     edge_selection = edge_selection,
     edge_prior = edge_prior,
     precision_graph_prior = precision_graph_prior,
-    calibration_window = calibration_window,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

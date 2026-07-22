@@ -87,16 +87,13 @@ run_sampler_ggm = function(spec) {
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        p$calibration_window, d$num_variables, s$warmup
-      ),
       gauge_sweeps = 2L
     )
     # Option-B absolute-moment surface: build once at the analysis's own
-    # (eta, delta) and let the engine deploy it per component in place of the
-    # online OLS correction. eta is a build parameter, not a switch. Built for
-    # the Normal and Cauchy slabs (both alpha = 1); a non-unit Gamma diagonal
-    # shape returns NULL and keeps the additive path (open problem).
+    # (eta, delta) and let the engine deploy it per component. eta is a build
+    # parameter, not a switch. Built for the Normal and Cauchy slabs (both
+    # alpha = 1); a non-unit Gamma diagonal shape returns NULL and keeps the
+    # additive path (open problem).
     surf = build_surfaces_allmc(
       zc,
       max_size = min(d$num_variables, 44L),
@@ -104,7 +101,6 @@ run_sampler_ggm = function(spec) {
     )
     if(!is.null(surf)) {
       zratio$surface = surf
-      zratio$calibration_window = 0L   # surface replaces the OLS warmup
     } else if(abs(zc$alpha - 1) > 1e-12 && isTRUE(s$verbose)) {
       # Non-exponential precision diagonal (Gamma shape != 1): the surface is
       # not yet validated for this cell, so the engine keeps the additive path.
@@ -254,9 +250,6 @@ run_sampler_mixed_mrf = function(spec) {
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        p$calibration_window, d$num_continuous, s$warmup
-      ),
       gauge_sweeps = 2L
     )
     # Option-B surface on the continuous subgraph (same as the GGM path); sized
@@ -268,7 +261,6 @@ run_sampler_mixed_mrf = function(spec) {
     )
     if(!is.null(surf)) {
       zratio$surface = surf
-      zratio$calibration_window = 0L
     } else if(abs(zc$alpha - 1) > 1e-12 && isTRUE(s$verbose)) {
       message(
         "z-ratio: precision shape alpha = ", format(zc$alpha),

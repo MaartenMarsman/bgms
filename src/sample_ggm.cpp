@@ -110,7 +110,6 @@ Rcpp::List sample_ggm(
     // so the between-edge moves target p(K | Gamma) = rho_Gamma(K)/Z(Gamma).
     // The constants are resolved at R spec-build (zratio_constants); each
     // chain clone deep-copies the engine with its cache.
-    int zratio_window = 0;
     int zratio_gauge_sweeps = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
@@ -121,9 +120,6 @@ Rcpp::List sample_ggm(
             Rcpp::as<arma::vec>(zs["ghat"]),
             Rcpp::as<arma::vec>(zs["wt"]),
             Rcpp::as<double>(zs["psi0"]));
-        if (zs.containsElementNamed("calibration_window")) {
-            zratio_window = Rcpp::as<int>(zs["calibration_window"]);
-        }
         if (zs.containsElementNamed("gauge_sweeps")) {
             zratio_gauge_sweeps = Rcpp::as<int>(zs["gauge_sweeps"]);
         }
@@ -133,27 +129,19 @@ Rcpp::List sample_ggm(
         const double zr_eta = Rcpp::as<double>(zs["eta"]);
         const double zr_alpha = zs.containsElementNamed("alpha")
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
-        // Option-B surfaces (built once in R at the analysis eta) replace the
-        // online OLS correction: attach them so log_zratio decomposes each
-        // block and sums per-component surface moments. run_sampler zeros the
-        // calibration window when the surface is present, so the OLS path stays
-        // in place but dormant.
+        // Option-B surfaces (built once in R at the analysis eta) are the
+        // per-edge correction: attach them so log_zratio decomposes each block
+        // and sums per-component surface moments.
         if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
             Rcpp::List zsurf(zs["surface"]);
             engine->set_surface(surface_family_from_list(zsurf["cn"]),
                                 surface_family_from_list(zsurf["bip"]));
         }
-        // The rng pointer is rebound per chain clone by GGMModel.
-        if (zratio_window > 0) {
-            engine->enable_calibration(zr_delta, zr_eta, nullptr, 100, 30, 1.0,
-                                       6, zr_cauchy, zr_alpha, 100);
-        } else {
-            // No warm-up calibration (pre-packed constants): still hand the
-            // engine the standardized-cell prior params so the trust gauge's
-            // block-local reference can sample.
-            engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
-                                      zr_cauchy, zr_alpha);
-        }
+        // The rng pointer is rebound per chain clone by GGMModel. Hand the
+        // engine the standardized-cell prior params so its sibling paths (the
+        // gold reference and the trust gauge) can sample.
+        engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
+                                  zr_cauchy, zr_alpha);
         model.set_zratio_engine(std::move(engine));
     }
 
@@ -175,11 +163,10 @@ Rcpp::List sample_ggm(
     config.max_tree_depth = max_tree_depth;
     config.learn_mass_matrix = learn_mass_matrix;
     config.na_impute = na_impute;
-    config.zratio_calibration_window = zratio_window;
     config.zratio_gauge_sweeps = zratio_gauge_sweeps;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup + zratio_window, 50, progress_type, true, progress_callback);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
     // Create edge prior
     EdgePrior edge_prior_enum = edge_prior_from_string(edge_prior);

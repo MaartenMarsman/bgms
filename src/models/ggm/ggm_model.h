@@ -182,11 +182,6 @@ public:
         if (zratio_engine_) zratio_engine_->set_rng(&rng_);
     }
 
-    /** Freeze the Z-ratio calibrator at the warmup/sampling boundary. */
-    void on_warmup_end() override {
-        if (zratio_engine_) zratio_engine_->freeze_calibration();
-    }
-
     /** Trust gauge available iff the hierarchical Z-ratio engine is attached. */
     bool gauge_available() const override { return zratio_engine_ != nullptr; }
 
