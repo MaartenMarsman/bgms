@@ -29,6 +29,47 @@ struct ZRatioBlock {
 };
 
 /**
+ * One family's (CN or bipartite) theta-independent absolute-moment surface
+ * (Option B). log(S) is a raw bivariate quadratic in (L, d), L = log(size),
+ * d = component density, over the 9 monomials
+ *   [1, L, L^2, d, d^2, L*d, L^2*d, L*d^2, L^2*d^2]
+ * fit once per analysis at the deployment (eta, delta) to block-Gibbs anchors
+ * (R build_surfaces). c1 predicts log-S1, c2 log-S2. Predictions clamp (size,
+ * density) to the trained hull [size_lo, size_hi] x [dens_lo, dens_hi] and the
+ * log-moment to its trained range +/- 0.1. Components smaller than size_min
+ * fall back to the additive per-component moment (exact through pairwise
+ * overlap below the smallest trained size); with size_min = 3 the size-1/2
+ * (single-bridge) trivial components land there and additive == exact for them,
+ * so there is no separate exact branch.
+ */
+struct SurfaceFamily {
+    bool valid = false;
+    arma::vec c1;   ///< 9 raw-poly coefficients for log-S1
+    arma::vec c2;   ///< 9 raw-poly coefficients for log-S2
+    double size_lo = 0.0, size_hi = 0.0;   ///< trained size hull (raw, pre-log)
+    double dens_lo = 0.0, dens_hi = 0.0;   ///< trained density hull
+    double l1_lo = 0.0, l1_hi = 0.0;       ///< trained log-S1 range (clamp +/-0.1)
+    double l2_lo = 0.0, l2_hi = 0.0;       ///< trained log-S2 range
+    double size_min = 0.0;                 ///< below this: additive fallback
+};
+
+/**
+ * One decomposed mediating-block component, for surface deployment and for the
+ * Stage-3 test harness. family 0 = common-neighbour cluster, 1 = bipartite
+ * bridge. (size, dens) index the family surface; (e, na, nb) drive the additive
+ * fallback and diagnostics. used_surface records which path served it.
+ */
+struct SurfaceComp {
+    int family = 0;
+    int size = 0;
+    int e = 0;
+    int na = 0, nb = 0;
+    double dens = 0.0;
+    double s1 = 0.0, s2 = 0.0;
+    bool used_surface = false;
+};
+
+/**
  * Deterministic per-edge normalizing-constant ratio for the hierarchical
  * prior specification p(K | Gamma) = rho_Gamma(K) / Z(Gamma).
  *
@@ -89,6 +130,34 @@ public:
 
     /** Two-moment saddle map over the cosine-transform grid. */
     double saddle_ratio(double s1, double s2) const;
+
+    /**
+     * Attach the Option-B absolute-moment surfaces. Once set (and the cell is
+     * the validated alpha = 1 Normal-slab family), log_zratio decomposes the
+     * mediating block into disjoint components and sums the per-component
+     * surface moments into (S1, S2) instead of the additive-counts saddle. The
+     * additive + OLS path stays in place and is served whenever the surface is
+     * absent or the cell is fenced (alpha != 1 / Cauchy), so no OLS machinery is
+     * removed here.
+     */
+    void set_surface(const SurfaceFamily& cn, const SurfaceFamily& bip) {
+        surf_cn_ = cn;
+        surf_bip_ = bip;
+        has_surface_ = cn.valid && bip.valid;
+    }
+    bool has_surface() const { return has_surface_; }
+
+    /**
+     * Surface-path moments for the edge (i, j): decompose the mediating block,
+     * accumulate per-component (S1, S2), and return logR = log saddle_ratio.
+     * Fills `comps` with the decomposition for inspection. Returns false when
+     * the block is invalid (isolated-edge ratio) — logR is then log(psi0).
+     * Drives the Stage-3 test harness; the hot path uses the lighter branch in
+     * log_zratio.
+     */
+    bool surface_moments(const arma::imat& G, int i, int j, double& s1_out,
+                         double& s2_out, double& logr_out,
+                         std::vector<SurfaceComp>& comps);
 
     /**
      * Extract the mediating block of the edge (i, j): common neighbours,
@@ -241,6 +310,24 @@ private:
                           double& gG, double& kappa2) const;
     void refit_();
 
+    /**
+     * exp(clamped raw-quadratic prediction) of a family surface at (size,
+     * dens). s2 selects the log-S2 coefficients/range, else log-S1. Clamps
+     * (size, dens) to the trained hull and the log-moment to its range +/- 0.1,
+     * matching the R deploy predictor exactly.
+     */
+    double surface_eval_(const SurfaceFamily& f, bool s2, double size,
+                         double dens) const;
+    /**
+     * Decompose the block into disjoint CN clusters and bipartite bridge
+     * structures, accumulate per-component (S1, S2) — surface above size_min,
+     * additive below — and (when comps != nullptr) record each component.
+     * Requires the full block extraction (a_blk, si, sj).
+     */
+    void accumulate_surface_moments_(const ZRatioBlock& bl, double& s1_out,
+                                     double& s2_out,
+                                     std::vector<SurfaceComp>* comps) const;
+
     /** Pack the (nCN, cne, bre) additive-cache counts into one integer key. */
     static std::uint64_t pack_count_key(int ncn, int cne, int bre) {
         return (static_cast<std::uint64_t>(ncn) << 42) |
@@ -251,6 +338,10 @@ private:
     arma::vec addc_;
     arma::vec tg_, ihat_, ghat_, wt_;
     double psi0_;
+
+    // Option-B absolute-moment surfaces (inert unless set_surface ran).
+    bool has_surface_ = false;
+    SurfaceFamily surf_cn_, surf_bip_;
     std::unordered_map<std::uint64_t, double> cache_;
     long n_hit_ = 0, n_miss_ = 0;
     long n_pred_ = 0, n_add_ = 0, n_clamp_ = 0;

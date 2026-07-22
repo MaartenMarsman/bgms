@@ -225,6 +225,86 @@ Rcpp::List zratio_test_calibrated_eval(
 //   agree and that no cache miss occurs after preloading.
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// zratio_test_surface_eval:
+//   Drive the Option-B surface deploy for one edge (i, j) (1-based) on G. The
+//   `surface` list carries cn/bip sublists (c1, c2 = 9 raw-poly coeffs; the
+//   size/dens/log-moment hulls; size_min). Returns the summed (S1, S2), the
+//   surface logR, the hot-path log_zratio (which routes through the surface
+//   branch under the alpha = 1 Normal cell), and the per-component decomposition
+//   for validation against the R deploy_surface.
+// -----------------------------------------------------------------------------
+
+static SurfaceFamily parse_surface_family_(const Rcpp::List& s) {
+    SurfaceFamily f;
+    f.c1 = Rcpp::as<arma::vec>(s["c1"]);
+    f.c2 = Rcpp::as<arma::vec>(s["c2"]);
+    f.size_lo = Rcpp::as<double>(s["size_lo"]);
+    f.size_hi = Rcpp::as<double>(s["size_hi"]);
+    f.dens_lo = Rcpp::as<double>(s["dens_lo"]);
+    f.dens_hi = Rcpp::as<double>(s["dens_hi"]);
+    f.l1_lo = Rcpp::as<double>(s["l1_lo"]);
+    f.l1_hi = Rcpp::as<double>(s["l1_hi"]);
+    f.l2_lo = Rcpp::as<double>(s["l2_lo"]);
+    f.l2_hi = Rcpp::as<double>(s["l2_hi"]);
+    f.size_min = Rcpp::as<double>(s["size_min"]);
+    f.valid = true;
+    return f;
+}
+
+// [[Rcpp::export(name = "zratio_test_surface_eval")]]
+Rcpp::List zratio_test_surface_eval(
+    arma::imat G,
+    int i,
+    int j,
+    arma::vec addc,
+    arma::vec tg,
+    arma::vec ihat,
+    arma::vec ghat,
+    arma::vec wt,
+    double psi0,
+    Rcpp::List surface,
+    double delta,
+    double eta,
+    bool slab_cauchy = false,
+    double alpha = 1.0
+) {
+    ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
+    engine.set_oracle_params(delta, eta, nullptr, 300, 30, slab_cauchy, alpha);
+    engine.set_surface(parse_surface_family_(surface["cn"]),
+                       parse_surface_family_(surface["bip"]));
+    double s1 = NA_REAL, s2 = NA_REAL, logr = NA_REAL;
+    std::vector<SurfaceComp> comps;
+    bool valid = engine.surface_moments(G, i - 1, j - 1, s1, s2, logr, comps);
+    double lz = engine.log_zratio(G, i - 1, j - 1);
+    const int nc = static_cast<int>(comps.size());
+    Rcpp::IntegerVector fam(nc), sz(nc), ee(nc), na(nc), nb(nc), used(nc);
+    Rcpp::NumericVector dens(nc), cs1(nc), cs2(nc);
+    for (int k = 0; k < nc; ++k) {
+        fam[k] = comps[k].family;
+        sz[k] = comps[k].size;
+        ee[k] = comps[k].e;
+        na[k] = comps[k].na;
+        nb[k] = comps[k].nb;
+        used[k] = comps[k].used_surface ? 1 : 0;
+        dens[k] = comps[k].dens;
+        cs1[k] = comps[k].s1;
+        cs2[k] = comps[k].s2;
+    }
+    return Rcpp::List::create(
+        Rcpp::_["valid"] = valid,
+        Rcpp::_["has_surface"] = engine.has_surface(),
+        Rcpp::_["log_zratio"] = lz,
+        Rcpp::_["logR"] = logr,
+        Rcpp::_["S1"] = s1,
+        Rcpp::_["S2"] = s2,
+        Rcpp::_["comp"] = Rcpp::DataFrame::create(
+            Rcpp::_["family"] = fam, Rcpp::_["size"] = sz, Rcpp::_["e"] = ee,
+            Rcpp::_["na"] = na, Rcpp::_["nb"] = nb, Rcpp::_["dens"] = dens,
+            Rcpp::_["s1"] = cs1, Rcpp::_["s2"] = cs2,
+            Rcpp::_["used_surface"] = used));
+}
+
 // [[Rcpp::export(name = "zratio_test_precompute")]]
 Rcpp::List zratio_test_precompute(
     arma::imat G,
