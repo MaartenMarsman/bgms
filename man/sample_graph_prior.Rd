@@ -9,7 +9,7 @@ sample_graph_prior(
   n_samples,
   edge_prior = bernoulli_prior(0.5),
   spec = c("hierarchical", "joint"),
-  interaction_prior = cauchy_prior(scale = 2.5),
+  interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
   delta = NULL,
   theta = NULL,
@@ -33,7 +33,8 @@ or \code{\link{sbm_prior}()}. Default \code{bernoulli_prior(0.5)}.}
 
 \item{interaction_prior}{A \code{\link{cauchy_prior}()} or
 \code{\link{normal_prior}()} for the pairwise (slab) part of the
-precision prior. Used only when \code{spec = "joint"}.}
+precision prior. Used only when \code{spec = "joint"}. Default:
+\code{normal_prior(scale = 1)}, matching \code{\link{bgm}()}.}
 
 \item{precision_scale_prior}{A \code{\link{gamma_prior}()} or
 \code{\link{exponential_prior}()} for the precision diagonal. Used only

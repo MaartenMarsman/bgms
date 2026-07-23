@@ -369,9 +369,14 @@ test_that("corrected prior-only chain returns the MFM partition prior", {
   on.exit(options(old), add = TRUE)
 
   q = 5
+  # Pin the Cauchy slab: this pair demonstrates the determinant-tilt correction,
+  # which needs a wide enough slab to bias the partition visibly. The default
+  # interaction prior is now normal_prior(scale = 1) (a tighter slab, weaker
+  # tilt), so the regime is set explicitly rather than via the default.
   draws = sample_ggm_prior(
     p = q, n_samples = 6000, n_warmup = 500,
     seed = 31, verbose = FALSE, spec = "joint",
+    interaction_prior = cauchy_prior(scale = 2.5),
     update_method = "gibbs", edge_prior = sbm_prior()
   )
   nc_chain = apply(draws$allocations, 1, function(z) length(unique(z)))
@@ -386,9 +391,13 @@ test_that("uncorrected prior-only chain misses the partition prior", {
   skip_on_cran()
 
   q = 5
+  # Cauchy slab (see the corrected counterpart): the tilt must be strong enough
+  # for the uncorrected chain to miss the partition prior; the new default
+  # normal_prior(scale = 1) is too tight to show it.
   draws = sample_ggm_prior(
     p = q, n_samples = 6000, n_warmup = 500,
     seed = 33, verbose = FALSE, spec = "joint",
+    interaction_prior = cauchy_prior(scale = 2.5),
     update_method = "gibbs", edge_prior = sbm_prior(),
     apply_correction = FALSE
   )

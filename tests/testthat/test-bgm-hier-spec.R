@@ -42,13 +42,15 @@ test_that("hierarchical spec eligibility is validated", {
 
 test_that("the hierarchical spec accepts a gamma-shape diagonal", {
   skip_on_cran()
+  # The trust gauge is opt-in (off by default); enable it to check attachment.
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   Y = hier_test_data(q = 8)
   fit = bgm(
     x = Y, variable_type = "continuous",
     iter = 100, warmup = 150,
     interaction_prior = normal_prior(scale = 0.5),
     precision_scale_prior = gamma_prior(shape = 2, rate = 2),
-    precision_graph_prior = "hierarchical", calibration_window = 50,
+    precision_graph_prior = "hierarchical",
     update_method = "gibbs", chains = 1, cores = 1, seed = 7,
     display_progress = "none", verbose = FALSE
   )
@@ -59,6 +61,7 @@ test_that("the hierarchical spec accepts a gamma-shape diagonal", {
 
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
   skip_on_cran()
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   Y = hier_test_data(q = 8)
   for(method in c("nuts", "adaptive-metropolis", "gibbs")) {
     fit = bgm(
@@ -66,7 +69,7 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
       iter = 100, warmup = 150,
       interaction_prior = cauchy_prior(scale = 0.5),
       precision_scale_prior = gamma_prior(shape = 1, rate = 2),
-      precision_graph_prior = "hierarchical", calibration_window = 50,
+      precision_graph_prior = "hierarchical",
       update_method = method, chains = 1, cores = 1, seed = 7,
       display_progress = "none", verbose = FALSE
     )
@@ -82,6 +85,7 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
 
 test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   skip_on_cran()
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   Y = hier_test_data(q = 12)
   fit = bgm(
     x = Y, variable_type = "continuous",
@@ -89,7 +93,7 @@ test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
     interaction_prior = normal_prior(scale = 0.5),
     precision_scale_prior = gamma_prior(shape = 1, rate = 2),
     edge_prior = beta_bernoulli_prior(2, 4),
-    precision_graph_prior = "hierarchical", calibration_window = 100,
+    precision_graph_prior = "hierarchical",
     update_method = "gibbs", chains = 2, cores = 2, seed = 11,
     display_progress = "none", verbose = FALSE
   )
@@ -103,6 +107,24 @@ test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   # The joint-path hyperparameter correction must not run on this path;
   # inclusion-parameter samples come from the clean conjugate draw.
   expect_equal(length(fit@inclusion_parameter_samples), 2L)
+})
+
+test_that("the trust gauge is off by default on the hierarchical path", {
+  skip_on_cran()
+  # Default (no bgms.zratio_gauge_sweeps option): the post-sampling diagnostic
+  # does not run, so no gauge block is attached.
+  Y = hier_test_data(q = 8)
+  fit = bgm(
+    x = Y, variable_type = "continuous",
+    iter = 100, warmup = 150,
+    interaction_prior = normal_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+    precision_graph_prior = "hierarchical",
+    update_method = "gibbs", chains = 1, cores = 1, seed = 7,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
+  expect_null(fit@zratio_diag)
 })
 
 test_that("the joint default is unchanged", {
@@ -120,6 +142,7 @@ test_that("the joint default is unchanged", {
 
 test_that("mixed data supports the hierarchical spec on the continuous block", {
   skip_on_cran()
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   set.seed(9)
   n = 60
   X = cbind(
@@ -146,7 +169,7 @@ test_that("mixed data supports the hierarchical spec on the continuous block", {
     interaction_prior = normal_prior(scale = 0.5),
     precision_scale_prior = gamma_prior(shape = 1, rate = 2),
     edge_prior = beta_bernoulli_prior(2, 4),
-    precision_graph_prior = "hierarchical", calibration_window = 80,
+    precision_graph_prior = "hierarchical",
     update_method = "adaptive-metropolis", chains = 1, cores = 1, seed = 5,
     display_progress = "none", verbose = FALSE
   )

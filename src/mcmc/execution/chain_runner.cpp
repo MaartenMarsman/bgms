@@ -66,8 +66,7 @@ void run_mcmc_chain(
     // Construct warmup schedule (shared by runner and sampler)
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
     WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd,
-                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs,
-                            config.zratio_calibration_window);
+                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
 
@@ -87,7 +86,7 @@ void run_mcmc_chain(
             model.impute_missing();
         }
 
-        // Warmup/sampling boundary hook (e.g. freeze the Z-ratio calibrator)
+        // Warmup/sampling boundary hook (models with warmup-dependent state)
         if (iter == schedule.total_warmup) {
             model.on_warmup_end();
         }
@@ -115,21 +114,6 @@ void run_mcmc_chain(
                 model.get_num_pairwise(),
                 model.get_rng()
             );
-        }
-
-        // Z-ratio drift trace: graph density and edge-prior theta over the
-        // selection-enabled warmup stream, surfaced in the zratio chain
-        // block for manual inspection of end-of-warmup calibration drift.
-        if (config.zratio_calibration_window > 0 &&
-            iter < schedule.total_warmup &&
-            schedule.selection_enabled(iter) && model.has_edge_selection()) {
-            arma::ivec ind = model.get_vectorized_indicator_parameters();
-            chain_result.zratio_warmup_density.push_back(
-                ind.n_elem > 0 ? static_cast<double>(arma::accu(ind)) /
-                                     static_cast<double>(ind.n_elem)
-                               : 0.0);
-            chain_result.zratio_warmup_theta.push_back(
-                edge_prior.get_inclusion_parameter());
         }
 
         // Store samples (only during sampling phase)
@@ -324,15 +308,11 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 Rcpp::NumericVector counters(chain.zratio_counters.begin(),
                                              chain.zratio_counters.end());
                 counters.names() = Rcpp::CharacterVector::create(
-                    "n_hit", "n_miss", "n_pred", "n_add", "n_clamp",
-                    "n_oracle", "n_anchors", "cache_size", "frozen");
+                    "n_hit", "n_miss", "n_pred", "n_add", "cache_size",
+                    "n_extrap", "max_extrap_size");
                 Rcpp::List zr = Rcpp::List::create(
                     Rcpp::_["addc"] = chain.zratio_addc,
-                    Rcpp::_["anchors_x"] = chain.zratio_anchors_x,
-                    Rcpp::_["anchors_y"] = chain.zratio_anchors_y,
-                    Rcpp::_["counters"] = counters,
-                    Rcpp::_["warmup_density"] = chain.zratio_warmup_density,
-                    Rcpp::_["warmup_theta"] = chain.zratio_warmup_theta);
+                    Rcpp::_["counters"] = counters);
                 if (chain.zratio_gauge_ran) {
                     zr["gauge"] = Rcpp::List::create(
                         Rcpp::_["flip_rate"] = chain.zratio_gauge_D,

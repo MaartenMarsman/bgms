@@ -269,7 +269,6 @@ bgm_spec = function(x,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
                     precision_graph_prior = c("joint", "hierarchical"),
-                    calibration_window = NULL,
                     # Legacy edge prior params (accepted for backward compat)
                     inclusion_probability = 0.5,
                     beta_bernoulli_alpha_between = 1,
@@ -490,7 +489,6 @@ bgm_spec = function(x,
       scale_eta = scale_eta,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
-      calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -517,7 +515,6 @@ bgm_spec = function(x,
       scale_eta = scale_eta,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
-      calibration_window = calibration_window,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {

@@ -92,15 +92,15 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward 2*shape/rate", {
 
 
 test_that("gamma_prior(eta) resolves against the interaction-prior scale", {
-  # eta = 1 at cauchy scale 2.5 resolves to rate = 0.4; the same raw-rate
-  # spec with the same seed gives identical draws.
+  # eta = 1 at the default normal scale 1 resolves to rate = 1; the same
+  # raw-rate spec with the same seed gives identical draws.
   d_eta = short_run(
     p = 3L, n_samples = 100L, n_warmup = 100L,
     precision_scale_prior = gamma_prior(shape = 1, eta = 1)
   )
   d_rate = short_run(
     p = 3L, n_samples = 100L, n_warmup = 100L,
-    precision_scale_prior = gamma_prior(shape = 1, rate = 1 / 2.5)
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1)
   )
   expect_equal(d_eta$K_diag, d_rate$K_diag)
   expect_equal(d_eta$K_offdiag, d_rate$K_offdiag)

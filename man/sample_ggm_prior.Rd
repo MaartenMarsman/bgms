@@ -8,7 +8,7 @@ sample_ggm_prior(
   p,
   n_samples,
   n_warmup = 2000,
-  interaction_prior = cauchy_prior(scale = 2.5),
+  interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
@@ -21,7 +21,6 @@ sample_ggm_prior(
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
   apply_correction = TRUE,
-  calibration_window = NULL,
   zratio_diagnostics = TRUE
 )
 }
@@ -36,8 +35,7 @@ sample_ggm_prior(
 partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 \code{\link{cauchy_prior}()} or \code{\link{normal_prior}()};
 \code{\link{beta_prime_prior}()} is not supported here. Default:
-\code{cauchy_prior(scale = 2.5)} (i.e. \eqn{K_{ij}} has an implied
-\eqn{\textrm{Cauchy}(0, 5)} prior).}
+\code{normal_prior(scale = 1)}, matching \code{\link{bgm}()}.}
 
 \item{precision_scale_prior}{A \code{bgms_scale_prior} for
 \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
@@ -45,8 +43,8 @@ partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 frame (\code{rate}) or the standardized frame (\code{eta}; the raw
 rate is derived as \code{eta / s} for interaction-prior scale
 \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
-default \code{cauchy_prior(scale = 2.5)} interaction prior this
-resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(0.4)}.}
+default \code{normal_prior(scale = 1)} interaction prior this
+resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.}
 
 \item{step_size}{Positive numeric. Initial NUTS step size used to seed
 dual-averaging adaptation. Default \code{0.1}. Used only for
@@ -104,14 +102,6 @@ normalizing-constant correction to the hyperparameter updates (default
 sampler and cached across calls). With \code{FALSE} the plain conjugate
 updates are used, whose hyperparameter marginals do not match the
 hyperpriors under the determinant tilt.}
-
-\item{calibration_window}{Non-negative integer or \code{NULL} (default).
-Only for \code{spec = "hierarchical"}: length of the appended warm-up
-window in which the normalizer-ratio approximation is calibrated
-against exact Monte-Carlo evaluations and then frozen before
-sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
-percent of \code{n_warmup} otherwise. The adaptation warmup itself is
-never shortened; the window is appended.}
 
 \item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
 \code{spec = "hierarchical"}: run the trust gauge
@@ -215,7 +205,7 @@ number of sweeps in zero-evidence chains.
 }
 \examples{
 \donttest{
-# Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
+# Default Normal(0, 1) off-diagonal, Exponential(1) diagonal, p = 4.
 draws = sample_ggm_prior(
   p = 4, n_samples = 200, n_warmup = 200,
   verbose = FALSE

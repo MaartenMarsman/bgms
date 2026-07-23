@@ -182,11 +182,6 @@ public:
         if (zratio_engine_) zratio_engine_->set_rng(&rng_);
     }
 
-    /** Freeze the Z-ratio calibrator at the warmup/sampling boundary. */
-    void on_warmup_end() override {
-        if (zratio_engine_) zratio_engine_->freeze_calibration();
-    }
-
     /** Trust gauge available iff the hierarchical Z-ratio engine is attached. */
     bool gauge_available() const override { return zratio_engine_ != nullptr; }
 
@@ -203,9 +198,8 @@ public:
     void gauge_end_sweep() override { zratio_gauge_.end_sweep(); }
 
     /**
-     * Copy the Z-ratio engine's end-of-run state (counters, frozen
-     * constant block, calibration anchors) into the chain result. No-op
-     * without an engine.
+     * Copy the Z-ratio engine's end-of-run state (cache/hit counters and the
+     * trust-gauge block) into the chain result. No-op without an engine.
      */
     void collect_chain_diagnostics(ChainResult& chain_result) const override;
 

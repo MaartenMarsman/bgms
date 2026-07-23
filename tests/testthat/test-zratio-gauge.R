@@ -139,15 +139,17 @@ test_that("the harm channel computes the documented statistics", {
 
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
-  # Bare additive kernel (calibration_window = 0) under a dense-leaning
-  # Beta-Bernoulli prior with no data: the feedback-amplified regime where
-  # the flip rate stays quiet but the projected distortion is first-order.
+  # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
+  # data: the feedback-amplified regime where the flip rate stays quiet but the
+  # projected distortion is first-order. The additive kernel is reached through
+  # the non-unit Gamma-diagonal fence (shape = 2), where the surface is not
+  # deployed and the engine falls back to the additive-counts saddle.
   f = sample_ggm_prior(
     p = 16L, n_samples = 1200L, n_warmup = 500L,
     interaction_prior = normal_prior(scale = 0.5),
-    precision_scale_prior = gamma_prior(shape = 1, rate = 6),
+    precision_scale_prior = gamma_prior(shape = 2, rate = 6),
     spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
-    update_method = "gibbs", calibration_window = 0L,
+    update_method = "gibbs",
     zratio_diagnostics = TRUE, seed = 7L, verbose = FALSE
   )
   pc = f$zratio_diagnostics$per_chain
@@ -209,4 +211,67 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
     abs(mean(x2)) * s2$per_chain$amplification
   )
   expect_lt(s2$per_chain$harm_pred, pc$harm_pred)
+})
+
+test_that("the extrapolation notice is graceful, gated, and back-compatible", {
+  mk = function(nx, mx, np) {
+    list(zratio = list(counters = c(n_hit = 0, n_miss = 0, n_pred = np,
+      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx)))
+  }
+  # No extrapolation -> silent, returns FALSE.
+  expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))
+  expect_false(res0)
+  # Extrapolation -> one graceful message reporting the largest block size.
+  expect_message(
+    bgms:::zratio_extrapolation_notice(list(mk(120, 73, 4000), mk(80, 66, 4000))),
+    "beyond its validated size range \\(largest 73"
+  )
+  # Old-format chains without the counter -> silent (back-compatible).
+  old = list(zratio = list(counters = c(n_hit = 0, n_pred = 10)))
+  expect_silent(res2 <- bgms:::zratio_extrapolation_notice(list(old)))
+  expect_false(res2)
+})
+
+test_that("the harm channel maps audit records onto the correct edge", {
+  # Regression for the %/% precedence bug in the edge-index formula: for the
+  # 0-based pair (2, 3) at q = 7 the 1-based upper-triangle index is 12; the
+  # unparenthesized form floor-divided (2q - i0 - 1) first and landed on 11.
+  # pip isolates the weight on index 12, so a mis-mapped record zeroes the
+  # sensitivity weight and the predictor.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 2L, pair_j = 3L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  pip = numeric(21)
+  pip[12] = 0.5
+  res = summarize_zratio_gauge(
+    list(list(zratio = list(gauge = g))),
+    verbose = FALSE, harm_inputs = list(pip = list(pip))
+  )
+  # m = 0.5 * 0.5 on the audited edge, se = 0.2, amplification 1 (no a/b):
+  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.01 threshold.
+  expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
+  expect_true(res$per_chain$harm_flag)
+})
+
+test_that("harm inputs stay aligned when a chain has no gauge output", {
+  # Chain 1 carries no gauge block (e.g. an interrupt during its sweeps); the
+  # summary must index harm_inputs$pip by the ORIGINAL chain position, not the
+  # position after filtering, and report the original chain number.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 2L, pair_j = 3L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  pip2 = numeric(21)
+  pip2[12] = 0.5
+  res = summarize_zratio_gauge(
+    list(list(), list(zratio = list(gauge = g))),
+    verbose = FALSE,
+    harm_inputs = list(pip = list(numeric(21), pip2))
+  )
+  expect_equal(nrow(res$per_chain), 1L)
+  expect_equal(res$per_chain$chain, 2L)
+  expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
 })

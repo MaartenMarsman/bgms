@@ -2,9 +2,9 @@
 #'
 #' @description Reports the per-chain trust gauge for the hierarchical graph
 #' prior. Under that prior the sampler decides each edge with a fast
-#' approximation; during sampling the gauge redoes a subset of each chain's own
-#' edge decisions with the exact calculation and records two statistics per
-#' chain:
+#' approximation; in a set of assessment sweeps after sampling the gauge redoes
+#' a subset of each chain's own edge decisions with the exact calculation and
+#' records two statistics per chain:
 #' \describe{
 #'   \item{\code{flip_rate}}{The fraction of add/remove decisions that would
 #'     come out differently under the exact calculation. A chain is flagged on
@@ -87,17 +87,22 @@
 #' @export
 summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
                                   harm_inputs = NULL, harm_threshold = 0.01) {
-  chains = Filter(
-    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge), chains
-  )
-  if(length(chains) == 0) {
+  # Keep the original chain indices: harm_inputs$pip is positional over ALL
+  # chains, so a chain without gauge output (e.g. an interrupt during another
+  # chain's sweeps) must not shift the pip alignment of the chains after it.
+  keep = which(vapply(
+    chains,
+    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge),
+    logical(1)
+  ))
+  if(length(keep) == 0) {
     stop(
       "No Z-ratio trust-gauge output found in the chain outputs. It is ",
       "recorded only when the hierarchical prior specification is active and ",
       "the gauge is enabled."
     )
   }
-  rows = lapply(seq_along(chains), function(c_idx) {
+  rows = lapply(keep, function(c_idx) {
     g = chains[[c_idx]]$zratio$gauge
     flip = as.numeric(g$flip_rate)
     floor = as.numeric(g$noise_floor)
@@ -139,7 +144,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         q = round((1 + sqrt(1 + 8 * n_edges)) / 2)
         i0 = pmin(as.integer(pair_i), as.integer(g$pair_j))
         j0 = pmax(as.integer(pair_i), as.integer(g$pair_j))
-        idx = i0 * (2L * q - i0 - 1L) %/% 2L + (j0 - i0)
+        # %/% binds tighter than *, so the row-offset product needs the
+        # parentheses: idx = (i0 * (2q - i0 - 1)) %/% 2 + (j0 - i0).
+        idx = (i0 * (2L * q - i0 - 1L)) %/% 2L + (j0 - i0)
         m_rec = pip[idx] * (1 - pip[idx])
         x = m_rec * as.numeric(g$pair_se)
         num = abs(mean(x))
@@ -193,8 +200,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         cat(sprintf(
           paste0(
             "  - Chain %d: %.1f%% of edge-toggle decisions in the ",
-            "approximate chain differ from the exact reference - ",
-            "increase calibration_window\n"
+            "approximate chain differ from the exact reference - the ",
+            "normalizer-ratio approximation may be inaccurate here; ",
+            "consider the joint specification\n"
           ),
           pc$chain, 100 * pc$flip_rate
         ))
@@ -203,8 +211,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         cat(sprintf(
           paste0(
             "  - Chain %d: the approximation biases the inclusion ",
-            "probabilities by an estimated %.2f - increase ",
-            "calibration_window\n"
+            "probabilities by an estimated %.2f - the normalizer-ratio ",
+            "approximation may be inaccurate here; consider the joint ",
+            "specification\n"
           ),
           pc$chain, pc$harm_pred
         ))
@@ -217,6 +226,59 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
     harm_threshold = harm_threshold,
     flagged = flagged
   ))
+}
+
+# TRUE if any chain carries recorded trust-gauge output, i.e. the in-chain gauge
+# actually ran. Lets callers skip the summary (which errors on empty input) when
+# the gauge is disabled (options(bgms.zratio_gauge_sweeps = 0)).
+zratio_gauge_present = function(chains) {
+  isTRUE(any(vapply(
+    chains,
+    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge),
+    logical(1)
+  )))
+}
+
+# One graceful, per-fit notice when the hierarchical prior's fast edge correction
+# was extrapolated beyond its validated block-size range. Mediating blocks larger
+# than the trained surface hull are clamped at deploy (dense regions of large
+# graphs); the C++ engine tallies how often per chain. This sums the tally and,
+# if any block exceeded the hull, emits a single summary message. Independent of
+# the trust gauge, so the signal reaches the user even with the gauge off.
+zratio_extrapolation_notice = function(chains) {
+  get_counter = function(ct, nm) {
+    if(is.null(ct) || !(nm %in% names(ct))) {
+      return(0)
+    }
+    v = suppressWarnings(as.numeric(ct[[nm]]))
+    if(length(v) != 1L || is.na(v)) 0 else v
+  }
+  counters = Filter(
+    function(ct) !is.null(ct),
+    lapply(chains, function(ch) ch$zratio$counters)
+  )
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_extrap = sum(vapply(counters, get_counter, numeric(1), "n_extrap"))
+  if(n_extrap <= 0) {
+    return(invisible(FALSE))
+  }
+  n_pred = sum(vapply(counters, get_counter, numeric(1), "n_pred"))
+  max_size = max(vapply(counters, get_counter, numeric(1), "max_extrap_size"))
+  pct = if(n_pred > 0) 100 * n_extrap / n_pred else NA_real_
+  message(sprintf(
+    paste0(
+      "Note: %.1f%% of the hierarchical prior's edge-correction evaluations ",
+      "used a mediating block beyond its validated size range (largest %d ",
+      "variables). The correction was extrapolated there, which can slightly ",
+      "reduce edge-selection accuracy in dense regions of large graphs; sparse ",
+      "graphs are unaffected. To assess the sensitivity, enable the trust gauge ",
+      "with options(bgms.zratio_gauge_sweeps = 2L)."
+    ),
+    pct, as.integer(max_size)
+  ))
+  invisible(TRUE)
 }
 
 #' @title Harm-Channel Inputs for the Trust Gauge

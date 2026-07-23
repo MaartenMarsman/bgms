@@ -27,12 +27,13 @@ double ZRatioEngine::saddle_ratio(double s1, double s2) const {
 ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
                                         int j) const {
     ZRatioBlock bl;
-    extract_block_(G, i, j, false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/true, bl);
     return bl;
 }
 
 void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
-                                  bool counts_only, ZRatioBlock& bl) const {
+                                  bool need_adjacency, bool need_counts,
+                                  ZRatioBlock& bl) const {
     bl = ZRatioBlock();
     const int q = static_cast<int>(G.n_rows);
 
@@ -47,16 +48,19 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     std::vector<int>& excl_j = xb_excl_j_;
     excl_i.clear();
     excl_j.clear();
+    // G is symmetric, so G(k, i) == G(i, k): read the transpose entry to walk
+    // column i with unit stride (arma is column-major), which keeps the O(q)
+    // classification scan in cache instead of striding by n_rows per element.
     for (int k = 0; k < q; k++) {
         if (k == i || k == j) continue;
-        const bool near_i = (G(i, k) == 1), near_j = (G(j, k) == 1);
+        const bool near_i = (G(k, i) == 1), near_j = (G(k, j) == 1);
         if (near_i && near_j) in_r[k] = 1;
         else if (near_i) excl_i.push_back(k);
         else if (near_j) excl_j.push_back(k);
     }
     for (int a : excl_i) {
         for (int b : excl_j) {
-            if (G(a, b) == 1) {
+            if (G(b, a) == 1) {
                 in_r[a] = 1;
                 in_r[b] = 1;
             }
@@ -80,7 +84,7 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     si_o.clear();
     sj_o.clear();
     for (int p = 0; p < m; p++) {
-        bool si = (G(i, rv[p]) == 1), sj = (G(j, rv[p]) == 1);
+        bool si = (G(rv[p], i) == 1), sj = (G(rv[p], j) == 1);
         if (si) side[p] |= 1;
         if (sj) side[p] |= 2;
         if (si && sj) cn.push_back(p);
@@ -94,43 +98,48 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.valid = true;
 
     bl.ncn = static_cast<int>(cn.size());
-    for (size_t a = 0; a < cn.size(); a++) {
-        for (size_t b = a + 1; b < cn.size(); b++) {
-            if (G(rv[cn[a]], rv[cn[b]]) == 1) bl.cne++;
+    // Scalar count descriptors (cne, bre, maxbd, dens) drive the additive
+    // saddle only; the surface deploy reads the adjacency instead, so skip
+    // these O(m^2) passes when the caller does not need the counts.
+    if (need_counts) {
+        for (size_t a = 0; a < cn.size(); a++) {
+            for (size_t b = a + 1; b < cn.size(); b++) {
+                if (G(rv[cn[a]], rv[cn[b]]) == 1) bl.cne++;
+            }
         }
-    }
-    for (int a : si_o) {
-        for (int b : sj_o) {
-            if (G(rv[a], rv[b]) == 1) bl.bre++;
-        }
-    }
-    for (int a : si_o) {
-        int d = 0;
-        for (int b : sj_o) {
-            if (G(rv[a], rv[b]) == 1) d++;
-        }
-        if (d > bl.maxbd) bl.maxbd = d;
-    }
-    for (int b : sj_o) {
-        int d = 0;
         for (int a : si_o) {
-            if (G(rv[a], rv[b]) == 1) d++;
+            for (int b : sj_o) {
+                if (G(rv[a], rv[b]) == 1) bl.bre++;
+            }
         }
-        if (d > bl.maxbd) bl.maxbd = d;
+        for (int a : si_o) {
+            int d = 0;
+            for (int b : sj_o) {
+                if (G(rv[a], rv[b]) == 1) d++;
+            }
+            if (d > bl.maxbd) bl.maxbd = d;
+        }
+        for (int b : sj_o) {
+            int d = 0;
+            for (int a : si_o) {
+                if (G(rv[a], rv[b]) == 1) d++;
+            }
+            if (d > bl.maxbd) bl.maxbd = d;
+        }
+
+        long block_edges = 0;
+        for (int a = 0; a < m; a++) {
+            for (int b = a + 1; b < m; b++) {
+                if (G(rv[a], rv[b]) == 1) block_edges++;
+            }
+        }
+        bl.dens = (m >= 2)
+            ? (static_cast<double>(block_edges) /
+               (static_cast<double>(m) * (m - 1) / 2.0))
+            : 0.0;
     }
 
-    long block_edges = 0;
-    for (int a = 0; a < m; a++) {
-        for (int b = a + 1; b < m; b++) {
-            if (G(rv[a], rv[b]) == 1) block_edges++;
-        }
-    }
-    bl.dens = (m >= 2)
-        ? (static_cast<double>(block_edges) /
-           (static_cast<double>(m) * (m - 1) / 2.0))
-        : 0.0;
-
-    if (counts_only) return;
+    if (!need_adjacency) return;
 
     bl.a_blk.zeros(m, m);
     for (int a = 0; a < m; a++) {
@@ -151,27 +160,451 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.sj = arma::uvec(sj_v);
 }
 
-double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
-    // Counts-only extraction: every consumer below except the calibration
-    // oracle reads just the scalar descriptors, so the block adjacency and
-    // side vectors are materialised only on an actual oracle run.
+double ZRatioEngine::surface_eval_(const SurfaceFamily& f, bool s2,
+                                   double size, double dens) const {
+    // Clamp (size, density) to the trained hull, then evaluate the raw
+    // quadratic in (log size, density) over the 9 monomials and clamp the
+    // log-moment to its trained range +/- 0.1 (matches the R deploy predictor).
+    const double n = std::min(std::max(size, f.size_lo), f.size_hi);
+    const double d = std::min(std::max(dens, f.dens_lo), f.dens_hi);
+    const double L = MY_LOG(n);
+    const double x[9] = {1.0, L, L * L, d, d * d, L * d, L * L * d,
+                         L * d * d, L * L * d * d};
+    const arma::vec& c = s2 ? f.c2 : f.c1;
+    double p = 0.0;
+    for (int k = 0; k < 9; ++k) p += c[k] * x[k];
+    const double lo = (s2 ? f.l2_lo : f.l1_lo) - 0.1;
+    const double hi = (s2 ? f.l2_hi : f.l1_hi) + 0.1;
+    p = std::min(std::max(p, lo), hi);
+    return MY_EXP(p);
+}
+
+// Connected components of the induced subgraph on `nodes` (block positions).
+// For a CN cluster (bip = false) every intra-node edge counts; for a bipartite
+// bridge structure (bip = true) only cross-side edges (is_A differs) count.
+static std::vector<std::vector<int>> conn_components_(
+    const arma::imat& a_blk, const std::vector<int>& nodes, bool bip,
+    const std::vector<char>& is_A) {
+    const int nn = static_cast<int>(nodes.size());
+    std::vector<char> vis(nn, 0);
+    std::vector<std::vector<int>> out;
+    std::vector<int> stack;
+    for (int s = 0; s < nn; ++s) {
+        if (vis[s]) continue;
+        std::vector<int> comp;
+        stack.clear();
+        stack.push_back(s);
+        vis[s] = 1;
+        while (!stack.empty()) {
+            const int u = stack.back();
+            stack.pop_back();
+            comp.push_back(nodes[u]);
+            for (int t = 0; t < nn; ++t) {
+                if (vis[t]) continue;
+                bool e = (a_blk(nodes[u], nodes[t]) == 1);
+                if (bip) e = e && (is_A[nodes[u]] != is_A[nodes[t]]);
+                if (e) {
+                    vis[t] = 1;
+                    stack.push_back(t);
+                }
+            }
+        }
+        out.push_back(std::move(comp));
+    }
+    return out;
+}
+
+void ZRatioEngine::decompose_(const ZRatioBlock& bl,
+                              std::vector<BlockComponent>& out) const {
+    out.clear();
+    const int m = bl.m;
+    const arma::imat& A = bl.a_blk;
+    // Per-position side: CN = adjacent to both endpoints, A-side = i-only,
+    // B-side = j-only. Decompose the CN-CN subgraph and the A-B bridge subgraph
+    // into disjoint components, exactly as the reference deploy_surface.
+    std::vector<char> in_si(m, 0), in_sj(m, 0), is_A(m, 0);
+    for (arma::uword k = 0; k < bl.si.n_elem; ++k) in_si[bl.si[k]] = 1;
+    for (arma::uword k = 0; k < bl.sj.n_elem; ++k) in_sj[bl.sj[k]] = 1;
+    std::vector<int> cn_nodes, ab_nodes;
+    for (int p = 0; p < m; ++p) {
+        const bool ci = in_si[p], cj = in_sj[p];
+        if (ci && cj) cn_nodes.push_back(p);
+        else if (ci) { ab_nodes.push_back(p); is_A[p] = 1; }
+        else if (cj) { ab_nodes.push_back(p); is_A[p] = 0; }
+    }
+
+    const std::vector<char> dummy;
+    for (auto& comp : conn_components_(A, cn_nodes, false, dummy)) {
+        BlockComponent bc;
+        bc.family = 0;
+        int e = 0;
+        for (size_t a = 0; a < comp.size(); ++a) {
+            for (size_t b = a + 1; b < comp.size(); ++b) {
+                if (A(comp[a], comp[b]) == 1) ++e;
+            }
+        }
+        bc.na = static_cast<int>(comp.size());
+        bc.nb = 0;
+        bc.e = e;
+        bc.nodes = std::move(comp);
+        out.push_back(std::move(bc));
+    }
+    for (auto& comp : conn_components_(A, ab_nodes, true, is_A)) {
+        BlockComponent bc;
+        bc.family = 1;
+        bc.aside.resize(comp.size());
+        int na = 0, nb = 0, e = 0;
+        for (size_t k = 0; k < comp.size(); ++k) {
+            bc.aside[k] = is_A[comp[k]];
+            if (is_A[comp[k]]) ++na;
+            else ++nb;
+        }
+        for (size_t a = 0; a < comp.size(); ++a) {
+            for (size_t b = a + 1; b < comp.size(); ++b) {
+                if (is_A[comp[a]] != is_A[comp[b]] &&
+                    A(comp[a], comp[b]) == 1) {
+                    ++e;
+                }
+            }
+        }
+        bc.na = na;
+        bc.nb = nb;
+        bc.e = e;
+        bc.nodes = std::move(comp);
+        out.push_back(std::move(bc));
+    }
+}
+
+void ZRatioEngine::accumulate_surface_moments_(
+    const ZRatioBlock& bl, double& s1_out, double& s2_out,
+    std::vector<SurfaceComp>* comps) const {
+    s1_out = 0.0;
+    s2_out = 0.0;
+    std::vector<BlockComponent> parts;
+    decompose_(bl, parts);
+    for (const BlockComponent& bc : parts) {
+        const int sz = static_cast<int>(bc.nodes.size());
+        double c1, c2, dens;
+        bool used;
+        if (bc.family == 0) {
+            dens = (sz >= 2) ? bc.e / (static_cast<double>(sz) * (sz - 1) / 2.0)
+                             : 0.0;
+            used = sz >= static_cast<int>(surf_cn_.size_min);
+            if (used) {
+                c1 = surface_eval_(surf_cn_, false, sz, dens);
+                c2 = surface_eval_(surf_cn_, true, sz, dens);
+            } else {
+                c1 = sz * addc_[0] + bc.e * addc_[2];
+                c2 = sz * addc_[1] + bc.e * addc_[3];
+            }
+        } else {
+            dens = (bc.na > 0 && bc.nb > 0)
+                       ? bc.e / static_cast<double>(bc.na * bc.nb) : 0.0;
+            used = sz >= static_cast<int>(surf_bip_.size_min);
+            if (used) {
+                c1 = surface_eval_(surf_bip_, false, sz, dens);
+                c2 = surface_eval_(surf_bip_, true, sz, dens);
+            } else {
+                c1 = bc.e * addc_[4];
+                c2 = bc.e * addc_[5];
+            }
+        }
+        s1_out += c1;
+        s2_out += c2;
+        if (comps) {
+            comps->push_back(
+                {bc.family, sz, bc.e, bc.na, bc.nb, dens, c1, c2, used});
+        }
+    }
+}
+
+void ZRatioEngine::comp_moments_(int family, int sz, int e, int na, int nb,
+                                 double& c1, double& c2) {
+    const std::array<int, 5> key = {family, sz, e, na, nb};
+    auto it = comp_cache_.find(key);
+    if (it != comp_cache_.end()) {
+        c1 = it->second.first;
+        c2 = it->second.second;
+        return;
+    }
+    if (family == 0) {
+        const double dens =
+            (sz >= 2) ? e / (static_cast<double>(sz) * (sz - 1) / 2.0) : 0.0;
+        if (sz >= static_cast<int>(surf_cn_.size_min)) {
+            c1 = surface_eval_(surf_cn_, false, sz, dens);
+            c2 = surface_eval_(surf_cn_, true, sz, dens);
+        } else {
+            c1 = sz * addc_[0] + e * addc_[2];
+            c2 = sz * addc_[1] + e * addc_[3];
+        }
+    } else {
+        const double dens =
+            (na > 0 && nb > 0) ? e / static_cast<double>(na * nb) : 0.0;
+        if (sz >= static_cast<int>(surf_bip_.size_min)) {
+            c1 = surface_eval_(surf_bip_, false, sz, dens);
+            c2 = surface_eval_(surf_bip_, true, sz, dens);
+        } else {
+            c1 = e * addc_[4];
+            c2 = e * addc_[5];
+        }
+    }
+    comp_cache_.emplace(key, std::make_pair(c1, c2));
+}
+
+double ZRatioEngine::surface_logr_(const arma::imat& G) {
+    // Node sets left in the extract scratch: rv maps block positions to graph
+    // nodes; cn are the common-neighbour positions, sio/sjo the A-side
+    // (i-only) and B-side (j-only) positions. Adjacency is read from G through
+    // rv, so no block adjacency matrix is materialised.
+    const std::vector<int>& rv = xb_rv_;
+    const std::vector<int>& cn = xb_cn_;
+    const std::vector<int>& sio = xb_sio_;
+    const std::vector<int>& sjo = xb_sjo_;
+    const int m = static_cast<int>(rv.size());
+
+    sl_uf_.resize(m);
+    sl_sz_.resize(m);
+    sl_e_.resize(m);
+    sl_na_.resize(m);
+    sl_nb_.resize(m);
+    sl_sig_.clear();
+
+    // Common-neighbour clusters: connected components of the CN-CN subgraph
+    // under any intra-cluster edge. Union over CN pairs, then tally size and
+    // internal edges per component root.
+    for (int a : cn) {
+        sl_uf_[a] = a;
+        sl_sz_[a] = 0;
+        sl_e_[a] = 0;
+    }
+    for (size_t x = 0; x < cn.size(); ++x) {
+        for (size_t y = x + 1; y < cn.size(); ++y) {
+            if (G(rv[cn[x]], rv[cn[y]]) == 1) uf_union_(cn[x], cn[y]);
+        }
+    }
+    for (int a : cn) sl_sz_[uf_find_(a)]++;
+    for (size_t x = 0; x < cn.size(); ++x) {
+        for (size_t y = x + 1; y < cn.size(); ++y) {
+            if (G(rv[cn[x]], rv[cn[y]]) == 1) sl_e_[uf_find_(cn[x])]++;
+        }
+    }
+    for (int a : cn) {
+        if (uf_find_(a) == a) {
+            sl_sig_.push_back({0, sl_sz_[a], sl_e_[a], sl_sz_[a], 0});
+        }
+    }
+
+    // Bipartite bridges: connected components of the A-B subgraph under
+    // cross-side edges only. Union over cross pairs, then tally A/B side sizes
+    // and cross edges per component root (which may sit on either side).
+    for (int a : sio) {
+        sl_uf_[a] = a;
+        sl_sz_[a] = 0;
+        sl_e_[a] = 0;
+        sl_na_[a] = 0;
+        sl_nb_[a] = 0;
+    }
+    for (int b : sjo) {
+        sl_uf_[b] = b;
+        sl_sz_[b] = 0;
+        sl_e_[b] = 0;
+        sl_na_[b] = 0;
+        sl_nb_[b] = 0;
+    }
+    for (int a : sio) {
+        for (int b : sjo) {
+            if (G(rv[a], rv[b]) == 1) uf_union_(a, b);
+        }
+    }
+    for (int a : sio) {
+        const int r = uf_find_(a);
+        sl_sz_[r]++;
+        sl_na_[r]++;
+    }
+    for (int b : sjo) {
+        const int r = uf_find_(b);
+        sl_sz_[r]++;
+        sl_nb_[r]++;
+    }
+    for (int a : sio) {
+        for (int b : sjo) {
+            if (G(rv[a], rv[b]) == 1) sl_e_[uf_find_(a)]++;
+        }
+    }
+    for (int a : sio) {
+        if (uf_find_(a) == a) {
+            sl_sig_.push_back({1, sl_sz_[a], sl_e_[a], sl_na_[a], sl_nb_[a]});
+        }
+    }
+    for (int b : sjo) {
+        if (uf_find_(b) == b) {
+            sl_sig_.push_back({1, sl_sz_[b], sl_e_[b], sl_na_[b], sl_nb_[b]});
+        }
+    }
+
+    // Extrapolation accounting (Tier-1 observability): any component larger than
+    // the trained hull is clamped to the hull edge by surface_eval_, so its
+    // moment is an extrapolation. Count the block once if it holds any such
+    // component and track the largest size seen. Runs on every call (before the
+    // cache lookup below) so the tally is the true per-fit deploy count.
+    bool extrapolated = false;
+    for (const std::array<int, 5>& t : sl_sig_) {
+        const double hull = (t[0] == 0) ? surf_cn_.size_hi : surf_bip_.size_hi;
+        if (t[1] > hull) {
+            extrapolated = true;
+            if (t[1] > max_extrap_size_) max_extrap_size_ = t[1];
+        }
+    }
+    if (extrapolated) n_extrap_++;
+
+    // Canonical multiset -> cached saddle. Accumulating in sorted order makes
+    // the sum bit-identical for any block with this multiset.
+    std::sort(sl_sig_.begin(), sl_sig_.end());
+    sl_key_.clear();
+    for (const std::array<int, 5>& t : sl_sig_) {
+        sl_key_.insert(sl_key_.end(), t.begin(), t.end());
+    }
+    auto it = surf_cache_.find(sl_key_);
+    if (it != surf_cache_.end()) return it->second;
+    double s1 = 0.0, s2 = 0.0;
+    for (const std::array<int, 5>& t : sl_sig_) {
+        double c1, c2;
+        comp_moments_(t[0], t[1], t[2], t[3], t[4], c1, c2);
+        s1 += c1;
+        s2 += c2;
+    }
+    if (s2 <= 0.0) s2 = kS2Floor;
+    const double logr = MY_LOG(saddle_ratio(s1, s2));
+    surf_cache_.emplace(sl_key_, logr);
+    return logr;
+}
+
+bool ZRatioEngine::gold_moments(const arma::imat& G, int i, int j,
+                                double& s1_out, double& s2_out,
+                                double& logr_out) {
     ZRatioBlock bl;
-    extract_block_(G, i, j, true, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
+    if (!bl.valid) {
+        s1_out = 0.0;
+        s2_out = 0.0;
+        logr_out = MY_LOG(psi0_);
+        return false;
+    }
+    std::vector<BlockComponent> parts;
+    decompose_(bl, parts);
+    double s1 = 0.0, s2 = 0.0;
+    for (const BlockComponent& bc : parts) {
+        const int sz = static_cast<int>(bc.nodes.size());
+        // Trivial components (CN size <= 2, single bridge) are exact through
+        // pairwise overlap; larger components use the block-Gibbs oracle on the
+        // component's own sub-adjacency.
+        if (bc.family == 0 && sz < 3) {
+            s1 += sz * addc_[0] + bc.e * addc_[2];
+            s2 += sz * addc_[1] + bc.e * addc_[3];
+            continue;
+        }
+        if (bc.family == 1 && sz < 3) {
+            s1 += bc.e * addc_[4];
+            s2 += bc.e * addc_[5];
+            continue;
+        }
+        arma::imat sub(sz, sz, arma::fill::zeros);
+        arma::uvec si, sj;
+        if (bc.family == 0) {
+            for (int a = 0; a < sz; ++a) {
+                for (int b = a + 1; b < sz; ++b) {
+                    if (bl.a_blk(bc.nodes[a], bc.nodes[b]) == 1) {
+                        sub(a, b) = sub(b, a) = 1;
+                    }
+                }
+            }
+            si = arma::regspace<arma::uvec>(0, sz - 1);
+            sj = si;
+        } else {
+            std::vector<arma::uword> ai, bi;
+            for (int a = 0; a < sz; ++a) {
+                if (bc.aside[a]) ai.push_back(a);
+                else bi.push_back(a);
+            }
+            for (int a = 0; a < sz; ++a) {
+                for (int b = a + 1; b < sz; ++b) {
+                    if (bc.aside[a] != bc.aside[b] &&
+                        bl.a_blk(bc.nodes[a], bc.nodes[b]) == 1) {
+                        sub(a, b) = sub(b, a) = 1;
+                    }
+                }
+            }
+            si = arma::uvec(ai);
+            sj = arma::uvec(bi);
+        }
+        double s1c = 0.0, s2c = 0.0;
+        if (block_oracle_moments(sub, si, sj, s1c, s2c)) {
+            s1 += s1c;
+            s2 += s2c;
+        } else if (bc.family == 0) {
+            s1 += sz * addc_[0] + bc.e * addc_[2];
+            s2 += sz * addc_[1] + bc.e * addc_[3];
+        } else {
+            s1 += bc.e * addc_[4];
+            s2 += bc.e * addc_[5];
+        }
+    }
+    if (s2 <= 0.0) s2 = kS2Floor;
+    s1_out = s1;
+    s2_out = s2;
+    logr_out = MY_LOG(saddle_ratio(s1, s2));
+    return true;
+}
+
+bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
+                                   double& s1_out, double& s2_out,
+                                   double& logr_out,
+                                   std::vector<SurfaceComp>& comps) {
+    comps.clear();
+    ZRatioBlock bl;
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
+    if (!bl.valid) {
+        s1_out = 0.0;
+        s2_out = 0.0;
+        logr_out = MY_LOG(psi0_);
+        return false;
+    }
+    accumulate_surface_moments_(bl, s1_out, s2_out, &comps);
+    if (s2_out <= 0.0) s2_out = kS2Floor;
+    logr_out = MY_LOG(saddle_ratio(s1_out, s2_out));
+    return true;
+}
+
+double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
+    // Surface (Option B) serves the alpha = 1 cell (Normal or Cauchy slab, both
+    // built from the block-Gibbs oracle) when attached: decompose the block and
+    // sum per-component moments. Otherwise (surface absent, or the alpha != 1
+    // Gamma-shape fence) fall through to the additive-counts saddle.
+    const bool surface_active = has_surface_ && std::abs(alpha_ - 1.0) < 1e-12;
+    // Neither branch needs the block adjacency matrix: the surface deploy reads
+    // adjacency from G through the extract scratch (surface_logr_), the additive
+    // saddle needs only the scalar counts.
+    ZRatioBlock bl;
+    extract_block_(G, i, j, /*need_adjacency=*/false,
+                   /*need_counts=*/!surface_active, bl);
     if (!bl.valid) {
         n_add_++;
         return MY_LOG(psi0_);
     }
-    const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre, maxbdeg = bl.maxbd,
-              m = bl.m;
-    const double dens = bl.dens;
+    if (surface_active) {
+        n_pred_++;
+        return surface_logr_(G);
+    }
+    const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre;
 
     double s1 = ncn * addc_[0] + cne * addc_[2] + bre * addc_[4];
     double s2 = ncn * addc_[1] + cne * addc_[3] + bre * addc_[5];
     if (s2 <= 0.0) s2 = kS2Floor;
 
-    // Additive saddle: depends only on (nCN, cne, bre), served from the
-    // persistent count-key cache. Corrections ride on top post-cache, so
-    // corrected edges keep the compact key and full cache reuse.
+    // Additive saddle over (nCN, cne, bre), served from the persistent
+    // count-key cache. This is the hierarchical fence for the alpha != 1
+    // (Gamma-shape) cell; the alpha = 1 cell (Normal or Cauchy slab) is served
+    // by the surface branch above.
     const std::uint64_t sig = pack_count_key(ncn, cne, bre);
     double a;
     auto it = cache_.find(sig);
@@ -183,131 +616,8 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         a = saddle_ratio(s1, s2);
         cache_[sig] = a;
     }
-    const double log_r_add = MY_LOG(a);
-
-    if (maxbdeg < 2) {
-        n_add_++;
-        return log_r_add;
-    }
-
-    // Warm-up calibration: identical block signatures are served from the
-    // correction cache; the leverage gate serves the current fit when its
-    // prediction variance at this block is small, and runs the exact
-    // Monte-Carlo evaluation (anchor + refit) when it is not. A hard
-    // anchor budget backstops the oracle count.
-    if (calibrating() && s1 > 0 && s2 > 0) {
-        std::string ckey = std::to_string(ncn) + "_" + std::to_string(cne) +
-                           "_" + std::to_string(bre) + "_" +
-                           std::to_string(m) + "_" + std::to_string(maxbdeg) +
-                           "_" + std::to_string(std::lround(dens * 1000.0));
-        auto cit = corr_cache_.find(ckey);
-        if (cit != corr_cache_.end()) {
-            n_pred_++;
-            return log_r_add + cit->second;
-        }
-        arma::vec x = {1.0, static_cast<double>(bre),
-                       static_cast<double>(m), static_cast<double>(cne),
-                       static_cast<double>(maxbdeg), dens};
-        bool covered = false;
-        if (coef_.n_elem > 0 && xtx_inv_.n_elem > 0) {
-            covered = arma::as_scalar(x.t() * xtx_inv_ * x) <= gate_kappa_;
-        }
-        if (!covered && coef_.n_elem > 0 && n_oracle_ >= max_anchors_) {
-            covered = true;   // anchor budget spent: serve the fit
-        }
-        if (covered) {
-            n_pred_++;
-            return log_r_add + arma::dot(x, coef_);
-        }
-        extract_block_(G, i, j, false, bl);
-        double s1b = 0, s2b = 0, dl = 0;
-        if (block_oracle_moments(bl.a_blk, bl.si, bl.sj, s1b, s2b)) {
-            dl = MY_LOG(saddle_ratio(s1b, s2b)) - log_r_add;
-        }
-        n_oracle_++;
-        corr_cache_[ckey] = dl;
-        ax_.insert_rows(ax_.n_rows, x.t());
-        ay_.insert_rows(ay_.n_elem, arma::vec{dl});
-        refit_();
-        return log_r_add + dl;
-    }
-
-    // Frozen OLS correction on the log-ratio scale, zeroed outside the
-    // trained hull so the kernel never extrapolates.
-    bool clamped = false;
-    const double log_r_corr = deployed_correction(bl, clamped);
-    if (clamped) n_clamp_++;
-    if (log_r_corr != 0.0) n_pred_++;
-    else n_add_++;
-    return log_r_add + log_r_corr;
-}
-
-double ZRatioEngine::deployed_correction(const ZRatioBlock& bl,
-                                         bool& clamped) const {
-    clamped = false;
-    if (bl.maxbd < 2) return 0.0;
-    bool direct = (addc_.n_elem >= 13 && addc_[12] > 0.5);
-    if (!direct) return 0.0;
-    // Single gate: once the edge has bridge multiplicity >= 2 the direct
-    // ratio-scale correction is applied everywhere. The correction is a
-    // smooth low-dimensional surface on the log-ratio scale, and the
-    // corrected value dominates the uncorrected additive saddle, most of all
-    // in the dense/large-block corner. Reverting to additive outside a
-    // calibration hull would reintroduce the additive bias exactly where it
-    // is largest, so the frozen kernel extrapolates the surface rather than
-    // gating on a prior/size-dependent box.
-    double fc = addc_[6] + addc_[7] * static_cast<double>(bl.bre) +
-                addc_[8] * static_cast<double>(bl.m) +
-                addc_[9] * static_cast<double>(bl.cne) +
-                addc_[10] * static_cast<double>(bl.maxbd) +
-                addc_[11] * bl.dens;
-    return fc;
-}
-
-void ZRatioEngine::enable_calibration(double delta, double eta, SafeRNG* rng,
-                                      int n_sweep, int burn,
-                                      double gate_kappa, int min_anchors,
-                                      bool slab_cauchy, double alpha,
-                                      int max_anchors) {
-    calibration_enabled_ = true;
-    frozen_ = false;
-    delta_ = delta;
-    sigma_ = 1.0;
-    beta_ = eta;
-    alpha_ = alpha;
-    rng_ = rng;
-    n_sweep_ = n_sweep;
-    burn_ = burn;
-    gate_kappa_ = gate_kappa;
-    min_anchors_ = min_anchors;
-    max_anchors_ = max_anchors;
-    oracle_slab_cauchy_ = slab_cauchy;
-}
-
-void ZRatioEngine::refit_() {
-    if (static_cast<int>(ay_.n_elem) < min_anchors_) return;
-    arma::mat xtx = ax_.t() * ax_;
-    xtx.diag() += 1e-8;
-    coef_ = arma::solve(xtx, ax_.t() * ay_);
-    if (!arma::inv_sympd(xtx_inv_, xtx)) xtx_inv_.reset();
-}
-
-void ZRatioEngine::freeze_calibration() {
-    if (!calibration_enabled_ || frozen_) return;
-    refit_();
-    frozen_ = true;
-    corr_cache_.clear();
-    if (coef_.n_elem == 0) return;   // no fit: pure additive kernel
-    arma::vec packed(23, arma::fill::zeros);
-    packed.subvec(0, 5) = addc_.subvec(0, 5);
-    packed.subvec(6, 11) = coef_;
-    packed[12] = 1.0;
-    arma::mat feats = ax_.cols(1, 5);
-    for (arma::uword c = 0; c < 5; ++c) {
-        packed[13 + 2 * c] = feats.col(c).min();
-        packed[14 + 2 * c] = feats.col(c).max();
-    }
-    addc_ = packed;
+    n_add_++;
+    return MY_LOG(a);
 }
 
 // Rank-2 SMW refresh of sigma = k^{-1} after the column-i change
@@ -419,9 +729,9 @@ bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             if (std::abs(alpha_ - 1.0) > 1e-12) {
                 const double kii_new = xi + quad;
                 const double kii_old = k_blk(i, i);
-                accept = std::log(runif(*rng_)) <
-                         (alpha_ - 1.0) * (std::log(kii_new) -
-                                           std::log(kii_old));
+                accept = MY_LOG(runif(*rng_)) <
+                         (alpha_ - 1.0) * (MY_LOG(kii_new) -
+                                           MY_LOG(kii_old));
             }
             if (accept) {
                 double d_diag = 0.0;
@@ -713,7 +1023,7 @@ bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
         vb /= (nB - 1);
         mcse = std::sqrt(vb / nB);
     }
-    logR_out = std::log(ratio);
+    logR_out = MY_LOG(ratio);
     mcse_out = mcse / ratio;
     return true;
 }

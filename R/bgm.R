@@ -61,11 +61,11 @@
 #' @param interaction_prior A prior specification object for pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 #'   }
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}.
 #'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
@@ -182,16 +182,18 @@
 #'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 #'       normalized per graph, so the graph marginal is exactly the edge
 #'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
-#'       ratio with a fast local approximation, calibrated against exact
-#'       Monte-Carlo evaluations in an appended warm-up window (see
-#'       \code{calibration_window}). A trust gauge audits the approximation
-#'       during sampling on two channels: the rate at which the chain's edge
-#'       decisions would differ under the exact calculation, and the
-#'       projected distortion of the inclusion probabilities from the
-#'       measured error under the edge prior's feedback
-#'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
-#'       \code{fit$zratio_diag} and issues print like other sampler
-#'       warnings). Requires \code{edge_selection = TRUE}, a
+#'       ratio with a fast local approximation: a theta-independent
+#'       absolute-moment surface built once at the start of the analysis from
+#'       block-Gibbs anchors. An optional trust gauge (off by default; enable
+#'       it with \code{options(bgms.zratio_gauge_sweeps = 2L)} before fitting)
+#'       audits the approximation after sampling on two channels: the rate at
+#'       which the chain's edge decisions would differ under the exact
+#'       calculation, and the projected distortion of the inclusion
+#'       probabilities from the measured error under the edge prior's feedback
+#'       (\code{\link{summarize_zratio_gauge}}; when enabled, the summary is
+#'       returned as \code{fit$zratio_diag} and issues print like other
+#'       sampler warnings; otherwise \code{fit$zratio_diag} is \code{NULL}).
+#'       Requires \code{edge_selection = TRUE}, a
 #'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
 #'       and continuous data — either all-continuous
 #'       (GGM) or mixed with at least two continuous variables. On mixed data the
@@ -201,14 +203,6 @@
 #'       and cross edges are unchanged.}
 #'   }
 #'   Default: \code{"joint"}.
-#'
-#' @param calibration_window Non-negative integer or \code{NULL} (default).
-#'   Only for \code{precision_graph_prior = "hierarchical"}: length of the
-#'   appended warm-up window in which the normalizer-ratio approximation is
-#'   calibrated against exact Monte-Carlo evaluations and then frozen before
-#'   sampling. \code{NULL} resolves to no window for
-#'   \code{p < 15} variables and 15 percent of \code{warmup} otherwise. The
-#'   adaptation warmup itself is never shortened; the window is appended.
 #'
 #' @param inclusion_probability `r lifecycle::badge("deprecated")` Numeric
 #'   scalar. Use \code{edge_prior = bernoulli_prior(inclusion_probability)}
@@ -404,7 +398,7 @@ bgm = function(
   baseline_category,
   iter = 2e3,
   warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
@@ -412,7 +406,6 @@ bgm = function(
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
   precision_graph_prior = c("joint", "hierarchical"),
-  calibration_window = NULL,
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -455,7 +448,7 @@ bgm = function(
       "bgm(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -488,7 +481,7 @@ bgm = function(
       "0.2.0", "bgm(pairwise_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
@@ -582,7 +575,6 @@ bgm = function(
     edge_selection = edge_selection,
     edge_prior = edge_prior,
     precision_graph_prior = precision_graph_prior,
-    calibration_window = calibration_window,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

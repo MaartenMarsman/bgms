@@ -28,7 +28,7 @@
 // determinant-tilt exponent delta on |Kyy|, the normalizing-constant
 // correction list for hierarchical edge priors (see R/correction_tables.R,
 // or R_NilValue), and the Z-ratio spec for the continuous block (constants +
-// calibration window, or R_NilValue for the joint spec). Progress_callback
+// surfaces, or R_NilValue for the joint spec). Progress_callback
 // is called as callback(completed, total), or R_NilValue.
 // Returns a list of per-chain results with samples and diagnostics.
 // [[Rcpp::export]]
@@ -142,7 +142,6 @@ Rcpp::List sample_mixed_mrf(
     // per-edge Z-ratio engine so the Gamma_yy between-edge moves target
     // p(K_yy | Gamma_yy) = rho/Z(Gamma_yy). The constants are resolved at R
     // spec-build (zratio_constants); each chain clone deep-copies the engine.
-    int zratio_window = 0;
     int zratio_gauge_sweeps = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
@@ -153,9 +152,6 @@ Rcpp::List sample_mixed_mrf(
             Rcpp::as<arma::vec>(zs["ghat"]),
             Rcpp::as<arma::vec>(zs["wt"]),
             Rcpp::as<double>(zs["psi0"]));
-        if (zs.containsElementNamed("calibration_window")) {
-            zratio_window = Rcpp::as<int>(zs["calibration_window"]);
-        }
         if (zs.containsElementNamed("gauge_sweeps")) {
             zratio_gauge_sweeps = Rcpp::as<int>(zs["gauge_sweeps"]);
         }
@@ -165,14 +161,16 @@ Rcpp::List sample_mixed_mrf(
         const double zr_eta = Rcpp::as<double>(zs["eta"]);
         const double zr_alpha = zs.containsElementNamed("alpha")
             ? Rcpp::as<double>(zs["alpha"]) : 1.0;
-        // The rng pointer is rebound per chain clone by MixedMRFModel.
-        if (zratio_window > 0) {
-            engine->enable_calibration(zr_delta, zr_eta, nullptr, 300, 30, 9.0,
-                                       6, zr_cauchy, zr_alpha);
-        } else {
-            engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
-                                      zr_cauchy, zr_alpha);
+        // Option-B surfaces (built in R at the analysis eta on the continuous
+        // subgraph) are the deployed correction, exactly as on the GGM path.
+        if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
+            Rcpp::List zsurf(zs["surface"]);
+            engine->set_surface(surface_family_from_list(zsurf["cn"]),
+                                surface_family_from_list(zsurf["bip"]));
         }
+        // The rng pointer is rebound per chain clone by MixedMRFModel.
+        engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
+                                  zr_cauchy, zr_alpha);
         model.set_zratio_engine(std::move(engine));
     }
 
@@ -217,11 +215,10 @@ Rcpp::List sample_mixed_mrf(
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
     config.learn_mass_matrix = learn_mass_matrix;
-    config.zratio_calibration_window = zratio_window;
     config.zratio_gauge_sweeps = zratio_gauge_sweeps;
 
     // Set up progress manager
-    ProgressManager pm(no_chains, no_iter, no_warmup + zratio_window, 50, progress_type, true, progress_callback);
+    ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

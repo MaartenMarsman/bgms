@@ -58,16 +58,15 @@
 #'   partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 #'   \code{\link{cauchy_prior}()} or \code{\link{normal_prior}()};
 #'   \code{\link{beta_prime_prior}()} is not supported here. Default:
-#'   \code{cauchy_prior(scale = 2.5)} (i.e. \eqn{K_{ij}} has an implied
-#'   \eqn{\textrm{Cauchy}(0, 5)} prior).
+#'   \code{normal_prior(scale = 1)}, matching \code{\link{bgm}()}.
 #' @param precision_scale_prior A \code{bgms_scale_prior} for
 #'   \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
 #'   \code{\link{exponential_prior}()}. Both accept the rate in the raw
 #'   frame (\code{rate}) or the standardized frame (\code{eta}; the raw
 #'   rate is derived as \code{eta / s} for interaction-prior scale
 #'   \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
-#'   default \code{cauchy_prior(scale = 2.5)} interaction prior this
-#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(0.4)}.
+#'   default \code{normal_prior(scale = 1)} interaction prior this
+#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.
 #' @param step_size Positive numeric. Initial NUTS step size used to seed
 #'   dual-averaging adaptation. Default \code{0.1}. Used only for
 #'   \code{spec = "conditional"} (NUTS path); ignored for the
@@ -105,13 +104,6 @@
 #'   sampler and cached across calls). With \code{FALSE} the plain conjugate
 #'   updates are used, whose hyperparameter marginals do not match the
 #'   hyperpriors under the determinant tilt.
-#' @param calibration_window Non-negative integer or \code{NULL} (default).
-#'   Only for \code{spec = "hierarchical"}: length of the appended warm-up
-#'   window in which the normalizer-ratio approximation is calibrated
-#'   against exact Monte-Carlo evaluations and then frozen before
-#'   sampling. \code{NULL} resolves to no window for \code{p < 15} and 15
-#'   percent of \code{n_warmup} otherwise. The adaptation warmup itself is
-#'   never shortened; the window is appended.
 #' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
 #'   \code{spec = "hierarchical"}: run the trust gauge
 #'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
@@ -175,7 +167,7 @@
 #'
 #' @examples
 #' \donttest{
-#' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
+#' # Default Normal(0, 1) off-diagonal, Exponential(1) diagonal, p = 4.
 #' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
@@ -199,7 +191,7 @@ sample_ggm_prior = function(
   p,
   n_samples,
   n_warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 2.5),
+  interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
@@ -212,7 +204,6 @@ sample_ggm_prior = function(
   update_method = c("adaptive-metropolis", "gibbs"),
   edge_prior = NULL,
   apply_correction = TRUE,
-  calibration_window = NULL,
   zratio_diagnostics = TRUE
 ) {
   spec = match.arg(spec)
@@ -338,11 +329,14 @@ sample_ggm_prior = function(
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        calibration_window, p, n_warmup
-      ),
       gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
+    # Deploy the same Option-B surface the posterior chain uses, so the prior
+    # chain (SBC reference) carries an identical per-edge correction.
+    surf = zratio_build_surfaces(
+      zc, max_size = min(p, 44L), cores = zratio_surface_build_cores()
+    )
+    if(!is.null(surf)) zratio$surface = surf
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
       p = p, delta = delta,
@@ -445,25 +439,6 @@ sample_ggm_prior = function(
     }
   }
   out
-}
-
-
-# Internal helpers -------------------------------------------------------------
-
-# Length of the appended Stage-3d calibration window for the hierarchical
-# spec. NULL resolves the default: no window at small p (the additive kernel
-# passes the identity gates there and coupled-bridge blocks are rare),
-# 15 percent of the warmup budget otherwise. The user's warmup is untouched;
-# the window is appended.
-resolve_zratio_calibration_window = function(window, p, n_warmup) {
-  if(is.null(window)) {
-    window = if(p < 15) 0L else ceiling(0.15 * n_warmup)
-  }
-  if(!is.numeric(window) || length(window) != 1L || is.na(window) ||
-    window < 0) {
-    stop("'calibration_window' must be a single non-negative number or NULL.")
-  }
-  as.integer(window)
 }
 
 # Ancestral draw of the initial edge-indicator matrix for the joint-spec

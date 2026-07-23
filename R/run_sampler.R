@@ -87,11 +87,38 @@ run_sampler_ggm = function(spec) {
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        p$calibration_window, d$num_variables, s$warmup
-      ),
-      gauge_sweeps = 2L
+      gauge_sweeps = zratio_gauge_sweeps()
     )
+    # Option-B absolute-moment surface: build once at the analysis's own
+    # (eta, delta) and let the engine deploy it per component. eta is a build
+    # parameter, not a switch. Built for the Normal and Cauchy slabs (both
+    # alpha = 1); a non-unit Gamma diagonal shape returns NULL and keeps the
+    # additive path (open problem).
+    surf = zratio_build_surfaces(
+      zc,
+      max_size = min(d$num_variables, 44L),
+      cores = zratio_surface_build_cores(s$cores)
+    )
+    if(!is.null(surf)) {
+      zratio$surface = surf
+    } else if(isTRUE(s$verbose)) {
+      if(abs(zc$alpha - 1) > 1e-12) {
+        # Non-exponential precision diagonal (Gamma shape != 1): the surface is
+        # not yet validated for this cell, so the engine keeps the additive path.
+        message(
+          "z-ratio: precision shape alpha = ", format(zc$alpha),
+          " -> additive path (absolute-moment surface validated only for the ",
+          "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+        )
+      } else {
+        # A failed build at alpha = 1 must not downgrade the fit silently.
+        message(
+          "z-ratio: the absolute-moment surface build failed -> additive ",
+          "path (coarser correction; enable the trust gauge with ",
+          "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+        )
+      }
+    }
   } else {
     correction = ggm_edge_prior_correction(p, s, d$num_variables)
   }
@@ -232,11 +259,33 @@ run_sampler_mixed_mrf = function(spec) {
       addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
       wt = zc$wt, psi0 = zc$psi0,
       delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      calibration_window = resolve_zratio_calibration_window(
-        p$calibration_window, d$num_continuous, s$warmup
-      ),
-      gauge_sweeps = 2L
+      gauge_sweeps = zratio_gauge_sweeps()
     )
+    # Option-B surface on the continuous subgraph (same as the GGM path); sized
+    # on the number of continuous variables.
+    surf = zratio_build_surfaces(
+      zc,
+      max_size = min(d$num_continuous, 44L),
+      cores = zratio_surface_build_cores(s$cores)
+    )
+    if(!is.null(surf)) {
+      zratio$surface = surf
+    } else if(isTRUE(s$verbose)) {
+      if(abs(zc$alpha - 1) > 1e-12) {
+        message(
+          "z-ratio: precision shape alpha = ", format(zc$alpha),
+          " -> additive path (absolute-moment surface validated only for the ",
+          "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+        )
+      } else {
+        # A failed build at alpha = 1 must not downgrade the fit silently.
+        message(
+          "z-ratio: the absolute-moment surface build failed -> additive ",
+          "path (coarser correction; enable the trust gauge with ",
+          "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+        )
+      }
+    }
   } else {
     correction = ggm_edge_prior_correction(
       p, s, d$num_variables, d$num_continuous

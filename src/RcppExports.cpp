@@ -801,6 +801,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// zratio_block_oracle_moments
+Rcpp::List zratio_block_oracle_moments(arma::imat a_blk, arma::uvec si, arma::uvec sj, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double eta, int n_sweep, int burn, int seed, bool slab_cauchy, double alpha);
+RcppExport SEXP _bgms_zratio_block_oracle_moments(SEXP a_blkSEXP, SEXP siSEXP, SEXP sjSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type a_blk(a_blkSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type si(siSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type sj(sjSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
+    Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_block_oracle_moments(a_blk, si, sj, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
 // zratio_test_saddle
 double zratio_test_saddle(double s1, double s2, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0);
 RcppExport SEXP _bgms_zratio_test_saddle(SEXP s1SEXP, SEXP s2SEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP) {
@@ -819,14 +845,62 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// zratio_test_calibrated_eval
-Rcpp::List zratio_test_calibrated_eval(Rcpp::List graphs, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double eta, int seed, int n_sweep, int burn, int freeze_after, bool slab_cauchy, double alpha);
-RcppExport SEXP _bgms_zratio_test_calibrated_eval(SEXP graphsSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP seedSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP freeze_afterSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
+// zratio_test_surface_eval
+Rcpp::List zratio_test_surface_eval(arma::imat G, int i, int j, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, Rcpp::List surface, double delta, double eta, bool slab_cauchy, double alpha);
+RcppExport SEXP _bgms_zratio_test_surface_eval(SEXP GSEXP, SEXP iSEXP, SEXP jSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP surfaceSEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type graphs(graphsSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type surface(surfaceSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_surface_eval(G, i, j, addc, tg, ihat, ghat, wt, psi0, surface, delta, eta, slab_cauchy, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_surface_batch
+Rcpp::List zratio_test_surface_batch(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, Rcpp::List surface, double delta, double eta, bool slab_cauchy, double alpha);
+RcppExport SEXP _bgms_zratio_test_surface_batch(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP surfaceSEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
     Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ghat(ghatSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type surface(surfaceSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_surface_batch(G, edges, addc, tg, ihat, ghat, wt, psi0, surface, delta, eta, slab_cauchy, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_test_gold_moments
+Rcpp::List zratio_test_gold_moments(arma::imat G, int i, int j, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, double delta, double eta, int n_sweep, int burn, int seed, bool slab_cauchy, double alpha);
+RcppExport SEXP _bgms_zratio_test_gold_moments(SEXP GSEXP, SEXP iSEXP, SEXP jSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP n_sweepSEXP, SEXP burnSEXP, SEXP seedSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type addc(addcSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type tg(tgSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type ihat(ihatSEXP);
@@ -835,13 +909,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type psi0(psi0SEXP);
     Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< int >::type n_sweep(n_sweepSEXP);
     Rcpp::traits::input_parameter< int >::type burn(burnSEXP);
-    Rcpp::traits::input_parameter< int >::type freeze_after(freeze_afterSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< bool >::type slab_cauchy(slab_cauchySEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    rcpp_result_gen = Rcpp::wrap(zratio_test_calibrated_eval(graphs, edges, addc, tg, ihat, ghat, wt, psi0, delta, eta, seed, n_sweep, burn, freeze_after, slab_cauchy, alpha));
+    rcpp_result_gen = Rcpp::wrap(zratio_test_gold_moments(G, i, j, addc, tg, ihat, ghat, wt, psi0, delta, eta, n_sweep, burn, seed, slab_cauchy, alpha));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -862,6 +935,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type ncn_max(ncn_maxSEXP);
     Rcpp::traits::input_parameter< int >::type bre_max(bre_maxSEXP);
     rcpp_result_gen = Rcpp::wrap(zratio_test_precompute(G, edges, addc, tg, ihat, ghat, wt, psi0, ncn_max, bre_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zratio_law_moments
+Rcpp::List zratio_law_moments(double eta, double delta, double D, double n, int budget);
+RcppExport SEXP _bgms_zratio_law_moments(SEXP etaSEXP, SEXP deltaSEXP, SEXP DSEXP, SEXP nSEXP, SEXP budgetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
+    Rcpp::traits::input_parameter< double >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type budget(budgetSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_law_moments(eta, delta, D, n, budget));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -908,9 +996,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_test_warmup_schedule", (DL_FUNC) &_bgms_test_warmup_schedule, 5},
     {"_bgms_zratio_test_eval", (DL_FUNC) &_bgms_zratio_test_eval, 8},
     {"_bgms_zratio_test_reference", (DL_FUNC) &_bgms_zratio_test_reference, 16},
+    {"_bgms_zratio_block_oracle_moments", (DL_FUNC) &_bgms_zratio_block_oracle_moments, 16},
     {"_bgms_zratio_test_saddle", (DL_FUNC) &_bgms_zratio_test_saddle, 8},
-    {"_bgms_zratio_test_calibrated_eval", (DL_FUNC) &_bgms_zratio_test_calibrated_eval, 16},
+    {"_bgms_zratio_test_surface_eval", (DL_FUNC) &_bgms_zratio_test_surface_eval, 14},
+    {"_bgms_zratio_test_surface_batch", (DL_FUNC) &_bgms_zratio_test_surface_batch, 13},
+    {"_bgms_zratio_test_gold_moments", (DL_FUNC) &_bgms_zratio_test_gold_moments, 16},
     {"_bgms_zratio_test_precompute", (DL_FUNC) &_bgms_zratio_test_precompute, 10},
+    {"_bgms_zratio_law_moments", (DL_FUNC) &_bgms_zratio_law_moments, 5},
     {NULL, NULL, 0}
 };
 
