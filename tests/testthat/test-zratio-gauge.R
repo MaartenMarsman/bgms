@@ -231,3 +231,47 @@ test_that("the extrapolation notice is graceful, gated, and back-compatible", {
   expect_silent(res2 <- bgms:::zratio_extrapolation_notice(list(old)))
   expect_false(res2)
 })
+
+test_that("the harm channel maps audit records onto the correct edge", {
+  # Regression for the %/% precedence bug in the edge-index formula: for the
+  # 0-based pair (2, 3) at q = 7 the 1-based upper-triangle index is 12; the
+  # unparenthesized form floor-divided (2q - i0 - 1) first and landed on 11.
+  # pip isolates the weight on index 12, so a mis-mapped record zeroes the
+  # sensitivity weight and the predictor.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 2L, pair_j = 3L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  pip = numeric(21)
+  pip[12] = 0.5
+  res = summarize_zratio_gauge(
+    list(list(zratio = list(gauge = g))),
+    verbose = FALSE, harm_inputs = list(pip = list(pip))
+  )
+  # m = 0.5 * 0.5 on the audited edge, se = 0.2, amplification 1 (no a/b):
+  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.01 threshold.
+  expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
+  expect_true(res$per_chain$harm_flag)
+})
+
+test_that("harm inputs stay aligned when a chain has no gauge output", {
+  # Chain 1 carries no gauge block (e.g. an interrupt during its sweeps); the
+  # summary must index harm_inputs$pip by the ORIGINAL chain position, not the
+  # position after filtering, and report the original chain number.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 2L, pair_j = 3L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  pip2 = numeric(21)
+  pip2[12] = 0.5
+  res = summarize_zratio_gauge(
+    list(list(), list(zratio = list(gauge = g))),
+    verbose = FALSE,
+    harm_inputs = list(pip = list(numeric(21), pip2))
+  )
+  expect_equal(nrow(res$per_chain), 1L)
+  expect_equal(res$per_chain$chain, 2L)
+  expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
+})

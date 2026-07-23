@@ -87,17 +87,22 @@
 #' @export
 summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
                                   harm_inputs = NULL, harm_threshold = 0.01) {
-  chains = Filter(
-    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge), chains
-  )
-  if(length(chains) == 0) {
+  # Keep the original chain indices: harm_inputs$pip is positional over ALL
+  # chains, so a chain without gauge output (e.g. an interrupt during another
+  # chain's sweeps) must not shift the pip alignment of the chains after it.
+  keep = which(vapply(
+    chains,
+    function(ch) !is.null(ch$zratio) && !is.null(ch$zratio$gauge),
+    logical(1)
+  ))
+  if(length(keep) == 0) {
     stop(
       "No Z-ratio trust-gauge output found in the chain outputs. It is ",
       "recorded only when the hierarchical prior specification is active and ",
       "the gauge is enabled."
     )
   }
-  rows = lapply(seq_along(chains), function(c_idx) {
+  rows = lapply(keep, function(c_idx) {
     g = chains[[c_idx]]$zratio$gauge
     flip = as.numeric(g$flip_rate)
     floor = as.numeric(g$noise_floor)
@@ -139,7 +144,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         q = round((1 + sqrt(1 + 8 * n_edges)) / 2)
         i0 = pmin(as.integer(pair_i), as.integer(g$pair_j))
         j0 = pmax(as.integer(pair_i), as.integer(g$pair_j))
-        idx = i0 * (2L * q - i0 - 1L) %/% 2L + (j0 - i0)
+        # %/% binds tighter than *, so the row-offset product needs the
+        # parentheses: idx = (i0 * (2q - i0 - 1)) %/% 2 + (j0 - i0).
+        idx = (i0 * (2L * q - i0 - 1L)) %/% 2L + (j0 - i0)
         m_rec = pip[idx] * (1 - pip[idx])
         x = m_rec * as.numeric(g$pair_se)
         num = abs(mean(x))
