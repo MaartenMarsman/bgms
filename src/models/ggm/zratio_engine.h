@@ -2,7 +2,6 @@
 
 #include <RcppArmadillo.h>
 #include <unordered_map>
-#include <map>
 #include <array>
 #include <utility>
 #include <string>
@@ -372,8 +371,27 @@ private:
     // surface analogue of the additive count-key cache_). comp_cache_: single
     // component descriptor -> (S1, S2) (skips the log/exp per recurring
     // component on cache misses). Both cleared when a new surface is attached.
-    std::map<std::vector<int>, double> surf_cache_;
-    std::map<std::array<int, 5>, std::pair<double, double>> comp_cache_;
+    // Hashed on the raw key ints (FNV-1a); the keys are exact, so the lookup
+    // structure has no effect on the returned values.
+    struct IntSeqHash {
+        static std::size_t mix(const int* p, std::size_t n) {
+            std::uint64_t h = 1469598103934665603ULL;
+            for (std::size_t k = 0; k < n; ++k) {
+                h ^= static_cast<std::uint32_t>(p[k]);
+                h *= 1099511628211ULL;
+            }
+            return static_cast<std::size_t>(h);
+        }
+        std::size_t operator()(const std::vector<int>& v) const {
+            return mix(v.data(), v.size());
+        }
+        std::size_t operator()(const std::array<int, 5>& a) const {
+            return mix(a.data(), a.size());
+        }
+    };
+    std::unordered_map<std::vector<int>, double, IntSeqHash> surf_cache_;
+    std::unordered_map<std::array<int, 5>, std::pair<double, double>, IntSeqHash>
+        comp_cache_;
     long n_hit_ = 0, n_miss_ = 0;
     long n_pred_ = 0, n_add_ = 0;
     long n_extrap_ = 0;
