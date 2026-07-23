@@ -97,7 +97,7 @@ run_sampler_ggm = function(spec) {
     surf = build_surfaces_allmc(
       zc,
       max_size = min(d$num_variables, 44L),
-      cores = zratio_surface_build_cores()
+      cores = zratio_surface_build_cores(s$cores)
     )
     if(!is.null(surf)) {
       zratio$surface = surf
@@ -257,7 +257,7 @@ run_sampler_mixed_mrf = function(spec) {
     surf = build_surfaces_allmc(
       zc,
       max_size = min(d$num_continuous, 44L),
-      cores = zratio_surface_build_cores()
+      cores = zratio_surface_build_cores(s$cores)
     )
     if(!is.null(surf)) {
       zratio$surface = surf

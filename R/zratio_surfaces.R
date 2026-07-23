@@ -156,8 +156,12 @@ zratio_fit_surface_family = function(anchors) {
 .zratio_surface_cache = new.env(parent = emptyenv())
 
 zratio_surface_cache_key = function(zc, max_size, seed0) {
+  # The package version is part of the key: a release that changes the anchor
+  # grids, the basis, or the fit must not be served a surface cached by an
+  # earlier version (the one-time rebuild per cell is seconds).
   sprintf(
-    "zratio_surf_v1_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
+    "zratio_surf_v1_%s_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
+    as.character(utils::packageVersion("bgms")),
     as.numeric(zc$delta), as.numeric(zc$eta), as.numeric(zc$alpha),
     as.character(zc$slab), as.integer(max_size), as.integer(seed0)
   )
@@ -230,12 +234,29 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
   bip_jobs = rbind(bip_jobs, bip_jobs)
   bip_jobs$sweeps = 1000L
 
-  cn_rows = do.call(rbind, parallel::mclapply(seq_len(nrow(cn_jobs)), function(k) {
-    zratio_anchor_cn(cn_jobs$n[k], cn_jobs$d[k], zc, cn_jobs$sweeps[k], 200L, seed0 + k)
-  }, mc.cores = cores))
-  bip_rows = do.call(rbind, parallel::mclapply(seq_len(nrow(bip_jobs)), function(k) {
-    zratio_anchor_bip(bip_jobs$n[k], bip_jobs$d[k], zc, bip_jobs$sweeps[k], 200L, seed0 + 100000L + k)
-  }, mc.cores = cores))
+  # One scheduling pool over both families, heaviest job first with dynamic
+  # assignment (mc.preschedule = FALSE): anchor cost scales ~ n^3 * sweeps and
+  # spans ~1000x across the grid, so static per-worker chunks leave cores idle
+  # behind the giants, and a separate bip pass cannot fill the CN tail. Each
+  # job keeps the seed it had in its own family grid and the anchor rows are
+  # reassembled in grid order, so the fitted surfaces are identical for any
+  # core count and any schedule.
+  cn_jobs$fam = "cn"
+  cn_jobs$seed = seed0 + seq_len(nrow(cn_jobs))
+  bip_jobs$fam = "bip"
+  bip_jobs$seed = seed0 + 100000L + seq_len(nrow(bip_jobs))
+  jobs = rbind(cn_jobs, bip_jobs)
+  ord = order(-(as.numeric(jobs$n)^3 * jobs$sweeps))
+  res = vector("list", nrow(jobs))
+  res[ord] = parallel::mclapply(ord, function(k) {
+    if(jobs$fam[k] == "cn") {
+      zratio_anchor_cn(jobs$n[k], jobs$d[k], zc, jobs$sweeps[k], 200L, jobs$seed[k])
+    } else {
+      zratio_anchor_bip(jobs$n[k], jobs$d[k], zc, jobs$sweeps[k], 200L, jobs$seed[k])
+    }
+  }, mc.cores = cores, mc.preschedule = FALSE)
+  cn_rows = do.call(rbind, res[jobs$fam == "cn"])
+  bip_rows = do.call(rbind, res[jobs$fam == "bip"])
 
   if(is.null(cn_rows) || is.null(bip_rows)) return(NULL)
   cn = zratio_fit_surface_family(cn_rows)
@@ -253,12 +274,18 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
 }
 
 # Parallelism for the one-time surface build. Anchors self-seed per job, so the
-# result is independent of the core count; only the wall time changes. Default
-# is serial (portable, no fork surprises inside a user's own parallel context);
-# raise it with options(bgms.zratio_surface_cores = <n>).
-zratio_surface_build_cores = function() {
-  cores = suppressWarnings(as.integer(getOption("bgms.zratio_surface_cores", 1L)))
+# result is independent of the core count; only the wall time changes. Defaults
+# to the fit's own `cores`: the build runs before the chains launch, so those
+# cores are idle during exactly this window. options(bgms.zratio_surface_cores)
+# overrides. Forked parallelism only -- on Windows (no fork) the build is serial.
+zratio_surface_build_cores = function(fit_cores = 1L) {
+  fallback = suppressWarnings(as.integer(fit_cores))
+  if(length(fallback) != 1L || is.na(fallback) || fallback < 1L) fallback = 1L
+  cores = suppressWarnings(as.integer(
+    getOption("bgms.zratio_surface_cores", fallback)
+  ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
+  if(.Platform$OS.type != "unix") cores = 1L
   cores
 }
 

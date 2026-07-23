@@ -60,3 +60,19 @@ test_that("the build fences a non-exponential precision diagonal to NULL", {
   zc_gamma = bgms:::zratio_constants(0.5 * log(12), 3, alpha = 2)
   expect_null(bgms:::build_surfaces_allmc(zc_gamma, max_size = 10L, cores = 1L))
 })
+
+test_that("the surface build is invariant to the core count", {
+  skip_on_cran()
+  skip_on_os("windows")
+  # Anchors self-seed per job and rows reassemble in grid order, so the merged
+  # cost-sorted dynamic schedule must return bit-identical surfaces at any
+  # core count.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  zc = bgms:::zratio_constants(0.5 * log(12), 3)
+  s1 = bgms:::build_surfaces_allmc(zc, max_size = 8L, cores = 1L)
+  s2 = bgms:::build_surfaces_allmc(zc, max_size = 8L, cores = 2L)
+  expect_identical(s1, s2)
+})
