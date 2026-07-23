@@ -212,3 +212,22 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
   )
   expect_lt(s2$per_chain$harm_pred, pc$harm_pred)
 })
+
+test_that("the extrapolation notice is graceful, gated, and back-compatible", {
+  mk = function(nx, mx, np) {
+    list(zratio = list(counters = c(n_hit = 0, n_miss = 0, n_pred = np,
+      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx)))
+  }
+  # No extrapolation -> silent, returns FALSE.
+  expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))
+  expect_false(res0)
+  # Extrapolation -> one graceful message reporting the largest block size.
+  expect_message(
+    bgms:::zratio_extrapolation_notice(list(mk(120, 73, 4000), mk(80, 66, 4000))),
+    "beyond its validated size range \\(largest 73"
+  )
+  # Old-format chains without the counter -> silent (back-compatible).
+  old = list(zratio = list(counters = c(n_hit = 0, n_pred = 10)))
+  expect_silent(res2 <- bgms:::zratio_extrapolation_notice(list(old)))
+  expect_false(res2)
+})

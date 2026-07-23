@@ -182,3 +182,36 @@ test_that("size / density / log-moment clamps match the R predictor", {
   expect_equal(bp$s1, eval_surf(clamped, FALSE, 5, 4 / 6), tolerance = 1e-12)
   expect_equal(bp$s2, exp(-3.1), tolerance = 1e-12)   # log-moment clamp
 })
+
+test_that("the extrapolation counter fires only beyond the trained hull", {
+  # The synthetic surface has size_hi = 40 (mkfam). A CN clique of size 30 stays
+  # within the hull; size 50 exceeds it, so every edge whose CN block is the
+  # clique deploys an extrapolated (clamped) moment.
+  cn_clique = function(k) {
+    q = k + 2
+    G = matrix(0L, q, q)
+    ei = function(a, b) {
+      G[a, b] <<- 1L
+      G[b, a] <<- 1L
+    }
+    for(v in 3:(k + 2)) {
+      ei(1, v)
+      ei(2, v)
+    }
+    for(a in 3:(k + 1)) for(b in (a + 1):(k + 2)) ei(a, b)
+    G
+  }
+  run = function(G) {
+    ed = which(upper.tri(G) & G == 1, arr.ind = TRUE)
+    storage.mode(ed) = "integer"
+    zratio_test_surface_batch(G, ed, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt,
+      zc$psi0, surface, zc$delta, zc$eta, FALSE, 1)
+  }
+  r30 = run(cn_clique(30))
+  expect_equal(r30$n_extrap, 0)
+  expect_equal(r30$max_extrap_size, 0)
+
+  r50 = run(cn_clique(50))
+  expect_gt(r50$n_extrap, 0)
+  expect_equal(r50$max_extrap_size, 50)
+})

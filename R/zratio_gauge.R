@@ -231,6 +231,48 @@ zratio_gauge_present = function(chains) {
   )))
 }
 
+# One graceful, per-fit notice when the hierarchical prior's fast edge correction
+# was extrapolated beyond its validated block-size range. Mediating blocks larger
+# than the trained surface hull are clamped at deploy (dense regions of large
+# graphs); the C++ engine tallies how often per chain. This sums the tally and,
+# if any block exceeded the hull, emits a single summary message. Independent of
+# the trust gauge, so the signal reaches the user even with the gauge off.
+zratio_extrapolation_notice = function(chains) {
+  get_counter = function(ct, nm) {
+    if(is.null(ct) || !(nm %in% names(ct))) {
+      return(0)
+    }
+    v = suppressWarnings(as.numeric(ct[[nm]]))
+    if(length(v) != 1L || is.na(v)) 0 else v
+  }
+  counters = Filter(
+    function(ct) !is.null(ct),
+    lapply(chains, function(ch) ch$zratio$counters)
+  )
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_extrap = sum(vapply(counters, get_counter, numeric(1), "n_extrap"))
+  if(n_extrap <= 0) {
+    return(invisible(FALSE))
+  }
+  n_pred = sum(vapply(counters, get_counter, numeric(1), "n_pred"))
+  max_size = max(vapply(counters, get_counter, numeric(1), "max_extrap_size"))
+  pct = if(n_pred > 0) 100 * n_extrap / n_pred else NA_real_
+  message(sprintf(
+    paste0(
+      "Note: %.1f%% of the hierarchical prior's edge-correction evaluations ",
+      "used a mediating block beyond its validated size range (largest %d ",
+      "variables). The correction was extrapolated there, which can slightly ",
+      "reduce edge-selection accuracy in dense regions of large graphs; sparse ",
+      "graphs are unaffected. To assess the sensitivity, enable the trust gauge ",
+      "with options(bgms.zratio_gauge_sweeps = 2L)."
+    ),
+    pct, as.integer(max_size)
+  ))
+  invisible(TRUE)
+}
+
 #' @title Harm-Channel Inputs for the Trust Gauge
 #'
 #' @description Assembles the \code{harm_inputs} argument of

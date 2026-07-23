@@ -264,6 +264,10 @@ public:
     long n_miss() const { return n_miss_; }
     long n_pred() const { return n_pred_; }
     long n_add() const { return n_add_; }
+    /// Deploy-time extrapolation accounting: blocks with a component larger than
+    /// the trained hull (clamped at deploy), and the largest such size seen.
+    long n_extrap() const { return n_extrap_; }
+    int max_extrap_size() const { return max_extrap_size_; }
     const arma::vec& addc() const { return addc_; }
 
 private:
@@ -372,6 +376,8 @@ private:
     std::map<std::array<int, 5>, std::pair<double, double>> comp_cache_;
     long n_hit_ = 0, n_miss_ = 0;
     long n_pred_ = 0, n_add_ = 0;
+    long n_extrap_ = 0;
+    int max_extrap_size_ = 0;
 
     // Block-Gibbs oracle state (set by set_oracle_params; used by the surface
     // build, the gold reference, and the trust gauge).

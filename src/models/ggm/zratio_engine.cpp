@@ -442,6 +442,21 @@ double ZRatioEngine::surface_logr_(const arma::imat& G) {
         }
     }
 
+    // Extrapolation accounting (Tier-1 observability): any component larger than
+    // the trained hull is clamped to the hull edge by surface_eval_, so its
+    // moment is an extrapolation. Count the block once if it holds any such
+    // component and track the largest size seen. Runs on every call (before the
+    // cache lookup below) so the tally is the true per-fit deploy count.
+    bool extrapolated = false;
+    for (const std::array<int, 5>& t : sl_sig_) {
+        const double hull = (t[0] == 0) ? surf_cn_.size_hi : surf_bip_.size_hi;
+        if (t[1] > hull) {
+            extrapolated = true;
+            if (t[1] > max_extrap_size_) max_extrap_size_ = t[1];
+        }
+    }
+    if (extrapolated) n_extrap_++;
+
     // Canonical multiset -> cached saddle. Accumulating in sorted order makes
     // the sum bit-identical for any block with this multiset.
     std::sort(sl_sig_.begin(), sl_sig_.end());

@@ -16,7 +16,9 @@ void GGMModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         static_cast<double>(engine.n_miss()),
         static_cast<double>(engine.n_pred()),
         static_cast<double>(engine.n_add()),
-        static_cast<double>(engine.cache_size())
+        static_cast<double>(engine.cache_size()),
+        static_cast<double>(engine.n_extrap()),
+        static_cast<double>(engine.max_extrap_size())
     };
     if (zratio_gauge_.n_sweeps > 0) {
         chain_result.zratio_gauge_ran = true;

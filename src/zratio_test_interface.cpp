@@ -268,7 +268,9 @@ Rcpp::List zratio_test_surface_batch(
     return Rcpp::List::create(
         Rcpp::_["log_zratio"] = out,
         Rcpp::_["n_pred"] = engine.n_pred(),
-        Rcpp::_["n_add"] = engine.n_add()
+        Rcpp::_["n_add"] = engine.n_add(),
+        Rcpp::_["n_extrap"] = engine.n_extrap(),
+        Rcpp::_["max_extrap_size"] = engine.max_extrap_size()
     );
 }
 

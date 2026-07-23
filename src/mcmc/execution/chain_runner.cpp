@@ -308,7 +308,8 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                 Rcpp::NumericVector counters(chain.zratio_counters.begin(),
                                              chain.zratio_counters.end());
                 counters.names() = Rcpp::CharacterVector::create(
-                    "n_hit", "n_miss", "n_pred", "n_add", "cache_size");
+                    "n_hit", "n_miss", "n_pred", "n_add", "cache_size",
+                    "n_extrap", "max_extrap_size");
                 Rcpp::List zr = Rcpp::List::create(
                     Rcpp::_["addc"] = chain.zratio_addc,
                     Rcpp::_["counters"] = counters);

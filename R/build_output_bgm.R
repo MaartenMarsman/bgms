@@ -316,6 +316,12 @@ build_output_bgm = function(spec, raw) {
     )
   }
 
+  # Extrapolation notice: independent of the gauge (which is off by default), so
+  # a fit that deployed the surface beyond its validated hull is never silent.
+  if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_extrapolation_notice(zratio_chains)
+  }
+
   # Single vignette pointer covering both diagnostic blocks: print once if
   # either the NUTS diagnostics or the trust gauge reported issues.
   if(isTRUE(getOption("bgms.verbose", TRUE)) &&
