@@ -333,7 +333,7 @@ sample_ggm_prior = function(
     )
     # Deploy the same Option-B surface the posterior chain uses, so the prior
     # chain (SBC reference) carries an identical per-edge correction.
-    surf = build_surfaces_allmc(
+    surf = zratio_build_surfaces(
       zc, max_size = min(p, 44L), cores = zratio_surface_build_cores()
     )
     if(!is.null(surf)) zratio$surface = surf

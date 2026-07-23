@@ -8,7 +8,7 @@
 # moments (C++ log_zratio surface branch), replacing the online ridge-OLS
 # correction. eta is a build parameter, not a switch: the surface is built at
 # the analysis's own eta and used at every eta. Deployment is fenced to the
-# validated alpha = 1 Normal-slab family (build_surfaces_allmc returns NULL
+# validated alpha = 1 Normal-slab family (zratio_build_surfaces returns NULL
 # otherwise, so the engine keeps the additive path).
 #
 # Anchors are drawn from the sampler's own kernel via the C++ bare-component
@@ -167,7 +167,7 @@ zratio_surface_cache_key = function(zc, max_size, seed0) {
   )
 }
 
-build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
+zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
                                 seed0 = 700000L) {
   if(abs(zc$alpha - 1) > 1e-12) return(NULL)
   cap = as.integer(max_size)
@@ -301,7 +301,7 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
 # to the fit's own `cores`: the build runs before the chains launch, so those
 # cores are idle during exactly this window. options(bgms.zratio_surface_cores)
 # overrides. Unix parallelizes by forking; Windows by a socket cluster on large
-# builds (small ones run serially there -- see build_surfaces_allmc).
+# builds (small ones run serially there -- see zratio_build_surfaces).
 zratio_surface_build_cores = function(fit_cores = 1L) {
   fallback = suppressWarnings(as.integer(fit_cores))
   if(length(fallback) != 1L || is.na(fallback) || fallback < 1L) fallback = 1L
