@@ -167,7 +167,7 @@ double ZRatioEngine::surface_eval_(const SurfaceFamily& f, bool s2,
     // log-moment to its trained range +/- 0.1 (matches the R deploy predictor).
     const double n = std::min(std::max(size, f.size_lo), f.size_hi);
     const double d = std::min(std::max(dens, f.dens_lo), f.dens_hi);
-    const double L = std::log(n);
+    const double L = MY_LOG(n);
     const double x[9] = {1.0, L, L * L, d, d * d, L * d, L * L * d,
                          L * d * d, L * L * d * d};
     const arma::vec& c = s2 ? f.c2 : f.c1;
@@ -176,7 +176,7 @@ double ZRatioEngine::surface_eval_(const SurfaceFamily& f, bool s2,
     const double lo = (s2 ? f.l2_lo : f.l1_lo) - 0.1;
     const double hi = (s2 ? f.l2_hi : f.l1_hi) + 0.1;
     p = std::min(std::max(p, lo), hi);
-    return std::exp(p);
+    return MY_EXP(p);
 }
 
 // Connected components of the induced subgraph on `nodes` (block positions).
@@ -729,9 +729,9 @@ bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             if (std::abs(alpha_ - 1.0) > 1e-12) {
                 const double kii_new = xi + quad;
                 const double kii_old = k_blk(i, i);
-                accept = std::log(runif(*rng_)) <
-                         (alpha_ - 1.0) * (std::log(kii_new) -
-                                           std::log(kii_old));
+                accept = MY_LOG(runif(*rng_)) <
+                         (alpha_ - 1.0) * (MY_LOG(kii_new) -
+                                           MY_LOG(kii_old));
             }
             if (accept) {
                 double d_diag = 0.0;
@@ -1023,7 +1023,7 @@ bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
         vb /= (nB - 1);
         mcse = std::sqrt(vb / nB);
     }
-    logR_out = std::log(ratio);
+    logR_out = MY_LOG(ratio);
     mcse_out = mcse / ratio;
     return true;
 }
