@@ -340,7 +340,8 @@ private:
      * depends only on this multiset; the cache therefore adds no approximation
      * beyond what the surface already assumes, and accumulating in canonical
      * order makes a hit bit-identical to a fresh evaluation. Matches the
-     * decompose_-based reference path (surface_moments) bit-for-bit.
+     * decompose_-based reference path (surface_moments) up to floating-point
+     * summation order (canonical vs DFS component accumulation).
      */
     double surface_logr_(const arma::imat& G);
     /**

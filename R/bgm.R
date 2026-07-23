@@ -184,14 +184,16 @@
 #'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
 #'       ratio with a fast local approximation: a theta-independent
 #'       absolute-moment surface built once at the start of the analysis from
-#'       block-Gibbs anchors. A trust gauge audits the approximation
-#'       after sampling on two channels: the rate at which the chain's edge
-#'       decisions would differ under the exact calculation, and the
-#'       projected distortion of the inclusion probabilities from the
-#'       measured error under the edge prior's feedback
-#'       (\code{\link{summarize_zratio_gauge}}; the summary is returned as
-#'       \code{fit$zratio_diag} and issues print like other sampler
-#'       warnings). Requires \code{edge_selection = TRUE}, a
+#'       block-Gibbs anchors. An optional trust gauge (off by default; enable
+#'       it with \code{options(bgms.zratio_gauge_sweeps = 2L)} before fitting)
+#'       audits the approximation after sampling on two channels: the rate at
+#'       which the chain's edge decisions would differ under the exact
+#'       calculation, and the projected distortion of the inclusion
+#'       probabilities from the measured error under the edge prior's feedback
+#'       (\code{\link{summarize_zratio_gauge}}; when enabled, the summary is
+#'       returned as \code{fit$zratio_diag} and issues print like other
+#'       sampler warnings; otherwise \code{fit$zratio_diag} is \code{NULL}).
+#'       Requires \code{edge_selection = TRUE}, a
 #'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
 #'       and continuous data — either all-continuous
 #'       (GGM) or mixed with at least two continuous variables. On mixed data the

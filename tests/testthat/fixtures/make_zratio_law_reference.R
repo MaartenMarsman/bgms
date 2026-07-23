@@ -12,9 +12,12 @@ COMPANION <- Sys.getenv("BGMS_GGM_PAPER")
 if(!nzchar(COMPANION)) {
   stop("Set BGMS_GGM_PAPER to the ggm_paper checkout (the companion sources).")
 }
-OUT <- normalizePath(
-  file.path("tests", "testthat", "fixtures", "zratio_law_reference.rds"),
-  mustWork = FALSE
+# Resolve against the (existing) package root before the setwd below:
+# normalizePath on a not-yet-existing file returns the path unresolved, which
+# would make OUT relative to the companion checkout when regenerating.
+OUT <- file.path(
+  normalizePath("."),
+  "tests", "testthat", "fixtures", "zratio_law_reference.rds"
 )
 
 setwd(COMPANION)

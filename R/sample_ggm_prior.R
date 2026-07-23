@@ -167,7 +167,7 @@
 #'
 #' @examples
 #' \donttest{
-#' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
+#' # Default Normal(0, 1) off-diagonal, Exponential(1) diagonal, p = 4.
 #' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
