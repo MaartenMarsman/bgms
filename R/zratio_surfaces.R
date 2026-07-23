@@ -247,14 +247,37 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
   bip_jobs$seed = seed0 + 100000L + seq_len(nrow(bip_jobs))
   jobs = rbind(cn_jobs, bip_jobs)
   ord = order(-(as.numeric(jobs$n)^3 * jobs$sweeps))
-  res = vector("list", nrow(jobs))
-  res[ord] = parallel::mclapply(ord, function(k) {
+  job_fun = function(k) {
     if(jobs$fam[k] == "cn") {
       zratio_anchor_cn(jobs$n[k], jobs$d[k], zc, jobs$sweeps[k], 200L, jobs$seed[k])
     } else {
       zratio_anchor_bip(jobs$n[k], jobs$d[k], zc, jobs$sweeps[k], 200L, jobs$seed[k])
     }
-  }, mc.cores = cores, mc.preschedule = FALSE)
+  }
+  # Fork where available; on Windows (no fork) use a socket cluster instead,
+  # but only for builds big enough to repay the ~1-2s worker launch -- below
+  # the size-16 grid tier the whole serial build is cheaper than the cluster
+  # start. Both schedules are dynamic and jobs self-seed, so every path
+  # returns identical surfaces. options(bgms.zratio_surface_psock) forces the
+  # cluster branch on or off (tests; forking-hostile unix hosts).
+  psock = getOption("bgms.zratio_surface_psock", NULL)
+  use_psock = if(is.null(psock)) {
+    .Platform$OS.type != "unix" && cores > 1L && max(jobs$n) >= 16
+  } else {
+    isTRUE(psock) && cores > 1L
+  }
+  res = vector("list", nrow(jobs))
+  if(use_psock) {
+    cl = parallel::makePSOCKcluster(cores)
+    on.exit(parallel::stopCluster(cl), add = TRUE)
+    res[ord] = parallel::parLapplyLB(cl, ord, job_fun)
+  } else {
+    mc = if(.Platform$OS.type == "unix") cores else 1L
+    res[ord] = parallel::mclapply(
+      ord, job_fun,
+      mc.cores = mc, mc.preschedule = FALSE
+    )
+  }
   cn_rows = do.call(rbind, res[jobs$fam == "cn"])
   bip_rows = do.call(rbind, res[jobs$fam == "bip"])
 
@@ -277,7 +300,8 @@ build_surfaces_allmc = function(zc, max_size = 44L, cores = 1L,
 # result is independent of the core count; only the wall time changes. Defaults
 # to the fit's own `cores`: the build runs before the chains launch, so those
 # cores are idle during exactly this window. options(bgms.zratio_surface_cores)
-# overrides. Forked parallelism only -- on Windows (no fork) the build is serial.
+# overrides. Unix parallelizes by forking; Windows by a socket cluster on large
+# builds (small ones run serially there -- see build_surfaces_allmc).
 zratio_surface_build_cores = function(fit_cores = 1L) {
   fallback = suppressWarnings(as.integer(fit_cores))
   if(length(fallback) != 1L || is.na(fallback) || fallback < 1L) fallback = 1L
@@ -285,7 +309,6 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
     getOption("bgms.zratio_surface_cores", fallback)
   ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
-  if(.Platform$OS.type != "unix") cores = 1L
   cores
 }
 

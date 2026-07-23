@@ -76,3 +76,23 @@ test_that("the surface build is invariant to the core count", {
   s2 = bgms:::build_surfaces_allmc(zc, max_size = 8L, cores = 2L)
   expect_identical(s1, s2)
 })
+
+test_that("the socket-cluster build path matches the serial build", {
+  skip_on_cran()
+  # The Windows branch (PSOCK workers instead of forks), forced cross-platform
+  # via the override option. Workers load the INSTALLED bgms namespace, which
+  # on a dev machine can be a different binary than the loaded dev build (a
+  # last-ULP anchor difference amplifies to ~1e-11 in the fitted
+  # coefficients), so this compares at a tight tolerance rather than
+  # expect_identical; under R CMD check both sides are the same installed
+  # binary. A scheduling or seeding bug would differ at O(1), not O(1e-8).
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  zc = bgms:::zratio_constants(0.5 * log(12), 3)
+  s1 = bgms:::build_surfaces_allmc(zc, max_size = 8L, cores = 1L)
+  withr::local_options(bgms.zratio_surface_psock = TRUE)
+  s2 = bgms:::build_surfaces_allmc(zc, max_size = 8L, cores = 2L)
+  expect_equal(s1, s2, tolerance = 1e-8)
+})
