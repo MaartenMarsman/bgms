@@ -48,16 +48,19 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     std::vector<int>& excl_j = xb_excl_j_;
     excl_i.clear();
     excl_j.clear();
+    // G is symmetric, so G(k, i) == G(i, k): read the transpose entry to walk
+    // column i with unit stride (arma is column-major), which keeps the O(q)
+    // classification scan in cache instead of striding by n_rows per element.
     for (int k = 0; k < q; k++) {
         if (k == i || k == j) continue;
-        const bool near_i = (G(i, k) == 1), near_j = (G(j, k) == 1);
+        const bool near_i = (G(k, i) == 1), near_j = (G(k, j) == 1);
         if (near_i && near_j) in_r[k] = 1;
         else if (near_i) excl_i.push_back(k);
         else if (near_j) excl_j.push_back(k);
     }
     for (int a : excl_i) {
         for (int b : excl_j) {
-            if (G(a, b) == 1) {
+            if (G(b, a) == 1) {
                 in_r[a] = 1;
                 in_r[b] = 1;
             }
@@ -81,7 +84,7 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     si_o.clear();
     sj_o.clear();
     for (int p = 0; p < m; p++) {
-        bool si = (G(i, rv[p]) == 1), sj = (G(j, rv[p]) == 1);
+        bool si = (G(rv[p], i) == 1), sj = (G(rv[p], j) == 1);
         if (si) side[p] |= 1;
         if (sj) side[p] |= 2;
         if (si && sj) cn.push_back(p);
