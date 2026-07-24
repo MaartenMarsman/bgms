@@ -98,7 +98,7 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.valid = true;
 
     bl.ncn = static_cast<int>(cn.size());
-    // Scalar count descriptors (cne, bre, maxbd, dens) drive the additive
+    // Scalar count descriptors (cne, bre, maxbd) drive the additive
     // saddle only; the surface deploy reads the adjacency instead, so skip
     // these O(m^2) passes when the caller does not need the counts.
     if (need_counts) {
@@ -126,17 +126,6 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
             }
             if (d > bl.maxbd) bl.maxbd = d;
         }
-
-        long block_edges = 0;
-        for (int a = 0; a < m; a++) {
-            for (int b = a + 1; b < m; b++) {
-                if (G(rv[a], rv[b]) == 1) block_edges++;
-            }
-        }
-        bl.dens = (m >= 2)
-            ? (static_cast<double>(block_edges) /
-               (static_cast<double>(m) * (m - 1) / 2.0))
-            : 0.0;
     }
 
     if (!need_adjacency) return;
@@ -843,7 +832,7 @@ static arma::mat sympd_sqrt_(const arma::mat& a) {
 bool ZRatioEngine::inner_reference_(const arma::mat& r_inv, const arma::uvec& si,
                                     const arma::uvec& sj, const arma::vec& wsi,
                                     const arma::vec& wsj, double& w, double& fN,
-                                    double& gG, double& kappa2) const {
+                                    double& gG) const {
     const double t2 = 2.0 * beta_ * sigma_ * sigma_;
     const double s4 = sigma_ * sigma_ * sigma_ * sigma_;
     arma::mat rii = r_inv.submat(si, si), rjj = r_inv.submat(sj, sj),
@@ -872,12 +861,11 @@ bool ZRatioEngine::inner_reference_(const arma::mat& r_inv, const arma::uvec& si
         rh = mj;
     }
     w = std::sqrt(arma::det(mi) * arma::det(mj));
-    // Singular values s_k of Lh^.5 Rij Rh^.5; u_k = sigma^4 s_k^2 (== the
-    // eigenvalues of the moment matrix P, so kappa2 = sigma^4 tr(P)).
+    // Singular values s_k of Lh^.5 Rij Rh^.5; u_k = sigma^4 s_k^2 (the
+    // eigenvalues of the moment matrix P) parameterize phi below.
     arma::vec sv;
     if (!arma::svd(sv, sympd_sqrt_(lh) * rij * sympd_sqrt_(rh))) return false;
     arma::vec u = s4 * (sv % sv);
-    kappa2 = arma::accu(u);
     // phi(t) = prod_k (1 + u_k t^2)^{-1/2} over the tilt grid.
     arma::vec tg2 = tg_ % tg_;
     arma::vec logphi(tg_.n_elem, arma::fill::zeros);
@@ -979,9 +967,9 @@ bool ZRatioEngine::block_reference_logR(const arma::imat& a_blk,
                 wsj[k] = 1.0 / std::abs(rnorm(*rng_, 0.0, 1.0));
             }
         }
-        double w, fN, gG, k2;
+        double w, fN, gG;
         if (have_sig &&
-            inner_reference_(sigma_blk, si, sj, wsi, wsj, w, fN, gG, k2)) {
+            inner_reference_(sigma_blk, si, sj, wsi, wsj, w, fN, gG)) {
             wf.push_back(w * fN);
             wg.push_back(w * gG);
         }
