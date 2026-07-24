@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "models/ggm/zratio_engine.h"
+#include "zratio_engine.h"
 
 /**
  * In-chain trust gauge accumulator for the hierarchical-spec per-edge
