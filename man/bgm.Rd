@@ -264,7 +264,10 @@ sampling. Options: \code{"per-chain"} (separate bar per chain),
 Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility. Must be a
-single non-negative integer.}
+single non-negative integer. On Windows with \code{RcppParallel} >= 6.0.0,
+a fixed seed reproduces a run only at the same \code{cores} setting: under
+the oneTBB 2022 scheduler, runs at different core counts are statistically
+equivalent but not bit-for-bit identical.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).
