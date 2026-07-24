@@ -266,6 +266,19 @@ zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
   } else {
     isTRUE(psock) && cores > 1L
   }
+  # The cache missed, so the surfaces are about to be built for real; announce
+  # the one-time cost so the pre-chain pause is not silent. n_workers is the
+  # parallelism actually used, which drops to 1 on the Windows serial tier.
+  n_workers = if(use_psock || .Platform$OS.type == "unix") cores else 1L
+  verbose = isTRUE(getOption("bgms.verbose", TRUE))
+  if(verbose) {
+    message(
+      "Building normalizing-constant corrections for the hierarchical ",
+      "precision prior (", cap, " variables, ", n_workers,
+      if(n_workers == 1L) " core)." else " cores)."
+    )
+  }
+  t0 = proc.time()[["elapsed"]]
   res = vector("list", nrow(jobs))
   if(use_psock) {
     cl = parallel::makePSOCKcluster(cores)
@@ -286,6 +299,13 @@ zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
   bip = zratio_fit_surface_family(bip_rows)
   if(is.null(cn) || is.null(bip)) return(NULL)
   surf = list(cn = cn, bip = bip)
+  if(verbose) {
+    secs = proc.time()[["elapsed"]] - t0
+    message(
+      "Correction build complete (",
+      if(secs < 1) "< 1s" else paste0(round(secs), "s"), ")."
+    )
+  }
   if(use_cache) {
     assign(key, surf, envir = .zratio_surface_cache)
     tryCatch({
