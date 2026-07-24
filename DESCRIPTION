@@ -30,7 +30,7 @@ URL: https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/, https://github.co
 BugReports: https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues
 Imports:
     Rcpp (>= 1.0.7),
-    RcppParallel,
+    RcppParallel (< 6.0.0),
     Rdpack,
     S7,
     methods,
@@ -39,10 +39,10 @@ Imports:
     utils
 RdMacros: Rdpack
 LinkingTo: 
-    Rcpp, 
-    RcppArmadillo, 
-    RcppParallel, 
-    dqrng, 
+    Rcpp,
+    RcppArmadillo,
+    RcppParallel (< 6.0.0),
+    dqrng,
     BH
 Roxygen: list(markdown = TRUE)
 Depends: 
