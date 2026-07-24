@@ -332,11 +332,12 @@ sample_ggm_prior = function(
       gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
     # Deploy the same Option-B surface the posterior chain uses, so the prior
-    # chain (SBC reference) carries an identical per-edge correction.
-    surf = zratio_build_surfaces(
-      zc, max_size = min(p, 44L), cores = zratio_surface_build_cores()
+    # chain (SBC reference) carries an identical per-edge correction. Silent on
+    # a fallback: the SBC reference must not add console noise to the loop.
+    zratio = zratio_attach_surface(
+      zratio, zc, p,
+      cores = zratio_surface_build_cores()
     )
-    if(!is.null(surf)) zratio$surface = surf
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(
       p = p, delta = delta,

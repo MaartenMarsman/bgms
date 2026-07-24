@@ -167,8 +167,14 @@ zratio_surface_cache_key = function(zc, max_size, seed0) {
   )
 }
 
-zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
-                                seed0 = 700000L) {
+# Trained size-hull cap for the anchor build: components larger than this clamp
+# to the hull edge at deploy, so it must stay >= the anchor grid's largest size
+# (42). The build default and every sampler call site size through this one
+# value, so the cap cannot drift between them.
+.zratio_surface_size_cap = 44L
+
+zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
+                                 cores = 1L, seed0 = 700000L) {
   if(abs(zc$alpha - 1) > 1e-12) return(NULL)
   cap = as.integer(max_size)
 
@@ -330,6 +336,45 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
   ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
   cores
+}
+
+# Message the fallback to the additive path when no surface is attached: a
+# non-unit Gamma diagonal shape (surface pending validation) or a failed
+# alpha = 1 build (which must not downgrade the fit silently). Shared by every
+# sampler call site so the two messages stay identical.
+zratio_surface_fence_message = function(zc) {
+  if(abs(zc$alpha - 1) > 1e-12) {
+    message(
+      "z-ratio: precision shape alpha = ", format(zc$alpha),
+      " -> additive path (absolute-moment surface validated only for the ",
+      "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+    )
+  } else {
+    message(
+      "z-ratio: the absolute-moment surface build failed -> additive ",
+      "path (coarser correction; enable the trust gauge with ",
+      "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+    )
+  }
+}
+
+# Build the Option-B surface for cell `zc`, sized on `size` variables, and, on a
+# successful build, attach it to the `zratio` spec; otherwise keep the additive
+# path (messaging the reason when `verbose`). Centralizes the size cap, cores
+# policy, and fence message the GGM, mixed, and prior sampler paths share.
+# Returns the (possibly surface-carrying) `zratio` list.
+zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
+  surf = zratio_build_surfaces(
+    zc,
+    max_size = min(size, .zratio_surface_size_cap),
+    cores = cores
+  )
+  if(!is.null(surf)) {
+    zratio$surface = surf
+  } else if(isTRUE(verbose)) {
+    zratio_surface_fence_message(zc)
+  }
+  zratio
 }
 
 # Number of in-chain trust-gauge assessment sweeps. The gauge is a post-sampling
