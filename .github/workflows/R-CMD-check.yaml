@@ -38,6 +38,10 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
+          # Pre-6.0.0 snapshot so the DESCRIPTION RcppParallel (< 6.0.0)
+          # constraint resolves (6.0.0's oneTBB 2022 backend breaks Windows
+          # multi-chain reproducibility); everything else stays on latest.
+          extra-repositories: https://packagemanager.posit.co/cran/2026-07-22
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
