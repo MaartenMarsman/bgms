@@ -56,19 +56,23 @@ inline void trapezoid_weights(const std::vector<double>& x,
     }
 }
 
-// Grids for one (eta, delta) cell. sigma = 1 in the standardized frame; the
-// engine's eta is the companion's beta directly, and t2 = 2 beta sigma^2.
+/**
+ * Grids for one (eta, delta) cell. sigma = 1 in the standardized frame; the
+ * engine's eta is the companion's beta directly, and t2 = 2 beta sigma^2.
+ */
 struct LawGrids {
-    std::vector<double> gamc, gamw;  // coarse gamma quadrature (800) for solve
-    std::vector<double> xs, dxw;     // spectral grid (370) for solve + dressing
-    std::vector<double> gam, nu0;    // fine gamma grid (4000) + node law nu0
+    std::vector<double> gamc, gamw;  ///< coarse gamma quadrature (800) for solve
+    std::vector<double> xs, dxw;     ///< spectral grid (370) for solve + dressing
+    std::vector<double> gam, nu0;    ///< fine gamma grid (4000) + node law nu0
     double eps, t2, sigma2, delta, beta;
     int ng() const { return static_cast<int>(gamc.size()); }
     int nx() const { return static_cast<int>(xs.size()); }
 };
 
-// Port of re_param2: grids scale with the density via sc = max(1, 2 / beta);
-// t2 = 2 beta sigma^2. Deterministic, built once per (eta, delta).
+/**
+ * Port of re_param2: grids scale with the density via sc = max(1, 2 / beta);
+ * t2 = 2 beta sigma^2. Deterministic, built once per (eta, delta).
+ */
 inline LawGrids build_law_grids(double eta, double delta) {
     LawGrids G;
     const double beta = eta, sigma = 1.0;
@@ -129,7 +133,9 @@ inline LawGrids build_law_grids(double eta, double delta) {
     return G;
 }
 
-// Converged density state of the solve (mu on the spectral grid + CPA scalars).
+/**
+ * Converged density state of the solve (mu on the spectral grid + CPA scalars).
+ */
 struct LawSol {
     std::vector<double> mu;
     double Zn, th, ga, cf, dg;
@@ -157,6 +163,11 @@ inline void make_nuc(const LawGrids& G, double psi, std::vector<double>& nuc) {
     for (int j = 0; j < G.ng(); ++j) nuc[j] /= s;
 }
 
+/**
+ * Inner damped-Picard solver state: the resolvent g, its spectral density mu,
+ * the CPA scalars (Zn, th, ga, cf, dg), and the burst counter drawn against the
+ * shared inner-iteration budget.
+ */
 struct Inner {
     std::vector<std::complex<double>> g;
     std::vector<double> mu;
@@ -320,9 +331,11 @@ inline void psi_pass(const LawGrids& G, double D, double n, double dmp,
 
 }  // namespace detail
 
-// Full self-consistent solve (port of mu_law_solve_full): cold start, staged
-// psi secant + hard-corner retry + final polish. Fills sol; sol.psi_gap is the
-// convergence residual the caller gates on.
+/**
+ * Full self-consistent solve (port of mu_law_solve_full): cold start, staged
+ * psi secant + hard-corner retry + final polish. Fills sol; sol.psi_gap is the
+ * convergence residual the caller gates on.
+ */
 inline void mu_law_solve(const LawGrids& G, double D, double n, double tol_psi,
                          int max_eval, int budget_iters, LawSol& sol) {
     detail::Inner S;
@@ -353,11 +366,13 @@ inline void mu_law_solve(const LawGrids& G, double D, double n, double tol_psi,
     sol.n_solve = n_solve;
 }
 
-// Plain-Gamma dressing (port of eval_mu_law, tilt = TRUE branch): a 7-point
-// stencil of the dressed profile at z = -t2 whose finite differences give
-//   S1 = s^4 n g'(-t2),  S2 = s^8 n g'''(-t2) / 6.
-// Returns true and fills s1/s2 on success; false if the dressing produces a
-// non-finite or non-positive moment (the caller then falls back to MC).
+/**
+ * Plain-Gamma dressing (port of eval_mu_law, tilt = TRUE branch): a 7-point
+ * stencil of the dressed profile at z = -t2 whose finite differences give
+ *   S1 = s^4 n g'(-t2),  S2 = s^8 n g'''(-t2) / 6.
+ * Returns true and fills s1/s2 on success; false if the dressing produces a
+ * non-finite or non-positive moment (the caller then falls back to MC).
+ */
 inline bool eval_mu_law_dress(const LawGrids& G, const LawSol& sol, double D,
                               double n, double& s1_out, double& s2_out) {
     const double h = 0.1;
@@ -464,10 +479,12 @@ inline bool eval_mu_law_dress(const LawGrids& G, const LawSol& sol, double D,
            s1_out > 0.0 && s2_out > 0.0;
 }
 
-// One-shot certified CN moment: build grids, solve, gate on psi_gap, dress.
-// Returns true with (s1, s2) on a certified, positive solve; false otherwise
-// (uncertified psi, or a non-finite/non-positive dressing). psi_gap is always
-// written for diagnostics.
+/**
+ * One-shot certified CN moment: build grids, solve, gate on psi_gap, dress.
+ * Returns true with (s1, s2) on a certified, positive solve; false otherwise
+ * (uncertified psi, or a non-finite/non-positive dressing). psi_gap is always
+ * written for diagnostics.
+ */
 inline bool law_moments(double eta, double delta, double D, double n,
                         int budget_iters, double& s1_out, double& s2_out,
                         double& psi_gap_out) {

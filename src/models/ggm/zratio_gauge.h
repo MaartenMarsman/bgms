@@ -3,6 +3,7 @@
 #include <RcppArmadillo.h>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "zratio_engine.h"
 
