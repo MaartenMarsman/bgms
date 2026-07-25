@@ -186,17 +186,14 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   # options(bgms.correction_table_cache) so one switch governs both.
   use_cache = isTRUE(getOption(
     "bgms.zratio_surface_cache",
-    getOption("bgms.correction_table_cache", TRUE)
+    correction_cache_enabled()
   ))
   cache_file = NULL
   if(use_cache) {
     key = zratio_surface_cache_key(zc, cap, seed0)
     hit = get0(key, envir = .zratio_surface_cache, inherits = FALSE)
     if(!is.null(hit)) return(hit)
-    cache_dir = getOption(
-      "bgms.correction_cache_dir",
-      tools::R_user_dir("bgms", which = "cache")
-    )
+    cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, paste0(key, ".rds"))
     if(file.exists(cache_file)) {
       surf = tryCatch(readRDS(cache_file), error = function(e) NULL)

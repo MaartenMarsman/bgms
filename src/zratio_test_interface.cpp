@@ -152,7 +152,9 @@ Rcpp::List zratio_test_surface_eval(
     double alpha = 1.0
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
-    engine.set_oracle_params(delta, eta, nullptr, 300, 30, slab_cauchy, alpha);
+    engine.set_oracle_params(delta, eta, nullptr,
+                             ZRatioEngine::default_oracle_n_sweep,
+                             ZRatioEngine::default_oracle_burn, slab_cauchy, alpha);
     engine.set_surface(surface_family_from_list(surface["cn"]),
                        surface_family_from_list(surface["bip"]));
     double s1 = NA_REAL, s2 = NA_REAL, logr = NA_REAL;
@@ -212,7 +214,9 @@ Rcpp::List zratio_test_surface_batch(
     double alpha = 1.0
 ) {
     ZRatioEngine engine(addc, tg, ihat, ghat, wt, psi0);
-    engine.set_oracle_params(delta, eta, nullptr, 300, 30, slab_cauchy, alpha);
+    engine.set_oracle_params(delta, eta, nullptr,
+                             ZRatioEngine::default_oracle_n_sweep,
+                             ZRatioEngine::default_oracle_burn, slab_cauchy, alpha);
     engine.set_surface(surface_family_from_list(surface["cn"]),
                        surface_family_from_list(surface["bip"]));
     arma::vec out(edges.n_rows);

@@ -131,6 +131,13 @@ inline SurfaceFamily surface_family_from_list(const Rcpp::List& s) {
  */
 class ZRatioEngine {
 public:
+    /// Default oracle block-Gibbs schedule (sweeps and burn-in) for the
+    /// mediating-block sampler. Single source of truth: the set_oracle_params
+    /// default arguments, the member initializers, and the sampler call sites
+    /// (sample_ggm.cpp, sample_mixed.cpp) all reference these.
+    static constexpr int default_oracle_n_sweep = 300;
+    static constexpr int default_oracle_burn = 30;
+
     ZRatioEngine(const arma::vec& addc, const arma::vec& tg,
                  const arma::vec& ihat, const arma::vec& ghat,
                  const arma::vec& wt, double psi0)
@@ -215,7 +222,8 @@ public:
      * reference, and the trust gauge.
      */
     void set_oracle_params(double delta, double eta, SafeRNG* rng,
-                           int n_sweep = 300, int burn = 30,
+                           int n_sweep = default_oracle_n_sweep,
+                           int burn = default_oracle_burn,
                            bool slab_cauchy = false, double alpha = 1.0) {
         delta_ = delta;
         sigma_ = 1.0;
@@ -403,7 +411,7 @@ private:
     bool oracle_slab_cauchy_ = false;
     double delta_ = 0.0, sigma_ = 1.0, beta_ = 0.5, alpha_ = 1.0;
     SafeRNG* rng_ = nullptr;
-    int n_sweep_ = 300, burn_ = 30;
+    int n_sweep_ = default_oracle_n_sweep, burn_ = default_oracle_burn;
 
     // Reused scratch for extract_block_. One engine serves one chain, and
     // the counts pass runs once per edge proposal, so per-call heap

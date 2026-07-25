@@ -188,8 +188,7 @@ public:
      * While active, update_edge_indicators() also references non-trivial edge
      * moves against the block-local exact reference. Default no-op.
      */
-    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/ = 120,
-                                  int /*cap*/ = 25) {}
+    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/, int /*cap*/) {}
 
     /** Start a new gauge assessment sweep (reset the per-sweep cap). */
     virtual void gauge_begin_sweep() {}
