@@ -3,8 +3,9 @@
 #include <RcppArmadillo.h>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
-#include "models/ggm/zratio_engine.h"
+#include "zratio_engine.h"
 
 /**
  * In-chain trust gauge accumulator for the hierarchical-spec per-edge

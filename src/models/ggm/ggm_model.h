@@ -8,7 +8,7 @@
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
 #include "models/ggm/zratio_engine.h"
-#include "models/zratio_gauge.h"
+#include "models/ggm/zratio_gauge.h"
 #include "priors/parameter_prior.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 

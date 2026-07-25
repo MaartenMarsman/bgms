@@ -281,26 +281,24 @@ zratio_extrapolation_notice = function(chains) {
   invisible(TRUE)
 }
 
-#' @title Harm-Channel Inputs for the Trust Gauge
-#'
-#' @description Assembles the \code{harm_inputs} argument of
-#' \code{\link{summarize_zratio_gauge}} from per-chain edge-inclusion
-#' probabilities and the edge-prior identity. The harm channel is defined for
-#' the Bernoulli (fixed inclusion probability, no feedback) and Beta-Bernoulli
-#' (sampled inclusion probability) edge priors; for any other prior the
-#' channel is disabled (\code{NULL} return).
-#'
-#' @param pip List with one numeric vector of posterior edge-inclusion
-#'   probabilities per chain.
-#' @param edge_prior Character edge-prior name (e.g. \code{"Bernoulli"},
-#'   \code{"Beta-Bernoulli"}).
-#' @param a,b Numeric Beta-Bernoulli shape parameters; ignored for other
-#'   priors.
-#'
-#' @return A list for \code{harm_inputs}, or \code{NULL} when the edge prior
-#'   is not covered.
-#'
-#' @keywords internal
+# ------------------------------------------------------------------------------
+# zratio_harm_inputs
+# ------------------------------------------------------------------------------
+# Assembles the harm_inputs argument of summarize_zratio_gauge from per-chain
+# edge-inclusion probabilities and the edge-prior identity. The harm channel is
+# defined for the Bernoulli (fixed inclusion probability, no feedback) and
+# Beta-Bernoulli (sampled inclusion probability) edge priors; for any other
+# prior the channel is disabled (NULL return).
+#
+# @param pip         List with one numeric vector of posterior edge-inclusion
+#                    probabilities per chain.
+# @param edge_prior  Character edge-prior name (e.g. "Bernoulli",
+#                    "Beta-Bernoulli").
+# @param a,b         Numeric Beta-Bernoulli shape parameters; ignored for other
+#                    priors.
+#
+# Returns: A list for harm_inputs, or NULL when the edge prior is not covered.
+# ------------------------------------------------------------------------------
 zratio_harm_inputs = function(pip, edge_prior, a = NULL, b = NULL) {
   if(identical(edge_prior, "Bernoulli")) {
     list(pip = pip, a = NULL, b = NULL)

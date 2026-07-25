@@ -8,8 +8,9 @@
 # moments (C++ log_zratio surface branch), replacing the online ridge-OLS
 # correction. eta is a build parameter, not a switch: the surface is built at
 # the analysis's own eta and used at every eta. Deployment is fenced to the
-# validated alpha = 1 Normal-slab family (zratio_build_surfaces returns NULL
-# otherwise, so the engine keeps the additive path).
+# validated alpha = 1 diagonal (Normal or Cauchy slab); a non-unit Gamma shape
+# (alpha != 1) returns NULL from zratio_build_surfaces, so the engine keeps the
+# additive path.
 #
 # Anchors are drawn from the sampler's own kernel via the C++ bare-component
 # oracle (zratio_block_oracle_moments). Short chains suffice: the low-order fit

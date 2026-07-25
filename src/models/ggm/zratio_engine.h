@@ -2,6 +2,7 @@
 
 #include <RcppArmadillo.h>
 #include <unordered_map>
+#include <vector>
 #include <array>
 #include <utility>
 #include <string>
@@ -24,7 +25,6 @@ struct ZRatioBlock {
     int cne = 0;          ///< edges among the common neighbours
     int bre = 0;          ///< bridge edges between the exclusive sides
     int maxbd = 0;        ///< maximum bridge degree over both sides
-    double dens = 0.0;    ///< block edge density
     arma::imat a_blk;     ///< block adjacency (m x m)
     arma::uvec si;        ///< block rows adjacent to endpoint i
     arma::uvec sj;        ///< block rows adjacent to endpoint j
@@ -301,7 +301,7 @@ private:
     bool inner_reference_(const arma::mat& r_inv, const arma::uvec& si,
                           const arma::uvec& sj, const arma::vec& wsi,
                           const arma::vec& wsj, double& w, double& fN,
-                          double& gG, double& kappa2) const;
+                          double& gG) const;
 
     /**
      * exp(clamped raw-quadratic prediction) of a family surface at (size,

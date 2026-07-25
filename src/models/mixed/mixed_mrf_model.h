@@ -7,7 +7,7 @@
 #include "models/ggm/graph_constraint_structure.h"
 #include "models/ggm/ggm_gradient.h"
 #include "models/ggm/zratio_engine.h"
-#include "models/zratio_gauge.h"
+#include "models/ggm/zratio_gauge.h"
 #include "math/cholesky_helpers.h"
 #include "math/cholupdate.h"
 #include "rng/rng_utils.h"
