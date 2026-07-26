@@ -51,9 +51,11 @@ The quality of the Markov chain can be assessed with common MCMC diagnostics:
 summary(fit)$pairwise
 ```
 
-- R-hat values close to 1 (typically below 1.01) suggest convergence [@VehtariEtAl_2021].
+- R-hat is the classic split-R-hat of @VehtariEtAl_2021: each chain is split in half and the between-half and within-half variances are compared, so within-chain drift is detected as well as between-chain disagreement. For **continuous parameters** (category thresholds, continuous means, precision-diagonal entries, and pairwise weights) values close to 1 — typically below 1.01 — suggest convergence.
 - The effective sample size (ESS) reflects the number of independent samples that would provide equivalent precision. Larger ESS values indicate more reliable estimates.
 - The Monte Carlo standard error (MCSE) measures the additional variability introduced by using a finite number of MCMC draws. A small MCSE relative to the posterior standard deviation indicates stable estimates, whereas a large MCSE suggests that more samples are needed.
+
+The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the transition counts (`n0->0`, `n0->1`, `n1->0`, `n1->1`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
 
 ## Two ESS measures for edge-selected parameters
 
