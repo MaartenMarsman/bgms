@@ -8,8 +8,9 @@
 # moments (C++ log_zratio surface branch), replacing the online ridge-OLS
 # correction. eta is a build parameter, not a switch: the surface is built at
 # the analysis's own eta and used at every eta. Deployment is fenced to the
-# validated alpha = 1 Normal-slab family (zratio_build_surfaces returns NULL
-# otherwise, so the engine keeps the additive path).
+# validated alpha = 1 diagonal (Normal or Cauchy slab); a non-unit Gamma shape
+# (alpha != 1) returns NULL from zratio_build_surfaces, so the engine keeps the
+# additive path.
 #
 # Anchors are drawn from the sampler's own kernel via the C++ bare-component
 # oracle (zratio_block_oracle_moments). Short chains suffice: the low-order fit
@@ -167,8 +168,14 @@ zratio_surface_cache_key = function(zc, max_size, seed0) {
   )
 }
 
-zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
-                                seed0 = 700000L) {
+# Trained size-hull cap for the anchor build: components larger than this clamp
+# to the hull edge at deploy, so it must stay >= the anchor grid's largest size
+# (42). The build default and every sampler call site size through this one
+# value, so the cap cannot drift between them.
+.zratio_surface_size_cap = 44L
+
+zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
+                                 cores = 1L, seed0 = 700000L) {
   if(abs(zc$alpha - 1) > 1e-12) return(NULL)
   cap = as.integer(max_size)
 
@@ -179,17 +186,14 @@ zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
   # options(bgms.correction_table_cache) so one switch governs both.
   use_cache = isTRUE(getOption(
     "bgms.zratio_surface_cache",
-    getOption("bgms.correction_table_cache", TRUE)
+    correction_cache_enabled()
   ))
   cache_file = NULL
   if(use_cache) {
     key = zratio_surface_cache_key(zc, cap, seed0)
     hit = get0(key, envir = .zratio_surface_cache, inherits = FALSE)
     if(!is.null(hit)) return(hit)
-    cache_dir = getOption(
-      "bgms.correction_cache_dir",
-      tools::R_user_dir("bgms", which = "cache")
-    )
+    cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, paste0(key, ".rds"))
     if(file.exists(cache_file)) {
       surf = tryCatch(readRDS(cache_file), error = function(e) NULL)
@@ -266,6 +270,19 @@ zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
   } else {
     isTRUE(psock) && cores > 1L
   }
+  # The cache missed, so the surfaces are about to be built for real; announce
+  # the one-time cost so the pre-chain pause is not silent. n_workers is the
+  # parallelism actually used, which drops to 1 on the Windows serial tier.
+  n_workers = if(use_psock || .Platform$OS.type == "unix") cores else 1L
+  verbose = isTRUE(getOption("bgms.verbose", TRUE))
+  if(verbose) {
+    message(
+      "Building normalizing-constant corrections for the hierarchical ",
+      "precision prior (", cap, " variables, ", n_workers,
+      if(n_workers == 1L) " core)." else " cores)."
+    )
+  }
+  t0 = proc.time()[["elapsed"]]
   res = vector("list", nrow(jobs))
   if(use_psock) {
     cl = parallel::makePSOCKcluster(cores)
@@ -286,6 +303,13 @@ zratio_build_surfaces = function(zc, max_size = 44L, cores = 1L,
   bip = zratio_fit_surface_family(bip_rows)
   if(is.null(cn) || is.null(bip)) return(NULL)
   surf = list(cn = cn, bip = bip)
+  if(verbose) {
+    secs = proc.time()[["elapsed"]] - t0
+    message(
+      "Correction build complete (",
+      if(secs < 1) "< 1s" else paste0(round(secs), "s"), ")."
+    )
+  }
   if(use_cache) {
     assign(key, surf, envir = .zratio_surface_cache)
     tryCatch({
@@ -310,6 +334,45 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
   ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
   cores
+}
+
+# Message the fallback to the additive path when no surface is attached: a
+# non-unit Gamma diagonal shape (surface pending validation) or a failed
+# alpha = 1 build (which must not downgrade the fit silently). Shared by every
+# sampler call site so the two messages stay identical.
+zratio_surface_fence_message = function(zc) {
+  if(abs(zc$alpha - 1) > 1e-12) {
+    message(
+      "z-ratio: precision shape alpha = ", format(zc$alpha),
+      " -> additive path (absolute-moment surface validated only for the ",
+      "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+    )
+  } else {
+    message(
+      "z-ratio: the absolute-moment surface build failed -> additive ",
+      "path (coarser correction; enable the trust gauge with ",
+      "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+    )
+  }
+}
+
+# Build the Option-B surface for cell `zc`, sized on `size` variables, and, on a
+# successful build, attach it to the `zratio` spec; otherwise keep the additive
+# path (messaging the reason when `verbose`). Centralizes the size cap, cores
+# policy, and fence message the GGM, mixed, and prior sampler paths share.
+# Returns the (possibly surface-carrying) `zratio` list.
+zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
+  surf = zratio_build_surfaces(
+    zc,
+    max_size = min(size, .zratio_surface_size_cap),
+    cores = cores
+  )
+  if(!is.null(surf)) {
+    zratio$surface = surf
+  } else if(isTRUE(verbose)) {
+    zratio_surface_fence_message(zc)
+  }
+  zratio
 }
 
 # Number of in-chain trust-gauge assessment sweeps. The gauge is a post-sampling

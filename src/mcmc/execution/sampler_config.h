@@ -23,11 +23,10 @@ struct SamplerConfig {
     /// In-chain Z-ratio trust gauge: number of post-sampling assessment
     /// sweeps (0 = off). Each sweep is a deployed selection pass that also
     /// references non-trivial edge moves against the exact block-local
-    /// reference. Reference block-Gibbs draws per pair and the per-sweep
-    /// referenced-pair cap are fixed design parameters.
+    /// reference. The reference block-Gibbs draws per pair and the per-sweep
+    /// referenced-pair cap are fixed design parameters owned by ZRatioGauge
+    /// (default_n_draws / default_cap), applied at the activation site.
     int zratio_gauge_sweeps = 0;
-    int zratio_gauge_draws = 120;
-    int zratio_gauge_cap = 25;
 
     /// Maximum NUTS tree depth.
     int max_tree_depth = 10;

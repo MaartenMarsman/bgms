@@ -533,6 +533,20 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
 
 
 # ------------------------------------------------------------------
+# Shared cache-policy accessors (internal)
+# ------------------------------------------------------------------
+# Single source for the correction-cache option defaults so the
+# correction-table build and the Z-ratio surface build agree.
+# ------------------------------------------------------------------
+correction_cache_enabled = function() {
+  isTRUE(getOption("bgms.correction_table_cache", TRUE))
+}
+
+correction_cache_dir = function() {
+  getOption("bgms.correction_cache_dir", tools::R_user_dir("bgms", which = "cache"))
+}
+
+# ------------------------------------------------------------------
 # ggm_correction_table (internal)
 # ------------------------------------------------------------------
 # Cache wrapper: get-or-build the table for a model cell. Tables are
@@ -555,7 +569,7 @@ ggm_correction_table = function(
     delta = 0.5 * log(p)
   }
 
-  use_cache = isTRUE(getOption("bgms.correction_table_cache", TRUE))
+  use_cache = correction_cache_enabled()
   cache_file = NULL
   if(use_cache) {
     cell = ggm_correction_cell(
@@ -566,10 +580,7 @@ ggm_correction_table = function(
       cell$q, cell$delta, cell$eta, cell$slab_family, cell$scale_shape,
       n_grid, n_samples, n_warmup, n_seeds, update_method
     )
-    cache_dir = getOption(
-      "bgms.correction_cache_dir",
-      tools::R_user_dir("bgms", which = "cache")
-    )
+    cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, key)
     if(!refresh && file.exists(cache_file)) {
       table = tryCatch(readRDS(cache_file), error = function(e) NULL)

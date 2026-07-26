@@ -287,7 +287,10 @@
 #'   use all \code{cores}. Default: \code{parallel::detectCores()}.
 #'
 #' @param seed Optional integer. Random seed for reproducibility. Must be a
-#'   single non-negative integer.
+#'   single non-negative integer. On Windows with \code{RcppParallel} >= 6.0.0,
+#'   a fixed seed reproduces a run only at the same \code{cores} setting: under
+#'   the oneTBB 2022 scheduler, runs at different core counts are statistically
+#'   equivalent but not bit-for-bit identical.
 #'
 #' @param interaction_scale,burnin,save,threshold_alpha,threshold_beta
 #'   `r lifecycle::badge("deprecated")`

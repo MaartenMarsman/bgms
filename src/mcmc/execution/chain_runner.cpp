@@ -6,6 +6,7 @@
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
 #include "mcmc/samplers/gibbs_sampler.h"
+#include "models/ggm/zratio_gauge.h"  // ZRatioGauge::default_n_draws / default_cap
 
 
 namespace {
@@ -86,11 +87,6 @@ void run_mcmc_chain(
             model.impute_missing();
         }
 
-        // Warmup/sampling boundary hook (models with warmup-dependent state)
-        if (iter == schedule.total_warmup) {
-            model.on_warmup_end();
-        }
-
         // Edge selection
         if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
             if (iter == schedule.stage3c_start) {
@@ -155,8 +151,8 @@ void run_mcmc_chain(
     // pair-by-pair as usual. Post-sampling, so no stored samples are touched.
     if (config.zratio_gauge_sweeps > 0 && model.gauge_available() &&
         model.has_edge_selection()) {
-        model.set_gauge_active(true, config.zratio_gauge_draws,
-                               config.zratio_gauge_cap);
+        model.set_gauge_active(true, ZRatioGauge::default_n_draws,
+                               ZRatioGauge::default_cap);
         for (int k = 0; k < config.zratio_gauge_sweeps; ++k) {
             model.gauge_begin_sweep();
             model.update_edge_indicators();
@@ -166,7 +162,8 @@ void run_mcmc_chain(
                 break;
             }
         }
-        model.set_gauge_active(false);
+        model.set_gauge_active(false, ZRatioGauge::default_n_draws,
+                               ZRatioGauge::default_cap);
     }
 
     // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
