@@ -157,13 +157,6 @@ public:
     virtual void prepare_iteration() {}
 
     /**
-     * Called once at the warmup/sampling boundary (before the first
-     * retained iteration). Default no-op; models with warm-up-calibrated
-     * state (e.g. the GGM Z-ratio engine) freeze it here.
-     */
-    virtual void on_warmup_end() {}
-
-    /**
      * Called once at the end of the chain run. Default no-op; models with
      * run-level diagnostic state (e.g. the GGM Z-ratio engine's counters,
      * frozen constants, and calibration anchors) copy it into the chain

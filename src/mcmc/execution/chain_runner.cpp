@@ -86,11 +86,6 @@ void run_mcmc_chain(
             model.impute_missing();
         }
 
-        // Warmup/sampling boundary hook (models with warmup-dependent state)
-        if (iter == schedule.total_warmup) {
-            model.on_warmup_end();
-        }
-
         // Edge selection
         if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
             if (iter == schedule.stage3c_start) {
