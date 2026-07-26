@@ -29,9 +29,15 @@
  * (n_ent) and never silently dropped.
  */
 struct ZRatioGauge {
+    /// Fixed design parameters for the trust gauge. Single source of truth:
+    /// the member initializers below and the activation site (chain_runner)
+    /// reference these. Not user-configurable (only the sweep count is).
+    static constexpr int default_cap = 25;      ///< max referenced pairs per sweep
+    static constexpr int default_n_draws = 120; ///< reference block-Gibbs draws per pair
+
     bool active = false;
-    int cap = 25;         ///< max referenced pairs per sweep
-    int n_draws = 120;    ///< reference block-Gibbs draws per pair
+    int cap = default_cap;      ///< max referenced pairs per sweep
+    int n_draws = default_n_draws; ///< reference block-Gibbs draws per pair
     double nE = 0.0;      ///< q(q-1)/2, set at activation
 
     // Per-sweep scratch (reset by begin_sweep).
