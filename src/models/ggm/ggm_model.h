@@ -107,6 +107,7 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
+        rb_inclusion_(edge_selection_ ? dim_ : 0, arma::fill::zeros),
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
@@ -148,6 +149,7 @@ public:
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
+          rb_inclusion_(other.rb_inclusion_),
           proposal_sds_(other.proposal_sds_),
           shuffled_edge_order_(other.shuffled_edge_order_),
           edge_pairs_(other.edge_pairs_),
@@ -417,6 +419,13 @@ public:
         return vectorized_indicator_parameters_;
     }
 
+    /**
+     * Get per-edge Rao-Blackwellized inclusion draws from the most recent
+     * update_edge_indicators() sweep, ordered to match
+     * get_vectorized_indicator_parameters().
+     */
+    arma::vec get_vectorized_rb_inclusion() override;
+
     /** @return Reference to the model's random number generator. */
     SafeRNG& get_rng() override { return rng_; }
 
@@ -528,6 +537,11 @@ private:
     arma::vec vectorized_parameters_;
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
+    /// Per-edge Rao-Blackwellized inclusion draw from the last
+    /// update_edge_indicators() sweep. Same indexing (row-major upper triangle
+    /// of size dim_) as vectorized_indicator_parameters_; diagonal entries are
+    /// never proposed and are left at zero.
+    arma::vec rb_inclusion_;
 
     /// Proposal standard deviations for Metropolis updates (one per element,
     /// stored as a (dim_, 1) matrix so it can be wrapped by
@@ -709,8 +723,9 @@ private:
      *
      * @param i  Row index (i < j)
      * @param j  Column index
+     * @return Rao-Blackwellized inclusion draw J = gamma + (1 - 2 gamma) alpha
      */
-    void update_edge_indicator_parameter_pair(size_t i, size_t j);
+    double update_edge_indicator_parameter_pair(size_t i, size_t j);
 
     /**
      * Full-conditional edge birth/death for the joint spec (Normal slab,
@@ -719,8 +734,9 @@ private:
      * acceptance reduces to the inclusion odds times p_slab(0)/q(0),
      * independent of the proposed value. No proposal-SD tuning. Used by the
      * Gibbs sampler in place of update_edge_indicator_parameter_pair.
+     * @return Rao-Blackwellized inclusion draw J = gamma + (1 - 2 gamma) alpha
      */
-    void update_edge_indicator_conjugate(size_t i, size_t j);
+    double update_edge_indicator_conjugate(size_t i, size_t j);
 
     /**
      * Precompute reparameterization constants for the (i, j) element.

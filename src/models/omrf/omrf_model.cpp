@@ -78,6 +78,9 @@ OMRFModel::OMRFModel(
 
     // Build interaction index
     build_interaction_index();
+
+    // Rao-Blackwellized inclusion storage: one slot per candidate edge.
+    rb_inclusion_ = arma::zeros<arma::vec>(num_pairwise_);
 }
 
 
@@ -121,7 +124,8 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       index_matrix_cache_(other.index_matrix_cache_),
       gradient_cache_valid_(other.gradient_cache_valid_),
       interaction_index_(other.interaction_index_),
-      shuffled_edge_order_(other.shuffled_edge_order_)
+      shuffled_edge_order_(other.shuffled_edge_order_),
+      rb_inclusion_(other.rb_inclusion_)
 {
 }
 
@@ -887,7 +891,7 @@ double OMRFModel::update_pairwise_effect(int var1, int var2) {
 }
 
 
-void OMRFModel::update_edge_indicator(int var1, int var2) {
+double OMRFModel::update_edge_indicator(int var1, int var2) {
     const double current_state = pairwise_effects_(var1, var2);
 
     const bool proposing_addition = (edge_indicators_(var1, var2) == 0);
@@ -919,6 +923,14 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
 
+    // Rao-Blackwellized inclusion draw, computed before the accept decision
+    // from the pre-move state gamma. alpha = exp(min(0, log_accept)) is the
+    // MH acceptance probability; J = gamma + (1 - 2 gamma) alpha, i.e. alpha
+    // for a birth proposal (gamma = 0) and 1 - alpha for a death proposal
+    // (gamma = 1). The accept/reject behaviour below is unchanged.
+    const double alpha = MY_EXP(std::min(0.0, log_accept));
+    const double rb_draw = proposing_addition ? alpha : (1.0 - alpha);
+
     if (MY_LOG(runif(rng_)) < log_accept) {
         const int updated_indicator = 1 - edge_indicators_(var1, var2);
         edge_indicators_(var1, var2) = updated_indicator;
@@ -932,6 +944,8 @@ void OMRFModel::update_edge_indicator(int var1, int var2) {
         log_denominator_cache_(var1) = log_denom_prop_1;
         log_denominator_cache_(var2) = log_denom_prop_2;
     }
+
+    return rb_draw;
 }
 
 
@@ -1016,8 +1030,15 @@ void OMRFModel::update_edge_indicators() {
         int idx = shuffled_edge_order_(i);
         int var1 = interaction_index_(idx, 1);
         int var2 = interaction_index_(idx, 2);
-        update_edge_indicator(var1, var2);
+        // Store the RB draw at the canonical edge index so the output vector
+        // is aligned with get_vectorized_indicator_parameters().
+        rb_inclusion_(idx) = update_edge_indicator(var1, var2);
     }
+}
+
+
+arma::vec OMRFModel::get_vectorized_rb_inclusion() {
+    return rb_inclusion_;
 }
 
 

@@ -471,6 +471,7 @@ Rcpp::List run_bgmCompare_parallel(
       );
       if (r.has_indicator) {
         chain_out["indicator_samples"] = r.indicator_samples;
+        chain_out["rb_inclusion_samples"] = r.rb_inclusion_samples;
       }
       if (r.has_allocations) {
         chain_out["allocation_samples"] = r.allocation_samples;

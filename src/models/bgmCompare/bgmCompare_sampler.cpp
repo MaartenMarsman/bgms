@@ -1142,7 +1142,8 @@ void update_indicator_differences_metropolis_bgmcompare (
     const std::vector<arma::mat>& pairwise_stats,
     const bool main_difference_selection,
     SafeRNG& rng,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    arma::mat& rb_indicator
 ) {
   const int num_variables = inclusion_indicator.n_rows;
 
@@ -1212,6 +1213,12 @@ void update_indicator_differences_metropolis_bgmcompare (
         }
       }
     }
+
+    // Rao-Blackwellized inclusion draw for this main-effect difference
+    // (proposed_ind == 1 is a birth, gamma = 0).
+    rb_indicator(var, var) = (proposed_ind == 1)
+        ? MY_EXP(std::min(0.0, log_accept))
+        : 1.0 - MY_EXP(std::min(0.0, log_accept));
 
     // Perform Metropolis-Hastings step
     double U = runif(rng);
@@ -1296,6 +1303,14 @@ void update_indicator_differences_metropolis_bgmcompare (
         );
       }
     }
+
+    // Rao-Blackwellized inclusion draw for this pairwise difference
+    // (proposed_ind == 1 is a birth, gamma = 0).
+    const double rb_pair = (proposed_ind == 1)
+        ? MY_EXP(std::min(0.0, log_accept))
+        : 1.0 - MY_EXP(std::min(0.0, log_accept));
+    rb_indicator(var1, var2) = rb_pair;
+    rb_indicator(var2, var1) = rb_pair;
 
     // Metropolis-Hastings acceptance step
     double U = runif(rng);
@@ -1433,7 +1448,8 @@ void gibbs_update_step_bgmcompare (
     const bool main_difference_selection,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    arma::mat& rb_indicator
 ) {
 
   // Step 0: Initialise random graph structure when edge_selection = TRUE
@@ -1459,7 +1475,7 @@ void gibbs_update_step_bgmcompare (
         is_ordinal_variable, baseline_category, proposal_sd_main,
         proposal_sd_pair, counts_per_category,
         blume_capel_stats, pairwise_stats, main_difference_selection, rng,
-        difference_prior
+        difference_prior, rb_indicator
     );
   }
 
@@ -1640,6 +1656,12 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat main_effects(num_main, num_groups, arma::fill::zeros);
   arma::mat pairwise_effects(num_pair, num_groups, arma::fill::zeros);
   arma::imat inclusion_indicator(num_variables, num_variables, arma::fill::ones);
+  // Per-difference Rao-Blackwellized inclusion draws, mirroring
+  // inclusion_indicator. NaN marks indicators that are not being selected
+  // (e.g. main-effect differences when main_difference_selection is off), so
+  // they contribute nothing to the RB average.
+  arma::mat rb_indicator(num_variables, num_variables);
+  rb_indicator.fill(arma::datum::nan);
 
   // Allocate storage for MCMC samples. Iterations that never run (user
   // interrupt) keep the fill values: NaN for floating samples, -1 for the
@@ -1649,10 +1671,13 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat pairwise_effect_samples(iter, num_pair * num_groups);
   pairwise_effect_samples.fill(arma::datum::nan);
   arma::imat indicator_samples;
+  arma::mat rb_inclusion_samples;
 
   if (difference_selection) {
     indicator_samples.set_size(iter, num_pair + num_variables);
     indicator_samples.fill(-1);
+    rb_inclusion_samples.set_size(iter, num_pair + num_variables);
+    rb_inclusion_samples.fill(arma::datum::nan);
   }
 
   // SBM cluster allocation samples (only populated when difference prior is SBM).
@@ -1772,7 +1797,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         rng, inclusion_probability,
         update_method, proposal_sd_main, proposal_sd_pair, index,
         main_difference_selection,
-        interaction_prior, difference_prior, threshold_prior
+        interaction_prior, difference_prior, threshold_prior, rb_indicator
     );
 
     // --- Update difference probabilities under the prior (if difference selection is active)
@@ -1847,6 +1872,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         for (int i = 0; i < num_variables; ++i) {
           for (int j = i; j < num_variables; ++j) {
             indicator_samples(sample_index, cntr) = inclusion_indicator(i, j);
+            rb_inclusion_samples(sample_index, cntr) = rb_indicator(i, j);
             cntr++;
           }
         }
@@ -1870,8 +1896,10 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   out.has_indicator = difference_selection;
   if (difference_selection) {
     out.indicator_samples = indicator_samples;
+    out.rb_inclusion_samples = rb_inclusion_samples;
   } else {
     out.indicator_samples = arma::imat();
+    out.rb_inclusion_samples = arma::mat();
   }
   out.has_allocations = is_sbm;
   if (is_sbm) {

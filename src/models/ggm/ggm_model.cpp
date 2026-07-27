@@ -736,10 +736,13 @@ void GGMModel::cholesky_update_after_diag(double omega_ii_old, size_t i)
 }
 
 
-void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
+double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
 
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_sds_(e);
+
+    // Rao-Blackwellized inclusion draw J for this edge, set in each branch.
+    double rb_draw = 0.0;
 
     if (edge_indicators_(i, j) == 1) {
         // Propose to turn OFF the edge. Only the (i,j), (j,i), (j,j)
@@ -786,6 +789,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                                 edge_indicators_, static_cast<int>(i),
                                 static_cast<int>(j), ln_alpha, log_j_del, -1);
         }
+
+        rb_draw = 1.0 - MY_EXP(std::min(0.0, ln_alpha));   // gamma = 1: J = 1 - alpha
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -858,6 +863,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                                 static_cast<int>(j), ln_alpha, log_j_add, 1);
         }
 
+        rb_draw = MY_EXP(std::min(0.0, ln_alpha));   // gamma = 0: J = alpha
+
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
             // Store old values for Cholesky update
@@ -878,6 +885,8 @@ void GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
             invalidate_gradient_cache();
         }
     }
+
+    return rb_draw;
 }
 
 void GGMModel::do_one_metropolis_step(int iteration) {
@@ -935,17 +944,26 @@ void GGMModel::update_edge_indicators() {
         size_t flat = shuffled_edge_order_(idx);
         size_t i = edge_pairs_(flat, 0);
         size_t j = edge_pairs_(flat, 1);
-        if (use_conjugate_edge_proposal_) {
-            update_edge_indicator_conjugate(i, j);
-        } else {
-            update_edge_indicator_parameter_pair(i, j);
+        double rb = use_conjugate_edge_proposal_
+            ? update_edge_indicator_conjugate(i, j)
+            : update_edge_indicator_parameter_pair(i, j);
+        // Store J at the row-major upper-triangle index (i = 0..p-1, j = i..p-1,
+        // diagonal included) so the output vector is aligned with
+        // get_vectorized_indicator_parameters().
+        if (rb_inclusion_.n_elem > 0) {
+            size_t e = i * p_ - i * (i - 1) / 2 + (j - i);
+            rb_inclusion_(e) = rb;
         }
     }
     // Same rationale as the end-of-Metropolis-step refresh.
     refresh_cholesky();
 }
 
-void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
+arma::vec GGMModel::get_vectorized_rb_inclusion() {
+    return rb_inclusion_;
+}
+
+double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     // Full-conditional (MoMS) edge birth/death for the joint spec, Normal slab,
     // alpha = 1. The cofactor move preserves |K| (the determinant tilt and the
     // likelihood determinant cancel), so F(phi) is Gaussian in the cofactor
@@ -1003,6 +1021,9 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     }
     const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
+    // Rao-Blackwellized inclusion draw J for this edge, set in each branch.
+    double rb_draw = 0.0;
+
     if (edge_indicators_(i, j) == 0) {
         // Add: draw phi* from the full conditional, then accept.
         const double phi_star = rnorm(rng_, mu, 1.0 / std::sqrt(Q));
@@ -1017,6 +1038,7 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
                                 edge_indicators_, static_cast<int>(i),
                                 static_cast<int>(j), log_A, log_j_conj, 1);
         }
+        rb_draw = MY_EXP(std::min(0.0, log_A));   // gamma = 0: J = alpha
         if (MY_LOG(runif(rng_)) < log_A) {
             const double omega_ij_old = precision_matrix_(i, j);
             const double omega_jj_old = precision_matrix_(j, j);
@@ -1044,6 +1066,7 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
                                 edge_indicators_, static_cast<int>(i),
                                 static_cast<int>(j), log_A, log_j_conj, -1);
         }
+        rb_draw = 1.0 - MY_EXP(std::min(0.0, log_A));   // gamma = 1: J = 1 - alpha
         if (MY_LOG(runif(rng_)) < log_A) {
             const double kjj = constants_[5];      // constrained_diagonal(0)
             const double omega_ij_old = precision_matrix_(i, j);
@@ -1059,6 +1082,8 @@ void GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
             invalidate_gradient_cache();
         }
     }
+
+    return rb_draw;
 }
 
 void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {

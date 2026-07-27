@@ -33,6 +33,15 @@ public:
     /// Whether indicator samples are stored.
     bool        has_indicators = false;
 
+    /// Rao-Blackwellized inclusion draws J_{e,t} = gamma + (1 - 2 gamma) alpha
+    /// from the joint birth-death proposal, evaluated before the accept
+    /// decision with gamma the pre-move state (n_edges x n_iter), only if
+    /// edge_selection = true. Averaging over iterations gives a boundary-stable
+    /// posterior inclusion probability.
+    arma::mat   rb_inclusion_samples;
+    /// Whether Rao-Blackwellized inclusion draws are stored.
+    bool        has_rb_inclusion = false;
+
     /// SBM allocation samples (n_variables x n_iter), only if SBM edge prior.
     arma::imat  allocation_samples;
     /// Whether allocation samples are stored.
@@ -111,6 +120,17 @@ public:
     }
 
     /**
+     * Reserve storage for Rao-Blackwellized inclusion draws
+     * @param n_edges  Number of edges (matches indicator vector length)
+     * @param n_iter   Number of sampling iterations
+     */
+    void reserve_rb_inclusion(const size_t n_edges, const size_t n_iter) {
+        rb_inclusion_samples.set_size(n_edges, n_iter);
+        rb_inclusion_samples.fill(arma::datum::nan);
+        has_rb_inclusion = true;
+    }
+
+    /**
      * Reserve storage for SBM allocation samples
      * @param n_variables  Number of variables
      * @param n_iter       Number of sampling iterations
@@ -176,6 +196,15 @@ public:
      */
     void store_indicators(const size_t iter, const arma::ivec& indicators) {
         indicator_samples.col(iter) = indicators;
+    }
+
+    /**
+     * Store Rao-Blackwellized inclusion draws for one iteration
+     * @param iter  Iteration index (0-based)
+     * @param rb    Per-edge RB draw J_{e,t}
+     */
+    void store_rb_inclusion(const size_t iter, const arma::vec& rb) {
+        rb_inclusion_samples.col(iter) = rb;
     }
 
     /**

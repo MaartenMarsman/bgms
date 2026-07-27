@@ -247,6 +247,13 @@ public:
     /** Get vectorized edge indicators (Gxx upper-tri, Gyy upper-tri, Gxy full). */
     arma::ivec get_vectorized_indicator_parameters() override;
 
+    /**
+     * Get per-edge Rao-Blackwellized inclusion draws from the most recent
+     * update_edge_indicators() sweep, ordered to match
+     * get_vectorized_indicator_parameters().
+     */
+    arma::vec get_vectorized_rb_inclusion() override;
+
     /** Get active subset of inverse mass diagonal (includes Cholesky block). */
     arma::vec get_active_inv_mass() const override;
 
@@ -389,6 +396,11 @@ private:
     /// Gyy block: rows [p,p+q), cols [p,p+q) -- symmetric, zero diag.
     /// Gxy block: rows [0,p), cols [p,p+q) -- full p x q rectangle.
     arma::imat edge_indicators_;
+    /// Per-edge Rao-Blackwellized inclusion draw from the last
+    /// update_edge_indicators() sweep, in the same (p+q) block layout as
+    /// edge_indicators_. Read via the gxx/gyy/gxy offsets in
+    /// get_vectorized_rb_inclusion().
+    arma::mat rb_edge_;
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
     bool edge_selection_;               ///< Enable edge selection
     bool edge_selection_active_;        ///< Currently in edge selection phase
