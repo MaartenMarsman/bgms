@@ -183,6 +183,11 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
     } else {
       NULL
     },
+    rb_inclusion = if(edge_selection) {
+      lapply(raw, function(chain) chain$rb_inclusion_samples)
+    } else {
+      NULL
+    },
     allocations = if(edge_selection &&
       identical(edge_prior, "Stochastic-Block") &&
       "allocations" %in% names(raw[[1]])) {

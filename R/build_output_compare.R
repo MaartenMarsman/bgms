@@ -191,6 +191,11 @@ build_output_compare = function(spec, raw) {
     } else {
       NULL
     },
+    rb_inclusion = if(difference_selection) {
+      lapply(raw, function(chain) chain$rb_inclusion_samples)
+    } else {
+      NULL
+    },
     allocations = if(has_sbm) {
       lapply(raw, `[[`, "allocations")
     } else {

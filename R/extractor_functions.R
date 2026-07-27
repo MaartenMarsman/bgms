@@ -256,6 +256,140 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 }
 
 
+#' @title Extract Rao-Blackwellized Posterior Inclusion Probabilities
+#'
+#' @description
+#' Computes Rao-Blackwellized (RB) posterior inclusion probabilities from a
+#' model fitted with [bgm()] (edge inclusion) or [bgmCompare()] (difference
+#' inclusion). For each indicator update the sampler records the one-step draw
+#' \eqn{J_t = \gamma_t + (1 - 2 \gamma_t)\,\alpha_t}, where \eqn{\gamma_t} is
+#' the indicator state before the move and \eqn{\alpha_t} is the acceptance
+#' probability of the birth/death proposal. Averaging \eqn{J_t} over post-warmup
+#' iterations is a lower-variance estimator of the inclusion probability than
+#' the raw indicator average returned by
+#' [extract_posterior_inclusion_probabilities()], and it stays strictly inside
+#' \eqn{(0, 1)}: even indicators whose raw average saturates at 0 or 1 receive
+#' an interior estimate, so the corresponding inclusion Bayes factor is finite.
+#'
+#' The RB estimator changes only the summary, not the sampler; it inherits the
+#' chain's mixing and does not rescue a chain that has failed to explore the
+#' model space.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
+#'
+#' @return A symmetric p x p matrix of RB posterior inclusion probabilities,
+#'   with variable names as row and column names.
+#'   \describe{
+#'     \item{bgms}{Off-diagonal entries are edge inclusion probabilities.
+#'       Requires `edge_selection = TRUE`.}
+#'     \item{bgmCompare}{Diagonal entries are main-effect inclusion
+#'       probabilities; off-diagonal entries are pairwise difference
+#'       inclusion probabilities. Requires `difference_selection = TRUE`.
+#'       Indicators that were not selected (e.g. main-effect differences
+#'       when `main_difference_selection = FALSE`) are returned as `NA`.}
+#'   }
+#'
+#' @seealso [bgm()], [bgmCompare()],
+#'   [extract_posterior_inclusion_probabilities()], [extract_indicators()]
+#' @family extractors
+#' @export
+extract_rb_inclusion_probabilities = function(bgms_object) {
+  UseMethod("extract_rb_inclusion_probabilities")
+}
+
+#' @inheritParams extract_rb_inclusion_probabilities
+#' @exportS3Method
+#' @noRd
+extract_rb_inclusion_probabilities.bgms = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$edge_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion probabilities, run bgm() with edge_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_inclusion)) {
+    stop("No Rao-Blackwellized inclusion draws found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  num_vars = arguments$num_variables %||% arguments$no_variables
+  data_columnnames = arguments$data_columnnames
+
+  rb_samples = do.call(rbind, raw$rb_inclusion)
+  edge_means = colMeans(rb_samples, na.rm = TRUE)
+
+  # Mixed-MRF fits store indicators in block order (discrete-discrete,
+  # continuous-continuous, cross) over internally reordered variables; map
+  # them through the same block filler as the raw PIP.
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    return(fill_mixed_symmetric(
+      edge_means, d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices,
+      list(data_columnnames, data_columnnames)
+    ))
+  }
+
+  pip_matrix = matrix(0, num_vars, num_vars)
+  pip_matrix[lower.tri(pip_matrix)] = edge_means
+  pip_matrix = pip_matrix + t(pip_matrix)
+
+  colnames(pip_matrix) = data_columnnames
+  rownames(pip_matrix) = data_columnnames
+
+  return(pip_matrix)
+}
+
+#' @inheritParams extract_rb_inclusion_probabilities
+#' @exportS3Method
+#' @noRd
+extract_rb_inclusion_probabilities.bgmCompare = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$difference_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion probabilities, run bgmCompare() with difference_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_inclusion)) {
+    stop("No Rao-Blackwellized inclusion draws found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  var_names = arguments$data_columnnames
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+
+  array3d_rb = samples_to_array3d(raw$rb_inclusion)
+  mean_rb = apply(array3d_rb, 3, mean, na.rm = TRUE)
+
+  # Reconstruct the VxV matrix using the sampler's interleaved order:
+  # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V).
+  V = num_variables
+  stopifnot(length(mean_rb) == V * (V + 1L) / 2L)
+
+  rb_mat = matrix(NA_real_,
+    nrow = V, ncol = V,
+    dimnames = list(var_names, var_names)
+  )
+  pos = 1L
+  for(i in seq_len(V)) {
+    rb_mat[i, i] = mean_rb[pos]
+    pos = pos + 1L
+    if(i < V) {
+      for(j in (i + 1L):V) {
+        val = mean_rb[pos]
+        pos = pos + 1L
+        rb_mat[i, j] = val
+        rb_mat[j, i] = val
+      }
+    }
+  }
+
+  return(rb_mat)
+}
+
+
 #' @title Extract Stochastic Block Model Summaries
 #'
 #' @description
