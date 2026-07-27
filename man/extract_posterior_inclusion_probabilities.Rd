@@ -53,17 +53,22 @@ acceptance-probability scale and stays finite far beyond that ceiling. The
 \code{"rb"} estimator changes only the summary, not the sampler; it inherits the
 chain's mixing, does not rescue a chain that has failed to explore the model
 space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
-continuous, its effective sample size in the fit summary (\code{n_eff}) quantifies
-precision \emph{conditional on exploration}: a stuck chain can show a beautifully
-converged \code{J} chain with a high \code{n_eff}. The summary therefore reports it
-beside \code{n_eff_mixt}, the indicator's transition-based ESS, which measures the
-exploration itself. The pair is the diagnostic: large/large means converged
-and explored, while a large \code{n_eff} with a small or \code{NA} \code{n_eff_mixt} is the
-boundary signature -- a precise one-step estimate resting on little
-transition evidence -- in which case cross-chain agreement (\code{Rhat}) decides.
-The per-direction flip counts underlying \code{n_eff_mixt} (\code{n0->1}, \code{n1->0},
-whose asymmetry the symmetric ESS cannot recover) are retained in the fit
-summary's inclusion table, \code{summary(fit)$indicator}.
+continuous, its effective sample size and split-R-hat in the fit summary
+(\code{n_eff}, \code{Rhat}) quantify precision \emph{conditional on exploration}: a stuck
+chain can show a beautifully converged \code{J} chain with a high \code{n_eff}. The
+summary therefore reports them beside \code{n_eff_mixt}, the indicator's
+transition-based ESS, which measures the exploration itself. The pair is the
+diagnostic: large/large means converged and explored, while a small
+\code{n_eff_mixt} beside a confident \code{n_eff} is the boundary signature -- a
+precise one-step estimate resting on little transition evidence. Zero-flip
+edges (\code{n_eff_mixt} is \code{NA}) carry no exploration information at all, so the
+RB \code{mcse}, \code{n_eff}, and \code{Rhat} are reported as \code{NA} there rather than as a
+heavy-tailed near-constant chain's misleading numbers; the verdict for such a
+decisive edge comes from the mean and the accumulator Bayes factor
+(\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}). The per-direction flip counts underlying
+\code{n_eff_mixt} (\code{n0->1}, \code{n1->0}, whose asymmetry the symmetric ESS cannot
+recover) are retained in the fit summary's inclusion table,
+\code{summary(fit)$indicator}.
 }
 \seealso{
 \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}},

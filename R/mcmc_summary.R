@@ -232,12 +232,12 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 
 # Summarize the Rao-Blackwellized inclusion draws J (continuous, in [0, 1]) with
 # the standard continuous machinery: a lower-variance inclusion-probability mean
-# plus meaningful MCSE/ESS, which the binary indicator draws cannot give. The
-# Rhat and mixing columns stay on the binary indicator draws (see below).
-# Columns that were never updated (unselected indicators, e.g. main
+# plus MCSE/ESS/split-Rhat on the RB draws, which the binary indicator draws
+# cannot give. Columns that were never updated (unselected indicators, e.g. main
 # differences when main_difference_selection = FALSE) are all NA and get an NA
-# row rather than being fed to the ESS/Rhat kernels. Saturated or constant
-# columns keep their mean but report NA for n_eff/Rhat, as for a constant chain.
+# row rather than being fed to the ESS/Rhat kernels. Zero-flip edges (and
+# saturated or constant columns) keep their mean but report NA for the RB
+# mcse/n_eff/Rhat (see the masking block below).
 summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) {
   array3d = combine_chains(raw, "rb_inclusion_samples")
   nparam = dim(array3d)[3]
@@ -257,34 +257,35 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
     mat[keep, ] = as.matrix(sub[, cols, drop = FALSE])
   }
 
-  # Constant / saturated columns have no finite ESS or Rhat.
-  bad = !is.finite(mat[, "n_eff"]) |
-    (is.finite(mat[, "sd"]) & mat[, "sd"] == 0)
-  mat[bad, c("n_eff", "Rhat")] = NA_real_
-
   # The exploration diagnostic kept beside the RB n_eff: the indicator's
   # transition-based ESS (n_eff_mixt), the calibrated, run-length-normalized
   # form of the flip count. The RB n_eff measures precision *conditional on
   # exploration* and cannot see a stuck sampler; n_eff_mixt measures the
   # exploration itself. The pair is the diagnostic -- a large RB n_eff with a
   # small or NA n_eff_mixt is the boundary signature (a precise one-step
-  # estimate resting on little transition evidence), so cross-chain agreement
-  # (Rhat) decides. Zero-flip / constant edges show NA honestly.
-  #
-  # Rhat is the classic split-Rhat on the binary indicator draws -- the
-  # cross-chain agreement that decides the boundary case -- not the RB draws'
-  # own Rhat, so a stuck-but-precise chain (converged J within each chain,
-  # disagreeing across chains) is still flagged. It is masked to NA wherever
-  # n_eff_mixt is undefined (all sub-chains constant), matching the indicator
-  # convergence contract.
-  ind_arr = combine_chains(raw, "indicator_samples")
-  ind_stats = .compute_indicator_ess_cpp(ind_arr)
-  ind_rhat = .compute_rhat_cpp(split_chains(ind_arr))
-  ind_rhat[is.na(ind_stats[, "n_eff_mixt"])] = NA_real_
+  # estimate resting on little transition evidence).
+  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
+  no_flips = is.na(ind_stats[, "n_eff_mixt"])
+
+  # Mask the RB precision/convergence columns where the chain carries no
+  # exploration information: zero-flip edges (n_eff_mixt NA) plus machine-
+  # constant or saturated J chains. With zero transitions the RB moments
+  # describe conditional wiggles whose tail bears on no verdict, while the
+  # classic split-Rhat of a heavy-tailed near-constant J chain reads a
+  # misleading ~1.29 and the large RB n_eff beside it falsely reassures. Report
+  # NA for the RB mcse/n_eff/Rhat there; the honest columns are then the mean,
+  # the (NA) transition ESS, the directional counts, and -- via
+  # extract_inclusion_bf() -- the accumulator Bayes factor. Few-flip edges
+  # (flips > 0) keep their numbers; the pair reading covers them.
+  bad = no_flips |
+    !is.finite(mat[, "n_eff"]) |
+    (is.finite(mat[, "sd"]) & mat[, "sd"] == 0)
+  mat[bad, c("mcse", "n_eff", "Rhat")] = NA_real_
+
   full = cbind(
     mat[, c("mean", "mcse", "sd", "n_eff"), drop = FALSE],
     n_eff_mixt = ind_stats[, "n_eff_mixt"],
-    Rhat = ind_rhat,
+    Rhat = mat[, "Rhat"],
     ind_stats[, c("n01", "n10"), drop = FALSE]
   )
   # Keep the directional transition counts whole (their asymmetry is
