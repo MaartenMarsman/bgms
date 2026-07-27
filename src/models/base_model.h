@@ -157,13 +157,6 @@ public:
     virtual void prepare_iteration() {}
 
     /**
-     * Called once at the warmup/sampling boundary (before the first
-     * retained iteration). Default no-op; models with warm-up-calibrated
-     * state (e.g. the GGM Z-ratio engine) freeze it here.
-     */
-    virtual void on_warmup_end() {}
-
-    /**
      * Called once at the end of the chain run. Default no-op; models with
      * run-level diagnostic state (e.g. the GGM Z-ratio engine's counters,
      * frozen constants, and calibration anchors) copy it into the chain
@@ -188,8 +181,7 @@ public:
      * While active, update_edge_indicators() also references non-trivial edge
      * moves against the block-local exact reference. Default no-op.
      */
-    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/ = 120,
-                                  int /*cap*/ = 25) {}
+    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/, int /*cap*/) {}
 
     /** Start a new gauge assessment sweep (reset the per-sweep cap). */
     virtual void gauge_begin_sweep() {}

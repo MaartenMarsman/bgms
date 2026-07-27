@@ -140,7 +140,9 @@ Rcpp::List sample_ggm(
         // The rng pointer is rebound per chain clone by GGMModel. Hand the
         // engine the standardized-cell prior params so its sibling paths (the
         // gold reference and the trust gauge) can sample.
-        engine->set_oracle_params(zr_delta, zr_eta, nullptr, 300, 30,
+        engine->set_oracle_params(zr_delta, zr_eta, nullptr,
+                                  ZRatioEngine::default_oracle_n_sweep,
+                                  ZRatioEngine::default_oracle_burn,
                                   zr_cauchy, zr_alpha);
         model.set_zratio_engine(std::move(engine));
     }
