@@ -144,7 +144,20 @@ struct ESSWorker : public RcppParallel::Worker {
 
 
 // ============================================================================
-//   Gelman-Rubin Rhat (matching coda::gelman.diag point estimate)
+//   Gelman-Rubin Rhat (classic split-Rhat, Gelman et al. 2013 / Stan)
+// ============================================================================
+//
+// Rhat = sqrt(var_plus / W), with var_plus = (n-1)/n * W + B/n, where W is the
+// mean within-sub-chain variance and B the between-sub-chain variance. The
+// R-level split_chains() halves each chain first, so this is the split-Rhat of
+// Gelman et al. (2013) / Vehtari et al. (2021).
+//
+// The Brooks-Gelman degrees-of-freedom adjustment used by coda::gelman.diag
+// (Rhat = sqrt(df_adj * R2), df_adj = (df_V + 3)/(df_V + 1)) is intentionally
+// NOT applied. On a nearly-saturated binary indicator chain -- one sub-chain
+// carrying a brief excursion while the rest are constant -- df_V collapses to
+// exactly 2, so df_adj -> 5/3 and Rhat -> sqrt(5/3) ~ 1.291 regardless of the
+// draws, flagging the most decisive edges as unconverged.
 // ============================================================================
 
 struct RhatWorker : public RcppParallel::Worker {
@@ -205,40 +218,21 @@ struct RhatWorker : public RcppParallel::Worker {
       }
       B *= n / (m - 1.0);
 
-      // --- Rhat with df adjustment (full coda formula) ---
-      // s2[c] = chain_var[c]
-      double var_w = 0.0;
-      for(int c = 0; c < m; c++) {
-        double d = chain_var[c] - W;
-        var_w += d * d;
+      // --- Classic split-Rhat (Gelman et al. 2013 / Stan) ---
+      // var_plus = (n-1)/n * W + B/n;  Rhat = sqrt(var_plus / W).
+      if(W > 0.0) {
+        double var_plus = (n - 1.0) / n * W + B / n;
+        rhat[j] = std::sqrt(var_plus / W);
+      } else {
+        // W == 0: every sub-chain is individually constant.
+        //   B == 0 -> all sub-chains hold the SAME constant; Rhat is undefined
+        //            (0/0), report NA.
+        //   B  > 0 -> sub-chains are constant at DIFFERENT values (chains stuck
+        //            in different states); the between/within ratio diverges, so
+        //            report +Inf as a loud non-convergence alarm rather than the
+        //            silent NA that would hide genuinely stuck chains.
+        rhat[j] = (B > 0.0) ? R_PosInf : NA_REAL;
       }
-      var_w /= (m - 1.0) * m; // var(s2) / m
-
-      double var_b = (2.0 * B * B) / (m - 1.0);
-
-      // cov(W, B) term
-      double cov_wb = 0.0;
-      for(int c = 0; c < m; c++) {
-        double s2c = chain_var[c];
-        double xbar_c = chain_mean[c];
-        double xbar2_c = xbar_c * xbar_c;
-        cov_wb += (s2c - W) * (xbar2_c - 2.0 * grand_mean * xbar_c);
-      }
-      cov_wb *= (double)n / (m - 1.0) / m;
-
-      double V = (n - 1.0) * W / n + (1.0 + 1.0 / m) * B / n;
-      double var_V = ((double)(n - 1) * (n - 1) * var_w
-                     + (1.0 + 1.0 / m) * (1.0 + 1.0 / m) * var_b
-                     + 2.0 * (n - 1.0) * (1.0 + 1.0 / m) * cov_wb) / ((double)n * n);
-
-      double df_V = (var_V > 0) ? (2.0 * V * V) / var_V : 1e6;
-      double df_adj = (df_V + 3.0) / (df_V + 1.0);
-
-      double R2_fixed = (n - 1.0) / n;
-      double R2_random = (W > 0) ? (1.0 + 1.0 / m) * (1.0 / n) * (B / W) : 0.0;
-      double R2 = R2_fixed + R2_random;
-
-      rhat[j] = (W > 0 && R2 > 0) ? std::sqrt(df_adj * R2) : NA_REAL;
     }
   }
 };
