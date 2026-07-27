@@ -250,8 +250,16 @@ build_output_bgm = function(spec, raw) {
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
   if(edge_selection) {
-    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
-    indicator_means = colMeans(pooled_ind)
+    # Report the Rao-Blackwellized inclusion probability as the canonical
+    # estimate, matching posterior_summary_indicator and the default of
+    # extract_posterior_inclusion_probabilities(); fall back to the raw
+    # indicator average for fits without RB draws.
+    if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$rb_inclusion_samples))
+    } else {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    }
+    indicator_means = colMeans(pooled_ind, na.rm = TRUE)
     results$posterior_mean_indicator = matrix(0,
       nrow = num_variables, ncol = num_variables,
       dimnames = list(data_columnnames, data_columnnames)

@@ -6,7 +6,7 @@
 \usage{
 extract_posterior_inclusion_probabilities(
   bgms_object,
-  estimator = c("raw", "rb")
+  estimator = c("rb", "raw")
 )
 }
 \arguments{
@@ -14,8 +14,8 @@ extract_posterior_inclusion_probabilities(
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 
 \item{estimator}{Character; which estimator of the posterior inclusion
-probability to return. \code{"raw"} (default) averages the indicator draws;
-\code{"rb"} returns the lower-variance Rao-Blackwellized average.}
+probability to return. \code{"rb"} (default) returns the lower-variance
+Rao-Blackwellized average; \code{"raw"} averages the indicator draws.}
 }
 \value{
 A symmetric p x p matrix of posterior inclusion probabilities,
@@ -36,11 +36,12 @@ Computes posterior inclusion probabilities from a model fitted with
 \code{\link[=bgm]{bgm()}} (edge inclusion) or \code{\link[=bgmCompare]{bgmCompare()}} (difference inclusion).
 
 Two estimators of the same posterior inclusion probability are available
-through \code{estimator}. The default \code{"raw"} averages the indicator draws. The
-Rao-Blackwellized estimator \code{"rb"} instead averages the one-step draw
+through \code{estimator}. The default \code{"rb"} (Rao-Blackwellized) averages the
+one-step draw
 \eqn{J_t = \gamma_t + (1 - 2 \gamma_t)\,\alpha_t}, where \eqn{\gamma_t} is
 the indicator state before the move and \eqn{\alpha_t} is the acceptance
-probability of the birth/death proposal. Averaging \eqn{J_t} is a
+probability of the birth/death proposal; \code{"raw"} instead averages the
+indicator draws. Averaging \eqn{J_t} is a
 lower-variance estimator and in exact arithmetic lies strictly inside
 \eqn{(0, 1)}, so even indicators whose raw average saturates at 0 or 1
 receive an interior estimate. In double precision, however, the average of

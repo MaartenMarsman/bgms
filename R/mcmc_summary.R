@@ -232,8 +232,9 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 
 # Summarize the Rao-Blackwellized inclusion draws J (continuous, in [0, 1]) with
 # the standard continuous machinery: a lower-variance inclusion-probability mean
-# plus meaningful MCSE/ESS/split-Rhat, which the binary indicator draws cannot
-# give. Columns that were never updated (unselected indicators, e.g. main
+# plus meaningful MCSE/ESS, which the binary indicator draws cannot give. The
+# Rhat and mixing columns stay on the binary indicator draws (see below).
+# Columns that were never updated (unselected indicators, e.g. main
 # differences when main_difference_selection = FALSE) are all NA and get an NA
 # row rather than being fed to the ESS/Rhat kernels. Saturated or constant
 # columns keep their mean but report NA for n_eff/Rhat, as for a constant chain.
@@ -269,11 +270,21 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
   # small or NA n_eff_mixt is the boundary signature (a precise one-step
   # estimate resting on little transition evidence), so cross-chain agreement
   # (Rhat) decides. Zero-flip / constant edges show NA honestly.
-  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
+  #
+  # Rhat is the classic split-Rhat on the binary indicator draws -- the
+  # cross-chain agreement that decides the boundary case -- not the RB draws'
+  # own Rhat, so a stuck-but-precise chain (converged J within each chain,
+  # disagreeing across chains) is still flagged. It is masked to NA wherever
+  # n_eff_mixt is undefined (all sub-chains constant), matching the indicator
+  # convergence contract.
+  ind_arr = combine_chains(raw, "indicator_samples")
+  ind_stats = .compute_indicator_ess_cpp(ind_arr)
+  ind_rhat = .compute_rhat_cpp(split_chains(ind_arr))
+  ind_rhat[is.na(ind_stats[, "n_eff_mixt"])] = NA_real_
   full = cbind(
     mat[, c("mean", "mcse", "sd", "n_eff"), drop = FALSE],
     n_eff_mixt = ind_stats[, "n_eff_mixt"],
-    Rhat = mat[, "Rhat"],
+    Rhat = ind_rhat,
     ind_stats[, c("n01", "n10"), drop = FALSE]
   )
   # Keep the directional transition counts whole (their asymmetry is

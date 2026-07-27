@@ -178,11 +178,12 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' [bgm()] (edge inclusion) or [bgmCompare()] (difference inclusion).
 #'
 #' Two estimators of the same posterior inclusion probability are available
-#' through `estimator`. The default `"raw"` averages the indicator draws. The
-#' Rao-Blackwellized estimator `"rb"` instead averages the one-step draw
+#' through `estimator`. The default `"rb"` (Rao-Blackwellized) averages the
+#' one-step draw
 #' \eqn{J_t = \gamma_t + (1 - 2 \gamma_t)\,\alpha_t}, where \eqn{\gamma_t} is
 #' the indicator state before the move and \eqn{\alpha_t} is the acceptance
-#' probability of the birth/death proposal. Averaging \eqn{J_t} is a
+#' probability of the birth/death proposal; `"raw"` instead averages the
+#' indicator draws. Averaging \eqn{J_t} is a
 #' lower-variance estimator and in exact arithmetic lies strictly inside
 #' \eqn{(0, 1)}, so even indicators whose raw average saturates at 0 or 1
 #' receive an interior estimate. In double precision, however, the average of
@@ -209,8 +210,8 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
 #' @param estimator Character; which estimator of the posterior inclusion
-#'   probability to return. `"raw"` (default) averages the indicator draws;
-#'   `"rb"` returns the lower-variance Rao-Blackwellized average.
+#'   probability to return. `"rb"` (default) returns the lower-variance
+#'   Rao-Blackwellized average; `"raw"` averages the indicator draws.
 #'
 #' @return A symmetric p x p matrix of posterior inclusion probabilities,
 #'   with variable names as row and column names.
@@ -230,7 +231,7 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' @family extractors
 #' @export
 extract_posterior_inclusion_probabilities = function(bgms_object,
-                                                     estimator = c("raw", "rb")) {
+                                                     estimator = c("rb", "raw")) {
   UseMethod("extract_posterior_inclusion_probabilities")
 }
 
@@ -238,8 +239,8 @@ extract_posterior_inclusion_probabilities = function(bgms_object,
 #' @exportS3Method
 #' @noRd
 extract_posterior_inclusion_probabilities.bgms = function(bgms_object,
-                                                          estimator = c("raw", "rb")) {
-  estimator = match.arg(estimator)
+                                                          estimator = c("rb", "raw")) {
+  estimator_missing = missing(estimator)
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$edge_selection)) {
@@ -251,6 +252,15 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object,
   data_columnnames = arguments$data_columnnames
 
   raw = get_raw_samples(bgms_object)
+  # Default to the Rao-Blackwellized estimate, but fall back to the raw
+  # indicator average for fits without RB draws (bgms < 0.2.0.0), so reading a
+  # legacy fit with the default call still works; an explicit estimator = "rb"
+  # errors below instead.
+  estimator = if(estimator_missing && is.null(raw$rb_inclusion)) {
+    "raw"
+  } else {
+    match.arg(estimator)
+  }
   if(estimator == "rb") {
     # Rao-Blackwellized average of the stored one-step draws J.
     if(is.null(raw$rb_inclusion)) {
@@ -573,8 +583,8 @@ extract_sbm.bgmCompare = function(bgms_object) {
 #' @exportS3Method
 #' @noRd
 extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object,
-                                                                estimator = c("raw", "rb")) {
-  estimator = match.arg(estimator)
+                                                                estimator = c("rb", "raw")) {
+  estimator_missing = missing(estimator)
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$difference_selection)) {
@@ -586,6 +596,15 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object,
   num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
 
   raw = get_raw_samples(bgms_object)
+  # Default to the Rao-Blackwellized estimate, but fall back to the raw
+  # indicator average for fits without RB draws (bgms < 0.2.0.0), so reading a
+  # legacy fit with the default call still works; an explicit estimator = "rb"
+  # errors below instead.
+  estimator = if(estimator_missing && is.null(raw$rb_inclusion)) {
+    "raw"
+  } else {
+    match.arg(estimator)
+  }
   if(estimator == "rb") {
     # Rao-Blackwellized average of the stored one-step draws J. Unselected
     # difference indicators have no draws and average to NA.
