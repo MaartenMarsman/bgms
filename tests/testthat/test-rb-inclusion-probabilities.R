@@ -323,3 +323,52 @@ test_that("rb_inclusion is exposed for bgmCompare difference selection", {
   expect_true(length(finite_rb) > 0)
   expect_true(all(finite_rb >= 0 & finite_rb <= 1))
 })
+
+test_that("the printed bgm summary reports the RB inclusion estimate", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(
+    Wenchuan[, 1:8],
+    iter = 2000, warmup = 500, chains = 2, seed = 4242,
+    edge_selection = TRUE, display_progress = "none"
+  )
+  ind = summary(fit)$indicator
+
+  # The RB precision columns sit beside the indicator transition ESS
+  # (n_eff_mixt, exploration) and the raw directional flip counts, which stay
+  # retrievable so their asymmetry survives.
+  expect_true(all(c("mean", "mcse", "sd", "n_eff", "n_eff_mixt", "Rhat", "n0->1", "n1->0") %in%
+    colnames(ind)))
+  # ESS/Rhat are finite or NA (constant columns), never NaN.
+  expect_false(any(is.nan(ind$n_eff)))
+  expect_false(any(is.nan(ind$Rhat)))
+  # n_eff_mixt is a finite ESS or NA (zero-flip / constant edges), never NaN.
+  expect_false(any(is.nan(ind$n_eff_mixt)))
+  # Directional flip counts are non-negative integers, retrievable per edge.
+  expect_true(all(ind[["n0->1"]] >= 0 & ind[["n1->0"]] >= 0))
+
+  # The summary mean equals the RB inclusion probability, edge for edge.
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
+  expect_equal(ind$mean, rb[lower.tri(rb)], tolerance = 1e-8)
+})
+
+test_that("the bgmCompare summary RB inclusion has NA rows for unselected mains", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:80, 1:5]
+  group_ind = rep(1:2, each = 40)
+
+  fit = bgmCompare(
+    x = x, group_indicator = group_ind,
+    iter = 1500, warmup = 500, chains = 2, seed = 13,
+    difference_selection = TRUE, main_difference_selection = FALSE,
+    display_progress = "none"
+  )
+  ind = summary(fit)$indicator
+
+  expect_true(all(c("mean", "mcse", "sd", "n_eff", "n_eff_mixt", "Rhat", "n0->1", "n1->0") %in%
+    colnames(ind)))
+  expect_false(any(is.nan(ind$n_eff)))
+  # Unselected main-effect differences were never updated, so some rows are NA;
+  # the selected pairwise differences are finite.
+  expect_true(any(is.na(ind$mean)))
+  expect_true(any(is.finite(ind$mean)))
+})

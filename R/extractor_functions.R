@@ -193,7 +193,18 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' acceptance-probability scale and stays finite far beyond that ceiling. The
 #' `"rb"` estimator changes only the summary, not the sampler; it inherits the
 #' chain's mixing, does not rescue a chain that has failed to explore the model
-#' space, and requires a fit from bgms >= 0.2.0.0.
+#' space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
+#' continuous, its effective sample size in the fit summary (`n_eff`) quantifies
+#' precision *conditional on exploration*: a stuck chain can show a beautifully
+#' converged `J` chain with a high `n_eff`. The summary therefore reports it
+#' beside `n_eff_mixt`, the indicator's transition-based ESS, which measures the
+#' exploration itself. The pair is the diagnostic: large/large means converged
+#' and explored, while a large `n_eff` with a small or `NA` `n_eff_mixt` is the
+#' boundary signature -- a precise one-step estimate resting on little
+#' transition evidence -- in which case cross-chain agreement (`Rhat`) decides.
+#' The per-direction flip counts underlying `n_eff_mixt` (`n0->1`, `n1->0`,
+#' whose asymmetry the symmetric ESS cannot recover) are retained in the fit
+#' summary's inclusion table, `summary(fit)$indicator`.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
@@ -1373,7 +1384,10 @@ extract_ess.bgms = function(bgms_object) {
 
   # Indicator ESS (if edge selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt
+    # Binary indicator summaries report the mixture ESS; the Rao-Blackwellized
+    # summary reports the standard continuous ESS instead.
+    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt %||%
+      bgms_object$posterior_summary_indicator$n_eff
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 
@@ -1417,7 +1431,10 @@ extract_ess.bgmCompare = function(bgms_object) {
 
   # Indicator ESS (if difference selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt
+    # Binary indicator summaries report the mixture ESS; the Rao-Blackwellized
+    # summary reports the standard continuous ESS instead.
+    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt %||%
+      bgms_object$posterior_summary_indicator$n_eff
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 

@@ -148,14 +148,11 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
+    # mean/mcse/sd/n_eff are the Rao-Blackwellized inclusion estimate;
+    # n_eff_mixt is the indicator's transition-based ESS (exploration), shown
+    # honestly (NA for zero-flip edges) beside the RB n_eff; n0->1 / n1->0 are
+    # the raw directional flip counts.
     ind = head(x$indicator, 6)
-
-    # Suppress n_eff_mixt where fewer than 5 transitions observed
-    if(all(c("n0->1", "n1->0", "n_eff_mixt") %in% names(ind))) {
-      few = ind[["n0->1"]] + ind[["n1->0"]] < 5
-      few[is.na(few)] = TRUE
-      ind[["n_eff_mixt"]][few] = NA
-    }
 
     ind_has_na = anyNA(ind)
 
@@ -178,8 +175,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
     }
     if(ind_has_na) {
-      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-      cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
+      cat("Note: NA values are suppressed in the print table; they occur for indicators\n")
+      cat("that were not updated or whose draws are constant, so ESS/Rhat are undefined.\n")
       cat("`summary(fit)$indicator` still contains all computed values.\n")
     }
     cat("\n")
@@ -205,8 +202,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     }
 
     if(!is.null(x$indicator) && maind_has_na) {
-      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-      cat("is constant across iterations, so mcse/n_eff_mixt are undefined;\n")
+      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
+      cat("that were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -232,8 +229,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     }
 
     if(!is.null(x$indicator) && pairwised_has_na) {
-      cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-      cat("is constant across iterations, so mcse/n_eff_mixt are undefined;\n")
+      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
+      cat("that were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
     cat("\n")
