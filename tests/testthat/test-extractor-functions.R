@@ -401,7 +401,10 @@ test_that("bgms fit contains all fields accessed by easybgm", {
 
       if(isTRUE(args$edge_selection)) {
         expect_true("posterior_summary_indicator" %in% names(fit), info = ctx)
-        expect_true("n_eff_mixt" %in% names(fit$posterior_summary_indicator), info = ctx)
+        # Inclusion summary now reports the Rao-Blackwellized estimate with
+        # continuous ESS/Rhat (n_eff, not the binary n_eff_mixt).
+        expect_true("n_eff" %in% names(fit$posterior_summary_indicator), info = ctx)
+        expect_true("Rhat" %in% names(fit$posterior_summary_indicator), info = ctx)
       }
     } else {
       expect_true("posterior_summary_pairwise_baseline" %in% names(fit), info = ctx)

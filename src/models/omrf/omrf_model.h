@@ -134,6 +134,19 @@ public:
     arma::ivec get_vectorized_indicator_parameters() override;
 
     /**
+     * Get per-edge Rao-Blackwellized inclusion draws from the most recent
+     * update_edge_indicators() sweep, ordered to match
+     * get_vectorized_indicator_parameters().
+     */
+    arma::vec get_vectorized_rb_inclusion() override;
+
+    /** Per-edge acceptance probability from the last sweep (raw alpha). */
+    arma::vec get_vectorized_rb_alpha() override;
+
+    /** Per-edge pre-move indicator state from the last sweep (0 or 1). */
+    arma::ivec get_vectorized_rb_pregamma() override;
+
+    /**
      * Clone the model for parallel execution.
      */
     std::unique_ptr<BaseModel> clone() const override;
@@ -339,6 +352,14 @@ private:
     arma::imat interaction_index_;      ///< Maps edge pair to index
     arma::uvec shuffled_edge_order_;    ///< Pre-shuffled order (set in prepare_iteration)
 
+    /// Per-edge acceptance probability (raw alpha) and pre-move indicator
+    /// state from the last update_edge_indicators() sweep, indexed in canonical
+    /// (row-major upper triangle) order to match
+    /// get_vectorized_indicator_parameters(). The RB draw J and the odds
+    /// accumulators are both derived from these two.
+    arma::vec rb_alpha_;
+    arma::ivec rb_pregamma_;
+
     // =========================================================================
     // Private helper methods
     // =========================================================================
@@ -463,8 +484,9 @@ private:
 
     /**
      * Update single edge indicator (spike-and-slab)
+     * @return Rao-Blackwellized inclusion draw J = gamma + (1 - 2 gamma) alpha
      */
-    void update_edge_indicator(int var1, int var2);
+    double update_edge_indicator(int var1, int var2);
 };
 
 

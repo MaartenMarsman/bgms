@@ -750,6 +750,12 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     }
 
+    // RB inputs on the alpha scale: raw acceptance probability and the
+    // pre-move state (g_curr). The odds accumulators and the RB draw J derive
+    // from these; storing raw alpha avoids forming 1 - alpha per draw.
+    rb_alpha_edge_(i, j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(i, j) = g_curr;
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_discrete_(i, j) = k_prop;
         pairwise_effects_discrete_(j, i) = k_prop;
@@ -862,6 +868,10 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
                             g_prop == 1 ? 1 : -1);
     }
 
+    // RB inputs on the alpha scale (see update_edge_indicator_discrete).
+    rb_alpha_edge_(p_ + i, p_ + j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(p_ + i, p_ + j) = g_curr;
+
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
         double old_theta_ij = -2.0 * pairwise_effects_continuous_(i, j);
@@ -954,6 +964,10 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
         ln_alpha -= MY_LOG(inclusion_probability_(i, p_ + j))
                   - MY_LOG(1.0 - inclusion_probability_(i, p_ + j));
     }
+
+    // RB inputs on the alpha scale (see update_edge_indicator_discrete).
+    rb_alpha_edge_(i, p_ + j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(i, p_ + j) = g_curr;
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_cross_(i, j) = k_prop;

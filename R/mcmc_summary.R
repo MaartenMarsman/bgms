@@ -49,7 +49,16 @@ ensure_summaries = function(fit) {
     cache$posterior_summary_pairwise_baseline = summary_list$pairwise_baseline
     cache$posterior_summary_main_differences = summary_list$main_differences
     cache$posterior_summary_pairwise_differences = summary_list$pairwise_differences
-    cache$posterior_summary_indicator = summary_list$indicators
+    if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+      # Report the Rao-Blackwellized inclusion probability with continuous
+      # ESS/Rhat (the default estimator for the printed summary).
+      cache$posterior_summary_indicator = summarize_rb_inclusion(
+        raw, names_all$indicators,
+        keep_parameter_col = TRUE
+      )
+    } else {
+      cache$posterior_summary_indicator = summary_list$indicators
+    }
   } else {
     if(isTRUE(is_continuous)) {
       # GGM raw pairwise samples are on the precision (off-diagonal) scale;
@@ -106,9 +115,15 @@ ensure_summaries = function(fit) {
     cache$posterior_summary_pairwise = pairwise_summary
 
     if(edge_selection) {
-      indicator_summary = summary_list$indicator[, -1]
-      rownames(indicator_summary) = edge_names
-      cache$posterior_summary_indicator = indicator_summary
+      if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+        # Report the Rao-Blackwellized inclusion probability with continuous
+        # ESS/Rhat (the default estimator for the printed summary).
+        cache$posterior_summary_indicator = summarize_rb_inclusion(raw, edge_names)
+      } else {
+        indicator_summary = summary_list$indicator[, -1]
+        rownames(indicator_summary) = edge_names
+        cache$posterior_summary_indicator = indicator_summary
+      }
     }
   }
 
@@ -215,6 +230,78 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
   }
 }
 
+# Summarize the Rao-Blackwellized inclusion draws J (continuous, in [0, 1]) with
+# the standard continuous machinery: a lower-variance inclusion-probability mean
+# plus MCSE/ESS/split-Rhat on the RB draws, which the binary indicator draws
+# cannot give. Columns that were never updated (unselected indicators, e.g. main
+# differences when main_difference_selection = FALSE) are all NA and get an NA
+# row rather than being fed to the ESS/Rhat kernels. Zero-flip edges (and
+# saturated or constant columns) keep their mean but report NA for the RB
+# mcse/n_eff/Rhat (see the masking block below).
+summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) {
+  array3d = combine_chains(raw, "rb_inclusion_samples")
+  nparam = dim(array3d)[3]
+  cols = c("mean", "mcse", "sd", "n_eff", "Rhat")
+  mat = matrix(NA_real_,
+    nrow = nparam, ncol = length(cols),
+    dimnames = list(NULL, cols)
+  )
+
+  keep = vapply(
+    seq_len(nparam),
+    function(k) any(is.finite(array3d[, , k])),
+    logical(1)
+  )
+  if(any(keep)) {
+    sub = summarize_manual(raw, array3d = array3d[, , keep, drop = FALSE])
+    mat[keep, ] = as.matrix(sub[, cols, drop = FALSE])
+  }
+
+  # The exploration diagnostic kept beside the RB n_eff: the indicator's
+  # transition-based ESS (n_eff_mixt), the calibrated, run-length-normalized
+  # form of the flip count. The RB n_eff measures precision *conditional on
+  # exploration* and cannot see a stuck sampler; n_eff_mixt measures the
+  # exploration itself. The pair is the diagnostic -- a large RB n_eff with a
+  # small or NA n_eff_mixt is the boundary signature (a precise one-step
+  # estimate resting on little transition evidence).
+  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
+  no_flips = is.na(ind_stats[, "n_eff_mixt"])
+
+  # Mask the RB precision/convergence columns where the chain carries no
+  # exploration information: zero-flip edges (n_eff_mixt NA) plus machine-
+  # constant or saturated J chains. With zero transitions the RB moments
+  # describe conditional wiggles whose tail bears on no verdict, while the
+  # classic split-Rhat of a heavy-tailed near-constant J chain reads a
+  # misleading ~1.29 and the large RB n_eff beside it falsely reassures. Report
+  # NA for the RB mcse/n_eff/Rhat there; the honest columns are then the mean,
+  # the (NA) transition ESS, the directional counts, and -- via
+  # extract_inclusion_bf() -- the accumulator Bayes factor. Few-flip edges
+  # (flips > 0) keep their numbers; the pair reading covers them.
+  bad = no_flips |
+    !is.finite(mat[, "n_eff"]) |
+    (is.finite(mat[, "sd"]) & mat[, "sd"] == 0)
+  mat[bad, c("mcse", "n_eff", "Rhat")] = NA_real_
+
+  full = cbind(
+    mat[, c("mean", "mcse", "sd", "n_eff"), drop = FALSE],
+    n_eff_mixt = ind_stats[, "n_eff_mixt"],
+    Rhat = mat[, "Rhat"],
+    ind_stats[, c("n01", "n10"), drop = FALSE]
+  )
+  # Keep the directional transition counts whole (their asymmetry is
+  # decision-relevant and the symmetric n_eff_mixt cannot recover it).
+  colnames(full)[colnames(full) == "n01"] = "n0->1"
+  colnames(full)[colnames(full) == "n10"] = "n1->0"
+
+  if(keep_parameter_col) {
+    data.frame(parameter = param_names, full, check.names = FALSE, row.names = NULL)
+  } else {
+    out = as.data.frame(full, check.names = FALSE)
+    rownames(out) = param_names
+    out
+  }
+}
+
 # Summarize slab values where indicators are 1
 summarize_slab = function(fit, component = c("pairwise_samples"), param_names = NULL, array3d = NULL, array3d_ind = NULL) {
   component = match.arg(component) # Add options later
@@ -255,6 +342,29 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
   }
 }
 
+# Derived composite ESS for a model-averaged (spike-and-slab) weight.
+# n_eff = Var(weight) / composite_MCSE^2, the only calibrated ESS for the
+# mixture-output row (a raw-chain ESS on the effect inflates in
+# inclusion-dominated cells). The composite MCSE^2 splits into an inclusion part
+# (mu_cond^2 * var_p, with var_p the RB J-chain MCSE^2 of the inclusion
+# probability) and a slab part (p_hat^2 * var_mu, from the included-only draws).
+# share_incl is the inclusion part's share of the composite MCSE^2 -- the
+# bottleneck: whether the Monte Carlo error is dominated by inclusion or slab
+# uncertainty. Inputs may be vectors (one entry per edge).
+derived_weight_ess = function(post_var, p_hat, var_p, mu_cond, var_mu) {
+  # A constant / never-updated inclusion chain contributes no inclusion error.
+  var_p[!is.finite(var_p)] = 0
+  part_incl = mu_cond^2 * var_p
+  part_slab = p_hat^2 * var_mu
+  mcse2 = part_incl + part_slab
+  ok = is.finite(mcse2) & mcse2 > 0
+  list(
+    mcse = ifelse(ok, sqrt(mcse2), NA_real_),
+    n_eff = ifelse(ok & is.finite(post_var), post_var / mcse2, NA_real_),
+    share_incl = ifelse(ok, part_incl / mcse2, NA_real_)
+  )
+}
+
 # Combined summary for pairwise parameters with selection
 summarize_pair = function(fit,
                           indicator_component = c("indicator_samples"),
@@ -269,37 +379,46 @@ summarize_pair = function(fit,
 
   if(is.null(array3d_id)) array3d_id = combine_chains(fit, indicator_component)
   if(is.null(array3d_pw)) array3d_pw = combine_chains(fit, slab_component)
-  if(is.null(summ_ind)) summ_ind = summarize_indicator(fit, component = indicator_component, array3d = array3d_id)
   if(is.null(summ_slab)) summ_slab = summarize_slab(fit, component = slab_component, array3d = array3d_pw, array3d_ind = array3d_id)
-  nparam = nrow(summ_ind)
+  nparam = dim(array3d_pw)[3]
 
-  # EAP = indicator_mean * slab_mean.
-  # When indicator_mean is 0, the edge was never selected, so EAP = 0
-  # regardless of slab_mean (which may be NA with 0 nonzero draws).
-  eap = ifelse(summ_ind$mean == 0, 0, summ_ind$mean * summ_slab$mean)
-  v = (summ_slab$mean^2 * summ_ind$sd^2) + (summ_ind$mean^2 * summ_slab$sd^2)
-  mcse2 = (summ_slab$mean^2 * summ_ind$mcse^2) + (summ_ind$mean^2 * summ_slab$mcse^2)
-  mcse = sqrt(mcse2)
-  sd = sqrt(v)
-  n_eff_mixt = v / mcse2
+  # Posterior mean and variance of the model-averaged weight, straight from the
+  # raw effect chain (exact; the spike contributes exact zeros).
+  pooled_pw = matrix(array3d_pw, nrow = dim(array3d_pw)[1] * dim(array3d_pw)[2], ncol = nparam)
+  eap = colMeans(pooled_pw)
+  post_var = apply(pooled_pw, 2, stats::var)
 
-  # Unconditional ESS and Rhat on the raw effect chain (includes zeros)
-  n_eff = .compute_ess_cpp(array3d_pw)
-  rhat = .compute_rhat_cpp(split_chains(array3d_pw))
-
-  if(is.null(param_names)) {
-    data.frame(
-      parameter = paste0("weight [", seq_len(nparam), "]"),
-      mean = eap, mcse = mcse, sd = sd, n_eff = n_eff, n_eff_mixt = n_eff_mixt, Rhat = rhat,
-      check.names = FALSE
-    )
+  # Inclusion probability and its Monte Carlo error from the RB J-chain; fall
+  # back to the binary indicator's transition-based MCSE when RB draws are
+  # unavailable (pre-0.2.0.0 fits).
+  if(!is.null(fit[[1]][["rb_inclusion_samples"]])) {
+    rb = summarize_manual(fit, array3d = combine_chains(fit, "rb_inclusion_samples"))
+    p_hat = rb$mean
+    p_mcse = rb$mcse
   } else {
-    data.frame(
-      parameter = paste0(param_names, "- weight"),
-      mean = eap, mcse = mcse, sd = sd, n_eff = n_eff, n_eff_mixt = n_eff_mixt, Rhat = rhat,
-      check.names = FALSE
-    )
+    if(is.null(summ_ind)) summ_ind = summarize_indicator(fit, component = indicator_component, array3d = array3d_id)
+    p_hat = summ_ind$mean
+    p_mcse = summ_ind$mcse
   }
+
+  comp = derived_weight_ess(
+    post_var = post_var, p_hat = p_hat, var_p = p_mcse^2,
+    mu_cond = summ_slab$mean, var_mu = summ_slab$mcse^2
+  )
+
+  rhat = .compute_rhat_cpp(split_chains(array3d_pw))
+  names_out = if(is.null(param_names)) {
+    paste0("weight [", seq_len(nparam), "]")
+  } else {
+    paste0(param_names, "- weight")
+  }
+
+  data.frame(
+    parameter = names_out,
+    mean = eap, mcse = comp$mcse, sd = sqrt(post_var),
+    n_eff = comp$n_eff, share_incl = comp$share_incl, Rhat = rhat,
+    check.names = FALSE
+  )
 }
 
 # Unified summary dispatcher for either model type
@@ -315,17 +434,15 @@ summarize_fit = function(fit, edge_selection = FALSE) {
   array3d_ind = combine_chains(fit, "indicator_samples")
   array3d_pw = combine_chains(fit, "pairwise_samples")
 
-  # Compute indicator and slab summaries once
+  # Compute indicator and slab summaries once (ind_summary backs the RB-absent
+  # fallback and is returned for the raw inclusion table).
   ind_summary = summarize_indicator(fit, component = "indicator_samples", array3d = array3d_ind)
   slab_summary = summarize_slab(fit, component = "pairwise_samples", array3d = array3d_pw, array3d_ind = array3d_ind)
 
-  all_selected = ind_summary$mean == 1
-
-  # Replace NA with FALSE, so only definite TRUEs are considered
-  all_selected[is.na(all_selected)] = FALSE
-
-  # Pass pre-computed summaries and arrays to avoid recomputation
-  full_summary = summarize_pair(fit,
+  # The derived composite ESS handles always-included edges naturally: with no
+  # inclusion uncertainty its inclusion part vanishes and n_eff reduces to the
+  # slab ESS, so no special-casing of fully selected edges is needed.
+  pair_summary = summarize_pair(fit,
     indicator_component = "indicator_samples",
     slab_component = "pairwise_samples",
     summ_ind = ind_summary,
@@ -333,18 +450,6 @@ summarize_fit = function(fit, edge_selection = FALSE) {
     array3d_id = array3d_ind,
     array3d_pw = array3d_pw
   )
-  manual_summary = summarize_manual(fit, component = "pairwise_samples", array3d = array3d_pw)
-
-  # Replace rows in full_summary with manual results for fully selected entries.
-  # manual_summary lacks n_eff_mixt; for always-included edges, mixture ESS is
-  # undefined, so set it to NA and copy the remaining columns.
-  if(any(all_selected)) {
-    shared_cols = intersect(names(full_summary), names(manual_summary))
-    full_summary[all_selected, shared_cols] = manual_summary[all_selected, shared_cols]
-    full_summary[all_selected, "n_eff_mixt"] = NA_real_
-  }
-
-  pair_summary = full_summary
 
   list(main = main_summary, pairwise = pair_summary, indicator = ind_summary)
 }
@@ -410,8 +515,12 @@ summarize_indicator_compare = function(fit, component = "indicator_samples", par
 }
 
 
-# Summarize one effect with spike-and-slab draws
-summarize_mixture_effect = function(draws_pw, draws_id, name) {
+# Summarize one effect with spike-and-slab draws. n_eff is the derived composite
+# ESS for the model-averaged weight (see derived_weight_ess); share_incl is the
+# inclusion part's share of the composite MCSE^2. The inclusion Monte Carlo error
+# comes from the RB J-chain (draws_rb) when available, else from the binary
+# indicator's transition-based MCSE.
+summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   # Handle case where single-chain extraction returns a vector
   # (dimension gets dropped when extracting [, , idx] from array with nchains=1)
   if(is.null(dim(draws_pw))) {
@@ -424,58 +533,54 @@ summarize_mixture_effect = function(draws_pw, draws_id, name) {
   nchains = ncol(draws_pw)
   niter = nrow(draws_pw)
 
-  ## --- slab part ---
+  ## --- slab part (included-only draws) ---
   vec = as.vector(draws_pw)
-  nonzero = vec != 0
-  vec = vec[nonzero]
-  T_slab = length(vec)
-
-  if(T_slab > 10) {
+  vec = vec[vec != 0]
+  if(length(vec) > 10) {
     eap_slab = mean(vec)
-    var_slab = var(vec)
     est_slab = compute_rhat_ess(vec) # treat as single chain
-    ess_slab = est_slab$ess
-    mcse_slab = sqrt(var_slab) / sqrt(ess_slab)
-    rhat_slab = est_slab$rhat
+    mcse_slab = sqrt(var(vec)) / sqrt(est_slab$ess)
   } else {
-    eap_slab = 0
-    var_slab = 0
-    ess_slab = NA_real_
+    eap_slab = NA_real_
     mcse_slab = NA_real_
-    rhat_slab = NA_real_
   }
 
-  ## --- indicator part ---
-  id_array = array(draws_id, dim = c(niter, nchains, 1L))
-  id_stats = .compute_indicator_ess_cpp(id_array)
+  ## --- inclusion part: RB J-chain when available, else the binary indicator ---
+  if(!is.null(draws_rb) && any(is.finite(draws_rb))) {
+    rb_array = array(draws_rb, dim = c(niter, nchains, 1L))
+    pooled_rb = as.vector(rb_array)
+    p_hat = mean(pooled_rb, na.rm = TRUE)
+    ess_rb = .compute_ess_cpp(rb_array)[1]
+    sd_rb = stats::sd(pooled_rb)
+    p_mcse = if(is.finite(ess_rb) && ess_rb > 0 && is.finite(sd_rb)) sd_rb / sqrt(ess_rb) else 0
+  } else {
+    id_stats = .compute_indicator_ess_cpp(array(draws_id, dim = c(niter, nchains, 1L)))
+    p_hat = id_stats[1, "mean"]
+    p_mcse = id_stats[1, "mcse"]
+  }
 
-  p_hat = id_stats[1, "mean"]
-  p_sd = id_stats[1, "sd"]
-  p_mcse = id_stats[1, "mcse"]
+  ## --- combined summaries: exact posterior mean/variance from the raw effect
+  ## chain (includes the spike zeros), composite MCSE and derived ESS ---
+  pooled_pw = as.vector(draws_pw)
+  posterior_mean = mean(pooled_pw)
+  post_var = var(pooled_pw)
 
-  ## --- combined summaries ---
-  posterior_mean = p_hat * eap_slab
-  v = (eap_slab^2 * p_sd^2) + (p_hat^2 * var_slab)
-  posterior_sd = sqrt(v)
+  comp = derived_weight_ess(
+    post_var = post_var, p_hat = p_hat, var_p = p_mcse^2,
+    mu_cond = eap_slab, var_mu = mcse_slab^2
+  )
 
-  mcse2 = (eap_slab^2 * p_mcse^2) + (p_hat^2 * mcse_slab^2)
-
-  mcse = if(is.finite(mcse2) && mcse2 > 0) sqrt(mcse2) else NA_real_
-  n_eff_mixt = if(!is.na(mcse) && mcse > 0) v / (mcse^2) else NA_real_
-
-  ## --- unconditional ESS and Rhat on the raw effect chain ---
   pw_array = array(draws_pw, dim = c(niter, nchains, 1L))
-  n_eff = .compute_ess_cpp(pw_array)[1]
-  Rhat = if(nchains > 1) .compute_rhat_cpp(split_chains(pw_array))[1] else NA_real_
+  rhat = if(nchains > 1) .compute_rhat_cpp(split_chains(pw_array))[1] else NA_real_
 
   data.frame(
     parameter = name,
     mean = posterior_mean,
-    mcse = mcse,
-    sd = posterior_sd,
-    n_eff = n_eff,
-    n_eff_mixt = n_eff_mixt,
-    Rhat = Rhat,
+    mcse = comp$mcse,
+    sd = sqrt(post_var),
+    n_eff = comp$n_eff,
+    share_incl = comp$share_incl,
+    Rhat = rhat,
     check.names = FALSE
   )
 }
@@ -504,6 +609,11 @@ summarize_main_diff_compare = function(
 ) {
   main_effect_samples = combine_chains(fit, "main_samples")
   indicator_samples = combine_chains(fit, "indicator_samples")
+  rb_samples = if(!is.null(fit[[1]][["rb_inclusion_samples"]])) {
+    combine_chains(fit, "rb_inclusion_samples")
+  } else {
+    NULL
+  }
 
   V = nrow(main_effect_indices)
   num_main = main_effect_indices[V, 2] + 1L # total rows in main-effects matrix
@@ -515,6 +625,7 @@ summarize_main_diff_compare = function(
   for(v in seq_len(V)) {
     id_idx = indicator_index_main(v, V) # (v,v) position in flattened indicators
     draws_id = indicator_samples[, , id_idx]
+    draws_rb = if(!is.null(rb_samples)) rb_samples[, , id_idx] else NULL
 
     # rows in main-effects matrix belonging to variable v (1-based, inclusive)
     start = main_effect_indices[v, 1] + 1L
@@ -535,7 +646,7 @@ summarize_main_diff_compare = function(
           paste0("var", v, " (diff", h, "; ", category, ")")
         }
 
-        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname)
+        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
       }
     }
   }
@@ -555,6 +666,11 @@ summarize_pairwise_diff_compare = function(
 ) {
   pairwise_effect_samples = combine_chains(fit, "pairwise_samples")
   indicator_samples = combine_chains(fit, "indicator_samples")
+  rb_samples = if(!is.null(fit[[1]][["rb_inclusion_samples"]])) {
+    combine_chains(fit, "rb_inclusion_samples")
+  } else {
+    NULL
+  }
 
   V = num_variables
   num_pair = max(pairwise_effect_indices, na.rm = TRUE) + 1L # total rows in pairwise-effects matrix
@@ -567,6 +683,7 @@ summarize_pairwise_diff_compare = function(
     for(j in (i + 1L):V) {
       id_idx = indicator_index_pair(i, j, V) # (i,j) in flattened indicators
       draws_id = indicator_samples[, , id_idx]
+      draws_rb = if(!is.null(rb_samples)) rb_samples[, , id_idx] else NULL
 
       row = pairwise_effect_indices[i, j] + 1L # 1-based row into pairwise-effects matrix
       for(h in 1L:(num_groups - 1L)) {
@@ -582,7 +699,7 @@ summarize_pairwise_diff_compare = function(
           paste0("V", i, "-", j, " (diff", h, ")")
         }
 
-        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname)
+        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
       }
     }
   }

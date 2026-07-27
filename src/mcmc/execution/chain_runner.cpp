@@ -128,6 +128,18 @@ void run_mcmc_chain(
                 chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
             }
 
+            if (chain_result.has_rb_inclusion) {
+                chain_result.store_rb_inclusion(sample_index, model.get_vectorized_rb_inclusion());
+            }
+
+            if (chain_result.has_rb_counts) {
+                // Post-warmup only (this block is gated by schedule.sampling),
+                // so the gauge sweeps below never enter the accumulators.
+                chain_result.accumulate_rb_counts(
+                    model.get_vectorized_rb_alpha(),
+                    model.get_vectorized_rb_pregamma());
+            }
+
             if (chain_result.has_allocations && edge_prior.has_allocations()) {
                 chain_result.store_allocations(sample_index, edge_prior.get_allocations());
             }
@@ -213,6 +225,8 @@ std::vector<ChainResult> run_mcmc_sampler(
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;
             results[c].reserve_indicators(n_edges, config.no_iter);
+            results[c].reserve_rb_inclusion(n_edges, config.no_iter);
+            results[c].reserve_rb_counts(n_edges);
         }
 
         if (has_sbm_alloc) {
@@ -280,6 +294,20 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_indicators) {
                 chain_list["indicator_samples"] = chain.indicator_samples;
+            }
+
+            if (chain.has_rb_inclusion) {
+                chain_list["rb_inclusion_samples"] = chain.rb_inclusion_samples;
+            }
+
+            if (chain.has_rb_counts) {
+                // n_edges x 4: [n01, n10, n0_visits, n1_visits] on the alpha scale.
+                arma::mat rb_counts(chain.rb_n01.n_elem, 4);
+                rb_counts.col(0) = chain.rb_n01;
+                rb_counts.col(1) = chain.rb_n10;
+                rb_counts.col(2) = chain.rb_n0_visits;
+                rb_counts.col(3) = chain.rb_n1_visits;
+                chain_list["rb_counts"] = rb_counts;
             }
 
             if (chain.has_allocations) {

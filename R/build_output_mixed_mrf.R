@@ -71,6 +71,12 @@ build_output_mixed_mrf = function(spec, raw) {
     if(!is.null(chain$indicator_samples)) {
       res$indicator_samples = t(chain$indicator_samples)
     }
+    if(!is.null(chain$rb_inclusion_samples)) {
+      res$rb_inclusion_samples = t(chain$rb_inclusion_samples)
+    }
+    if(!is.null(chain$rb_counts)) {
+      res$rb_counts = chain$rb_counts
+    }
     if(!is.null(chain$allocation_samples)) {
       res$allocations = t(chain$allocation_samples)
     }
@@ -241,8 +247,16 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
-    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
-    indicator_means = colMeans(pooled_ind)
+    # Report the Rao-Blackwellized inclusion probability as the canonical
+    # estimate, matching posterior_summary_indicator and the default of
+    # extract_posterior_inclusion_probabilities(); fall back to the raw
+    # indicator average for fits without RB draws.
+    if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$rb_inclusion_samples))
+    } else {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    }
+    indicator_means = colMeans(pooled_ind, na.rm = TRUE)
     results$posterior_mean_indicator = fill_mixed_symmetric(
       indicator_means, p, q, disc_idx, cont_idx, dn
     )

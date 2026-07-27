@@ -1142,7 +1142,9 @@ void update_indicator_differences_metropolis_bgmcompare (
     const std::vector<arma::mat>& pairwise_stats,
     const bool main_difference_selection,
     SafeRNG& rng,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    arma::mat& rb_alpha,
+    arma::imat& rb_pregamma
 ) {
   const int num_variables = inclusion_indicator.n_rows;
 
@@ -1212,6 +1214,12 @@ void update_indicator_differences_metropolis_bgmcompare (
         }
       }
     }
+
+    // RB inputs on the alpha scale for this main-effect difference: raw
+    // acceptance probability and the pre-move state. The RB draw J and the
+    // odds accumulators derive from these.
+    rb_alpha(var, var) = MY_EXP(std::min(0.0, log_accept));
+    rb_pregamma(var, var) = current_ind;
 
     // Perform Metropolis-Hastings step
     double U = runif(rng);
@@ -1296,6 +1304,13 @@ void update_indicator_differences_metropolis_bgmcompare (
         );
       }
     }
+
+    // RB inputs on the alpha scale for this pairwise difference.
+    const double alpha_pair = MY_EXP(std::min(0.0, log_accept));
+    rb_alpha(var1, var2) = alpha_pair;
+    rb_alpha(var2, var1) = alpha_pair;
+    rb_pregamma(var1, var2) = current_ind;
+    rb_pregamma(var2, var1) = current_ind;
 
     // Metropolis-Hastings acceptance step
     double U = runif(rng);
@@ -1433,7 +1448,9 @@ void gibbs_update_step_bgmcompare (
     const bool main_difference_selection,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    arma::mat& rb_alpha,
+    arma::imat& rb_pregamma
 ) {
 
   // Step 0: Initialise random graph structure when edge_selection = TRUE
@@ -1459,7 +1476,7 @@ void gibbs_update_step_bgmcompare (
         is_ordinal_variable, baseline_category, proposal_sd_main,
         proposal_sd_pair, counts_per_category,
         blume_capel_stats, pairwise_stats, main_difference_selection, rng,
-        difference_prior
+        difference_prior, rb_alpha, rb_pregamma
     );
   }
 
@@ -1640,6 +1657,20 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat main_effects(num_main, num_groups, arma::fill::zeros);
   arma::mat pairwise_effects(num_pair, num_groups, arma::fill::zeros);
   arma::imat inclusion_indicator(num_variables, num_variables, arma::fill::ones);
+  // RB inputs on the alpha scale, mirroring inclusion_indicator: raw
+  // acceptance probability and pre-move state per difference indicator. NaN /
+  // -1 mark indicators not being selected (e.g. main-effect differences when
+  // main_difference_selection is off), which contribute nothing to the RB
+  // average or the odds accumulators.
+  arma::mat rb_alpha(num_variables, num_variables);
+  rb_alpha.fill(arma::datum::nan);
+  arma::imat rb_pregamma(num_variables, num_variables);
+  rb_pregamma.fill(-1);
+  // Post-warmup RB odds accumulators on the alpha scale (see chain_result.h).
+  arma::mat rb_n01(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n10(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n0_visits(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n1_visits(num_variables, num_variables, arma::fill::zeros);
 
   // Allocate storage for MCMC samples. Iterations that never run (user
   // interrupt) keep the fill values: NaN for floating samples, -1 for the
@@ -1649,10 +1680,13 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat pairwise_effect_samples(iter, num_pair * num_groups);
   pairwise_effect_samples.fill(arma::datum::nan);
   arma::imat indicator_samples;
+  arma::mat rb_inclusion_samples;
 
   if (difference_selection) {
     indicator_samples.set_size(iter, num_pair + num_variables);
     indicator_samples.fill(-1);
+    rb_inclusion_samples.set_size(iter, num_pair + num_variables);
+    rb_inclusion_samples.fill(arma::datum::nan);
   }
 
   // SBM cluster allocation samples (only populated when difference prior is SBM).
@@ -1772,7 +1806,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         rng, inclusion_probability,
         update_method, proposal_sd_main, proposal_sd_pair, index,
         main_difference_selection,
-        interaction_prior, difference_prior, threshold_prior
+        interaction_prior, difference_prior, threshold_prior, rb_alpha, rb_pregamma
     );
 
     // --- Update difference probabilities under the prior (if difference selection is active)
@@ -1847,6 +1881,20 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         for (int i = 0; i < num_variables; ++i) {
           for (int j = i; j < num_variables; ++j) {
             indicator_samples(sample_index, cntr) = inclusion_indicator(i, j);
+            // RB draw J = alpha for a birth (gamma = 0), 1 - alpha for a death
+            // (gamma = 1); NaN where the indicator is not selected.
+            const int g = rb_pregamma(i, j);
+            const double a = rb_alpha(i, j);
+            rb_inclusion_samples(sample_index, cntr) =
+              (g < 0) ? arma::datum::nan : (g == 1 ? 1.0 - a : a);
+            // Odds accumulators on the alpha scale (post-warmup by placement).
+            if (g == 0) {
+              rb_n01(i, j) += a;
+              rb_n0_visits(i, j) += 1.0;
+            } else if (g == 1) {
+              rb_n10(i, j) += a;
+              rb_n1_visits(i, j) += 1.0;
+            }
             cntr++;
           }
         }
@@ -1870,8 +1918,26 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   out.has_indicator = difference_selection;
   if (difference_selection) {
     out.indicator_samples = indicator_samples;
+    out.rb_inclusion_samples = rb_inclusion_samples;
+    // Flatten the RB odds accumulators into (num_pair + num_variables) x 4,
+    // in the same (i, j >= i) order as the indicator columns:
+    // [n01, n10, n0_visits, n1_visits].
+    arma::mat rb_counts(num_pair + num_variables, 4);
+    int cntr = 0;
+    for (int i = 0; i < num_variables; ++i) {
+      for (int j = i; j < num_variables; ++j) {
+        rb_counts(cntr, 0) = rb_n01(i, j);
+        rb_counts(cntr, 1) = rb_n10(i, j);
+        rb_counts(cntr, 2) = rb_n0_visits(i, j);
+        rb_counts(cntr, 3) = rb_n1_visits(i, j);
+        cntr++;
+      }
+    }
+    out.rb_counts = rb_counts;
   } else {
     out.indicator_samples = arma::imat();
+    out.rb_inclusion_samples = arma::mat();
+    out.rb_counts = arma::mat();
   }
   out.has_allocations = is_sbm;
   if (is_sbm) {

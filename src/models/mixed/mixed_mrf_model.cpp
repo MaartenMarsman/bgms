@@ -81,6 +81,16 @@ MixedMRFModel::MixedMRFModel(
     pairwise_effects_continuous_ = -0.5 * arma::eye<arma::mat>(q_, q_);
     pairwise_effects_cross_ = arma::zeros<arma::mat>(p_, q_);
 
+    // Rao-Blackwellized inclusion draws, laid out in the same (p+q) block
+    // structure as edge_indicators_ so get_vectorized_rb_inclusion() can read
+    // them with the gxx/gyy/gxy offsets. rb_alpha_edge_ holds the raw
+    // acceptance probability; rb_pregamma_edge_ the pre-move state (-1 marks a
+    // pair not yet proposed, which the odds accumulator skips). Every stored
+    // sample follows a full sweep that overwrites the proposed pairs, so the
+    // initial values are never read for an active edge at a kept iteration.
+    rb_alpha_edge_ = arma::zeros<arma::mat>(p_ + q_, p_ + q_);
+    rb_pregamma_edge_ = -arma::ones<arma::imat>(p_ + q_, p_ + q_);
+
     // Initialize proposal SDs
     proposal_sd_main_discrete_ = arma::ones<arma::mat>(p_, max_cats_);
     proposal_sd_main_continuous_ = arma::ones<arma::mat>(q_, 1);
@@ -182,6 +192,8 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       pairwise_effects_continuous_(other.pairwise_effects_continuous_),
       pairwise_effects_cross_(other.pairwise_effects_cross_),
       edge_indicators_(other.edge_indicators_),
+      rb_alpha_edge_(other.rb_alpha_edge_),
+      rb_pregamma_edge_(other.rb_pregamma_edge_),
       inclusion_probability_(other.inclusion_probability_),
       edge_selection_(other.edge_selection_),
       edge_selection_active_(other.edge_selection_active_),
@@ -846,6 +858,48 @@ arma::ivec MixedMRFModel::get_vectorized_indicator_parameters() {
     }
 
     return out;
+}
+
+
+arma::vec MixedMRFModel::get_vectorized_rb_alpha() {
+    // Mirror get_vectorized_indicator_parameters() exactly so the RB inputs
+    // align with the indicator vector: Gxx upper triangle, then Gyy upper
+    // triangle, then the full Gxy block, all row-major.
+    size_t total = num_pairwise_xx_ + num_pairwise_yy_ + num_cross_;
+    arma::vec out(total);
+    size_t idx = 0;
+    for(size_t i = 0; i + 1 < p_; ++i)
+        for(size_t j = i + 1; j < p_; ++j) out(idx++) = rb_alpha_edge_(i, j);
+    for(size_t i = 0; i + 1 < q_; ++i)
+        for(size_t j = i + 1; j < q_; ++j) out(idx++) = rb_alpha_edge_(p_ + i, p_ + j);
+    for(size_t i = 0; i < p_; ++i)
+        for(size_t j = 0; j < q_; ++j) out(idx++) = rb_alpha_edge_(i, p_ + j);
+    return out;
+}
+
+
+arma::ivec MixedMRFModel::get_vectorized_rb_pregamma() {
+    size_t total = num_pairwise_xx_ + num_pairwise_yy_ + num_cross_;
+    arma::ivec out(total);
+    size_t idx = 0;
+    for(size_t i = 0; i + 1 < p_; ++i)
+        for(size_t j = i + 1; j < p_; ++j) out(idx++) = rb_pregamma_edge_(i, j);
+    for(size_t i = 0; i + 1 < q_; ++i)
+        for(size_t j = i + 1; j < q_; ++j) out(idx++) = rb_pregamma_edge_(p_ + i, p_ + j);
+    for(size_t i = 0; i < p_; ++i)
+        for(size_t j = 0; j < q_; ++j) out(idx++) = rb_pregamma_edge_(i, p_ + j);
+    return out;
+}
+
+
+arma::vec MixedMRFModel::get_vectorized_rb_inclusion() {
+    // J = alpha for a birth (gamma = 0), 1 - alpha for a death (gamma = 1).
+    arma::vec alpha = get_vectorized_rb_alpha();
+    arma::ivec pregamma = get_vectorized_rb_pregamma();
+    for(arma::uword e = 0; e < alpha.n_elem; ++e) {
+        if(pregamma(e) == 1) alpha(e) = 1.0 - alpha(e);
+    }
+    return alpha;
 }
 
 

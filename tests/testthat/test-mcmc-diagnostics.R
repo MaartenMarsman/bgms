@@ -384,7 +384,7 @@ test_that("constant-but-unequal sub-chains give +Inf, not NA", {
   expect_identical(rhat, Inf)
 })
 
-test_that("bgm indicator Rhat matches classic split-Rhat with no df artifact", {
+test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked for zero-flip edges", {
   skip_on_cran()
   data = Wenchuan[, 1:6]
   fit = bgm(
@@ -392,10 +392,12 @@ test_that("bgm indicator Rhat matches classic split-Rhat with no df artifact", {
     iter = 1000, warmup = 1000, seed = 123,
     display_progress = "none", verbose = FALSE
   )
-  reported = fit$posterior_summary_indicator$Rhat
+  summ = fit$posterior_summary_indicator
+  reported = summ$Rhat
 
-  # Independent classic split-Rhat from the raw indicator draws.
-  chains = fit$raw_samples$indicator
+  # Independent classic split-Rhat from the Rao-Blackwellized (J) draws that the
+  # summary reports, not the binary indicator draws.
+  chains = fit$raw_samples$rb_inclusion
   nchains = length(chains)
   niter = nrow(chains[[1]])
   nparam = ncol(chains[[1]])
@@ -403,13 +405,17 @@ test_that("bgm indicator Rhat matches classic split-Rhat with no df artifact", {
   for(c in seq_len(nchains)) arr[, c, ] = chains[[c]]
   manual = classic_rhat_ref(bgms:::split_chains(arr))
 
-  # summarize_indicator() masks Rhat to NA where the transition-based n_eff_mixt
-  # is undefined (all sub-chains constant and equal); those rows are NA in both.
+  # Zero-flip edges (n_eff_mixt NA) carry no exploration information, so the RB
+  # Rhat and RB n_eff are masked to NA: a heavy-tailed near-constant J chain
+  # would otherwise report a misleading ~1.29 next to a falsely reassuring ESS.
+  zero_flip = is.na(summ$n_eff_mixt)
+  expect_true(all(is.na(reported[zero_flip])))
+  expect_true(all(is.na(summ$n_eff[zero_flip])))
+
+  # On the remaining (few/many-flip) edges the reported Rhat is exactly the
+  # classic split-Rhat on the J draws, with no df adjustment.
   keep = !is.na(reported)
   expect_equal(reported[keep], manual[keep], tolerance = 1e-8)
-
-  # No near-saturated edge produces the removed ~1.29 df-adjustment artifact.
-  expect_false(any(reported >= 1.25 & reported <= 1.35, na.rm = TRUE))
 })
 
 
