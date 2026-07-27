@@ -123,6 +123,10 @@ summary.bgms = function(object, ...) {
       out$indicator = object$posterior_summary_indicator
     }
 
+    if(!is.null(object$posterior_summary_interaction_scale)) {
+      out$interaction_scale = object$posterior_summary_interaction_scale
+    }
+
     if(!is.null(object$posterior_summary_pairwise_allocations)) {
       out$allocations = object$posterior_summary_pairwise_allocations
       out$mean_allocations = get_posterior_mean(object, "allocations")
@@ -193,6 +197,12 @@ print.summary.bgms = function(x, digits = 3, ...) {
       cat("that were not updated or whose draws are constant, so ESS/Rhat are undefined.\n")
       cat("`summary(fit)$indicator` still contains all computed values.\n")
     }
+    cat("\n")
+  }
+
+  if(!is.null(x$interaction_scale)) {
+    cat("Interaction slab scale:\n")
+    print(round(x$interaction_scale, digits = digits))
     cat("\n")
   }
 

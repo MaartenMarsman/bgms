@@ -842,6 +842,78 @@ extract_pairwise_interactions.bgmCompare = function(bgms_object) {
   stop("No pairwise interaction samples found in fit object.")
 }
 
+
+#' @title Extract Interaction Slab-Scale Samples
+#'
+#' @description
+#' Retrieves posterior samples of the interaction (pairwise) slab scale from a
+#' model fitted with a random-scale hyperprior
+#' (\code{bgm(..., interaction_scale_prior = )}). Errors when the fit used a
+#' fixed scale.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
+#'
+#' @return A matrix with one row per post-warmup iteration (chains stacked) and
+#'   a single column `interaction_scale`, containing posterior samples of the
+#'   sampled slab scale.
+#'
+#' @seealso [bgm()], [prior_sensitivity_check()], [extract_pairwise_interactions()]
+#' @family extractors
+#' @export
+#' @examples
+#' \donttest{
+#' fit = bgm(Wenchuan[, 1:5],
+#'   interaction_scale_prior = gamma_prior(2, 2),
+#'   chains = 2
+#' )
+#' scale_draws = extract_scale_draws(fit)
+#' quantile(scale_draws, c(0.025, 0.5, 0.975))
+#' }
+extract_scale_draws = function(bgms_object) {
+  UseMethod("extract_scale_draws")
+}
+
+#' @inheritParams extract_scale_draws
+#' @exportS3Method
+#' @noRd
+extract_scale_draws.bgms = function(bgms_object) {
+  extract_scale_draws_impl(bgms_object)
+}
+
+#' @inheritParams extract_scale_draws
+#' @exportS3Method
+#' @noRd
+extract_scale_draws.bgmCompare = function(bgms_object) {
+  extract_scale_draws_impl(bgms_object)
+}
+
+# ------------------------------------------------------------------
+# extract_scale_draws_impl
+# ------------------------------------------------------------------
+# Shared reader for the sampled interaction slab scale. Pools the
+# per-chain scale draws into a one-column matrix.
+#
+# @param bgms_object  A fitted bgms / bgmCompare object.
+#
+# Returns: an (niter * nchains) x 1 matrix of scale draws.
+# ------------------------------------------------------------------
+extract_scale_draws_impl = function(bgms_object) {
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw) || is.null(raw$interaction_scale)) {
+    stop(
+      "This fit used a fixed interaction slab scale, so there are no scale ",
+      "draws to extract. Refit with an interaction_scale_prior, for example ",
+      "bgm(..., interaction_scale_prior = gamma_prior(shape = 2, rate = 2)), ",
+      "to sample the scale."
+    )
+  }
+  draws = matrix(do.call(c, raw$interaction_scale), ncol = 1L)
+  colnames(draws) = "interaction_scale"
+  rownames(draws) = paste0("iter", seq_len(nrow(draws)))
+  draws
+}
+
 #' @title Extract Main Effect Estimates
 #'
 #' @description

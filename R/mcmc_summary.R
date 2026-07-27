@@ -127,6 +127,24 @@ ensure_summaries = function(fit) {
     }
   }
 
+  # Random interaction-slab-scale convergence summary (with a 95% credible
+  # interval), computed whenever the scale was sampled.
+  if(!is.null(raw[[1]][["interaction_scale"]])) {
+    niter = length(raw[[1]]$interaction_scale)
+    nchains = length(raw)
+    scale_array = array(NA_real_, dim = c(niter, nchains, 1L))
+    for(i in seq_len(nchains)) {
+      scale_array[, i, 1L] = raw[[i]]$interaction_scale
+    }
+    scale_summary = summarize_manual(
+      raw,
+      array3d = scale_array,
+      probs = c(0.025, 0.975)
+    )[, -1, drop = FALSE]
+    rownames(scale_summary) = "interaction slab scale"
+    cache$posterior_summary_interaction_scale = scale_summary
+  }
+
   cache$summaries_computed = TRUE
   invisible(NULL)
 }
@@ -180,7 +198,7 @@ compute_rhat_ess = function(draws) {
 }
 
 # Basic summarizer for continuous parameters
-summarize_manual = function(fit, component = c("main_samples", "pairwise_samples"), param_names = NULL, array3d = NULL) {
+summarize_manual = function(fit, component = c("main_samples", "pairwise_samples"), param_names = NULL, array3d = NULL, probs = NULL) {
   component = match.arg(component) # Add options later
   if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
@@ -196,6 +214,13 @@ summarize_manual = function(fit, component = c("main_samples", "pairwise_samples
   mcse = sds / sqrt(ess)
 
   result = cbind(mean = means, mcse = mcse, sd = sds, n_eff = ess, Rhat = rhat)
+
+  # Optional posterior credible-interval columns (e.g. probs = c(0.025, 0.975)).
+  if(!is.null(probs)) {
+    quant = t(apply(pooled, 2, stats::quantile, probs = probs, names = FALSE))
+    colnames(quant) = paste0(format(100 * probs, trim = TRUE), "%")
+    result = cbind(result, quant)
+  }
 
   if(is.null(param_names)) {
     data.frame(parameter = paste0("parameter [", seq_len(nparam), "]"), result, check.names = FALSE)
