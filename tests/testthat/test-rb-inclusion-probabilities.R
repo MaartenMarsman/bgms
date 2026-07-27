@@ -83,7 +83,7 @@ test_that("RB inclusion matrix matches raw PIP for well-mixed edges", {
     iter = 2000, warmup = 500, chains = 2, seed = 4242,
     edge_selection = TRUE, display_progress = "none"
   )
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
 
   expect_equal(dim(rb), dim(pip))
@@ -107,7 +107,7 @@ test_that("RB is interior for Monte-Carlo-saturated edges and never worse than r
     iter = 2000, warmup = 500, chains = 2, seed = 909,
     edge_selection = TRUE, display_progress = "none"
   )
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
   lt = lower.tri(rb)
   rbv = rb[lt]
@@ -145,7 +145,7 @@ test_that("rb_inclusion is exposed, interior, and edge-aligned for GGM", {
   expect_false(is.null(raw$rb_inclusion))
   expect_equal(dim(raw$rb_inclusion[[1]]), dim(raw$indicator[[1]]))
 
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   vals = rb[lower.tri(rb)]
   expect_true(all(is.finite(vals)))
   expect_true(all(vals >= 0 & vals <= 1))
@@ -191,7 +191,7 @@ test_that("extract_inclusion_bf is finite for saturated edges and matches the RB
     edge_selection = TRUE, display_progress = "none"
   )
   logbf = extract_inclusion_bf(fit)
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
 
   lt = lower.tri(logbf)
@@ -241,7 +241,7 @@ test_that("rb_inclusion is exposed and interior for a mixed MRF", {
   expect_false(is.null(raw$rb_inclusion))
   expect_equal(dim(raw$rb_inclusion[[1]]), dim(raw$indicator[[1]]))
 
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   vals = rb[lower.tri(rb)]
   expect_true(all(is.finite(vals)))
   expect_true(all(vals >= 0 & vals <= 1))
@@ -260,7 +260,7 @@ test_that("extract_inclusion_bf pins the bgmCompare interleaved flattening", {
   )
 
   logbf = extract_inclusion_bf(fit)
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
 
   # Same VxV shape and names as the RB probability matrix, and symmetric.
   expect_equal(dim(logbf), dim(rb))
@@ -285,7 +285,7 @@ test_that("extract_inclusion_bf pins the bgmCompare interleaved flattening", {
   }
 })
 
-test_that("extract_rb_inclusion_probabilities errors without edge selection", {
+test_that("estimator = 'rb' errors without edge selection", {
   data("Wenchuan", package = "bgms")
   fit = bgm(
     Wenchuan[, 1:5],
@@ -293,7 +293,7 @@ test_that("extract_rb_inclusion_probabilities errors without edge selection", {
     edge_selection = FALSE, display_progress = "none"
   )
   expect_error(
-    extract_rb_inclusion_probabilities(fit),
+    extract_posterior_inclusion_probabilities(fit, estimator = "rb"),
     "edge_selection = TRUE"
   )
 })
@@ -314,7 +314,7 @@ test_that("rb_inclusion is exposed for bgmCompare difference selection", {
   expect_equal(length(raw$rb_inclusion), length(raw$indicator))
   expect_equal(dim(raw$rb_inclusion[[1]]), dim(raw$indicator[[1]]))
 
-  rb = extract_rb_inclusion_probabilities(fit)
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
   expect_equal(dim(rb), dim(pip))
 

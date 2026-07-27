@@ -4,11 +4,18 @@
 \alias{extract_posterior_inclusion_probabilities}
 \title{Extract Posterior Inclusion Probabilities}
 \usage{
-extract_posterior_inclusion_probabilities(bgms_object)
+extract_posterior_inclusion_probabilities(
+  bgms_object,
+  estimator = c("raw", "rb")
+)
 }
 \arguments{
 \item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
+
+\item{estimator}{Character; which estimator of the posterior inclusion
+probability to return. \code{"raw"} (default) averages the indicator draws;
+\code{"rb"} returns the lower-variance Rao-Blackwellized average.}
 }
 \value{
 A symmetric p x p matrix of posterior inclusion probabilities,
@@ -18,15 +25,37 @@ with variable names as row and column names.
 Requires \code{edge_selection = TRUE}.}
 \item{bgmCompare}{Diagonal entries are main-effect inclusion
 probabilities; off-diagonal entries are pairwise difference
-inclusion probabilities. Requires \code{difference_selection = TRUE}.}
+inclusion probabilities. Requires \code{difference_selection = TRUE}.
+With \code{estimator = "rb"}, indicators that were not selected (e.g.
+main-effect differences when \code{main_difference_selection = FALSE})
+are returned as \code{NA}.}
 }
 }
 \description{
 Computes posterior inclusion probabilities from a model fitted with
 \code{\link[=bgm]{bgm()}} (edge inclusion) or \code{\link[=bgmCompare]{bgmCompare()}} (difference inclusion).
+
+Two estimators of the same posterior inclusion probability are available
+through \code{estimator}. The default \code{"raw"} averages the indicator draws. The
+Rao-Blackwellized estimator \code{"rb"} instead averages the one-step draw
+\eqn{J_t = \gamma_t + (1 - 2 \gamma_t)\,\alpha_t}, where \eqn{\gamma_t} is
+the indicator state before the move and \eqn{\alpha_t} is the acceptance
+probability of the birth/death proposal. Averaging \eqn{J_t} is a
+lower-variance estimator and in exact arithmetic lies strictly inside
+\eqn{(0, 1)}, so even indicators whose raw average saturates at 0 or 1
+receive an interior estimate. In double precision, however, the average of
+the stored \eqn{J_t} draws still rounds to exactly 0 or 1 for edges with
+overwhelming per-iteration evidence, because \eqn{1 - \alpha_t} underflows
+once \eqn{\alpha_t} drops below about \code{1e-16}. For inclusion Bayes factors,
+use \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which accumulates the odds on the
+acceptance-probability scale and stays finite far beyond that ceiling. The
+\code{"rb"} estimator changes only the summary, not the sampler; it inherits the
+chain's mixing, does not rescue a chain that has failed to explore the model
+space, and requires a fit from bgms >= 0.2.0.0.
 }
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_indicators]{extract_indicators()}}
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}},
+\code{\link[=extract_indicators]{extract_indicators()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},
@@ -42,7 +71,6 @@ Other extractors:
 \code{\link[=extract_partial_correlations]{extract_partial_correlations()}},
 \code{\link[=extract_precision]{extract_precision()}},
 \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
-\code{\link[=extract_rb_inclusion_probabilities]{extract_rb_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
 \code{\link[=extract_sbm]{extract_sbm()}}
 }
