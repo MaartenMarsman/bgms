@@ -244,6 +244,27 @@ public:
     }
 
     /**
+     * @return Per-edge acceptance probability alpha_e = exp(min(0, log_accept_e))
+     *         of the birth/death proposal from the most recent
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters(). The raw alpha (not
+     *         1 - alpha) so the RB odds can be accumulated without cancellation.
+     *         Default: empty vector.
+     */
+    virtual arma::vec get_vectorized_rb_alpha() {
+        return arma::vec();
+    }
+
+    /**
+     * @return Per-edge pre-move indicator state (0 or 1) from the most recent
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters(). Default: empty vector.
+     */
+    virtual arma::ivec get_vectorized_rb_pregamma() {
+        return arma::ivec();
+    }
+
+    /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
      *
      * Used by NUTSSampler for mass-matrix sizing and adaptation.

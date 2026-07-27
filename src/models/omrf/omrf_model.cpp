@@ -79,8 +79,11 @@ OMRFModel::OMRFModel(
     // Build interaction index
     build_interaction_index();
 
-    // Rao-Blackwellized inclusion storage: one slot per candidate edge.
-    rb_inclusion_ = arma::zeros<arma::vec>(num_pairwise_);
+    // Rao-Blackwellized inclusion storage: one slot per candidate edge. Every
+    // stored (post-warmup) sample follows a full edge sweep that overwrites
+    // these, so the zero/-1 initial values are never read at a kept iteration.
+    rb_alpha_ = arma::zeros<arma::vec>(num_pairwise_);
+    rb_pregamma_ = -arma::ones<arma::ivec>(num_pairwise_);
 }
 
 
@@ -125,7 +128,8 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       gradient_cache_valid_(other.gradient_cache_valid_),
       interaction_index_(other.interaction_index_),
       shuffled_edge_order_(other.shuffled_edge_order_),
-      rb_inclusion_(other.rb_inclusion_)
+      rb_alpha_(other.rb_alpha_),
+      rb_pregamma_(other.rb_pregamma_)
 {
 }
 
@@ -923,13 +927,12 @@ double OMRFModel::update_edge_indicator(int var1, int var2) {
         log_accept -= MY_LOG(inclusion_probability_ij) - MY_LOG(1.0 - inclusion_probability_ij);
     }
 
-    // Rao-Blackwellized inclusion draw, computed before the accept decision
-    // from the pre-move state gamma. alpha = exp(min(0, log_accept)) is the
-    // MH acceptance probability; J = gamma + (1 - 2 gamma) alpha, i.e. alpha
-    // for a birth proposal (gamma = 0) and 1 - alpha for a death proposal
-    // (gamma = 1). The accept/reject behaviour below is unchanged.
+    // Acceptance probability of the birth/death proposal, computed before the
+    // accept decision. The caller pairs it with the pre-move state gamma to
+    // form the RB draw J = gamma + (1 - 2 gamma) alpha and to accumulate the
+    // RB odds on the alpha scale. The accept/reject behaviour below is
+    // unchanged.
     const double alpha = MY_EXP(std::min(0.0, log_accept));
-    const double rb_draw = proposing_addition ? alpha : (1.0 - alpha);
 
     if (MY_LOG(runif(rng_)) < log_accept) {
         const int updated_indicator = 1 - edge_indicators_(var1, var2);
@@ -945,7 +948,7 @@ double OMRFModel::update_edge_indicator(int var1, int var2) {
         log_denominator_cache_(var2) = log_denom_prop_2;
     }
 
-    return rb_draw;
+    return alpha;
 }
 
 
@@ -1030,15 +1033,32 @@ void OMRFModel::update_edge_indicators() {
         int idx = shuffled_edge_order_(i);
         int var1 = interaction_index_(idx, 1);
         int var2 = interaction_index_(idx, 2);
-        // Store the RB draw at the canonical edge index so the output vector
-        // is aligned with get_vectorized_indicator_parameters().
-        rb_inclusion_(idx) = update_edge_indicator(var1, var2);
+        // Capture the pre-move state, then the acceptance probability, at the
+        // canonical edge index so both are aligned with
+        // get_vectorized_indicator_parameters().
+        rb_pregamma_(idx) = edge_indicators_(var1, var2);
+        rb_alpha_(idx) = update_edge_indicator(var1, var2);
     }
 }
 
 
 arma::vec OMRFModel::get_vectorized_rb_inclusion() {
-    return rb_inclusion_;
+    // J = alpha for a birth (gamma = 0), 1 - alpha for a death (gamma = 1).
+    arma::vec j = rb_alpha_;
+    for (arma::uword e = 0; e < j.n_elem; ++e) {
+        if (rb_pregamma_(e) == 1) j(e) = 1.0 - rb_alpha_(e);
+    }
+    return j;
+}
+
+
+arma::vec OMRFModel::get_vectorized_rb_alpha() {
+    return rb_alpha_;
+}
+
+
+arma::ivec OMRFModel::get_vectorized_rb_pregamma() {
+    return rb_pregamma_;
 }
 
 

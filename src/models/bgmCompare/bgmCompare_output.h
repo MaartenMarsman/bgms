@@ -21,6 +21,9 @@ struct bgmCompareOutput {
   /// Rao-Blackwellized inclusion draws [iter x (#edges + #variables)] (if used).
   /// NaN entries mark indicators that were not selected.
   arma::mat rb_inclusion_samples;
+  /// RB odds accumulators [(#edges + #variables) x 4] on the alpha scale:
+  /// columns [n01, n10, n0_visits, n1_visits] (if difference selection used).
+  arma::mat rb_counts;
   /// SBM cluster allocation samples [iter x num_variables] (Stochastic-Block only).
   arma::imat allocation_samples;
 

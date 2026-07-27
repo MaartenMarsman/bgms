@@ -42,6 +42,22 @@ public:
     /// Whether Rao-Blackwellized inclusion draws are stored.
     bool        has_rb_inclusion = false;
 
+    /// Post-warmup Rao-Blackwellized odds accumulators, per edge, on the
+    /// acceptance-probability scale so no 1 - alpha is ever formed per draw
+    /// (which would round to 1 once alpha < ~1e-16). rb_n01 sums alpha over
+    /// birth proposals (pre-move state 0), rb_n10 over death proposals
+    /// (pre-move state 1); rb_n0_visits and rb_n1_visits count those proposals.
+    /// The RB inclusion odds follow from the exact identity
+    ///   mean(J) / (1 - mean(J))
+    ///     = (rb_n01 + rb_n1_visits - rb_n10) / (rb_n0_visits - rb_n01 + rb_n10),
+    /// finite down to log-acceptances of about -745.
+    arma::vec   rb_n01;
+    arma::vec   rb_n10;
+    arma::vec   rb_n0_visits;
+    arma::vec   rb_n1_visits;
+    /// Whether the RB odds accumulators are stored.
+    bool        has_rb_counts = false;
+
     /// SBM allocation samples (n_variables x n_iter), only if SBM edge prior.
     arma::imat  allocation_samples;
     /// Whether allocation samples are stored.
@@ -131,6 +147,18 @@ public:
     }
 
     /**
+     * Reserve (zeroed) storage for the RB odds accumulators.
+     * @param n_edges  Number of edges (matches indicator vector length)
+     */
+    void reserve_rb_counts(const size_t n_edges) {
+        rb_n01 = arma::zeros<arma::vec>(n_edges);
+        rb_n10 = arma::zeros<arma::vec>(n_edges);
+        rb_n0_visits = arma::zeros<arma::vec>(n_edges);
+        rb_n1_visits = arma::zeros<arma::vec>(n_edges);
+        has_rb_counts = true;
+    }
+
+    /**
      * Reserve storage for SBM allocation samples
      * @param n_variables  Number of variables
      * @param n_iter       Number of sampling iterations
@@ -205,6 +233,24 @@ public:
      */
     void store_rb_inclusion(const size_t iter, const arma::vec& rb) {
         rb_inclusion_samples.col(iter) = rb;
+    }
+
+    /**
+     * Accumulate the RB odds counts from one post-warmup edge sweep.
+     * @param alpha     Per-edge acceptance probability of the last proposal
+     * @param pregamma  Per-edge pre-move indicator state (0 or 1; < 0 skips)
+     */
+    void accumulate_rb_counts(const arma::vec& alpha, const arma::ivec& pregamma) {
+        const arma::uword n = alpha.n_elem;
+        for (arma::uword e = 0; e < n; ++e) {
+            if (pregamma(e) == 0) {
+                rb_n01(e) += alpha(e);
+                rb_n0_visits(e) += 1.0;
+            } else if (pregamma(e) == 1) {
+                rb_n10(e) += alpha(e);
+                rb_n1_visits(e) += 1.0;
+            }
+        }
     }
 
     /**

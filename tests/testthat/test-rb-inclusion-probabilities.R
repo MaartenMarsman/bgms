@@ -47,7 +47,9 @@ test_that("RB draw aligns with the empirical flip behaviour per edge", {
   n_at_1 = integer(n_edges)
 
   for(e in seq_len(n_edges)) {
-    n1 = 0L; stays = 0L; rb_at_1 = numeric(0)
+    n1 = 0L
+    stays = 0L
+    rb_at_1 = numeric(0)
     for(c in seq_len(n_chains)) {
       ind_e = raw$indicator[[c]][, e]
       rb_e = raw$rb_inclusion[[c]][, e]
@@ -88,7 +90,8 @@ test_that("RB inclusion matrix matches raw PIP for well-mixed edges", {
   expect_equal(rownames(rb), rownames(pip))
 
   lt = lower.tri(rb)
-  rbv = rb[lt]; pv = pip[lt]
+  rbv = rb[lt]
+  pv = pip[lt]
   # Well-mixed edges: raw PIP away from the boundary. RB and raw both estimate
   # the same quantity, so they agree within Monte Carlo error.
   mixed = pv > 0.1 & pv < 0.9
@@ -107,7 +110,8 @@ test_that("RB is interior for Monte-Carlo-saturated edges and never worse than r
   rb = extract_rb_inclusion_probabilities(fit)
   pip = extract_posterior_inclusion_probabilities(fit)
   lt = lower.tri(rb)
-  rbv = rb[lt]; pv = pip[lt]
+  rbv = rb[lt]
+  pv = pip[lt]
 
   # RB never saturates more edges than the raw estimator: it converts
   # Monte-Carlo-induced 0/1 estimates into interior, finite-Bayes-factor
@@ -124,15 +128,17 @@ test_that("RB is interior for Monte-Carlo-saturated edges and never worse than r
   }
 })
 
-test_that("rb_inclusion is exposed and interior for GGM (continuous)", {
+test_that("rb_inclusion is exposed, interior, and edge-aligned for GGM", {
   set.seed(1)
-  n = 200; p = 6
+  n = 200
+  p = 6
   x = matrix(stats::rnorm(n * p), n, p)
-  x[, 2] = x[, 1] + stats::rnorm(n, sd = 0.5)   # induce one strong edge
+  x[, 2] = x[, 1] + stats::rnorm(n, sd = 0.5) # induce one strong edge
 
   fit = bgm(
-    x, variable_type = "continuous",
-    iter = 1500, warmup = 500, chains = 2, seed = 21,
+    x,
+    variable_type = "continuous",
+    iter = 2000, warmup = 500, chains = 2, seed = 21,
     edge_selection = TRUE, display_progress = "none"
   )
   raw = fit$raw_samples
@@ -143,6 +149,79 @@ test_that("rb_inclusion is exposed and interior for GGM (continuous)", {
   vals = rb[lower.tri(rb)]
   expect_true(all(is.finite(vals)))
   expect_true(all(vals >= 0 & vals <= 1))
+
+  # Flip-alignment on the GGM path: its rb storage uses a row-major-with-diagonal
+  # index, so a mismatch would scramble edge labels. mean(J | pre-state 1) must
+  # track the empirical stay-from-1 rate per edge.
+  n_chains = length(raw$indicator)
+  n_edges = ncol(raw$indicator[[1]])
+  stay_rate = numeric(n_edges)
+  mean_rb_at_1 = numeric(n_edges)
+  n_at_1 = integer(n_edges)
+  for(e in seq_len(n_edges)) {
+    n1 = 0L
+    stays = 0L
+    rb_at_1 = numeric(0)
+    for(c in seq_len(n_chains)) {
+      ind_e = raw$indicator[[c]][, e]
+      rb_e = raw$rb_inclusion[[c]][, e]
+      if(length(ind_e) < 2) next
+      prior_state = ind_e[-length(ind_e)]
+      at_1 = prior_state == 1
+      n1 = n1 + sum(at_1)
+      stays = stays + sum(at_1 & ind_e[-1] == 1)
+      rb_at_1 = c(rb_at_1, rb_e[-1][at_1])
+    }
+    n_at_1[e] = n1
+    if(n1 > 0) {
+      stay_rate[e] = stays / n1
+      mean_rb_at_1[e] = mean(rb_at_1)
+    }
+  }
+  active = n_at_1 >= 50
+  expect_true(sum(active) >= 1)
+  expect_true(max(abs(stay_rate[active] - mean_rb_at_1[active])) < 0.1)
+})
+
+test_that("extract_inclusion_bf is finite for saturated edges and matches the RB odds", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(
+    Wenchuan[, 1:12],
+    iter = 2000, warmup = 500, chains = 2, seed = 909,
+    edge_selection = TRUE, display_progress = "none"
+  )
+  logbf = extract_inclusion_bf(fit)
+  rb = extract_rb_inclusion_probabilities(fit)
+  pip = extract_posterior_inclusion_probabilities(fit)
+
+  lt = lower.tri(logbf)
+  bfv = logbf[lt]
+  rbv = rb[lt]
+  pv = pip[lt]
+
+  # Every edge is proposed every sweep, so no NA. The accumulator odds are
+  # finite even where the naive RB average saturates, except for edges whose
+  # death acceptance underflows all the way below exp(-745): those are +Inf
+  # honestly (an exactly-zero denominator), never NaN or -Inf-by-cancellation.
+  expect_true(all(!is.na(bfv)))
+  expect_true(all(bfv > -Inf)) # no spurious -Inf from cancellation
+  expect_true(any(pv == 1)) # there ARE saturated edges in this fit
+
+  # The accumulator rescues boundary edges the naive RB average cannot: more
+  # edges get a finite Bayes factor than are strictly interior in the RB
+  # probability matrix (i.e. at least one saturated edge becomes finite).
+  n_interior_prob = sum(rbv > 0 & rbv < 1)
+  n_finite_bf = sum(is.finite(bfv))
+  expect_true(n_finite_bf > n_interior_prob)
+
+  # Where the RB probability is interior, the BF must equal its log odds
+  # (default prior is 0.5, so posterior odds == Bayes factor).
+  interior = rbv > 0.02 & rbv < 0.98
+  if(any(interior)) {
+    expect_equal(bfv[interior], log(rbv[interior] / (1 - rbv[interior])),
+      tolerance = 1e-6
+    )
+  }
 })
 
 test_that("rb_inclusion is exposed and interior for a mixed MRF", {

@@ -741,8 +741,9 @@ double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
     size_t e = j * (j + 1) / 2 + i; // parameter index in vectorized form (column-major upper triangle)
     double proposal_sd = proposal_sds_(e);
 
-    // Rao-Blackwellized inclusion draw J for this edge, set in each branch.
-    double rb_draw = 0.0;
+    // Acceptance probability (raw alpha) of the birth/death proposal, set in
+    // each branch. The caller derives the RB draw J and the odds accumulators.
+    double alpha = 0.0;
 
     if (edge_indicators_(i, j) == 1) {
         // Propose to turn OFF the edge. Only the (i,j), (j,i), (j,j)
@@ -790,7 +791,7 @@ double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                                 static_cast<int>(j), ln_alpha, log_j_del, -1);
         }
 
-        rb_draw = 1.0 - MY_EXP(std::min(0.0, ln_alpha));   // gamma = 1: J = 1 - alpha
+        alpha = MY_EXP(std::min(0.0, ln_alpha));   // death proposal (gamma = 1)
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
 
@@ -863,7 +864,7 @@ double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
                                 static_cast<int>(j), ln_alpha, log_j_add, 1);
         }
 
-        rb_draw = MY_EXP(std::min(0.0, ln_alpha));   // gamma = 0: J = alpha
+        alpha = MY_EXP(std::min(0.0, ln_alpha));   // birth proposal (gamma = 0)
 
         if (MY_LOG(runif(rng_)) < ln_alpha) {
             // Accept: turn ON the edge
@@ -886,7 +887,7 @@ double GGMModel::update_edge_indicator_parameter_pair(size_t i, size_t j) {
         }
     }
 
-    return rb_draw;
+    return alpha;
 }
 
 void GGMModel::do_one_metropolis_step(int iteration) {
@@ -944,15 +945,18 @@ void GGMModel::update_edge_indicators() {
         size_t flat = shuffled_edge_order_(idx);
         size_t i = edge_pairs_(flat, 0);
         size_t j = edge_pairs_(flat, 1);
-        double rb = use_conjugate_edge_proposal_
+        // Capture the pre-move state before the toggle, then the acceptance
+        // probability, at the row-major upper-triangle index (i = 0..p-1,
+        // j = i..p-1, diagonal included) so both are aligned with
+        // get_vectorized_indicator_parameters().
+        const int pre = edge_indicators_(i, j);
+        double alpha = use_conjugate_edge_proposal_
             ? update_edge_indicator_conjugate(i, j)
             : update_edge_indicator_parameter_pair(i, j);
-        // Store J at the row-major upper-triangle index (i = 0..p-1, j = i..p-1,
-        // diagonal included) so the output vector is aligned with
-        // get_vectorized_indicator_parameters().
-        if (rb_inclusion_.n_elem > 0) {
+        if (rb_alpha_.n_elem > 0) {
             size_t e = i * p_ - i * (i - 1) / 2 + (j - i);
-            rb_inclusion_(e) = rb;
+            rb_alpha_(e) = alpha;
+            rb_pregamma_(e) = pre;
         }
     }
     // Same rationale as the end-of-Metropolis-step refresh.
@@ -960,7 +964,21 @@ void GGMModel::update_edge_indicators() {
 }
 
 arma::vec GGMModel::get_vectorized_rb_inclusion() {
-    return rb_inclusion_;
+    // J = alpha for a birth (gamma = 0), 1 - alpha for a death (gamma = 1);
+    // diagonal slots (pregamma = -1) are never proposed and stay at 0.
+    arma::vec j = rb_alpha_;
+    for (arma::uword e = 0; e < j.n_elem; ++e) {
+        if (rb_pregamma_(e) == 1) j(e) = 1.0 - rb_alpha_(e);
+    }
+    return j;
+}
+
+arma::vec GGMModel::get_vectorized_rb_alpha() {
+    return rb_alpha_;
+}
+
+arma::ivec GGMModel::get_vectorized_rb_pregamma() {
+    return rb_pregamma_;
 }
 
 double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
@@ -1021,8 +1039,10 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
     }
     const bool alpha_ne_1 = std::abs(alpha - 1.0) > 1e-12;
 
-    // Rao-Blackwellized inclusion draw J for this edge, set in each branch.
-    double rb_draw = 0.0;
+    // Acceptance probability (raw) of the birth/death proposal; the caller
+    // derives the RB draw J and the odds accumulators. (Named accept_prob to
+    // avoid the Gamma-shape `alpha` above.)
+    double accept_prob = 0.0;
 
     if (edge_indicators_(i, j) == 0) {
         // Add: draw phi* from the full conditional, then accept.
@@ -1038,7 +1058,7 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
                                 edge_indicators_, static_cast<int>(i),
                                 static_cast<int>(j), log_A, log_j_conj, 1);
         }
-        rb_draw = MY_EXP(std::min(0.0, log_A));   // gamma = 0: J = alpha
+        accept_prob = MY_EXP(std::min(0.0, log_A));   // birth proposal (gamma = 0)
         if (MY_LOG(runif(rng_)) < log_A) {
             const double omega_ij_old = precision_matrix_(i, j);
             const double omega_jj_old = precision_matrix_(j, j);
@@ -1066,7 +1086,7 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
                                 edge_indicators_, static_cast<int>(i),
                                 static_cast<int>(j), log_A, log_j_conj, -1);
         }
-        rb_draw = 1.0 - MY_EXP(std::min(0.0, log_A));   // gamma = 1: J = 1 - alpha
+        accept_prob = MY_EXP(std::min(0.0, log_A));   // death proposal (gamma = 1)
         if (MY_LOG(runif(rng_)) < log_A) {
             const double kjj = constants_[5];      // constrained_diagonal(0)
             const double omega_ij_old = precision_matrix_(i, j);
@@ -1083,7 +1103,7 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
         }
     }
 
-    return rb_draw;
+    return accept_prob;
 }
 
 void GGMModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) {

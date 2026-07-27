@@ -41,6 +41,7 @@ Other extractors:
 \code{\link[=extract_category_thresholds]{extract_category_thresholds()}},
 \code{\link[=extract_ess]{extract_ess()}},
 \code{\link[=extract_group_params]{extract_group_params()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}},
 \code{\link[=extract_indicator_priors]{extract_indicator_priors()}},
 \code{\link[=extract_indicators]{extract_indicators()}},
 \code{\link[=extract_main_effects]{extract_main_effects()}},

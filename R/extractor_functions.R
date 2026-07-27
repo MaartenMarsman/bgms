@@ -267,9 +267,14 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 #' probability of the birth/death proposal. Averaging \eqn{J_t} over post-warmup
 #' iterations is a lower-variance estimator of the inclusion probability than
 #' the raw indicator average returned by
-#' [extract_posterior_inclusion_probabilities()], and it stays strictly inside
-#' \eqn{(0, 1)}: even indicators whose raw average saturates at 0 or 1 receive
-#' an interior estimate, so the corresponding inclusion Bayes factor is finite.
+#' [extract_posterior_inclusion_probabilities()]. In exact arithmetic it lies
+#' strictly inside \eqn{(0, 1)}, so even indicators whose raw average saturates
+#' at 0 or 1 receive an interior estimate. In double precision, however, the
+#' average of the stored \eqn{J_t} draws still rounds to exactly 0 or 1 for
+#' edges with overwhelming per-iteration evidence, because \eqn{1 - \alpha_t}
+#' underflows once \eqn{\alpha_t} drops below about `1e-16`. For inclusion
+#' Bayes factors, use [extract_inclusion_bf()], which accumulates the odds
+#' on the acceptance-probability scale and stays finite far beyond that ceiling.
 #'
 #' The RB estimator changes only the summary, not the sampler; it inherits the
 #' chain's mixing and does not rescue a chain that has failed to explore the
@@ -290,7 +295,7 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
 #'       when `main_difference_selection = FALSE`) are returned as `NA`.}
 #'   }
 #'
-#' @seealso [bgm()], [bgmCompare()],
+#' @seealso [extract_inclusion_bf()], [bgm()], [bgmCompare()],
 #'   [extract_posterior_inclusion_probabilities()], [extract_indicators()]
 #' @family extractors
 #' @export
@@ -387,6 +392,166 @@ extract_rb_inclusion_probabilities.bgmCompare = function(bgms_object) {
   }
 
   return(rb_mat)
+}
+
+
+# ------------------------------------------------------------------
+# .rb_log_odds_from_counts (internal)
+# ------------------------------------------------------------------
+# Per-edge log posterior inclusion odds from the RB odds accumulators,
+# pooled over chains. counts is a per-chain list of (n_edges x 4) matrices
+# with columns [n01, n10, n0_visits, n1_visits] on the acceptance-probability
+# scale. Uses the exact identity
+#   mean(J) / (1 - mean(J))
+#     = (n01 + n1_visits - n10) / (n0_visits - n01 + n10),
+# which avoids forming 1 - alpha per draw and so stays finite down to
+# log-acceptances of about -745. Returns log(odds) (natural log): NA where an
+# edge was never updated, +Inf when the denominator is exactly zero, -Inf when
+# the numerator is exactly zero.
+# ------------------------------------------------------------------
+rb_log_odds_from_counts = function(counts) {
+  pooled = Reduce(`+`, counts)
+  n01 = pooled[, 1]
+  n10 = pooled[, 2]
+  n0_visits = pooled[, 3]
+  n1_visits = pooled[, 4]
+
+  num = n01 + n1_visits - n10
+  den = n0_visits - n01 + n10
+
+  out = log(num) - log(den)
+  out[num == 0] = -Inf
+  out[den == 0] = Inf
+  out[(n0_visits + n1_visits) == 0] = NA_real_
+  out
+}
+
+
+#' @title Extract Rao-Blackwellized Inclusion Bayes Factors
+#'
+#' @description
+#' Computes log inclusion Bayes factors from a model fitted with [bgm()] (edge
+#' inclusion) or [bgmCompare()] (difference inclusion), using the
+#' Rao-Blackwellized odds accumulators recorded during sampling. For each
+#' indicator the sampler sums the birth/death acceptance probability on the
+#' acceptance-probability scale, so the posterior inclusion odds follow from
+#' the exact identity
+#' \deqn{\frac{\bar{J}}{1 - \bar{J}}
+#'   = \frac{n_{01} + n_{1} - n_{10}}{n_{0} - n_{01} + n_{10}},}
+#' where \eqn{n_{01}} and \eqn{n_{10}} sum the acceptance probabilities of birth
+#' and death proposals and \eqn{n_0}, \eqn{n_1} count them. Because \eqn{1 -
+#' \alpha} is never formed per draw, the odds stay finite down to log
+#' acceptances of about -745, so edges that saturate the naive average of the
+#' RB draws (which rounds to 0 or 1 near the boundary) still receive a finite
+#' Bayes factor here.
+#'
+#' The returned value is the natural log of the posterior inclusion odds. This
+#' equals the log inclusion Bayes factor when the prior inclusion probability is
+#' \eqn{1/2} (the default). For a different prior inclusion probability
+#' \eqn{\pi}, subtract the prior log odds \eqn{\log(\pi / (1 - \pi))}.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
+#'
+#' @return A symmetric p x p matrix of log inclusion Bayes factors (natural
+#'   log), with variable names as row and column names. Entries are `NA` for
+#'   indicators that were never updated, `+Inf` when no exclusion evidence
+#'   remains (denominator exactly zero), and `-Inf` when no inclusion evidence
+#'   remains. For `bgms` the diagonal is `NA`; for `bgmCompare` the diagonal
+#'   holds main-effect difference Bayes factors.
+#'
+#' @seealso [extract_rb_inclusion_probabilities()],
+#'   [extract_posterior_inclusion_probabilities()]
+#' @family extractors
+#' @export
+extract_inclusion_bf = function(bgms_object) {
+  UseMethod("extract_inclusion_bf")
+}
+
+#' @inheritParams extract_inclusion_bf
+#' @exportS3Method
+#' @noRd
+extract_inclusion_bf.bgms = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$edge_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion Bayes factors, run bgm() with edge_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_counts)) {
+    stop("No Rao-Blackwellized odds accumulators found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  num_vars = arguments$num_variables %||% arguments$no_variables
+  data_columnnames = arguments$data_columnnames
+
+  log_odds = rb_log_odds_from_counts(raw$rb_counts)
+
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    return(fill_mixed_symmetric(
+      log_odds, d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices,
+      list(data_columnnames, data_columnnames)
+    ))
+  }
+
+  bf_matrix = matrix(NA_real_, num_vars, num_vars)
+  bf_matrix[lower.tri(bf_matrix)] = log_odds
+  bf_matrix[upper.tri(bf_matrix)] = t(bf_matrix)[upper.tri(bf_matrix)]
+
+  colnames(bf_matrix) = data_columnnames
+  rownames(bf_matrix) = data_columnnames
+
+  return(bf_matrix)
+}
+
+#' @inheritParams extract_inclusion_bf
+#' @exportS3Method
+#' @noRd
+extract_inclusion_bf.bgmCompare = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$difference_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion Bayes factors, run bgmCompare() with difference_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_counts)) {
+    stop("No Rao-Blackwellized odds accumulators found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  var_names = arguments$data_columnnames
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+
+  log_odds = rb_log_odds_from_counts(raw$rb_counts)
+
+  # Reconstruct the VxV matrix using the sampler's interleaved order:
+  # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V).
+  V = num_variables
+  stopifnot(length(log_odds) == V * (V + 1L) / 2L)
+
+  bf_mat = matrix(NA_real_,
+    nrow = V, ncol = V,
+    dimnames = list(var_names, var_names)
+  )
+  pos = 1L
+  for(i in seq_len(V)) {
+    bf_mat[i, i] = log_odds[pos]
+    pos = pos + 1L
+    if(i < V) {
+      for(j in (i + 1L):V) {
+        val = log_odds[pos]
+        pos = pos + 1L
+        bf_mat[i, j] = val
+        bf_mat[j, i] = val
+      }
+    }
+  }
+
+  return(bf_mat)
 }
 
 

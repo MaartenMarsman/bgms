@@ -32,16 +32,21 @@ the indicator state before the move and \eqn{\alpha_t} is the acceptance
 probability of the birth/death proposal. Averaging \eqn{J_t} over post-warmup
 iterations is a lower-variance estimator of the inclusion probability than
 the raw indicator average returned by
-\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}, and it stays strictly inside
-\eqn{(0, 1)}: even indicators whose raw average saturates at 0 or 1 receive
-an interior estimate, so the corresponding inclusion Bayes factor is finite.
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}. In exact arithmetic it lies
+strictly inside \eqn{(0, 1)}, so even indicators whose raw average saturates
+at 0 or 1 receive an interior estimate. In double precision, however, the
+average of the stored \eqn{J_t} draws still rounds to exactly 0 or 1 for
+edges with overwhelming per-iteration evidence, because \eqn{1 - \alpha_t}
+underflows once \eqn{\alpha_t} drops below about \code{1e-16}. For inclusion
+Bayes factors, use \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which accumulates the odds
+on the acceptance-probability scale and stays finite far beyond that ceiling.
 
 The RB estimator changes only the summary, not the sampler; it inherits the
 chain's mixing and does not rescue a chain that has failed to explore the
 model space.
 }
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}},
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}, \code{\link[=extract_indicators]{extract_indicators()}}
 
 Other extractors:
@@ -49,6 +54,7 @@ Other extractors:
 \code{\link[=extract_category_thresholds]{extract_category_thresholds()}},
 \code{\link[=extract_ess]{extract_ess()}},
 \code{\link[=extract_group_params]{extract_group_params()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}},
 \code{\link[=extract_indicator_priors]{extract_indicator_priors()}},
 \code{\link[=extract_indicators]{extract_indicators()}},
 \code{\link[=extract_log_odds]{extract_log_odds()}},

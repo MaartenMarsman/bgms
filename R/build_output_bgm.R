@@ -71,6 +71,9 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$rb_inclusion_samples)) {
         res$rb_inclusion_samples = t(chain$rb_inclusion_samples)[, offdiag_idx, drop = FALSE]
       }
+      if(!is.null(chain$rb_counts)) {
+        res$rb_counts = chain$rb_counts[offdiag_idx, , drop = FALSE]
+      }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
@@ -98,6 +101,9 @@ build_output_bgm = function(spec, raw) {
       }
       if(!is.null(chain$rb_inclusion_samples)) {
         res$rb_inclusion_samples = t(chain$rb_inclusion_samples)
+      }
+      if(!is.null(chain$rb_counts)) {
+        res$rb_counts = chain$rb_counts
       }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)

@@ -254,6 +254,12 @@ public:
      */
     arma::vec get_vectorized_rb_inclusion() override;
 
+    /** Per-edge acceptance probability from the last sweep (raw alpha). */
+    arma::vec get_vectorized_rb_alpha() override;
+
+    /** Per-edge pre-move indicator state from the last sweep (0/1; -1 = none). */
+    arma::ivec get_vectorized_rb_pregamma() override;
+
     /** Get active subset of inverse mass diagonal (includes Cholesky block). */
     arma::vec get_active_inv_mass() const override;
 
@@ -396,11 +402,13 @@ private:
     /// Gyy block: rows [p,p+q), cols [p,p+q) -- symmetric, zero diag.
     /// Gxy block: rows [0,p), cols [p,p+q) -- full p x q rectangle.
     arma::imat edge_indicators_;
-    /// Per-edge Rao-Blackwellized inclusion draw from the last
-    /// update_edge_indicators() sweep, in the same (p+q) block layout as
-    /// edge_indicators_. Read via the gxx/gyy/gxy offsets in
-    /// get_vectorized_rb_inclusion().
-    arma::mat rb_edge_;
+    /// Per-edge acceptance probability (raw alpha) and pre-move indicator
+    /// state from the last update_edge_indicators() sweep, in the same (p+q)
+    /// block layout as edge_indicators_. Read via the gxx/gyy/gxy offsets. The
+    /// RB draw J and the odds accumulators derive from these two; pregamma
+    /// stays -1 for pairs not yet proposed.
+    arma::mat rb_alpha_edge_;
+    arma::imat rb_pregamma_edge_;
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
     bool edge_selection_;               ///< Enable edge selection
     bool edge_selection_active_;        ///< Currently in edge selection phase

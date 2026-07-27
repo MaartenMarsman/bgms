@@ -750,10 +750,11 @@ void MixedMRFModel::update_edge_indicator_discrete(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(i, j));
     }
 
-    // Rao-Blackwellized inclusion draw (g_prop == 1 is a birth, gamma = 0).
-    rb_edge_(i, j) = (g_prop == 1)
-        ? MY_EXP(std::min(0.0, ln_alpha))
-        : 1.0 - MY_EXP(std::min(0.0, ln_alpha));
+    // RB inputs on the alpha scale: raw acceptance probability and the
+    // pre-move state (g_curr). The odds accumulators and the RB draw J derive
+    // from these; storing raw alpha avoids forming 1 - alpha per draw.
+    rb_alpha_edge_(i, j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(i, j) = g_curr;
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_discrete_(i, j) = k_prop;
@@ -867,10 +868,9 @@ void MixedMRFModel::update_edge_indicator_continuous(int i, int j) {
                             g_prop == 1 ? 1 : -1);
     }
 
-    // Rao-Blackwellized inclusion draw (g_prop == 1 is a birth, gamma = 0).
-    rb_edge_(p_ + i, p_ + j) = (g_prop == 1)
-        ? MY_EXP(std::min(0.0, ln_alpha))
-        : 1.0 - MY_EXP(std::min(0.0, ln_alpha));
+    // RB inputs on the alpha scale (see update_edge_indicator_discrete).
+    rb_alpha_edge_(p_ + i, p_ + j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(p_ + i, p_ + j) = g_curr;
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         // Pass old precision values to Cholesky update
@@ -965,10 +965,9 @@ void MixedMRFModel::update_edge_indicator_cross(int i, int j) {
                   - MY_LOG(1.0 - inclusion_probability_(i, p_ + j));
     }
 
-    // Rao-Blackwellized inclusion draw (g_prop == 1 is a birth, gamma = 0).
-    rb_edge_(i, p_ + j) = (g_prop == 1)
-        ? MY_EXP(std::min(0.0, ln_alpha))
-        : 1.0 - MY_EXP(std::min(0.0, ln_alpha));
+    // RB inputs on the alpha scale (see update_edge_indicator_discrete).
+    rb_alpha_edge_(i, p_ + j) = MY_EXP(std::min(0.0, ln_alpha));
+    rb_pregamma_edge_(i, p_ + j) = g_curr;
 
     if(MY_LOG(runif(rng_)) < ln_alpha) {
         pairwise_effects_cross_(i, j) = k_prop;

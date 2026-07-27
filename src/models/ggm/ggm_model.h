@@ -107,7 +107,8 @@ public:
         edge_indicators_(initial_edge_indicators),
         vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
-        rb_inclusion_(edge_selection_ ? dim_ : 0, arma::fill::zeros),
+        rb_alpha_(edge_selection_ ? dim_ : 0, arma::fill::zeros),
+        rb_pregamma_(edge_selection_ ? dim_ : 0),
         proposal_sds_(arma::mat(dim_, 1, arma::fill::ones) * 0.25),
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
@@ -124,6 +125,9 @@ public:
             }
         }
         initialize_precision_from_mle();
+        // Pre-move state sentinel: -1 marks an edge not yet proposed (and the
+        // never-proposed diagonal slots), which the odds accumulator skips.
+        if (rb_pregamma_.n_elem > 0) rb_pregamma_.fill(-1);
     }
 
     /** Copy constructor for cloning (required for parallel chains). */
@@ -149,7 +153,8 @@ public:
           edge_indicators_(other.edge_indicators_),
           vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
-          rb_inclusion_(other.rb_inclusion_),
+          rb_alpha_(other.rb_alpha_),
+          rb_pregamma_(other.rb_pregamma_),
           proposal_sds_(other.proposal_sds_),
           shuffled_edge_order_(other.shuffled_edge_order_),
           edge_pairs_(other.edge_pairs_),
@@ -426,6 +431,12 @@ public:
      */
     arma::vec get_vectorized_rb_inclusion() override;
 
+    /** Per-edge acceptance probability from the last sweep (raw alpha). */
+    arma::vec get_vectorized_rb_alpha() override;
+
+    /** Per-edge pre-move indicator state from the last sweep (0/1; -1 = none). */
+    arma::ivec get_vectorized_rb_pregamma() override;
+
     /** @return Reference to the model's random number generator. */
     SafeRNG& get_rng() override { return rng_; }
 
@@ -537,11 +548,14 @@ private:
     arma::vec vectorized_parameters_;
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
-    /// Per-edge Rao-Blackwellized inclusion draw from the last
-    /// update_edge_indicators() sweep. Same indexing (row-major upper triangle
-    /// of size dim_) as vectorized_indicator_parameters_; diagonal entries are
-    /// never proposed and are left at zero.
-    arma::vec rb_inclusion_;
+    /// Per-edge acceptance probability (raw alpha) and pre-move indicator
+    /// state from the last update_edge_indicators() sweep. Same indexing
+    /// (row-major upper triangle of size dim_) as
+    /// vectorized_indicator_parameters_; diagonal entries are never proposed
+    /// (pregamma stays -1). The RB draw J and the odds accumulators derive
+    /// from these two.
+    arma::vec rb_alpha_;
+    arma::ivec rb_pregamma_;
 
     /// Proposal standard deviations for Metropolis updates (one per element,
     /// stored as a (dim_, 1) matrix so it can be wrapped by
