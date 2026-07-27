@@ -55,6 +55,7 @@ reference:
     desc: Post-sampling diagnostic checks.
     contents:
       - summarize_zratio_diagnostics
+      - prior_sensitivity_check
 
   - title: Legacy
     desc: Deprecated functions retained for backwards compatibility.

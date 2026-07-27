@@ -23,8 +23,10 @@ fixed scale.
 }
 \examples{
 \donttest{
-fit = bgm(Wenchuan[, 1:5], interaction_scale_prior = gamma_prior(2, 2),
-          chains = 2)
+fit = bgm(Wenchuan[, 1:5],
+  interaction_scale_prior = gamma_prior(2, 2),
+  chains = 2
+)
 scale_draws = extract_scale_draws(fit)
 quantile(scale_draws, c(0.025, 0.5, 0.975))
 }

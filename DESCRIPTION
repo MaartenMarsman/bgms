@@ -35,6 +35,8 @@ Imports:
     S7,
     methods,
     lifecycle,
+    graphics,
+    grDevices,
     stats,
     utils
 RdMacros: Rdpack
