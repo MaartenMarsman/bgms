@@ -189,6 +189,33 @@ public:
     void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
 
     /**
+     * One-dimensional MH-within-Gibbs update of the random interaction-slab
+     * scale, when enabled via enable_random_interaction_scale(). Sums the slab
+     * densities of the included interactions across the discrete, cross, and
+     * continuous off-diagonal blocks. No-op when the scale is fixed. Mirrors
+     * OMRFModel::update_interaction_scale.
+     */
+    void update_interaction_scale(int iteration, const WarmupSchedule& schedule) override;
+
+    /** @return true when the interaction slab scale is a sampled hyperparameter. */
+    bool has_random_interaction_scale() const override { return interaction_scale_random_; }
+
+    /** @return the current interaction slab scale when randomized, NaN otherwise. */
+    double get_interaction_scale() const override;
+
+    /**
+     * Turn the interaction slab scale into a random hyperparameter, centered
+     * multiplicatively on the current scale s0. See
+     * OMRFModel::enable_random_interaction_scale.
+     *
+     * @param scale_prior_on_u     Mean-1 hyperprior on the multiplier u.
+     * @param initial_proposal_sd  Initial log-u random-walk step size.
+     */
+    void enable_random_interaction_scale(
+        std::unique_ptr<BaseParameterPrior> scale_prior_on_u,
+        double initial_proposal_sd = 0.1);
+
+    /**
      * Shuffle edge update order at the start of each iteration.
      * Advances the RNG state consistently even when edge selection is off.
      */
@@ -421,6 +448,12 @@ private:
     std::unique_ptr<BaseParameterPrior> threshold_prior_;    ///< Prior on main effects / thresholds
     std::unique_ptr<BaseParameterPrior> means_prior_;        ///< Prior on continuous means
     std::unique_ptr<BaseParameterPrior> diagonal_prior_;     ///< Prior on precision diagonal
+
+    // Random interaction-slab-scale hyperprior (off by default: fixed scale).
+    bool interaction_scale_random_ = false;             ///< Whether the slab scale is sampled
+    double interaction_scale_base_ = 1.0;               ///< Centering scale s0
+    std::unique_ptr<BaseParameterPrior> interaction_scale_prior_; ///< Mean-1 hyperprior on u = s/s0
+    double interaction_scale_proposal_sd_ = 0.1;        ///< log-u random-walk step size
 
     // =========================================================================
     // Proposal SDs (Robbins-Monro adapted)

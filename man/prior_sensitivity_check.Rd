@@ -47,6 +47,9 @@ saturated.}
 \item{log10_bf_by_chain}{A list of the same matrix per chain, for the
 Monte Carlo fragility check.}
 \item{chosen_scale}{The scale from \code{interaction_prior}.}
+\item{scale_prior_check}{A data frame comparing the realized scale
+multiplier \eqn{u = s / s_0} to the nominal mean-1 hyperprior (the
+scale-prior tilt diagnostic).}
 \item{evidence_threshold, ess_floor}{The settings used.}
 }
 }
@@ -74,11 +77,24 @@ included} \mathrm{slab}(\theta_j; s)}. Grid points whose importance ESS
 returned as \code{NA} (the reliability window). Edges that are always or
 never selected are reported as "presence at every scale considered" (or
 absence), never as numbers.
+
+For continuous data (GGM and the continuous block of the mixed MRF) the
+pairwise parameters live in a positive-definite precision matrix, and the
+constrained prior is left unnormalized per scale. This keeps the fixed-scale
+conditionals and the reweighting weights exact, but tilts the implied prior
+of the scale, so the realized scale draws drift from the nominal hyperprior
+and the marginalized verdict averages under the tilted scale prior; the
+returned \code{scale_prior_check} compares the realized multiplier to the
+nominal hyperprior. The Bayes factor uses nominal prior inclusion odds,
+consistent with the fixed-scale reporting of \code{\link{bgm}()}, rather than
+effective odds under the tilted prior.
 }
 \examples{
 \donttest{
-fit = bgm(Wenchuan[, 1:6], interaction_scale_prior = gamma_prior(2, 2),
-          chains = 2)
+fit = bgm(Wenchuan[, 1:6],
+  interaction_scale_prior = gamma_prior(2, 2),
+  chains = 2
+)
 ps = prior_sensitivity_check(fit)
 ps
 plot(ps)

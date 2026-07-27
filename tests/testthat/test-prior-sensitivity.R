@@ -55,37 +55,36 @@ test_that("interaction_scale_prior validates the mean-1 and normal/omrf scope", 
 
   # Non-mean-1 gamma is rejected.
   expect_error(
-    bgm(x, interaction_scale_prior = gamma_prior(2, 3),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    bgm(x,
+      interaction_scale_prior = gamma_prior(2, 3),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"
+    ),
     "mean 1"
   )
   # Standardized (eta) frame has no meaning for the multiplier; rejected.
   expect_error(
-    bgm(x, interaction_scale_prior = gamma_prior(shape = 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    bgm(x,
+      interaction_scale_prior = gamma_prior(shape = 2),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"
+    ),
     "raw frame"
   )
   # A cauchy slab cannot be randomized yet.
   expect_error(
-    bgm(x, interaction_prior = cauchy_prior(2.5),
+    bgm(x,
+      interaction_prior = cauchy_prior(2.5),
       interaction_scale_prior = gamma_prior(2, 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"
+    ),
     "normal slab"
-  )
-  # Continuous data routes to GGM, which is out of scope for now.
-  set.seed(10)
-  xc = matrix(rnorm(200 * 3), 200, 3)
-  expect_error(
-    bgm(xc, variable_type = "continuous",
-      interaction_scale_prior = gamma_prior(2, 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
-    "discrete"
   )
   # Exponential(rate = 1) has mean 1 and is accepted.
   expect_no_error(
-    bgm(x, interaction_scale_prior = exponential_prior(rate = 1),
+    bgm(x,
+      interaction_scale_prior = exponential_prior(rate = 1),
       iter = 50, warmup = 50, chains = 1, seed = 4,
-      update_method = "adaptive-metropolis", display_progress = "none")
+      update_method = "adaptive-metropolis", display_progress = "none"
+    )
   )
 })
 
@@ -99,7 +98,8 @@ test_that("with the edge held out the scale draws recover the mean-1 hyperprior"
   n = 400
   x = cbind(sample(0:2, n, TRUE), sample(0:2, n, TRUE))
   fit = bgm(
-    x, interaction_scale_prior = gamma_prior(2, 2),
+    x,
+    interaction_scale_prior = gamma_prior(2, 2),
     edge_prior = bernoulli_prior(1e-3),
     iter = 6000, warmup = 1500, chains = 2, seed = 3,
     edge_selection = TRUE,
@@ -160,7 +160,8 @@ test_that("the reweighted fixed-scale curve matches brute-force refits", {
   x = Wenchuan[, 1:8]
 
   fit = bgm(
-    x, interaction_scale_prior = gamma_prior(2, 2),
+    x,
+    interaction_scale_prior = gamma_prior(2, 2),
     iter = 6000, warmup = 1500, chains = 4, seed = 11,
     update_method = "adaptive-metropolis", display_progress = "none"
   )
@@ -173,7 +174,8 @@ test_that("the reweighted fixed-scale curve matches brute-force refits", {
   # Brute-force refit at the fixed scale; inclusion Bayes factor from the
   # indicator-draw mean (prior odds 1 at the default 0.5 edge prior).
   f = bgm(
-    x, interaction_prior = normal_prior(scale = sx),
+    x,
+    interaction_prior = normal_prior(scale = sx),
     iter = 6000, warmup = 1500, chains = 4, seed = 22,
     update_method = "adaptive-metropolis", display_progress = "none"
   )
@@ -192,4 +194,82 @@ test_that("the reweighted fixed-scale curve matches brute-force refits", {
   bulk = keep & pip_fixed > 0.05 & pip_fixed < 0.95
   bulk_err = a[bulk] - b[bulk]
   expect_lt(sqrt(mean(bulk_err^2)), 0.15)
+})
+
+
+test_that("the random scale works for the GGM across update methods", {
+  set.seed(31)
+  x = matrix(rnorm(200 * 5), 200, 5)
+  for(um in c("adaptive-metropolis", "nuts", "gibbs")) {
+    fit = bgm(x,
+      variable_type = "continuous",
+      interaction_scale_prior = gamma_prior(2, 2),
+      iter = 600, warmup = 500, chains = 2, seed = 12,
+      update_method = um, display_progress = "none"
+    )
+    sc = fit@interaction_scale_samples
+    expect_equal(length(sc), 2L)
+    expect_true(all(unlist(sc) > 0))
+    expect_gt(length(unique(round(sc[[1]], 6))), 10L)
+  }
+})
+
+
+test_that("prior_sensitivity_check runs for GGM and mixed fits", {
+  set.seed(32)
+  # GGM
+  xg = matrix(rnorm(220 * 6), 220, 6)
+  fg = bgm(xg,
+    variable_type = "continuous",
+    interaction_scale_prior = gamma_prior(2, 2),
+    iter = 1200, warmup = 800, chains = 2, seed = 8,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  psg = prior_sensitivity_check(fg)
+  expect_s3_class(psg, "bgms_prior_sensitivity")
+  expect_equal(psg$model_type, "ggm")
+  expect_equal(
+    psg$edges$marginalized_inclusion_probability,
+    unname(colMeans(do.call(rbind, fg$raw_samples$indicator))),
+    tolerance = 1e-12
+  )
+  # The GGM slab is on Kyy = -0.5 Omega; the check must use that scale, so the
+  # curve differs from feeding the raw precision draws unchanged.
+  expect_false(is.null(psg$scale_prior_check))
+
+  # Mixed
+  n = 250
+  xm = data.frame(
+    a = sample(0:2, n, TRUE), b = sample(0:2, n, TRUE),
+    c = sample(0:1, n, TRUE), y1 = rnorm(n), y2 = rnorm(n)
+  )
+  vt = c("ordinal", "ordinal", "ordinal", "continuous", "continuous")
+  fm = bgm(xm,
+    variable_type = vt,
+    interaction_scale_prior = gamma_prior(2, 2),
+    iter = 1000, warmup = 700, chains = 2, seed = 9,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  psm = prior_sensitivity_check(fm)
+  expect_equal(psm$model_type, "mixed_mrf")
+  expect_equal(
+    psm$edges$marginalized_inclusion_probability,
+    unname(colMeans(do.call(rbind, fm$raw_samples$indicator))),
+    tolerance = 1e-12
+  )
+})
+
+
+test_that("the random scale is fenced for the hierarchical graph prior", {
+  set.seed(33)
+  x = matrix(rnorm(200 * 4), 200, 4)
+  expect_error(
+    bgm(x,
+      variable_type = "continuous",
+      precision_graph_prior = "hierarchical",
+      interaction_scale_prior = gamma_prior(2, 2),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"
+    ),
+    "joint"
+  )
 })

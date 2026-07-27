@@ -132,6 +132,16 @@ Rcpp::List sample_mixed_mrf(
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
 
+    // Optional random interaction-slab-scale hyperprior (empty type = fixed).
+    std::string ispt_str = inputFromR.containsElementNamed("interaction_scale_prior_type")
+        ? Rcpp::as<std::string>(inputFromR["interaction_scale_prior_type"]) : "";
+    if (!ispt_str.empty()) {
+        double is_shape = Rcpp::as<double>(inputFromR["interaction_scale_shape"]);
+        double is_rate = Rcpp::as<double>(inputFromR["interaction_scale_rate"]);
+        model.enable_random_interaction_scale(
+            create_scale_prior(ispt_str, is_shape, is_rate));
+    }
+
     // Determinant-tilt prior on |Kyy|: shifts both NUTS and MH targets by
     // delta * log|Kyy|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and the continuous-block MH ratios in

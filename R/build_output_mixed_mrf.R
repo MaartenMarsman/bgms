@@ -83,6 +83,9 @@ build_output_mixed_mrf = function(spec, raw) {
     if(!is.null(chain$inclusion_parameter_samples)) {
       res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
     }
+    if(!is.null(chain$scale_samples)) {
+      res$interaction_scale = as.numeric(chain$scale_samples)
+    }
     attach_diagnostic_traces(res, chain)
   })
 
@@ -197,6 +200,11 @@ build_output_mixed_mrf = function(spec, raw) {
       results$inclusion_parameter_samples =
         lapply(raw, `[[`, "inclusion_parameter")
     }
+  }
+
+  if("interaction_scale" %in% names(raw[[1]])) {
+    results$interaction_scale_samples =
+      lapply(raw, `[[`, "interaction_scale")
   }
 
   # --- Posterior mean: main ---------------------------------------------------

@@ -81,6 +81,17 @@ verdict_from_bf = function(bf, threshold) {
 #' never selected are reported as "presence at every scale considered" (or
 #' absence), never as numbers.
 #'
+#' For continuous data (GGM and the continuous block of the mixed MRF) the
+#' pairwise parameters live in a positive-definite precision matrix, and the
+#' constrained prior is left unnormalized per scale. This keeps the fixed-scale
+#' conditionals and the reweighting weights exact, but tilts the implied prior
+#' of the scale, so the realized scale draws drift from the nominal hyperprior
+#' and the marginalized verdict averages under the tilted scale prior; the
+#' returned \code{scale_prior_check} compares the realized multiplier to the
+#' nominal hyperprior. The Bayes factor uses nominal prior inclusion odds,
+#' consistent with the fixed-scale reporting of \code{\link{bgm}()}, rather than
+#' effective odds under the tilted prior.
+#'
 #' @param bgms_object A fitted \code{bgms} object from \code{\link{bgm}()} run
 #'   with an \code{interaction_scale_prior}.
 #' @param evidence_threshold Positive numeric. Inclusion Bayes factor threshold
@@ -110,6 +121,9 @@ verdict_from_bf = function(bf, threshold) {
 #'     \item{log10_bf_by_chain}{A list of the same matrix per chain, for the
 #'       Monte Carlo fragility check.}
 #'     \item{chosen_scale}{The scale from \code{interaction_prior}.}
+#'     \item{scale_prior_check}{A data frame comparing the realized scale
+#'       multiplier \eqn{u = s / s_0} to the nominal mean-1 hyperprior (the
+#'       scale-prior tilt diagnostic).}
 #'     \item{evidence_threshold, ess_floor}{The settings used.}
 #'   }
 #'
@@ -190,10 +204,16 @@ prior_sensitivity_check = function(bgms_object,
   grid = sort(unique(c(grid, chosen_scale)))
   n_grid = length(grid)
 
+  # --- Slab argument -----------------------------------------------------------
+  # The slab prior is placed on the value stored in raw$pairwise for omrf and
+  # the mixed MRF (already the association scale), but on Kyy = -0.5 * Omega for
+  # the GGM, whose raw$pairwise holds the precision off-diagonals.
+  slab_factor = if(identical(spec$model_type, "ggm")) -0.5 else 1
+
   # --- Reweighting per chain and pooled ---------------------------------------
   per_chain = lapply(seq_along(raw$indicator), function(ci) {
     reweight_curve(
-      theta = raw$pairwise[[ci]],
+      theta = slab_factor * raw$pairwise[[ci]],
       gamma = raw$indicator[[ci]],
       grid = grid, chosen_scale = chosen_scale,
       shape = shape, rate = rate, family = family,
@@ -201,7 +221,7 @@ prior_sensitivity_check = function(bgms_object,
     )
   })
 
-  theta_pooled = do.call(rbind, raw$pairwise)
+  theta_pooled = slab_factor * do.call(rbind, raw$pairwise)
   gamma_pooled = do.call(rbind, raw$indicator)
   pooled = reweight_curve(
     theta = theta_pooled, gamma = gamma_pooled,
@@ -265,6 +285,22 @@ prior_sensitivity_check = function(bgms_object,
     row.names = NULL
   )
 
+  # --- Scale-prior tilt diagnostic --------------------------------------------
+  # Compare the realized multiplier u = s / s0 to the nominal mean-1 hyperprior.
+  # The draws drift below 1 when the data inform the scale; for GGM and the
+  # continuous block of the mixed MRF the positive-definite constraint tilts the
+  # implied scale prior as well, so the marginalized verdict averages under the
+  # tilted scale prior. A prior-only (or weak-data) run isolates the constraint
+  # tilt from data information.
+  u_draws = scale_draws / chosen_scale
+  probs = c(0.025, 0.5, 0.975)
+  scale_prior_check = data.frame(
+    quantity = c("mean", "2.5%", "50%", "97.5%"),
+    nominal = c(shape / rate, stats::qgamma(probs, shape = shape, rate = rate)),
+    realized = c(mean(u_draws), stats::quantile(u_draws, probs, names = FALSE)),
+    row.names = NULL
+  )
+
   structure(
     list(
       edges = edges,
@@ -276,6 +312,8 @@ prior_sensitivity_check = function(bgms_object,
       evidence_threshold = evidence_threshold,
       ess_floor = ess_floor,
       slab_family = family,
+      model_type = spec$model_type,
+      scale_prior_check = scale_prior_check,
       edge_names = edge_names
     ),
     class = "bgms_prior_sensitivity"
@@ -453,6 +491,22 @@ print.bgms_prior_sensitivity = function(x, ...) {
     "Reliable grid points (importance ESS >=", x$ess_floor, "):",
     reliable, "of", nrow(x$grid), "\n\n"
   )
+
+  # Scale-prior tilt: realized multiplier vs nominal mean-1 hyperprior.
+  spc = x$scale_prior_check
+  cat("Realized scale multiplier u = s / s0 vs the nominal hyperprior:\n")
+  cat(sprintf(
+    "  mean %.2f (nominal %.2f); 95%% interval [%.2f, %.2f] (nominal [%.2f, %.2f])\n",
+    spc$realized[spc$quantity == "mean"], spc$nominal[spc$quantity == "mean"],
+    spc$realized[spc$quantity == "2.5%"], spc$realized[spc$quantity == "97.5%"],
+    spc$nominal[spc$quantity == "2.5%"], spc$nominal[spc$quantity == "97.5%"]
+  ))
+  if(x$model_type %in% c("ggm", "mixed_mrf")) {
+    cat("  For continuous data the positive-definite constraint also tilts the\n")
+    cat("  implied scale prior; run with weak data to isolate the tilt.\n")
+  }
+  cat("\n")
+
   cat("Use plot() for the inclusion-Bayes-factor-versus-scale curves,\n")
   cat("and $edges for the per-edge table.\n")
   invisible(x)
@@ -466,6 +520,20 @@ print.bgms_prior_sensitivity = function(x, ...) {
 # ------------------------------------------------------------------
 verdict_palette = function() {
   c(presence = "#1b7837", undecided = "#7f7f7f", absence = "#b2182b")
+}
+
+
+# ------------------------------------------------------------------
+# verdict_color
+# ------------------------------------------------------------------
+# Color for a verdict, defaulting to grey for NA / unknown (e.g. an
+# edge whose chosen-scale grid point was grayed out at low ESS).
+# ------------------------------------------------------------------
+verdict_color = function(v, pal = verdict_palette()) {
+  if(length(v) != 1L || is.na(v) || !v %in% names(pal)) {
+    return("#7f7f7f")
+  }
+  pal[[v]]
 }
 
 
@@ -526,7 +594,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 25L, ...) {
 
   # Thin per-chain curves for the mover edges (fragility check).
   for(e in movers) {
-    col_e = grDevices::adjustcolor(pal[[edges$chosen_scale_verdict[e]]], 0.25)
+    col_e = grDevices::adjustcolor(verdict_color(edges$chosen_scale_verdict[e], pal), 0.25)
     for(ch in x$log10_bf_by_chain) {
       graphics::lines(rel, ch[, e], col = col_e, lwd = 0.5)
     }
@@ -536,7 +604,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 25L, ...) {
     if(edges$saturated[e]) next
     is_mover = edges$mover[e]
     col_e = grDevices::adjustcolor(
-      pal[[edges$chosen_scale_verdict[e]]], if(is_mover) 0.9 else 0.2
+      verdict_color(edges$chosen_scale_verdict[e], pal), if(is_mover) 0.9 else 0.2
     )
     graphics::lines(rel, x$log10_bf[, e],
       col = col_e,
@@ -579,11 +647,11 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 25L, ...) {
     e = show[k]
     graphics::segments(edges$stability_lower[e], yy[k],
       edges$stability_upper[e], yy[k],
-      col = pal[[edges$chosen_scale_verdict[e]]], lwd = 3
+      col = verdict_color(edges$chosen_scale_verdict[e], pal), lwd = 3
     )
     graphics::points(1, yy[k],
       pch = 18,
-      col = pal[[edges$chosen_scale_verdict[e]]]
+      col = verdict_color(edges$chosen_scale_verdict[e], pal)
     )
   }
   graphics::axis(2, at = yy, labels = edges$edge[show], las = 1, cex.axis = 0.7)
