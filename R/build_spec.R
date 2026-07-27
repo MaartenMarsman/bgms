@@ -127,6 +127,9 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
                            interaction_alpha, interaction_beta,
                            threshold_prior_type, main_alpha, main_beta,
                            threshold_scale,
+                           interaction_scale_prior_type = NULL,
+                           interaction_scale_shape = NULL,
+                           interaction_scale_rate = NULL,
                            edge_prior_flat) {
   # Baseline category
   bc = validate_baseline_category(
@@ -190,7 +193,10 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
         threshold_prior_type = threshold_prior_type,
         main_alpha = main_alpha,
         main_beta = main_beta,
-        threshold_scale = threshold_scale
+        threshold_scale = threshold_scale,
+        interaction_scale_prior_type = interaction_scale_prior_type,
+        interaction_scale_shape = interaction_scale_shape,
+        interaction_scale_rate = interaction_scale_rate
       ),
       edge_prior_spec_fields(ep)
     ),

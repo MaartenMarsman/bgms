@@ -49,6 +49,9 @@ bgms_class = new_class("bgms",
     # --- Sampled edge-prior inclusion parameter (per-chain list) ---
     inclusion_parameter_samples = new_property(class_any, default = NULL),
 
+    # --- Sampled interaction slab scale (per-chain list; random-scale prior) ---
+    interaction_scale_samples = new_property(class_any, default = NULL),
+
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main = new_property(
       class = class_any,
@@ -76,6 +79,13 @@ bgms_class = new_class("bgms",
       getter = function(self) {
         ensure_summaries(self)
         self@cache[["posterior_summary_quadratic"]]
+      }
+    ),
+    posterior_summary_interaction_scale = new_property(
+      class = class_any,
+      getter = function(self) {
+        ensure_summaries(self)
+        self@cache[["posterior_summary_interaction_scale"]]
       }
     ),
 
@@ -121,6 +131,7 @@ s3_list_to_bgms = function(results) {
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
     inclusion_parameter_samples = .subset2(results, "inclusion_parameter_samples"),
+    interaction_scale_samples = .subset2(results, "interaction_scale_samples"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
     zratio_diag = .subset2(results, "zratio_diag"),

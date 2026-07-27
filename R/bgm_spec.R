@@ -265,6 +265,9 @@ bgm_spec = function(x,
                     scale_shape = 1,
                     scale_rate = 1,
                     scale_eta = NA_real_,
+                    interaction_scale_prior_type = NULL,
+                    interaction_scale_shape = NULL,
+                    interaction_scale_rate = NULL,
                     delta = NULL,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
@@ -345,6 +348,28 @@ bgm_spec = function(x,
   }
   if(model_type == "omrf" && is_mixed) {
     model_type = "mixed_mrf"
+  }
+
+  # --- Random interaction-scale hyperprior eligibility ------------------------
+  # A sampled slab scale is currently supported only for discrete (ordinal /
+  # Blume-Capel) models with a normal slab.
+  if(!is.null(interaction_scale_prior_type)) {
+    if(model_type != "omrf") {
+      stop(
+        "'interaction_scale_prior' is currently supported only for discrete ",
+        "(ordinal or Blume-Capel) models. The resolved model type is '",
+        model_type, "'. Support for GGM and mixed models is planned for a ",
+        "later release."
+      )
+    }
+    if(interaction_prior_type != "normal") {
+      stop(
+        "'interaction_scale_prior' requires a normal slab. Set ",
+        "interaction_prior = normal_prior(scale = ...). Randomizing the ",
+        "scale of a '", interaction_prior_type, "' slab is planned for a ",
+        "later release."
+      )
+    }
   }
 
   # Auto-resolve delta = NULL to the dimension-adaptive default 0.5 * log(p),
@@ -532,6 +557,9 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
+      interaction_scale_prior_type = interaction_scale_prior_type,
+      interaction_scale_shape = interaction_scale_shape,
+      interaction_scale_rate = interaction_scale_rate,
       edge_prior_flat = ep_flat
     )
   } else {

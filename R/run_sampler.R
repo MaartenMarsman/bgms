@@ -163,18 +163,22 @@ run_sampler_omrf = function(spec) {
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
   input_list = list(
-    observations           = d$x,
-    num_categories         = d$num_categories,
-    is_ordinal_variable    = v$is_ordinal,
-    baseline_category      = v$baseline_category,
+    observations = d$x,
+    num_categories = d$num_categories,
+    is_ordinal_variable = v$is_ordinal,
+    baseline_category = v$baseline_category,
     interaction_prior_type = p$interaction_prior_type,
-    pairwise_scale         = p$pairwise_scale,
-    interaction_alpha      = p$interaction_alpha,
-    interaction_beta       = p$interaction_beta,
-    threshold_prior_type   = p$threshold_prior_type,
-    main_alpha             = p$main_alpha,
-    main_beta              = p$main_beta,
-    threshold_scale        = p$threshold_scale
+    pairwise_scale = p$pairwise_scale,
+    interaction_alpha = p$interaction_alpha,
+    interaction_beta = p$interaction_beta,
+    threshold_prior_type = p$threshold_prior_type,
+    main_alpha = p$main_alpha,
+    main_beta = p$main_beta,
+    threshold_scale = p$threshold_scale,
+    # Random interaction-scale hyperprior ("" type = fixed scale).
+    interaction_scale_prior_type = p$interaction_scale_prior_type %||% "",
+    interaction_scale_shape = p$interaction_scale_shape %||% NA_real_,
+    interaction_scale_rate = p$interaction_scale_rate %||% NA_real_
   )
 
   out_raw = sample_omrf(
