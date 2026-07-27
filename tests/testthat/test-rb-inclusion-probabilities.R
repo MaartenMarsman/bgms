@@ -247,6 +247,44 @@ test_that("rb_inclusion is exposed and interior for a mixed MRF", {
   expect_true(all(vals >= 0 & vals <= 1))
 })
 
+test_that("extract_inclusion_bf pins the bgmCompare interleaved flattening", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:80, 1:5]
+  group_ind = rep(1:2, each = 40)
+
+  fit = bgmCompare(
+    x = x, group_indicator = group_ind,
+    iter = 1500, warmup = 500, chains = 2, seed = 77,
+    difference_selection = TRUE, main_difference_selection = TRUE,
+    display_progress = "none"
+  )
+
+  logbf = extract_inclusion_bf(fit)
+  rb = extract_rb_inclusion_probabilities(fit)
+
+  # Same VxV shape and names as the RB probability matrix, and symmetric.
+  expect_equal(dim(logbf), dim(rb))
+  expect_equal(dimnames(logbf), dimnames(rb))
+  expect_equal(logbf[lower.tri(logbf)], t(logbf)[lower.tri(logbf)])
+
+  # The diagonal carries the main-effect difference Bayes factors, so the
+  # interleaved (i, j >= i) flattening must place a finite value there when the
+  # main difference was updated. A scrambled flatten would drop these.
+  expect_true(any(is.finite(diag(logbf))))
+  # No NaN anywhere (only NA / finite / +-Inf are legitimate).
+  expect_false(any(is.nan(logbf)))
+
+  # Default difference prior is Bernoulli(0.5), so the Bayes factor equals the
+  # posterior odds: interior RB probabilities must match log(rb / (1 - rb)) on
+  # and off the diagonal.
+  interior = is.finite(rb) & rb > 0.02 & rb < 0.98
+  if(any(interior)) {
+    expect_equal(logbf[interior], log(rb[interior] / (1 - rb[interior])),
+      tolerance = 1e-6
+    )
+  }
+})
+
 test_that("extract_rb_inclusion_probabilities errors without edge selection", {
   data("Wenchuan", package = "bgms")
   fit = bgm(

@@ -34,14 +34,21 @@ acceptances of about -745, so edges that saturate the naive average of the
 RB draws (which rounds to 0 or 1 near the boundary) still receive a finite
 Bayes factor here.
 
-The returned value is the natural log of the posterior inclusion odds. This
-equals the log inclusion Bayes factor when the prior inclusion probability is
-\eqn{1/2} (the default). For a different prior inclusion probability
-\eqn{\pi}, subtract the prior log odds \eqn{\log(\pi / (1 - \pi))}.
+The prior inclusion odds are removed edge by edge, so the returned value is
+the natural log of the inclusion Bayes factor rather than the posterior odds:
+the two coincide only at a prior inclusion probability of \eqn{1/2} (the
+default). For \code{bgm()} fits the prior odds come from
+\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}}; for continuous or
+stochastic-block models that call may run and cache a short prior-only chain.
+For \code{bgmCompare()} fits the exchangeable difference prior supplies a single
+prior inclusion probability (Bernoulli or Beta-Bernoulli); a stochastic-block
+difference prior has no single marginal, so the result is left as posterior
+odds there.
 }
 \seealso{
 \code{\link[=extract_rb_inclusion_probabilities]{extract_rb_inclusion_probabilities()}},
-\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
+\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},

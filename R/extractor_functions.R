@@ -445,10 +445,16 @@ rb_log_odds_from_counts = function(counts) {
 #' RB draws (which rounds to 0 or 1 near the boundary) still receive a finite
 #' Bayes factor here.
 #'
-#' The returned value is the natural log of the posterior inclusion odds. This
-#' equals the log inclusion Bayes factor when the prior inclusion probability is
-#' \eqn{1/2} (the default). For a different prior inclusion probability
-#' \eqn{\pi}, subtract the prior log odds \eqn{\log(\pi / (1 - \pi))}.
+#' The prior inclusion odds are removed edge by edge, so the returned value is
+#' the natural log of the inclusion Bayes factor rather than the posterior odds:
+#' the two coincide only at a prior inclusion probability of \eqn{1/2} (the
+#' default). For `bgm()` fits the prior odds come from
+#' [extract_prior_inclusion_probabilities()]; for continuous or
+#' stochastic-block models that call may run and cache a short prior-only chain.
+#' For `bgmCompare()` fits the exchangeable difference prior supplies a single
+#' prior inclusion probability (Bernoulli or Beta-Bernoulli); a stochastic-block
+#' difference prior has no single marginal, so the result is left as posterior
+#' odds there.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
@@ -461,7 +467,8 @@ rb_log_odds_from_counts = function(counts) {
 #'   holds main-effect difference Bayes factors.
 #'
 #' @seealso [extract_rb_inclusion_probabilities()],
-#'   [extract_posterior_inclusion_probabilities()]
+#'   [extract_posterior_inclusion_probabilities()],
+#'   [extract_prior_inclusion_probabilities()]
 #' @family extractors
 #' @export
 extract_inclusion_bf = function(bgms_object) {
@@ -491,21 +498,29 @@ extract_inclusion_bf.bgms = function(bgms_object) {
   spec = get_fit_spec(bgms_object)
   if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
     d = spec$data
-    return(fill_mixed_symmetric(
+    post_log_odds = fill_mixed_symmetric(
       log_odds, d$num_discrete, d$num_continuous,
       d$discrete_indices, d$continuous_indices,
       list(data_columnnames, data_columnnames)
-    ))
+    )
+  } else {
+    post_log_odds = matrix(NA_real_, num_vars, num_vars)
+    post_log_odds[lower.tri(post_log_odds)] = log_odds
+    post_log_odds[upper.tri(post_log_odds)] =
+      t(post_log_odds)[upper.tri(post_log_odds)]
+    colnames(post_log_odds) = data_columnnames
+    rownames(post_log_odds) = data_columnnames
   }
 
-  bf_matrix = matrix(NA_real_, num_vars, num_vars)
-  bf_matrix[lower.tri(bf_matrix)] = log_odds
-  bf_matrix[upper.tri(bf_matrix)] = t(bf_matrix)[upper.tri(bf_matrix)]
-
-  colnames(bf_matrix) = data_columnnames
-  rownames(bf_matrix) = data_columnnames
-
-  return(bf_matrix)
+  # Turn posterior inclusion odds into a Bayes factor by removing the prior
+  # inclusion odds edge by edge. Under a Beta-Bernoulli, stochastic-block, or
+  # user-set edge prior the prior odds are not 1, so posterior odds and the
+  # Bayes factor differ; they coincide only at a prior inclusion probability of
+  # 1/2. extract_prior_inclusion_probabilities() returns a matrix in the same
+  # shape and orientation, so the subtraction is per-edge.
+  prior_pip = extract_prior_inclusion_probabilities(bgms_object)
+  prior_log_odds = log(prior_pip) - log1p(-prior_pip)
+  post_log_odds - prior_log_odds
 }
 
 #' @inheritParams extract_inclusion_bf
@@ -549,6 +564,26 @@ extract_inclusion_bf.bgmCompare = function(bgms_object) {
         bf_mat[j, i] = val
       }
     }
+  }
+
+  # Remove the difference prior inclusion odds so the result is a Bayes factor
+  # rather than posterior odds. The difference prior is exchangeable across
+  # difference indicators, so one prior inclusion probability applies to every
+  # entry (main-effect differences on the diagonal, pairwise differences off
+  # it). A stochastic-block difference prior has no single marginal, so the
+  # result is left as posterior odds there.
+  prior_p = switch(as.character(arguments$difference_prior),
+    "Bernoulli" = {
+      dp = arguments$inclusion_probability
+      if(is.matrix(dp)) dp[upper.tri(dp)][1L] else dp[1L]
+    },
+    "Beta-Bernoulli" = arguments$difference_selection_alpha /
+      (arguments$difference_selection_alpha +
+        arguments$difference_selection_beta),
+    NA_real_
+  )
+  if(length(prior_p) == 1L && !is.na(prior_p)) {
+    bf_mat = bf_mat - (log(prior_p) - log1p(-prior_p))
   }
 
   return(bf_mat)
