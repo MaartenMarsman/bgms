@@ -118,21 +118,27 @@ anchor_reweight = function(draws, s_a, s_grid) {
 # ------------------------------------------------------------------
 # assemble_curve
 # ------------------------------------------------------------------
-# Stitch the display curve from per-anchor reweights: each display point
-# is estimated from the usable anchor with the highest importance ESS
-# there; points where no usable anchor clears the ESS floor are masked.
-# At an anchor's own grid point the curve uses that anchor (its reweight
-# to its own scale is the identity), so the curve there is exactly the
-# anchor fit's estimate --- even when a richer anchor has more reweighted
-# ESS there, exactness at anchors is preserved.
+# Stitch the display curve by precision-weighted pooling of the anchors.
+# At each display point every anchor whose importance ESS clears the floor
+# contributes its reweighted PIP, weighted by inverse variance on the PIP
+# scale (w = ESS / (p(1-p)), the reciprocal of p(1-p)/ESS). Pooling on the
+# PIP scale, then transforming to the log10 BF, removes the staircase seams
+# and the infinities that winner-take-all selection produced at anchor
+# switch points (a capped-edge anchor no longer hands off discontinuously to
+# a finite one). Points where no anchor clears the floor are masked. The
+# per-chain curves pool with the same weights, so the downstream per-point
+# MCSE and unanimity checks carry over unchanged. This is the MBAR-lite /
+# multistate-bridge direction; full self-consistent MBAR weights are future
+# work. Exactness at anchors lives on the anchor fits' own RB statistics
+# (verdict columns, chosen-scale quantities), not on these pooled rows.
 #
 # @param reweights     List over anchors of anchor_reweight() output.
 # @param usable        Logical per anchor (convergence-gated).
-# @param ess_floor     Minimum pooled importance ESS for a display point.
-# @param anchor_index  Grid position of each anchor (self-anchor points).
+# @param ess_floor     Minimum importance ESS for an anchor to contribute.
+# @param anchor_index  Grid position of each anchor (for anchor_used tagging).
 #
 # Returns: list(pip = P x E, chain_pip = list C of P x E, anchor_used =
-#   length-P index into reweights (NA if masked), ess = length-P best ESS).
+#   dominant anchor per point (NA if masked), ess = length-P best ESS).
 # ------------------------------------------------------------------
 assemble_curve = function(reweights, usable, ess_floor, anchor_index = NULL) {
   n_grid = length(reweights[[1]]$ess)
@@ -140,22 +146,41 @@ assemble_curve = function(reweights, usable, ess_floor, anchor_index = NULL) {
   n_chain = length(reweights[[1]]$chain_pip)
   ess_mat = vapply(reweights, `[[`, numeric(n_grid), "ess")
   if(is.null(dim(ess_mat))) ess_mat = matrix(ess_mat, nrow = 1L)
-  ess_mat[, !usable] = -Inf
-  anchor_used = apply(ess_mat, 1, which.max)
-  # Exactness at anchors: a usable anchor owns its own grid point.
-  for(a in seq_along(anchor_index)) {
-    if(usable[a]) anchor_used[anchor_index[a]] = a
-  }
-  best_ess = ess_mat[cbind(seq_len(n_grid), anchor_used)]
-  masked = best_ess < ess_floor
-  anchor_used[masked] = NA_integer_
+  ess_mat[, !usable] = 0 # an unusable anchor never contributes
+
   pip = matrix(NA_real_, n_grid, n_edge)
   chain_pip = replicate(n_chain, matrix(NA_real_, n_grid, n_edge), simplify = FALSE)
-  for(p in which(!masked)) {
-    a = anchor_used[p]
-    pip[p, ] = reweights[[a]]$pip[p, ]
-    for(c in seq_len(n_chain)) {
-      chain_pip[[c]][p, ] = reweights[[a]]$chain_pip[[c]][p, ]
+  anchor_used = rep(NA_integer_, n_grid)
+  best_ess = rep(NA_real_, n_grid)
+
+  for(p in seq_len(n_grid)) {
+    contrib = which(ess_mat[p, ] >= ess_floor)
+    if(length(contrib) == 0L) next # masked: no anchor reaches this scale
+    best_ess[p] = max(ess_mat[p, contrib])
+    anchor_used[p] = contrib[which.max(ess_mat[p, contrib])]
+    wsum = numeric(n_edge)
+    pnum = numeric(n_edge)
+    cnum = replicate(n_chain, numeric(n_edge), simplify = FALSE)
+    for(a in contrib) {
+      pa = reweights[[a]]$pip[p, ]
+      # Inverse-variance weight on the PIP scale (var ~ p(1-p)/ESS), clamped
+      # so a saturated edge does not divide by zero.
+      wa = ess_mat[p, a] / pmax(pa * (1 - pa), 1e-6)
+      wsum = wsum + wa
+      pnum = pnum + wa * pa
+      for(cc in seq_len(n_chain)) {
+        cnum[[cc]] = cnum[[cc]] + wa * reweights[[a]]$chain_pip[[cc]][p, ]
+      }
+    }
+    pip[p, ] = pnum / wsum
+    for(cc in seq_len(n_chain)) chain_pip[[cc]][p, ] = cnum[[cc]] / wsum
+  }
+
+  # Tag each pooled point with its dominant (highest-ESS) anchor for
+  # reporting; at an anchor's own grid point that is the anchor itself.
+  for(a in seq_along(anchor_index)) {
+    if(usable[a] && !is.na(anchor_used[anchor_index[a]])) {
+      anchor_used[anchor_index[a]] = a
     }
   }
   list(pip = pip, chain_pip = chain_pip, anchor_used = anchor_used, ess = best_ess)

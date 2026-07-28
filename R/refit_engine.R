@@ -327,3 +327,27 @@ refit_convergence_gate = function(fit) {
     min_ebfmi = ebfmi, max_var_ratio = var_ratio
   )
 }
+
+
+# ------------------------------------------------------------------
+# gate_failure_reason
+# ------------------------------------------------------------------
+# Plain-language reason a convergence gate failed, from a gate result. The
+# criteria are checked in the gate's own order; the first failing one is
+# reported. Returns NA when the gate passed.
+# ------------------------------------------------------------------
+gate_failure_reason = function(g) {
+  if(!is.finite(g$rhat_cont) || g$rhat_cont >= 1.01) {
+    return("the parameter chains have not converged (split R-hat above 1.01)")
+  }
+  if(g$rb_med_rhat >= 1.01) {
+    return("the edge-inclusion chains have not converged (R-hat above 1.01)")
+  }
+  if(g$min_ebfmi <= 0.3) {
+    return("the sampler explored the posterior poorly (low energy efficiency)")
+  }
+  if(g$max_var_ratio >= 2) {
+    return("the warmup did not settle (the sampling energy kept drifting)")
+  }
+  NA_character_
+}

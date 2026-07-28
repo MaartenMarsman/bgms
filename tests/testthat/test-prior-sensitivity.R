@@ -54,28 +54,43 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_equal(ps$multipliers[ps$anchor_index], ps$anchors)
   expect_equal(ps$multipliers[ps$chosen_index], 1)
   expect_equal(dim(ps$log10_bf), c(length(ps$multipliers), 15L))
-  # exactness at the 1x anchor: the curve there is the original fit's own
-  # indicator average through the per-edge prior odds (identity reweight)
-  g = do.call(rbind, fit$raw_samples$indicator)
+  # Exactness lives on the anchor fits, not the pooled curve: the 1x verdict
+  # column and every chosen-scale quantity are the original fit's own RB
+  # analysis. The reported PIP is the fit's RB inclusion, and the log10 BF is
+  # its exact prior-odds transform (checked on the pip scale, since the log10
+  # BF derivative amplifies a 1e-10 pip agreement near saturation).
+  rb = extract_posterior_inclusion_probabilities(fit)
+  rbv = unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)])
   po = ps$edges$prior_inclusion_probability /
     (1 - ps$edges$prior_inclusion_probability)
+  expect_equal(ps$edges$chosen_scale_pip, rbv, tolerance = 1e-10)
+  pc = ps$edges$chosen_scale_pip
   expect_equal(
-    ps$log10_bf[ps$chosen_index, ],
-    unname(log10((colMeans(g) / (1 - colMeans(g))) / po)),
+    ps$edges$chosen_scale_log10_bf,
+    log10((pc / (1 - pc)) / po),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    ps$edges$verdict_x1,
+    verdict_from_lbf(ps$edges$chosen_scale_log10_bf, log10(ps$evidence_threshold)),
     tolerance = 1e-10
   )
+  # the pooled curve reweights raw indicator draws, so at 1x it matches the
+  # fit's raw inclusion proportions (not the RB analysis) within a few MCSE
+  g = do.call(rbind, fit$raw_samples$indicator)
+  raw_lbf = unname(log10((colMeans(g) / (1 - colMeans(g))) / po))
+  fin = is.finite(ps$log10_bf[ps$chosen_index, ]) & is.finite(raw_lbf) &
+    is.finite(ps$log10_bf_mcse[ps$chosen_index, ])
+  z = abs(ps$log10_bf[ps$chosen_index, ] - raw_lbf) /
+    pmax(ps$log10_bf_mcse[ps$chosen_index, ], 1e-6)
+  expect_lt(stats::median(z[fin]), 2)
   # verdicts and movers take only the documented levels
   expect_true(all(unlist(ps$verdict) %in%
     c("presence", "undecided", "absence", NA)))
   expect_true(all(ps$edges$mover %in%
     c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
-  # chosen-scale columns are the fit's own reported (RB) analysis
-  rb = extract_posterior_inclusion_probabilities(fit)
-  expect_equal(
-    ps$edges$chosen_scale_pip,
-    unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)]),
-    tolerance = 1e-10
-  )
+  # pooling keeps the curve finite even where an edge saturates at some scale
+  expect_false(any(is.infinite(ps$log10_bf)))
   # the data-preferred scale is reported without a refit
   expect_true(is.finite(ps$preferred_scale$s_hat))
   # print and plot run

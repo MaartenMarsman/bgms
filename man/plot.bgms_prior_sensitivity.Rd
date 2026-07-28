@@ -22,10 +22,11 @@ One panel, answer first: the title states how many edge verdicts depend on
 the slab scale. Each edge's \eqn{\log_{10}} inclusion-Bayes-factor curve
 (the evidence for the edge) is drawn across the anchored scale range, with
 dots at the anchor scales; curve points masked for low importance ESS
-leave visible gaps. Edges whose verdict genuinely depends on the scale are
-colored and labeled by name; all other edges are the muted background. The
-shaded band is the undecided zone between the evidence thresholds; the
-zones are labeled at the left edge.
+leave visible gaps, and an edge that saturates at some scale is capped at a
+large finite Bayes factor rather than running off to infinity. Edges whose
+verdict genuinely depends on the scale are colored and labeled by name; all
+other edges are the muted background. The shaded band is the undecided zone
+between the evidence thresholds; the zones are labeled at the left edge.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

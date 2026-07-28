@@ -16,7 +16,8 @@ prior_sensitivity_check(
   include_preferred_scale = FALSE,
   cores = NULL,
   seed = 1L,
-  keep_fits = FALSE
+  keep_fits = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -65,18 +66,28 @@ original fit's core count.}
 \item{keep_fits}{Logical. Retain the full refit objects in the result (for
 power users); the default keeps only per-scale summaries. Default:
 \code{FALSE}.}
+
+\item{verbose}{Logical. If \code{TRUE}, print each internal refit's raw
+sampler notes (energy, tree-depth, dropped chains) live as it runs. By
+default these are captured, not printed: the convergence gate adjudicates
+them, a failed anchor is reported once in plain language, and the raw
+text stays available in \code{$refit_diagnostics}. Default: \code{FALSE}.}
 }
 \value{
 An object of class \code{"bgms_prior_sensitivity"}: a list with the
 per-edge \code{edges} table (chosen-scale verdict from the original fit,
 per-anchor verdict columns, dense-grid stability range, mover category,
-insufficiency flag), a \code{grid} data frame (one row per anchor fit and
+an \code{insufficient} flag with its two subcauses
+\code{insufficient_noisy} (Bayes factor within Monte Carlo error of a
+threshold) and \code{insufficient_disagree} (chains disagree on the
+verdict)), a \code{grid} data frame (one row per anchor fit and
 the replicate, with convergence gates), the \code{multipliers} display
 grid with the \code{log10_bf}, \code{log10_bf_mcse}, and \code{verdict}
 curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
-per-point chain unanimity), the \code{wobble} noise yardstick, the
-data-\code{preferred_scale}, and the settings used.
+per-point chain unanimity), the \code{wobble} noise yardstick,
+\code{refit_diagnostics} (the captured raw sampler notes per anchor and
+the replicate), the data-\code{preferred_scale}, and the settings used.
 }
 \description{
 Recovers each edge's continuous inclusion-Bayes-factor curve
@@ -91,16 +102,23 @@ refit at one anchor, keeps the check from crying wolf on boundary edges.
 \details{
 \strong{The anchored curve.} The model is refit at the non-unit
 \code{anchors} (multipliers of the chosen scale \eqn{s_0}; the \code{1x}
-anchor is the original fit and is never refit, so the chosen-scale
-verdicts reported here are exactly the fit's own reported analysis). A
-fit at fixed anchor scale \eqn{s_a} is reweighted to a nearby scale
-\eqn{s} with per-draw slab-density ratios over the currently included
-edges; the likelihood cancels, so no refit is needed between anchors.
-Each point of a dense log-spaced display grid is estimated from the
-anchor with the highest importance effective sample size there; points
-where no anchor clears \code{ess_floor} are reported \code{NA} rather
-than extrapolated, and non-overlapping anchor radii trigger a warning to
-add anchors. Log-spaced default anchors make the radii overlap.
+anchor is the original fit and is never refit). A fit at fixed anchor
+scale \eqn{s_a} is reweighted to a nearby scale \eqn{s} with per-draw
+slab-density ratios over the currently included edges; the likelihood
+cancels, so no refit is needed between anchors. Each point of a dense
+log-spaced display grid pools every anchor that clears \code{ess_floor}
+there, weighting each anchor's inclusion-probability estimate by its
+inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
+inclusion-probability scale and is then transformed to the
+\eqn{\log_{10}} Bayes factor, which keeps the curve continuous across
+anchor hand-offs and finite at capped edges. Points where no anchor
+clears the floor are \code{NA} rather than extrapolated, and
+non-overlapping anchor radii trigger a warning to add anchors; log-spaced
+default anchors make the radii overlap. Exactness is kept off the pooled
+curve and on the anchor fits themselves: the per-anchor verdict columns
+and every chosen-scale quantity are read straight from each fit's own
+Rao-Blackwellized statistics, so the \code{1x} column is exactly the
+original fit's reported analysis.
 
 \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
 original fit's per-chain final state, and a NUTS refit additionally carries
