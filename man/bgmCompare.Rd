@@ -14,6 +14,7 @@ bgmCompare(
   baseline_category,
   difference_scale = 1,
   difference_family = c("Cauchy", "Normal"),
+  difference_scale_prior = NULL,
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -90,6 +91,17 @@ parameters. Default: \code{1}.}
 difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
 Independent of \code{interaction_prior}, which governs the baseline
 interactions.}
+
+\item{difference_scale_prior}{Optional mean-1 hyperprior that makes the
+difference slab scale a sampled parameter, \eqn{s = s_0 \cdot u} with
+\eqn{s_0 = } \code{difference_scale} and \eqn{u} drawn from this prior. Set
+with \code{\link{gamma_prior}(shape = k, rate = k)} or
+\code{\link{exponential_prior}(rate = 1)}; both must have mean 1 so the
+scale is centered on \code{difference_scale}. The default
+\code{gamma_prior(2, 2)} places roughly the central 90\\% of the multiplier
+in \code{[0.12, 2.8]}. Requires \code{difference_family = "Normal"}; the
+Cauchy slab is not yet supported. \code{NULL} (default) keeps the scale
+fixed at \code{difference_scale}.}
 
 \item{difference_prior}{An indicator prior specification object for
 difference selection, created by one of:

@@ -21,10 +21,14 @@ build_output_compare = function(spec, raw) {
   difference_selection = p$difference_selection
   difference_prior = p$difference_prior
 
-  # Normalize SBM allocation samples (variables x iter -> iter x variables).
+  # Normalize SBM allocation samples (variables x iter -> iter x variables)
+  # and the sampled difference slab scale.
   raw = lapply(raw, function(chain) {
     if(!is.null(chain$allocation_samples)) {
       chain$allocations = t(chain$allocation_samples)
+    }
+    if(!is.null(chain$scale_samples)) {
+      chain$difference_scale = as.numeric(chain$scale_samples)
     }
     chain
   })
@@ -206,10 +210,22 @@ build_output_compare = function(spec, raw) {
     } else {
       NULL
     },
+    difference_scale = if("difference_scale" %in% names(raw[[1]])) {
+      lapply(raw, `[[`, "difference_scale")
+    } else {
+      NULL
+    },
     nchains = length(raw),
     niter = nrow(raw[[1]]$main_samples),
     parameter_names = names_all
   )
+
+  # Difference-scale draws are collected independently of difference selection:
+  # the random-scale hyperprior can be active with a dense difference model.
+  if("difference_scale" %in% names(raw[[1]])) {
+    results$difference_scale_samples =
+      lapply(raw, `[[`, "difference_scale")
+  }
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)

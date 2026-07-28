@@ -169,6 +169,9 @@ bgmCompare_class = new_class("bgmCompare",
     posterior_num_blocks = new_property(class_any, default = NULL),
     posterior_summary_pairwise_allocations = new_property(class_any, default = NULL),
 
+    # --- Random difference-scale hyperprior output (optional) ---
+    difference_scale_samples = new_property(class_any, default = NULL),
+
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main_baseline = new_property(
       class = class_any,
@@ -203,6 +206,13 @@ bgmCompare_class = new_class("bgmCompare",
       getter = function(self) {
         ensure_summaries(self)
         self@cache[["posterior_summary_indicator"]]
+      }
+    ),
+    posterior_summary_difference_scale = new_property(
+      class = class_any,
+      getter = function(self) {
+        ensure_summaries(self)
+        self@cache[["posterior_summary_difference_scale"]]
       }
     ),
 
@@ -241,6 +251,7 @@ s3_list_to_bgmCompare = function(results) {
     posterior_mode_allocations = .subset2(results, "posterior_mode_allocations"),
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
+    difference_scale_samples = .subset2(results, "difference_scale_samples"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
     .bgm_spec = .subset2(results, ".bgm_spec"),

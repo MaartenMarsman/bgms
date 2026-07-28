@@ -1601,6 +1601,91 @@ void gibbs_update_step_bgmcompare (
 //        Diagnostics (for NUTS).
 //      - chain_id: Identifier for this chain.
 //
+// MH-within-Gibbs update of the random difference slab scale.
+//
+// Random walk on log u, with s = s0 * u. The full conditional of s is
+// prior-only: the mean-1 hyperprior pi(u) times the slab densities of the
+// currently included difference parameters (the pseudolikelihood is free of
+// s). The included set matches the difference-prior term of the log
+// pseudoposterior exactly: main-effect differences gated by the diagonal of
+// inclusion_indicator, pairwise differences by its off-diagonal, summed over
+// the contrast columns h = 1..num_groups-1. The scale is mutated in place on
+// difference_prior so all downstream logp/grad evaluations see it.
+static void update_difference_scale_bgmcompare(
+    const arma::mat& main_effects,
+    const arma::mat& pairwise_effects,
+    const arma::imat& inclusion_indicator,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::ivec& num_categories,
+    const arma::uvec& is_ordinal_variable,
+    const int num_variables,
+    const int num_groups,
+    BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& difference_scale_prior,
+    const double difference_scale_base,
+    double& difference_scale_proposal_sd,
+    const int iteration,
+    const WarmupSchedule& schedule,
+    const double target_accept,
+    SafeRNG& rng
+) {
+  const double s_curr = difference_prior.scale();
+  const double u_curr = s_curr / difference_scale_base;
+  const double log_u_curr = MY_LOG(u_curr);
+  const double log_u_prop = rnorm(rng, log_u_curr, difference_scale_proposal_sd);
+  const double u_prop = MY_EXP(log_u_prop);
+  const double s_prop = difference_scale_base * u_prop;
+
+  // Slab log-densities of the included difference parameters at the current
+  // scale of difference_prior. Family-generic through logp.
+  auto slab_sum = [&]() {
+    double acc = 0.0;
+    for (int v = 0; v < num_variables; ++v) {
+      if (inclusion_indicator(v, v) == 0) continue;
+      const int r0 = main_effect_indices(v, 0);
+      const int nrow = is_ordinal_variable(v) ? num_categories(v) : 2;
+      for (int r = 0; r < nrow; ++r) {
+        for (int h = 1; h < num_groups; ++h) {
+          acc += difference_prior.logp(main_effects(r0 + r, h));
+        }
+      }
+    }
+    for (int v1 = 0; v1 < num_variables - 1; ++v1) {
+      for (int v2 = v1 + 1; v2 < num_variables; ++v2) {
+        if (inclusion_indicator(v1, v2) == 0) continue;
+        const int idx = pairwise_effect_indices(v1, v2);
+        for (int h = 1; h < num_groups; ++h) {
+          acc += difference_prior.logp(pairwise_effects(idx, h));
+        }
+      }
+    }
+    return acc;
+  };
+
+  const double slab_curr = slab_sum();
+  difference_prior.set_scale(s_prop);
+  const double slab_prop = slab_sum();
+
+  const double ln_alpha =
+      difference_scale_prior.logp(u_prop) - difference_scale_prior.logp(u_curr)
+      + (slab_prop - slab_curr)
+      + (log_u_prop - log_u_curr); // log-random-walk Jacobian
+
+  if (!(MY_LOG(runif(rng)) < ln_alpha)) {
+    difference_prior.set_scale(s_curr); // reject: revert
+  }
+
+  // Robbins-Monro step-size adaptation, warmup only (shares the proposal-SD
+  // adaptation window with the parameter updates).
+  auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
+  if (rm_weight_opt) {
+    difference_scale_proposal_sd = update_proposal_sd_with_robbins_monro(
+        difference_scale_proposal_sd, ln_alpha, *rm_weight_opt, target_accept);
+  }
+}
+
+
 // Notes:
 //  - Warmup is orchestrated via `WarmupSchedule`, which controls adaptation
 //    phases and difference-selection activation.
@@ -1642,9 +1727,10 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     const UpdateMethod update_method,
     ProgressManager& pm,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior,
+    BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior,
-    BaseEdgePrior& difference_edge_prior
+    BaseEdgePrior& difference_edge_prior,
+    const BaseParameterPrior* difference_scale_prior
 ) {
   // --- Setup: dimensions and storage structures
   const int num_variables = observations.n_cols;
@@ -1697,6 +1783,17 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   if (is_sbm) {
     allocation_samples.set_size(num_variables, iter);
     allocation_samples.fill(-1);
+  }
+
+  // Random difference slab scale: sampled multiplicatively as s = s0 * u with a
+  // mean-1 hyperprior on u. nullptr keeps the scale fixed.
+  const bool random_difference_scale = (difference_scale_prior != nullptr);
+  const double difference_scale_base = difference_prior.scale();
+  double difference_scale_proposal_sd = 0.1;
+  arma::vec scale_samples;
+  if (random_difference_scale) {
+    scale_samples.set_size(iter);
+    scale_samples.fill(arma::datum::nan);
   }
 
   // For logging nuts performance
@@ -1809,6 +1906,18 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         interaction_prior, difference_prior, threshold_prior, rb_alpha, rb_pregamma
     );
 
+    // --- Update the random difference slab scale (prior-only full conditional)
+    if (random_difference_scale) {
+      update_difference_scale_bgmcompare(
+          main_effects, pairwise_effects, inclusion_indicator,
+          main_effect_indices, pairwise_effect_indices, num_categories,
+          is_ordinal_variable, num_variables, num_groups,
+          difference_prior, *difference_scale_prior, difference_scale_base,
+          difference_scale_proposal_sd, iteration, warmup_schedule,
+          target_accept, rng
+      );
+    }
+
     // --- Update difference probabilities under the prior (if difference selection is active)
     if (warmup_schedule.selection_enabled(iteration)) {
       if (difference_prior_type == "Beta-Bernoulli") {
@@ -1904,6 +2013,10 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         allocation_samples.col(sample_index) =
           difference_edge_prior.get_allocations();
       }
+
+      if (random_difference_scale) {
+        scale_samples(sample_index) = difference_prior.scale();
+      }
     }
   }
 
@@ -1945,6 +2058,8 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   } else {
     out.allocation_samples = arma::imat();
   }
+  out.has_scale_samples = random_difference_scale;
+  out.scale_samples = random_difference_scale ? scale_samples : arma::vec();
   out.userInterrupt = userInterrupt;
 
   return out;

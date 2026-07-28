@@ -26,6 +26,8 @@ struct bgmCompareOutput {
   arma::mat rb_counts;
   /// SBM cluster allocation samples [iter x num_variables] (Stochastic-Block only).
   arma::imat allocation_samples;
+  /// Sampled difference slab scale [iter] (random difference scale only).
+  arma::vec scale_samples;
 
   /// Tree depth diagnostics [iter] (NUTS only).
   arma::ivec treedepth_samples;
@@ -42,6 +44,8 @@ struct bgmCompareOutput {
   bool has_indicator;
   /// True if SBM allocation samples are stored.
   bool has_allocations;
+  /// True if difference-slab-scale samples are stored.
+  bool has_scale_samples;
   /// True if the chain was interrupted by the user.
   bool userInterrupt;
 };

@@ -286,6 +286,9 @@ bgm_spec = function(x,
                     ),
                     difference_scale = 1,
                     difference_prior_type = "cauchy",
+                    difference_scale_prior_type = NULL,
+                    difference_scale_shape = NULL,
+                    difference_scale_rate = NULL,
                     difference_probability = 0.5,
                     # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,
@@ -449,6 +452,25 @@ bgm_spec = function(x,
     }
   }
 
+  # --- Random difference-scale hyperprior eligibility (bgmCompare) -------------
+  # A sampled difference slab scale is supported with a normal difference slab.
+  # The Cauchy difference slab is not yet validated for a randomized scale.
+  if(!is.null(difference_scale_prior_type)) {
+    if(model_type != "compare") {
+      stop(
+        "'difference_scale_prior' is only supported for bgmCompare(). The ",
+        "resolved model type is '", model_type, "'."
+      )
+    }
+    if(difference_prior_type != "normal") {
+      stop(
+        "'difference_scale_prior' requires a normal difference slab. Set ",
+        "difference_family = \"Normal\". Randomizing the scale of a '",
+        difference_prior_type, "' difference slab is not yet supported."
+      )
+    }
+  }
+
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
   sampler = validate_sampler(
     update_method = update_method,
@@ -598,6 +620,9 @@ bgm_spec = function(x,
       difference_prior = difference_prior,
       difference_scale = difference_scale,
       difference_prior_type = difference_prior_type,
+      difference_scale_prior_type = difference_scale_prior_type,
+      difference_scale_shape = difference_scale_shape,
+      difference_scale_rate = difference_scale_rate,
       difference_probability = difference_probability,
       beta_bernoulli_alpha = beta_bernoulli_alpha,
       beta_bernoulli_beta = beta_bernoulli_beta,

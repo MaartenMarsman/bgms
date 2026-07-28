@@ -48,6 +48,16 @@
 #'   difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
 #'   Independent of \code{interaction_prior}, which governs the baseline
 #'   interactions.
+#' @param difference_scale_prior Optional mean-1 hyperprior that makes the
+#'   difference slab scale a sampled parameter, \eqn{s = s_0 \cdot u} with
+#'   \eqn{s_0 = } \code{difference_scale} and \eqn{u} drawn from this prior. Set
+#'   with \code{\link{gamma_prior}(shape = k, rate = k)} or
+#'   \code{\link{exponential_prior}(rate = 1)}; both must have mean 1 so the
+#'   scale is centered on \code{difference_scale}. The default
+#'   \code{gamma_prior(2, 2)} places roughly the central 90\% of the multiplier
+#'   in \code{[0.12, 2.8]}. Requires \code{difference_family = "Normal"}; the
+#'   Cauchy slab is not yet supported. \code{NULL} (default) keeps the scale
+#'   fixed at \code{difference_scale}.
 #' @param difference_prior An indicator prior specification object for
 #'   difference selection, created by one of:
 #'   \itemize{
@@ -184,6 +194,7 @@ bgmCompare = function(
   baseline_category,
   difference_scale = 1,
   difference_family = c("Cauchy", "Normal"),
+  difference_scale_prior = NULL,
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -385,6 +396,22 @@ bgmCompare = function(
   difference_family = match.arg(difference_family)
   difference_prior_type = tolower(difference_family)
 
+  # Optional random difference slab scale (mean-1 multiplier hyperprior).
+  dsp = if(is.null(difference_scale_prior)) {
+    list(
+      difference_scale_prior_type = NULL,
+      difference_scale_shape = NULL,
+      difference_scale_rate = NULL
+    )
+  } else {
+    u = unpack_scale_multiplier_prior(difference_scale_prior, "difference_scale_prior")
+    list(
+      difference_scale_prior_type = u$scale_prior_type,
+      difference_scale_shape = u$scale_shape,
+      difference_scale_rate = u$scale_rate
+    )
+  }
+
   # Unpack difference prior to flat params for bgm_spec
   num_variables = ncol(x)
   dp = unpack_indicator_prior(difference_prior, num_variables)
@@ -411,6 +438,9 @@ bgmCompare = function(
     difference_prior = dp$edge_prior,
     difference_scale = difference_scale,
     difference_prior_type = difference_prior_type,
+    difference_scale_prior_type = dsp$difference_scale_prior_type,
+    difference_scale_shape = dsp$difference_scale_shape,
+    difference_scale_rate = dsp$difference_scale_rate,
     difference_probability = dp$inclusion_probability,
     beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
     beta_bernoulli_beta = dp$beta_bernoulli_beta,

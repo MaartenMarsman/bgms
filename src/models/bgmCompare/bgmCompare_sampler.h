@@ -55,8 +55,14 @@ class ProgressManager;
  * @param update_method              Sampler type (adaptive_metropolis, nuts)
  * @param pm                         Progress manager for user feedback
  * @param interaction_prior          Prior for the baseline pairwise interaction parameters
- * @param difference_prior           Prior for the group-difference parameters
+ * @param difference_prior           Prior for the group-difference parameters;
+ *                                   its scale is mutated in place when a random
+ *                                   difference scale is enabled, so it must be a
+ *                                   per-chain object
  * @param threshold_prior            Prior for the threshold (main effect) parameters
+ * @param difference_scale_prior     Mean-1 hyperprior on the difference-scale
+ *                                   multiplier u = s / s0; nullptr keeps the
+ *                                   difference scale fixed
  * @param difference_edge_prior      Indicator prior for difference selection;
  *                                   for Stochastic-Block, governs off-diagonal
  *                                   (pairwise) inclusions and exposes block
@@ -97,7 +103,8 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     const UpdateMethod update_method,
     ProgressManager& pm,
     const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior,
+    BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior,
-    BaseEdgePrior& difference_edge_prior
+    BaseEdgePrior& difference_edge_prior,
+    const BaseParameterPrior* difference_scale_prior
 );
