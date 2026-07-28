@@ -71,9 +71,13 @@ verdict_from_bf = function(bf, threshold) {
 #' Rao-Blackwellized machinery and the wobble the 95th percentile of the
 #' s0-replicate spread over threshold-relevant edges
 #' (\eqn{|\log_{10} \mathrm{BF}| \le 3} at s0; near-saturated edges would
-#' inflate it). Each edge is reported as \code{stable},
-#' \code{moved-beyond-wobble}, or \code{indistinguishable-from-wobble}; a bare
-#' verdict flip inside the replicate noise is never reported as a move.
+#' inflate it). The \code{$edges$mover} column stores \code{stable},
+#' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
+#' printed report shows the same categories in plain language ("robust",
+#' "changed, within run-to-run noise", "changed, beyond run-to-run noise",
+#' with edges failing the sufficiency check below printed as "not
+#' certifiable"). A bare verdict flip inside the replicate noise is never
+#' reported as a move.
 #'
 #' \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
 #' whose between-chain-inflated \eqn{\log_{10}} BF band straddles a verdict
@@ -86,11 +90,6 @@ verdict_from_bf = function(bf, threshold) {
 #' 1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
 #' used; a refit that fails is reported as unusable rather than silently pooled.
 #'
-#' A fit run with an \code{interaction_scale_prior} is a different analysis
-#' (scale learning); for such a fit the report adds the realized-versus-nominal
-#' scale interval and the scale-averaged verdict, clearly labeled as the
-#' learned-scale analysis, not a robustness average.
-#'
 #' @param bgms_object A fitted \code{bgms} object from \code{\link{bgm}()} run
 #'   with \code{edge_selection = TRUE}.
 #' @param scale_multipliers Numeric vector of positive multipliers of the chosen
@@ -102,7 +101,11 @@ verdict_from_bf = function(bf, threshold) {
 #' @param refit_sampler One of \code{"same-as-fit"} (default; inherit the
 #'   original fit's update method) or an explicit \code{"nuts"},
 #'   \code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
-#'   fit carry the adapted metric and run fastest.
+#'   fit carry the adapted metric and run fastest; when an inherited slower
+#'   sampler makes the check cost more than about a minute, a message suggests
+#'   the switch. Refitting with a different sampler than the original fit is
+#'   sound because every comparison the check makes runs refit-against-refit
+#'   under one identical pipeline; the original fit never enters a comparison.
 #' @param iter,warmup Integer sampling and warmup iterations per refit, or
 #'   \code{NULL} (default) to use the validated short schedule for warm NUTS
 #'   refits and inherit the original fit's schedule otherwise.
@@ -170,29 +173,14 @@ prior_sensitivity_check = function(bgms_object,
   lthr = log10(evidence_threshold)
   if(is.null(cores)) cores = spec$sampler$chains
 
-  # --- Sampler resolution + speed recommendation ------------------------------
+  # --- Sampler resolution -----------------------------------------------------
   rs = resolve_refit_sampler(bgms_object, refit_sampler)
-  if(rs$recommend_nuts) {
-    message(
-      "prior_sensitivity_check(): refits inherit the fit's '", rs$method,
-      "' sampler and cost about one original fit each. For a faster ",
-      "check pass refit_sampler = \"nuts\" (licensed because the check ",
-      "compares refits only to refits)."
-    )
-  }
 
   # --- Warm state (omrf) or cold refits (other models) ------------------------
   is_omrf = identical(spec$model_type, "omrf")
   warm_state = if(is_omrf) extract_warm_state(bgms_object) else NULL
   warm_metric = is_omrf && identical(rs$method, "nuts") &&
     !is.null(warm_state$inv_mass)
-  if(!is_omrf) {
-    message(
-      "prior_sensitivity_check(): warm starts are implemented for ",
-      "ordinal models; this ", spec$model_type, " fit refits cold ",
-      "(full warmup, about one fit per scale)."
-    )
-  }
 
   # --- Data-preferred scale (no refit) ----------------------------------------
   preferred = data_preferred_scale(bgms_object)
@@ -223,6 +211,14 @@ prior_sensitivity_check = function(bgms_object,
       seed = seed + i, cores = refit_cores, sampler = rs$method
     )
     walls[i] = as.numeric(Sys.time() - t0, units = "secs")
+    # Suggest the faster sampler only when the cost is material (projected
+    # total above ~60 s); see the man page for why the switch is sound.
+    if(i == 1L && rs$recommend_nuts && walls[1] * nrow(jobs) > 60) {
+      message(
+        "Refits use the fit's ", rs$method, " sampler (~",
+        round(walls[1]), " s each); refit_sampler = \"nuts\" is usually faster."
+      )
+    }
   }
 
   gates = lapply(refits, refit_convergence_gate)
@@ -358,12 +354,6 @@ prior_sensitivity_check = function(bgms_object,
     row.names = NULL
   )
 
-  # --- Learned-scale extras (hyperprior fits only) ----------------------------
-  learned = NULL
-  if(!is.null(spec$prior$interaction_scale_prior_type)) {
-    learned = learned_scale_analysis(bgms_object, s0$prior_odds, evidence_threshold)
-  }
-
   structure(
     list(
       edges = edges,
@@ -383,47 +373,10 @@ prior_sensitivity_check = function(bgms_object,
       warm = warm_metric,
       model_type = spec$model_type,
       runtime_seconds = sum(walls),
-      learned = learned,
       edge_names = edge_names,
       fits = if(keep_fits) refits else NULL
     ),
     class = "bgms_prior_sensitivity"
-  )
-}
-
-
-# ------------------------------------------------------------------
-# learned_scale_analysis
-# ------------------------------------------------------------------
-# For a fit run with an interaction_scale_prior, the scale-learning extras: the
-# realized-vs-nominal multiplier interval and the scale-averaged verdict counts.
-# Labeled in the report as a different analysis from the robustness grid.
-# ------------------------------------------------------------------
-learned_scale_analysis = function(fit, prior_odds, evidence_threshold) {
-  spec = get_fit_spec(fit)
-  raw = get_raw_samples(fit)
-  shape = spec$prior$interaction_scale_shape
-  rate = spec$prior$interaction_scale_rate
-  chosen_scale = spec$prior$pairwise_scale
-  scale_draws = do.call(c, raw$interaction_scale)
-  u = scale_draws / chosen_scale
-  probs = c(0.025, 0.5, 0.975)
-  scale_prior_check = data.frame(
-    quantity = c("mean", "2.5%", "50%", "97.5%"),
-    nominal = c(shape / rate, stats::qgamma(probs, shape = shape, rate = rate)),
-    realized = c(mean(u), stats::quantile(u, probs, names = FALSE)),
-    row.names = NULL
-  )
-  gamma_pooled = do.call(rbind, raw$indicator)
-  marg_pip = colMeans(gamma_pooled)
-  marg_bf = (marg_pip / (1 - marg_pip)) / prior_odds
-  marg_verdict = verdict_from_bf(marg_bf, evidence_threshold)
-  list(
-    scale_prior_check = scale_prior_check,
-    marginalized_verdict = marg_verdict,
-    counts = table(factor(marg_verdict,
-      levels = c("presence", "undecided", "absence")
-    ))
   )
 }
 
@@ -511,11 +464,15 @@ stability_interval = function(verdict, relative, chosen_idx) {
 #' @title Print a Prior Sensitivity Check
 #'
 #' @description
-#' Prints the data-preferred scale, the per-scale verdict counts, the mover
-#' summary with its wobble yardstick, and any unusable refits from a
-#' \code{\link{prior_sensitivity_check}()} result.
+#' Prints the answer first: how many edge verdicts are robust to the slab
+#' scale, which edges genuinely depend on it (by name), which cannot be
+#' certified, the verdict counts per scale, and how the chosen scale compares
+#' with the size of the estimated interactions. Machinery (sampler, refit
+#' cost, the run-to-run noise band) is confined to a closing Details line.
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
+#' @param max_rows Integer. Maximum edges to name in the scale-dependent
+#'   table; the rest are counted and left to \code{$edges}. Default: \code{10}.
 #' @param ... Ignored.
 #'
 #' @return \code{x}, invisibly.
@@ -523,29 +480,87 @@ stability_interval = function(verdict, relative, chosen_idx) {
 #' @seealso \code{\link{prior_sensitivity_check}()}
 #' @family diagnostics
 #' @export
-print.bgms_prior_sensitivity = function(x, ...) {
+print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   edges = x$edges
   n_edges = nrow(edges)
+  mlab = sprintf("%.2gx", x$multipliers)
+  mlist = paste0(
+    paste(mlab[-length(mlab)], collapse = ", "), ", and ", mlab[length(mlab)]
+  )
 
-  cat("Prior sensitivity of edge inclusion verdicts\n\n")
+  cat("Prior sensitivity check: are the edge verdicts robust to the slab scale?\n")
+  cat(sprintf("Refits at %s the chosen scale; %d edges.\n\n", mlist, n_edges))
 
-  # The single most informative line: what scale the data prefer.
-  ps = x$preferred_scale
-  if(is.finite(ps$s_hat)) {
+  # Without a converged chosen-scale refit and replicate there is no yardstick
+  # and no certified verdict; say so instead of tabulating NAs.
+  grid_rows = x$grid[!x$grid$replicate, ]
+  s0_ok = grid_rows$usable[x$chosen_index] && any(x$grid$usable[x$grid$replicate])
+  if(!s0_ok) {
+    cat("The chosen-scale refit or its repeat run did not converge, so no\n")
+    cat("verdict could be certified from this run. Increase iter/warmup\n")
+    cat("(or pass refit_sampler = \"nuts\") and rerun.\n\n")
     cat(sprintf(
-      "Chosen scale %.3g; the data prefer approximately %.3g [%.3g, %.3g].\n",
-      x$chosen_scale, ps$s_hat, ps$lo, ps$hi
+      "Details: %s refits (%s), %d refits in %.0f s.\n",
+      x$refit_sampler,
+      if(x$warm) "warm-started from the fit" else "cold, full warmup",
+      nrow(x$grid), x$runtime_seconds
     ))
-  } else {
-    cat(sprintf("Chosen scale %.3g.\n", x$chosen_scale))
+    return(invisible(x))
   }
-  cat(sprintf(
-    "Evidence thresholds: presence >= %g, absence <= %.3g.\n\n",
-    x$evidence_threshold, 1 / x$evidence_threshold
-  ))
 
-  # Per-scale verdict counts, one column per multiplier (grid points only).
-  cat("Verdict counts by slab scale (multiplier x chosen scale):\n")
+  # One category per edge: not-certifiable wins, then the mover category.
+  uncert = edges$insufficient %in% TRUE
+  robust = !uncert & edges$mover == "stable"
+  within = !uncert & edges$mover == "indistinguishable-from-wobble"
+  beyond = !uncert & edges$mover == "moved-beyond-wobble"
+  counts = c(sum(robust), sum(within), sum(beyond), sum(uncert))
+  labels = c(
+    "robust (same verdict at every scale)",
+    "changed, within run-to-run noise",
+    "changed, beyond run-to-run noise",
+    "not certifiable (chains disagree)"
+  )
+  keep = counts > 0 | seq_along(counts) <= 3L
+  cat(sprintf("  %-38s %4d\n", labels[keep], counts[keep]), sep = "")
+  cat("\n")
+
+  # Name the edges whose verdict genuinely depends on the scale.
+  if(sum(beyond) > 0) {
+    cat(if(sum(beyond) == 1L) {
+      "1 edge's verdict genuinely depends on the scale:\n"
+    } else {
+      sprintf("%d edges' verdicts genuinely depend on the scale:\n", sum(beyond))
+    })
+    idx = which(beyond)
+    show = utils::head(idx, max_rows)
+    vmat = t(x$verdict[, show, drop = FALSE])
+    tab = cbind(edge = edges$edge[show], vmat)
+    colnames(tab) = c("edge", mlab)
+    rownames(tab) = rep("", nrow(tab))
+    print(tab, quote = FALSE, print.gap = 2)
+    if(length(idx) > length(show)) {
+      cat(sprintf("  ...and %d more; see $edges.\n", length(idx) - length(show)))
+    }
+    cat("\n")
+  }
+
+  # Name the edges the refits cannot certify.
+  if(sum(uncert) > 0) {
+    nm = edges$edge[uncert]
+    shown = utils::head(nm, max_rows)
+    cat(sprintf(
+      "%d edge%s cannot be certified from this run: %s%s\n\n",
+      length(nm), if(length(nm) == 1L) "" else "s", paste(shown, collapse = ", "),
+      if(length(nm) > length(shown)) {
+        sprintf(", and %d more (see $edges).", length(nm) - length(shown))
+      } else {
+        "."
+      }
+    ))
+  }
+
+  # Verdict counts by scale.
+  cat("Verdict counts by scale:\n")
   vt = apply(x$verdict, 1, function(v) {
     c(
       presence = sum(v == "presence", na.rm = TRUE),
@@ -553,108 +568,115 @@ print.bgms_prior_sensitivity = function(x, ...) {
       absence = sum(v == "absence", na.rm = TRUE)
     )
   })
-  colnames(vt) = sprintf("%.2gx", x$multipliers)
-  print(vt)
-  cat("\n")
-
-  # Mover summary with the wobble yardstick.
-  mv = table(factor(edges$mover,
-    levels = c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")
-  ))
-  cat("Scale sensitivity (wobble q95 = ", format(x$wobble$q95, digits = 2),
-    " log10 BF from the s0 replicate):\n",
-    sep = ""
-  )
-  cat("  stable:                        ", mv[["stable"]], "\n")
-  cat("  indistinguishable-from-wobble: ", mv[["indistinguishable-from-wobble"]], "\n")
-  cat("  moved-beyond-wobble:           ", mv[["moved-beyond-wobble"]], "\n")
-  n_insuf = sum(edges$insufficient, na.rm = TRUE)
-  if(n_insuf > 0) {
-    cat(sprintf("  %d edge(s) insufficient at the chosen scale (chains disagree or\n", n_insuf))
-    cat("    the Bayes-factor band straddles a threshold): cannot certify from this refit.\n")
+  colnames(vt) = mlab
+  out = utils::capture.output(print(vt))
+  cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
+  ab = vt["absence", ]
+  if(ab[length(ab)] > ab[1]) {
+    cat("More absence at wider scales is expected: a wider slab strengthens\n")
+    cat("evidence against borderline edges.\n")
   }
   cat("\n")
 
-  # Unusable refits, if any.
-  bad = x$grid[!x$grid$usable, ]
+  # Refits that failed their convergence check.
+  bad = x$grid[!x$grid$usable & !x$grid$replicate, ]
   if(nrow(bad) > 0) {
-    cat("Unusable refit(s) (failed the convergence gate; excluded from verdicts):\n")
-    for(i in seq_len(nrow(bad))) {
+    bl = sprintf("%.2gx", bad$multiplier)
+    bl = if(length(bl) > 1L) {
+      paste0(paste(bl[-length(bl)], collapse = ", "), " and ", bl[length(bl)])
+    } else {
+      bl
+    }
+    cat(sprintf(
+      "The %s refit%s did not converge and %s excluded from the verdicts.\n\n",
+      bl, if(nrow(bad) == 1L) "" else "s", if(nrow(bad) == 1L) "is" else "are"
+    ))
+  }
+
+  # How the chosen scale compares with the estimated interactions.
+  ps = x$preferred_scale
+  if(is.finite(ps$s_hat)) {
+    ratio = x$chosen_scale / ps$s_hat
+    if(ratio > 2) {
       cat(sprintf(
-        "  multiplier %.2g: median continuous Rhat %.3f, RB median Rhat %.3f\n",
-        bad$multiplier[i], bad$rhat_continuous[i], bad$rb_median_rhat[i]
+        "Note: the chosen scale (%.3g) is much wider than the estimated\ninteractions (about %.3g [%.3g, %.3g]); absence verdicts in\nparticular depend on this choice.\n\n",
+        x$chosen_scale, ps$s_hat, ps$lo, ps$hi
+      ))
+    } else if(ratio < 0.5) {
+      cat(sprintf(
+        "Note: the chosen scale (%.3g) is much narrower than the estimated\ninteractions (about %.3g [%.3g, %.3g]); presence verdicts in\nparticular depend on this choice.\n\n",
+        x$chosen_scale, ps$s_hat, ps$lo, ps$hi
+      ))
+    } else {
+      cat(sprintf(
+        "The chosen scale (%.3g) matches the size of the estimated interactions (about %.3g).\n\n",
+        x$chosen_scale, ps$s_hat
       ))
     }
-    cat("\n")
   }
 
+  secs = if(x$runtime_seconds < 10) {
+    sprintf("%.1f s", x$runtime_seconds)
+  } else {
+    sprintf("%.0f s", x$runtime_seconds)
+  }
   cat(sprintf(
-    "Refit sampler: %s%s. Whole check: %.0f s (%d refits).\n",
-    x$refit_sampler, if(x$warm) " (warm-started)" else "",
-    x$runtime_seconds, nrow(x$grid)
+    "Details: %s refits (%s), %d refits in %s;\nrun-to-run noise band %.2g log10 BF (95th pct of the repeated\nchosen-scale refit). ?prior_sensitivity_check for how to read this.\n",
+    x$refit_sampler,
+    if(x$warm) "warm-started from the fit" else "cold, full warmup",
+    nrow(x$grid), secs, x$wobble$q95
   ))
-
-  # Learned-scale block (hyperprior fits only), clearly labeled.
-  if(!is.null(x$learned)) {
-    spc = x$learned$scale_prior_check
-    lc = x$learned$counts
-    cat("\nLearned-scale analysis (this fit used interaction_scale_prior; a\n")
-    cat("different question from robustness):\n")
-    cat(sprintf(
-      "  realized multiplier u = s/s0: mean %.2f (nominal %.2f), 95%% [%.2f, %.2f]\n",
-      spc$realized[spc$quantity == "mean"], spc$nominal[spc$quantity == "mean"],
-      spc$realized[spc$quantity == "2.5%"], spc$realized[spc$quantity == "97.5%"]
-    ))
-    cat(sprintf(
-      "  scale-averaged verdicts: presence %d, undecided %d, absence %d\n",
-      lc[["presence"]], lc[["undecided"]], lc[["absence"]]
-    ))
-  }
-
-  cat("\nUse plot() for the Bayes-factor-vs-scale lines, and $edges for the ",
-    "per-edge table.\n",
-    sep = ""
-  )
   invisible(x)
 }
 
 
 # ------------------------------------------------------------------
-# verdict_palette
+# mover_palette
 # ------------------------------------------------------------------
-# Fixed colors for the three evidence verdicts.
+# Fixed-order categorical colors for the named mover lines (Okabe-Ito,
+# colorblind-safe; warm/cool alternating for adjacent separation). Every
+# mover line is also name-labeled, so identity never rides on color alone.
 # ------------------------------------------------------------------
-verdict_palette = function() {
-  c(presence = "#1b7837", undecided = "#7f7f7f", absence = "#b2182b")
+mover_palette = function() {
+  c(
+    "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00",
+    "#56B4E9", "#882255", "#44AA99", "#661100", "#999933"
+  )
 }
 
 
 # ------------------------------------------------------------------
-# verdict_color
+# spread_labels
 # ------------------------------------------------------------------
-# Color for a verdict, defaulting to grey for NA / unknown (e.g. an
-# edge whose chosen-scale grid point was grayed out at low ESS).
+# Nudge label y-positions apart until adjacent labels are at least `gap`
+# apart, preserving order. Returns the adjusted positions.
 # ------------------------------------------------------------------
-verdict_color = function(v, pal = verdict_palette()) {
-  if(length(v) != 1L || is.na(v) || !v %in% names(pal)) {
-    return("#7f7f7f")
+spread_labels = function(y, gap) {
+  ord = order(y)
+  ys = y[ord]
+  for(k in seq_along(ys)[-1]) {
+    if(ys[k] - ys[k - 1] < gap) ys[k] = ys[k - 1] + gap
   }
-  pal[[v]]
+  out = y
+  out[ord] = ys
+  out
 }
+
 
 #' @title Plot a Prior Sensitivity Check
 #'
 #' @description
-#' Draws the \eqn{\log_{10}} inclusion-Bayes-factor lines against the relative
-#' slab scale (multiplier of the chosen scale) on a log axis. The top panel
-#' draws one line per edge through the grid points, with the undecided band
-#' shaded, the chosen scale marked, the s0-replicate wobble band shown, and
-#' moved-beyond-wobble edges at full opacity over faint stable edges. The bottom
-#' panel is a forest of scale-stability ranges for the mover edges.
+#' One panel, answer first: the title states how many edge verdicts depend on
+#' the slab scale. Each edge's \eqn{\log_{10}} inclusion Bayes factor (the
+#' evidence for the edge) is drawn across the refit scales. Edges whose
+#' verdict genuinely depends on the scale are colored and labeled by name;
+#' all other edges are the muted background. The shaded band is the undecided
+#' zone between the evidence thresholds; the zones are labeled in the right
+#' margin.
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
-#' @param max_labels Integer. Maximum mover edges to label in the forest panel.
-#'   Default: \code{25}.
+#' @param max_labels Integer. Maximum scale-dependent edges to color and
+#'   label by name; the rest are counted in a corner note. Default: \code{10}.
 #' @param ... Ignored.
 #'
 #' @return \code{x}, invisibly. Called for the side effect of drawing.
@@ -662,83 +684,127 @@ verdict_color = function(v, pal = verdict_palette()) {
 #' @seealso \code{\link{prior_sensitivity_check}()}
 #' @family diagnostics
 #' @export
-plot.bgms_prior_sensitivity = function(x, max_labels = 25L, ...) {
-  pal = verdict_palette()
+plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   rel = x$multipliers
   thr = log10(x$evidence_threshold)
   edges = x$edges
   n_edges = nrow(edges)
-  movers = which(edges$mover == "moved-beyond-wobble" & !(edges$saturated %in% TRUE))
+  mlab = sprintf("%.2gx", rel)
+  ink = "grey25"
+  muted = "grey55"
+  faint = grDevices::adjustcolor("grey55", 0.35)
+
+  # Same partition as print(): an edge the refits cannot certify is not
+  # reported as scale-dependent.
+  movers = which(
+    edges$mover == "moved-beyond-wobble" &
+      !(edges$saturated %in% TRUE) & !(edges$insufficient %in% TRUE)
+  )
+  # Label the largest evidence swings first.
+  swing = apply(x$log10_bf, 2, function(v) {
+    v = v[is.finite(v)]
+    if(length(v)) diff(range(v)) else 0
+  })
+  movers = movers[order(swing[movers], decreasing = TRUE)]
+  named = utils::head(movers, max_labels)
 
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
-  graphics::par(mfrow = c(2, 1), mar = c(4.2, 4.2, 2.2, 1))
+  graphics::par(
+    mar = c(5.1, 4.4, 3.6, 7.5), mgp = c(2.6, 0.7, 0),
+    col.axis = ink, col.lab = ink, col.main = ink
+  )
 
-  # --- Top panel: log10 BF lines through the grid points ----------------------
-  finite_bf = x$log10_bf[is.finite(x$log10_bf)]
-  ylim = if(length(finite_bf)) range(c(finite_bf, -thr, thr)) else c(-thr, thr) * 2
+  # The y-range covers the decision band and every named line; edges that
+  # live entirely outside it never change verdict and clip silently.
+  named_bf = x$log10_bf[, named, drop = FALSE]
+  named_bf = named_bf[is.finite(named_bf)]
+  ylim = range(c(-1.5 * thr, 1.5 * thr, named_bf))
+  ylim = ylim + c(-0.4, 0.4)
+
+  n_dep = length(movers)
+  title = if(n_dep == 0L) {
+    "No edge verdict depends on the slab scale"
+  } else if(n_dep == 1L) {
+    "1 edge verdict depends on the slab scale"
+  } else {
+    sprintf("%d edge verdicts depend on the slab scale", n_dep)
+  }
+
   graphics::plot(NA, NA,
-    xlim = range(rel), ylim = ylim, log = "x",
-    xlab = "relative slab scale (multiplier of the chosen scale)",
-    ylab = expression(log[10] * " inclusion Bayes factor"),
-    main = "Inclusion Bayes factor vs. slab scale"
+    xlim = range(rel), ylim = ylim, log = "x", axes = FALSE,
+    xlab = "slab scale (relative to the chosen scale)",
+    ylab = expression("evidence for the edge (" * log[10] * " Bayes factor)"),
+    main = title
   )
-  graphics::rect(min(rel), -thr, max(rel), thr,
-    col = grDevices::adjustcolor(pal[["undecided"]], 0.12), border = NA
-  )
-  graphics::abline(h = c(-thr, 0, thr), col = "grey70", lty = c(2, 1, 2))
-  graphics::abline(v = 1, col = "grey40", lty = 3)
+  graphics::axis(1, at = rel, labels = mlab, col = muted, col.ticks = muted)
+  graphics::axis(2, col = muted, col.ticks = muted, las = 1)
 
-  # Stable edges faint, movers solid; x$log10_bf is scale-by-edge.
-  for(e in seq_len(n_edges)) {
+  # Verdict zones: shaded undecided band, dashed thresholds, margin labels.
+  usr = graphics::par("usr")
+  graphics::rect(10^usr[1], -thr, 10^usr[2], thr,
+    col = grDevices::adjustcolor("grey60", 0.12), border = NA
+  )
+  graphics::abline(h = c(-thr, thr), col = muted, lty = 2)
+  graphics::abline(v = 1, col = muted, lty = 3)
+  graphics::mtext("chosen", side = 3, at = 1, line = 0.1, cex = 0.75, col = muted)
+  zone_x = 10^(usr[1] + 0.015 * diff(usr[1:2]))
+  pad = 0.05 * diff(ylim)
+  graphics::text(zone_x, thr + pad, "presence", adj = c(0, 0), cex = 0.8, col = muted)
+  graphics::text(zone_x, thr - pad, "undecided", adj = c(0, 1), cex = 0.8, col = muted)
+  graphics::text(zone_x, -thr - pad, "absence", adj = c(0, 1), cex = 0.8, col = muted)
+
+  # Background: every other edge in one muted color.
+  for(e in setdiff(seq_len(n_edges), named)) {
     if(isTRUE(edges$saturated[e])) next
-    is_mover = edges$mover[e] == "moved-beyond-wobble"
-    col_e = grDevices::adjustcolor(
-      verdict_color(edges$chosen_scale_verdict[e], pal), if(is_mover) 0.9 else 0.2
-    )
-    graphics::lines(rel, x$log10_bf[, e], col = col_e, lwd = if(is_mover) 2 else 1)
-  }
-  n_saturated = sum(edges$saturated, na.rm = TRUE)
-  if(n_saturated > 0) {
-    graphics::mtext(
-      paste0(
-        n_saturated,
-        " edge(s): presence or absence at every scale considered"
-      ),
-      side = 3, line = 0.2, cex = 0.75, adj = 1, col = "grey40"
-    )
+    graphics::lines(rel, x$log10_bf[, e], col = faint, lwd = 1)
   }
 
-  # --- Bottom panel: forest of stability ranges for movers --------------------
-  if(length(movers) == 0L) {
-    graphics::plot.new()
-    graphics::text(0.5, 0.5,
-      "No moved-beyond-wobble edges: every verdict is scale-robust.",
-      cex = 1
-    )
-    return(invisible(x))
+  # Foreground: the named movers, colored in fixed order and name-labeled.
+  if(length(named)) {
+    pal = mover_palette()
+    # Anchor each name at the line's last finite point (0 if none is finite).
+    anchor = vapply(named, function(e) {
+      v = x$log10_bf[, e]
+      v = v[is.finite(v)]
+      if(length(v)) v[length(v)] else 0
+    }, numeric(1))
+    end_y = spread_labels(anchor, gap = 0.05 * diff(ylim))
+    for(k in seq_along(named)) {
+      e = named[k]
+      graphics::lines(rel, x$log10_bf[, e], col = pal[k], lwd = 2.5)
+      graphics::points(rel, x$log10_bf[, e], col = pal[k], pch = 16, cex = 0.9)
+      graphics::segments(
+        max(rel), anchor[k],
+        10^(usr[2] + 0.005 * diff(usr[1:2])), end_y[k],
+        col = grDevices::adjustcolor(pal[k], 0.5), lwd = 0.8, xpd = NA
+      )
+      graphics::text(
+        10^(usr[2] + 0.015 * diff(usr[1:2])), end_y[k], edges$edge[e],
+        xpd = NA, adj = 0, cex = 0.75, col = ink
+      )
+    }
   }
-  ord = movers[order(edges$stability_upper[movers] - edges$stability_lower[movers])]
-  show = utils::head(ord, max_labels)
-  yy = seq_along(show)
-  xr = range(c(edges$stability_lower[show], edges$stability_upper[show], 1), na.rm = TRUE)
-  graphics::plot(NA, NA,
-    xlim = xr, ylim = c(0.5, length(show) + 0.5),
-    log = "x", yaxt = "n", xlab = "relative slab scale",
-    ylab = "", main = "Scale-stability ranges (mover edges)"
-  )
-  graphics::abline(v = 1, col = "grey40", lty = 3)
-  for(k in seq_along(show)) {
-    e = show[k]
-    graphics::segments(edges$stability_lower[e], yy[k],
-      edges$stability_upper[e], yy[k],
-      col = verdict_color(edges$chosen_scale_verdict[e], pal), lwd = 3
-    )
-    graphics::points(1, yy[k],
-      pch = 18,
-      col = verdict_color(edges$chosen_scale_verdict[e], pal)
+
+  # Corner notes: unnamed movers and off-scale edges, counted not drawn.
+  notes = character(0)
+  if(n_dep > length(named)) {
+    notes = c(notes, sprintf("and %d more; see $edges", n_dep - length(named)))
+  }
+  n_off = sum(vapply(seq_len(n_edges), function(e) {
+    v = x$log10_bf[, e]
+    v = v[is.finite(v)]
+    length(v) == 0L || all(v > ylim[2]) || all(v < ylim[1])
+  }, logical(1)))
+  if(n_off > 0) {
+    notes = c(notes, sprintf(
+      "%d edges beyond the plot range keep their verdict at every scale", n_off
+    ))
+  }
+  if(length(notes)) {
+    graphics::mtext(paste(notes, collapse = "; "),
+      side = 1, line = 3.9, adj = 0, cex = 0.75, col = muted
     )
   }
-  graphics::axis(2, at = yy, labels = edges$edge[show], las = 1, cex.axis = 0.7)
   invisible(x)
 }

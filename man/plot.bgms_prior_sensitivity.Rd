@@ -4,13 +4,13 @@
 \alias{plot.bgms_prior_sensitivity}
 \title{Plot a Prior Sensitivity Check}
 \usage{
-\method{plot}{bgms_prior_sensitivity}(x, max_labels = 25L, ...)
+\method{plot}{bgms_prior_sensitivity}(x, max_labels = 10L, ...)
 }
 \arguments{
 \item{x}{A \code{bgms_prior_sensitivity} object.}
 
-\item{max_labels}{Integer. Maximum mover edges to label in the forest panel.
-Default: \code{25}.}
+\item{max_labels}{Integer. Maximum scale-dependent edges to color and
+label by name; the rest are counted in a corner note. Default: \code{10}.}
 
 \item{...}{Ignored.}
 }
@@ -18,12 +18,13 @@ Default: \code{25}.}
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-Draws the \eqn{\log_{10}} inclusion-Bayes-factor lines against the relative
-slab scale (multiplier of the chosen scale) on a log axis. The top panel
-draws one line per edge through the grid points, with the undecided band
-shaded, the chosen scale marked, the s0-replicate wobble band shown, and
-moved-beyond-wobble edges at full opacity over faint stable edges. The bottom
-panel is a forest of scale-stability ranges for the mover edges.
+One panel, answer first: the title states how many edge verdicts depend on
+the slab scale. Each edge's \eqn{\log_{10}} inclusion Bayes factor (the
+evidence for the edge) is drawn across the refit scales. Edges whose
+verdict genuinely depends on the scale are colored and labeled by name;
+all other edges are the muted background. The shaded band is the undecided
+zone between the evidence thresholds; the zones are labeled in the right
+margin.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

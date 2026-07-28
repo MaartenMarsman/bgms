@@ -50,8 +50,8 @@ data = Wenchuan
 
 `prior_sensitivity_check()` is that comparison, automated. It takes a fitted
 model, refits it at a small grid of slab scales --- narrow, chosen, and wide
---- and classifies every edge at every scale. No hyperprior and no special fit
-are required: it works on any `bgm()` fit made with edge selection.
+--- and classifies every edge at every scale. No special fit is required: it
+works on any `bgm()` fit made with edge selection.
 
 ```{r, eval = FALSE}
 fit = bgm(data)
@@ -60,74 +60,65 @@ ps
 ```
 
 ```
-#> Prior sensitivity of edge inclusion verdicts
-#>
-#> Chosen scale 1; the data prefer approximately 0.15 [0.12, 0.18].
-#> Evidence thresholds: presence >= 10, absence <= 0.1.
-#>
-#> Verdict counts by slab scale (multiplier x chosen scale):
-#>           0.5x  1x 2.5x
-#> presence    37  35   31
-#> undecided   60  44   31
-#> absence     39  57   74
-#>
-#> Scale sensitivity (wobble q95 = 0.28 log10 BF from the s0 replicate):
-#>   stable:                        118
-#>   indistinguishable-from-wobble:  13
-#>   moved-beyond-wobble:             5
-#>
-#> Refit sampler: nuts (warm-started). Whole check: 205 s (4 refits).
+#> PLACEHOLDER-PRINT-OUTPUT
 ```
 
 The scales are multipliers of the fit's chosen scale, so one default
 (`c(0.5, 1, 2.5)`) serves `normal_prior(1)` and `cauchy_prior(2.5)` alike. The
-verdict-count table is the headline: as the slab widens, evidence for inclusion
-weakens and edges drift from undecided toward absence --- the expected direction,
-since a wider slab penalizes the extra parameter an edge costs.
+category counts are the headline: most verdicts are robust, and the edges
+whose verdict genuinely depends on the scale are named, with their verdict at
+each scale. The per-scale verdict table below them shows the expected drift:
+as the slab widens, evidence for inclusion weakens and edges move from
+undecided toward absence, since a wider slab penalizes the extra parameter an
+edge costs.
 
-## The wobble yardstick
+## Run-to-run noise
 
 Verdict-identity comparisons are flaky by construction: an inclusion Bayes
 factor that sits within Monte Carlo error of a threshold can change category
 between reruns of the *same* prior, with no real sensitivity present. The
-multiplier `1` is included for exactly this reason. Its refit is a replicate of
-the chosen-scale analysis, and the spread of $|\Delta \log_{10} \mathrm{BF}|$
-between the chosen-scale refit and this replicate is the empirical wobble
-yardstick (its 95th percentile is printed above).
+multiplier `1` is included for exactly this reason. Its refit is a repeat run
+of the chosen-scale analysis, and the spread of $|\Delta \log_{10} \mathrm{BF}|$
+between the chosen-scale refit and this repeat is the empirical noise band
+(its 95th percentile is the "run-to-run noise band" in the report's Details
+line, computed over edges whose evidence is near the decision thresholds).
 
-An edge is called `moved-beyond-wobble` only if its verdict changes across the
-grid *and* its $\log_{10}$ Bayes-factor swing exceeds that yardstick (and its
-own Monte Carlo error, and a small tolerance). An edge that flips inside the
-wobble is `indistinguishable-from-wobble`: the check refuses to call it a move.
-This is what keeps a robustness tool from crying wolf on boundary edges.
+An edge is reported as "changed, beyond run-to-run noise" only if its verdict
+changes across the grid *and* its $\log_{10}$ Bayes-factor swing exceeds that
+band (and its own Monte Carlo error, and a small tolerance). An edge that
+flips inside the band is "changed, within run-to-run noise": the check
+refuses to call it a move. This is what keeps a robustness tool from crying
+wolf on boundary edges. In the `$edges$mover` column these categories are
+stored as `stable`, `indistinguishable-from-wobble`, and
+`moved-beyond-wobble`.
 
 ```{r, eval = FALSE}
 plot(ps)
 ```
 
-The plot draws one $\log_{10}$ Bayes-factor line per edge across the grid, the
-undecided band shaded and the chosen scale marked; `moved-beyond-wobble` edges
-are solid and colored by verdict, everything else faint. The lower panel is a
-forest of the scale ranges over which each mover's verdict holds.
+The plot's title states the answer. Each edge's evidence line runs across the
+grid, the undecided band is shaded and the verdict zones are labeled; the
+edges whose verdict depends on the scale are colored and labeled by name, and
+everything else is muted background.
 
 The per-edge table carries the chosen-scale verdict and $\log_{10}$ Bayes
 factor with its Monte Carlo standard error, the per-scale verdict columns, the
 stability range, the mover category, and an `insufficient` flag for edges the
 refit cannot certify (its chains disagree, or the Bayes-factor band straddles a
-threshold).
+threshold); the report prints these as "not certifiable".
 
 ```{r, eval = FALSE}
 head(ps$edges)
 ```
 
-## What the report opens with
+## The chosen scale versus the data
 
-The first line is the single most useful sentence the check produces, and it
-costs no refit: the scale the data prefer. It is the root-mean-square of the
-included interactions in the original fit, with an approximate standard error.
-When the data prefer a scale far from the one you chose --- here about `0.15`
-against a chosen `1` --- the inclusion verdicts near the boundary will be scale
-sensitive, and the grid shows by how much.
+One line of the report costs no refit: how the chosen scale compares with the
+size of the estimated interactions (the root-mean-square of the included
+interactions in the original fit, with an approximate standard error). When
+the chosen scale is far wider or narrower than that --- more than about a
+factor of two --- the report says so, because inclusion verdicts near the
+boundary then depend on the choice, and the grid shows by how much.
 
 ## Cost and samplers
 
@@ -135,11 +126,12 @@ With warm starts, each refit begins from the original fit's per-chain end
 state; an ordinal fit sampled with NUTS also carries the adapted step size and
 mass matrix, so a short warmup suffices. The scales are refit one after another,
 each running its chains in parallel across `cores`, and on Wenchuan the whole
-three-scale check (plus the chosen-scale replicate) costs about one original
+three-scale check (plus the chosen-scale repeat) costs about one original
 fit of wall-clock. A fit sampled with adaptive Metropolis or Gibbs refits with
-the same sampler and costs about one fit per scale; the check then suggests
-`refit_sampler = "nuts"` for speed, which is licensed because every comparison
-runs refit-against-refit. Continuous (GGM) and mixed-MRF fits refit cold.
+the same sampler and costs about one fit per scale; when that makes the check
+cost more than about a minute, it suggests `refit_sampler = "nuts"`, which is
+sound because every comparison runs refit-against-refit --- the original fit
+never enters a comparison. Continuous (GGM) and mixed-MRF fits refit cold.
 
 Because warm starts place every chain near the chosen-scale posterior,
 between-chain dispersion is reduced by construction, so split-$\hat R$ is a
@@ -149,29 +141,5 @@ that fails its gate is reported as unusable rather than folded into the verdicts
 The check thus doubles as a convergence audit of the original analysis: an
 undermixed original run shows up as a refit that cannot reproduce its own
 chosen-scale verdicts within Monte Carlo error.
-
-# Letting the data choose the scale
-
-Robustness ("do my verdicts survive a reasonable disagreement about the scale?")
-is a different question from scale learning ("what scale do the data imply?").
-For the second, supply an `interaction_scale_prior` to make the slab scale a
-sampled parameter centered on the chosen scale, written $s = s_0 u$ with $u$
-following a mean-one prior. The recommended default is
-`gamma_prior(shape = 2, rate = 2)`.
-
-```{r, eval = FALSE}
-fit_learned = bgm(data, interaction_scale_prior = gamma_prior(2, 2))
-ps_learned = prior_sensitivity_check(fit_learned)
-```
-
-When the fit carries a scale hyperprior, the report adds a clearly labeled
-learned-scale block: the realized-versus-nominal scale interval, and the
-scale-averaged verdict counts. On Wenchuan the data pull the scale down to about
-`0.15`, and at that learned scale the verdicts read roughly `40 / 96 / 0`
-(presence / undecided / absence) --- almost nothing is called absent --- against
-`35 / 44 / 57` at the chosen scale of `1`. That contrast is the cautionary
-point: the learned scale answers "what scale fits?", not "is my verdict robust?".
-The robustness grid above is the tool for the second question, and the two
-should not be conflated.
 
 # References

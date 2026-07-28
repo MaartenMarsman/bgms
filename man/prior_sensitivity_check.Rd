@@ -33,7 +33,11 @@ threshold. Default: \code{10}.}
 \item{refit_sampler}{One of \code{"same-as-fit"} (default; inherit the
 original fit's update method) or an explicit \code{"nuts"},
 \code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
-fit carry the adapted metric and run fastest.}
+fit carry the adapted metric and run fastest; when an inherited slower
+sampler makes the check cost more than about a minute, a message suggests
+the switch. Refitting with a different sampler than the original fit is
+sound because every comparison the check makes runs refit-against-refit
+under one identical pipeline; the original fit never enters a comparison.}
 
 \item{iter, warmup}{Integer sampling and warmup iterations per refit, or
 \code{NULL} (default) to use the validated short schedule for warm NUTS
@@ -98,9 +102,13 @@ Bayes-factor change across scales exceeds
 Rao-Blackwellized machinery and the wobble the 95th percentile of the
 s0-replicate spread over threshold-relevant edges
 (\eqn{|\log_{10} \mathrm{BF}| \le 3} at s0; near-saturated edges would
-inflate it). Each edge is reported as \code{stable},
-\code{moved-beyond-wobble}, or \code{indistinguishable-from-wobble}; a bare
-verdict flip inside the replicate noise is never reported as a move.
+inflate it). The \code{$edges$mover} column stores \code{stable},
+\code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
+printed report shows the same categories in plain language ("robust",
+"changed, within run-to-run noise", "changed, beyond run-to-run noise",
+with edges failing the sufficiency check below printed as "not
+certifiable"). A bare verdict flip inside the replicate noise is never
+reported as a move.
 
 \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
 whose between-chain-inflated \eqn{\log_{10}} BF band straddles a verdict
@@ -112,11 +120,6 @@ band rather than vanishing into a pooled estimate.
 split-\eqn{\hat R} below 1.01, bulk RB-inclusion median \eqn{\hat R} below
 1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
 used; a refit that fails is reported as unusable rather than silently pooled.
-
-A fit run with an \code{interaction_scale_prior} is a different analysis
-(scale learning); for such a fit the report adds the realized-versus-nominal
-scale interval and the scale-averaged verdict, clearly labeled as the
-learned-scale analysis, not a robustness average.
 }
 \examples{
 \donttest{

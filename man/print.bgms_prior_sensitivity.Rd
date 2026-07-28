@@ -4,10 +4,13 @@
 \alias{print.bgms_prior_sensitivity}
 \title{Print a Prior Sensitivity Check}
 \usage{
-\method{print}{bgms_prior_sensitivity}(x, ...)
+\method{print}{bgms_prior_sensitivity}(x, max_rows = 10L, ...)
 }
 \arguments{
 \item{x}{A \code{bgms_prior_sensitivity} object.}
+
+\item{max_rows}{Integer. Maximum edges to name in the scale-dependent
+table; the rest are counted and left to \code{$edges}. Default: \code{10}.}
 
 \item{...}{Ignored.}
 }
@@ -15,9 +18,11 @@
 \code{x}, invisibly.
 }
 \description{
-Prints the data-preferred scale, the per-scale verdict counts, the mover
-summary with its wobble yardstick, and any unusable refits from a
-\code{\link{prior_sensitivity_check}()} result.
+Prints the answer first: how many edge verdicts are robust to the slab
+scale, which edges genuinely depend on it (by name), which cannot be
+certified, the verdict counts per scale, and how the chosen scale compares
+with the size of the estimated interactions. Machinery (sampler, refit
+cost, the run-to-run noise band) is confined to a closing Details line.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}
