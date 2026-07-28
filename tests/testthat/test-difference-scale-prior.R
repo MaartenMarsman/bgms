@@ -118,9 +118,15 @@ test_that("with the differences held out the scale recovers the mean-1 hyperprio
 
   # The differences are held out essentially always.
   expect_lt(mean(ind), 0.02)
-  # gamma(shape = 2, rate = 2): mean 1, variance shape / rate^2 = 0.5.
-  expect_equal(mean(s), 1, tolerance = 0.1)
-  expect_equal(stats::var(s), 0.5, tolerance = 0.2)
+  # gamma(shape = 2, rate = 2): mean 1, variance 0.5, central fourth moment
+  # 1.5. The scale chain is a slow-mixing MH walk (integrated autocorrelation
+  # time ~ 200, so ~65 effective draws), so both moment checks bound the
+  # error by 4 MCSE at the chain's own effective sample size; the target is
+  # gross wiring bugs, not fine calibration.
+  ac = stats::acf(s, lag.max = 500, plot = FALSE)$acf[-1]
+  ess = length(s) / (1 + 2 * sum(ac[cumsum(ac < 0.01) == 0]))
+  expect_lt(abs(mean(s) - 1), 4 * sqrt(0.5 / ess))
+  expect_lt(abs(stats::var(s) - 0.5), 4 * sqrt((1.5 - 0.5^2) / ess))
 })
 
 

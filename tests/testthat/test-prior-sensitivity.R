@@ -98,8 +98,14 @@ test_that("with the edge held out the scale draws recover the mean-1 hyperprior"
   g = do.call(rbind, raw$indicator)[, 1]
   expect_lt(mean(g), 0.05)
   u = s[g == 0]
-  expect_equal(mean(u), 1, tolerance = 0.1)
-  expect_equal(stats::var(u), 0.5, tolerance = 0.2)
+  # gamma(shape = 2, rate = 2): mean 1, variance 0.5, central fourth moment
+  # 1.5. The scale chain mixes slowly, so bound the moment errors by 4 MCSE
+  # at the chain's own effective sample size (see the bgmCompare analogue in
+  # test-difference-scale-prior.R).
+  ac = stats::acf(u, lag.max = 500, plot = FALSE)$acf[-1]
+  ess = length(u) / (1 + 2 * sum(ac[cumsum(ac < 0.01) == 0]))
+  expect_lt(abs(mean(u) - 1), 4 * sqrt(0.5 / ess))
+  expect_lt(abs(stats::var(u) - 0.5), 4 * sqrt((1.5 - 0.5^2) / ess))
 })
 
 
