@@ -149,38 +149,6 @@ public:
     virtual void tune_proposal_sd(int /*iteration*/, const WarmupSchedule& /*schedule*/) {}
 
     /**
-     * Update the random interaction-slab-scale hyperparameter with a
-     * one-dimensional MH-within-Gibbs step, when an interaction-scale
-     * hyperprior is active.
-     *
-     * Default no-op: models with a fixed slab scale (the default) do nothing.
-     * The omrf/mixed/ggm overrides run a random walk on log s whose target is
-     * the prior-only full conditional pi(s) times the currently included slab
-     * densities, mutating the owned interaction prior in place (set_scale) so
-     * every later logp/grad and edge birth-death evaluation in the iteration
-     * sees the current scale. Called from the runner each iteration right after
-     * tune_proposal_sd. The random-walk step size is adapted by Robbins-Monro
-     * during warmup only.
-     *
-     * @param iteration  Current iteration index (for step-size adaptation)
-     * @param schedule   Warmup schedule (adaptation is warmup-only)
-     */
-    virtual void update_interaction_scale(int /*iteration*/,
-                                          const WarmupSchedule& /*schedule*/) {}
-
-    /** @return true when the interaction slab scale is a sampled hyperparameter. */
-    virtual bool has_random_interaction_scale() const { return false; }
-
-    /**
-     * @return the current interaction-slab scale, or NaN when the model has no
-     *         randomized interaction scale. Read once per stored iteration for
-     *         the scalar scale trace.
-     */
-    virtual double get_interaction_scale() const {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    /**
      * Called at the start of every iteration before edge selection and sampling.
      *
      * Subclasses may use this to shuffle edge update order or advance the

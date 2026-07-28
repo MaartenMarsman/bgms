@@ -27,31 +27,6 @@ public:
 
     /** Deep copy for parallel chains. */
     virtual std::unique_ptr<BaseParameterPrior> clone() const = 0;
-
-    /**
-     * Current slab scale, for priors that carry one (Normal, Cauchy).
-     *
-     * @return the scale; throws for families with no scale to report.
-     */
-    virtual double scale() const {
-        Rf_error("This parameter prior family has no scale.");
-        return 0.0; // unreachable
-    }
-
-    /**
-     * Set the slab scale in place, for priors that carry one.
-     *
-     * The random interaction-scale hyperprior mutates the owned prior object
-     * each iteration so that all downstream logp/grad and edge birth-death
-     * evaluations see the current scale without any call-site change. Families
-     * with no scale throw, since randomizing them is unsupported.
-     *
-     * @param scale  New scale; must be positive.
-     */
-    virtual void set_scale(double scale) {
-        (void) scale;
-        Rf_error("This parameter prior family has no settable scale.");
-    }
 };
 
 
@@ -76,10 +51,7 @@ public:
     }
 
     /** @return the slab scale. */
-    double scale() const override { return scale_; }
-
-    /** Set the slab scale in place. @param scale New scale; must be positive. */
-    void set_scale(double scale) override { scale_ = scale; }
+    double scale() const { return scale_; }
 
 private:
     double scale_;
@@ -107,10 +79,7 @@ public:
     }
 
     /** @return the slab standard deviation. */
-    double scale() const override { return scale_; }
-
-    /** Set the slab standard deviation in place. @param scale New scale; must be positive. */
-    void set_scale(double scale) override { scale_ = scale; }
+    double scale() const { return scale_; }
 
 private:
     double scale_;

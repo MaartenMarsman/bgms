@@ -200,23 +200,13 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
     } else {
       NULL
     },
-    interaction_scale = if("interaction_scale" %in% names(raw[[1]])) {
-      lapply(raw, `[[`, "interaction_scale")
-    } else {
-      NULL
-    },
     nchains = length(raw),
     niter = nrow(raw[[1]]$main_samples),
     parameter_names = list(
       main = names_main,
       pairwise = edge_names,
       indicator = if(edge_selection) edge_names else NULL,
-      allocations = allocation_names,
-      interaction_scale = if("interaction_scale" %in% names(raw[[1]])) {
-        "interaction_scale"
-      } else {
-        NULL
-      }
+      allocations = allocation_names
     )
   )
 }

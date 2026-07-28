@@ -78,11 +78,6 @@ public:
     /// Whether inclusion-parameter samples are stored.
     bool        has_inclusion_parameter = false;
 
-    /// Sampled interaction slab scale (random-scale hyperprior; n_iter).
-    arma::vec   scale_samples;
-    /// Whether interaction-scale samples are stored.
-    bool        has_scale_samples = false;
-
     /// NUTS tree depth diagnostics (n_iter).
     arma::ivec  treedepth_samples;
     /// NUTS divergent transition flags (n_iter).
@@ -195,16 +190,6 @@ public:
     }
 
     /**
-     * Reserve storage for interaction-scale samples
-     * @param n_iter  Number of sampling iterations
-     */
-    void reserve_scale_samples(const size_t n_iter) {
-        scale_samples.set_size(n_iter);
-        scale_samples.fill(arma::datum::nan);
-        has_scale_samples = true;
-    }
-
-    /**
      * Reserve storage for NUTS diagnostics
      * @param n_iter  Number of sampling iterations
      */
@@ -294,15 +279,6 @@ public:
      */
     void store_inclusion_parameter(const size_t iter, const double value) {
         inclusion_parameter_samples(iter) = value;
-    }
-
-    /**
-     * Store the interaction-scale sample for one iteration
-     * @param iter   Iteration index (0-based)
-     * @param value  Sampled interaction slab scale
-     */
-    void store_scale_sample(const size_t iter, const double value) {
-        scale_samples(iter) = value;
     }
 
     /**

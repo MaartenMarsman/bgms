@@ -91,19 +91,6 @@ Rcpp::List sample_omrf(
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
 
-    // Optional random interaction-slab-scale hyperprior. An empty type string
-    // means the scale is fixed (the default). Otherwise the multiplier u = s/s0
-    // follows a mean-1 gamma/exponential (shape/rate from R), and the scale
-    // becomes a sampled parameter.
-    std::string ispt_str = inputFromR.containsElementNamed("interaction_scale_prior_type")
-        ? Rcpp::as<std::string>(inputFromR["interaction_scale_prior_type"]) : "";
-    if (!ispt_str.empty()) {
-        double is_shape = Rcpp::as<double>(inputFromR["interaction_scale_shape"]);
-        double is_rate = Rcpp::as<double>(inputFromR["interaction_scale_rate"]);
-        model.enable_random_interaction_scale(
-            create_scale_prior(ispt_str, is_shape, is_rate));
-    }
-
     // Set up missing data imputation
     if (na_impute && missing_index_nullable.isNotNull()) {
         arma::imat missing_index = Rcpp::as<arma::imat>(

@@ -113,12 +113,6 @@ OMRFModel::OMRFModel(const OMRFModel& other)
       inclusion_probability_(other.inclusion_probability_),
       interaction_prior_(other.interaction_prior_->clone()),
       threshold_prior_(other.threshold_prior_->clone()),
-      interaction_scale_random_(other.interaction_scale_random_),
-      interaction_scale_base_(other.interaction_scale_base_),
-      interaction_scale_prior_(other.interaction_scale_prior_
-                                   ? other.interaction_scale_prior_->clone()
-                                   : nullptr),
-      interaction_scale_proposal_sd_(other.interaction_scale_proposal_sd_),
       edge_selection_(other.edge_selection_),
       edge_selection_active_(other.edge_selection_active_),
       num_main_(other.num_main_),
@@ -281,78 +275,6 @@ void OMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedule) 
     }
 
     invalidate_gradient_cache();
-}
-
-
-void OMRFModel::enable_random_interaction_scale(
-    std::unique_ptr<BaseParameterPrior> scale_prior_on_u,
-    double initial_proposal_sd) {
-    interaction_scale_random_ = true;
-    interaction_scale_base_ = interaction_prior_->scale();
-    interaction_scale_prior_ = std::move(scale_prior_on_u);
-    interaction_scale_proposal_sd_ = initial_proposal_sd;
-}
-
-
-double OMRFModel::get_interaction_scale() const {
-    if (!interaction_scale_random_) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    return interaction_prior_->scale();
-}
-
-
-void OMRFModel::update_interaction_scale(int iteration, const WarmupSchedule& schedule) {
-    if (!interaction_scale_random_) return;
-
-    // Random walk on log u, s = s0 * u. The full conditional of s is prior-only:
-    // pi(u) times the slab densities of the currently included interactions
-    // (the pseudolikelihood is free of s). Sum over the upper triangle of the
-    // included edges; when edge selection is off every pair is included.
-    const double s_curr = interaction_prior_->scale();
-    const double u_curr = s_curr / interaction_scale_base_;
-    const double log_u_curr = MY_LOG(u_curr);
-    const double log_u_prop = rnorm(rng_, log_u_curr, interaction_scale_proposal_sd_);
-    const double u_prop = MY_EXP(log_u_prop);
-    const double s_prop = interaction_scale_base_ * u_prop;
-
-    // Slab log-densities of the included interactions at the current scale.
-    // Family-generic: read through interaction_prior_->logp so a Cauchy slab
-    // needs no change here.
-    double slab_curr = 0.0;
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_selection_ && edge_indicators_(v1, v2) == 0) continue;
-            slab_curr += interaction_prior_->logp(pairwise_effects_(v1, v2));
-        }
-    }
-
-    // Re-evaluate the same interactions at the proposed scale.
-    interaction_prior_->set_scale(s_prop);
-    double slab_prop = 0.0;
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_selection_ && edge_indicators_(v1, v2) == 0) continue;
-            slab_prop += interaction_prior_->logp(pairwise_effects_(v1, v2));
-        }
-    }
-
-    const double ln_alpha =
-        interaction_scale_prior_->logp(u_prop) - interaction_scale_prior_->logp(u_curr)
-        + (slab_prop - slab_curr)
-        + (log_u_prop - log_u_curr); // log-random-walk Jacobian
-
-    if (!(MY_LOG(runif(rng_)) < ln_alpha)) {
-        interaction_prior_->set_scale(s_curr); // reject: revert
-    }
-
-    // Robbins-Monro step-size adaptation, warmup only (shares the proposal-SD
-    // adaptation window with the pairwise updates).
-    auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
-    if (rm_weight_opt) {
-        interaction_scale_proposal_sd_ = update_proposal_sd_with_robbins_monro(
-            interaction_scale_proposal_sd_, ln_alpha, *rm_weight_opt, target_accept_);
-    }
 }
 
 

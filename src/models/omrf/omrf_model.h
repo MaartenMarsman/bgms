@@ -109,40 +109,6 @@ public:
     void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
 
     /**
-     * One-dimensional MH-within-Gibbs update of the random interaction-slab
-     * scale, when enabled via enable_random_interaction_scale(). No-op
-     * otherwise. Runs a random walk on log u (s = s0 * u), targets the
-     * prior-only full conditional pi(u) * prod_included slab(theta; s), and
-     * mutates interaction_prior_ in place. Step size adapted by Robbins-Monro
-     * during warmup only.
-     */
-    void update_interaction_scale(int iteration, const WarmupSchedule& schedule) override;
-
-    /** @return true when the interaction slab scale is a sampled hyperparameter. */
-    bool has_random_interaction_scale() const override { return interaction_scale_random_; }
-
-    /**
-     * @return the current interaction slab scale when the scale is randomized,
-     *         NaN otherwise.
-     */
-    double get_interaction_scale() const override;
-
-    /**
-     * Turn the interaction slab scale into a random hyperparameter.
-     *
-     * Captures the current interaction-prior scale as the centering value s0,
-     * then samples s = s0 * u with u ~ scale_prior_on_u (a mean-1 gamma or
-     * exponential bgms_scale_prior). Must be called after the interaction prior
-     * is installed and before sampling begins.
-     *
-     * @param scale_prior_on_u     Mean-1 hyperprior on the multiplier u.
-     * @param initial_proposal_sd  Initial log-u random-walk step size.
-     */
-    void enable_random_interaction_scale(
-        std::unique_ptr<BaseParameterPrior> scale_prior_on_u,
-        double initial_proposal_sd = 0.1);
-
-    /**
      * Return dimensionality of active parameter space
      */
     size_t parameter_dimension() const override;
@@ -349,12 +315,6 @@ private:
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
     std::unique_ptr<BaseParameterPrior> interaction_prior_; ///< Prior on pairwise interactions
     std::unique_ptr<BaseParameterPrior> threshold_prior_;  ///< Prior on main effects / thresholds
-
-    // Random interaction-slab-scale hyperprior (off by default: fixed scale).
-    bool interaction_scale_random_ = false;             ///< Whether the slab scale is sampled
-    double interaction_scale_base_ = 1.0;               ///< Centering scale s0 (chosen scale)
-    std::unique_ptr<BaseParameterPrior> interaction_scale_prior_; ///< Mean-1 hyperprior on u = s/s0
-    double interaction_scale_proposal_sd_ = 0.1;        ///< log-u random-walk step size
 
     // Model configuration
     bool edge_selection_;               ///< Enable edge selection

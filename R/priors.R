@@ -601,62 +601,6 @@ unpack_scale_prior = function(prior) {
 
 
 # ------------------------------------------------------------------
-# unpack_interaction_scale_prior
-# ------------------------------------------------------------------
-# Unpack and validate the hyperprior on the random interaction slab
-# scale into the flat parameters used by bgm_spec.
-#
-# The scale is centered multiplicatively, s = s0 * u, so the multiplier
-# u = s / s0 must have mean 1 for the marginalized verdict to read as
-# "the chosen prior with honest uncertainty about its scale". The prior
-# must therefore be supplied in the raw frame with a mean of 1:
-# rate == shape for a gamma, rate == 1 for an exponential.
-#
-# @param prior  A bgms_scale_prior object (gamma_prior / exponential_prior).
-#
-# Returns: list(interaction_scale_prior_type, interaction_scale_shape,
-#          interaction_scale_rate).
-# ------------------------------------------------------------------
-unpack_interaction_scale_prior = function(prior) {
-  if(!inherits(prior, "bgms_scale_prior")) {
-    stop(
-      "'interaction_scale_prior' must be a bgms_scale_prior object created ",
-      "with gamma_prior() or exponential_prior(), or NULL for a fixed scale."
-    )
-  }
-  up = unpack_scale_prior(prior)
-  shape = up$scale_shape
-  rate = up$scale_rate
-  if(is.na(rate)) {
-    stop(
-      "'interaction_scale_prior' must be given in the raw frame with a ",
-      "'rate' so its mean can be checked. The standardized frame ('eta') ",
-      "is not defined for the slab-scale multiplier. Use ",
-      "gamma_prior(shape = k, rate = k) or exponential_prior(rate = 1)."
-    )
-  }
-  mean_u = shape / rate
-  if(abs(mean_u - 1) > 1e-8) {
-    stop(sprintf(
-      paste0(
-        "'interaction_scale_prior' must have mean 1 so the random scale is ",
-        "centered on the chosen scale: the multiplier u = s / s0 has to ",
-        "average 1. The supplied prior has mean %.4g (shape / rate = %g / ",
-        "%g). Use gamma_prior(shape = k, rate = k) or exponential_prior(",
-        "rate = 1)."
-      ),
-      mean_u, shape, rate
-    ))
-  }
-  list(
-    interaction_scale_prior_type = up$scale_prior_type,
-    interaction_scale_shape = shape,
-    interaction_scale_rate = rate
-  )
-}
-
-
-# ------------------------------------------------------------------
 # resolve_scale_rate
 # ------------------------------------------------------------------
 # Resolve the raw diagonal rate from a standardized-frame scale prior.

@@ -49,9 +49,6 @@ bgms_class = new_class("bgms",
     # --- Sampled edge-prior inclusion parameter (per-chain list) ---
     inclusion_parameter_samples = new_property(class_any, default = NULL),
 
-    # --- Sampled interaction slab scale (per-chain list; random-scale prior) ---
-    interaction_scale_samples = new_property(class_any, default = NULL),
-
     # --- Per-chain final NUTS step size, for warm-starting refits (internal) ---
     refit_step_sizes = new_property(class_any, default = NULL),
 
@@ -87,14 +84,6 @@ bgms_class = new_class("bgms",
         self@cache[["posterior_summary_quadratic"]]
       }
     ),
-    posterior_summary_interaction_scale = new_property(
-      class = class_any,
-      getter = function(self) {
-        ensure_summaries(self)
-        self@cache[["posterior_summary_interaction_scale"]]
-      }
-    ),
-
     # --- Optional ---
     nuts_diag = new_property(class_any, default = NULL),
     am_diag = new_property(class_any, default = NULL),
@@ -137,7 +126,6 @@ s3_list_to_bgms = function(results) {
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
     inclusion_parameter_samples = .subset2(results, "inclusion_parameter_samples"),
-    interaction_scale_samples = .subset2(results, "interaction_scale_samples"),
     refit_step_sizes = .subset2(results, "refit_step_sizes"),
     refit_inv_mass = .subset2(results, "refit_inv_mass"),
     nuts_diag = .subset2(results, "nuts_diag"),

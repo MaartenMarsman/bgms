@@ -116,9 +116,6 @@ void run_mcmc_chain(
         // Stage 3b: proposal-SD tuning
         model.tune_proposal_sd(iter, schedule);
 
-        // Random interaction-slab-scale hyperprior update (no-op unless enabled)
-        model.update_interaction_scale(iter, schedule);
-
         // Edge prior update
         if (schedule.selection_enabled(iter) && model.has_edge_selection()) {
             edge_prior.update(
@@ -165,11 +162,6 @@ void run_mcmc_chain(
             if (chain_result.has_inclusion_parameter) {
                 chain_result.store_inclusion_parameter(
                     sample_index, edge_prior.get_inclusion_parameter());
-            }
-
-            if (chain_result.has_scale_samples) {
-                chain_result.store_scale_sample(
-                    sample_index, model.get_interaction_scale());
             }
         }
 
@@ -296,10 +288,6 @@ std::vector<ChainResult> run_mcmc_sampler(
             results[c].reserve_inclusion_parameter(config.no_iter);
         }
 
-        if (model.has_random_interaction_scale()) {
-            results[c].reserve_scale_samples(config.no_iter);
-        }
-
         if (has_nuts_diag) {
             results[c].reserve_nuts_diagnostics(config.no_iter);
         }
@@ -385,10 +373,6 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
 
             if (chain.has_inclusion_parameter) {
                 chain_list["inclusion_parameter_samples"] = chain.inclusion_parameter_samples;
-            }
-
-            if (chain.has_scale_samples) {
-                chain_list["scale_samples"] = chain.scale_samples;
             }
 
             if (chain.has_nuts_diagnostics) {

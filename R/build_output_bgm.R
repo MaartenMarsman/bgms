@@ -80,9 +80,6 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$inclusion_parameter_samples)) {
         res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
       }
-      if(!is.null(chain$scale_samples)) {
-        res$interaction_scale = as.numeric(chain$scale_samples)
-      }
       # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
       res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
       # Final adapted diagonal metric (NULL otherwise), for warm-starting refits.
@@ -117,9 +114,6 @@ build_output_bgm = function(spec, raw) {
       }
       if(!is.null(chain$inclusion_parameter_samples)) {
         res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
-      }
-      if(!is.null(chain$scale_samples)) {
-        res$interaction_scale = as.numeric(chain$scale_samples)
       }
       # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
       res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
@@ -210,13 +204,6 @@ build_output_bgm = function(spec, raw) {
       results$inclusion_parameter_samples =
         lapply(raw, `[[`, "inclusion_parameter")
     }
-  }
-
-  # Interaction-scale draws are collected independently of edge selection: the
-  # random-scale hyperprior can be active with a dense model.
-  if("interaction_scale" %in% names(raw[[1]])) {
-    results$interaction_scale_samples =
-      lapply(raw, `[[`, "interaction_scale")
   }
 
   # Per-chain final NUTS step size, retained on the fit so a refit can

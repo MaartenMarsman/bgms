@@ -67,24 +67,6 @@
 #'   }
 #'   Default: \code{normal_prior(scale = 1)}.
 #'
-#' @param interaction_scale_prior Optional hyperprior that makes the
-#'   interaction (pairwise) slab scale a sampled parameter instead of a fixed
-#'   constant, for prior-sensitivity analysis. \code{NULL} (default) keeps the
-#'   scale fixed at the value in \code{interaction_prior}. A
-#'   \code{\link{gamma_prior}()} or \code{\link{exponential_prior}()} makes the
-#'   scale random: it is centered multiplicatively on the chosen scale,
-#'   \code{s = s0 * u}, where \code{s0} is the scale from
-#'   \code{interaction_prior} and \code{u} follows the supplied prior. The
-#'   prior must have mean 1 so the scale is centered on the chosen value,
-#'   which requires the raw frame with \code{rate == shape} for a gamma or
-#'   \code{rate == 1} for an exponential. The recommended default is
-#'   \code{gamma_prior(shape = 2, rate = 2)}, which places 95\% of its mass on
-#'   roughly 0.12 to 2.8 times the chosen scale. A fit made with this argument
-#'   reports inclusion probabilities already marginalized over the scale, and
-#'   supports \code{\link{prior_sensitivity_check}()}. Supported for discrete
-#'   (ordinal and Blume-Capel) models with a \code{\link{normal_prior}()} slab.
-#'   Default: \code{NULL}.
-#'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
 #'   \itemize{
@@ -420,7 +402,6 @@ bgm = function(
   iter = 2e3,
   warmup = 2e3,
   interaction_prior = normal_prior(scale = 1),
-  interaction_scale_prior = NULL,
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
@@ -569,15 +550,6 @@ bgm = function(
   tp = unpack_threshold_prior(threshold_prior)
   mp = unpack_parameter_prior(means_prior)
   sp = unpack_scale_prior(precision_scale_prior)
-  isp = if(is.null(interaction_scale_prior)) {
-    list(
-      interaction_scale_prior_type = NULL,
-      interaction_scale_shape = NULL,
-      interaction_scale_rate = NULL
-    )
-  } else {
-    unpack_interaction_scale_prior(interaction_scale_prior)
-  }
 
   # --- Build spec, sample, build output ----------------------------------------
   spec = bgm_spec(
@@ -602,9 +574,6 @@ bgm = function(
     scale_shape = sp$scale_shape,
     scale_rate = sp$scale_rate,
     scale_eta = sp$scale_eta,
-    interaction_scale_prior_type = isp$interaction_scale_prior_type,
-    interaction_scale_shape = isp$interaction_scale_shape,
-    interaction_scale_rate = isp$interaction_scale_rate,
     delta = delta,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
