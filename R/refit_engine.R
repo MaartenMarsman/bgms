@@ -85,12 +85,7 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
                           cores = 1L, sampler = NULL) {
   spec = get_fit_spec(fit)
 
-  # Fixed slab at the requested scale; drop any random-scale hyperprior so the
-  # refit is a plain fixed-scale analysis.
   spec$prior$pairwise_scale = scale
-  spec$prior$interaction_scale_prior_type = NULL
-  spec$prior$interaction_scale_shape = NULL
-  spec$prior$interaction_scale_rate = NULL
 
   if(!is.null(sampler)) {
     spec$sampler$update_method = sampler
