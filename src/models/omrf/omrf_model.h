@@ -163,6 +163,12 @@ public:
     void set_vectorized_parameters(const arma::vec& parameters) override;
 
     /**
+     * Set parameters from a full storage vector (inverse of
+     * get_storage_vectorized_parameters); used to warm-start a chain.
+     */
+    void set_storage_vectorized_parameters(const arma::vec& parameters) override;
+
+    /**
      * Get vectorized edge indicators
      */
     arma::ivec get_vectorized_indicator_parameters() override;

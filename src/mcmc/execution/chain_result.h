@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <limits>
 #include <RcppArmadillo.h>
 
 /**
@@ -24,6 +25,15 @@ public:
 
     /// Integer identifier for the chain (1-based).
     int         chain_id = 0;
+
+    /// Final adaptation-averaged NUTS leapfrog step size (NaN if not NUTS).
+    /// Retained so refits can warm-start the step size.
+    double      final_step_size = std::numeric_limits<double>::quiet_NaN();
+
+    /// Final adapted diagonal inverse mass matrix (per-parameter variances, on
+    /// the full zero-padded theta layout), empty if not NUTS. Retained so refits
+    /// can warm-start the metric alongside the step size.
+    arma::vec   final_inv_mass;
 
     /// Parameter samples (param_dim x n_iter).
     arma::mat   samples;

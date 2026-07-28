@@ -211,7 +211,10 @@ run_sampler_omrf = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    learn_mass_matrix = s$learn_mass_matrix
+    learn_mass_matrix = s$learn_mass_matrix,
+    initial_parameters = spec$initial_state$parameters,
+    initial_step_sizes = spec$initial_state$step_sizes,
+    initial_inv_mass = spec$initial_state$inv_mass
   )
 
   out_raw

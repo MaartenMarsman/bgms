@@ -2,6 +2,8 @@
 
 #include <exception>
 #include <stdexcept>
+#include <cmath>
+#include <limits>
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
@@ -60,7 +62,9 @@ void run_mcmc_chain(
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
     const int chain_id,
-    ProgressManager& pm
+    ProgressManager& pm,
+    const double warm_step_size,
+    const arma::vec& warm_inv_mass
 ) {
     chain_result.chain_id = chain_id + 1;
 
@@ -70,6 +74,17 @@ void run_mcmc_chain(
                             /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
+
+    // Warm-start the step size (NUTS refits): skip the heuristic and start
+    // dual-averaging from the previous fit's adapted value.
+    if (std::isfinite(warm_step_size)) {
+        sampler->set_warm_step_size(warm_step_size);
+    }
+    // Warm-start the diagonal metric (NUTS refits): inject the previous fit's
+    // adapted inverse mass, held fixed for the short warmup.
+    if (!warm_inv_mass.is_empty()) {
+        sampler->set_warm_inv_mass(warm_inv_mass);
+    }
 
     // Initialize sampler (step-size heuristic) before the main loop
     sampler->initialize(model);
@@ -186,6 +201,11 @@ void run_mcmc_chain(
                                ZRatioGauge::default_cap);
     }
 
+    // Retain the adaptation-averaged step size and diagonal metric (NUTS) so
+    // refits can warm-start them; NaN/empty for non-gradient samplers.
+    chain_result.final_step_size = sampler->get_final_step_size();
+    chain_result.final_inv_mass = sampler->get_final_inv_mass();
+
     // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
     // frozen constants) outlives the loop only through the chain result.
     model.collect_chain_diagnostics(chain_result);
@@ -200,7 +220,13 @@ void MCMCChainRunner::operator()(std::size_t begin, std::size_t end) {
         model.set_seed(config_.seed + static_cast<int>(i));
 
         try {
-            run_mcmc_chain(chain_result, model, edge_prior, config_, static_cast<int>(i), pm_);
+            const double warm_eps = warm_step_sizes_.empty()
+                ? std::numeric_limits<double>::quiet_NaN()
+                : warm_step_sizes_[i];
+            const arma::vec warm_metric = warm_inv_masses_.empty()
+                ? arma::vec()
+                : warm_inv_masses_[i];
+            run_mcmc_chain(chain_result, model, edge_prior, config_, static_cast<int>(i), pm_, warm_eps, warm_metric);
         } catch (std::exception& e) {
             chain_result.error = true;
             chain_result.error_msg = e.what();
@@ -218,8 +244,33 @@ std::vector<ChainResult> run_mcmc_sampler(
     const SamplerConfig& config,
     const int no_chains,
     const int no_threads,
-    ProgressManager& pm
+    ProgressManager& pm,
+    const std::vector<arma::vec>& initial_parameters,
+    const std::vector<double>& initial_step_sizes,
+    const std::vector<arma::vec>& initial_inv_mass
 ) {
+    auto warm_eps = [&](int c) {
+        return initial_step_sizes.empty()
+            ? std::numeric_limits<double>::quiet_NaN()
+            : initial_step_sizes[c];
+    };
+    auto warm_metric = [&](int c) {
+        return initial_inv_mass.empty() ? arma::vec() : initial_inv_mass[c];
+    };
+    // Apply a per-chain warm start (final state of a previous fit) to a cloned
+    // model. Indicators are set before parameters so the warm graph is in place
+    // before residual matrices are rebuilt; parameters set ALL pairwise values
+    // (inactive edges included), so no derived state depends on indicator order.
+    const bool warm_params = !initial_parameters.empty();
+    // Warm start the continuous parameters on the dense all-edges-active start
+    // (all pairwise values set, inactive edges included), so no derived state
+    // depends on the graph configuration and the short warmup re-settles it.
+    auto apply_warm_start = [&](BaseModel& m, int c) {
+        if (warm_params) {
+            m.set_storage_vectorized_parameters(initial_parameters[c]);
+        }
+    };
+
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
     const bool has_nuts_diag = spec.nuts_diag;
     const bool has_am_diag = spec.am_diag;
@@ -266,10 +317,11 @@ std::vector<ChainResult> run_mcmc_sampler(
         for (int c = 0; c < no_chains; ++c) {
             models.push_back(model.clone());
             models[c]->set_seed(config.seed + c);
+            apply_warm_start(*models[c], c);
             edge_priors.push_back(edge_prior.clone());
         }
 
-        MCMCChainRunner runner(results, models, edge_priors, config, pm);
+        MCMCChainRunner runner(results, models, edge_priors, config, pm, initial_step_sizes, initial_inv_mass);
         tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
         RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
 
@@ -278,8 +330,9 @@ std::vector<ChainResult> run_mcmc_sampler(
         for (int c = 0; c < no_chains; ++c) {
             auto chain_model = model.clone();
             chain_model->set_seed(config.seed + c);
+            apply_warm_start(*chain_model, c);
             auto chain_edge_prior = edge_prior.clone();
-            run_mcmc_chain(results[c], *chain_model, *chain_edge_prior, config, c, pm);
+            run_mcmc_chain(results[c], *chain_model, *chain_edge_prior, config, c, pm, warm_eps(c), warm_metric(c));
         }
     }
 
@@ -303,6 +356,10 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
             chain_list["error"] = false;
             chain_list["samples"] = chain.samples;
             chain_list["userInterrupt"] = chain.userInterrupt;
+            chain_list["step_size"] = chain.final_step_size;
+            if (!chain.final_inv_mass.is_empty()) {
+                chain_list["inv_mass"] = chain.final_inv_mass;
+            }
 
             if (chain.has_indicators) {
                 chain_list["indicator_samples"] = chain.indicator_samples;

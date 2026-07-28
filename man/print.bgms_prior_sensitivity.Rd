@@ -15,9 +15,9 @@
 \code{x}, invisibly.
 }
 \description{
-Prints the headline scale-robust verdict counts, the number of mover edges,
-and the reliability window from a \code{\link{prior_sensitivity_check}()}
-result.
+Prints the data-preferred scale, the per-scale verdict counts, the mover
+summary with its wobble yardstick, and any unusable refits from a
+\code{\link{prior_sensitivity_check}()} result.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

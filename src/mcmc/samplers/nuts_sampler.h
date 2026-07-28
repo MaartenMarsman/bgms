@@ -3,6 +3,8 @@
 #include <RcppArmadillo.h>
 #include <memory>
 #include <utility>
+#include <cmath>
+#include <limits>
 #include "mcmc/algorithms/hmc.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
@@ -101,6 +103,12 @@ public:
     double get_averaged_step_size() const {
         return nuts_adapt_ ? nuts_adapt_->final_step_size() : step_size_;
     }
+    double get_final_step_size() const override { return get_averaged_step_size(); }
+    void set_warm_step_size(double eps) override { warm_step_size_ = eps; }
+    void set_warm_inv_mass(const arma::vec& inv_mass) override { warm_inv_mass_ = inv_mass; }
+    arma::vec get_final_inv_mass() const override {
+        return nuts_adapt_ ? nuts_adapt_->inv_mass_diag() : arma::vec();
+    }
     const arma::vec& get_inv_mass() const { return nuts_adapt_->inv_mass_diag(); }
 
 private:
@@ -128,8 +136,14 @@ private:
         int dim = static_cast<int>(model.full_parameter_dimension());
         SafeRNG& rng = model.get_rng();
 
-        // Initialize inverse mass to ones
-        arma::vec init_inv_mass = arma::ones<arma::vec>(dim);
+        // Warm-start the diagonal metric when supplied (refits): inject the
+        // previous fit's adapted inverse mass and keep it fixed (no windowed
+        // re-adaptation); otherwise start from ones and let Stage-2 estimate it.
+        const bool warm_metric =
+            warm_inv_mass_.n_elem == static_cast<arma::uword>(dim);
+        arma::vec init_inv_mass = warm_metric
+            ? warm_inv_mass_
+            : arma::ones<arma::vec>(dim);
         model.set_inv_mass(init_inv_mass);
 
         arma::vec theta = model.get_vectorized_parameters();
@@ -140,19 +154,32 @@ private:
             -> std::pair<double, arma::vec> {
             return model.logp_and_gradient(params);
         };
-        double init_eps = heuristic_initial_step_size(
-            theta, grad_fn, joint_fn, rng, target_acceptance_);
+        // Warm-start the step size when supplied (refits): skip the heuristic
+        // and start dual-averaging from the previous fit's adapted step size.
+        double init_eps = std::isfinite(warm_step_size_)
+            ? warm_step_size_
+            : heuristic_initial_step_size(
+                  theta, grad_fn, joint_fn, rng, target_acceptance_);
 
         step_size_ = init_eps;
+
+        // With a warm metric the mass matrix is held fixed (dual averaging stays
+        // live for the step size); otherwise Stage-2 windows estimate it.
+        const bool learn_mass = learn_mass_matrix_ && !warm_metric;
 
         // Construct the adaptation controller with the shared schedule
         nuts_adapt_ = std::make_unique<NUTSAdaptationController>(
             dim, init_eps, target_acceptance_, schedule_,
-            learn_mass_matrix_);
+            learn_mass);
+        if (warm_metric) {
+            nuts_adapt_->seed_inv_mass(warm_inv_mass_);
+        }
     }
 
     // --- Configuration / state ---
     double step_size_;
+    double warm_step_size_ = std::numeric_limits<double>::quiet_NaN();
+    arma::vec warm_inv_mass_;  // empty = cold metric; else the carried diagonal
     double target_acceptance_;
     WarmupSchedule& schedule_;
     int max_tree_depth_;

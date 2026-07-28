@@ -18,13 +18,12 @@ Default: \code{25}.}
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-Draws the inclusion-Bayes-factor-versus-scale curves over the relative slab
-scale (scale / chosen scale) on a log axis. The top panel shows one
-\eqn{\log_{10}} inclusion-Bayes-factor curve per edge, with the undecided
-band shaded, the chosen scale marked, mover edges at full opacity and stable
-edges faint, and thin per-chain curves underneath for the Monte Carlo
-fragility check. The bottom panel is a forest of scale-stability intervals
-for the mover edges.
+Draws the \eqn{\log_{10}} inclusion-Bayes-factor lines against the relative
+slab scale (multiplier of the chosen scale) on a log axis. The top panel
+draws one line per edge through the grid points, with the undecided band
+shaded, the chosen scale marked, the s0-replicate wobble band shown, and
+moved-beyond-wobble edges at full opacity over faint stable edges. The bottom
+panel is a forest of scale-stability ranges for the mover edges.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

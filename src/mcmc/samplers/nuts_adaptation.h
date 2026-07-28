@@ -212,6 +212,14 @@ public:
   const arma::vec& inv_mass_diag() const { return inv_mass_; }
 
   /**
+   * Seed the diagonal inverse mass matrix with a carried (warm) metric. Used by
+   * refits that inject the previous fit's adapted metric and keep it fixed (the
+   * controller is constructed with learn_mass_matrix = false, so no window ever
+   * overwrites it). Keeps inv_mass_diag() coherent as the returned final metric.
+   */
+  void seed_inv_mass(const arma::vec& v) { inv_mass_ = v; }
+
+  /**
    * Check if the mass matrix was just updated and needs step size re-initialization.
    * After calling this, call reinit_stepsize() with the result of the heuristic.
    */

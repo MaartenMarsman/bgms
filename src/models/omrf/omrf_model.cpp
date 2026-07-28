@@ -474,6 +474,33 @@ void OMRFModel::set_vectorized_parameters(const arma::vec& parameters) {
 }
 
 
+void OMRFModel::set_storage_vectorized_parameters(const arma::vec& parameters) {
+    // Inverse of get_full_vectorized_parameters(): all main effects, then ALL
+    // pairwise effects (upper triangle, row-major), inactive edges included.
+    int offset = 0;
+    for (size_t v = 0; v < p_; ++v) {
+        if (is_ordinal_variable_(v)) {
+            int num_cats = num_categories_(v);
+            for (int c = 0; c < num_cats; ++c) {
+                main_effects_(v, c) = parameters(offset++);
+            }
+        } else {
+            main_effects_(v, 0) = parameters(offset++);  // linear
+            main_effects_(v, 1) = parameters(offset++);  // quadratic
+        }
+    }
+    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
+        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
+            double val = parameters(offset++);
+            pairwise_effects_(v1, v2) = val;
+            pairwise_effects_(v2, v1) = val;
+        }
+    }
+    update_residual_matrix();
+    invalidate_gradient_cache();
+}
+
+
 arma::vec OMRFModel::get_full_vectorized_parameters() const {
     // Fixed-size vector: all main effects + ALL pairwise effects
     arma::vec param_vec(num_main_ + num_pairwise_);

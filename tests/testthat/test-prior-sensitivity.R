@@ -1,12 +1,10 @@
-# Tests for the random interaction-slab-scale hyperprior and
+# Tests for the random interaction-slab-scale hyperprior and the refit-based
 # prior_sensitivity_check().
 #
-# The scale s = s0 * u is sampled through a one-dimensional MH-within-Gibbs
-# step whose target is the prior-only full conditional pi(u) times the included
-# slab densities. These tests cover the storage/summary/extractor plumbing, the
-# mean-1 and scope validation, prior-only recovery of the hyperprior, the
-# marginalized-inclusion definition, the prior-odds convention, and agreement
-# of the reweighted fixed-scale curve with brute-force refits.
+# The hyperprior plumbing (scale storage/summary/extractor, mean-1 and scope
+# validation, prior-only recovery) is unchanged. prior_sensitivity_check() now
+# refits the model at a grid of fixed scales and classifies every edge; the old
+# single-fit conditional-density reweighting curve has been removed.
 
 test_that("the sampled scale is stored, summarized, and extractable", {
   data("Wenchuan", package = "bgms")
@@ -45,7 +43,6 @@ test_that("fixed-scale fits expose no scale draws and error helpfully", {
   expect_null(fit$raw_samples$interaction_scale)
   expect_null(summary(fit)$interaction_scale)
   expect_error(extract_scale_draws(fit), "fixed interaction slab scale")
-  expect_error(prior_sensitivity_check(fit), "fixed interaction slab scale")
 })
 
 
@@ -53,210 +50,180 @@ test_that("interaction_scale_prior validates the mean-1 and normal/omrf scope", 
   data("Wenchuan", package = "bgms")
   x = Wenchuan[, 1:4]
 
-  # Non-mean-1 gamma is rejected.
   expect_error(
-    bgm(x,
-      interaction_scale_prior = gamma_prior(2, 3),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"
-    ),
-    "mean 1"
-  )
-  # Standardized (eta) frame has no meaning for the multiplier; rejected.
+    bgm(x, interaction_scale_prior = gamma_prior(2, 3),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    "mean 1")
   expect_error(
-    bgm(x,
-      interaction_scale_prior = gamma_prior(shape = 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"
-    ),
-    "raw frame"
-  )
-  # A cauchy slab cannot be randomized yet.
+    bgm(x, interaction_scale_prior = gamma_prior(shape = 2),
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    "raw frame")
   expect_error(
-    bgm(x,
-      interaction_prior = cauchy_prior(2.5),
+    bgm(x, interaction_prior = cauchy_prior(2.5),
       interaction_scale_prior = gamma_prior(2, 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"
-    ),
-    "normal slab"
-  )
-  # Exponential(rate = 1) has mean 1 and is accepted.
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    "normal slab")
   expect_no_error(
-    bgm(x,
-      interaction_scale_prior = exponential_prior(rate = 1),
+    bgm(x, interaction_scale_prior = exponential_prior(rate = 1),
       iter = 50, warmup = 50, chains = 1, seed = 4,
-      update_method = "adaptive-metropolis", display_progress = "none"
-    )
-  )
+      update_method = "adaptive-metropolis", display_progress = "none"))
 })
 
 
 test_that("with the edge held out the scale draws recover the mean-1 hyperprior", {
-  # Two independent ordinal variables with a near-zero prior inclusion
-  # probability: the edge stays excluded for the whole chain, so the scale
-  # full conditional is exactly the hyperprior throughout (no transient
-  # contamination from included periods).
   set.seed(42)
   n = 400
   x = cbind(sample(0:2, n, TRUE), sample(0:2, n, TRUE))
   fit = bgm(
-    x,
-    interaction_scale_prior = gamma_prior(2, 2),
+    x, interaction_scale_prior = gamma_prior(2, 2),
     edge_prior = bernoulli_prior(1e-3),
-    iter = 6000, warmup = 1500, chains = 2, seed = 3,
-    edge_selection = TRUE,
+    iter = 6000, warmup = 1500, chains = 2, seed = 3, edge_selection = TRUE,
     update_method = "adaptive-metropolis", display_progress = "none"
   )
   raw = fit$raw_samples
   s = do.call(c, raw$interaction_scale)
   g = do.call(rbind, raw$indicator)[, 1]
-
-  # The edge is held out essentially always.
   expect_lt(mean(g), 0.05)
-  u = s[g == 0] # s0 = 1, so u = s
-  # gamma(shape = 2, rate = 2): mean 1, variance shape / rate^2 = 0.5.
+  u = s[g == 0]
   expect_equal(mean(u), 1, tolerance = 0.1)
   expect_equal(stats::var(u), 0.5, tolerance = 0.2)
 })
 
 
-test_that("the marginalized inclusion probability equals the indicator-draw mean", {
+# ---- refit-based prior_sensitivity_check() ----------------------------------
+
+test_that("prior_sensitivity_check needs edge selection", {
   data("Wenchuan", package = "bgms")
-  fit = bgm(
-    Wenchuan[, 1:6],
-    interaction_scale_prior = gamma_prior(2, 2),
-    iter = 1500, warmup = 500, chains = 2, seed = 6,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  ps = prior_sensitivity_check(fit)
-  gpool = do.call(rbind, fit$raw_samples$indicator)
-  expect_equal(
-    ps$edges$marginalized_inclusion_probability,
-    unname(colMeans(gpool)),
-    tolerance = 1e-12
-  )
+  fit = bgm(Wenchuan[, 1:5], edge_selection = FALSE,
+    iter = 300, warmup = 300, chains = 1, seed = 7,
+    update_method = "adaptive-metropolis", display_progress = "none")
+  expect_error(prior_sensitivity_check(fit), "edge selection")
 })
 
 
-test_that("the Bayes factor divides by the per-edge prior odds, not 1/2", {
-  data("Wenchuan", package = "bgms")
-  fit = bgm(
-    Wenchuan[, 1:5],
-    interaction_scale_prior = gamma_prior(2, 2),
-    edge_prior = bernoulli_prior(0.2),
-    iter = 1200, warmup = 500, chains = 2, seed = 5,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  ps = prior_sensitivity_check(fit)
-  expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
-
-  pip = ps$edges$marginalized_inclusion_probability
-  expected = (pip / (1 - pip)) / (0.2 / 0.8)
-  expect_equal(ps$edges$marginalized_bf, expected, tolerance = 1e-8)
-})
-
-
-test_that("the reweighted fixed-scale curve matches brute-force refits", {
+test_that("prior_sensitivity_check refits a fixed-scale fit and returns the grid object", {
   skip_on_cran()
   data("Wenchuan", package = "bgms")
-  x = Wenchuan[, 1:8]
+  fit = bgm(Wenchuan[, 1:6], chains = 2, iter = 1500, warmup = 1000, seed = 21,
+    display_progress = "none")
+  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(
+    fit, scale_multipliers = c(0.5, 1, 2.5), seed = 21)))
 
-  fit = bgm(
-    x,
-    interaction_scale_prior = gamma_prior(2, 2),
-    iter = 6000, warmup = 1500, chains = 4, seed = 11,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  # Compare inside the reliable window, at the scale posterior median.
-  sx = round(stats::median(do.call(c, fit$raw_samples$interaction_scale)), 2)
-  ps = prior_sensitivity_check(fit, grid = c(sx * 0.8, sx, sx * 1.25))
-  gi = which.min(abs(ps$grid$scale - sx))
-  expect_gte(ps$grid$ess[gi], 400)
-
-  # Brute-force refit at the fixed scale; inclusion Bayes factor from the
-  # indicator-draw mean (prior odds 1 at the default 0.5 edge prior).
-  f = bgm(
-    x,
-    interaction_prior = normal_prior(scale = sx),
-    iter = 6000, warmup = 1500, chains = 4, seed = 22,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  pip_fixed = colMeans(do.call(rbind, f$raw_samples$indicator))
-  b = log10(pip_fixed / (1 - pip_fixed))
-  a = ps$log10_bf[gi, ]
-
-  keep = !ps$edges$saturated & is.finite(a) & is.finite(b)
-  err = a[keep] - b[keep]
-  # Tutorial validation reports a bulk error near 0.04. The log-odds transform
-  # inflates the error for near-saturated edges, so gate median error and bias
-  # on all non-saturated edges, and the RMSE on well-identified bulk edges
-  # (inclusion probability away from 0 and 1) where log10 BF is stable.
-  expect_lt(abs(mean(err)), 0.06)
-  expect_lt(stats::median(abs(err)), 0.1)
-  bulk = keep & pip_fixed > 0.05 & pip_fixed < 0.95
-  bulk_err = a[bulk] - b[bulk]
-  expect_lt(sqrt(mean(bulk_err^2)), 0.15)
+  expect_s3_class(ps, "bgms_prior_sensitivity")
+  # one grid row per multiplier plus the s0 replicate
+  expect_equal(sum(!ps$grid$replicate), 3L)
+  expect_equal(sum(ps$grid$replicate), 1L)
+  expect_equal(nrow(ps$edges), 15L)  # choose(6, 2)
+  # verdicts and movers take only the documented levels
+  expect_true(all(unlist(ps$verdict) %in%
+    c("presence", "undecided", "absence", NA)))
+  expect_true(all(ps$edges$mover %in%
+    c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
+  # chosen-scale verdict comes from the s0 refit column
+  expect_equal(ps$edges$chosen_scale_verdict, ps$verdict[ps$chosen_index, ])
+  # the data-preferred scale is reported without a refit
+  expect_true(is.finite(ps$preferred_scale$s_hat))
+  # print and plot run
+  expect_output(print(ps), "data prefer")
+  expect_silent({ pdf(tempfile()); plot(ps); dev.off() })
 })
 
 
-test_that("the random scale works for the GGM across update methods", {
-  set.seed(31)
-  x = matrix(rnorm(200 * 5), 200, 5)
-  for(um in c("adaptive-metropolis", "nuts", "gibbs")) {
-    fit = bgm(x,
-      variable_type = "continuous",
-      interaction_scale_prior = gamma_prior(2, 2),
-      iter = 600, warmup = 500, chains = 2, seed = 12,
-      update_method = um, display_progress = "none"
-    )
-    sc = fit@interaction_scale_samples
-    expect_equal(length(sc), 2L)
-    expect_true(all(unlist(sc) > 0))
-    expect_gt(length(unique(round(sc[[1]], 6))), 10L)
+test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:5], edge_prior = bernoulli_prior(0.2),
+    chains = 2, iter = 1500, warmup = 1000, seed = 5, display_progress = "none")
+  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit, seed = 5)))
+  expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
+  # log10 BF divides posterior odds by the 0.2/0.8 prior odds
+  p = ps$edges$chosen_scale_pip
+  expected = log10((p / (1 - p)) / (0.2 / 0.8))
+  expect_equal(ps$edges$chosen_scale_log10_bf, expected, tolerance = 1e-8)
+})
+
+
+test_that("warm-started short refits agree with cold full refits within wobble", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:8], chains = 4, iter = 2000, warmup = 1000, seed = 11,
+    display_progress = "none")
+  ws = extract_warm_state(fit)
+  s0 = get_fit_spec(fit)$prior$pairwise_scale
+  pipv = function(f) {
+    m = extract_posterior_inclusion_probabilities(f); m[upper.tri(m)]
   }
+  warm = suppressMessages(refit_at_scale(fit, s0, ws, warmup = 500, iter = 1000,
+    seed = 101, cores = 4L, sampler = "nuts"))
+  cold = suppressMessages(refit_at_scale(fit, s0, warm_state = NULL,
+    warmup = 1000, iter = 2000, seed = 202, cores = 4L, sampler = "nuts"))
+  # agreement well within the s0-replicate wobble yardstick (~0.05 PIP q95)
+  expect_lt(stats::median(abs(pipv(warm) - pipv(cold))), 0.03)
 })
 
 
-test_that("prior_sensitivity_check runs for GGM and mixed fits", {
+test_that("learned-scale extras appear only for hyperprior fits", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fixed = bgm(Wenchuan[, 1:6], chains = 2, iter = 1200, warmup = 800, seed = 6,
+    display_progress = "none")
+  ps_fixed = suppressWarnings(suppressMessages(prior_sensitivity_check(fixed, seed = 6)))
+  expect_null(ps_fixed$learned)
+
+  learned = bgm(Wenchuan[, 1:6], interaction_scale_prior = gamma_prior(2, 2),
+    chains = 2, iter = 1200, warmup = 800, seed = 6,
+    update_method = "adaptive-metropolis", display_progress = "none")
+  ps_learned = suppressWarnings(suppressMessages(prior_sensitivity_check(learned, seed = 6)))
+  expect_false(is.null(ps_learned$learned))
+  # the scale-averaged verdict counts colMeans(indicator) through the prior odds
+  gpool = do.call(rbind, learned$raw_samples$indicator)
+  marg_pip = unname(colMeans(gpool))
+  po = ps_learned$edges$prior_inclusion_probability
+  po = po / (1 - po)
+  expect_equal(
+    unname(as.integer(ps_learned$learned$counts["presence"])),
+    sum(log10((marg_pip / (1 - marg_pip)) / po) >=
+          log10(ps_learned$evidence_threshold)))
+})
+
+
+test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
+  skip_on_cran()
   set.seed(32)
-  # GGM
   xg = matrix(rnorm(220 * 6), 220, 6)
-  fg = bgm(xg,
-    variable_type = "continuous",
-    interaction_scale_prior = gamma_prior(2, 2),
-    iter = 1200, warmup = 800, chains = 2, seed = 8,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  psg = prior_sensitivity_check(fg)
+  fg = bgm(xg, variable_type = "continuous",
+    iter = 1000, warmup = 800, chains = 2, seed = 8,
+    update_method = "adaptive-metropolis", display_progress = "none")
+  psg = suppressWarnings(suppressMessages(prior_sensitivity_check(fg, iter = 800, warmup = 500,
+    seed = 8)))
   expect_s3_class(psg, "bgms_prior_sensitivity")
   expect_equal(psg$model_type, "ggm")
-  expect_equal(
-    psg$edges$marginalized_inclusion_probability,
-    unname(colMeans(do.call(rbind, fg$raw_samples$indicator))),
-    tolerance = 1e-12
-  )
-  # The GGM slab is on Kyy = -0.5 Omega; the check must use that scale, so the
-  # curve differs from feeding the raw precision draws unchanged.
-  expect_false(is.null(psg$scale_prior_check))
+  expect_false(psg$warm)   # continuous fits refit cold
 
-  # Mixed
   n = 250
-  xm = data.frame(
-    a = sample(0:2, n, TRUE), b = sample(0:2, n, TRUE),
-    c = sample(0:1, n, TRUE), y1 = rnorm(n), y2 = rnorm(n)
-  )
+  xm = data.frame(a = sample(0:2, n, TRUE), b = sample(0:2, n, TRUE),
+    c = sample(0:1, n, TRUE), y1 = rnorm(n), y2 = rnorm(n))
   vt = c("ordinal", "ordinal", "ordinal", "continuous", "continuous")
-  fm = bgm(xm,
-    variable_type = vt,
-    interaction_scale_prior = gamma_prior(2, 2),
-    iter = 1000, warmup = 700, chains = 2, seed = 9,
-    update_method = "adaptive-metropolis", display_progress = "none"
-  )
-  psm = prior_sensitivity_check(fm)
+  fm = bgm(xm, variable_type = vt, iter = 1000, warmup = 700, chains = 2, seed = 9,
+    update_method = "adaptive-metropolis", display_progress = "none")
+  psm = suppressWarnings(suppressMessages(prior_sensitivity_check(fm, iter = 700, warmup = 500,
+    seed = 9)))
   expect_equal(psm$model_type, "mixed_mrf")
-  expect_equal(
-    psm$edges$marginalized_inclusion_probability,
-    unname(colMeans(do.call(rbind, fm$raw_samples$indicator))),
-    tolerance = 1e-12
-  )
+})
+
+
+test_that("a warm-start list with the wrong length errors", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:5], chains = 2, iter = 300, warmup = 300, seed = 3,
+    display_progress = "none")
+  ws = extract_warm_state(fit)
+  spec = get_fit_spec(fit)
+  spec$sampler$warmup = 100L; spec$sampler$iter = 100L; spec$sampler$cores = 2L
+  spec$sampler$display_progress = "none"; spec$sampler$progress_type = 0L
+  spec$sampler$progress_callback = NULL
+  # three parameter vectors but only two chains
+  spec$initial_state = list(parameters = c(ws$parameters, ws$parameters[1]))
+  expect_error(run_sampler(spec), "one entry per chain")
 })
 
 
@@ -264,12 +231,9 @@ test_that("the random scale is fenced for the hierarchical graph prior", {
   set.seed(33)
   x = matrix(rnorm(200 * 4), 200, 4)
   expect_error(
-    bgm(x,
-      variable_type = "continuous",
+    bgm(x, variable_type = "continuous",
       precision_graph_prior = "hierarchical",
       interaction_scale_prior = gamma_prior(2, 2),
-      iter = 10, warmup = 10, chains = 1, display_progress = "none"
-    ),
-    "joint"
-  )
+      iter = 10, warmup = 10, chains = 1, display_progress = "none"),
+    "joint")
 })

@@ -6,95 +6,119 @@
 \usage{
 prior_sensitivity_check(
   bgms_object,
+  scale_multipliers = c(0.5, 1, 2.5),
   evidence_threshold = 10,
-  grid = NULL,
-  n_grid = 25L,
-  ess_floor = 400
+  refit_sampler = "same-as-fit",
+  iter = NULL,
+  warmup = NULL,
+  tolerance = 0.5,
+  include_preferred_scale = FALSE,
+  cores = NULL,
+  seed = 1L,
+  keep_fits = FALSE
 )
 }
 \arguments{
 \item{bgms_object}{A fitted \code{bgms} object from \code{\link{bgm}()} run
-with an \code{interaction_scale_prior}.}
+with \code{edge_selection = TRUE}.}
+
+\item{scale_multipliers}{Numeric vector of positive multipliers of the chosen
+scale at which to refit. Default \code{c(0.5, 1, 2.5)} (narrow / chosen /
+wide). The multiplier \code{1} is always included.}
 
 \item{evidence_threshold}{Positive numeric. Inclusion Bayes factor threshold
 for a presence verdict; \code{1 / evidence_threshold} is the absence
 threshold. Default: \code{10}.}
 
-\item{grid}{Optional numeric vector of absolute slab scales at which to
-evaluate the curve. Default \code{NULL} uses \code{n_grid} log-spaced
-points spanning the central 95\\% of the scale posterior, with the chosen
-scale inserted.}
+\item{refit_sampler}{One of \code{"same-as-fit"} (default; inherit the
+original fit's update method) or an explicit \code{"nuts"},
+\code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
+fit carry the adapted metric and run fastest.}
 
-\item{n_grid}{Integer. Number of grid points when \code{grid} is \code{NULL}.
-Default: \code{25}.}
+\item{iter, warmup}{Integer sampling and warmup iterations per refit, or
+\code{NULL} (default) to use the validated short schedule for warm NUTS
+refits and inherit the original fit's schedule otherwise.}
 
-\item{ess_floor}{Numeric. Minimum importance ESS for a grid point to be
-reported; points below it are returned as \code{NA}. Default: \code{400}.}
+\item{tolerance}{Numeric. Minimum \eqn{\log_{10}} BF change across scales for
+a verdict flip to count as a move, before the MCSE and wobble floors.
+Default: \code{0.5}.}
+
+\item{include_preferred_scale}{Logical. Add an extra grid point at the
+data-preferred scale \eqn{\hat s}. Default: \code{FALSE}.}
+
+\item{cores}{Integer thread count for each refit's chains. Default: the
+original fit's core count.}
+
+\item{seed}{Integer base seed for the refits. Default: \code{1}.}
+
+\item{keep_fits}{Logical. Retain the full refit objects in the result (for
+power users); the default keeps only per-scale summaries. Default:
+\code{FALSE}.}
 }
 \value{
-An object of class \code{"bgms_prior_sensitivity"}: a list with
-\describe{
-\item{edges}{A data frame, one row per edge, with the marginalized
-inclusion probability and Bayes factor, the marginalized and
-chosen-scale verdicts, the scale-stability interval (relative to the
-chosen scale), and \code{mover} / \code{saturated} flags.}
-\item{grid}{A data frame with the absolute \code{scale}, the
-\code{relative} scale (scale / chosen scale), and the importance
-\code{ess} at each grid point.}
-\item{log10_bf}{A grid-by-edge matrix of \eqn{\log_{10}} inclusion Bayes
-factors, \code{NA} where the ESS is below the floor or the edge is
-saturated.}
-\item{log10_bf_by_chain}{A list of the same matrix per chain, for the
-Monte Carlo fragility check.}
-\item{chosen_scale}{The scale from \code{interaction_prior}.}
-\item{scale_prior_check}{A data frame comparing the realized scale
-multiplier \eqn{u = s / s_0} to the nominal mean-1 hyperprior (the
-scale-prior tilt diagnostic).}
-\item{evidence_threshold, ess_floor}{The settings used.}
-}
+An object of class \code{"bgms_prior_sensitivity"}: a list with the
+per-edge \code{edges} table (per-scale verdicts and \eqn{\log_{10}} BFs,
+chosen-scale verdict, stability range, mover category, insufficiency flag),
+a \code{grid} data frame (one row per refit with its convergence gate),
+the \code{log10_bf} scale-by-edge matrix, the \code{wobble} yardstick, the
+data-\code{preferred_scale}, and the settings used.
 }
 \description{
-Assesses whether each edge's inclusion verdict is robust to the interaction
-(pairwise) slab scale, from a single model fitted with a random-scale
-hyperprior (\code{bgm(..., interaction_scale_prior = )}). Reports, per edge,
-the inclusion Bayes factor marginalized over the scale posterior (the
-headline scale-robust verdict) and the whole inclusion-Bayes-factor-versus-
-scale curve, recovered by conditional-density reweighting of the single fit.
+Checks whether each edge's inclusion verdict is robust to the interaction
+(pairwise) slab scale, by refitting the model at a small grid of scales and
+classifying every edge at every scale. Works on any \code{\link{bgm}()} fit
+with edge selection --- no random-scale hyperprior is required. A built-in
+Monte Carlo wobble guard, calibrated from a replicate refit at the chosen
+scale, keeps the check from crying wolf on boundary edges.
 }
 \details{
-The marginalized inclusion probability is the mean of the indicator draws,
-which already integrates over the scale posterior because the edge prior
-does not involve the scale. The inclusion Bayes factor divides the posterior
-inclusion odds by the prior inclusion odds from
-\code{\link{extract_prior_inclusion_probabilities}()} (never a hard-coded
-\eqn{1/2}), so a non-\eqn{1/2} edge prior is handled correctly.
+The check refits the model at scales \code{scale_multipliers * s0}, where
+\eqn{s_0} is the chosen scale from \code{interaction_prior}. Multipliers
+(not absolute scales) are used so one default serves \code{normal_prior(1)}
+and \code{cauchy_prior(2.5)} alike. The multiplier \code{1} is not redundant:
+its refit is a replicate of the original analysis, and the spread of
+\eqn{|\Delta \log_{10} \mathrm{BF}|} between the chosen-scale refit and this
+replicate is the empirical wobble yardstick. All cross-scale comparisons run
+through refits only, so a single identical pipeline produces every verdict.
 
-The fixed-scale curve at scale \eqn{s} is estimated by reweighting each draw
-by the conditional density of \eqn{s} given that draw's included
-interactions, \eqn{p(s \mid \theta, \gamma) \propto \pi(s) \prod_{j\
-included} \mathrm{slab}(\theta_j; s)}. Grid points whose importance ESS
-\eqn{(\sum w)^2 / \sum w^2} falls below \code{ess_floor} are unreliable and
-returned as \code{NA} (the reliability window). Edges that are always or
-never selected are reported as "presence at every scale considered" (or
-absence), never as numbers.
+\strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
+original fit's per-chain final state, and a NUTS refit additionally carries
+the adapted step size and diagonal mass matrix, so a short warmup suffices
+and the whole check costs about one original fit. Because the warm starts sit
+near the chosen-scale posterior, cross-chain dispersion is reduced by
+construction, which weakens split-\eqn{\hat R} as a between-chain diagnostic;
+the refit gate therefore leans on per-chain verdict agreement and the
+indicator transition ESS, not on \eqn{\hat R} alone. Continuous (GGM) and
+mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
 
-For continuous data (GGM and the continuous block of the mixed MRF) the
-pairwise parameters live in a positive-definite precision matrix, and the
-constrained prior is left unnormalized per scale. This keeps the fixed-scale
-conditionals and the reweighting weights exact, but tilts the implied prior
-of the scale, so the realized scale draws drift from the nominal hyperprior
-and the marginalized verdict averages under the tilted scale prior; the
-returned \code{scale_prior_check} compares the realized multiplier to the
-nominal hyperprior. The Bayes factor uses nominal prior inclusion odds,
-consistent with the fixed-scale reporting of \code{\link{bgm}()}, rather than
-effective odds under the tilted prior.
+\strong{The mover rule.} An edge is flagged scale-sensitive only if its
+verdict differs somewhere on the grid \emph{and} its \eqn{\log_{10}}
+Bayes-factor change across scales exceeds
+\code{max(tolerance, 2 * MCSE, wobble)}, with the MCSE from the
+Rao-Blackwellized machinery and the wobble the 95th percentile of the
+s0-replicate spread. Each edge is reported as \code{stable},
+\code{moved-beyond-wobble}, or \code{indistinguishable-from-wobble}; a bare
+verdict flip inside the replicate noise is never reported as a move.
+
+\strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
+whose between-chain-inflated \eqn{\log_{10}} BF band straddles a verdict
+threshold, is marked \code{insufficient} at that scale: the refit cannot
+certify its verdict. This errs toward caution --- disagreement widens the
+band rather than vanishing into a pooled estimate.
+
+\strong{Two-level gate.} Each refit passes a refit-level gate (continuous
+split-\eqn{\hat R} below 1.01, bulk RB-inclusion median \eqn{\hat R} below
+1.01, E-BFMI and energy variance-ratio for NUTS) before its verdicts are
+used; a refit that fails is reported as unusable rather than silently pooled.
+
+A fit run with an \code{interaction_scale_prior} is a different analysis
+(scale learning); for such a fit the report adds the realized-versus-nominal
+scale interval and the scale-averaged verdict, clearly labeled as the
+learned-scale analysis, not a robustness average.
 }
 \examples{
 \donttest{
-fit = bgm(Wenchuan[, 1:6],
-  interaction_scale_prior = gamma_prior(2, 2),
-  chains = 2
-)
+fit = bgm(Wenchuan[, 1:6], chains = 2)
 ps = prior_sensitivity_check(fit)
 ps
 plot(ps)
@@ -104,8 +128,7 @@ plot(ps)
 \insertRef{bartos2026}{bgms}
 }
 \seealso{
-\code{\link{bgm}()}, \code{\link{extract_scale_draws}()},
-\code{\link{extract_prior_inclusion_probabilities}()}
+\code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
 
 Other diagnostics:
 \code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
