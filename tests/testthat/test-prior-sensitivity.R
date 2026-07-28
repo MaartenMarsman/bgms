@@ -33,30 +33,49 @@ test_that("prior_sensitivity_check needs edge selection", {
 })
 
 
-test_that("prior_sensitivity_check refits a fixed-scale fit and returns the grid object", {
+test_that("prior_sensitivity_check builds the anchored curve object", {
   skip_on_cran()
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:6],
     chains = 2, iter = 1500, warmup = 1000, seed = 21,
     display_progress = "none"
   )
-  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(
-    fit,
-    scale_multipliers = c(0.5, 1, 2.5), seed = 21
-  )))
+  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit, seed = 21)))
 
   expect_s3_class(ps, "bgms_prior_sensitivity")
-  # one grid row per multiplier plus the s0 replicate
-  expect_equal(sum(!ps$grid$replicate), 3L)
+  # one grid row per anchor (the 1x row is the original fit) plus the replicate
+  expect_equal(sum(!ps$grid$replicate), 5L)
   expect_equal(sum(ps$grid$replicate), 1L)
+  expect_equal(sum(ps$grid$original_fit), 1L)
+  expect_equal(ps$grid$seconds[ps$grid$original_fit], 0)
   expect_equal(nrow(ps$edges), 15L) # choose(6, 2)
+  # the curve is dense and the anchors lie exactly on it
+  expect_gte(length(ps$multipliers), 41L)
+  expect_equal(ps$multipliers[ps$anchor_index], ps$anchors)
+  expect_equal(ps$multipliers[ps$chosen_index], 1)
+  expect_equal(dim(ps$log10_bf), c(length(ps$multipliers), 15L))
+  # exactness at the 1x anchor: the curve there is the original fit's own
+  # indicator average through the per-edge prior odds (identity reweight)
+  g = do.call(rbind, fit$raw_samples$indicator)
+  po = ps$edges$prior_inclusion_probability /
+    (1 - ps$edges$prior_inclusion_probability)
+  expect_equal(
+    ps$log10_bf[ps$chosen_index, ],
+    unname(log10((colMeans(g) / (1 - colMeans(g))) / po)),
+    tolerance = 1e-10
+  )
   # verdicts and movers take only the documented levels
   expect_true(all(unlist(ps$verdict) %in%
     c("presence", "undecided", "absence", NA)))
   expect_true(all(ps$edges$mover %in%
     c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
-  # chosen-scale verdict comes from the s0 refit column
-  expect_equal(ps$edges$chosen_scale_verdict, ps$verdict[ps$chosen_index, ])
+  # chosen-scale columns are the fit's own reported (RB) analysis
+  rb = extract_posterior_inclusion_probabilities(fit)
+  expect_equal(
+    ps$edges$chosen_scale_pip,
+    unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)]),
+    tolerance = 1e-10
+  )
   # the data-preferred scale is reported without a refit
   expect_true(is.finite(ps$preferred_scale$s_hat))
   # print and plot run
@@ -111,6 +130,18 @@ test_that("warm-started short refits agree with cold full refits within wobble",
 })
 
 
+test_that("anchors must include a multiplier other than 1", {
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:4],
+    chains = 1, iter = 200, warmup = 200, seed = 3,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  expect_error(prior_sensitivity_check(fit, anchors = 1), "other than 1")
+  expect_error(prior_sensitivity_check(fit, anchors = c(-1, 2)), "positive")
+  expect_error(prior_sensitivity_check(fit, ess_floor = 0), "positive")
+})
+
+
 test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   skip_on_cran()
   set.seed(32)
@@ -127,6 +158,11 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   expect_s3_class(psg, "bgms_prior_sensitivity")
   expect_equal(psg$model_type, "ggm")
   expect_false(psg$warm) # continuous fits refit cold
+  # curve points that clear the ESS floor carry a finite BF; masked ones are NA
+  finite_pts = !is.na(psg$curve$anchor_used)
+  expect_true(any(finite_pts))
+  expect_true(all(is.finite(psg$log10_bf[finite_pts, 1])))
+  expect_true(all(is.na(psg$log10_bf[!finite_pts, ])))
 
   n = 250
   xm = data.frame(

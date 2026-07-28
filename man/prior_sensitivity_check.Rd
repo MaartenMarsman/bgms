@@ -6,12 +6,13 @@
 \usage{
 prior_sensitivity_check(
   bgms_object,
-  scale_multipliers = c(0.5, 1, 2.5),
+  anchors = c(0.4, 0.63, 1, 1.6, 2.5),
   evidence_threshold = 10,
   refit_sampler = "same-as-fit",
   iter = NULL,
   warmup = NULL,
   tolerance = 0.5,
+  ess_floor = 400,
   include_preferred_scale = FALSE,
   cores = NULL,
   seed = 1L,
@@ -22,9 +23,11 @@ prior_sensitivity_check(
 \item{bgms_object}{A fitted \code{bgms} object from \code{\link{bgm}()} run
 with \code{edge_selection = TRUE}.}
 
-\item{scale_multipliers}{Numeric vector of positive multipliers of the chosen
-scale at which to refit. Default \code{c(0.5, 1, 2.5)} (narrow / chosen /
-wide). The multiplier \code{1} is always included.}
+\item{anchors}{Numeric vector of positive anchor multipliers of the chosen
+scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
+anchors' usable reweighting radii overlap). The multiplier \code{1} is
+always included and is the original fit; each other anchor is one warm
+refit.}
 
 \item{evidence_threshold}{Positive numeric. Inclusion Bayes factor threshold
 for a presence verdict; \code{1 / evidence_threshold} is the absence
@@ -44,10 +47,14 @@ under one identical pipeline; the original fit never enters a comparison.}
 refits and inherit the original fit's schedule otherwise.}
 
 \item{tolerance}{Numeric. Minimum \eqn{\log_{10}} BF change across scales for
-a verdict flip to count as a move, before the MCSE and wobble floors.
+a verdict flip to count as a move, before the MCSE and noise floors.
 Default: \code{0.5}.}
 
-\item{include_preferred_scale}{Logical. Add an extra grid point at the
+\item{ess_floor}{Positive numeric. Minimum pooled importance effective
+sample size for a curve point to be reported; points below it are
+\code{NA}. Default: \code{400}.}
+
+\item{include_preferred_scale}{Logical. Add an extra anchor at the
 data-preferred scale \eqn{\hat s}. Default: \code{FALSE}.}
 
 \item{cores}{Integer thread count for each refit's chains. Default: the
@@ -61,29 +68,39 @@ power users); the default keeps only per-scale summaries. Default:
 }
 \value{
 An object of class \code{"bgms_prior_sensitivity"}: a list with the
-per-edge \code{edges} table (per-scale verdicts and \eqn{\log_{10}} BFs,
-chosen-scale verdict, stability range, mover category, insufficiency flag),
-a \code{grid} data frame (one row per refit with its convergence gate),
-the \code{log10_bf} scale-by-edge matrix, the \code{wobble} yardstick, the
+per-edge \code{edges} table (chosen-scale verdict from the original fit,
+per-anchor verdict columns, dense-grid stability range, mover category,
+insufficiency flag), a \code{grid} data frame (one row per anchor fit and
+the replicate, with convergence gates), the \code{multipliers} display
+grid with the \code{log10_bf}, \code{log10_bf_mcse}, and \code{verdict}
+curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
+bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
+per-point chain unanimity), the \code{wobble} noise yardstick, the
 data-\code{preferred_scale}, and the settings used.
 }
 \description{
-Checks whether each edge's inclusion verdict is robust to the interaction
-(pairwise) slab scale, by refitting the model at a small grid of scales and
-classifying every edge at every scale. Works on any \code{\link{bgm}()} fit
-with edge selection --- no random-scale hyperprior is required. A built-in
-Monte Carlo wobble guard, calibrated from a replicate refit at the chosen
-scale, keeps the check from crying wolf on boundary edges.
+Recovers each edge's continuous inclusion-Bayes-factor curve
+\eqn{\mathrm{BF}_e(s)} across the interaction (pairwise) slab scale
+\eqn{s}, and classifies every edge's verdict trajectory along it. The
+curve is anchored at a handful of fixed-scale fits --- the chosen-scale
+anchor is the original fit itself --- and filled in between anchors by
+importance reweighting. Works on any \code{\link{bgm}()} fit with edge
+selection. A built-in Monte Carlo noise guard, calibrated from a repeated
+refit at one anchor, keeps the check from crying wolf on boundary edges.
 }
 \details{
-The check refits the model at scales \code{scale_multipliers * s0}, where
-\eqn{s_0} is the chosen scale from \code{interaction_prior}. Multipliers
-(not absolute scales) are used so one default serves \code{normal_prior(1)}
-and \code{cauchy_prior(2.5)} alike. The multiplier \code{1} is not redundant:
-its refit is a replicate of the original analysis, and the spread of
-\eqn{|\Delta \log_{10} \mathrm{BF}|} between the chosen-scale refit and this
-replicate is the empirical wobble yardstick. All cross-scale comparisons run
-through refits only, so a single identical pipeline produces every verdict.
+\strong{The anchored curve.} The model is refit at the non-unit
+\code{anchors} (multipliers of the chosen scale \eqn{s_0}; the \code{1x}
+anchor is the original fit and is never refit, so the chosen-scale
+verdicts reported here are exactly the fit's own reported analysis). A
+fit at fixed anchor scale \eqn{s_a} is reweighted to a nearby scale
+\eqn{s} with per-draw slab-density ratios over the currently included
+edges; the likelihood cancels, so no refit is needed between anchors.
+Each point of a dense log-spaced display grid is estimated from the
+anchor with the highest importance effective sample size there; points
+where no anchor clears \code{ess_floor} are reported \code{NA} rather
+than extrapolated, and non-overlapping anchor radii trigger a warning to
+add anchors. Log-spaced default anchors make the radii overlap.
 
 \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
 original fit's per-chain final state, and a NUTS refit additionally carries
@@ -96,12 +113,14 @@ indicator transition ESS, not on \eqn{\hat R} alone. Continuous (GGM) and
 mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
 
 \strong{The mover rule.} An edge is flagged scale-sensitive only if its
-verdict differs somewhere on the grid \emph{and} its \eqn{\log_{10}}
+verdict differs somewhere along the curve \emph{and} its \eqn{\log_{10}}
 Bayes-factor change across scales exceeds
-\code{max(tolerance, 2 * MCSE, wobble)}, with the MCSE from the
-Rao-Blackwellized machinery and the wobble the 95th percentile of the
-s0-replicate spread over threshold-relevant edges
-(\eqn{|\log_{10} \mathrm{BF}| \le 3} at s0; near-saturated edges would
+\code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
+chain-level spread of the reweighted estimate (so it carries both the
+between-chain and the importance-sampling uncertainty) and the noise band
+the 95th percentile of the spread between one anchor refit and its
+repeat, over threshold-relevant edges
+(\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
 inflate it). The \code{$edges$mover} column stores \code{stable},
 \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 printed report shows the same categories in plain language ("robust",

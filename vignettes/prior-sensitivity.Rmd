@@ -48,10 +48,10 @@ data = Wenchuan
 
 # The check
 
-`prior_sensitivity_check()` is that comparison, automated. It takes a fitted
-model, refits it at a small grid of slab scales --- narrow, chosen, and wide
---- and classifies every edge at every scale. No special fit is required: it
-works on any `bgm()` fit made with edge selection.
+`prior_sensitivity_check()` is that comparison, automated. It recovers each
+edge's continuous inclusion-Bayes-factor curve across a range of slab scales
+and classifies how each verdict behaves along it. No special fit is required:
+it works on any `bgm()` fit made with edge selection.
 
 ```{r, eval = FALSE}
 fit = bgm(data)
@@ -60,31 +60,92 @@ ps
 ```
 
 ```
-#> PLACEHOLDER-PRINT-OUTPUT
+#> Prior sensitivity check: are the edge verdicts robust to the slab scale?
+#> Bayes-factor curve from 0.4x to 2.5x the chosen scale (anchors at 0.4x, 0.63x, 1x, 1.6x, 2.5x;
+#> the 1x anchor is the original fit); 136 edges.
+#>
+#> 87 of 136 verdicts hold across the whole 0.4x-2.5x range; the exceptions
+#> are named below.
+#>
+#>   robust (same verdict at every scale)     86
+#>   changed, within run-to-run noise          3
+#>   changed, beyond run-to-run noise         35
+#>   not certifiable (chains disagree)        12
+#>
+#> 35 edges' verdicts genuinely depend on the scale:
+#>   edge               0.4x       0.63x      1x         1.6x       2.5x
+#>   intrusion-amnesia  undecided  absence    absence    absence    absence
+#>   intrusion-sleep    undecided  undecided  undecided  absence    absence
+#>   dreams-concen      undecided  undecided  undecided  undecided  absence
+#>   flash-upset        undecided  undecided  absence    absence    absence
+#>   ...and 31 more; see $edges.
+#>
+#> 12 edges cannot be certified from this run: intrusion-startle, dreams-numb,
+#> dreams-startle, flash-anger, flash-startle, and 7 more (see $edges).
+#>
+#> Verdict counts by scale (at the anchors):
+#>             0.4x 0.63x 1x 1.6x 2.5x
+#>   presence    37    37 34   35   32
+#>   undecided   63    45 41   28   28
+#>   absence     36    54 61   73   76
+#> More absence at wider scales is expected: a wider slab strengthens
+#> evidence against borderline edges.
+#>
+#> Note: the chosen scale (1) is much wider than the estimated
+#> interactions (about 0.18 [0.148, 0.218]); absence verdicts in
+#> particular depend on this choice.
+#>
+#> Details: curve over 43 scales from 5 anchors, stitched by importance
+#> reweighting; points with importance ESS under 400 mask NA. 5 nuts refits
+#> (warm-started from the fit; the 1x anchor is the original fit) in 345 s;
+#> run-to-run noise band 0.31 log10 BF (95th pct of the repeated 1.6x
+#> refit). ?prior_sensitivity_check for how to read this.
 ```
 
-The scales are multipliers of the fit's chosen scale, so one default
-(`c(0.5, 1, 2.5)`) serves `normal_prior(1)` and `cauchy_prior(2.5)` alike. The
-category counts are the headline: most verdicts are robust, and the edges
-whose verdict genuinely depends on the scale are named, with their verdict at
-each scale. The per-scale verdict table below them shows the expected drift:
-as the slab widens, evidence for inclusion weakens and edges move from
-undecided toward absence, since a wider slab penalizes the extra parameter an
-edge costs.
+The headline is the stability statement and the category counts: most
+verdicts are robust across the whole range, and the edges whose verdict
+genuinely depends on the scale are named, with their verdict at each anchor.
+The per-scale verdict table below them shows the expected drift: as the slab
+widens, evidence for inclusion weakens and edges move from undecided toward
+absence, since a wider slab penalizes the extra parameter an edge costs.
+
+## The anchored curve
+
+The continuous curve is what Bartos et al. present, and it is the deliverable
+here. A single fit cannot produce it for a global scale --- reweighting one
+fit across the whole range collapses --- so the curve is *anchored*: the model
+is fit at a handful of fixed scales (the log-spaced `anchors`, default
+`c(0.4, 0.63, 1, 1.6, 2.5)` times the chosen scale) and the values between
+anchors are filled in by importance reweighting. Reweighting a fixed-scale fit
+to a nearby scale needs only the per-draw slab-density ratios over the
+included edges; the likelihood cancels, so no extra fit is needed between
+anchors, and there is no normalizing constant to integrate.
+
+The chosen-scale (`1x`) anchor is the original fit itself --- it is never
+refit --- so the chosen-scale verdicts the check reports are *exactly* the
+analysis you already ran. Each other anchor is one short warm-started refit.
+
+Reweighting is only trustworthy near an anchor; far from every anchor the
+importance weights concentrate on a few draws and the estimate is unreliable.
+The check measures this with the importance effective sample size at each
+display point and **masks any point below `ess_floor` (default 400) to `NA`
+rather than reporting a number**. Log-spaced anchors make neighbouring usable
+ranges overlap, so the masked-out regions close up into a continuous curve; if
+two anchors are too far apart to overlap, the check warns and suggests adding
+an anchor.
 
 ## Run-to-run noise
 
 Verdict-identity comparisons are flaky by construction: an inclusion Bayes
 factor that sits within Monte Carlo error of a threshold can change category
-between reruns of the *same* prior, with no real sensitivity present. The
-multiplier `1` is included for exactly this reason. Its refit is a repeat run
-of the chosen-scale analysis, and the spread of $|\Delta \log_{10} \mathrm{BF}|$
-between the chosen-scale refit and this repeat is the empirical noise band
+between reruns of the *same* prior, with no real sensitivity present. To
+calibrate that, the check repeats one anchor refit and takes the spread of
+$|\Delta \log_{10} \mathrm{BF}|$ between the two as the empirical noise band
 (its 95th percentile is the "run-to-run noise band" in the report's Details
 line, computed over edges whose evidence is near the decision thresholds).
 
 An edge is reported as "changed, beyond run-to-run noise" only if its verdict
-changes across the grid *and* its $\log_{10}$ Bayes-factor swing exceeds that
+changes along the curve *and* its $\log_{10}$ Bayes-factor swing exceeds that
 band (and its own Monte Carlo error, and a small tolerance). An edge that
 flips inside the band is "changed, within run-to-run noise": the check
 refuses to call it a move. This is what keeps a robustness tool from crying
@@ -96,16 +157,19 @@ stored as `stable`, `indistinguishable-from-wobble`, and
 plot(ps)
 ```
 
-The plot's title states the answer. Each edge's evidence line runs across the
-grid, the undecided band is shaded and the verdict zones are labeled; the
-edges whose verdict depends on the scale are colored and labeled by name, and
-everything else is muted background.
+The plot's title states the answer. Each edge's evidence curve runs across the
+anchored range with dots at the anchor scales, the undecided band shaded and
+the verdict zones labeled; edges whose verdict depends on the scale are
+colored and labeled by name, everything else is muted background, and any
+low-ESS curve points leave visible gaps.
 
 The per-edge table carries the chosen-scale verdict and $\log_{10}$ Bayes
-factor with its Monte Carlo standard error, the per-scale verdict columns, the
+factor with its Monte Carlo standard error, the per-anchor verdict columns, the
 stability range, the mover category, and an `insufficient` flag for edges the
-refit cannot certify (its chains disagree, or the Bayes-factor band straddles a
-threshold); the report prints these as "not certifiable".
+fit cannot certify (its chains disagree, or the Bayes-factor band straddles a
+threshold); the report prints these as "not certifiable". The full display
+grid, the per-point importance ESS, and which anchor each point was read from
+are in `ps$multipliers`, `ps$curve$ess`, and `ps$curve$anchor_used`.
 
 ```{r, eval = FALSE}
 head(ps$edges)
@@ -118,28 +182,27 @@ size of the estimated interactions (the root-mean-square of the included
 interactions in the original fit, with an approximate standard error). When
 the chosen scale is far wider or narrower than that --- more than about a
 factor of two --- the report says so, because inclusion verdicts near the
-boundary then depend on the choice, and the grid shows by how much.
+boundary then depend on the choice, and the curve shows by how much.
 
 ## Cost and samplers
 
-With warm starts, each refit begins from the original fit's per-chain end
-state; an ordinal fit sampled with NUTS also carries the adapted step size and
-mass matrix, so a short warmup suffices. The scales are refit one after another,
-each running its chains in parallel across `cores`, and on Wenchuan the whole
-three-scale check (plus the chosen-scale repeat) costs about one original
-fit of wall-clock. A fit sampled with adaptive Metropolis or Gibbs refits with
-the same sampler and costs about one fit per scale; when that makes the check
-cost more than about a minute, it suggests `refit_sampler = "nuts"`, which is
-sound because every comparison runs refit-against-refit --- the original fit
-never enters a comparison. Continuous (GGM) and mixed-MRF fits refit cold.
+The chosen-scale anchor is the original fit, so it costs nothing to reuse; only
+the other anchors are refit. With warm starts each refit begins from the
+original fit's per-chain end state, and an ordinal fit sampled with NUTS also
+carries the adapted step size and mass matrix, so a short warmup suffices. The
+anchors are refit one after another, each running its chains in parallel across
+`cores`, and on Wenchuan the whole check costs about one original fit of
+wall-clock. A fit sampled with adaptive Metropolis or Gibbs refits with the
+same sampler; when that makes the check cost more than about a minute, it
+suggests `refit_sampler = "nuts"`, which is sound because every comparison runs
+refit-against-refit --- the original fit's own draws are only ever reweighted,
+never compared against a differently-sampled refit. Continuous (GGM) and
+mixed-MRF fits refit cold.
 
 Because warm starts place every chain near the chosen-scale posterior,
 between-chain dispersion is reduced by construction, so split-$\hat R$ is a
-weakened diagnostic at the refits; the per-refit convergence gate therefore also
-leans on the effective sample size and on per-chain verdict agreement. A refit
-that fails its gate is reported as unusable rather than folded into the verdicts.
-The check thus doubles as a convergence audit of the original analysis: an
-undermixed original run shows up as a refit that cannot reproduce its own
-chosen-scale verdicts within Monte Carlo error.
+weakened diagnostic at the refits; the per-anchor convergence gate therefore
+also leans on the effective sample size and on per-chain verdict agreement. An
+anchor that fails its gate is dropped from the curve rather than folded in.
 
 # References
