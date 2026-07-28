@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include "models/omrf/omrf_model.h"
 #include "rng/rng_utils.h"
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/metropolis.h"
 #include "mcmc/execution/step_result.h"
