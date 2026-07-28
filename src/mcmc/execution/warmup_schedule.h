@@ -28,11 +28,8 @@
  * For edge_selection = TRUE otherwise (adaptive-Metropolis):
  *   Stage 3c is empty; selection activates at the first sampling iteration.
  *
- * Warning types:
- *   0 = none, 1 = warmup extremely short (< 50),
- *   2 = core stages using proportional fallback,
- *   3 = limited proposal SD tuning (edge_selection && warmup < 300),
- *   4 = Stage 3b skipped (would have < 20 iterations).
+ * Short-warmup warnings are the responsibility of validate_sampler() on the
+ * R side; the schedule only records stage3b_skipped for its own stage logic.
  */
 struct WarmupSchedule {
   int stage1_end;                 ///< Stage-1 [0 ... stage1_end-1]
@@ -43,7 +40,6 @@ struct WarmupSchedule {
   int total_warmup;               ///< User-specified warmup (== first retained iteration)
   bool learn_proposal_sd;         ///< Whether to run the proposal-SD tuner
   bool enable_selection;          ///< Allow edge-indicator moves
-  int warning_type;               ///< Warning code (see above)
   bool stage3b_skipped;           ///< True if 3b was skipped due to insufficient budget
 
   WarmupSchedule(int warmup,
@@ -58,7 +54,6 @@ struct WarmupSchedule {
     , total_warmup(warmup)
     , learn_proposal_sd(learn_sd)
     , enable_selection(enable_sel)
-    , warning_type(0)
     , stage3b_skipped(false)
   {
     // ===== Step 1: Determine budget allocation =====
@@ -76,12 +71,8 @@ struct WarmupSchedule {
       if (stage3b_budget < 20) {
         // Skip Stage 3b entirely - will use default proposal SD
         stage3b_skipped = true;
-        warning_type = 4;
         warmup_core = warmup;  // Give all warmup to core stages
         stage3b_budget = 0;
-      } else if (warmup < 300) {
-        // Marginal but runs - warn about limited tuning
-        warning_type = 3;
       }
     } else if (enable_sel && select_during_warmup) {
       // Tuning-free sampler (Gibbs): a short full-model settle window, then
@@ -102,13 +93,11 @@ struct WarmupSchedule {
 
     if (warmup_core < 20) {
       // Too short for any meaningful adaptation
-      if (warning_type == 0) warning_type = 1;  // Don't overwrite more specific warnings
       init_buffer = warmup_core;
       term_buffer = 0;
       base_window = 0;
     } else if (default_init_buffer + default_base_window + default_term_buffer > warmup_core) {
       // Not enough room for fixed buffers; fall back to proportional (15%/75%/10%)
-      if (warning_type == 0) warning_type = 2;
       init_buffer = static_cast<int>(0.15 * warmup_core);
       term_buffer = static_cast<int>(0.10 * warmup_core);
       base_window = warmup_core - init_buffer - term_buffer;
@@ -117,11 +106,6 @@ struct WarmupSchedule {
       init_buffer = default_init_buffer;
       term_buffer = default_term_buffer;
       base_window = default_base_window;
-    }
-
-    // Additional warning for extremely short warmup with edge selection
-    if (enable_sel && warmup < 50 && warning_type != 1) {
-      warning_type = 1;  // Override to most severe
     }
 
     /* ---------- Stage-1 ---------- */
@@ -169,12 +153,6 @@ struct WarmupSchedule {
   bool in_stage3b(int i) const { return !stage3b_skipped && i >= stage3b_start && i < stage3c_start; }
   bool in_stage3c(int i) const { return enable_selection && !stage3b_skipped && i >= stage3c_start && i < total_warmup; }
   bool sampling (int i) const { return i >= total_warmup; }
-
-  bool has_warning() const { return warning_type > 0; }
-  bool warmup_extremely_short() const { return warning_type == 1; }
-  bool using_proportional_fallback() const { return warning_type == 2; }
-  bool limited_proposal_tuning() const { return warning_type == 3; }
-  bool proposal_tuning_skipped() const { return warning_type == 4 || stage3b_skipped; }
 
   /// Whether indicator moves are enabled (Stage 3c and sampling)
   bool selection_enabled(int i) const {
