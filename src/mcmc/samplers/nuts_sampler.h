@@ -3,7 +3,7 @@
 #include <RcppArmadillo.h>
 #include <memory>
 #include <utility>
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/execution/sampler_config.h"

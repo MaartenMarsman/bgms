@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 #include <algorithm>
 #include <functional>
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
