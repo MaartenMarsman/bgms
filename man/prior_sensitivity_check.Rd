@@ -96,7 +96,9 @@ verdict differs somewhere on the grid \emph{and} its \eqn{\log_{10}}
 Bayes-factor change across scales exceeds
 \code{max(tolerance, 2 * MCSE, wobble)}, with the MCSE from the
 Rao-Blackwellized machinery and the wobble the 95th percentile of the
-s0-replicate spread. Each edge is reported as \code{stable},
+s0-replicate spread over threshold-relevant edges
+(\eqn{|\log_{10} \mathrm{BF}| \le 3} at s0; near-saturated edges would
+inflate it). Each edge is reported as \code{stable},
 \code{moved-beyond-wobble}, or \code{indistinguishable-from-wobble}; a bare
 verdict flip inside the replicate noise is never reported as a move.
 
