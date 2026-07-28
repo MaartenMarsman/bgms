@@ -37,6 +37,7 @@ Imports:
     lifecycle,
     graphics,
     grDevices,
+    parallel,
     stats,
     utils
 RdMacros: Rdpack
@@ -56,7 +57,6 @@ Suggests:
     covr,
     knitr,
     MASS,
-    parallel,
     qgraph,
     rmarkdown,
     testthat (>= 3.0.0),
