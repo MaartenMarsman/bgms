@@ -254,44 +254,66 @@ prior_sensitivity_check = function(bgms_object,
   # gesture at. The captured text stays inspectable in $refit_diagnostics, and
   # verbose = TRUE re-enables live printing.
   refit_notes = vector("list", nrow(jobs))
-  run_one_refit = function(i) {
+  run_one_refit = function(i, show_progress = FALSE) {
     refit_at_scale(
       bgms_object,
       scale = jobs$multiplier[i] * chosen_scale,
       warm_state = warm_state, warmup = rl$warmup, iter = rl$iter,
-      seed = seed + i, cores = refit_cores, sampler = rs$method
+      seed = seed + i, cores = refit_cores, sampler = rs$method,
+      show_progress = show_progress
     )
   }
-  # Progress over the anchor refits (the check's only real cost). Live
-  # per-refit notes under verbose = TRUE would tangle with the bar, so the
-  # bar yields to verbose.
+  # Each anchor refit (the check's only real cost) renders the sampler's own
+  # native per-chain display, with the whole refit grid announced up front so
+  # the user knows what is coming. Live per-refit notes under verbose = TRUE
+  # would tangle with the bars, so the display yields to verbose; a silent
+  # refit's stdout is captured instead.
   show_bar = interactive() && !verbose
   if(show_bar) {
+    refit_scales = sprintf("%.2gx", jobs$multiplier[!jobs$replicate])
+    rep_scale = sprintf("%.2gx", jobs$multiplier[jobs$replicate][1])
+    n_chains = length(get_raw_samples(bgms_object)$pairwise)
     message(sprintf(
-      "Refitting at %d anchor scale%s (plus one repeat for the noise band):",
-      length(non_unit), if(length(non_unit) == 1L) "" else "s"
+      paste0(
+        "Refitting at %d scale%s (%s), plus a %s repeat for the noise band.\n",
+        "Each refit runs %d chain%s; warmup and sampling are shown per chain."
+      ),
+      length(refit_scales), if(length(refit_scales) == 1L) "" else "s",
+      paste(refit_scales, collapse = ", "), rep_scale,
+      n_chains, if(n_chains == 1L) "" else "s"
     ))
-    pb = utils::txtProgressBar(min = 0, max = nrow(jobs), style = 3)
-    on.exit(close(pb), add = TRUE)
   }
   for(i in seq_len(nrow(jobs))) {
     t0 = Sys.time()
     warns_i = character(0)
     fit_i = NULL
-    cat_i = utils::capture.output({
+    absorb_warning = function(w) {
+      warns_i <<- c(warns_i, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+    if(show_bar) {
+      # The native display writes to the console, so it must not be captured;
+      # announce which refit is starting, then let its per-chain bars animate.
+      lbl = if(jobs$replicate[i]) {
+        sprintf("%.2gx scale (noise repeat)", jobs$multiplier[i])
+      } else {
+        sprintf("%.2gx scale", jobs$multiplier[i])
+      }
+      message(sprintf("\n[%d/%d] %s", i, nrow(jobs), lbl))
       fit_i = withCallingHandlers(
-        run_one_refit(i),
-        warning = function(w) {
-          warns_i <<- c(warns_i, conditionMessage(w))
-          invokeRestart("muffleWarning")
-        }
+        run_one_refit(i, show_progress = TRUE),
+        warning = absorb_warning
       )
-    })
+      notes = warns_i
+    } else {
+      cat_i = utils::capture.output({
+        fit_i = withCallingHandlers(run_one_refit(i), warning = absorb_warning)
+      })
+      notes = c(cat_i[nzchar(cat_i)], warns_i)
+    }
     refits[[i]] = fit_i
-    notes = c(cat_i[nzchar(cat_i)], warns_i)
     refit_notes[[i]] = notes
     walls[i] = as.numeric(Sys.time() - t0, units = "secs")
-    if(show_bar) utils::setTxtProgressBar(pb, i)
     if(verbose && length(notes) > 0) {
       cat(sprintf("[%.2gx refit] sampler notes:\n", jobs$multiplier[i]))
       cat(paste0("  ", notes), sep = "\n")
@@ -689,26 +711,33 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   mlab = sprintf("%.2gx", x$anchors)
   gr = range(x$multipliers)
 
+  # Wrap prose to the console width (capped) so long interpolated content does
+  # not overflow; tables and the labeled footer keep their own layout.
+  w = min(getOption("width", 80L), 80L)
+  wrap = function(...) writeLines(strwrap(paste0(...), width = w))
+
   cat("Prior sensitivity check: are the edge verdicts robust to the slab scale?\n")
-  cat(sprintf(
-    "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s;\nthe 1x anchor is the original fit); %d edges.\n\n",
+  wrap(sprintf(
+    "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s; the 1x anchor is the original fit); %d edges.",
     gr[1], gr[2], paste(mlab, collapse = ", "), n_edges
   ))
+  cat("\n")
 
   # Stability headline: the scale range over which the verdicts hold.
   full_span = !is.na(edges$stability_lower) & !is.na(edges$stability_upper) &
     edges$stability_lower <= gr[1] * 1.001 & edges$stability_upper >= gr[2] * 0.999
   if(all(full_span)) {
-    cat(sprintf(
-      "All %d verdicts hold from %.2gx to %.2gx the chosen scale.\n\n",
+    wrap(sprintf(
+      "All %d verdicts hold from %.2gx to %.2gx the chosen scale.",
       n_edges, gr[1], gr[2]
     ))
   } else {
-    cat(sprintf(
-      "%d of %d verdicts hold across the whole %.2gx-%.2gx range; the exceptions\nare named below.\n\n",
+    wrap(sprintf(
+      "%d of %d verdicts hold across the whole %.2gx-%.2gx range; the exceptions are named below.",
       sum(full_span), n_edges, gr[1], gr[2]
     ))
   }
+  cat("\n")
 
   # One category per edge: not-certifiable wins, then the mover category.
   uncert = edges$insufficient %in% TRUE
@@ -756,8 +785,8 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
       ""
     }
     one = length(nm) == 1L
-    cat(sprintf(
-      "%d edge%s too noisy to assess: %s%s.\n",
+    wrap(sprintf(
+      "%d edge%s too noisy to assess: %s%s.",
       length(nm), if(one) " is" else "s are",
       paste(shown, collapse = ", "), tail_txt
     ))
@@ -777,10 +806,15 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     } else {
       sprintf("%s Bayes factor sits within Monte Carlo error of an evidence threshold", subj)
     }
-    cat(sprintf(
-      "%s at the chosen scale itself; a rerun with a fresh seed could flip\n%s without any prior change. Run more iterations to settle %s\nbefore reading %s sensitivity.\n\n",
+    wrap(sprintf(
+      paste(
+        "%s at the chosen scale itself; a rerun with a fresh seed could flip",
+        "%s without any prior change. Run more iterations to settle %s before",
+        "reading %s sensitivity."
+      ),
       cause, obj, these, tolower(subj)
     ))
+    cat("\n")
   }
 
   # Verdict counts at the anchor scales.
@@ -797,8 +831,10 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
   ab = vt["absence", ]
   if(ab[length(ab)] > ab[1]) {
-    cat("More absence at wider scales is expected: a wider slab strengthens\n")
-    cat("evidence against borderline edges.\n")
+    wrap(
+      "More absence at wider scales is expected: a wider slab strengthens ",
+      "evidence against borderline edges."
+    )
   }
   cat("\n")
 
@@ -811,10 +847,11 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     } else {
       bl
     }
-    cat(sprintf(
-      "The %s refit%s did not converge and %s excluded from the verdicts.\n\n",
+    wrap(sprintf(
+      "The %s refit%s did not converge and %s excluded from the verdicts.",
       bl, if(nrow(bad) == 1L) "" else "s", if(nrow(bad) == 1L) "is" else "are"
     ))
+    cat("\n")
   }
 
   # How the chosen scale compares with the estimated interactions.
@@ -822,21 +859,22 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   if(is.finite(ps$s_hat)) {
     ratio = x$chosen_scale / ps$s_hat
     if(ratio > 2) {
-      cat(sprintf(
-        "Note: the chosen scale (%.3g) is much wider than the estimated\ninteractions (about %.3g [%.3g, %.3g]); absence verdicts in\nparticular depend on this choice.\n\n",
+      wrap(sprintf(
+        "Note: the chosen scale (%.3g) is much wider than the estimated interactions (about %.3g [%.3g, %.3g]); absence verdicts in particular depend on this choice.",
         x$chosen_scale, ps$s_hat, ps$lo, ps$hi
       ))
     } else if(ratio < 0.5) {
-      cat(sprintf(
-        "Note: the chosen scale (%.3g) is much narrower than the estimated\ninteractions (about %.3g [%.3g, %.3g]); presence verdicts in\nparticular depend on this choice.\n\n",
+      wrap(sprintf(
+        "Note: the chosen scale (%.3g) is much narrower than the estimated interactions (about %.3g [%.3g, %.3g]); presence verdicts in particular depend on this choice.",
         x$chosen_scale, ps$s_hat, ps$lo, ps$hi
       ))
     } else {
-      cat(sprintf(
-        "The chosen scale (%.3g) matches the size of the estimated interactions (about %.3g).\n\n",
+      wrap(sprintf(
+        "The chosen scale (%.3g) matches the size of the estimated interactions (about %.3g).",
         x$chosen_scale, ps$s_hat
       ))
     }
+    cat("\n")
   }
 
   secs = if(x$runtime_seconds < 10) {

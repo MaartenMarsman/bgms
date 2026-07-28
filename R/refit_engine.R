@@ -80,9 +80,10 @@ extract_warm_state = function(fit) {
 # @param cores        Threads for the refit (chains run in parallel internally).
 # @param sampler      Optional update-method override ("nuts",
 #                     "adaptive-metropolis", "gibbs"); NULL keeps the fit's.
+# @param show_progress  Show the sampler's native progress bar for this refit.
 # ------------------------------------------------------------------
 refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
-                          cores = 1L, sampler = NULL) {
+                          cores = 1L, sampler = NULL, show_progress = FALSE) {
   spec = get_fit_spec(fit)
 
   spec$prior$pairwise_scale = scale
@@ -94,8 +95,12 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
   spec$sampler$iter = as.integer(iter)
   spec$sampler$seed = as.integer(seed)
   spec$sampler$cores = as.integer(cores)
-  spec$sampler$display_progress = "none"
-  spec$sampler$progress_type = 0L
+  # Render the sampler's own native display (a bar per chain, with the
+  # warmup/sampling stage and ETA) for this refit when asked; otherwise stay
+  # silent. The manager redraws its block in place, so a refit's chains do not
+  # pile up as they run.
+  spec$sampler$display_progress = if(show_progress) "per-chain" else "none"
+  spec$sampler$progress_type = if(show_progress) 2L else 0L
   spec$sampler$progress_callback = NULL
 
   # Warm-start the continuous parameters only, on the default dense
