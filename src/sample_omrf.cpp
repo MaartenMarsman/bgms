@@ -49,7 +49,10 @@ Rcpp::List sample_omrf(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
-    const bool learn_mass_matrix = true
+    const bool learn_mass_matrix = true,
+    const Rcpp::Nullable<Rcpp::List> initial_parameters = R_NilValue,
+    const Rcpp::Nullable<Rcpp::NumericVector> initial_step_sizes = R_NilValue,
+    const Rcpp::Nullable<Rcpp::List> initial_inv_mass = R_NilValue
 ) {
     // Create parameter priors from R input
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
@@ -119,9 +122,46 @@ Rcpp::List sample_omrf(
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
+    // Optional per-chain warm start (final state of a previous fit).
+    std::vector<arma::vec> init_params;
+    if (initial_parameters.isNotNull()) {
+        Rcpp::List ip(initial_parameters.get());
+        init_params.reserve(ip.size());
+        for (int c = 0; c < ip.size(); ++c) {
+            init_params.push_back(Rcpp::as<arma::vec>(ip[c]));
+        }
+    }
+    std::vector<double> init_step_sizes;
+    if (initial_step_sizes.isNotNull()) {
+        init_step_sizes = Rcpp::as<std::vector<double>>(
+            Rcpp::NumericVector(initial_step_sizes.get()));
+    }
+    std::vector<arma::vec> init_inv_mass;
+    if (initial_inv_mass.isNotNull()) {
+        Rcpp::List im(initial_inv_mass.get());
+        init_inv_mass.reserve(im.size());
+        for (int c = 0; c < im.size(); ++c) {
+            init_inv_mass.push_back(Rcpp::as<arma::vec>(im[c]));
+        }
+    }
+
+    // A warm-start list is per chain: an empty list means cold, otherwise it
+    // must carry exactly one entry per chain (each is indexed by chain id).
+    auto require_per_chain = [&](std::size_t n, const char* what) {
+        if (n != 0 && n != static_cast<std::size_t>(no_chains)) {
+            Rcpp::stop("%s has %d entries but there are %d chains; a warm-start "
+                       "list must be empty or one entry per chain.",
+                       what, static_cast<int>(n), no_chains);
+        }
+    };
+    require_per_chain(init_params.size(), "initial_parameters");
+    require_per_chain(init_step_sizes.size(), "initial_step_sizes");
+    require_per_chain(init_inv_mass.size(), "initial_inv_mass");
+
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(
-        model, *edge_prior_obj, config, no_chains, no_threads, pm);
+        model, *edge_prior_obj, config, no_chains, no_threads, pm,
+        init_params, init_step_sizes, init_inv_mass);
 
     // Convert to R list format
     Rcpp::List output = convert_results_to_list(results);

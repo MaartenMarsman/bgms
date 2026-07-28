@@ -80,6 +80,10 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$inclusion_parameter_samples)) {
         res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
       }
+      # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
+      res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
+      # Final adapted diagonal metric (NULL otherwise), for warm-starting refits.
+      res$inv_mass = if(is.null(chain$inv_mass)) NULL else as.numeric(chain$inv_mass)
       attach_diagnostic_traces(res, chain)
     })
   } else {
@@ -111,6 +115,10 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$inclusion_parameter_samples)) {
         res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
       }
+      # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
+      res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
+      # Final adapted diagonal metric (NULL otherwise), for warm-starting refits.
+      res$inv_mass = if(is.null(chain$inv_mass)) NULL else as.numeric(chain$inv_mass)
       attach_diagnostic_traces(res, chain)
     })
   }
@@ -196,6 +204,19 @@ build_output_bgm = function(spec, raw) {
       results$inclusion_parameter_samples =
         lapply(raw, `[[`, "inclusion_parameter")
     }
+  }
+
+  # Per-chain final NUTS step size, retained on the fit so a refit can
+  # warm-start it (NA for non-NUTS runs). Not user-facing.
+  results$refit_step_sizes = vapply(
+    raw, function(ch) if(is.null(ch$step_size)) NA_real_ else ch$step_size,
+    numeric(1)
+  )
+
+  # Per-chain final NUTS diagonal metric (inverse mass), retained so a refit can
+  # warm-start it (NULL for non-NUTS runs). Not user-facing.
+  if(!is.null(raw[[1]]$inv_mass)) {
+    results$refit_inv_mass = lapply(raw, `[[`, "inv_mass")
   }
 
   # --- Posterior mean: main ---------------------------------------------------

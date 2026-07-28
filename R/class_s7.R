@@ -49,6 +49,12 @@ bgms_class = new_class("bgms",
     # --- Sampled edge-prior inclusion parameter (per-chain list) ---
     inclusion_parameter_samples = new_property(class_any, default = NULL),
 
+    # --- Per-chain final NUTS step size, for warm-starting refits (internal) ---
+    refit_step_sizes = new_property(class_any, default = NULL),
+
+    # --- Per-chain final NUTS diagonal metric, for warm-starting refits (internal) ---
+    refit_inv_mass = new_property(class_any, default = NULL),
+
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main = new_property(
       class = class_any,
@@ -78,7 +84,6 @@ bgms_class = new_class("bgms",
         self@cache[["posterior_summary_quadratic"]]
       }
     ),
-
     # --- Optional ---
     nuts_diag = new_property(class_any, default = NULL),
     am_diag = new_property(class_any, default = NULL),
@@ -121,6 +126,8 @@ s3_list_to_bgms = function(results) {
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
     inclusion_parameter_samples = .subset2(results, "inclusion_parameter_samples"),
+    refit_step_sizes = .subset2(results, "refit_step_sizes"),
+    refit_inv_mass = .subset2(results, "refit_inv_mass"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
     zratio_diag = .subset2(results, "zratio_diag"),

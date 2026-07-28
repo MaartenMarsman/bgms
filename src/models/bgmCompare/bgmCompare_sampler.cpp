@@ -6,7 +6,7 @@
 #include "models/bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "mcmc/samplers/nuts_adaptation.h"
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/metropolis.h"

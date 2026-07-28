@@ -29,8 +29,13 @@ distribution for between-cluster edges. Default: \code{1}.}
 \item{dirichlet_alpha}{Positive numeric. Concentration parameter of the
 Dirichlet prior on cluster assignments. Default: \code{1}.}
 
-\item{lambda}{Positive numeric. Rate parameter of the zero-truncated
-Poisson prior on the number of clusters. Default: \code{1}.}
+\item{lambda}{Positive numeric. Rate parameter of the shifted Poisson
+prior on the number of clusters \eqn{B}:
+\eqn{B - 1 \sim \textrm{Poisson}(\lambda)}{B - 1 ~ Poisson(lambda)},
+so \eqn{P(B = b) = \lambda^{b-1} e^{-\lambda} / (b-1)!}{P(B = b) =
+lambda^(b-1) exp(-lambda) / (b-1)!} for \eqn{b = 1, 2, \ldots}{b =
+1, 2, ...} and \eqn{E[B] = 1 + \lambda}{E[B] = 1 + lambda}.
+Default: \code{1}.}
 }
 \value{
 An object of class \code{"bgms_indicator_prior"} with

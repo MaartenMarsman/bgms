@@ -8,7 +8,7 @@
 #include "math/log_sum_exp.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "rng/rng_utils.h"
 
 

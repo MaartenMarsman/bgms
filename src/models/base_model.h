@@ -216,6 +216,18 @@ public:
         throw std::runtime_error("set_vectorized_parameters method must be implemented in derived class");
     }
 
+    /**
+     * Set parameters from a full (fixed-size) storage vector, the inverse of
+     * get_storage_vectorized_parameters(). Used to warm-start a chain from a
+     * finished fit's final stored draw. Default throws; models that support
+     * warm starts override it.
+     * @param parameters  Storage-vectorized parameter values
+     */
+    virtual void set_storage_vectorized_parameters(const arma::vec& parameters) {
+        (void) parameters;
+        throw std::runtime_error("set_storage_vectorized_parameters not implemented for this model");
+    }
+
     /** @return Edge indicators as a flat integer vector. */
     virtual arma::ivec get_vectorized_indicator_parameters() = 0;
 
