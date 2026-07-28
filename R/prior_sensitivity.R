@@ -265,9 +265,15 @@ prior_sensitivity_check = function(bgms_object,
   }
   # Each anchor refit (the check's only real cost) renders the sampler's own
   # native per-chain display, with the whole refit grid announced up front so
-  # the user knows what is coming. Live per-refit notes under verbose = TRUE
-  # would tangle with the bars, so the display yields to verbose; a silent
-  # refit's stdout is captured instead.
+  # the user knows what is coming. A refit's own cat() diagnostics (NUTS
+  # settle-in notes and the like) are the check's to adjudicate, not the
+  # sampler's to print: suppress them through bgms.verbose unless the user asked
+  # to see them, which leaves only the progress bar (the option does not gate
+  # it). Under verbose = TRUE the bar yields and the captured notes are reported.
+  if(!verbose) {
+    old_bgms_verbose = options(bgms.verbose = FALSE)
+    on.exit(options(old_bgms_verbose), add = TRUE)
+  }
   show_bar = interactive() && !verbose
   if(show_bar) {
     refit_scales = sprintf("%.2gx", jobs$multiplier[!jobs$replicate])
@@ -305,11 +311,17 @@ prior_sensitivity_check = function(bgms_object,
         warning = absorb_warning
       )
       notes = warns_i
-    } else {
+    } else if(verbose) {
+      # The check reports these notes itself, so capture them rather than let
+      # the refit print them mid-run.
       cat_i = utils::capture.output({
         fit_i = withCallingHandlers(run_one_refit(i), warning = absorb_warning)
       })
       notes = c(cat_i[nzchar(cat_i)], warns_i)
+    } else {
+      # Diagnostics are suppressed via bgms.verbose above; nothing to capture.
+      fit_i = withCallingHandlers(run_one_refit(i), warning = absorb_warning)
+      notes = warns_i
     }
     refits[[i]] = fit_i
     refit_notes[[i]] = notes
