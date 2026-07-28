@@ -144,12 +144,6 @@ public:
           has_sparse_graph_(other.has_sparse_graph_),
           interaction_prior_(other.interaction_prior_->clone()),
           diagonal_prior_(other.diagonal_prior_->clone()),
-          interaction_scale_random_(other.interaction_scale_random_),
-          interaction_scale_base_(other.interaction_scale_base_),
-          interaction_scale_prior_(other.interaction_scale_prior_
-                                       ? other.interaction_scale_prior_->clone()
-                                       : nullptr),
-          interaction_scale_proposal_sd_(other.interaction_scale_proposal_sd_),
           precision_matrix_(other.precision_matrix_),
           cholesky_of_precision_(other.cholesky_of_precision_),
           inv_cholesky_of_precision_(other.inv_cholesky_of_precision_),
@@ -298,32 +292,6 @@ public:
      * Robbins-Monro adaptation, following the OMRF pattern.
      */
     void tune_proposal_sd(int iteration, const WarmupSchedule& schedule) override;
-
-    /**
-     * One-dimensional MH-within-Gibbs update of the random interaction-slab
-     * scale, when enabled. Sums the slab densities of the included off-diagonal
-     * interactions (on Kyy_ij = -0.5 * Omega_ij). No-op when the scale is
-     * fixed. The diagonal Gamma prior is left anchored at s0.
-     */
-    void update_interaction_scale(int iteration, const WarmupSchedule& schedule) override;
-
-    /** @return true when the interaction slab scale is a sampled hyperparameter. */
-    bool has_random_interaction_scale() const override { return interaction_scale_random_; }
-
-    /** @return the current interaction slab scale when randomized, NaN otherwise. */
-    double get_interaction_scale() const override;
-
-    /**
-     * Turn the interaction slab scale into a random hyperparameter, centered
-     * multiplicatively on the current scale s0. See
-     * OMRFModel::enable_random_interaction_scale.
-     *
-     * @param scale_prior_on_u     Mean-1 hyperprior on the multiplier u.
-     * @param initial_proposal_sd  Initial log-u random-walk step size.
-     */
-    void enable_random_interaction_scale(
-        std::unique_ptr<BaseParameterPrior> scale_prior_on_u,
-        double initial_proposal_sd = 0.1);
 
     /**
      * Combined log-posterior and gradient for NUTS.
@@ -564,15 +532,6 @@ private:
     std::unique_ptr<BaseParameterPrior> interaction_prior_;
     /// Prior on diagonal precision elements (scale).
     std::unique_ptr<BaseParameterPrior> diagonal_prior_;
-
-    // Random interaction-slab-scale hyperprior (off by default: fixed scale).
-    // Only the slab (off-diagonal) scale varies; the diagonal Gamma prior is
-    // anchored at s0. The gradient engine holds a pointer to interaction_prior_
-    // and slab_scale_() reads it live, so set_scale propagates everywhere.
-    bool interaction_scale_random_ = false;             ///< Whether the slab scale is sampled
-    double interaction_scale_base_ = 1.0;               ///< Centering scale s0
-    std::unique_ptr<BaseParameterPrior> interaction_scale_prior_; ///< Mean-1 hyperprior on u = s/s0
-    double interaction_scale_proposal_sd_ = 0.1;        ///< log-u random-walk step size
 
     /// Precision matrix Omega, its Cholesky factor R (Omega = R'R),
     /// inverse Cholesky factor, and covariance matrix.

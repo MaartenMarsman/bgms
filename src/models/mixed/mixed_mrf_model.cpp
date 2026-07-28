@@ -12,7 +12,6 @@
 #include "math/explog_macros.h"
 #include "rng/rng_utils.h"
 #include "mcmc/execution/warmup_schedule.h"
-#include "mcmc/execution/step_result.h"
 
 
 // =============================================================================
@@ -202,12 +201,6 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       threshold_prior_(other.threshold_prior_->clone()),
       means_prior_(other.means_prior_->clone()),
       diagonal_prior_(other.diagonal_prior_->clone()),
-      interaction_scale_random_(other.interaction_scale_random_),
-      interaction_scale_base_(other.interaction_scale_base_),
-      interaction_scale_prior_(other.interaction_scale_prior_
-                                   ? other.interaction_scale_prior_->clone()
-                                   : nullptr),
-      interaction_scale_proposal_sd_(other.interaction_scale_proposal_sd_),
       proposal_sd_main_discrete_(other.proposal_sd_main_discrete_),
       proposal_sd_main_continuous_(other.proposal_sd_main_continuous_),
       proposal_sd_pairwise_discrete_(other.proposal_sd_pairwise_discrete_),
@@ -1254,86 +1247,4 @@ void MixedMRFModel::tune_proposal_sd(int iteration, const WarmupSchedule& schedu
     // Stage-3b sweep: re-run every within-model MH proposal with RM
     // applied to its proposal-SD slot via *rm_weight_opt. Sampler-agnostic.
     sweep_within_model_mh(rm_weight_opt);
-}
-
-
-void MixedMRFModel::enable_random_interaction_scale(
-    std::unique_ptr<BaseParameterPrior> scale_prior_on_u,
-    double initial_proposal_sd) {
-    interaction_scale_random_ = true;
-    interaction_scale_base_ = interaction_prior_->scale();
-    interaction_scale_prior_ = std::move(scale_prior_on_u);
-    interaction_scale_proposal_sd_ = initial_proposal_sd;
-}
-
-
-double MixedMRFModel::get_interaction_scale() const {
-    if (!interaction_scale_random_) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    return interaction_prior_->scale();
-}
-
-
-void MixedMRFModel::update_interaction_scale(int iteration,
-                                             const WarmupSchedule& schedule) {
-    if (!interaction_scale_random_) return;
-
-    // Sum the slab log-densities of the included interactions across the three
-    // blocks. Discrete (Gxx) and cross (Gxy) values are read directly; the
-    // continuous off-diagonal (Gyy) slab is on Kyy_ij = -0.5 * Omega_ij, the
-    // same value the gradient scores. Gated on the edge indicators, matching
-    // the model's own convention.
-    auto included_slab_logp = [this]() {
-        double total = 0.0;
-        for (size_t i = 0; i + 1 < p_; ++i) {
-            for (size_t j = i + 1; j < p_; ++j) {
-                if (edge_indicators_(i, j) == 1) {
-                    total += interaction_prior_->logp(pairwise_effects_discrete_(i, j));
-                }
-            }
-        }
-        for (size_t i = 0; i < p_; ++i) {
-            for (size_t j = 0; j < q_; ++j) {
-                if (edge_indicators_(i, p_ + j) == 1) {
-                    total += interaction_prior_->logp(pairwise_effects_cross_(i, j));
-                }
-            }
-        }
-        for (size_t i = 0; i + 1 < q_; ++i) {
-            for (size_t j = i + 1; j < q_; ++j) {
-                if (edge_indicators_(p_ + i, p_ + j) == 1) {
-                    total += interaction_prior_->logp(
-                        -0.5 * pairwise_effects_continuous_(i, j));
-                }
-            }
-        }
-        return total;
-    };
-
-    const double s_curr = interaction_prior_->scale();
-    const double u_curr = s_curr / interaction_scale_base_;
-    const double log_u_curr = MY_LOG(u_curr);
-    const double log_u_prop = rnorm(rng_, log_u_curr, interaction_scale_proposal_sd_);
-    const double u_prop = MY_EXP(log_u_prop);
-    const double s_prop = interaction_scale_base_ * u_prop;
-
-    const double slab_curr = included_slab_logp();
-    interaction_prior_->set_scale(s_prop);
-    const double slab_prop = included_slab_logp();
-
-    const double ln_alpha =
-        interaction_scale_prior_->logp(u_prop) - interaction_scale_prior_->logp(u_curr)
-        + (slab_prop - slab_curr)
-        + (log_u_prop - log_u_curr);
-
-    if (!(MY_LOG(runif(rng_)) < ln_alpha)) {
-        interaction_prior_->set_scale(s_curr);
-    }
-
-    auto rm_weight_opt = schedule.rm_weight_for_proposal_sd(iteration);
-    if (rm_weight_opt) {
-        interaction_scale_proposal_sd_ = update_proposal_sd_with_robbins_monro(
-            interaction_scale_proposal_sd_, ln_alpha, *rm_weight_opt, target_accept_);
-    }
 }

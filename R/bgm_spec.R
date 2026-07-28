@@ -350,6 +350,27 @@ bgm_spec = function(x,
     model_type = "mixed_mrf"
   }
 
+  # --- Random interaction-scale hyperprior eligibility ------------------------
+  # A sampled slab scale is currently supported only for discrete (ordinal /
+  # Blume-Capel) models with a normal slab.
+  if(!is.null(interaction_scale_prior_type)) {
+    if(model_type != "omrf") {
+      stop(
+        "'interaction_scale_prior' is currently supported only for discrete ",
+        "(ordinal or Blume-Capel) models. The resolved model type is '",
+        model_type, "'. Support for GGM and mixed models is planned for a ",
+        "later release."
+      )
+    }
+    if(interaction_prior_type != "normal") {
+      stop(
+        "'interaction_scale_prior' requires a normal slab. Set ",
+        "interaction_prior = normal_prior(scale = ...). Randomizing the ",
+        "scale of a '", interaction_prior_type, "' slab is planned for a ",
+        "later release."
+      )
+    }
+  }
 
   # Auto-resolve delta = NULL to the dimension-adaptive default 0.5 * log(p),
   # where p is the dimension of the continuous precision matrix. For models
@@ -416,36 +437,6 @@ bgm_spec = function(x,
         ),
         interaction_prior_type
       ))
-    }
-  }
-
-  # --- Random interaction-scale hyperprior eligibility ------------------------
-  # A sampled slab scale is supported for bgm() models (ordinal, mixed, GGM)
-  # with a normal slab. For the continuous precision block it needs the joint
-  # graph prior: the hierarchical Z-ratio constants are frozen at the chosen
-  # scale and are inconsistent under a varying slab. bgmCompare is out of scope.
-  if(!is.null(interaction_scale_prior_type)) {
-    if(!model_type %in% c("omrf", "mixed_mrf", "ggm")) {
-      stop(
-        "'interaction_scale_prior' is supported for bgm() models (ordinal, ",
-        "mixed, and GGM). The resolved model type is '", model_type, "'."
-      )
-    }
-    if(interaction_prior_type != "normal") {
-      stop(
-        "'interaction_scale_prior' requires a normal slab. Set ",
-        "interaction_prior = normal_prior(scale = ...). Randomizing the ",
-        "scale of a '", interaction_prior_type, "' slab is not yet supported."
-      )
-    }
-    if(model_type %in% c("mixed_mrf", "ggm") &&
-      precision_graph_prior == "hierarchical") {
-      stop(
-        "'interaction_scale_prior' on continuous data is supported with ",
-        "precision_graph_prior = \"joint\" (the default). The hierarchical ",
-        "specification freezes its Z-ratio constants at the chosen scale, ",
-        "which is inconsistent with a sampled slab scale."
-      )
     }
   }
 
@@ -521,9 +512,6 @@ bgm_spec = function(x,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
-      interaction_scale_prior_type = interaction_scale_prior_type,
-      interaction_scale_shape = interaction_scale_shape,
-      interaction_scale_rate = interaction_scale_rate,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
       edge_prior_flat = ep_flat
@@ -550,9 +538,6 @@ bgm_spec = function(x,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
       scale_eta = scale_eta,
-      interaction_scale_prior_type = interaction_scale_prior_type,
-      interaction_scale_shape = interaction_scale_shape,
-      interaction_scale_rate = interaction_scale_rate,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
       edge_prior_flat = ep_flat
