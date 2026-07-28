@@ -55,7 +55,7 @@ are required: it works on any `bgm()` fit made with edge selection.
 
 ```{r, eval = FALSE}
 fit = bgm(data)
-ps  = prior_sensitivity_check(fit)
+ps = prior_sensitivity_check(fit)
 ps
 ```
 
@@ -161,7 +161,7 @@ following a mean-one prior. The recommended default is
 
 ```{r, eval = FALSE}
 fit_learned = bgm(data, interaction_scale_prior = gamma_prior(2, 2))
-ps_learned  = prior_sensitivity_check(fit_learned)
+ps_learned = prior_sensitivity_check(fit_learned)
 ```
 
 When the fit carries a scale hyperprior, the report adds a clearly labeled

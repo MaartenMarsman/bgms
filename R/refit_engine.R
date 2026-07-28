@@ -54,8 +54,9 @@ extract_warm_state = function(fit) {
   # fit saved before these properties existed lacks them entirely; treat that as
   # absent tuning state (the refit falls back to a cold metric/step size).
   get_prop = function(name) {
-    tryCatch(S7::prop(fit, name), error = function(e)
-      tryCatch(fit[[name]], error = function(e2) NULL))
+    tryCatch(S7::prop(fit, name), error = function(e) {
+      tryCatch(fit[[name]], error = function(e2) NULL)
+    })
   }
   step_sizes = get_prop("refit_step_sizes")
   inv_mass = get_prop("refit_inv_mass")
@@ -145,8 +146,10 @@ resolve_refit_sampler = function(fit, refit_sampler) {
   method = if(identical(refit_sampler, "same-as-fit")) fit_method else refit_sampler
   valid = c("nuts", "adaptive-metropolis", "gibbs")
   if(!method %in% valid) {
-    stop("'refit_sampler' must be \"same-as-fit\" or one of ",
-         paste(sQuote(valid), collapse = ", "), "; got ", sQuote(method), ".")
+    stop(
+      "'refit_sampler' must be \"same-as-fit\" or one of ",
+      paste(sQuote(valid), collapse = ", "), "; got ", sQuote(method), "."
+    )
   }
   # Recommend NUTS only when the user inherited a slower same-as-fit method.
   recommend_nuts = identical(refit_sampler, "same-as-fit") && method != "nuts"
@@ -193,14 +196,18 @@ data_preferred_scale = function(fit) {
   incl = gamma == 1
   n_incl = sum(incl)
   if(n_incl == 0L) {
-    return(list(s_hat = NA_real_, lo = NA_real_, hi = NA_real_,
-                log_sd = NA_real_, m = 0))
+    return(list(
+      s_hat = NA_real_, lo = NA_real_, hi = NA_real_,
+      log_sd = NA_real_, m = 0
+    ))
   }
   s_hat = sqrt(mean(theta[incl]^2))
   m = mean(rowSums(incl))
   log_sd = 1 / sqrt(2 * max(m, 1))
-  list(s_hat = s_hat, lo = s_hat * exp(-1.96 * log_sd),
-       hi = s_hat * exp(1.96 * log_sd), log_sd = log_sd, m = m)
+  list(
+    s_hat = s_hat, lo = s_hat * exp(-1.96 * log_sd),
+    hi = s_hat * exp(1.96 * log_sd), log_sd = log_sd, m = m
+  )
 }
 
 
@@ -232,7 +239,7 @@ refit_edge_stats = function(fit, evidence_threshold) {
   raw = get_raw_samples(fit)
   enm = raw$parameter_names$indicator %||% raw$parameter_names$pairwise
   M = length(raw$rb_inclusion)
-  pc = sapply(raw$rb_inclusion, colMeans)            # n_edges x M
+  pc = sapply(raw$rb_inclusion, colMeans) # n_edges x M
   if(is.null(dim(pc))) pc = matrix(pc, ncol = M)
   pbar = rowMeans(pc)
 
@@ -246,22 +253,24 @@ refit_edge_stats = function(fit, evidence_threshold) {
   lthr = log10(evidence_threshold)
 
   lbf = function(p) log10((p / (1 - p)) / prior_odds)
-  dfac = 1 / (log(10) * pmax(pbar * (1 - pbar), 1e-6))   # d log10 BF / d p
+  dfac = 1 / (log(10) * pmax(pbar * (1 - pbar), 1e-6)) # d log10 BF / d p
   lbf_bar = lbf(pbar)
   mcse_lbf = mcse_pip * dfac
   se_between = apply(pc, 1, stats::sd) / sqrt(M)
   band_half = 2 * se_between * dfac
 
   verdict = verdict_from_lbf(lbf_bar, lthr)
-  vc = apply(pc, 2, function(p) verdict_from_lbf(lbf(p), lthr))  # n_edges x M
+  vc = apply(pc, 2, function(p) verdict_from_lbf(lbf(p), lthr)) # n_edges x M
   if(is.null(dim(vc))) vc = matrix(vc, ncol = M)
   unanimous = apply(vc, 1, function(v) length(unique(v[!is.na(v)])) <= 1L)
   zeroflip = apply(pc, 1, function(p) all(p <= 0) || all(p >= 1))
 
-  list(edge = enm, pip = pbar, prior_odds = prior_odds, lbf = lbf_bar,
-       verdict = verdict, mcse_lbf = mcse_lbf, band_half = band_half,
-       unanimous = unanimous, zeroflip = zeroflip,
-       n_eff_mixt = ind[, "n_eff_mixt"], rhat_ind = ind[, "Rhat"])
+  list(
+    edge = enm, pip = pbar, prior_odds = prior_odds, lbf = lbf_bar,
+    verdict = verdict, mcse_lbf = mcse_lbf, band_half = band_half,
+    unanimous = unanimous, zeroflip = zeroflip,
+    n_eff_mixt = ind[, "n_eff_mixt"], rhat_ind = ind[, "Rhat"]
+  )
 }
 
 
@@ -287,11 +296,18 @@ refit_edge_stats = function(fit, evidence_threshold) {
 # indicator transition-ESS pair are reported for transparency.
 # ------------------------------------------------------------------
 refit_convergence_gate = function(fit) {
-  rhats = numeric(0); esss = numeric(0)
+  rhats = numeric(0)
+  esss = numeric(0)
   mn = fit@posterior_summary_main
-  if(!is.null(mn)) { rhats = c(rhats, mn[, "Rhat"]); esss = c(esss, mn[, "n_eff"]) }
+  if(!is.null(mn)) {
+    rhats = c(rhats, mn[, "Rhat"])
+    esss = c(esss, mn[, "n_eff"])
+  }
   pw = fit@posterior_summary_pairwise
-  if(!is.null(pw)) { rhats = c(rhats, pw[, "Rhat"]); esss = c(esss, pw[, "n_eff"]) }
+  if(!is.null(pw)) {
+    rhats = c(rhats, pw[, "Rhat"])
+    esss = c(esss, pw[, "n_eff"])
+  }
   ind = fit@posterior_summary_indicator
 
   rhat_cont = stats::median(rhats, na.rm = TRUE)
@@ -301,13 +317,18 @@ refit_convergence_gate = function(fit) {
   rb_med_rhat = stats::median(ind[, "Rhat"], na.rm = TRUE)
 
   wc = tryCatch(fit@nuts_diag$warmup_check, error = function(e) NULL)
-  ebfmi = if(is.null(wc)) Inf else
+  ebfmi = if(is.null(wc)) {
+    Inf
+  } else {
     min(c(wc$ebfmi_first_half, wc$ebfmi_second_half), na.rm = TRUE)
+  }
   var_ratio = if(is.null(wc)) 0 else max(wc$var_ratio, na.rm = TRUE)
 
   usable = is.finite(rhat_cont) && rhat_cont < 1.01 &&
     rb_med_rhat < 1.01 && ebfmi > 0.3 && var_ratio < 2
-  list(usable = usable, rhat_cont = rhat_cont, rhat_cont_max = rhat_cont_max,
-       ess_cont = ess_cont, pair_ess = pair_ess, rb_med_rhat = rb_med_rhat,
-       min_ebfmi = ebfmi, max_var_ratio = var_ratio)
+  list(
+    usable = usable, rhat_cont = rhat_cont, rhat_cont_max = rhat_cont_max,
+    ess_cont = ess_cont, pair_ess = pair_ess, rb_med_rhat = rb_med_rhat,
+    min_ebfmi = ebfmi, max_var_ratio = var_ratio
+  )
 }
