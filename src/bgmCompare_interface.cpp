@@ -124,13 +124,8 @@ struct GibbsCompareChainRunner : public Worker {
   const UpdateMethod update_method;
   ProgressManager& pm;
   const BaseParameterPrior& interaction_prior;
-  // Difference slab prior; its scale is mutated per chain when a random
-  // difference scale is enabled, so it is cloned inside operator().
   const BaseParameterPrior& difference_prior;
   const BaseParameterPrior& threshold_prior;
-  // Mean-1 hyperprior on the difference-scale multiplier; nullptr keeps the
-  // difference scale fixed. Read-only, so shared across chains.
-  const BaseParameterPrior* difference_scale_prior;
   // SBM-aware difference indicator prior (cloned per chain inside operator()).
   const BaseEdgePrior& difference_edge_prior_template;
   // output
@@ -170,7 +165,6 @@ struct GibbsCompareChainRunner : public Worker {
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior,
-    const BaseParameterPrior* difference_scale_prior,
     const BaseEdgePrior& difference_edge_prior_template,
     std::vector<bgmCompareChainResult>& results
   ) :
@@ -207,7 +201,6 @@ struct GibbsCompareChainRunner : public Worker {
     interaction_prior(interaction_prior),
     difference_prior(difference_prior),
     threshold_prior(threshold_prior),
-    difference_scale_prior(difference_scale_prior),
     difference_edge_prior_template(difference_edge_prior_template),
     results(results)
   {}
@@ -233,11 +226,6 @@ struct GibbsCompareChainRunner : public Worker {
         // mutable SBM state (cluster allocations, block-prob matrix).
         std::unique_ptr<BaseEdgePrior> chain_edge_prior =
           difference_edge_prior_template.clone();
-
-        // Clone the difference slab prior so a random difference scale mutates
-        // a per-chain object.
-        std::unique_ptr<BaseParameterPrior> chain_difference_prior =
-          difference_prior.clone();
 
         // run sampler (pure C++)
         bgmCompareOutput result = run_gibbs_sampler_bgmCompare(
@@ -273,10 +261,9 @@ struct GibbsCompareChainRunner : public Worker {
           update_method,
           pm,
           interaction_prior,
-          *chain_difference_prior,
+          difference_prior,
           threshold_prior,
-          *chain_edge_prior,
-          difference_scale_prior
+          *chain_edge_prior
         );
 
         out.result = result;
@@ -405,9 +392,6 @@ Rcpp::List run_bgmCompare_parallel(
     const std::string& difference_prior_type_str = "cauchy",
     const std::string& threshold_prior_type_str = "beta-prime",
     double threshold_scale = 1.0,
-    const std::string& difference_scale_prior_type_str = "",
-    double difference_scale_shape = 1.0,
-    double difference_scale_rate = 1.0,
     SEXP progress_callback = R_NilValue
 ) {
   std::vector<bgmCompareChainResult> results(num_chains);
@@ -422,15 +406,6 @@ Rcpp::List run_bgmCompare_parallel(
   auto interaction_prior = create_parameter_prior(interaction_prior_type_str, pairwise_scale);
   auto difference_prior_obj = create_parameter_prior(difference_prior_type_str, difference_scale);
   auto threshold_prior = create_parameter_prior(threshold_prior_type_str, threshold_scale, main_alpha, main_beta);
-
-  // Optional mean-1 hyperprior on the difference-scale multiplier u = s / s0.
-  // Empty type keeps the difference scale fixed (nullptr passed to the runner).
-  std::unique_ptr<BaseParameterPrior> difference_scale_prior;
-  if (!difference_scale_prior_type_str.empty()) {
-    difference_scale_prior = create_scale_prior(
-      difference_scale_prior_type_str, difference_scale_shape, difference_scale_rate
-    );
-  }
 
   // Build the difference-indicator edge prior. Only Stochastic-Block needs
   // the between-cluster, dirichlet, and lambda hyperparameters; the other
@@ -465,7 +440,6 @@ Rcpp::List run_bgmCompare_parallel(
       projection, group_membership, group_indices, interaction_index_matrix,
       inclusion_probability, chain_rngs, update_method_enum,
       pm, *interaction_prior, *difference_prior_obj, *threshold_prior,
-      difference_scale_prior.get(),
       *difference_edge_prior,
       results
   );
@@ -502,9 +476,6 @@ Rcpp::List run_bgmCompare_parallel(
       }
       if (r.has_allocations) {
         chain_out["allocation_samples"] = r.allocation_samples;
-      }
-      if (r.has_scale_samples) {
-        chain_out["scale_samples"] = r.scale_samples;
       }
       chain_out["userInterrupt"] = r.userInterrupt;
       output[i] = chain_out;

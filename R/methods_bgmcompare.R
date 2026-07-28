@@ -102,10 +102,6 @@ summary.bgmCompare = function(object, ...) {
       out$pairwise_diff = object$posterior_summary_pairwise_differences
     }
 
-    if(!is.null(object$posterior_summary_difference_scale)) {
-      out$difference_scale = object$posterior_summary_difference_scale
-    }
-
     out$arguments = arguments
     class(out) = "summary.bgmCompare"
     return(out)
@@ -237,12 +233,6 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("that were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
-    cat("\n")
-  }
-
-  if(!is.null(x$difference_scale)) {
-    cat("Difference slab scale:\n")
-    print(round(x$difference_scale, digits = digits))
     cat("\n")
   }
 

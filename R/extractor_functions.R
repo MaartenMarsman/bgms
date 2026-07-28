@@ -885,19 +885,7 @@ extract_scale_draws.bgms = function(bgms_object) {
 #' @exportS3Method
 #' @noRd
 extract_scale_draws.bgmCompare = function(bgms_object) {
-  raw = get_raw_samples(bgms_object)
-  if(is.null(raw) || is.null(raw$difference_scale)) {
-    stop(
-      "This fit used a fixed difference slab scale, so there are no scale ",
-      "draws to extract. Refit with a difference_scale_prior, for example ",
-      "bgmCompare(..., difference_family = \"Normal\", difference_scale_prior ",
-      "= gamma_prior(shape = 2, rate = 2)), to sample the scale."
-    )
-  }
-  draws = matrix(do.call(c, raw$difference_scale), ncol = 1L)
-  colnames(draws) = "difference_scale"
-  rownames(draws) = paste0("iter", seq_len(nrow(draws)))
-  draws
+  extract_scale_draws_impl(bgms_object)
 }
 
 # ------------------------------------------------------------------

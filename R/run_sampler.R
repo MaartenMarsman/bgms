@@ -384,9 +384,6 @@ run_sampler_compare = function(spec) {
     difference_prior_type_str = p$difference_prior_type,
     threshold_prior_type_str = p$threshold_prior_type,
     threshold_scale = if(is.na(p$threshold_scale)) 1.0 else p$threshold_scale,
-    difference_scale_prior_type_str = p$difference_scale_prior_type %||% "",
-    difference_scale_shape = p$difference_scale_shape %||% NA_real_,
-    difference_scale_rate = p$difference_scale_rate %||% NA_real_,
     progress_callback = s$progress_callback
   )
 }

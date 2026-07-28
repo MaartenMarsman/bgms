@@ -617,65 +617,41 @@ unpack_scale_prior = function(prior) {
 # Returns: list(interaction_scale_prior_type, interaction_scale_shape,
 #          interaction_scale_rate).
 # ------------------------------------------------------------------
-# unpack_scale_multiplier_prior
-# ------------------------------------------------------------------
-# Shared validation for a mean-1 slab-scale multiplier hyperprior. The
-# random slab scale is s = s0 * u with u ~ hyperprior; u must be in the raw
-# frame (so its mean is checkable) and average 1 (so s is centered on the
-# chosen scale s0). `arg` names the calling argument in error messages.
-#
-# Returns: list(scale_prior_type, scale_shape, scale_rate).
-# ------------------------------------------------------------------
-unpack_scale_multiplier_prior = function(prior, arg = "interaction_scale_prior") {
+unpack_interaction_scale_prior = function(prior) {
   if(!inherits(prior, "bgms_scale_prior")) {
-    stop(sprintf(
-      paste0(
-        "'%s' must be a bgms_scale_prior object created with gamma_prior() ",
-        "or exponential_prior(), or NULL for a fixed scale."
-      ),
-      arg
-    ))
+    stop(
+      "'interaction_scale_prior' must be a bgms_scale_prior object created ",
+      "with gamma_prior() or exponential_prior(), or NULL for a fixed scale."
+    )
   }
   up = unpack_scale_prior(prior)
   shape = up$scale_shape
   rate = up$scale_rate
   if(is.na(rate)) {
-    stop(sprintf(
-      paste0(
-        "'%s' must be given in the raw frame with a 'rate' so its mean can ",
-        "be checked. The standardized frame ('eta') is not defined for the ",
-        "slab-scale multiplier. Use gamma_prior(shape = k, rate = k) or ",
-        "exponential_prior(rate = 1)."
-      ),
-      arg
-    ))
+    stop(
+      "'interaction_scale_prior' must be given in the raw frame with a ",
+      "'rate' so its mean can be checked. The standardized frame ('eta') ",
+      "is not defined for the slab-scale multiplier. Use ",
+      "gamma_prior(shape = k, rate = k) or exponential_prior(rate = 1)."
+    )
   }
   mean_u = shape / rate
   if(abs(mean_u - 1) > 1e-8) {
     stop(sprintf(
       paste0(
-        "'%s' must have mean 1 so the random scale is centered on the chosen ",
-        "scale: the multiplier u = s / s0 has to average 1. The supplied ",
-        "prior has mean %.4g (shape / rate = %g / %g). Use ",
-        "gamma_prior(shape = k, rate = k) or exponential_prior(rate = 1)."
+        "'interaction_scale_prior' must have mean 1 so the random scale is ",
+        "centered on the chosen scale: the multiplier u = s / s0 has to ",
+        "average 1. The supplied prior has mean %.4g (shape / rate = %g / ",
+        "%g). Use gamma_prior(shape = k, rate = k) or exponential_prior(",
+        "rate = 1)."
       ),
-      arg, mean_u, shape, rate
+      mean_u, shape, rate
     ))
   }
   list(
-    scale_prior_type = up$scale_prior_type,
-    scale_shape = shape,
-    scale_rate = rate
-  )
-}
-
-
-unpack_interaction_scale_prior = function(prior) {
-  up = unpack_scale_multiplier_prior(prior, "interaction_scale_prior")
-  list(
     interaction_scale_prior_type = up$scale_prior_type,
-    interaction_scale_shape = up$scale_shape,
-    interaction_scale_rate = up$scale_rate
+    interaction_scale_shape = shape,
+    interaction_scale_rate = rate
   )
 }
 

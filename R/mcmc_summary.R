@@ -145,24 +145,6 @@ ensure_summaries = function(fit) {
     cache$posterior_summary_interaction_scale = scale_summary
   }
 
-  # Random difference-slab-scale convergence summary (bgmCompare), computed
-  # whenever the difference scale was sampled.
-  if(!is.null(raw[[1]][["difference_scale"]])) {
-    niter = length(raw[[1]]$difference_scale)
-    nchains = length(raw)
-    scale_array = array(NA_real_, dim = c(niter, nchains, 1L))
-    for(i in seq_len(nchains)) {
-      scale_array[, i, 1L] = raw[[i]]$difference_scale
-    }
-    scale_summary = summarize_manual(
-      raw,
-      array3d = scale_array,
-      probs = c(0.025, 0.975)
-    )[, -1, drop = FALSE]
-    rownames(scale_summary) = "difference slab scale"
-    cache$posterior_summary_difference_scale = scale_summary
-  }
-
   cache$summaries_computed = TRUE
   invisible(NULL)
 }
