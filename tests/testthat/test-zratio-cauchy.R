@@ -6,9 +6,22 @@
 # channel constants. Each quadrature channel is checked here against a
 # direct Monte Carlo of the same F-measure moment ratio; the graph-law
 # identity itself is gated in test-hier-zratio-identity.R.
+#
+# The Cauchy slab is a non-default, settled channel and every test here builds
+# its marginal-Cauchy cell constants, so the whole file runs in the
+# BGMS_RUN_SLOW_TESTS tier; the default (Normal) channel keeps its local
+# numerical guards in test-zratio-engine.R and test-zratio-gamma-shape.R.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the marginal-Cauchy channel constants"
+  )
+}
 
 test_that("Cauchy node channel matches direct Monte Carlo", {
   skip_on_cran()
+  skip_unless_slow()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -30,6 +43,7 @@ test_that("Cauchy node channel matches direct Monte Carlo", {
 
 test_that("Cauchy bridge channel matches direct Monte Carlo", {
   skip_on_cran()
+  skip_unless_slow()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -59,6 +73,7 @@ test_that("Cauchy bridge channel matches direct Monte Carlo", {
 
 test_that("Cauchy isolated-edge ratio psi0 matches direct Monte Carlo", {
   skip_on_cran()
+  skip_unless_slow()
   delta = 0.5 * log(6)
   pair = bgms:::zratio_pair_integrals(delta,
     sigma = 1, beta = 1,
@@ -77,6 +92,7 @@ test_that("Cauchy isolated-edge ratio psi0 matches direct Monte Carlo", {
 
 test_that("Cauchy constants live in their own cache cell", {
   skip_on_cran()
+  skip_unless_slow()
   d = 0.5 * log(6)
   zn = bgms:::zratio_cell_constants(d, 0.5, 2)
   zc = bgms:::zratio_cell_constants(d, 0.5, 2, slab = "cauchy")
@@ -91,6 +107,7 @@ test_that("Cauchy constants live in their own cache cell", {
 
 test_that("Cauchy exact Monte-Carlo evaluation tracks the additive prediction", {
   skip_on_cran()
+  skip_unless_slow()
   # Two common neighbours, no CN-CN edge: the additive form is the exact
   # no-edge baseline (kappa_2 = m * w1), so the oracle correction
   # log(saddle on oracle moments) - log(additive) must sit at MC noise.

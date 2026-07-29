@@ -5,9 +5,36 @@
 # of the release cert (which runs the same comparison at q = 50); here a small
 # size cap keeps the build well under a second. Caches are disabled so the build
 # is fresh and never touches the user cache directory.
+#
+# The serial Normal builds are session-cached across tests: the core-count
+# invariance test proves serial and parallel builds bit-identical, so a single
+# serial build per max_size serves every comparison.
+
+surf_cache = new.env(parent = emptyenv())
+
+normal_surface = function(max_size) {
+  key = paste0("n", max_size)
+  if(is.null(surf_cache[[key]])) {
+    surf_cache[[key]] = withr::with_options(
+      list(
+        bgms.zratio_surface_cache = FALSE,
+        bgms.correction_table_cache = FALSE
+      ),
+      bgms:::zratio_build_surfaces(
+        bgms:::zratio_constants(0.5 * log(12), 3),
+        max_size = max_size, cores = 1L
+      )
+    )
+  }
+  surf_cache[[key]]
+}
 
 test_that("the built surface tracks the gold oracle far tighter than additive", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the surface-vs-gold accuracy cert"
+  )
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -29,7 +56,7 @@ test_that("the built surface tracks the gold oracle far tighter than additive", 
   }
   for(a in 3:9) for(b in (a + 1):10) ei(a, b)
 
-  surf = bgms:::zratio_build_surfaces(zc, max_size = 10L, cores = 1L)
+  surf = normal_surface(10L)
   expect_false(is.null(surf))
 
   sv = zratio_test_surface_eval(
@@ -57,6 +84,10 @@ test_that("the built surface tracks the gold oracle far tighter than additive", 
 
 test_that("the build fences a non-exponential precision diagonal to NULL", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to build the gamma-shape constants cell"
+  )
   zc_gamma = bgms:::zratio_constants(0.5 * log(12), 3, alpha = 2)
   expect_null(bgms:::zratio_build_surfaces(zc_gamma, max_size = 10L, cores = 1L))
 })
@@ -72,7 +103,7 @@ test_that("the surface build is invariant to the core count", {
     bgms.correction_table_cache = FALSE
   )
   zc = bgms:::zratio_constants(0.5 * log(12), 3)
-  s1 = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)
+  s1 = normal_surface(8L)
   s2 = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 2L)
   expect_identical(s1, s2)
 })
@@ -91,7 +122,7 @@ test_that("the socket-cluster build path matches the serial build", {
     bgms.correction_table_cache = FALSE
   )
   zc = bgms:::zratio_constants(0.5 * log(12), 3)
-  s1 = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)
+  s1 = normal_surface(8L)
   withr::local_options(bgms.zratio_surface_psock = TRUE)
   s2 = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 2L)
   expect_equal(s1, s2, tolerance = 1e-8)
@@ -99,13 +130,16 @@ test_that("the socket-cluster build path matches the serial build", {
 
 test_that("the Cauchy slab builds and deploys its own surface cell", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Cauchy surface deploy cert"
+  )
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
-  zc_n = bgms:::zratio_constants(0.5 * log(12), 3)
   zc_c = bgms:::zratio_constants(0.5 * log(12), 3, slab = "cauchy")
-  s_n = bgms:::zratio_build_surfaces(zc_n, max_size = 10L, cores = 2L)
+  s_n = normal_surface(10L)
   s_c = bgms:::zratio_build_surfaces(zc_c, max_size = 10L, cores = 2L)
   expect_false(is.null(s_c))
   # The cells differ: a Cauchy fit must not be served the Normal surface.

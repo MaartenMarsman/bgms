@@ -139,6 +139,10 @@ test_that("the harm channel computes the documented statistics", {
 
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the p=16 biased-fit detector"
+  )
   # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
   # data: the feedback-amplified regime where the flip rate stays quiet but the
   # projected distortion is first-order. The additive kernel is reached through
@@ -215,8 +219,10 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
 
 test_that("the extrapolation notice is graceful, gated, and back-compatible", {
   mk = function(nx, mx, np) {
-    list(zratio = list(counters = c(n_hit = 0, n_miss = 0, n_pred = np,
-      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx)))
+    list(zratio = list(counters = c(
+      n_hit = 0, n_miss = 0, n_pred = np,
+      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx
+    )))
   }
   # No extrapolation -> silent, returns FALSE.
   expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))
