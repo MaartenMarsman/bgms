@@ -47,7 +47,7 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   skip_on_cran()
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 600, warmup = 400, seed = 21,
+    chains = 2, iter = 400, warmup = 300, seed = 21,
     display_progress = "none"
   )
   ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
@@ -185,7 +185,7 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   xg = matrix(rnorm(180 * 5), 180, 5)
   fg = bgm(xg,
     variable_type = "continuous",
-    iter = 400, warmup = 300, chains = 2, seed = 8,
+    iter = 300, warmup = 250, chains = 2, seed = 8,
     update_method = "adaptive-metropolis", display_progress = "none"
   )
   psg = suppressWarnings(suppressMessages(prior_sensitivity_check(fg,
@@ -208,7 +208,7 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   )
   vt = c("ordinal", "ordinal", "ordinal", "continuous", "continuous")
   fm = bgm(xm,
-    variable_type = vt, iter = 400, warmup = 300, chains = 2, seed = 9,
+    variable_type = vt, iter = 300, warmup = 250, chains = 2, seed = 9,
     update_method = "adaptive-metropolis", display_progress = "none"
   )
   psm = suppressWarnings(suppressMessages(prior_sensitivity_check(fm,

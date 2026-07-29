@@ -139,6 +139,10 @@ test_that("the harm channel computes the documented statistics", {
 
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the p=16 biased-fit detector"
+  )
   # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
   # data: the feedback-amplified regime where the flip rate stays quiet but the
   # projected distortion is first-order. The additive kernel is reached through

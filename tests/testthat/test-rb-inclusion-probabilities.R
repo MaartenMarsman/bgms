@@ -9,7 +9,17 @@
 # well-mixed edges, and the boundary behaviour for saturated edges.
 #
 # The OMRF and saturated-edge fits are session-cached: several tests assert
-# different properties of the same posterior, so each config is fit once.
+# different properties of the same posterior, so each config is fit once. The
+# Monte-Carlo-saturation boundary behaviour needs a large, well-mixed fit to
+# realise machine 0/1 edges, so those two tests run in the BGMS_RUN_SLOW_TESTS
+# tier; the plumbing, alignment, and well-mixed agreement stay local.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the RB saturation-boundary tests"
+  )
+}
 
 rb_cache = new.env(parent = emptyenv())
 
@@ -115,6 +125,7 @@ test_that("RB inclusion matrix matches raw PIP for well-mixed edges", {
 })
 
 test_that("RB is interior for Monte-Carlo-saturated edges and never worse than raw", {
+  skip_unless_slow()
   fit = rb_saturated_fit()
   rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
@@ -193,6 +204,7 @@ test_that("rb_inclusion is exposed, interior, and edge-aligned for GGM", {
 })
 
 test_that("extract_inclusion_bf is finite for saturated edges and matches the RB odds", {
+  skip_unless_slow()
   fit = rb_saturated_fit()
   logbf = extract_inclusion_bf(fit)
   rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
