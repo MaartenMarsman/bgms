@@ -84,6 +84,10 @@ ct_identity_cache = file.path(tempdir(), "bgms-ctable-identity")
 
 test_that("corrected prior-only chain returns the Beta hyperprior", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
   old = options(bgms.correction_cache_dir = ct_identity_cache)
   on.exit(options(old), add = TRUE)
 
@@ -101,6 +105,10 @@ test_that("corrected prior-only chain returns the Beta hyperprior", {
 
 test_that("uncorrected prior-only chain misses the hyperprior", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
 
   draws = sample_ggm_prior(
     p = 5, n_samples = 4000, n_warmup = 500,

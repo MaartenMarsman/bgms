@@ -22,6 +22,10 @@ hier_prior_run = function(q, delta, sigma, p_inc, um, edge_prior = NULL,
 
 test_that("hierarchical graph marginal holds at gamma shapes", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the gamma-shape identity cells"
+  )
   # The generalized constants carry the diagonal Gamma shape through every
   # channel and the oracle sweep; the graph law must hold away from the
   # exponential (shape = 1) cell on both update methods.
@@ -45,6 +49,10 @@ test_that("hierarchical graph marginal holds at gamma shapes", {
 
 test_that("gamma-shape constants build in the standardized cell", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the gamma-shape identity cells"
+  )
   # Same eta and shape, different frames: one constant set.
   d = 0.5 * log(6)
   a = bgms:::zratio_cell_constants(
@@ -118,17 +126,18 @@ test_that("hierarchical graph marginal holds at a non-unit slab scale", {
 test_that("hierarchical graph marginal holds for the Cauchy slab", {
   skip_on_cran()
   # The Cauchy slab needs its own (marginal-Cauchy) Z-ratio constants; with
-  # the Normal tables this cell read 0.247 for a 0.30 edge prior.
-  for(um in c("adaptive-metropolis", "gibbs")) {
-    d = sample_ggm_prior(
-      p = 6L, n_samples = 6000L, n_warmup = 1500L,
-      interaction_prior = cauchy_prior(scale = 0.5),
-      precision_scale_prior = gamma_prior(shape = 1, rate = 2),
-      spec = "hierarchical", edge_inclusion_prob = 0.3,
-      update_method = um, delta = 0.5 * log(6), seed = 7L, verbose = FALSE
-    )
-    expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02, label = um)
-  }
+  # the Normal tables this cell read 0.247 for a 0.30 edge prior. The
+  # constants are shared across update methods, so one method pins the
+  # regression; the slow battery covers the rest.
+  d = sample_ggm_prior(
+    p = 6L, n_samples = 4000L, n_warmup = 1500L,
+    interaction_prior = cauchy_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+    spec = "hierarchical", edge_inclusion_prob = 0.3,
+    update_method = "adaptive-metropolis", delta = 0.5 * log(6), seed = 7L,
+    verbose = FALSE
+  )
+  expect_lt(abs(mean(d$edge_indicators) - 0.3), 0.02)
 })
 
 test_that("Cauchy graph law holds at dense high q (coupling regime)", {

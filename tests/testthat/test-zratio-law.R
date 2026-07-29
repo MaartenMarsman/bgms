@@ -1,7 +1,8 @@
 # Tests for the mu-first CPA analytic CN law (zratio_law_moments): a dormant
 # deterministic anchor engine kept as large-q insurance and NOT wired into the
 # default build (the Monte-Carlo block oracle is the anchor source; see
-# zratio_law.h). Two acceptance channels:
+# zratio_law.h). Because the engine is dormant, the whole file runs in the
+# BGMS_RUN_SLOW_TESTS tier. Two acceptance channels:
 #   (a) porting fidelity  -- reproduces the companion R eval_mu_law on a fixture
 #       of certified cells to machine precision (both port identical numerics);
 #   (a') physical accuracy -- certified law cells match the all-MC block oracle
@@ -12,6 +13,10 @@
 fixture_path = testthat::test_path("fixtures", "zratio_law_reference.rds")
 
 test_that("law reproduces the companion eval_mu_law reference (fidelity)", {
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to exercise the dormant CN law engine"
+  )
   skip_if_not(file.exists(fixture_path), "zratio_law_reference.rds not generated")
   fx = readRDS(fixture_path)
   for(cell in fx) {
@@ -35,6 +40,10 @@ test_that("law reproduces the companion eval_mu_law reference (fidelity)", {
 })
 
 test_that("certified law cells match the all-MC oracle within noise", {
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to exercise the dormant CN law engine"
+  )
   eta = 2
   delta = 0.5 * log(50)
   zc = zratio_constants(delta, eta, alpha = 1, slab = "normal")
@@ -61,6 +70,10 @@ test_that("certified law cells match the all-MC oracle within noise", {
 })
 
 test_that("the gate rejects an unconverged (hard-corner) solve", {
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to exercise the dormant CN law engine"
+  )
   # eta = 1 sparse frontier: cold start does not reach the fixed point within
   # budget, so the solve self-reports a large psi_gap and the cell is dropped
   # (moments NA), routing the caller to the MC fallback rather than dressing a
@@ -72,6 +85,10 @@ test_that("the gate rejects an unconverged (hard-corner) solve", {
 })
 
 test_that("the law solve is deterministic", {
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to exercise the dormant CN law engine"
+  )
   eta = 2
   delta = 0.5 * log(50)
   a = zratio_law_moments(eta, delta, 12, 10, 3000L)

@@ -153,6 +153,10 @@ test_that("the resolver keys the mixed correction on the continuous block", {
 
 test_that("corrected mixed prior chain returns the Beta hyperprior on theta", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
   old = mixed_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -170,6 +174,10 @@ test_that("corrected mixed prior chain returns the Beta hyperprior on theta", {
 
 test_that("uncorrected mixed prior chain biases theta toward sparsity", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
 
   ch = run_mixed_prior_chain(
     p_disc = 2L, q_cont = 3L, n_samples = 8000, n_warmup = 1000, seed = 42,
@@ -185,6 +193,10 @@ test_that("uncorrected mixed prior chain biases theta toward sparsity", {
 
 test_that("corrected mixed prior chain returns the MFM partition prior", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
   old = mixed_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -204,6 +216,10 @@ test_that("corrected mixed prior chain returns the MFM partition prior", {
 
 test_that("uncorrected mixed prior chain under-segments the partition", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
 
   q_tot = 7L
   ch = run_mixed_prior_chain(

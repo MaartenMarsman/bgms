@@ -363,6 +363,10 @@ nc_tv = function(nc_a, nc_b, q) {
 
 test_that("corrected prior-only chain returns the MFM partition prior", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
   old = options(
     bgms.correction_cache_dir = file.path(tempdir(), "bgms-ctable-identity")
   )
@@ -389,6 +393,10 @@ test_that("corrected prior-only chain returns the MFM partition prior", {
 
 test_that("uncorrected prior-only chain misses the partition prior", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the prior-chain identity certifications"
+  )
 
   q = 5
   # Cauchy slab (see the corrected counterpart): the tilt must be strong enough

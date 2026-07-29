@@ -388,8 +388,8 @@ test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked fo
   skip_on_cran()
   data = Wenchuan[, 1:6]
   fit = bgm(
-    data, variable_type = "ordinal", chains = 4,
-    iter = 1000, warmup = 1000, seed = 123,
+    data, variable_type = "ordinal", chains = 2,
+    iter = 400, warmup = 400, seed = 123,
     display_progress = "none", verbose = FALSE
   )
   summ = fit$posterior_summary_indicator

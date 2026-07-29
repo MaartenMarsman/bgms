@@ -54,6 +54,10 @@ test_that("generalized spike integral matches quadrature-free reference", {
 
 test_that("spike ratio at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
+  )
   delta = 0.5 * log(6)
   beta = 1
   for(alpha in c(0.5, 2)) {
@@ -75,6 +79,10 @@ test_that("spike ratio at alpha != 1 matches direct Monte Carlo", {
 
 test_that("isolated-edge ratio psi0 at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
+  )
   delta = 0.5 * log(6)
   beta = 1
   for(alpha in c(0.5, 2)) {
@@ -101,6 +109,10 @@ test_that("isolated-edge ratio psi0 at alpha != 1 matches direct Monte Carlo", {
 
 test_that("node channel at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
+  )
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -108,7 +120,7 @@ test_that("node channel at alpha != 1 matches direct Monte Carlo", {
   for(alpha in c(0.5, 2)) {
     w_quad = bgms:::zratio_node_channel(delta, sigma, beta, alpha = alpha)
     set.seed(606)
-    n = 1e6
+    n = 2e6
     x = rgamma(n, delta + alpha + 1, rate = beta)
     den = mean((x + t2)^-1)
     w1 = sigma^4 * mean((x + t2)^-3) / den
@@ -120,6 +132,10 @@ test_that("node channel at alpha != 1 matches direct Monte Carlo", {
 
 test_that("bridge channel at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
+  )
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -146,6 +162,10 @@ test_that("bridge channel at alpha != 1 matches direct Monte Carlo", {
 
 test_that("clique-2 moments at alpha != 1 match an importance-sampled reference", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
+  )
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
