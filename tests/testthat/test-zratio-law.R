@@ -26,14 +26,19 @@ test_that("law reproduces the companion eval_mu_law reference (fidelity)", {
       ref_cert = is.finite(a$S1[r])
       # Gate parity: the port certifies exactly the cells the reference did.
       expect_equal(res$certified, ref_cert,
-        label = sprintf("cert eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r]))
+        label = sprintf("cert eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r])
+      )
       if(ref_cert) {
         # Same algorithm from the same cold start: agreement is FP-reordering
         # only (tighter than 1e-6 relative on both moments).
-        expect_equal(res$S1, a$S1[r], tolerance = 1e-6,
-          label = sprintf("S1 eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r]))
-        expect_equal(res$S2, a$S2[r], tolerance = 1e-6,
-          label = sprintf("S2 eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r]))
+        expect_equal(res$S1, a$S1[r],
+          tolerance = 1e-6,
+          label = sprintf("S1 eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r])
+        )
+        expect_equal(res$S2, a$S2[r],
+          tolerance = 1e-6,
+          label = sprintf("S2 eta=%g n=%d dens=%.1f", cell$eta, a$n[r], a$dens[r])
+        )
       }
     }
   }
@@ -62,10 +67,14 @@ test_that("certified law cells match the all-MC oracle within noise", {
       s1[k] = mc$S1
       s2[k] = mc$S2
     }
-    expect_equal(law$S1, mean(s1), tolerance = 0.03,
-      label = sprintf("law vs MC S1 n=%d", n))
-    expect_equal(law$S2, mean(s2), tolerance = 0.03,
-      label = sprintf("law vs MC S2 n=%d", n))
+    expect_equal(law$S1, mean(s1),
+      tolerance = 0.03,
+      label = sprintf("law vs MC S1 n=%d", n)
+    )
+    expect_equal(law$S2, mean(s2),
+      tolerance = 0.03,
+      label = sprintf("law vs MC S2 n=%d", n)
+    )
   }
 })
 

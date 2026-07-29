@@ -122,6 +122,7 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
 
 test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
   skip_on_cran()
+  skip_unless_slow()
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:5],
     edge_prior = bernoulli_prior(0.2),
@@ -181,6 +182,7 @@ test_that("anchors must include a multiplier other than 1", {
 
 test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   skip_on_cran()
+  skip_unless_slow()
   set.seed(32)
   xg = matrix(rnorm(180 * 5), 180, 5)
   fg = bgm(xg,

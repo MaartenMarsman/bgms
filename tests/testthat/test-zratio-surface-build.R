@@ -31,6 +31,10 @@ normal_surface = function(max_size) {
 
 test_that("the built surface tracks the gold oracle far tighter than additive", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the surface-vs-gold accuracy cert"
+  )
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -126,6 +130,10 @@ test_that("the socket-cluster build path matches the serial build", {
 
 test_that("the Cauchy slab builds and deploys its own surface cell", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the Cauchy surface deploy cert"
+  )
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE

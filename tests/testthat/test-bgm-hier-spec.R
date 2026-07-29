@@ -1,5 +1,17 @@
 # Tests for bgm(precision_graph_prior = "hierarchical"): eligibility validation
 # and the end-to-end fit with the Z-ratio engine and trust gauge attached.
+#
+# Local tier keeps the eligibility errors, one gamma-shape fit smoke, and the
+# gauge-off / joint-default wiring. The multi-method Cauchy sweep, the trust-
+# gauge attachment, and the mixed-data breadth are calibration/breadth checks
+# for the (settled) hierarchical engine and run in the BGMS_RUN_SLOW_TESTS tier.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the hierarchical engine sweep"
+  )
+}
 
 hier_test_data = function(q = 10, n = 40, seed = 4) {
   set.seed(seed)
@@ -61,6 +73,7 @@ test_that("the hierarchical spec accepts a gamma-shape diagonal", {
 
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
   skip_on_cran()
+  skip_unless_slow()
   withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   Y = hier_test_data(q = 8)
   for(method in c("nuts", "adaptive-metropolis", "gibbs")) {
@@ -85,6 +98,7 @@ test_that("the hierarchical spec accepts a Cauchy slab on every update method", 
 
 test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   skip_on_cran()
+  skip_unless_slow()
   withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   Y = hier_test_data(q = 12)
   fit = bgm(
@@ -142,6 +156,7 @@ test_that("the joint default is unchanged", {
 
 test_that("mixed data supports the hierarchical spec on the continuous block", {
   skip_on_cran()
+  skip_unless_slow()
   withr::local_options(bgms.zratio_gauge_sweeps = 2L)
   set.seed(9)
   n = 60

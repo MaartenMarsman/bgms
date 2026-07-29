@@ -219,8 +219,10 @@ test_that("the harm channel weights errors by per-edge sensitivity", {
 
 test_that("the extrapolation notice is graceful, gated, and back-compatible", {
   mk = function(nx, mx, np) {
-    list(zratio = list(counters = c(n_hit = 0, n_miss = 0, n_pred = np,
-      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx)))
+    list(zratio = list(counters = c(
+      n_hit = 0, n_miss = 0, n_pred = np,
+      n_add = 0, cache_size = 0, n_extrap = nx, max_extrap_size = mx
+    )))
   }
   # No extrapolation -> silent, returns FALSE.
   expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))

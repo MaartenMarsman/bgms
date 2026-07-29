@@ -69,6 +69,10 @@ test_that("gamma-shape constants build in the standardized cell", {
 
 test_that("hierarchical graph marginal matches Bernoulli(p); joint does not", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the graph-law identity cells"
+  )
   # rate = 2 (the eta = 1 default at scale 0.5) gives tau^2 = 2 beta sigma^2
   # = 2, where the joint spec's Z(Gamma) tilt separates cleanly from the
   # Bernoulli target (joint marginal ~0.22 at p = 0.3).
@@ -109,6 +113,10 @@ test_that("Z-ratio constants build in the standardized cell", {
 
 test_that("hierarchical graph marginal holds at a non-unit slab scale", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the graph-law identity cells"
+  )
   # pairwise scale 2.5 (the sample_ggm_prior default) with eta = 1 is the
   # same physical cell as scale 0.5 / rate 2; the graph law must hold there
   # identically.
@@ -125,6 +133,10 @@ test_that("hierarchical graph marginal holds at a non-unit slab scale", {
 
 test_that("hierarchical graph marginal holds for the Cauchy slab", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the graph-law identity cells"
+  )
   # The Cauchy slab needs its own (marginal-Cauchy) Z-ratio constants; with
   # the Normal tables this cell read 0.247 for a 0.30 edge prior. The
   # constants are shared across update methods, so one method pins the
@@ -176,6 +188,10 @@ test_that("Cauchy graph law holds at dense high q (coupling regime)", {
 
 test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
   skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the graph-law identity cells"
+  )
   d = hier_prior_run(
     6L, 0.5 * log(6), 1, 0.5, "adaptive-metropolis",
     edge_prior = beta_bernoulli_prior(2, 4), n_samples = 6000L
