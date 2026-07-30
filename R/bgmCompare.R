@@ -124,6 +124,14 @@
 #'   Use `difference_scale`, `difference_prior`, `difference_probability`,
 #'   `beta_bernoulli_alpha`, `beta_bernoulli_beta`, `baseline_category`,
 #'   `interaction_prior`, `threshold_prior`, and `warmup` instead.
+#' @param standardize `r lifecycle::badge("deprecated")` Logical. Deprecated
+#'   as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+#'   pair's baseline and difference prior scale by the product of the two
+#'   variables' maximum scores. Pairwise interactions are now on the
+#'   association scale and share one prior scale, so the per-pair adjustment is
+#'   gone: \code{standardize = FALSE} (the old default) warns and proceeds,
+#'   while \code{standardize = TRUE} errors and points to setting the scales
+#'   directly through \code{interaction_prior} and \code{difference_scale}.
 #' @return
 #' An S7 object of class \code{bgmCompare} supporting list-style \code{$} /
 #' \code{[[} access for backward compatibility, containing posterior summaries,
@@ -224,7 +232,9 @@ bgmCompare = function(
   threshold_alpha,
   threshold_beta,
   burnin,
-  save
+  save,
+  # Deprecated arguments (v0.2.0.0)
+  standardize
 ) {
   # Set verbose option for internal functions, restore on exit
   old_verbose = getOption("bgms.verbose")
@@ -350,6 +360,35 @@ bgmCompare = function(
 
   if(hasArg(save)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
+  }
+
+  # --- Legacy deprecation: v0.2.0.0 removals ----------------------------------
+  # standardize scaled each pair's baseline and difference prior by the product
+  # of the two variables' maximum scores. FALSE, its old default, is what the
+  # sampler does now, so it warns and proceeds; TRUE asks for an adjustment that
+  # no longer exists, so it stops with the manual alternative.
+  if(hasArg(standardize)) {
+    if(isFALSE(standardize)) {
+      lifecycle::deprecate_warn(
+        "0.2.0", "bgmCompare(standardize =)",
+        details = paste(
+          "FALSE is what the sampler does, so the fit is unaffected; drop the",
+          "argument."
+        )
+      )
+    } else {
+      lifecycle::deprecate_stop(
+        "0.2.0", "bgmCompare(standardize = 'no longer supports TRUE')",
+        details = paste(
+          "Pairwise interactions are on the association scale and share one",
+          "prior scale, so the per-pair adjustment by the maximum score",
+          "product (scale * m_i * m_j) has been dropped. Set the scales",
+          "directly, e.g. interaction_prior = cauchy_prior(scale =) for the",
+          "baseline and difference_scale for the differences; there is no",
+          "per-pair equivalent."
+        )
+      )
+    }
   }
 
   # --- Handle difference_prior: accept both string (deprecated) and object ------

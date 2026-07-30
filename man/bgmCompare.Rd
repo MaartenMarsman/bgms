@@ -52,7 +52,8 @@ bgmCompare(
   threshold_alpha,
   threshold_beta,
   burnin,
-  save
+  save,
+  standardize
 )
 }
 \arguments{
@@ -186,6 +187,15 @@ Deprecated arguments as of \strong{bgms 0.1.6.0}.
 Use \code{difference_scale}, \code{difference_prior}, \code{difference_probability},
 \code{beta_bernoulli_alpha}, \code{beta_bernoulli_beta}, \code{baseline_category},
 \code{interaction_prior}, \code{threshold_prior}, and \code{warmup} instead.}
+
+\item{standardize}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Logical. Deprecated
+as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+pair's baseline and difference prior scale by the product of the two
+variables' maximum scores. Pairwise interactions are now on the
+association scale and share one prior scale, so the per-pair adjustment is
+gone: \code{standardize = FALSE} (the old default) warns and proceeds,
+while \code{standardize = TRUE} errors and points to setting the scales
+directly through \code{interaction_prior} and \code{difference_scale}.}
 }
 \value{
 An S7 object of class \code{bgmCompare} supporting list-style \code{$} /

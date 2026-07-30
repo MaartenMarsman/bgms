@@ -455,6 +455,66 @@ test_that("deprecated main_alpha/main_beta still works", {
   expect_s3_class(fit, "bgms")
 })
 
+test_that("deprecated standardize = FALSE warns and proceeds", {
+  data("Wenchuan", package = "bgms")
+  expect_warning(
+    fit <- bgm(Wenchuan[1:50, 1:4],
+      standardize = FALSE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "standardize"
+  )
+  expect_s3_class(fit, "bgms")
+})
+
+test_that("deprecated standardize = TRUE errors with the manual alternative", {
+  data("Wenchuan", package = "bgms")
+  # The removed per-pair adjustment has no replacement, so this must fail
+  # through lifecycle rather than as an unused-argument error.
+  expect_error(
+    bgm(Wenchuan[1:50, 1:4],
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "interaction_prior"
+  )
+  expect_error(
+    bgm(Wenchuan[1:50, 1:4],
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    class = "defunctError"
+  )
+})
+
+test_that("bgmCompare handles the deprecated standardize on both paths", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:40, 1:4]
+  y = Wenchuan[41:80, 1:4]
+
+  expect_warning(
+    fit <- bgmCompare(x, y,
+      standardize = FALSE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "standardize"
+  )
+  expect_s3_class(fit, "bgmCompare")
+
+  expect_error(
+    bgmCompare(x, y,
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "difference_scale"
+  )
+})
+
 
 # ==============================================================================
 # 8. Backward Compatibility <U+2014> Deprecated String Edge Priors
