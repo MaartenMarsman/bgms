@@ -20,6 +20,7 @@
 * Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets `pairwise_scale` explicitly will need adjustment.
 * Default `pairwise_scale` changed from 2.5 to 1 to match the association-scale reparameterization.
 * `extract_category_thresholds()` is deprecated in favor of `extract_main_effects()`, which covers category thresholds, continuous means, and precision diagonal entries.
+* `extract_ess()` reports the Rao-Blackwellized effective sample size for the edge (or difference) indicators, the `n_eff` column of the fit summary's inclusion table, where 0.1.6.3 returned the indicator chain's transition-based ESS. The extractor family is now coherent: the Rao-Blackwellized inclusion probability (`extract_posterior_inclusion_probabilities()`), its R-hat (`extract_rhat()`), and its ESS all describe the same estimate. The transition ESS remains in the summary table as `n_eff_mixt` and is available as `extract_ess(fit, estimator = "mixt")`; few transitions are expected on edges whose inclusion probability sits near 0 or 1, so it reads as a secondary mixing diagnostic beside the Rao-Blackwellized number.
 
 ## New features
 

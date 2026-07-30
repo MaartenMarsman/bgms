@@ -18,6 +18,12 @@ the model (e.g., \code{main}, \code{pairwise}, \code{indicator}).
 Retrieves R-hat convergence diagnostics for all parameters from a
 model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
+\details{
+The \code{indicator} element is the split-R-hat of the Rao-Blackwellized
+inclusion draws, matching the default of \code{\link[=extract_ess]{extract_ess()}}; the indicator
+chain's transition-based effective sample size is available as
+\code{extract_ess(fit, estimator = "mixt")}.
+}
 \seealso{
 \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_ess]{extract_ess()}}
 

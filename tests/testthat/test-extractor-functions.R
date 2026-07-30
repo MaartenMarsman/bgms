@@ -266,6 +266,66 @@ test_that("extract_ess returns valid diagnostics for all fit types", {
   }
 })
 
+test_that("extract_ess indicators default to the RB n_eff and honour estimator", {
+  fixtures = get_extractor_fixtures()
+  checked = 0L
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    ind = summary(fit)$indicator
+
+    if(is.null(ind) || !all(c("n_eff", "n_eff_mixt") %in% names(ind))) next
+    checked = checked + 1L
+
+    rb = extract_ess(fit)$indicator
+    mixt = extract_ess(fit, estimator = "mixt")$indicator
+
+    # The default is the RB n_eff column, matching summary() and the R-hat that
+    # extract_rhat() reports; "mixt" is the transition ESS column.
+    expect_equal(unname(rb), ind$n_eff, info = paste(ctx, "default is RB n_eff"))
+    expect_equal(unname(mixt), ind$n_eff_mixt, info = paste(ctx, "mixt is n_eff_mixt"))
+    expect_equal(unname(extract_ess(fit, estimator = "rb")$indicator), ind$n_eff,
+      info = paste(ctx, "explicit rb is RB n_eff")
+    )
+
+    # NA masking is inherited from the summary table, per column.
+    expect_identical(is.na(unname(rb)), is.na(ind$n_eff),
+      info = paste(ctx, "RB NA positions")
+    )
+    expect_identical(is.na(unname(mixt)), is.na(ind$n_eff_mixt),
+      info = paste(ctx, "transition NA positions")
+    )
+
+    expect_error(extract_ess(fit, estimator = "nonsense"))
+  }
+
+  expect_gt(checked, 0L)
+})
+
+test_that("extract_ess indicators fall back to the transition ESS without RB draws", {
+  # Summary tables from fits predating the RB regime (bgms < 0.2.0.0) carry no
+  # n_eff column: a default call falls back, an explicit "rb" errors.
+  rb_table = data.frame(n_eff = c(100, NA), n_eff_mixt = c(80, NA))
+  legacy_table = data.frame(n_eff_mixt = c(80, NA))
+  default_arg = c("rb", "mixt")
+
+  expect_equal(indicator_ess_column(rb_table, default_arg, TRUE), c(100, NA))
+  expect_equal(indicator_ess_column(rb_table, "mixt", FALSE), c(80, NA))
+  expect_equal(indicator_ess_column(legacy_table, default_arg, TRUE), c(80, NA))
+  expect_error(indicator_ess_column(legacy_table, "rb", FALSE), "Rao-Blackwellized")
+})
+
+test_that("extract_ess indicator names and other elements ignore estimator", {
+  fit = get_bgms_fit()
+  rb = extract_ess(fit)
+  mixt = extract_ess(fit, estimator = "mixt")
+
+  expect_identical(names(rb), names(mixt))
+  expect_identical(names(rb$indicator), names(mixt$indicator))
+  expect_equal(rb$pairwise, mixt$pairwise)
+})
+
 test_that("extract_rhat and extract_ess error on non-bgms objects", {
   expect_error(extract_rhat(list()), class = "error")
   expect_error(extract_rhat(data.frame()), class = "error")

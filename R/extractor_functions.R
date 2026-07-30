@@ -1299,6 +1299,12 @@ extract_pairwise_thresholds = function(bgms_object) {
 #' @return A named list with R-hat values for each parameter type present in
 #'   the model (e.g., `main`, `pairwise`, `indicator`).
 #'
+#' @details
+#' The `indicator` element is the split-R-hat of the Rao-Blackwellized
+#' inclusion draws, matching the default of [extract_ess()]; the indicator
+#' chain's transition-based effective sample size is available as
+#' `extract_ess(fit, estimator = "mixt")`.
+#'
 #' @seealso [bgm()], [bgmCompare()], [extract_ess()]
 #' @family extractors
 #' @export
@@ -1393,6 +1399,51 @@ extract_rhat.bgmCompare = function(bgms_object) {
 # extract_ess() - Effective Sample Size
 # ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
+# indicator_ess_column
+# ------------------------------------------------------------------------------
+# Resolve the indicator ESS column that extract_ess() returns. The default
+# "rb" is the continuous ESS of the Rao-Blackwellized inclusion draws, the ESS
+# of the inclusion probability the fit reports; "mixt" is the indicator chain's
+# transition-based ESS. Both are read from the summary table, so the NA masking
+# summarize_rb_inclusion() applies carries over unchanged.
+#
+# Fits without Rao-Blackwellized draws (bgms < 0.2.0.0) carry no n_eff column,
+# so a default call falls back to the transition ESS while an explicit
+# estimator = "rb" errors, as in
+# extract_posterior_inclusion_probabilities().
+#
+# @param summary_indicator  The fit's posterior_summary_indicator table.
+# @param estimator          Character: "rb" or "mixt" (or the unevaluated
+#   default vector).
+# @param estimator_missing  Logical: TRUE if the caller did not supply one.
+#
+# Returns: numeric vector of ESS values, one per indicator.
+# ------------------------------------------------------------------------------
+indicator_ess_column = function(summary_indicator, estimator, estimator_missing) {
+  # names(), not $, because $ partial-matches n_eff to n_eff_mixt.
+  has_rb = "n_eff" %in% names(summary_indicator)
+  estimator = if(estimator_missing && !has_rb) {
+    "mixt"
+  } else {
+    match.arg(estimator, choices = c("rb", "mixt"))
+  }
+  if(estimator == "rb") {
+    if(!has_rb) {
+      stop(
+        "This fit carries no Rao-Blackwellized inclusion draws, so the ",
+        "Rao-Blackwellized effective sample size is unavailable. Refit with ",
+        "bgms >= 0.2.0.0, or use estimator = \"mixt\" for the indicator ",
+        "chain's transition-based effective sample size."
+      )
+    }
+    summary_indicator$n_eff
+  } else {
+    summary_indicator$n_eff_mixt
+  }
+}
+
+
 #' @title Extract Effective Sample Size
 #'
 #' @description
@@ -1401,21 +1452,51 @@ extract_rhat.bgmCompare = function(bgms_object) {
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
+#' @param estimator Character; which effective sample size to return for the
+#'   edge (or difference) indicators. `"rb"` (default) returns the ESS of the
+#'   Rao-Blackwellized inclusion draws; `"mixt"` returns the indicator chain's
+#'   transition-based ESS. Ignored for all other parameter types.
 #'
 #' @return A named list with ESS values for each parameter type present in
 #'   the model (e.g., `main`, `pairwise`, `indicator`).
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_rhat()]
+#' @details
+#' The `indicator` element reports the two effective sample sizes of the
+#' inclusion inference as a pair, and both also appear in the fit summary's
+#' inclusion table (`summary(fit)$indicator`).
+#'
+#' The default, `estimator = "rb"`, is the `n_eff` column: the continuous ESS
+#' of the Rao-Blackwellized inclusion draws, and therefore the ESS of the
+#' inclusion probability the fit reports (see
+#' [extract_posterior_inclusion_probabilities()], which is Rao-Blackwellized
+#' by default). It quantifies precision *conditional on exploration*.
+#'
+#' `estimator = "mixt"` is the `n_eff_mixt` column: the transition-based ESS of
+#' the binary indicator chain, which measures the exploration itself. Few
+#' transitions are expected when an edge's inclusion probability sits near 0 or
+#' 1, so a small (or `NA`) transition ESS beside a confident Rao-Blackwellized
+#' ESS is the signature of a decisive edge rather than of a failure; read the
+#' two together. Edges whose indicator never flipped have no exploration
+#' information, and both columns are `NA` there.
+#'
+#' Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
+#' call falls back to the transition ESS, while an explicit `estimator = "rb"`
+#' errors.
+#'
+#' @seealso [bgm()], [bgmCompare()], [extract_rhat()] for the
+#'   Rao-Blackwellized indicator R-hat,
+#'   [extract_posterior_inclusion_probabilities()]
 #' @family extractors
 #' @export
-extract_ess = function(bgms_object) {
+extract_ess = function(bgms_object, estimator = c("rb", "mixt")) {
   UseMethod("extract_ess")
 }
 
 #' @inheritParams extract_ess
 #' @exportS3Method
 #' @noRd
-extract_ess.bgms = function(bgms_object) {
+extract_ess.bgms = function(bgms_object, estimator = c("rb", "mixt")) {
+  estimator_missing = missing(estimator)
   ensure_summaries(bgms_object)
   result = list()
 
@@ -1439,10 +1520,9 @@ extract_ess.bgms = function(bgms_object) {
 
   # Indicator ESS (if edge selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    # Binary indicator summaries report the mixture ESS; the Rao-Blackwellized
-    # summary reports the standard continuous ESS instead.
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt %||%
-      bgms_object$posterior_summary_indicator$n_eff
+    result$indicator = indicator_ess_column(
+      bgms_object$posterior_summary_indicator, estimator, estimator_missing
+    )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 
@@ -1456,7 +1536,8 @@ extract_ess.bgms = function(bgms_object) {
 #' @inheritParams extract_ess
 #' @exportS3Method
 #' @noRd
-extract_ess.bgmCompare = function(bgms_object) {
+extract_ess.bgmCompare = function(bgms_object, estimator = c("rb", "mixt")) {
+  estimator_missing = missing(estimator)
   ensure_summaries(bgms_object)
   result = list()
 
@@ -1486,10 +1567,9 @@ extract_ess.bgmCompare = function(bgms_object) {
 
   # Indicator ESS (if difference selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    # Binary indicator summaries report the mixture ESS; the Rao-Blackwellized
-    # summary reports the standard continuous ESS instead.
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt %||%
-      bgms_object$posterior_summary_indicator$n_eff
+    result$indicator = indicator_ess_column(
+      bgms_object$posterior_summary_indicator, estimator, estimator_missing
+    )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 
