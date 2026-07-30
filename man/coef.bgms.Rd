@@ -47,7 +47,9 @@ Other posterior-methods:
 \code{\link[=coef.bgmCompare]{coef.bgmCompare()}},
 \code{\link[=print.bgmCompare]{print.bgmCompare()}},
 \code{\link[=print.bgms]{print.bgms()}},
+\code{\link[=print.bgms_verdicts]{print.bgms_verdicts()}},
 \code{\link[=summary.bgmCompare]{summary.bgmCompare()}},
-\code{\link[=summary.bgms]{summary.bgms()}}
+\code{\link[=summary.bgms]{summary.bgms()}},
+\code{\link[=verdicts]{verdicts()}}
 }
 \concept{posterior-methods}
