@@ -60,6 +60,7 @@ plot_edge_posterior(fit, "intrusion", "dreams")
 Other posterior-methods:
 \code{\link[=coef.bgmCompare]{coef.bgmCompare()}},
 \code{\link[=coef.bgms]{coef.bgms()}},
+\code{\link[=plot.bgmCompare]{plot.bgmCompare()}},
 \code{\link[=plot.bgms]{plot.bgms()}},
 \code{\link[=print.bgmCompare]{print.bgmCompare()}},
 \code{\link[=print.bgms]{print.bgms()}},

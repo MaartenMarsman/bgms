@@ -29,6 +29,7 @@ Minimal console output for \code{bgmCompare} fit objects.
 Other posterior-methods:
 \code{\link[=coef.bgmCompare]{coef.bgmCompare()}},
 \code{\link[=coef.bgms]{coef.bgms()}},
+\code{\link[=plot.bgmCompare]{plot.bgmCompare()}},
 \code{\link[=plot.bgms]{plot.bgms()}},
 \code{\link[=plot_edge_posterior]{plot_edge_posterior()}},
 \code{\link[=print.bgms]{print.bgms()}},

@@ -144,6 +144,305 @@ plot.bgms = function(x,
 }
 
 
+# ------------------------------------------------------------------
+# compare_difference_verdicts
+# ------------------------------------------------------------------
+# Split a bgmCompare verdict table into its two indicator families, in the
+# orders the drawing needs them: pairwise differences in the row-major upper
+# triangle, main-effect differences one per variable.
+#
+# @param x                   A fitted bgmCompare object.
+# @param evidence_threshold  Threshold passed to verdicts().
+#
+# Returns: list(pairwise = verdict per pair, main = verdict per variable,
+#   pairs = the row-major upper-triangle index, main_selected = whether the
+#   main-effect difference indicators were ever updated).
+# ------------------------------------------------------------------
+compare_difference_verdicts = function(x, evidence_threshold) {
+  table = verdicts(x, evidence_threshold = evidence_threshold)
+  num_variables = as.integer(extract_arguments(x)$num_variables)
+  index = compare_indicator_index(num_variables)
+  is_main = index[, 1] == index[, 2]
+
+  pairs = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
+  pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
+
+  main = as.character(table$verdict[is_main])
+  list(
+    pairwise = as.character(table$verdict[!is_main]),
+    main = main,
+    pairs = pairs,
+    # Without main_difference_selection those indicators are never updated and
+    # carry no verdict, so the node channel has nothing to say.
+    main_selected = !all(is.na(main))
+  )
+}
+
+
+# ------------------------------------------------------------------
+# main_difference_nodes
+# ------------------------------------------------------------------
+# Node shape and border colour encoding the main-effect difference verdicts.
+# Shape carries the settled/unsettled distinction, so the encoding does not
+# ride on colour alone; the border colour grades it.
+#
+# @param verdict        Verdict per variable, or all NA when never updated.
+# @param main_selected  Whether the indicators were updated at all.
+#
+# Returns: list(shape, border_color).
+# ------------------------------------------------------------------
+main_difference_nodes = function(verdict, main_selected) {
+  n = length(verdict)
+  if(!main_selected) {
+    return(list(shape = rep("circle", n), border_color = rep("grey55", n)))
+  }
+  shape = ifelse(verdict %in% "presence", "square", "circle")
+  border = rep("grey80", n)
+  border[verdict %in% "undecided"] = "grey55"
+  border[verdict %in% "presence"] = mover_palette()[1]
+  list(shape = shape, border_color = border)
+}
+
+
+#' @title Plot a Fitted bgmCompare Model
+#'
+#' @description
+#' Draws the group differences the data settle, as one network, or the groups'
+#' own networks beside it on a shared layout.
+#'
+#' @param x A fitted model object of class `bgmCompare`, from [bgmCompare()].
+#' @param type Character; which display to draw. `"difference"` (default) is
+#'   the verdict-encoded network of group differences; `"groups"` draws each
+#'   group's own network and the difference panel on one shared layout;
+#'   `"centrality"` is the posterior strength centrality of
+#'   [extract_centrality()].
+#' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
+#'   evidence of a difference from undecided, as in [verdicts()]. Default `10`.
+#' @param group For `type = "centrality"`: passed to [extract_centrality()], so
+#'   a single index gives that group's centrality and two give the difference.
+#'   Default `1`.
+#' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
+#' @param legend Logical; draw the legend. Default `TRUE`.
+#' @param ... Passed to [qgraph::qgraph()], or to [plot.bgms_centrality()] for
+#'   `type = "centrality"`.
+#'
+#' @return `x`, invisibly. Called for the side effect of drawing.
+#'
+#' @details
+#' The default picture is about differences, because differences are what
+#' [bgmCompare()] parameterizes. A pairwise difference with evidence of presence
+#' is drawn solid, its width scaled by the size of the difference and its colour
+#' carrying the sign; an undecided difference is a thin dotted grey line; a
+#' difference the data rule out is not drawn. The picture therefore says the
+#' same thing as `verdicts(fit)` at the same threshold.
+#'
+#' A network with no edges left is a result, not an error: "the groups do not
+#' differ anywhere" is a common and correct finding, so the nodes are drawn on
+#' their own and the subtitle says so.
+#'
+#' Main-effect differences are not edges. When `main_difference_selection =
+#' TRUE` gave them their own indicators, their verdicts are carried on the
+#' nodes: a square node with an accented border where the data settle a
+#' main-effect difference, a circle with a grey border where they leave it
+#' undecided, and a faint border where they rule it out. Shape carries the
+#' settled/unsettled distinction so the encoding does not rest on colour alone.
+#' Under the default `main_difference_selection = FALSE` those indicators are
+#' never updated and have no verdict, so every node is drawn alike and the
+#' subtitle says the channel is empty. `verdicts()` remains the place to read
+#' main-effect differences precisely; the nodes are a summary of it.
+#'
+#' Drawing needs the suggested package qgraph.
+#'
+#' @examples
+#' \donttest{
+#' fit = bgmCompare(
+#'   x = Wenchuan[, 1:5],
+#'   group_indicator = rep(1:2, length.out = nrow(Wenchuan)),
+#'   display_progress = "none"
+#' )
+#' plot(fit)
+#' plot(fit, type = "groups")
+#' }
+#'
+#' @seealso [verdicts()] for the table the picture encodes,
+#'   [extract_centrality()], [prior_sensitivity_check()]
+#' @family posterior-methods
+#' @export
+plot.bgmCompare = function(x,
+                           type = c("difference", "groups", "centrality"),
+                           evidence_threshold = 10,
+                           group = 1,
+                           layout = "spring",
+                           legend = TRUE,
+                           ...) {
+  type = match.arg(type)
+  if(type == "centrality") {
+    plot(extract_centrality(x, group = group), ...)
+    return(invisible(x))
+  }
+
+  if(!requireNamespace("qgraph", quietly = TRUE)) {
+    stop(
+      "Drawing the network needs the qgraph package, which is suggested rather ",
+      "than required by bgms. Install it with install.packages(\"qgraph\"), or ",
+      "use verdicts() for the same information as a table."
+    )
+  }
+
+  arguments = extract_arguments(x)
+  variables = arguments$data_columnnames
+  num_variables = length(variables)
+  num_groups = as.integer(arguments$num_groups)
+
+  found = compare_difference_verdicts(x, evidence_threshold)
+  differences = x@posterior_mean_pairwise_differences
+  if(is.list(differences)) {
+    stop(
+      "Drawing group differences is implemented for two groups; this fit has ",
+      num_groups, " groups and so ", num_groups - 1L, " contrasts, which are ",
+      "not one network. Use verdicts() for the evidence and ",
+      "extract_group_params() for each group's parameters."
+    )
+  }
+  weight = differences[cbind(found$pairs[, 1], found$pairs[, 2])]
+
+  if(type == "groups") {
+    compare_group_panels(x, found, weight, variables, num_groups, layout, legend, ...)
+    return(invisible(x))
+  }
+
+  nodes = main_difference_nodes(found$main, found$main_selected)
+  draw_difference_network(
+    weight, found$pairwise, found$pairs, variables, num_variables,
+    nodes, layout, legend, found$main_selected, ...
+  )
+  invisible(x)
+}
+
+
+# ------------------------------------------------------------------
+# draw_difference_network
+# ------------------------------------------------------------------
+# The difference panel: edges by difference verdict, nodes by main-effect
+# difference verdict. Returns the layout qgraph used, so the group panels can
+# share it.
+# ------------------------------------------------------------------
+draw_difference_network = function(weight, verdict, pairs, variables,
+                                   num_variables, nodes, layout, legend,
+                                   main_selected, ..., title = NULL) {
+  drawn = !is.na(verdict) & verdict != "absence"
+  shown = as.character(verdict[drawn])
+
+  arguments = list(
+    input = if(any(drawn)) {
+      cbind(pairs[drawn, , drop = FALSE], weight[drawn])
+    } else {
+      # An empty difference network is the finding "the groups do not differ
+      # anywhere", so draw the nodes rather than stopping.
+      matrix(numeric(0), nrow = 0L, ncol = 3L)
+    },
+    nNodes = num_variables,
+    labels = variables,
+    directed = FALSE,
+    layout = layout,
+    edge.color = verdict_edge_colors(weight[drawn], shown),
+    lty = ifelse(shown == "presence", 1L, 3L),
+    shape = nodes$shape,
+    border.color = nodes$border_color,
+    fade = FALSE,
+    minimum = 0,
+    title = title,
+    DoNotPlot = FALSE
+  )
+  result = do.call(qgraph::qgraph, utils::modifyList(arguments, list(...)))
+
+  subtitle = character(0)
+  if(!any(drawn)) {
+    subtitle = c(subtitle, "no difference reaches presence or undecided")
+  }
+  if(!main_selected) {
+    subtitle = c(subtitle, "main-effect differences not selected")
+  }
+  if(length(subtitle)) {
+    # Along the top, left-aligned: qgraph leaves no bottom margin, and the
+    # centre of the panel is where the nodes are.
+    graphics::mtext(paste(subtitle, collapse = "; "),
+      side = 3, line = -1, adj = 0, cex = 0.7, col = "grey55"
+    )
+  }
+  if(isTRUE(legend)) {
+    keys = c("difference, positive", "difference, negative", "undecided")
+    colors = c(mover_palette()[1:2], "grey65")
+    line = c(1L, 1L, 3L)
+    if(main_selected) {
+      keys = c(keys, "node: main-effect difference")
+      colors = c(colors, mover_palette()[1])
+      line = c(line, NA)
+    }
+    graphics::legend("bottomleft",
+      legend = keys, col = colors,
+      lty = line, lwd = c(rep(2.4, 2), 1.2, rep(NA, length(keys) - 3L)),
+      pch = c(rep(NA, 3L), rep(22L, length(keys) - 3L)),
+      pt.cex = 1.2, bty = "n", cex = 0.7, text.col = "grey25", xpd = NA
+    )
+  }
+  invisible(result$layout)
+}
+
+
+# ------------------------------------------------------------------
+# compare_group_panels
+# ------------------------------------------------------------------
+# Each group's own network and the difference panel, on one layout so a reader
+# compares by position. The layout is computed once from the difference panel's
+# node set and reused, which is what makes the three comparable by eye.
+# ------------------------------------------------------------------
+compare_group_panels = function(x, found, weight, variables, num_groups,
+                                layout, legend, ...) {
+  num_variables = length(variables)
+  nodes = main_difference_nodes(found$main, found$main_selected)
+
+  # Posterior-mean group networks, in the same row-major upper-triangle order
+  # as the pairs.
+  effects = extract_group_params(x)$pairwise_effects_groups
+  group_weight = lapply(seq_len(num_groups), function(g) effects[, g])
+
+  # One layout for every panel: qgraph computes it once with DoNotPlot, on the
+  # union of the groups' networks, so a node sits in the same place throughout.
+  union_weight = Reduce(pmax, lapply(group_weight, abs))
+  shared = qgraph::qgraph(
+    input = cbind(found$pairs, union_weight),
+    nNodes = num_variables, labels = variables, directed = FALSE,
+    layout = layout, DoNotPlot = TRUE
+  )$layout
+
+  old_par = graphics::par(no.readonly = TRUE)
+  on.exit(graphics::par(old_par), add = TRUE)
+  graphics::par(mfrow = c(1L, num_groups + 1L))
+
+  for(g in seq_len(num_groups)) {
+    panel = list(
+      input = cbind(found$pairs, group_weight[[g]]),
+      nNodes = num_variables, labels = variables, directed = FALSE,
+      layout = shared, fade = FALSE, minimum = 0,
+      # qgraph's default green/red sign pair is the one colour-vision
+      # deficiency most often collapses; the difference panel's Okabe-Ito pair
+      # carries the sign here too, so all three panels read alike.
+      posCol = mover_palette()[1], negCol = mover_palette()[2],
+      shape = nodes$shape, border.color = nodes$border_color,
+      title = sprintf("group %d", g)
+    )
+    do.call(qgraph::qgraph, utils::modifyList(panel, list(...)))
+  }
+  draw_difference_network(
+    weight, found$pairwise, found$pairs, variables, num_variables,
+    nodes, shared, legend, found$main_selected, ...,
+    title = "difference"
+  )
+  invisible(NULL)
+}
+
+
 #' @title Plot the Posterior of One Edge Weight
 #'
 #' @description
