@@ -7,10 +7,8 @@
 ^renv$
 ^renv\.lock$
 
-# pkgdown / docs
+# docs
 ^docs$
-^pkgdown$
-^_pkgdown\.yml$
 ^Readme\.Rmd$
 ^vignettes/introduction_cache$
 
