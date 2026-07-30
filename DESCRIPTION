@@ -26,7 +26,7 @@ Description: Bayesian estimation and edge selection for graphical models of
     imputation.
 Copyright: Includes datasets 'ADHD' and 'Boredom', which are licensed under CC-BY 4. See individual data documentation for license and citation.
 License: GPL (>= 2)
-URL: https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
+URL: https://bayesian-graphical-modelling-lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
 BugReports: https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues
 Imports:
     Rcpp (>= 1.0.7),

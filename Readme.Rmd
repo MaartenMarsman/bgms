@@ -98,6 +98,9 @@ You can also retrieve the citation from R:
 citation("bgms")
 ```
 
+Additional citation formats are available on the
+[package website](https://bayesian-graphical-modelling-lab.github.io/bgms/).
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
