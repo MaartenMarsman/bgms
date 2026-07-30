@@ -4,13 +4,19 @@
 \alias{extract_centrality}
 \title{Extract Posterior Centrality}
 \usage{
-extract_centrality(bgms_object, measure = "strength", ...)
+extract_centrality(bgms_object, measure = "strength", group = 1, ...)
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}) or
+\code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 
 \item{measure}{Character; the centrality to evaluate. Currently \code{"strength"}
 (default), the sum of the absolute weights of a node's edges.}
+
+\item{group}{For a \code{bgmCompare} fit: a single group index, giving that
+group's centrality, or two indices, giving the difference in centrality
+between them (the first minus the second). Default \code{1}. Ignored for a
+\code{bgm} fit, which has one network.}
 
 \item{...}{Passed to methods.}
 }
@@ -37,6 +43,16 @@ quantity.
 
 Strength centrality sums the absolute edge weights, so positive and negative
 associations both add to a node's total involvement rather than cancelling.
+
+For a \code{\link[=bgmCompare]{bgmCompare()}} fit each group's network is rebuilt on every draw as
+\code{baseline + (P \%*\% differences)}, with the fit's own contrast projection \code{P},
+rather than from posterior means. That is what carries the uncertainty
+through: with \code{group = c(1, 2)} the credible interval is the interval of the
+\emph{difference} in a node's centrality, which answers whether the groups differ
+in it directly, where two separately drawn intervals do not. A draw in which
+a difference indicator is zero gives both groups the same edge weight and so
+contributes exactly zero to the difference, which is why this is computed per
+draw and not from summaries.
 }
 \examples{
 \donttest{

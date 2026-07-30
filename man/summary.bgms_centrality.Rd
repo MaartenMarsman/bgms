@@ -20,10 +20,23 @@ A data frame with one row per variable, ordered by decreasing
 posterior mean, with columns \code{node}, \code{mean}, \code{lower}, \code{upper}, and
 \code{p_most_central}, the posterior probability that the node has the largest
 centrality of all nodes.
+
+For a difference between two groups the last column is \code{p_positive}
+instead: the posterior probability that the node's centrality is higher in
+the first group than in the second. Which node is \emph{most} central is not the
+question a difference answers.
 }
 \description{
 Posterior mean, credible interval, and probability of being the most central
 node, per variable.
+}
+\details{
+A difference has a point mass at exactly zero, from the draws in which every
+one of the node's difference indicators is excluded and the two groups share
+the network. \code{p_positive} and its mirror therefore need not sum to one, and a
+node can have a positive posterior mean with \code{p_positive} well below \code{0.5}:
+the remaining mass is on no difference at all, which is the model averaging
+reporting itself.
 }
 \examples{
 \donttest{
