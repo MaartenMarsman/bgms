@@ -308,6 +308,131 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
 })
 
 
+test_that("compare_anchor_draws aligns every gated difference with its indicator", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[1:100, 1:4], group_indicator = rep(1:2, each = 50),
+    iter = 200, warmup = 200, chains = 2, seed = 13,
+    difference_selection = TRUE, display_progress = "none"
+  )
+  d = anchor_draws(fit)
+  names_all = get_raw_samples(fit)$parameter_names
+
+  # 6 pairwise differences + 4 variables x 4 thresholds of main difference,
+  # against 4 + 6 = 10 indicators.
+  expect_equal(ncol(d$theta[[1]]), 6L + 16L)
+  expect_equal(ncol(d$indicator[[1]]), 10L)
+  expect_equal(dim(d$gamma[[1]]), dim(d$theta[[1]]))
+  expect_equal(d$family, "cauchy")
+
+  # Each parameter carries its own indicator's draws, not a neighbour's. The
+  # pairwise differences come first, in the order the indicators name them.
+  pair_indicator = which(!grepl("(main)", names_all$indicator, fixed = TRUE))
+  expect_equal(
+    d$gamma[[1]][, seq_along(pair_indicator)],
+    d$indicator[[1]][, pair_indicator],
+    ignore_attr = TRUE
+  )
+  # A main-effect difference block repeats its variable's indicator, one column
+  # per threshold.
+  main_indicator = which(grepl("(main)", names_all$indicator, fixed = TRUE))
+  expect_equal(
+    d$gamma[[1]][, 6L + seq_len(4L)],
+    d$indicator[[1]][, rep(main_indicator[1], 4L)],
+    ignore_attr = TRUE
+  )
+
+  # The theta columns are the difference draws themselves, not the baselines.
+  raw = get_raw_samples(fit)
+  expect_equal(
+    d$theta[[1]][, seq_len(6L)], raw$pairwise[[1]][, 7:12],
+    ignore_attr = TRUE
+  )
+})
+
+
+test_that("prior_sensitivity_check traces bgmCompare difference verdicts", {
+  skip_on_cran()
+  skip_unless_slow()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[, 1:5], group_indicator = rep(1:2, length.out = nrow(Wenchuan)),
+    iter = 800, warmup = 800, chains = 2, seed = 21,
+    difference_selection = TRUE, display_progress = "none"
+  )
+  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
+    anchors = c(0.5, 1, 2), iter = 500, warmup = 500, ess_floor = 100, seed = 3
+  )))
+
+  expect_s3_class(ps, "bgms_prior_sensitivity")
+  expect_equal(ps$edges$edge, get_raw_samples(fit)$parameter_names$indicator)
+  # It sweeps the difference scale, not the interaction one.
+  expect_equal(ps$unit$scale_field, "difference_scale")
+  expect_equal(ps$chosen_scale, get_fit_spec(fit)$prior$difference_scale)
+  # There is no data-preferred difference scale to compare against.
+  expect_true(is.na(ps$preferred_scale$s_hat))
+
+  out = paste(utils::capture.output(print(ps)), collapse = "\n")
+  expect_match(out, "are the difference verdicts robust to the difference scale")
+  # main_difference_selection is FALSE by default, so those indicators were
+  # never updated; the report says so instead of counting them as undecided.
+  expect_match(out, "never updated by the sampler and carry no verdict")
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_invisible(plot(ps))
+})
+
+
+test_that("prior_sensitivity_check needs difference selection", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[1:80, 1:4], group_indicator = rep(1:2, each = 40),
+    iter = 150, warmup = 150, chains = 2, seed = 4,
+    difference_selection = FALSE, display_progress = "none"
+  )
+  expect_error(prior_sensitivity_check(fit), "difference selection")
+})
+
+
+test_that("the difference-scale reweighting reproduces a refit at that scale", {
+  skip_on_cran()
+  skip_unless_slow()
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[, 1:6]
+  g = rep(1:2, length.out = nrow(x))
+  compare_at = function(scale, seed) {
+    bgmCompare(
+      x = x, group_indicator = g, difference_scale = scale,
+      iter = 3000, warmup = 2000, chains = 4, seed = seed,
+      difference_selection = TRUE, display_progress = "none"
+    )
+  }
+  pip_of = function(f) rowMeans(sapply(get_raw_samples(f)$rb_inclusion, colMeans))
+
+  f1 = compare_at(1, 11)
+  f2 = compare_at(2, 12)
+  f2b = compare_at(2, 13)
+
+  rw = anchor_reweight(anchor_draws(f1), s_a = 1, s_grid = c(1, 2))
+  nm = get_raw_samples(f1)$parameter_names$indicator
+  pairwise = !grepl("(main)", nm, fixed = TRUE)
+
+  # Reweighting to the anchor's own scale is the identity up to Monte Carlo.
+  expect_lt(max(abs(rw$pip[1, pairwise] - pip_of(f1)[pairwise])), 0.02)
+
+  # A doubling is a real extrapolation; it stays usable and lands on the refit
+  # to within a small multiple of the refit's own run-to-run spread. Without
+  # this the whole curve would be reweighting an untested density.
+  expect_gt(rw$ess[2], 400)
+  noise = max(abs(pip_of(f2)[pairwise] - pip_of(f2b)[pairwise]))
+  expect_lt(max(abs(rw$pip[2, pairwise] - pip_of(f2)[pairwise])), 4 * noise)
+})
+
+
 test_that("a warm-start list with the wrong length errors", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:5],

@@ -2,7 +2,7 @@
 % Please edit documentation in R/prior_sensitivity.R
 \name{prior_sensitivity_check}
 \alias{prior_sensitivity_check}
-\title{Prior Sensitivity of Edge Inclusion Verdicts}
+\title{Prior Sensitivity of Inclusion Verdicts}
 \usage{
 prior_sensitivity_check(
   bgms_object,
@@ -23,7 +23,8 @@ prior_sensitivity_check(
 }
 \arguments{
 \item{bgms_object}{A fitted \code{bgms} object from \code{\link{bgm}()} run
-with \code{edge_selection = TRUE}.}
+with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
+\code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.}
 
 \item{anchors}{Numeric vector of positive anchor multipliers of the chosen
 scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
@@ -103,18 +104,25 @@ curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 per-point chain unanimity), the \code{wobble} noise yardstick,
 \code{refit_diagnostics} (the captured raw sampler notes per anchor and
-the replicate), the data-\code{preferred_scale}, the resolved \code{vary}
-mode, and the settings used.
+the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
+prior is not the one on the pairwise interactions), the \code{unit} the
+check reported on, the resolved \code{vary} mode, and the settings used.
 }
 \description{
-Recovers each edge's continuous inclusion-Bayes-factor curve
-\eqn{\mathrm{BF}_e(s)} across the interaction (pairwise) slab scale
-\eqn{s}, and classifies every edge's verdict trajectory along it. The
-curve is anchored at a handful of fixed-scale fits --- the chosen-scale
-anchor is the original fit itself --- and filled in between anchors by
-importance reweighting. Works on any \code{\link{bgm}()} fit with edge
-selection. A built-in Monte Carlo noise guard, calibrated from a repeated
-refit at one anchor, keeps the check from crying wolf on boundary edges.
+Recovers each indicator's continuous inclusion-Bayes-factor curve
+\eqn{\mathrm{BF}_e(s)} across the scale \eqn{s} of the slab that gates it,
+and classifies every verdict trajectory along it. The curve is anchored at a
+handful of fixed-scale fits --- the chosen-scale anchor is the original fit
+itself --- and filled in between anchors by importance reweighting. A
+built-in Monte Carlo noise guard, calibrated from a repeated refit at one
+anchor, keeps the check from crying wolf on boundary cases.
+
+On a \code{\link{bgm}()} fit with edge selection the unit is the edge
+indicator and the swept prior is the interaction slab. On a
+\code{\link{bgmCompare}()} fit with difference selection the unit is the
+difference indicator and the swept prior is the difference slab
+(\code{difference_scale}), which covers the pairwise and the main-effect
+difference families alike, since \code{bgmCompare()} gives them one scale.
 }
 \details{
 \strong{The anchored curve.} The model is refit at the non-unit

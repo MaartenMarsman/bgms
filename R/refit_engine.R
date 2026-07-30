@@ -317,9 +317,15 @@ refit_edge_stats = function(fit, evidence_threshold) {
   if(is.null(dim(pc))) pc = matrix(pc, ncol = M)
   pbar = rowMeans(pc)
 
-  prm = extract_prior_inclusion_probabilities(fit)
-  nv = nrow(prm)
-  prior_q = prm[upper.tri(prm)][order_upper_tri_rowmajor(nv)]
+  prior_q = if(inherits(fit, "bgmCompare")) {
+    # The difference prior is exchangeable across difference indicators, so one
+    # inclusion probability covers the main-effect and the pairwise families
+    # alike. Recycled to the indicator count below.
+    rep(difference_prior_inclusion(fit), length(enm))
+  } else {
+    prm = extract_prior_inclusion_probabilities(fit)
+    prm[upper.tri(prm)][order_upper_tri_rowmajor(nrow(prm))]
+  }
   prior_odds = prior_q / (1 - prior_q)
 
   ind = fit@posterior_summary_indicator
@@ -371,15 +377,23 @@ refit_edge_stats = function(fit, evidence_threshold) {
 refit_convergence_gate = function(fit) {
   rhats = numeric(0)
   esss = numeric(0)
-  mn = fit@posterior_summary_main
-  if(!is.null(mn)) {
-    rhats = c(rhats, mn[, "Rhat"])
-    esss = c(esss, mn[, "n_eff"])
+  # bgm() reports one main and one pairwise summary; bgmCompare() reports a
+  # baseline and a difference summary of each, and every one of them is a
+  # continuous parameter block the gate should see.
+  blocks = if(inherits(fit, "bgmCompare")) {
+    c(
+      "posterior_summary_main_baseline", "posterior_summary_main_differences",
+      "posterior_summary_pairwise_baseline",
+      "posterior_summary_pairwise_differences"
+    )
+  } else {
+    c("posterior_summary_main", "posterior_summary_pairwise")
   }
-  pw = fit@posterior_summary_pairwise
-  if(!is.null(pw)) {
-    rhats = c(rhats, pw[, "Rhat"])
-    esss = c(esss, pw[, "n_eff"])
+  for(name in blocks) {
+    block = tryCatch(S7::prop(fit, name), error = function(e) NULL)
+    if(is.null(block)) next
+    rhats = c(rhats, block[, "Rhat"])
+    esss = c(esss, block[, "n_eff"])
   }
   ind = fit@posterior_summary_indicator
 
