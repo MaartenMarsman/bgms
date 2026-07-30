@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Model Output – bgms</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../guide/mcmc-diagnostics.html" rel="next">
+<link href="../guide/missing-data.html" rel="prev">
+<link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-eaeb381c6b7494c50009502241a4985c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-27e333d33e6914644635f1f90f79dd55.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": true,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+<meta name="robots" content="noindex"><link rel="canonical" href="https://bayesian-graphical-modelling-lab.github.io/bgms/guide/mcmc-output.html"></head>
+
+<body class="bgms-dev-build nav-sidebar floating nav-fixed fullcontent quarto-light"><div class="bgms-dev-banner" id="bgms-dev-banner" role="note"><span class="bgms-dev-banner-text">Development version of the bgms documentation. The latest release is at <a href="https://bayesian-graphical-modelling-lab.github.io/bgms/">bayesian-graphical-modelling-lab.github.io/bgms/</a>.</span><button type="button" class="bgms-dev-banner-dismiss" aria-label="Dismiss this notice">&times;</button></div><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo light-content">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="../guide/getting-started.html" aria-current="page"> 
+<span class="menu-text">Get Started</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../examples/index.html"> 
+<span class="menu-text">Examples</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../guide/index.html"> 
+<span class="menu-text">Guide</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../manual/index.html"> 
+<span class="menu-text">Manual</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../news.html"> 
+<span class="menu-text">News</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://cran.r-project.org/package=bgms"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 724 561" width="16" height="12" class="navbar-icon"><path d="M361.453 485.937C162.329 485.937 .906 377.828.906 244.469.906 111.109 162.329 3 361.453 3 560.578 3 722 111.109 722 244.469 722 377.828 560.578 485.937 361.453 485.937ZM416.641 97.406C265.289 97.406 142.594 171.314 142.594 262.484 142.594 353.654 265.289 427.562 416.641 427.562 567.992 427.562 679.687 377.033 679.687 262.484 679.687 147.971 567.992 97.406 416.641 97.406Z" fill="currentColor" fill-rule="evenodd" opacity=".5"></path><path d="M550 377C550 377 571.822 383.585 584.5 390 588.899 392.226 596.51 396.668 602 402.5 607.378 408.212 610 414 610 414L696 559 557 559.062 492 437C492 437 478.69 414.131 470.5 407.5 463.668 401.969 460.755 400 454 400 449.298 400 420.974 400 420.974 400L421 558.974 298 559.026 298 152.938 545 152.938C545 152.938 657.5 154.967 657.5 262 657.5 369.033 550 377 550 377ZM496.5 241.024 422.037 240.976 422 310.026 496.5 310.002C496.5 310.002 531 309.895 531 274.877 531 239.155 496.5 241.024 496.5 241.024Z" fill="currentColor" fill-rule="evenodd"></path></svg></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://bayesiangraphicalmodeling.com"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 733 421" width="28" height="16" class="navbar-icon"><g transform="translate(-371 -252)"><path d="M552.255 351.119C549.247 318.97 572.871 290.47 605.019 287.463 637.168 284.455 665.668 308.079 668.675 340.228 671.683 372.376 648.059 400.876 615.911 403.884 583.762 406.891 555.262 383.268 552.255 351.119Z" fill="currentColor" opacity=".7"></path><path d="M656.924 572.359C653.917 540.21 677.54 511.71 709.689 508.703 741.838 505.695 770.337 529.319 773.345 561.468 776.353 593.616 752.729 622.116 720.58 625.124 688.432 628.131 659.932 604.508 656.924 572.359Z" fill="currentColor" opacity=".7"></path><path d="M375.073 481.287C372.066 449.138 395.689 420.638 427.838 417.631 459.987 414.623 488.487 438.247 491.494 470.395 494.502 502.544 470.878 531.044 438.729 534.051 406.581 537.059 378.081 513.435 375.073 481.287Z" fill="currentColor" opacity=".7"></path><path d="M0 0 188.535 116.929" stroke="currentColor" stroke-width="22.917" fill="none" transform="matrix(.996 -.093 -.093 -.996 433.284 475.841)"></path><path d="M431.089 476.046 715.135 566.913" stroke="currentColor" stroke-width="22.917" fill="none"></path><path d="M609 408.5C609 324.277 677.277 256 761.5 256 845.723 256 914 324.277 914 408.5 914 492.723 845.723 561 761.5 561 677.277 561 609 492.723 609 408.5ZM632.275 408.5C632.275 479.869 690.131 537.725 761.5 537.725 832.869 537.725 890.725 479.869 890.725 408.5 890.725 337.131 832.869 279.275 761.5 279.275 690.131 279.275 632.275 337.131 632.275 408.5Z" fill="currentColor" fill-rule="evenodd"></path><path d="M891.5 503.5 1073.91 642.661" stroke="currentColor" stroke-width="52.708" stroke-linecap="round" fill="none"></path><path d="M729.57 323.186C748.221 295.051 788.999 289.252 820.652 310.234 852.304 331.216 862.844 371.034 844.193 399.169 839.104 355.297 797.981 319.829 752.34 319.948 744.51 319.969 736.843 321.059 729.57 323.186Z" fill="currentColor" opacity=".4"></path></g></svg></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms" title="bgms GitHub" class="quarto-navigation-tool px-1" aria-label="bgms GitHub"><i class="bi bi-github"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../guide/mcmc-output.html">Output &amp; Diagnostics</a></li><li class="breadcrumb-item"><a href="../guide/mcmc-output.html">Model Output</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">User’s Guide</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting Started</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Background</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/graphical-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Graphical Models</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/bayesian-approach.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The Bayesian Approach</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/prior-basics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prior Basics</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Models</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/ggm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Gaussian Graphical Model</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/omrf.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Ordinal Markov Random Field</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/mixed-model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mixed Markov Random Field</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Analyses</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/edge-selection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Edge Selection</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/group-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Group Comparison</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/clustering.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Edge Clustering</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/missing-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Missing Data</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Output &amp; Diagnostics</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/mcmc-output.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Model Output</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guide/mcmc-diagnostics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MCMC Diagnostics</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../guide/mcmc-output.html">Output &amp; Diagnostics</a></li><li class="breadcrumb-item"><a href="../guide/mcmc-output.html">Model Output</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Model Output</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><code>bgms</code> uses Markov chain Monte Carlo (MCMC) to sample from the posterior distribution of the model parameters. The output of <a href="../reference/bgm.html"><code>bgm()</code></a> and <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> contains posterior summaries computed from these samples, posterior mean matrices, the raw MCMC draws themselves, and sampler diagnostics. This chapter describes how to access and interpret each of these components. For diagnostics related to the sampler itself, see <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>. For a walkthrough of a real output, block by block on a fitted model, see <a href="../examples/reading-the-output.html">Reading the output</a>.</p>
+<p>The examples use a fit to the Wenchuan earthquake data (17 ordinal PTSD items):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="the-fit-object" class="level2">
+<h2 class="anchored" data-anchor-id="the-fit-object">The fit object</h2>
+<p><a href="../reference/bgm.html"><code>bgm()</code></a> returns a list of class <code>"bgms"</code>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "refit_step_sizes"            "refit_inv_mass"             
+ [3] "posterior_mean_main"         "posterior_mean_pairwise"    
+ [5] "posterior_mean_indicator"    "arguments"                  
+ [7] "raw_samples"                 "posterior_summary_main"     
+ [9] "posterior_summary_pairwise"  "posterior_summary_indicator"
+[11] "cache"                       "nuts_diag"                  
+[13] ".bgm_spec"                  </code></pre>
+</div>
+</div>
+<p>The two primary interfaces are <code>summary()</code> for tabular diagnostics and <code>coef()</code> for posterior means in matrix form. Raw samples are available in <code>fit$raw_samples</code> for custom analyses.</p>
+<p>Some components are present only for particular configurations: <code>fit$inclusion_parameter_samples</code> holds per-chain draws of the shared inclusion probability for continuous models with <code>beta_bernoulli_prior()</code> (see <a href="../guide/ggm.html">Gaussian Graphical Model</a>), and <code>fit$zratio_diag</code> holds the trust-gauge summary for <code>precision_graph_prior = "hierarchical"</code> fits when the gauge is enabled (see <a href="../guide/mcmc-diagnostics.html#sec-trust-gauge">MCMC Diagnostics</a>); both are <code>NULL</code> otherwise.</p>
+</section>
+<section id="sec-posterior-summaries" class="level2">
+<h2 class="anchored" data-anchor-id="sec-posterior-summaries">Posterior summaries</h2>
+<p>Calling <code>summary()</code> prints formatted tables of posterior statistics.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Posterior summaries from Bayesian estimation:
+
+Category thresholds: 
+                 mean  mcse    sd     n_eff  Rhat
+intrusion (2)   0.445 0.002 0.249 12914.547 1.001
+intrusion (3)  -2.075 0.005 0.389  6574.586 1.001
+intrusion (4)  -5.356 0.009 0.657  5515.388 1.001
+intrusion (5) -10.496 0.014 1.040  5784.383 1.001
+dreams (2)     -0.817 0.002 0.212 10813.006 1.000
+dreams (3)     -4.386 0.005 0.416  6887.781 1.000
+... (use `summary(fit)$main` to see full output)
+
+Pairwise interactions:
+                     mean  mcse    sd     n_eff share_incl  Rhat
+intrusion-dreams    0.365 0.000 0.036 22742.840      0.000 1.000
+intrusion-flash     0.173 0.000 0.035 16205.811      0.000 1.000
+intrusion-upset     0.062 0.001 0.052  1751.586      0.928 1.005
+intrusion-physior   0.014 0.001 0.031  3481.262      0.954 1.001
+intrusion-avoidth  -0.001 0.000 0.006 45609.250      0.162 1.000
+intrusion-avoidact  0.000 0.000 0.005 38820.463      0.011 1.000
+... (use `summary(fit)$pairwise` to see full output)
+
+Inclusion probabilities:
+                    mean  mcse    sd     n_eff n_eff_mixt  Rhat n0-&gt;1 n1-&gt;0
+intrusion-dreams   1.000       0.000                                0     0
+intrusion-flash    1.000       0.001                                0     0
+intrusion-upset    0.664 0.013 0.460  1300.913   1534.486 1.005   660   660
+intrusion-physior  0.217 0.008 0.388  2477.845   3478.729 1.001  1090  1090
+intrusion-avoidth  0.034 0.001 0.109 21794.876  24396.171     1  1018  1018
+intrusion-avoidact 0.029 0.001 0.094 23071.446   27374.96     1   913   913
+... (use `summary(fit)$indicator` to see full output)
+Note: NA values are suppressed in the print table; they occur for indicators
+that were not updated or whose draws are constant, so ESS/Rhat are undefined.
+`summary(fit)$indicator` still contains all computed values.
+
+Use `summary(fit)$&lt;component&gt;` to access full results.
+Use `extract_log_odds(fit)` for log odds ratios.
+See the `easybgm` package for other summary and plotting tools.</code></pre>
+</div>
+</div>
+<section id="reading-the-output" class="level3">
+<h3 class="anchored" data-anchor-id="reading-the-output">Reading the output</h3>
+<p>The summary produces a set of tables depending on the model type. Each row is a parameter; each column is a posterior summary statistic. The tables that appear depend on which model was fitted:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 17%">
+<col style="width: 37%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th style="text-align: center;">OMRF</th>
+<th style="text-align: center;">GGM</th>
+<th style="text-align: center;">Mixed MRF</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Category thresholds</td>
+<td style="text-align: center;">yes</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">yes (discrete block)</td>
+</tr>
+<tr class="even">
+<td>Continuous means</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">yes (continuous block)</td>
+</tr>
+<tr class="odd">
+<td>Residual variances</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">yes</td>
+<td style="text-align: center;">yes (continuous block)</td>
+</tr>
+<tr class="even">
+<td>Pairwise interactions</td>
+<td style="text-align: center;">yes</td>
+<td style="text-align: center;">yes</td>
+<td style="text-align: center;">yes</td>
+</tr>
+<tr class="odd">
+<td>Inclusion indicators</td>
+<td style="text-align: center;">if edge selection</td>
+<td style="text-align: center;">if edge selection</td>
+<td style="text-align: center;">if edge selection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Category thresholds</strong> report the posterior estimates of the ordinal threshold parameters. These define the boundary between adjacent response categories on the log-odds scale. Negative values indicate that higher categories are less probable.</p>
+<p><strong>Residual variances</strong> report the posterior estimates of the residual variance <span class="math inline">\(1 / \Theta_{ii}\)</span> for each continuous variable, where <span class="math inline">\(\Theta_{ii}\)</span> is the corresponding diagonal element of the precision matrix (see <a href="../guide/ggm.html">Gaussian Graphical Model</a>). Use <code>extract_precision()</code> to obtain the full precision matrix.</p>
+<p><strong>Pairwise interactions</strong> report the conditional association between each pair of variables, controlling for all others. These are the edge weights in the graphical model. A value of zero means the two variables are conditionally independent. For mixed models, these span three blocks: discrete–discrete, continuous–continuous, and cross-type edges. Use <code>extract_partial_correlations()</code> for standardized partial correlations (continuous variables) and <code>extract_log_odds()</code> for log-odds ratios (discrete variables).</p>
+<p><strong>Inclusion indicators</strong> report the posterior inclusion probability of each edge — estimated, by default, from the Rao-Blackwellized inclusion draws rather than the raw 0/1 indicators, which gives the same quantity with less Monte Carlo noise. An inclusion probability near 1 indicates strong evidence for the edge; near 0 indicates strong evidence against it. Values around 0.5 are inconclusive. The directional transition counts (<code>n0-&gt;1</code>, <code>n1-&gt;0</code>) show how often the edge indicator switched between excluded (0) and included (1) states during sampling, and <code>n_eff_mixt</code> is the transition-based ESS that summarizes them. For edges whose indicator never switched, both the transition ESS and the Rao-Blackwellized precision columns (<code>mcse</code>, <code>n_eff</code>, <code>Rhat</code>) are reported as <code>NA</code>: such a chain carries no exploration information, and a near-constant Rao-Blackwellized chain would otherwise report reassuring-looking numbers. Read <code>n_eff</code> and <code>n_eff_mixt</code> as a pair; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>. <a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a> returns the same two columns for indicators: <code>n_eff</code> by default, and <code>n_eff_mixt</code> with <code>estimator = "mixt"</code>.</p>
+</section>
+<section id="summary-columns" class="level3">
+<h3 class="anchored" data-anchor-id="summary-columns">Summary columns</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>mean</code></td>
+<td>Posterior mean of the parameter. For inclusion indicators, the Rao-Blackwellized inclusion probability.</td>
+</tr>
+<tr class="even">
+<td><code>sd</code></td>
+<td>Posterior standard deviation — the width of the posterior.</td>
+</tr>
+<tr class="odd">
+<td><code>mcse</code></td>
+<td>Monte Carlo standard error — how precisely the posterior mean is estimated. A small MCSE relative to <code>sd</code> indicates sufficient sampling. See <a href="../guide/mcmc-diagnostics.html#sec-mcse">MCMC Diagnostics</a>.</td>
+</tr>
+<tr class="even">
+<td><code>n_eff</code></td>
+<td>Effective sample size — the number of independent draws the chain is equivalent to. Values below 100 warrant longer runs. See <a href="../guide/mcmc-diagnostics.html#sec-ess">MCMC Diagnostics</a>.</td>
+</tr>
+<tr class="odd">
+<td><code>share_incl</code></td>
+<td>Tables of parameters under selection only (<code>pairwise</code> for <a href="../reference/bgm.html"><code>bgm()</code></a>; <code>main_diff</code> and <code>pairwise_diff</code> for <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>). The share of the squared Monte Carlo error of the model-averaged parameter that comes from inclusion uncertainty rather than from the slab. Values near 1 mean the bottleneck is how well the chain resolved whether the parameter is in; values near 0 mean it is how well the chain resolved the effect size given inclusion.</td>
+</tr>
+<tr class="even">
+<td><code>n_eff_mixt</code></td>
+<td>Inclusion table only. Transition-based ESS for the binary edge indicator, accounting for the spike-and-slab structure. See <a href="../guide/mcmc-diagnostics.html#sec-mixture-ess">MCMC Diagnostics</a>.</td>
+</tr>
+<tr class="odd">
+<td><code>n0-&gt;1</code>, <code>n1-&gt;0</code></td>
+<td>Inclusion table only. Directional counts of indicator transitions.</td>
+</tr>
+<tr class="even">
+<td><code>Rhat</code></td>
+<td>Split <span class="math inline">\(\hat{R}\)</span> convergence diagnostic. Values above 1.01 suggest the chains have not mixed. See <a href="../guide/mcmc-diagnostics.html#sec-rhat">MCMC Diagnostics</a>.</td>
+</tr>
+</tbody>
+</table>
+<p>In the pairwise table for an edge-selected fit, <code>mcse</code> and <code>n_eff</code> are the composite quantities for the model-averaged edge weight: the weight mixes an exact zero with a slab value, so its Monte Carlo error combines an inclusion part and a slab part, and <code>n_eff</code> is the posterior variance divided by that composite squared error rather than a raw-chain ESS.</p>
+</section>
+<section id="accessing-specific-tables" class="level3">
+<h3 class="anchored" data-anchor-id="accessing-specific-tables">Accessing specific tables</h3>
+<p>The printed output is truncated. Access the full tables with:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">summary</span>(fit)<span class="sc">$</span>main, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    mean        mcse        sd     n_eff     Rhat
+intrusion (2)   0.445055 0.002193020 0.2492196 12914.547 1.000703
+intrusion (3)  -2.075041 0.004798629 0.3890912  6574.586 1.001161
+intrusion (4)  -5.355877 0.008844756 0.6568616  5515.388 1.001341
+intrusion (5) -10.495999 0.013679767 1.0404165  5784.383 1.001245</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">summary</span>(fit)<span class="sc">$</span>pairwise, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                       mean         mcse         sd     n_eff   share_incl
+intrusion-dreams  0.3650231 0.0002396670 0.03614354 22742.840 0.0000000000
+intrusion-flash   0.1728686 0.0002716568 0.03458247 16205.811 0.0000059129
+intrusion-upset   0.0622019 0.0012409248 0.05193513  1751.586 0.9280684631
+intrusion-physior 0.0142129 0.0005211289 0.03074776  3481.262 0.9540341477
+                      Rhat
+intrusion-dreams  1.000122
+intrusion-flash   1.000367
+intrusion-upset   1.005312
+intrusion-physior 1.001205</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">summary</span>(fit)<span class="sc">$</span>indicator, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                       mean        mcse           sd    n_eff n_eff_mixt
+intrusion-dreams  1.0000000          NA 0.0000000000       NA         NA
+intrusion-flash   0.9999945          NA 0.0007590734       NA         NA
+intrusion-upset   0.6639782 0.012748955 0.4598314371 1300.913   1534.486
+intrusion-physior 0.2168572 0.007796554 0.3880965207 2477.845   3478.729
+                      Rhat n0-&gt;1 n1-&gt;0
+intrusion-dreams        NA     0     0
+intrusion-flash         NA     0     0
+intrusion-upset   1.005265   660   660
+intrusion-physior 1.001313  1090  1090</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="posterior-mean-matrices" class="level2">
+<h2 class="anchored" data-anchor-id="posterior-mean-matrices">Posterior mean matrices</h2>
+<p>The <code>coef()</code> method returns posterior means in matrix form — convenient for network visualization and downstream analysis.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">coef</span>(fit), <span class="at">max.level =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 3
+ $ main     : num [1:17, 1:4] 0.4451 -0.8171 -0.3825 0.0581 -0.7021 ...
+  ..- attr(*, "dimnames")=List of 2
+ $ pairwise : num [1:17, 1:17] 0 0.365 0.1729 0.0622 0.0142 ...
+  ..- attr(*, "dimnames")=List of 2
+ $ indicator: num [1:17, 1:17] 0 1 1 0.664 0.217 ...
+  ..- attr(*, "dimnames")=List of 2</code></pre>
+</div>
+</div>
+<p><code>coef(fit)$pairwise</code> is a symmetric <span class="math inline">\(p \times p\)</span> matrix of posterior mean partial associations (zero diagonal). For interpretable scales, use <code>extract_precision()</code>, <code>extract_partial_correlations()</code>, or <code>extract_log_odds()</code>. <code>coef(fit)$indicator</code> is a symmetric <span class="math inline">\(p \times p\)</span> matrix of posterior inclusion probabilities.</p>
+<p>For ordinal models, <code>coef(fit)$main</code> is a matrix with variables in rows and category thresholds in columns:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)<span class="sc">$</span>main[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>              cat (1)   cat (2)   cat (3)   cat (4)
+intrusion  0.44505501 -2.075041 -5.355877 -10.49600
+dreams    -0.81713088 -4.385541 -8.219662 -13.32032
+flash     -0.38247032 -3.293423 -6.740123 -11.90147
+upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
+</div>
+</div>
+</section>
+<section id="raw-mcmc-samples" class="level2">
+<h2 class="anchored" data-anchor-id="raw-mcmc-samples">Raw MCMC samples</h2>
+<p>For custom analyses — posterior intervals, density plots, or derived quantities — the raw posterior draws are stored in <code>fit$raw_samples</code>:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(fit<span class="sc">$</span>raw_samples, <span class="at">max.level =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 9
+ $ main           :List of 4
+ $ pairwise       :List of 4
+ $ indicator      :List of 4
+ $ rb_inclusion   :List of 4
+ $ rb_counts      :List of 4
+ $ allocations    : NULL
+ $ nchains        : int 4
+ $ niter          : int 10000
+ $ parameter_names:List of 4</code></pre>
+</div>
+</div>
+<p>Each element is a list of matrices, one per chain, with rows = iterations and columns = parameters. The chains are stored separately to allow per-chain diagnostics.</p>
+<p>With edge selection, <code>fit$raw_samples$rb_inclusion</code> additionally holds the Rao-Blackwellized inclusion draws: for each edge and iteration, the conditional probability that the edge ends the sweep included, given the rest of the state. Averaging these gives a lower-variance estimate of the inclusion probability than averaging the binary indicators — it is the default estimator behind <code>summary()</code> and <a href="../reference/extractors.html#extract_posterior_inclusion_probabilities"><code>extract_posterior_inclusion_probabilities()</code></a>.</p>
+<section id="example-posterior-density-for-an-edge" class="level3">
+<h3 class="anchored" data-anchor-id="example-posterior-density-for-an-edge">Example: posterior density for an edge</h3>
+<p>To extract the posterior samples for the intrusion–dreams interaction and compute a 95% credible interval:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine chains for one parameter</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>edge <span class="ot">=</span> <span class="st">"intrusion-dreams"</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>col_idx <span class="ot">=</span> <span class="fu">which</span>(fit<span class="sc">$</span>raw_samples<span class="sc">$</span>parameter_names<span class="sc">$</span>pairwise <span class="sc">==</span> edge)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>samples <span class="ot">=</span> <span class="fu">unlist</span>(<span class="fu">lapply</span>(fit<span class="sc">$</span>raw_samples<span class="sc">$</span>pairwise, <span class="cf">function</span>(ch) ch[, col_idx]))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Posterior mean:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(samples), <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Posterior mean: 0.365 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"95% CI: ["</span>, <span class="fu">round</span>(<span class="fu">quantile</span>(samples, <span class="fl">0.025</span>), <span class="dv">3</span>), <span class="st">","</span>,</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">round</span>(<span class="fu">quantile</span>(samples, <span class="fl">0.975</span>), <span class="dv">3</span>), <span class="st">"]</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>95% CI: [ 0.295 , 0.437 ]</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">4</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(samples), <span class="at">main =</span> <span class="st">""</span>, <span class="at">xlab =</span> <span class="st">"intrusion-dreams"</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Density"</span>, <span class="at">bty =</span> <span class="st">"L"</span>, <span class="at">lwd =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"#2166AC"</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">0</span>, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"grey50"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="mcmc-output_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="480"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="extracting-specific-results" class="level2">
+<h2 class="anchored" data-anchor-id="extracting-specific-results">Extracting specific results</h2>
+<p>The <code>extract_*()</code> family of functions provides targeted access to model components. These are documented in the <a href="../reference/extractors.html">Extractor Functions</a> reference. The most commonly used are:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>extract_pairwise_interactions()</code></td>
+<td>Raw partial association samples</td>
+</tr>
+<tr class="even">
+<td><code>extract_main_effects()</code></td>
+<td>Raw main effect samples</td>
+</tr>
+<tr class="odd">
+<td><code>extract_indicators()</code></td>
+<td>Raw indicator samples</td>
+</tr>
+<tr class="even">
+<td><code>extract_posterior_inclusion_probabilities()</code></td>
+<td>Posterior inclusion probabilities</td>
+</tr>
+<tr class="odd">
+<td><code>extract_prior_inclusion_probabilities()</code></td>
+<td>Effective prior inclusion probabilities — the denominators for inclusion Bayes factors on continuous data (see <a href="../guide/edge-selection.html#sec-bf-continuous">Edge Selection</a>)</td>
+</tr>
+<tr class="even">
+<td><code>extract_inclusion_bf()</code></td>
+<td>Inclusion Bayes factors, computed from Rao-Blackwellized odds accumulators; finite even for edges whose inclusion probability saturates at 0 or 1. <code>log = TRUE</code> returns their natural logarithms</td>
+</tr>
+<tr class="odd">
+<td><code>extract_precision()</code></td>
+<td>Posterior mean precision matrix (GGM / continuous block)</td>
+</tr>
+<tr class="even">
+<td><code>extract_partial_correlations()</code></td>
+<td>Posterior mean partial correlation matrix (GGM / continuous block)</td>
+</tr>
+<tr class="odd">
+<td><code>extract_log_odds()</code></td>
+<td>Posterior mean log-odds matrix (ordinal / discrete block)</td>
+</tr>
+<tr class="even">
+<td><code>extract_ess()</code></td>
+<td>Effective sample sizes. For edge indicators the Rao-Blackwellized ESS by default; <code>estimator = "mixt"</code> returns the transition ESS</td>
+</tr>
+<tr class="odd">
+<td><code>extract_rhat()</code></td>
+<td>Split <span class="math inline">\(\hat{R}\)</span> values</td>
+</tr>
+<tr class="even">
+<td><code>extract_sbm()</code></td>
+<td>SBM cluster assignments and co-clustering matrix (when <code>edge_prior = sbm_prior(...)</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>extract_arguments()</code></td>
+<td>Arguments used when fitting the model</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="nuts-diagnostics" class="level2">
+<h2 class="anchored" data-anchor-id="nuts-diagnostics">NUTS diagnostics</h2>
+<p>When <code>update_method = "nuts"</code> (the default), additional diagnostics are stored in <code>fit$nuts_diag</code>:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(fit<span class="sc">$</span>nuts_diag, <span class="at">max.level =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 8
+ $ treedepth   : int [1:4, 1:10000] 6 5 5 6 6 5 5 7 5 5 ...
+ $ divergent   : int [1:4, 1:10000] 0 0 0 0 0 0 0 0 0 0 ...
+ $ energy      : num [1:4, 1:10000] 6621 6615 6611 6610 6614 ...
+ $ accept_prob : num [1:4, 1:10000] 0.857 0.625 0.963 0.959 0.903 ...
+ $ ebfmi       : num [1:4] 0.895 0.907 0.89 0.932
+ $ warmup_check:List of 6
+ $ has_issues  : logi TRUE
+ $ summary     :List of 5</code></pre>
+</div>
+</div>
+<p>The <code>summary</code> field aggregates the headline numbers — total divergences, maximum-tree-depth hits, the minimum E-BFMI across chains, the mean acceptance probability, and whether any chain’s warmup looked incomplete. The per-iteration detail behind them is stored alongside: tree depths, divergence flags, energies, and acceptance probabilities (<code>fit$nuts_diag$accept_prob</code>), plus the per-chain <code>warmup_check</code> diagnostics. The <code>has_issues</code> flag is <code>TRUE</code> when any check raised a concern. These are described in detail in <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>. If these diagnostics remain problematic after tuning, refit with <code>update_method = "adaptive-metropolis"</code>.</p>
+</section>
+<section id="output-from-bgmcompare" class="level2">
+<h2 class="anchored" data-anchor-id="output-from-bgmcompare">Output from <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a></h2>
+<p><a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> returns a list of class <code>"bgmCompare"</code> with the same structure as <a href="../reference/bgm.html"><code>bgm()</code></a>, plus additional components for group differences. The examples use the ADHD data (18 binary items, two groups):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fit_compare <span class="ot">=</span> <span class="fu">bgmCompare</span>(</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> ADHD[, <span class="sc">-</span><span class="dv">1</span>],</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_indicator =</span> ADHD<span class="sc">$</span>group,</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_compare)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Posterior summaries from Bayesian grouped MRF estimation (bgmCompare):
+
+Category thresholds:
+     parameter   mean  mcse    sd     n_eff Rhat
+1    avoid (1) -3.240 0.006 0.594  9247.354    1
+2 closeatt (1) -2.731 0.004 0.525 13657.273    1
+3 distract (1) -2.228 0.005 0.506  9072.175    1
+4   forget (1) -2.140 0.005 0.500  9326.339    1
+5 instruct (1) -3.324 0.006 0.610  9092.346    1
+6   listen (1) -1.287 0.007 0.619  7208.479    1
+... (use `summary(fit)$main` to see full output)
+
+Pairwise interactions:
+       parameter   mean  mcse    sd     n_eff Rhat
+1 avoid-closeatt  0.908 0.007 0.493  5582.690    1
+2 avoid-distract  1.798 0.003 0.396 15318.080    1
+3   avoid-forget  0.596 0.005 0.395  7685.541    1
+4 avoid-instruct  0.902 0.005 0.505  8544.622    1
+5   avoid-listen -0.139 0.004 0.448 12282.787    1
+6    avoid-loses  0.177 0.003 0.364 14350.026    1
+... (use `summary(fit)$pairwise` to see full output)
+
+Inclusion probabilities:
+                 parameter  mean  mcse    sd    n_eff n_eff_mixt  Rhat n0-&gt;1
+              avoid (main)                                                 0
+ avoid-closeatt (pairwise) 0.765 0.007 0.376 2641.238   2584.413     1   700
+ avoid-distract (pairwise) 0.381 0.005 0.393 7156.609   6855.068     1  1739
+   avoid-forget (pairwise) 0.775 0.007 0.368  2673.71   2683.212     1   698
+ avoid-instruct (pairwise) 0.948 0.004 0.195 2538.859   2414.362 1.003   187
+   avoid-listen (pairwise) 0.648 0.007 0.417 3972.026   3363.932 1.001  1076
+ n1-&gt;0
+     0
+   701
+  1740
+   699
+   187
+  1075
+... (use `summary(fit)$indicator` to see full output)
+Note: NA values are suppressed in the print table; they occur for indicators
+that were not updated or whose draws are constant, so ESS/Rhat are undefined.
+`summary(fit)$indicator` still contains all computed values.
+
+Group differences (main effects):
+           parameter  mean  mcse    sd    n_eff share_incl  Rhat
+    avoid (diff1; 1) 1.863 0.014 1.171 6813.981          0 1.000
+ closeatt (diff1; 1) 2.572 0.011 1.026 9153.441          0 1.000
+ distract (diff1; 1) 0.639 0.011 0.911 7029.409          0 1.000
+   forget (diff1; 1) 2.304 0.011 0.943 6836.639          0 1.001
+ instruct (diff1; 1) 1.737 0.015 1.206 6353.165          0 1.000
+   listen (diff1; 1) 3.921 0.018 1.276 5139.512          0 1.001
+... (use `summary(fit)$main_diff` to see full output)
+
+Group differences (pairwise effects):
+              parameter   mean  mcse    sd     n_eff share_incl Rhat
+ avoid-closeatt (diff1) -1.234 0.014 1.064  5713.631      0.702    1
+ avoid-distract (diff1) -0.198 0.004 0.472 11102.975      0.294    1
+   avoid-forget (diff1) -1.094 0.012 0.895  5769.045      0.725    1
+ avoid-instruct (diff1)  2.307 0.014 1.172  7220.920      0.465    1
+   avoid-listen (diff1)  0.869 0.012 1.002  7533.176      0.584    1
+    avoid-loses (diff1) -0.277 0.005 0.553 11151.235      0.379    1
+... (use `summary(fit)$pairwise_diff` to see full output)
+
+Use `summary(fit)$&lt;component&gt;` to access full results.
+See the `easybgm` package for other summary and plotting tools.</code></pre>
+</div>
+</div>
+<p>The summary includes two additional tables beyond what <a href="../reference/bgm.html"><code>bgm()</code></a> produces:</p>
+<ul>
+<li><p><strong>Group differences (main effects)</strong> — posterior estimates of how category thresholds differ between the two groups. Large positive or negative values indicate that a symptom’s baseline severity differs across groups.</p></li>
+<li><p><strong>Group differences (pairwise effects)</strong> — posterior estimates of how edge weights differ between the two groups. These quantify whether the conditional association between two symptoms is stronger or weaker in one group relative to the other.</p></li>
+</ul>
+<p>When <code>difference_selection = TRUE</code> (the default), the inclusion indicators for these difference parameters are reported alongside the common-structure indicators. An inclusion probability near 1 for a difference parameter indicates strong evidence that the groups differ on that effect.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script type="text/javascript">
+
+// replace cmd keyboard shortcut w/ control on non-Mac platforms
+const kPlatformMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false;
+if (!kPlatformMac) {
+   var kbds = document.querySelectorAll("kbd")
+   kbds.forEach(function(kbd) {
+      kbd.innerHTML = kbd.innerHTML.replace(/⌘/g, '⌃');
+   });
+}
+
+// tweak headings in pymd
+document.querySelectorAll(".pymd span.co").forEach(el => {
+   if (!el.innerText.startsWith("#|")) {
+      el.style.fontWeight = 1000;
+   }
+});
+
+// citation format picker on landing page
+document.querySelectorAll("[data-cite-picker]").forEach(picker => {
+   const tabs = picker.querySelectorAll("[data-citation-tab]");
+   const panels = picker.querySelectorAll("[data-citation-panel]");
+
+   const setActive = (format) => {
+      tabs.forEach(tab => {
+         const isActive = tab.dataset.citationTab === format;
+         tab.classList.toggle("is-active", isActive);
+         tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      panels.forEach(panel => {
+         const isActive = panel.dataset.citationPanel === format;
+         panel.classList.toggle("is-active", isActive);
+         if (isActive) {
+            panel.removeAttribute("hidden");
+         } else {
+            panel.setAttribute("hidden", "hidden");
+         }
+      });
+   };
+
+   tabs.forEach(tab => {
+      tab.addEventListener("click", () => setActive(tab.dataset.citationTab));
+   });
+});
+
+// development-build banner: dismissable, and remembered once dismissed
+(function () {
+   const banner = document.getElementById("bgms-dev-banner");
+   if (!banner) return;
+
+   const store = (() => {
+      try { return window.localStorage; } catch (e) { return null; }
+   })();
+   const KEY = "bgms-dev-banner-dismissed";
+
+   const hide = () => {
+      banner.remove();
+      document.body.classList.remove("bgms-dev-build");
+      document.documentElement.style.removeProperty("--bgms-dev-banner-height");
+   };
+
+   if (store && store.getItem(KEY) === "1") {
+      hide();
+      return;
+   }
+
+   // The banner sits above the fixed navbar, so its real height has to reach
+   // the CSS that pushes the navbar and the page down.
+   const setHeight = () => {
+      document.documentElement.style.setProperty(
+         "--bgms-dev-banner-height", banner.offsetHeight + "px");
+   };
+   setHeight();
+   window.addEventListener("resize", setHeight);
+
+   banner.querySelector(".bgms-dev-banner-dismiss").addEventListener("click", () => {
+      hide();
+      if (store) { try { store.setItem(KEY, "1"); } catch (e) { /* private mode */ } }
+   });
+})();
+
+// version switcher: a navbar dropdown built from versions.json at the site
+// root. Missing or unreadable file (a local preview, say) means no dropdown.
+(function () {
+   const offset = document.querySelector('meta[name="quarto:offset"]');
+   const navbar = document.querySelector("#quarto-header .navbar-nav.ms-auto");
+   if (!offset || !navbar) return;
+
+   // Where this build's own root is: /bgms/, /bgms/dev/, /bgms/v0.2.0.0/, ...
+   const buildBase = new URL(offset.content, window.location.href).pathname;
+   const parentOf = (path) => path.replace(/[^/]+\/$/, "");
+
+   const readJson = async (url) => {
+      try {
+         const response = await fetch(url, { cache: "no-cache" });
+         if (!response.ok) return null;
+         return await response.json();
+      } catch (e) {
+         return null;
+      }
+   };
+
+   const exists = async (url) => {
+      try {
+         const response = await fetch(url, { method: "HEAD" });
+         return response.ok;
+      } catch (e) {
+         return false;
+      }
+   };
+
+   const render = (siteRoot, entries, current) => {
+      const pagePath = window.location.pathname.slice(buildBase.length);
+
+      const item = document.createElement("li");
+      item.className = "nav-item dropdown bgms-version-switcher";
+
+      const toggle = document.createElement("a");
+      toggle.className = "nav-link dropdown-toggle";
+      toggle.setAttribute("role", "button");
+      toggle.setAttribute("href", "#");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-haspopup", "true");
+      toggle.title = "Documentation version";
+      toggle.innerHTML = '<span class="menu-text"></span>';
+      toggle.querySelector(".menu-text").textContent = current.version;
+
+      const menu = document.createElement("ul");
+      menu.className = "dropdown-menu dropdown-menu-end";
+
+      entries.forEach(entry => {
+         const li = document.createElement("li");
+         const link = document.createElement("a");
+         link.className = "dropdown-item" + (entry === current ? " active" : "");
+         link.href = siteRoot + entry.dir;
+         link.innerHTML = '<span></span><span class="bgms-version-kind"></span>';
+         link.children[0].textContent = entry.version;
+         link.children[1].textContent = entry.kind === "release" ? "release" : "";
+         if (entry === current) link.setAttribute("aria-current", "true");
+
+         // Keep the reader on the same page across versions when that version
+         // has it, and send them to its homepage when it does not.
+         link.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const home = siteRoot + entry.dir;
+            if (!pagePath) { window.location.href = home; return; }
+            const target = siteRoot + entry.dir + pagePath;
+            window.location.href =
+               (await exists(target)) ? target + window.location.hash : home;
+         });
+
+         li.appendChild(link);
+         menu.appendChild(li);
+      });
+
+      const close = () => {
+         menu.classList.remove("show");
+         toggle.setAttribute("aria-expanded", "false");
+      };
+      toggle.addEventListener("click", (event) => {
+         event.preventDefault();
+         const open = menu.classList.toggle("show");
+         toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      document.addEventListener("click", (event) => {
+         if (!item.contains(event.target)) close();
+      });
+      document.addEventListener("keydown", (event) => {
+         if (event.key === "Escape") close();
+      });
+
+      item.appendChild(toggle);
+      item.appendChild(menu);
+      navbar.insertBefore(item, navbar.firstChild);
+   };
+
+   (async function () {
+      // The index lives at the site root. A build one directory down, such as
+      // /dev/, finds it one level up.
+      let base = buildBase;
+      let index = await readJson(base + "versions.json");
+      if (!index) {
+         const up = parentOf(buildBase);
+         if (!up || up === buildBase) return;
+         base = up;
+         index = await readJson(base + "versions.json");
+      }
+      if (!index || typeof index.root !== "string" ||
+          !Array.isArray(index.versions)) return;
+
+      // The file names the root it belongs to. An archived build carries a
+      // frozen copy of it, so prefer the live one when this is not it.
+      let siteRoot = base;
+      if (index.root !== base && buildBase.startsWith(index.root)) {
+         siteRoot = index.root;
+         const live = await readJson(siteRoot + "versions.json");
+         if (live && Array.isArray(live.versions)) index = live;
+      }
+
+      const entries = index.versions
+         .filter(entry => typeof entry.path === "string" &&
+                          entry.path.startsWith(index.root))
+         .map(entry => ({
+            version: entry.version,
+            kind: entry.kind,
+            dir: entry.path.slice(index.root.length)
+         }));
+      if (entries.length === 0) return;
+
+      const current = entries.find(
+         entry => entry.dir === buildBase.slice(siteRoot.length));
+      if (!current) return;
+
+      render(siteRoot, entries, current);
+   })();
+})();
+
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/bayesian-graphical-modelling-lab\.github\.io\/bgms");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../guide/missing-data.html" class="pagination-link" aria-label="Missing Data">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Missing Data</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../guide/mcmc-diagnostics.html" class="pagination-link" aria-label="MCMC Diagnostics">
+        <span class="nav-page-text">MCMC Diagnostics</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Developed by the <a href="https://bayesiangraphicalmodeling.com">BGM Lab</a></p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org">Quarto</a></p>
+<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/guide/mcmc-output.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms">
+      <i class="bi bi-github" role="img" aria-label="bgms GitHub">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

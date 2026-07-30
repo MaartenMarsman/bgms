@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Fast Computation – bgms</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../manual/parameter-priors.html" rel="next">
+<link href="../manual/pseudolikelihood.html" rel="prev">
+<link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-eaeb381c6b7494c50009502241a4985c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-27e333d33e6914644635f1f90f79dd55.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": true,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+<meta name="robots" content="noindex"><link rel="canonical" href="https://bayesian-graphical-modelling-lab.github.io/bgms/manual/variable-helpers.html"></head>
+
+<body class="bgms-dev-build nav-sidebar floating nav-fixed fullcontent quarto-light"><div class="bgms-dev-banner" id="bgms-dev-banner" role="note"><span class="bgms-dev-banner-text">Development version of the bgms documentation. The latest release is at <a href="https://bayesian-graphical-modelling-lab.github.io/bgms/">bayesian-graphical-modelling-lab.github.io/bgms/</a>.</span><button type="button" class="bgms-dev-banner-dismiss" aria-label="Dismiss this notice">&times;</button></div><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo light-content">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../guide/getting-started.html"> 
+<span class="menu-text">Get Started</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../examples/index.html"> 
+<span class="menu-text">Examples</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../guide/index.html"> 
+<span class="menu-text">Guide</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="../manual/index.html" aria-current="page"> 
+<span class="menu-text">Manual</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../news.html"> 
+<span class="menu-text">News</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://cran.r-project.org/package=bgms"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 724 561" width="16" height="12" class="navbar-icon"><path d="M361.453 485.937C162.329 485.937 .906 377.828.906 244.469.906 111.109 162.329 3 361.453 3 560.578 3 722 111.109 722 244.469 722 377.828 560.578 485.937 361.453 485.937ZM416.641 97.406C265.289 97.406 142.594 171.314 142.594 262.484 142.594 353.654 265.289 427.562 416.641 427.562 567.992 427.562 679.687 377.033 679.687 262.484 679.687 147.971 567.992 97.406 416.641 97.406Z" fill="currentColor" fill-rule="evenodd" opacity=".5"></path><path d="M550 377C550 377 571.822 383.585 584.5 390 588.899 392.226 596.51 396.668 602 402.5 607.378 408.212 610 414 610 414L696 559 557 559.062 492 437C492 437 478.69 414.131 470.5 407.5 463.668 401.969 460.755 400 454 400 449.298 400 420.974 400 420.974 400L421 558.974 298 559.026 298 152.938 545 152.938C545 152.938 657.5 154.967 657.5 262 657.5 369.033 550 377 550 377ZM496.5 241.024 422.037 240.976 422 310.026 496.5 310.002C496.5 310.002 531 309.895 531 274.877 531 239.155 496.5 241.024 496.5 241.024Z" fill="currentColor" fill-rule="evenodd"></path></svg></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://bayesiangraphicalmodeling.com"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 733 421" width="28" height="16" class="navbar-icon"><g transform="translate(-371 -252)"><path d="M552.255 351.119C549.247 318.97 572.871 290.47 605.019 287.463 637.168 284.455 665.668 308.079 668.675 340.228 671.683 372.376 648.059 400.876 615.911 403.884 583.762 406.891 555.262 383.268 552.255 351.119Z" fill="currentColor" opacity=".7"></path><path d="M656.924 572.359C653.917 540.21 677.54 511.71 709.689 508.703 741.838 505.695 770.337 529.319 773.345 561.468 776.353 593.616 752.729 622.116 720.58 625.124 688.432 628.131 659.932 604.508 656.924 572.359Z" fill="currentColor" opacity=".7"></path><path d="M375.073 481.287C372.066 449.138 395.689 420.638 427.838 417.631 459.987 414.623 488.487 438.247 491.494 470.395 494.502 502.544 470.878 531.044 438.729 534.051 406.581 537.059 378.081 513.435 375.073 481.287Z" fill="currentColor" opacity=".7"></path><path d="M0 0 188.535 116.929" stroke="currentColor" stroke-width="22.917" fill="none" transform="matrix(.996 -.093 -.093 -.996 433.284 475.841)"></path><path d="M431.089 476.046 715.135 566.913" stroke="currentColor" stroke-width="22.917" fill="none"></path><path d="M609 408.5C609 324.277 677.277 256 761.5 256 845.723 256 914 324.277 914 408.5 914 492.723 845.723 561 761.5 561 677.277 561 609 492.723 609 408.5ZM632.275 408.5C632.275 479.869 690.131 537.725 761.5 537.725 832.869 537.725 890.725 479.869 890.725 408.5 890.725 337.131 832.869 279.275 761.5 279.275 690.131 279.275 632.275 337.131 632.275 408.5Z" fill="currentColor" fill-rule="evenodd"></path><path d="M891.5 503.5 1073.91 642.661" stroke="currentColor" stroke-width="52.708" stroke-linecap="round" fill="none"></path><path d="M729.57 323.186C748.221 295.051 788.999 289.252 820.652 310.234 852.304 331.216 862.844 371.034 844.193 399.169 839.104 355.297 797.981 319.829 752.34 319.948 744.51 319.969 736.843 321.059 729.57 323.186Z" fill="currentColor" opacity=".4"></path></g></svg></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms" title="bgms GitHub" class="quarto-navigation-tool px-1" aria-label="bgms GitHub"><i class="bi bi-github"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/ggm-internals.html">Model Internals</a></li><li class="breadcrumb-item"><a href="../manual/pseudolikelihood.html">Supporting Pages</a></li><li class="breadcrumb-item"><a href="../manual/variable-helpers.html">Fast Computation</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Technical Manual</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Architecture</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">C++ Architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/r-scaffolding.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">R Scaffolding</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/model-classes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Model Classes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/parallel-chains.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parallel Chains</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">MCMC Algorithms</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Adaptive Metropolis</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/nuts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">NUTS Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Constrained Cholesky Parameterization</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Sampler Infrastructure</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/samplers.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sampler Hierarchy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/warmup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Warmup Schedule</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/diagnostics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Convergence Diagnostics</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Model Internals</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/ggm-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GGM</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/omrf-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OMRF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/mixed-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mixed MRF</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Supporting Pages</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/pseudolikelihood.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pseudolikelihood</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/variable-helpers.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Fast Computation</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">Priors</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/parameter-priors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parameter Priors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/edge-priors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Edge Priors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sbm-prior.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Stochastic Block Model Prior</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/bgmcompare-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">bgmCompare Internals</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/numerical.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OpenLibM Integration</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/ggm-internals.html">Model Internals</a></li><li class="breadcrumb-item"><a href="../manual/pseudolikelihood.html">Supporting Pages</a></li><li class="breadcrumb-item"><a href="../manual/variable-helpers.html">Fast Computation</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Fast Computation</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Numerically stable computation of MRF category denominators and probabilities. Source: <code>src/utils/variable_helpers.h</code> and <code>variable_helpers.cpp</code>.</p>
+<section id="the-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
+<p>MRF conditional probabilities involve exponentials of residual scores. Computing <code>exp()</code> for every person–category combination is expensive and dominates the cost of pseudolikelihood evaluation. The variable helpers reformulate the normalizing constants as a recursion that avoids per-category <code>exp()</code> calls (the FAST path). When the recursion’s intermediate values would overflow or underflow, a SAFE path falls back to explicit <code>exp()</code> calls with log-sum-exp stabilization.</p>
+</section>
+<section id="the-fastsafe-dual-path-strategy" class="level2">
+<h2 class="anchored" data-anchor-id="the-fastsafe-dual-path-strategy">The FAST/SAFE dual-path strategy</h2>
+<p>Every denominator and probability function in <code>variable_helpers.cpp</code> uses a two-path approach:</p>
+<ol type="1">
+<li><strong>FAST path</strong> — A recursive power-chain accumulation that precomputes a small number of exponentials and builds the normalizing constant without per-category <code>exp()</code> calls.</li>
+<li><strong>SAFE path</strong> — Explicit per-category <code>exp()</code> evaluation with log-sum-exp stabilization, used as a fallback when the FAST path’s intermediate values would overflow or underflow.</li>
+</ol>
+<p>The choice is made per-person (per row of the data matrix) based on whether the residual score times the maximum category exceeds the <code>EXP_BOUND</code> threshold.</p>
+<section id="fast-path-detail" class="level3">
+<h3 class="anchored" data-anchor-id="fast-path-detail">FAST path detail</h3>
+<p>For an ordinal variable with categories <span class="math inline">\(0, 1, \ldots, K\)</span> and residual <span class="math inline">\(r\)</span>:</p>
+<p>Let <span class="math inline">\(B = \max(0,\, K \cdot r)\)</span> denote the per-person stabilization bound — the largest exponent the accumulation can reach, clamped at zero so the shift never amplifies a negative residual (see <a href="#the-exp_bound-709-threshold">the EXP_BOUND section</a> for how it gates the FAST path). Then:</p>
+<ol type="1">
+<li>Precompute <span class="math inline">\(e_r = \exp(r)\)</span>, <span class="math inline">\(e_B = \exp(-B)\)</span>, and <span class="math inline">\(e_\mu(c) = \exp(\mu(c))\)</span> for each category (once per variable)</li>
+<li>Accumulate the denominator with a running power <span class="math inline">\(P\)</span>:</li>
+</ol>
+<p><span class="math display">\[
+\begin{aligned}
+P &amp;\leftarrow e_r \\
+D &amp;\leftarrow e_B \\
+\text{for } c &amp;= 1, \ldots, K: \\
+  D &amp;\leftarrow D + e_\mu(c) \cdot P \cdot e_B \\
+  P &amp;\leftarrow P \cdot e_r
+\end{aligned}
+\]</span></p>
+<p>Only two per-person <code>exp()</code> calls are needed (<span class="math inline">\(e_r\)</span> and <span class="math inline">\(e_B\)</span>), plus <span class="math inline">\(K\)</span> for the main effects. The running product <span class="math inline">\(P = e_r^{\,c}\)</span> replaces the <span class="math inline">\(K\)</span> per-category <code>exp()</code> calls that a naive implementation would require.</p>
+</section>
+<section id="safe-path-detail" class="level3">
+<h3 class="anchored" data-anchor-id="safe-path-detail">SAFE path detail</h3>
+<p>When the FAST path would overflow or underflow, the exponents are shifted before exponentiating — the log-sum-exp technique. The shift differs by variable type:</p>
+<ul>
+<li><strong>Ordinal</strong>: the category exponents <span class="math inline">\(s_c = \mu(c) + c \cdot r\)</span> are shifted by the precomputed bound <span class="math inline">\(B = \max(0,\, K \cdot r)\)</span>: <span class="math inline">\(D = \exp(B) \sum_c \exp(s_c - B)\)</span>.</li>
+<li><strong>Blume-Capel</strong>: the shift is the per-person maximum category score, <span class="math inline">\(s_{\max} = \max_c s_c\)</span>, the classic log-sum-exp form: <span class="math inline">\(D = \exp(s_{\max}) \sum_c \exp(s_c - s_{\max})\)</span>.</li>
+</ul>
+</section>
+<section id="block-scanning" class="level3">
+<h3 class="anchored" data-anchor-id="block-scanning">Block scanning</h3>
+<p>The functions process persons in contiguous blocks. Within each block, all persons follow the same path (FAST or SAFE). The block boundaries are determined by scanning the residual vector for bound violations. This enables branch-free vectorization within each block.</p>
+</section>
+</section>
+<section id="ordinal-variables" class="level2">
+<h2 class="anchored" data-anchor-id="ordinal-variables">Ordinal variables</h2>
+<section id="compute_denom_ordinal" class="level3">
+<h3 class="anchored" data-anchor-id="compute_denom_ordinal"><code>compute_denom_ordinal()</code></h3>
+<p>Computes the normalization constant (denominator) for each person’s conditional distribution. Takes the residual vector, main-effect vector, and precomputed bound vector. Returns a vector of length <span class="math inline">\(n\)</span>.</p>
+</section>
+<section id="compute_probs_ordinal" class="level3">
+<h3 class="anchored" data-anchor-id="compute_probs_ordinal"><code>compute_probs_ordinal()</code></h3>
+<p>Computes the full category probability matrix (<span class="math inline">\(n \times (K+1)\)</span>) for one ordinal variable, where column 0 is category 0 and columns 1 through <span class="math inline">\(K\)</span> are categories 1 through <span class="math inline">\(K\)</span>. Probabilities are clamped at zero to prevent negative values from floating-point error in the normalization step.</p>
+</section>
+</section>
+<section id="blume-capel-variables" class="level2">
+<h2 class="anchored" data-anchor-id="blume-capel-variables">Blume-Capel variables</h2>
+<section id="compute_denom_blume_capel" class="level3">
+<h3 class="anchored" data-anchor-id="compute_denom_blume_capel"><code>compute_denom_blume_capel()</code></h3>
+<p>Handles the Blume-Capel parameterization, where the category score involves both linear and quadratic terms: <span class="math inline">\(\mu(c) = \alpha(c - b) + \beta(c - b)^2\)</span>, with <span class="math inline">\(b\)</span> the baseline (reference) category. The scores <span class="math inline">\(\mu(c)\)</span> are precomputed once per variable, and the FAST/SAFE split proceeds as for ordinal variables.</p>
+</section>
+<section id="compute_probs_blume_capel" class="level3">
+<h3 class="anchored" data-anchor-id="compute_probs_blume_capel"><code>compute_probs_blume_capel()</code></h3>
+<p>Analogous to the ordinal version, but with the Blume-Capel category scores.</p>
+</section>
+</section>
+<section id="joint-log-normalizer-and-probabilities" class="level2">
+<h2 class="anchored" data-anchor-id="joint-log-normalizer-and-probabilities">Joint log-normalizer and probabilities</h2>
+<p>The <code>LogZAndProbs</code> struct bundles the log-normalizer <span class="math inline">\(\log Z\)</span> and the probability matrix into a single return value. The joint computation functions (<code>compute_logZ_and_probs_ordinal()</code>, <code>compute_logZ_and_probs_blume_capel()</code>) share work between the two quantities, avoiding redundant exponential evaluations.</p>
+<p>These joint functions are used in the gradient computation, where both the log-pseudolikelihood (which needs <span class="math inline">\(\log Z\)</span>) and the gradient (which needs category probabilities) are computed in the same pass.</p>
+</section>
+<section id="the-exp_bound-709-threshold" class="level2">
+<h2 class="anchored" data-anchor-id="the-exp_bound-709-threshold">The EXP_BOUND = 709 threshold</h2>
+<p>The bound that triggers the SAFE path is set to 709, derived from IEEE 754 double precision: <span class="math inline">\(\exp(709) \approx 8.2 \times 10^{307}\)</span> is the largest representable value, while <span class="math inline">\(\exp(710) = \text{Inf}\)</span>. The FAST path checks whether <span class="math inline">\(|B_i| \le 709\)</span> before proceeding, where <span class="math inline">\(B_i = \max(0,\, K \cdot r_i)\)</span> for ordinal variables and, for Blume–Capel variables, the per-person maximum category score. For the joint log-normalizer functions, the threshold is reduced to <span class="math inline">\(709 - \max_c |\mu(c)|\)</span> to account for intermediate overflow risk in the power chain. The Blume–Capel variants additionally check <span class="math inline">\(|K \cdot r_i - B_i| \le 709\)</span>.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script type="text/javascript">
+
+// replace cmd keyboard shortcut w/ control on non-Mac platforms
+const kPlatformMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false;
+if (!kPlatformMac) {
+   var kbds = document.querySelectorAll("kbd")
+   kbds.forEach(function(kbd) {
+      kbd.innerHTML = kbd.innerHTML.replace(/⌘/g, '⌃');
+   });
+}
+
+// tweak headings in pymd
+document.querySelectorAll(".pymd span.co").forEach(el => {
+   if (!el.innerText.startsWith("#|")) {
+      el.style.fontWeight = 1000;
+   }
+});
+
+// citation format picker on landing page
+document.querySelectorAll("[data-cite-picker]").forEach(picker => {
+   const tabs = picker.querySelectorAll("[data-citation-tab]");
+   const panels = picker.querySelectorAll("[data-citation-panel]");
+
+   const setActive = (format) => {
+      tabs.forEach(tab => {
+         const isActive = tab.dataset.citationTab === format;
+         tab.classList.toggle("is-active", isActive);
+         tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      panels.forEach(panel => {
+         const isActive = panel.dataset.citationPanel === format;
+         panel.classList.toggle("is-active", isActive);
+         if (isActive) {
+            panel.removeAttribute("hidden");
+         } else {
+            panel.setAttribute("hidden", "hidden");
+         }
+      });
+   };
+
+   tabs.forEach(tab => {
+      tab.addEventListener("click", () => setActive(tab.dataset.citationTab));
+   });
+});
+
+// development-build banner: dismissable, and remembered once dismissed
+(function () {
+   const banner = document.getElementById("bgms-dev-banner");
+   if (!banner) return;
+
+   const store = (() => {
+      try { return window.localStorage; } catch (e) { return null; }
+   })();
+   const KEY = "bgms-dev-banner-dismissed";
+
+   const hide = () => {
+      banner.remove();
+      document.body.classList.remove("bgms-dev-build");
+      document.documentElement.style.removeProperty("--bgms-dev-banner-height");
+   };
+
+   if (store && store.getItem(KEY) === "1") {
+      hide();
+      return;
+   }
+
+   // The banner sits above the fixed navbar, so its real height has to reach
+   // the CSS that pushes the navbar and the page down.
+   const setHeight = () => {
+      document.documentElement.style.setProperty(
+         "--bgms-dev-banner-height", banner.offsetHeight + "px");
+   };
+   setHeight();
+   window.addEventListener("resize", setHeight);
+
+   banner.querySelector(".bgms-dev-banner-dismiss").addEventListener("click", () => {
+      hide();
+      if (store) { try { store.setItem(KEY, "1"); } catch (e) { /* private mode */ } }
+   });
+})();
+
+// version switcher: a navbar dropdown built from versions.json at the site
+// root. Missing or unreadable file (a local preview, say) means no dropdown.
+(function () {
+   const offset = document.querySelector('meta[name="quarto:offset"]');
+   const navbar = document.querySelector("#quarto-header .navbar-nav.ms-auto");
+   if (!offset || !navbar) return;
+
+   // Where this build's own root is: /bgms/, /bgms/dev/, /bgms/v0.2.0.0/, ...
+   const buildBase = new URL(offset.content, window.location.href).pathname;
+   const parentOf = (path) => path.replace(/[^/]+\/$/, "");
+
+   const readJson = async (url) => {
+      try {
+         const response = await fetch(url, { cache: "no-cache" });
+         if (!response.ok) return null;
+         return await response.json();
+      } catch (e) {
+         return null;
+      }
+   };
+
+   const exists = async (url) => {
+      try {
+         const response = await fetch(url, { method: "HEAD" });
+         return response.ok;
+      } catch (e) {
+         return false;
+      }
+   };
+
+   const render = (siteRoot, entries, current) => {
+      const pagePath = window.location.pathname.slice(buildBase.length);
+
+      const item = document.createElement("li");
+      item.className = "nav-item dropdown bgms-version-switcher";
+
+      const toggle = document.createElement("a");
+      toggle.className = "nav-link dropdown-toggle";
+      toggle.setAttribute("role", "button");
+      toggle.setAttribute("href", "#");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-haspopup", "true");
+      toggle.title = "Documentation version";
+      toggle.innerHTML = '<span class="menu-text"></span>';
+      toggle.querySelector(".menu-text").textContent = current.version;
+
+      const menu = document.createElement("ul");
+      menu.className = "dropdown-menu dropdown-menu-end";
+
+      entries.forEach(entry => {
+         const li = document.createElement("li");
+         const link = document.createElement("a");
+         link.className = "dropdown-item" + (entry === current ? " active" : "");
+         link.href = siteRoot + entry.dir;
+         link.innerHTML = '<span></span><span class="bgms-version-kind"></span>';
+         link.children[0].textContent = entry.version;
+         link.children[1].textContent = entry.kind === "release" ? "release" : "";
+         if (entry === current) link.setAttribute("aria-current", "true");
+
+         // Keep the reader on the same page across versions when that version
+         // has it, and send them to its homepage when it does not.
+         link.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const home = siteRoot + entry.dir;
+            if (!pagePath) { window.location.href = home; return; }
+            const target = siteRoot + entry.dir + pagePath;
+            window.location.href =
+               (await exists(target)) ? target + window.location.hash : home;
+         });
+
+         li.appendChild(link);
+         menu.appendChild(li);
+      });
+
+      const close = () => {
+         menu.classList.remove("show");
+         toggle.setAttribute("aria-expanded", "false");
+      };
+      toggle.addEventListener("click", (event) => {
+         event.preventDefault();
+         const open = menu.classList.toggle("show");
+         toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      document.addEventListener("click", (event) => {
+         if (!item.contains(event.target)) close();
+      });
+      document.addEventListener("keydown", (event) => {
+         if (event.key === "Escape") close();
+      });
+
+      item.appendChild(toggle);
+      item.appendChild(menu);
+      navbar.insertBefore(item, navbar.firstChild);
+   };
+
+   (async function () {
+      // The index lives at the site root. A build one directory down, such as
+      // /dev/, finds it one level up.
+      let base = buildBase;
+      let index = await readJson(base + "versions.json");
+      if (!index) {
+         const up = parentOf(buildBase);
+         if (!up || up === buildBase) return;
+         base = up;
+         index = await readJson(base + "versions.json");
+      }
+      if (!index || typeof index.root !== "string" ||
+          !Array.isArray(index.versions)) return;
+
+      // The file names the root it belongs to. An archived build carries a
+      // frozen copy of it, so prefer the live one when this is not it.
+      let siteRoot = base;
+      if (index.root !== base && buildBase.startsWith(index.root)) {
+         siteRoot = index.root;
+         const live = await readJson(siteRoot + "versions.json");
+         if (live && Array.isArray(live.versions)) index = live;
+      }
+
+      const entries = index.versions
+         .filter(entry => typeof entry.path === "string" &&
+                          entry.path.startsWith(index.root))
+         .map(entry => ({
+            version: entry.version,
+            kind: entry.kind,
+            dir: entry.path.slice(index.root.length)
+         }));
+      if (entries.length === 0) return;
+
+      const current = entries.find(
+         entry => entry.dir === buildBase.slice(siteRoot.length));
+      if (!current) return;
+
+      render(siteRoot, entries, current);
+   })();
+})();
+
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/bayesian-graphical-modelling-lab\.github\.io\/bgms");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../manual/pseudolikelihood.html" class="pagination-link" aria-label="Pseudolikelihood">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Pseudolikelihood</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../manual/parameter-priors.html" class="pagination-link" aria-label="Parameter Priors">
+        <span class="nav-page-text">Parameter Priors</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Developed by the <a href="https://bayesiangraphicalmodeling.com">BGM Lab</a></p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org">Quarto</a></p>
+<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/variable-helpers.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms">
+      <i class="bi bi-github" role="img" aria-label="bgms GitHub">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

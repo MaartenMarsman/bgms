@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Datasets – bgms</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../reference/extractors.html" rel="prev">
+<link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-eaeb381c6b7494c50009502241a4985c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-3419ea62b3ca2d77d3d547f86109e84e.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-27e333d33e6914644635f1f90f79dd55.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-6da56e2590d068457896cf1b1a36524a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": true,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta name="robots" content="noindex"><link rel="canonical" href="https://bayesian-graphical-modelling-lab.github.io/bgms/reference/datasets.html"></head>
+
+<body class="bgms-dev-build nav-sidebar floating nav-fixed fullcontent quarto-light"><div class="bgms-dev-banner" id="bgms-dev-banner" role="note"><span class="bgms-dev-banner-text">Development version of the bgms documentation. The latest release is at <a href="https://bayesian-graphical-modelling-lab.github.io/bgms/">bayesian-graphical-modelling-lab.github.io/bgms/</a>.</span><button type="button" class="bgms-dev-banner-dismiss" aria-label="Dismiss this notice">&times;</button></div><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo light-content">
+    <img src="../bgms_sticker.svg" alt="bgms logo" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../guide/getting-started.html"> 
+<span class="menu-text">Get Started</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../examples/index.html"> 
+<span class="menu-text">Examples</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../guide/index.html"> 
+<span class="menu-text">Guide</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="../reference/index.html" aria-current="page"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../manual/index.html"> 
+<span class="menu-text">Manual</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../news.html"> 
+<span class="menu-text">News</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://cran.r-project.org/package=bgms"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 724 561" width="16" height="12" class="navbar-icon"><path d="M361.453 485.937C162.329 485.937 .906 377.828.906 244.469.906 111.109 162.329 3 361.453 3 560.578 3 722 111.109 722 244.469 722 377.828 560.578 485.937 361.453 485.937ZM416.641 97.406C265.289 97.406 142.594 171.314 142.594 262.484 142.594 353.654 265.289 427.562 416.641 427.562 567.992 427.562 679.687 377.033 679.687 262.484 679.687 147.971 567.992 97.406 416.641 97.406Z" fill="currentColor" fill-rule="evenodd" opacity=".5"></path><path d="M550 377C550 377 571.822 383.585 584.5 390 588.899 392.226 596.51 396.668 602 402.5 607.378 408.212 610 414 610 414L696 559 557 559.062 492 437C492 437 478.69 414.131 470.5 407.5 463.668 401.969 460.755 400 454 400 449.298 400 420.974 400 420.974 400L421 558.974 298 559.026 298 152.938 545 152.938C545 152.938 657.5 154.967 657.5 262 657.5 369.033 550 377 550 377ZM496.5 241.024 422.037 240.976 422 310.026 496.5 310.002C496.5 310.002 531 309.895 531 274.877 531 239.155 496.5 241.024 496.5 241.024Z" fill="currentColor" fill-rule="evenodd"></path></svg></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://bayesiangraphicalmodeling.com"> 
+<span class="menu-text"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 733 421" width="28" height="16" class="navbar-icon"><g transform="translate(-371 -252)"><path d="M552.255 351.119C549.247 318.97 572.871 290.47 605.019 287.463 637.168 284.455 665.668 308.079 668.675 340.228 671.683 372.376 648.059 400.876 615.911 403.884 583.762 406.891 555.262 383.268 552.255 351.119Z" fill="currentColor" opacity=".7"></path><path d="M656.924 572.359C653.917 540.21 677.54 511.71 709.689 508.703 741.838 505.695 770.337 529.319 773.345 561.468 776.353 593.616 752.729 622.116 720.58 625.124 688.432 628.131 659.932 604.508 656.924 572.359Z" fill="currentColor" opacity=".7"></path><path d="M375.073 481.287C372.066 449.138 395.689 420.638 427.838 417.631 459.987 414.623 488.487 438.247 491.494 470.395 494.502 502.544 470.878 531.044 438.729 534.051 406.581 537.059 378.081 513.435 375.073 481.287Z" fill="currentColor" opacity=".7"></path><path d="M0 0 188.535 116.929" stroke="currentColor" stroke-width="22.917" fill="none" transform="matrix(.996 -.093 -.093 -.996 433.284 475.841)"></path><path d="M431.089 476.046 715.135 566.913" stroke="currentColor" stroke-width="22.917" fill="none"></path><path d="M609 408.5C609 324.277 677.277 256 761.5 256 845.723 256 914 324.277 914 408.5 914 492.723 845.723 561 761.5 561 677.277 561 609 492.723 609 408.5ZM632.275 408.5C632.275 479.869 690.131 537.725 761.5 537.725 832.869 537.725 890.725 479.869 890.725 408.5 890.725 337.131 832.869 279.275 761.5 279.275 690.131 279.275 632.275 337.131 632.275 408.5Z" fill="currentColor" fill-rule="evenodd"></path><path d="M891.5 503.5 1073.91 642.661" stroke="currentColor" stroke-width="52.708" stroke-linecap="round" fill="none"></path><path d="M729.57 323.186C748.221 295.051 788.999 289.252 820.652 310.234 852.304 331.216 862.844 371.034 844.193 399.169 839.104 355.297 797.981 319.829 752.34 319.948 744.51 319.969 736.843 321.059 729.57 323.186Z" fill="currentColor" opacity=".4"></path></g></svg></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms" title="bgms GitHub" class="quarto-navigation-tool px-1" aria-label="bgms GitHub"><i class="bi bi-github"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/datasets.html">Datasets</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Function Reference</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Core Functions</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/bgm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">bgm()</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/bgmCompare.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">bgmCompare()</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Priors</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/priors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prior Constructors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/sample-ggm-prior.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">sample_ggm_prior()</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/prior-samplers.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prior Samplers</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Methods</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Diagnostics</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/prior-sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">prior_sensitivity_check()</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/extractors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Functions</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/datasets.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Datasets</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Datasets</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Example datasets included in bgms.</p>
+<section id="adhd" class="level2">
+<h2 class="anchored" data-anchor-id="adhd">ADHD</h2>
+<p>Used in the executed examples of <a href="../reference/methods.html">Methods</a> (via the <code>bgmCompare</code> fixture).</p>
+<p>ADHD symptom ratings for 355 children aged 6 to 8 years from the Children’s Attention Project (CAP) cohort (<span class="citation" data-cites="SilkEtAl_2019_adhd">Silk et al. (<a href="#ref-SilkEtAl_2019_adhd" role="doc-biblioref">2019</a>)</span>). The sample consists of 146 children diagnosed with ADHD and 209 without a diagnosis. Symptoms were assessed through structured interviews with parents using the NIMH Diagnostic Interview Schedule for Children IV (DISC-IV; <span class="citation" data-cites="ShafferEtAl_2000_disc">Shaffer et al. (<a href="#ref-ShafferEtAl_2000_disc" role="doc-biblioref">2000</a>)</span>). The checklist includes 18 items: 9 Inattentive (I) and 9 Hyperactive/Impulsive (HI). Each item is binary (1 = present, 0 = absent).</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"ADHD"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A data frame with 355 rows and 19 columns:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 38%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>group</code></td>
+<td>ADHD diagnosis: 1 = diagnosed, 0 = not diagnosed</td>
+</tr>
+<tr class="even">
+<td><code>avoid</code></td>
+<td>Often avoids tasks that require sustained mental effort (I)</td>
+</tr>
+<tr class="odd">
+<td><code>closeatt</code></td>
+<td>Often fails to give close attention to details (I)</td>
+</tr>
+<tr class="even">
+<td><code>distract</code></td>
+<td>Is often easily distracted by extraneous stimuli (I)</td>
+</tr>
+<tr class="odd">
+<td><code>forget</code></td>
+<td>Is often forgetful in daily activities (I)</td>
+</tr>
+<tr class="even">
+<td><code>instruct</code></td>
+<td>Often does not follow through on instructions (I)</td>
+</tr>
+<tr class="odd">
+<td><code>listen</code></td>
+<td>Often does not seem to listen when spoken to directly (I)</td>
+</tr>
+<tr class="even">
+<td><code>loses</code></td>
+<td>Often loses things necessary for tasks (I)</td>
+</tr>
+<tr class="odd">
+<td><code>org</code></td>
+<td>Often has difficulty organizing tasks (I)</td>
+</tr>
+<tr class="even">
+<td><code>susatt</code></td>
+<td>Often has difficulty sustaining attention (I)</td>
+</tr>
+<tr class="odd">
+<td><code>blurts</code></td>
+<td>Often blurts out answers before questions are completed (HI)</td>
+</tr>
+<tr class="even">
+<td><code>fidget</code></td>
+<td>Often fidgets with hands or feet (HI)</td>
+</tr>
+<tr class="odd">
+<td><code>interrupt</code></td>
+<td>Often interrupts or intrudes on others (HI)</td>
+</tr>
+<tr class="even">
+<td><code>motor</code></td>
+<td>Is often “on the go” or acts as if “driven by a motor” (HI)</td>
+</tr>
+<tr class="odd">
+<td><code>quiet</code></td>
+<td>Often has difficulty playing quietly (HI)</td>
+</tr>
+<tr class="even">
+<td><code>runs</code></td>
+<td>Often runs about or climbs excessively (HI)</td>
+</tr>
+<tr class="odd">
+<td><code>seat</code></td>
+<td>Often leaves seat when remaining seated is expected (HI)</td>
+</tr>
+<tr class="even">
+<td><code>talks</code></td>
+<td>Often talks excessively (HI)</td>
+</tr>
+<tr class="odd">
+<td><code>turn</code></td>
+<td>Often has difficulty awaiting turn (HI)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Source</strong>: <span class="citation" data-cites="SilkEtAl_2019_adhd">Silk et al. (<a href="#ref-SilkEtAl_2019_adhd" role="doc-biblioref">2019</a>)</span>. Data retrieved from <a href="https://doi.org/10.1371/journal.pone.0211053.s004">doi:10.1371/journal.pone.0211053.s004</a>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>.</p>
+</section>
+<section id="boredom" class="level2">
+<h2 class="anchored" data-anchor-id="boredom">Boredom</h2>
+<p>Used in the example of <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>.</p>
+<p>Responses to the 8-item Short Boredom Proneness Scale (SBPS), a self-report measure of susceptibility to boredom (<span class="citation" data-cites="MartarelliEtAl_2023_boredom">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_boredom" role="doc-biblioref">2023</a>)</span>). Items were rated on a 7-point Likert scale from 1 (“strongly disagree”) to 7 (“strongly agree”). The scale was administered in either English <span class="citation" data-cites="StrukEtAl_2015_bps">Struk et al. (<a href="#ref-StrukEtAl_2015_bps" role="doc-biblioref">2017</a>)</span> or French <span class="citation" data-cites="MartarelliEtAl_2023_boredom">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_boredom" role="doc-biblioref">2023</a>)</span>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"Boredom"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A data frame with 986 rows and 9 columns:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 38%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>language</code></td>
+<td>Language: <code>"en"</code> = English, <code>"fr"</code> = French</td>
+</tr>
+<tr class="even">
+<td><code>loose_ends</code></td>
+<td>I often find myself at “loose ends,” not knowing what to do.</td>
+</tr>
+<tr class="odd">
+<td><code>entertain</code></td>
+<td>I find it hard to entertain myself.</td>
+</tr>
+<tr class="even">
+<td><code>repetitive</code></td>
+<td>Many things I have to do are repetitive and monotonous.</td>
+</tr>
+<tr class="odd">
+<td><code>stimulation</code></td>
+<td>It takes more stimulation to get me going than most people.</td>
+</tr>
+<tr class="even">
+<td><code>motivated</code></td>
+<td>I don’t feel motivated by most things that I do.</td>
+</tr>
+<tr class="odd">
+<td><code>keep_interest</code></td>
+<td>In most situations, it is hard for me to find something to keep me interested.</td>
+</tr>
+<tr class="even">
+<td><code>sit_around</code></td>
+<td>Much of the time, I just sit around doing nothing.</td>
+</tr>
+<tr class="odd">
+<td><code>half_dead_dull</code></td>
+<td>Unless I am doing something exciting, even dangerous, I feel half-dead and dull.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Source</strong>: <span class="citation" data-cites="MartarelliEtAl_2023_boredom">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_boredom" role="doc-biblioref">2023</a>)</span>. Data retrieved from <a href="https://osf.io/qhux8">osf.io/qhux8</a>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>.</p>
+</section>
+<section id="wenchuan" class="level2">
+<h2 class="anchored" data-anchor-id="wenchuan">Wenchuan</h2>
+<p>Used in the examples of <a href="../reference/bgm.html"><code>bgm()</code></a>, <a href="../guide/getting-started.html">Getting Started</a>, and the MCMC output pages.</p>
+<p>Responses to 17 items assessing PTSD symptoms in Chinese adults who survived the 2008 Wenchuan earthquake and lost at least one child in the disaster (<span class="citation" data-cites="McNallyEtAl_2015_ptsd">McNally et al. (<a href="#ref-McNallyEtAl_2015_ptsd" role="doc-biblioref">2015</a>)</span>). Participants completed the civilian version of the Posttraumatic Checklist, with each item corresponding to a DSM-IV PTSD symptom. Items were rated on a 5-point Likert scale from “not at all” to “extremely.”</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"Wenchuan"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A matrix with 362 rows and 17 columns:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 38%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>intrusion</code></td>
+<td>Repeated, disturbing memories, thoughts, or images of a stressful experience?</td>
+</tr>
+<tr class="even">
+<td><code>dreams</code></td>
+<td>Repeated, disturbing dreams of a stressful experience?</td>
+</tr>
+<tr class="odd">
+<td><code>flash</code></td>
+<td>Suddenly acting or feeling as if a stressful experience were happening again?</td>
+</tr>
+<tr class="even">
+<td><code>upset</code></td>
+<td>Feeling very upset when something reminded you of a stressful experience?</td>
+</tr>
+<tr class="odd">
+<td><code>physior</code></td>
+<td>Having physical reactions when something reminded you of a stressful experience?</td>
+</tr>
+<tr class="even">
+<td><code>avoidth</code></td>
+<td>Avoiding thinking about or talking about a stressful experience?</td>
+</tr>
+<tr class="odd">
+<td><code>avoidact</code></td>
+<td>Avoiding activities or situations because they reminded you of a stressful experience?</td>
+</tr>
+<tr class="even">
+<td><code>amnesia</code></td>
+<td>Trouble remembering important parts of a stressful experience?</td>
+</tr>
+<tr class="odd">
+<td><code>lossint</code></td>
+<td>Loss of interest in activities that you used to enjoy?</td>
+</tr>
+<tr class="even">
+<td><code>distant</code></td>
+<td>Feeling distant or cut off from other people?</td>
+</tr>
+<tr class="odd">
+<td><code>numb</code></td>
+<td>Feeling emotionally numb or unable to have loving feelings?</td>
+</tr>
+<tr class="even">
+<td><code>future</code></td>
+<td>Feeling as if your future will somehow be cut short?</td>
+</tr>
+<tr class="odd">
+<td><code>sleep</code></td>
+<td>Trouble falling or staying asleep?</td>
+</tr>
+<tr class="even">
+<td><code>anger</code></td>
+<td>Feeling irritable or having angry outbursts?</td>
+</tr>
+<tr class="odd">
+<td><code>concen</code></td>
+<td>Having difficulty concentrating?</td>
+</tr>
+<tr class="even">
+<td><code>hyper</code></td>
+<td>Being “super-alert” or watchful or on guard?</td>
+</tr>
+<tr class="odd">
+<td><code>startle</code></td>
+<td>Feeling jumpy or easily startled?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Source</strong>: <span class="citation" data-cites="McNallyEtAl_2015_ptsd">McNally et al. (<a href="#ref-McNallyEtAl_2015_ptsd" role="doc-biblioref">2015</a>)</span>. Data retrieved from <a href="https://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv">psychosystems.org</a>.</p>
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-MartarelliEtAl_2023_boredom" class="csl-entry" role="listitem">
+Martarelli, C. S., Wolff, W., &amp; Wolff, W. (2023). Boredom proneness predicts self-assessed decision errors in everyday life. <em>Psychological Research</em>, <em>87</em>, 440–452. <a href="https://doi.org/10.1007/s00426-022-01667-7">https://doi.org/10.1007/s00426-022-01667-7</a>
+</div>
+<div id="ref-McNallyEtAl_2015_ptsd" class="csl-entry" role="listitem">
+McNally, R. J., Robinaugh, D. J., Wu, G. W. Y., Wang, L., Deserno, M. K., &amp; Borsboom, D. (2015). Mental disorders as causal systems: A network approach to posttraumatic stress disorder. <em>Clinical Psychological Science</em>, <em>3</em>(6), 836–849. <a href="https://doi.org/10.1177/2167702614553230">https://doi.org/10.1177/2167702614553230</a>
+</div>
+<div id="ref-ShafferEtAl_2000_disc" class="csl-entry" role="listitem">
+Shaffer, D., Fisher, P., Lucas, C. P., Dulcan, M. K., &amp; Schwab-Stone, M. E. (2000). <span>NIMH</span> diagnostic interview schedule for children version <span>IV</span> (<span>NIMH DISC-IV</span>): Description, differences from previous versions, and reliability of some common diagnoses. <em>Journal of the American Academy of Child &amp; Adolescent Psychiatry</em>, <em>39</em>(1), 28–38. <a href="https://doi.org/10.1097/00004583-200001000-00014">https://doi.org/10.1097/00004583-200001000-00014</a>
+</div>
+<div id="ref-SilkEtAl_2019_adhd" class="csl-entry" role="listitem">
+Silk, T. J., Vilgis, V., Vance, A., &amp; Bellgrove, M. A. (2019). A network analysis approach to <span>ADHD</span> symptoms in early adolescence. <em>PLOS ONE</em>, <em>14</em>(1), e0211053. <a href="https://doi.org/10.1371/journal.pone.0211053">https://doi.org/10.1371/journal.pone.0211053</a>
+</div>
+<div id="ref-StrukEtAl_2015_bps" class="csl-entry" role="listitem">
+Struk, A. A., Carriere, J. S. A., Cheyne, J. A., &amp; Danckert, J. (2017). A short boredom proneness scale: Development and psychometric properties. <em>Assessment</em>, <em>24</em>(3), 346–359. <a href="https://doi.org/10.1177/1073191115609996">https://doi.org/10.1177/1073191115609996</a>
+</div>
+</div></section></div></main> <!-- /main -->
+<script type="text/javascript">
+
+// replace cmd keyboard shortcut w/ control on non-Mac platforms
+const kPlatformMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false;
+if (!kPlatformMac) {
+   var kbds = document.querySelectorAll("kbd")
+   kbds.forEach(function(kbd) {
+      kbd.innerHTML = kbd.innerHTML.replace(/⌘/g, '⌃');
+   });
+}
+
+// tweak headings in pymd
+document.querySelectorAll(".pymd span.co").forEach(el => {
+   if (!el.innerText.startsWith("#|")) {
+      el.style.fontWeight = 1000;
+   }
+});
+
+// citation format picker on landing page
+document.querySelectorAll("[data-cite-picker]").forEach(picker => {
+   const tabs = picker.querySelectorAll("[data-citation-tab]");
+   const panels = picker.querySelectorAll("[data-citation-panel]");
+
+   const setActive = (format) => {
+      tabs.forEach(tab => {
+         const isActive = tab.dataset.citationTab === format;
+         tab.classList.toggle("is-active", isActive);
+         tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      panels.forEach(panel => {
+         const isActive = panel.dataset.citationPanel === format;
+         panel.classList.toggle("is-active", isActive);
+         if (isActive) {
+            panel.removeAttribute("hidden");
+         } else {
+            panel.setAttribute("hidden", "hidden");
+         }
+      });
+   };
+
+   tabs.forEach(tab => {
+      tab.addEventListener("click", () => setActive(tab.dataset.citationTab));
+   });
+});
+
+// development-build banner: dismissable, and remembered once dismissed
+(function () {
+   const banner = document.getElementById("bgms-dev-banner");
+   if (!banner) return;
+
+   const store = (() => {
+      try { return window.localStorage; } catch (e) { return null; }
+   })();
+   const KEY = "bgms-dev-banner-dismissed";
+
+   const hide = () => {
+      banner.remove();
+      document.body.classList.remove("bgms-dev-build");
+      document.documentElement.style.removeProperty("--bgms-dev-banner-height");
+   };
+
+   if (store && store.getItem(KEY) === "1") {
+      hide();
+      return;
+   }
+
+   // The banner sits above the fixed navbar, so its real height has to reach
+   // the CSS that pushes the navbar and the page down.
+   const setHeight = () => {
+      document.documentElement.style.setProperty(
+         "--bgms-dev-banner-height", banner.offsetHeight + "px");
+   };
+   setHeight();
+   window.addEventListener("resize", setHeight);
+
+   banner.querySelector(".bgms-dev-banner-dismiss").addEventListener("click", () => {
+      hide();
+      if (store) { try { store.setItem(KEY, "1"); } catch (e) { /* private mode */ } }
+   });
+})();
+
+// version switcher: a navbar dropdown built from versions.json at the site
+// root. Missing or unreadable file (a local preview, say) means no dropdown.
+(function () {
+   const offset = document.querySelector('meta[name="quarto:offset"]');
+   const navbar = document.querySelector("#quarto-header .navbar-nav.ms-auto");
+   if (!offset || !navbar) return;
+
+   // Where this build's own root is: /bgms/, /bgms/dev/, /bgms/v0.2.0.0/, ...
+   const buildBase = new URL(offset.content, window.location.href).pathname;
+   const parentOf = (path) => path.replace(/[^/]+\/$/, "");
+
+   const readJson = async (url) => {
+      try {
+         const response = await fetch(url, { cache: "no-cache" });
+         if (!response.ok) return null;
+         return await response.json();
+      } catch (e) {
+         return null;
+      }
+   };
+
+   const exists = async (url) => {
+      try {
+         const response = await fetch(url, { method: "HEAD" });
+         return response.ok;
+      } catch (e) {
+         return false;
+      }
+   };
+
+   const render = (siteRoot, entries, current) => {
+      const pagePath = window.location.pathname.slice(buildBase.length);
+
+      const item = document.createElement("li");
+      item.className = "nav-item dropdown bgms-version-switcher";
+
+      const toggle = document.createElement("a");
+      toggle.className = "nav-link dropdown-toggle";
+      toggle.setAttribute("role", "button");
+      toggle.setAttribute("href", "#");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-haspopup", "true");
+      toggle.title = "Documentation version";
+      toggle.innerHTML = '<span class="menu-text"></span>';
+      toggle.querySelector(".menu-text").textContent = current.version;
+
+      const menu = document.createElement("ul");
+      menu.className = "dropdown-menu dropdown-menu-end";
+
+      entries.forEach(entry => {
+         const li = document.createElement("li");
+         const link = document.createElement("a");
+         link.className = "dropdown-item" + (entry === current ? " active" : "");
+         link.href = siteRoot + entry.dir;
+         link.innerHTML = '<span></span><span class="bgms-version-kind"></span>';
+         link.children[0].textContent = entry.version;
+         link.children[1].textContent = entry.kind === "release" ? "release" : "";
+         if (entry === current) link.setAttribute("aria-current", "true");
+
+         // Keep the reader on the same page across versions when that version
+         // has it, and send them to its homepage when it does not.
+         link.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const home = siteRoot + entry.dir;
+            if (!pagePath) { window.location.href = home; return; }
+            const target = siteRoot + entry.dir + pagePath;
+            window.location.href =
+               (await exists(target)) ? target + window.location.hash : home;
+         });
+
+         li.appendChild(link);
+         menu.appendChild(li);
+      });
+
+      const close = () => {
+         menu.classList.remove("show");
+         toggle.setAttribute("aria-expanded", "false");
+      };
+      toggle.addEventListener("click", (event) => {
+         event.preventDefault();
+         const open = menu.classList.toggle("show");
+         toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      document.addEventListener("click", (event) => {
+         if (!item.contains(event.target)) close();
+      });
+      document.addEventListener("keydown", (event) => {
+         if (event.key === "Escape") close();
+      });
+
+      item.appendChild(toggle);
+      item.appendChild(menu);
+      navbar.insertBefore(item, navbar.firstChild);
+   };
+
+   (async function () {
+      // The index lives at the site root. A build one directory down, such as
+      // /dev/, finds it one level up.
+      let base = buildBase;
+      let index = await readJson(base + "versions.json");
+      if (!index) {
+         const up = parentOf(buildBase);
+         if (!up || up === buildBase) return;
+         base = up;
+         index = await readJson(base + "versions.json");
+      }
+      if (!index || typeof index.root !== "string" ||
+          !Array.isArray(index.versions)) return;
+
+      // The file names the root it belongs to. An archived build carries a
+      // frozen copy of it, so prefer the live one when this is not it.
+      let siteRoot = base;
+      if (index.root !== base && buildBase.startsWith(index.root)) {
+         siteRoot = index.root;
+         const live = await readJson(siteRoot + "versions.json");
+         if (live && Array.isArray(live.versions)) index = live;
+      }
+
+      const entries = index.versions
+         .filter(entry => typeof entry.path === "string" &&
+                          entry.path.startsWith(index.root))
+         .map(entry => ({
+            version: entry.version,
+            kind: entry.kind,
+            dir: entry.path.slice(index.root.length)
+         }));
+      if (entries.length === 0) return;
+
+      const current = entries.find(
+         entry => entry.dir === buildBase.slice(siteRoot.length));
+      if (!current) return;
+
+      render(siteRoot, entries, current);
+   })();
+})();
+
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/bayesian-graphical-modelling-lab\.github\.io\/bgms");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../reference/extractors.html" class="pagination-link" aria-label="Extractor Functions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Extractor Functions</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Developed by the <a href="https://bayesiangraphicalmodeling.com">BGM Lab</a></p>
+</div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org">Quarto</a></p>
+<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/reference/datasets.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms">
+      <i class="bi bi-github" role="img" aria-label="bgms GitHub">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
