@@ -8,6 +8,7 @@ prior_sensitivity_check(
   bgms_object,
   anchors = c(0.4, 0.63, 1, 1.6, 2.5),
   evidence_threshold = 10,
+  vary = c("auto", "slab", "slab-and-diagonal"),
   refit_sampler = "same-as-fit",
   iter = NULL,
   warmup = NULL,
@@ -33,6 +34,21 @@ refit.}
 \item{evidence_threshold}{Positive numeric. Inclusion Bayes factor threshold
 for a presence verdict; \code{1 / evidence_threshold} is the absence
 threshold. Default: \code{10}.}
+
+\item{vary}{One of \code{"auto"} (default), \code{"slab"}, or
+\code{"slab-and-diagonal"}. Only relevant for models with a prior on the
+precision diagonal (continuous and mixed); ignored for discrete ones, which
+have none. The slab scale \eqn{s} and the diagonal rate are tied through
+the standardized frame (raw rate \eqn{= \eta / s}), so a sweep of \eqn{s}
+has to hold one of the two fixed. \code{"slab"} holds the raw diagonal rate
+at the fitted value and moves the interaction prior alone, answering how
+much the verdicts depend on how wide an edge is allowed to be.
+\code{"slab-and-diagonal"} holds \eqn{\eta} fixed and lets the raw rate
+follow, answering how much they depend on the overall prior scale with its
+shape held fixed. \code{"auto"} follows the frame the fit itself used:
+\code{"slab-and-diagonal"} when the diagonal prior was given as \code{eta},
+\code{"slab"} when it was given as a raw \code{rate}. The resolved mode is
+named in the printed report.}
 
 \item{refit_sampler}{One of \code{"same-as-fit"} (default; inherit the
 original fit's update method) or an explicit \code{"nuts"},
@@ -87,7 +103,8 @@ curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 per-point chain unanimity), the \code{wobble} noise yardstick,
 \code{refit_diagnostics} (the captured raw sampler notes per anchor and
-the replicate), the data-\code{preferred_scale}, and the settings used.
+the replicate), the data-\code{preferred_scale}, the resolved \code{vary}
+mode, and the settings used.
 }
 \description{
 Recovers each edge's continuous inclusion-Bayes-factor curve

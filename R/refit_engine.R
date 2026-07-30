@@ -81,12 +81,25 @@ extract_warm_state = function(fit) {
 # @param sampler      Optional update-method override ("nuts",
 #                     "adaptive-metropolis", "gibbs"); NULL keeps the fit's.
 # @param show_progress  Show the sampler's native progress bar for this refit.
+# @param scale_field  Name of the prior field the scale is written to:
+#                     "pairwise_scale" for bgm(), "difference_scale" for
+#                     bgmCompare().
+# @param diagonal_rate  Raw rate for the precision diagonal at this scale, or
+#                     NULL to leave the fit's own rate untouched. The caller
+#                     owns this policy; see resolve_vary().
 # ------------------------------------------------------------------
 refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
-                          cores = 1L, sampler = NULL, show_progress = FALSE) {
+                          cores = 1L, sampler = NULL, show_progress = FALSE,
+                          scale_field = "pairwise_scale",
+                          diagonal_rate = NULL) {
   spec = get_fit_spec(fit)
 
-  spec$prior$pairwise_scale = scale
+  spec$prior[[scale_field]] = scale
+  # The spec stores the diagonal rate already resolved to the raw frame, so a
+  # new slab scale leaves it alone unless the caller asks otherwise.
+  if(!is.null(diagonal_rate)) {
+    spec$prior$scale_rate = diagonal_rate
+  }
 
   if(!is.null(sampler)) {
     spec$sampler$update_method = sampler
@@ -131,6 +144,67 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
 
   raw = run_sampler(spec)
   build_output(spec, raw)
+}
+
+
+# ------------------------------------------------------------------
+# resolve_vary
+# ------------------------------------------------------------------
+# Which prior a scale sweep moves on a model that has a prior on the precision
+# diagonal. The slab scale and that diagonal are tied through the standardized
+# frame (raw rate = eta / s), so a sweep of the slab either holds the raw rate
+# fixed or holds eta fixed and lets the raw rate follow. The two answer
+# different questions and neither is the other's approximation, so the mode is
+# resolved once and named in the report rather than left to the fit's frame.
+#
+# @param spec  The original fit's spec.
+# @param vary  "auto", "slab", or "slab-and-diagonal".
+#
+# Returns: list(
+#   mode        The resolved mode, one of "slab", "slab-and-diagonal", or
+#               "none" for a model with no precision diagonal.
+#   eta         Standardized rate held fixed under "slab-and-diagonal", or NA.
+#   standardized  Whether the fit itself specified the diagonal in the
+#               standardized frame.
+# )
+# ------------------------------------------------------------------
+resolve_vary = function(spec, vary) {
+  vary = match.arg(vary, c("auto", "slab", "slab-and-diagonal"))
+  prior = spec$prior
+  has_diagonal = !is.null(prior$scale_rate) && !is.na(prior$scale_rate)
+  if(!has_diagonal) {
+    return(list(mode = "none", eta = NA_real_, standardized = FALSE))
+  }
+  standardized = !is.null(prior$scale_eta) && !is.na(prior$scale_eta)
+  mode = if(identical(vary, "auto")) {
+    if(standardized) "slab-and-diagonal" else "slab"
+  } else {
+    vary
+  }
+  # Under "slab-and-diagonal" the quantity held fixed is eta. A fit specified in
+  # the raw frame carries none, so use the eta its own scale implies: the same
+  # one-parameter family, anchored at the chosen scale.
+  eta = if(identical(mode, "slab-and-diagonal")) {
+    if(standardized) prior$scale_eta else prior$scale_rate * prior$pairwise_scale
+  } else {
+    NA_real_
+  }
+  list(mode = mode, eta = eta, standardized = standardized)
+}
+
+
+# ------------------------------------------------------------------
+# vary_diagonal_rate
+# ------------------------------------------------------------------
+# Raw diagonal rate a refit at `scale` runs with, given a resolved `vary`.
+# NULL leaves the fit's own rate in place, which is what "slab" and a model
+# without a precision diagonal both want.
+# ------------------------------------------------------------------
+vary_diagonal_rate = function(vary, scale) {
+  if(!identical(vary$mode, "slab-and-diagonal")) {
+    return(NULL)
+  }
+  vary$eta / scale
 }
 
 

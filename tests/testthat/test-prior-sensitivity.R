@@ -57,6 +57,51 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
 })
 
 
+test_that("vary resolves against the frame the fit used", {
+  standardized = list(prior = list(
+    pairwise_scale = 2, scale_rate = 0.5, scale_eta = 1
+  ))
+  raw_frame = list(prior = list(
+    pairwise_scale = 2, scale_rate = 1, scale_eta = NA_real_
+  ))
+  discrete = list(prior = list(pairwise_scale = 1, scale_rate = NA_real_))
+
+  # "auto" follows the frame the diagonal prior was written in.
+  expect_equal(resolve_vary(standardized, "auto")$mode, "slab-and-diagonal")
+  expect_equal(resolve_vary(raw_frame, "auto")$mode, "slab")
+  # A model with no precision diagonal has nothing to tie the slab to.
+  expect_equal(resolve_vary(discrete, "auto")$mode, "none")
+  expect_equal(resolve_vary(discrete, "slab-and-diagonal")$mode, "none")
+
+  # An explicit mode overrides the frame; a raw-frame fit asked for the joint
+  # sweep gets the eta its own scale implies (rate * s = 1 * 2).
+  expect_equal(resolve_vary(raw_frame, "slab-and-diagonal")$eta, 2)
+  expect_equal(resolve_vary(standardized, "slab-and-diagonal")$eta, 1)
+  expect_true(is.na(resolve_vary(standardized, "slab")$eta))
+
+  expect_error(resolve_vary(standardized, "diagonal"), "should be one of")
+})
+
+
+test_that("only slab-and-diagonal moves the raw diagonal rate", {
+  standardized = list(prior = list(
+    pairwise_scale = 1, scale_rate = 1, scale_eta = 1
+  ))
+  joint = resolve_vary(standardized, "slab-and-diagonal")
+  slab = resolve_vary(standardized, "slab")
+
+  # eta / s: a wider slab lowers the raw rate, so the prior's shape is fixed.
+  expect_equal(vary_diagonal_rate(joint, 2.5), 0.4)
+  expect_equal(vary_diagonal_rate(joint, 0.4), 2.5)
+  # NULL leaves the fit's own rate in place, which is what refit_at_scale
+  # already does with a spec that stores the rate already resolved.
+  expect_null(vary_diagonal_rate(slab, 2.5))
+  expect_null(vary_diagonal_rate(resolve_vary(
+    list(prior = list(pairwise_scale = 1, scale_rate = NA_real_)), "auto"
+  ), 2.5))
+})
+
+
 test_that("prior_sensitivity_check needs edge selection", {
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:5],
@@ -222,6 +267,22 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   expect_s3_class(psg, "bgms_prior_sensitivity")
   expect_equal(psg$model_type, "ggm")
   expect_false(psg$warm) # continuous fits refit cold
+  # A default GGM specifies its diagonal in the standardized frame, so "auto"
+  # holds eta fixed and the report says which prior moved.
+  expect_equal(psg$vary$mode, "slab-and-diagonal")
+  expect_match(
+    paste(utils::capture.output(print(psg)), collapse = "\n"),
+    "holding the standardized rate eta"
+  )
+  psg_slab = suppressWarnings(suppressMessages(prior_sensitivity_check(fg,
+    vary = "slab", anchors = c(1, 2), iter = 250, warmup = 200,
+    ess_floor = 100, seed = 8
+  )))
+  expect_equal(psg_slab$vary$mode, "slab")
+  expect_match(
+    paste(utils::capture.output(print(psg_slab)), collapse = "\n"),
+    "interaction slab scale alone"
+  )
   # curve points that clear the ESS floor carry a finite BF; masked ones are NA
   finite_pts = !is.na(psg$curve$anchor_used)
   expect_true(any(finite_pts))
@@ -243,6 +304,7 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
     seed = 9
   )))
   expect_equal(psm$model_type, "mixed_mrf")
+  expect_equal(psm$vary$mode, "slab-and-diagonal")
 })
 
 
