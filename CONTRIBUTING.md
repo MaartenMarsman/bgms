@@ -97,7 +97,6 @@ Pull requests are checked automatically by GitHub Actions:
 - `R-CMD-check.yaml` — builds and checks on multiple platforms
 - `lint.yaml` — runs `lintr::lint_package()` and fails the PR on lint errors
 - `test-coverage.yaml` — reports test coverage
-- `pkgdown.yaml` — builds the documentation site
 
 ## Commit messages
 

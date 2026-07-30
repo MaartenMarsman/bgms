@@ -72,7 +72,6 @@ Rules for AI agents (Copilot, Claude, etc.) working on this codebase.
   `docs: short description (audit #N)`.
 - When modifying a function signature, update its documentation in
   the same commit.
-- When adding a new exported function, add it to `_pkgdown.yml`.
 
 ## Pre-commit checks
 
