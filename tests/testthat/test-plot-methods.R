@@ -157,3 +157,65 @@ test_that("plot.bgmCompare draws the difference network and the group panels", {
   # threshold every difference is ruled out and the nodes are drawn alone.
   expect_invisible(plot(fit, evidence_threshold = 1e6))
 })
+
+test_that("verdict_network_input aligns the encoding with qgraph's read order", {
+  V = 5L
+  pairs = which(upper.tri(matrix(0, V, V)), arr.ind = TRUE)
+  pairs = pairs[order(pairs[, "row"], pairs[, "col"]), ]
+
+  verdict = rep("absence", 10L)
+  verdict[c(1L, 4L, 7L)] = c("presence", "presence", "undecided")
+  weight = numeric(10L)
+  weight[c(1L, 4L, 7L)] = c(0.4, -0.3, 0.05)
+
+  network = verdict_network_input(weight, verdict, pairs, V)
+
+  # A square matrix states the node set in its dimensions, so a network that
+  # leaves a node out still draws that node.
+  expect_equal(dim(network$weights), c(V, V))
+  expect_true(isSymmetric(network$weights))
+  expect_equal(network$weights[1, 2], 0.4)
+  expect_equal(network$weights[1, 5], -0.3)
+  expect_equal(sum(network$weights != 0), 6L)
+
+  # qgraph reads the non-zero upper triangle in column-major order, which for
+  # these three edges is (1,2), (1,5), (2,5) -- not the row-major order the
+  # verdict table is in. The colour and line type must follow that read order,
+  # or the encoding lands on the wrong edges.
+  palette = mover_palette()
+  expect_equal(unname(network$edge.color), c(palette[1], palette[2], "grey65"))
+  expect_equal(network$lty, c(1L, 1L, 3L))
+
+  # Nothing drawable is a matrix of zeros, and the caller draws the nodes.
+  empty = verdict_network_input(weight, rep("absence", 10L), pairs, V)
+  expect_true(all(empty$weights == 0))
+  expect_length(empty$edge.color, 0L)
+
+  # An exactly zero weight on a drawn edge would be read as a non-edge and
+  # shift every later colour onto the wrong one.
+  zero = verdict_network_input(
+    c(0, rep(0, 9)), c("presence", rep("absence", 9L)), pairs, V
+  )
+  expect_equal(sum(zero$weights != 0), 2L)
+  expect_length(zero$edge.color, 1L)
+})
+
+test_that("a sparse network draws rather than failing on the node set", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:6],
+    chains = 2, iter = 400, warmup = 400, seed = 1,
+    display_progress = "none", verbose = FALSE
+  )
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # A threshold that leaves only a few edges drawable is the case that used to
+  # fail: qgraph derives the node set from a weighted edgelist, and a network
+  # missing a node took the whole call down.
+  for(threshold in c(10, 100, 1000)) {
+    expect_invisible(plot(fit, evidence_threshold = threshold))
+  }
+})

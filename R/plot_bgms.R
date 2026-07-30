@@ -34,6 +34,54 @@ verdict_edge_colors = function(weight, verdict) {
 }
 
 
+# ------------------------------------------------------------------
+# verdict_network_input
+# ------------------------------------------------------------------
+# The weight matrix qgraph is given, with the per-edge colours and line types
+# in the order it reads that matrix.
+#
+# A weighted edgelist would be the direct expression of "draw these edges", but
+# qgraph derives the node set from the edgelist and its nNodes argument does not
+# reliably override that, so a network that leaves a node out fails rather than
+# drawing the node alone. A square matrix states the node set in its dimensions.
+# qgraph then reads its non-zero upper triangle in column-major order, which is
+# the order the colour and line-type vectors are put in here.
+#
+# @param weight         Weight per pair, in row-major upper-triangle order.
+# @param verdict        Verdict per pair, in the same order.
+# @param pairs          The row-major upper-triangle index.
+# @param num_variables  Number of nodes.
+#
+# Returns: list(weights = matrix, edge.color, lty), or NULL when nothing is
+# drawable, in which case the caller draws the nodes alone.
+# ------------------------------------------------------------------
+verdict_network_input = function(weight, verdict, pairs, num_variables) {
+  drawn = !is.na(verdict) & verdict != "absence"
+  weights = matrix(0, num_variables, num_variables)
+  if(!any(drawn)) {
+    return(list(weights = weights, edge.color = character(0), lty = integer(0)))
+  }
+  # An exactly zero weight would be dropped as a non-edge, which would silently
+  # shift every later colour onto the wrong edge. Nudge it instead.
+  value = weight[drawn]
+  value[value == 0] = .Machine$double.eps
+  index = pairs[drawn, , drop = FALSE]
+  weights[index] = value
+  weights[index[, 2:1, drop = FALSE]] = value
+
+  order_read = which(upper.tri(weights) & weights != 0, arr.ind = TRUE)
+  position = match(
+    paste(order_read[, 1], order_read[, 2]),
+    paste(index[, 1], index[, 2])
+  )
+  list(
+    weights = weights,
+    edge.color = verdict_edge_colors(value, verdict[drawn])[position],
+    lty = ifelse(verdict[drawn][position] == "presence", 1L, 3L)
+  )
+}
+
+
 #' @title Plot a Fitted bgms Model
 #'
 #' @description
@@ -114,15 +162,16 @@ plot.bgms = function(x,
     )
   }
 
-  verdict = as.character(edges$verdict[drawn])
+  network = verdict_network_input(
+    weight, as.character(edges$verdict), pairs, num_variables
+  )
   arguments = list(
-    input = cbind(pairs[drawn, , drop = FALSE], weight[drawn]),
-    nNodes = num_variables,
+    input = network$weights,
     labels = variables,
     directed = FALSE,
     layout = layout,
-    edge.color = verdict_edge_colors(weight[drawn], verdict),
-    lty = ifelse(verdict == "presence", 1L, 3L),
+    edge.color = network$edge.color,
+    lty = network$lty,
     # qgraph fades an edge toward the background in proportion to its weight,
     # which would wash the verdict encoding out: a settled but weak edge would
     # come out as faint as an undecided one. Width already carries the weight.
@@ -331,22 +380,17 @@ draw_difference_network = function(weight, verdict, pairs, variables,
                                    num_variables, nodes, layout, legend,
                                    main_selected, ..., title = NULL) {
   drawn = !is.na(verdict) & verdict != "absence"
-  shown = as.character(verdict[drawn])
+  # An empty difference network is the finding "the groups do not differ
+  # anywhere", and a matrix of zeros draws the nodes alone.
+  network = verdict_network_input(weight, verdict, pairs, num_variables)
 
   arguments = list(
-    input = if(any(drawn)) {
-      cbind(pairs[drawn, , drop = FALSE], weight[drawn])
-    } else {
-      # An empty difference network is the finding "the groups do not differ
-      # anywhere", so draw the nodes rather than stopping.
-      matrix(numeric(0), nrow = 0L, ncol = 3L)
-    },
-    nNodes = num_variables,
+    input = network$weights,
     labels = variables,
     directed = FALSE,
     layout = layout,
-    edge.color = verdict_edge_colors(weight[drawn], shown),
-    lty = ifelse(shown == "presence", 1L, 3L),
+    edge.color = network$edge.color,
+    lty = network$lty,
     shape = nodes$shape,
     border.color = nodes$border_color,
     fade = FALSE,
@@ -410,9 +454,11 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
   # One layout for every panel: qgraph computes it once with DoNotPlot, on the
   # union of the groups' networks, so a node sits in the same place throughout.
   union_weight = Reduce(pmax, lapply(group_weight, abs))
+  union_matrix = matrix(0, num_variables, num_variables)
+  union_matrix[found$pairs] = union_weight
+  union_matrix[found$pairs[, 2:1, drop = FALSE]] = union_weight
   shared = qgraph::qgraph(
-    input = cbind(found$pairs, union_weight),
-    nNodes = num_variables, labels = variables, directed = FALSE,
+    input = union_matrix, labels = variables, directed = FALSE,
     layout = layout, DoNotPlot = TRUE
   )$layout
 
@@ -421,9 +467,12 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
   graphics::par(mfrow = c(1L, num_groups + 1L))
 
   for(g in seq_len(num_groups)) {
+    weights = matrix(0, num_variables, num_variables)
+    weights[found$pairs] = group_weight[[g]]
+    weights[found$pairs[, 2:1, drop = FALSE]] = group_weight[[g]]
     panel = list(
-      input = cbind(found$pairs, group_weight[[g]]),
-      nNodes = num_variables, labels = variables, directed = FALSE,
+      input = weights,
+      labels = variables, directed = FALSE,
       layout = shared, fade = FALSE, minimum = 0,
       # qgraph's default green/red sign pair is the one colour-vision
       # deficiency most often collapses; the difference panel's Okabe-Ito pair
