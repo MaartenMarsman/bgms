@@ -191,7 +191,9 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' overwhelming per-iteration evidence, because \eqn{1 - \alpha_t} underflows
 #' once \eqn{\alpha_t} drops below about `1e-16`. For inclusion Bayes factors,
 #' use [extract_inclusion_bf()], which accumulates the odds on the
-#' acceptance-probability scale and stays finite far beyond that ceiling. The
+#' acceptance-probability scale and stays finite far beyond that ceiling; its
+#' `log = TRUE` return carries evidence beyond what the Bayes factor scale can
+#' represent in double precision. The
 #' `"rb"` estimator changes only the summary, not the sampler; it inherits the
 #' chain's mixing, does not rescue a chain that has failed to explore the model
 #' space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
@@ -347,10 +349,30 @@ rb_log_odds_from_counts = function(counts) {
 }
 
 
+# ------------------------------------------------------------------
+# rb_bf_scale
+# ------------------------------------------------------------------
+# Puts log inclusion Bayes factors on the scale requested by
+# extract_inclusion_bf()'s log argument.
+#
+# @param log_bf  Matrix of natural-log inclusion Bayes factors.
+# @param log     Logical. TRUE keeps the log scale, FALSE exponentiates.
+#
+# Returns: log_bf unchanged, or exp(log_bf), where -Inf maps to 0, +Inf and NA
+# are preserved, and values above about 709.78 nats overflow to +Inf.
+# ------------------------------------------------------------------
+rb_bf_scale = function(log_bf, log) {
+  if(length(log) != 1L || !is.logical(log) || is.na(log)) {
+    stop("The log argument must be a single logical value, but not NA.")
+  }
+  if(log) log_bf else exp(log_bf)
+}
+
+
 #' @title Extract Rao-Blackwellized Inclusion Bayes Factors
 #'
 #' @description
-#' Computes log inclusion Bayes factors from a model fitted with [bgm()] (edge
+#' Computes inclusion Bayes factors from a model fitted with [bgm()] (edge
 #' inclusion) or [bgmCompare()] (difference inclusion), using the
 #' Rao-Blackwellized odds accumulators recorded during sampling. For each
 #' indicator the sampler sums the birth/death acceptance probability on the
@@ -366,38 +388,47 @@ rb_log_odds_from_counts = function(counts) {
 #' Bayes factor here.
 #'
 #' The prior inclusion odds are removed edge by edge, so the returned value is
-#' the natural log of the inclusion Bayes factor rather than the posterior odds:
-#' the two coincide only at a prior inclusion probability of \eqn{1/2} (the
-#' default). For `bgm()` fits the prior odds come from
-#' [extract_prior_inclusion_probabilities()]; for continuous or
-#' stochastic-block models that call may run and cache a short prior-only chain.
-#' For `bgmCompare()` fits the exchangeable difference prior supplies a single
-#' prior inclusion probability (Bernoulli or Beta-Bernoulli); a stochastic-block
-#' difference prior has no single marginal, so the result is left as posterior
-#' odds there.
+#' the inclusion Bayes factor rather than the posterior odds: the two coincide
+#' only at a prior inclusion probability of \eqn{1/2} (the default). For `bgm()`
+#' fits the prior odds come from [extract_prior_inclusion_probabilities()]; for
+#' continuous or stochastic-block models that call may run and cache a short
+#' prior-only chain. For `bgmCompare()` fits the exchangeable difference prior
+#' supplies a single prior inclusion probability (Bernoulli or Beta-Bernoulli);
+#' a stochastic-block difference prior has no single marginal, so the result is
+#' posterior odds there. The `log` argument applies to that return unchanged.
+#'
+#' The accumulators are exact on the log scale everywhere, while the Bayes
+#' factor scale saturates at double precision: an entry whose log exceeds about
+#' 709.78 nats (a Bayes factor beyond about 1.8e308) is `+Inf` under
+#' `log = FALSE` even though its log-scale value is finite. Use `log = TRUE` for
+#' workflows that must separate such extreme evidence.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
+#' @param log Logical. If `FALSE` (default), return inclusion Bayes factors; if
+#'   `TRUE`, return their natural logarithm.
 #'
-#' @return A symmetric p x p matrix of log inclusion Bayes factors (natural
-#'   log), with variable names as row and column names. Entries are `NA` for
-#'   indicators that were never updated, `+Inf` when no exclusion evidence
-#'   remains (denominator exactly zero), and `-Inf` when no inclusion evidence
-#'   remains. For `bgms` the diagonal is `NA`; for `bgmCompare` the diagonal
-#'   holds main-effect difference Bayes factors.
+#' @return A symmetric p x p matrix of inclusion Bayes factors, or of their
+#'   natural logarithms when `log = TRUE`, with variable names as row and column
+#'   names. Entries are `NA` for indicators that were never updated, `+Inf` when
+#'   no exclusion evidence remains (denominator exactly zero), and `-Inf` when no
+#'   inclusion evidence remains. On the Bayes factor scale the latter is `0`, and
+#'   `+Inf` also covers entries that overflow double precision. For `bgms` the
+#'   diagonal is `NA`; for `bgmCompare` the diagonal holds main-effect difference
+#'   Bayes factors.
 #'
 #' @seealso [extract_posterior_inclusion_probabilities()],
 #'   [extract_prior_inclusion_probabilities()]
 #' @family extractors
 #' @export
-extract_inclusion_bf = function(bgms_object) {
+extract_inclusion_bf = function(bgms_object, log = FALSE) {
   UseMethod("extract_inclusion_bf")
 }
 
 #' @inheritParams extract_inclusion_bf
 #' @exportS3Method
 #' @noRd
-extract_inclusion_bf.bgms = function(bgms_object) {
+extract_inclusion_bf.bgms = function(bgms_object, log = FALSE) {
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$edge_selection)) {
@@ -439,13 +470,13 @@ extract_inclusion_bf.bgms = function(bgms_object) {
   # shape and orientation, so the subtraction is per-edge.
   prior_pip = extract_prior_inclusion_probabilities(bgms_object)
   prior_log_odds = log(prior_pip) - log1p(-prior_pip)
-  post_log_odds - prior_log_odds
+  rb_bf_scale(post_log_odds - prior_log_odds, log)
 }
 
 #' @inheritParams extract_inclusion_bf
 #' @exportS3Method
 #' @noRd
-extract_inclusion_bf.bgmCompare = function(bgms_object) {
+extract_inclusion_bf.bgmCompare = function(bgms_object, log = FALSE) {
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$difference_selection)) {
@@ -505,7 +536,7 @@ extract_inclusion_bf.bgmCompare = function(bgms_object) {
     bf_mat = bf_mat - (log(prior_p) - log1p(-prior_p))
   }
 
-  return(bf_mat)
+  return(rb_bf_scale(bf_mat, log))
 }
 
 
