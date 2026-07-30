@@ -29,6 +29,31 @@ test_that("the wobble q95 pools threshold-relevant edges only", {
   expect_lt(w$q95, min(d[4:5]))
   # with every edge saturated the yardstick is undefined
   expect_true(is.na(wobble_yardstick(c(5, -7), c(6, -8))$q95))
+  expect_equal(w$censored, 0L)
+})
+
+
+test_that("an edge saturating in one refit does not carry the yardstick to Inf", {
+  # A threshold-relevant edge whose replicate saturates has a censored spread.
+  # Pooling the Inf would make the yardstick infinite, and every verdict move
+  # would then read as run-to-run noise.
+  lbf_s0 = c(0.2, -1.5, 2.9, -1.0)
+  lbf_rep = c(0.3, -1.3, 2.7, -Inf)
+  w = wobble_yardstick(lbf_s0, lbf_rep)
+
+  expect_true(is.finite(w$q95))
+  expect_equal(w$q95, stats::quantile(abs(lbf_s0 - lbf_rep)[1:3], 0.95, names = FALSE))
+  expect_equal(w$censored, 1L)
+  # The per-edge column still reports the censored edge as such.
+  expect_true(is.infinite(w$per_edge[4]))
+  # The median covers every edge with a measurable spread.
+  expect_equal(w$median, stats::median(abs(lbf_s0 - lbf_rep)[1:3]))
+
+  # Both refits saturating leaves nothing measurable, and the yardstick drops
+  # out rather than becoming Inf.
+  none = wobble_yardstick(c(-1.0, 0.5), c(-Inf, Inf))
+  expect_true(is.na(none$q95))
+  expect_equal(none$censored, 2L)
 })
 
 

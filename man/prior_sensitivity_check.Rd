@@ -139,7 +139,12 @@ between-chain and the importance-sampling uncertainty) and the noise band
 the 95th percentile of the spread between one anchor refit and its
 repeat, over threshold-relevant edges
 (\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
-inflate it). The \code{$edges$mover} column stores \code{stable},
+inflate it). An edge that is threshold-relevant in one of the two refits and
+saturated in the other has a censored rather than an infinite spread, and is
+left out of that percentile; the printed report counts them. When no
+threshold-relevant edge has a measurable spread the noise band is \code{NA}
+and the mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+The \code{$edges$mover} column stores \code{stable},
 \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 printed report shows the same categories in plain language ("robust",
 "changed, within run-to-run noise", "changed, beyond run-to-run noise",

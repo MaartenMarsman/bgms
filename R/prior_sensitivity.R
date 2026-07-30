@@ -86,7 +86,12 @@ verdict_from_bf = function(bf, threshold) {
 #' the 95th percentile of the spread between one anchor refit and its
 #' repeat, over threshold-relevant edges
 #' (\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
-#' inflate it). The \code{$edges$mover} column stores \code{stable},
+#' inflate it). An edge that is threshold-relevant in one of the two refits and
+#' saturated in the other has a censored rather than an infinite spread, and is
+#' left out of that percentile; the printed report counts them. When no
+#' threshold-relevant edge has a measurable spread the noise band is \code{NA}
+#' and the mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+#' The \code{$edges$mover} column stores \code{stable},
 #' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 #' printed report shows the same categories in plain language ("robust",
 #' "changed, within run-to-run noise", "changed, beyond run-to-run noise",
@@ -462,11 +467,13 @@ prior_sensitivity_check = function(bgms_object,
     d_wobble = wob$per_edge
     wobble_q95 = wob$q95
     wobble_med = wob$median
+    wobble_censored = wob$censored
   } else {
     # The failure was already reported once above, in plain voice.
     d_wobble = rep(NA_real_, n_edges)
     wobble_q95 = NA_real_
     wobble_med = NA_real_
+    wobble_censored = 0L
   }
 
   # --- Per-edge chosen-scale sufficiency (from the original fit) --------------
@@ -600,7 +607,7 @@ prior_sensitivity_check = function(bgms_object,
       ),
       wobble = list(
         q95 = wobble_q95, median = wobble_med, per_edge = d_wobble,
-        anchor = anchors[rep_anchor]
+        censored = wobble_censored, anchor = anchors[rep_anchor]
       ),
       preferred_scale = preferred,
       evidence_threshold = evidence_threshold,
@@ -654,11 +661,20 @@ order_upper_tri_rowmajor = function(p) {
 # ------------------------------------------------------------------
 wobble_yardstick = function(lbf_s0, lbf_rep) {
   per_edge = abs(lbf_s0 - lbf_rep)
-  relevant = which(abs(lbf_s0) <= 3)
+  relevant = is.finite(lbf_s0) & abs(lbf_s0) <= 3
+  # An edge that is threshold-relevant in one refit and saturated in the other
+  # has a censored spread, not an infinite one. Pooling it would carry the
+  # yardstick to Inf, which classes every verdict move as run-to-run noise.
+  measurable = relevant & is.finite(per_edge)
   list(
-    q95 = stats::quantile(per_edge[relevant], 0.95, names = FALSE, na.rm = TRUE),
-    median = stats::median(per_edge, na.rm = TRUE),
-    per_edge = per_edge
+    q95 = if(any(measurable)) {
+      stats::quantile(per_edge[measurable], 0.95, names = FALSE)
+    } else {
+      NA_real_
+    },
+    median = stats::median(per_edge[is.finite(per_edge)]),
+    per_edge = per_edge,
+    censored = sum(relevant & !is.finite(per_edge))
   )
 }
 
@@ -905,10 +921,24 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     "Refits:  %d %s refits, %s, %s total.\n",
     n_refit, x$refit_sampler, start_txt, secs
   ))
-  cat(sprintf(
-    "Noise:   two identical refits at %.2gx differed by up to %.2g log10 BF across\n         threshold-relevant edges; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
-    x$wobble$anchor, x$wobble$q95
-  ))
+  if(is.na(x$wobble$q95)) {
+    cat(sprintf(
+      "Noise:   no threshold-relevant edge had a measurable spread between two identical\n         refits at %.2gx, so there is no run-to-run yardstick; verdict moves are\n         judged against the tolerance and Monte Carlo error alone.\n",
+      x$wobble$anchor
+    ))
+  } else {
+    cat(sprintf(
+      "Noise:   two identical refits at %.2gx differed by up to %.2g log10 BF across\n         threshold-relevant edges; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
+      x$wobble$anchor, x$wobble$q95
+    ))
+    if(isTRUE(x$wobble$censored > 0)) {
+      cat(sprintf(
+        "         %d edge%s saturated in one of the two and %s left out of that spread.\n",
+        x$wobble$censored, if(x$wobble$censored == 1L) "" else "s",
+        if(x$wobble$censored == 1L) "was" else "were"
+      ))
+    }
+  }
   cat("See ?prior_sensitivity_check for the full construction.\n")
   invisible(x)
 }
