@@ -4,22 +4,27 @@
 \alias{extract_inclusion_bf}
 \title{Extract Rao-Blackwellized Inclusion Bayes Factors}
 \usage{
-extract_inclusion_bf(bgms_object)
+extract_inclusion_bf(bgms_object, log = FALSE)
 }
 \arguments{
 \item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
+
+\item{log}{Logical. If \code{FALSE} (default), return inclusion Bayes factors; if
+\code{TRUE}, return their natural logarithm.}
 }
 \value{
-A symmetric p x p matrix of log inclusion Bayes factors (natural
-log), with variable names as row and column names. Entries are \code{NA} for
-indicators that were never updated, \code{+Inf} when no exclusion evidence
-remains (denominator exactly zero), and \code{-Inf} when no inclusion evidence
-remains. For \code{bgms} the diagonal is \code{NA}; for \code{bgmCompare} the diagonal
-holds main-effect difference Bayes factors.
+A symmetric p x p matrix of inclusion Bayes factors, or of their
+natural logarithms when \code{log = TRUE}, with variable names as row and column
+names. Entries are \code{NA} for indicators that were never updated, \code{+Inf} when
+no exclusion evidence remains (denominator exactly zero), and \code{-Inf} when no
+inclusion evidence remains. On the Bayes factor scale the latter is \code{0}, and
+\code{+Inf} also covers entries that overflow double precision. For \code{bgms} the
+diagonal is \code{NA}; for \code{bgmCompare} the diagonal holds main-effect difference
+Bayes factors.
 }
 \description{
-Computes log inclusion Bayes factors from a model fitted with \code{\link[=bgm]{bgm()}} (edge
+Computes inclusion Bayes factors from a model fitted with \code{\link[=bgm]{bgm()}} (edge
 inclusion) or \code{\link[=bgmCompare]{bgmCompare()}} (difference inclusion), using the
 Rao-Blackwellized odds accumulators recorded during sampling. For each
 indicator the sampler sums the birth/death acceptance probability on the
@@ -35,15 +40,20 @@ RB draws (which rounds to 0 or 1 near the boundary) still receive a finite
 Bayes factor here.
 
 The prior inclusion odds are removed edge by edge, so the returned value is
-the natural log of the inclusion Bayes factor rather than the posterior odds:
-the two coincide only at a prior inclusion probability of \eqn{1/2} (the
-default). For \code{bgm()} fits the prior odds come from
-\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}}; for continuous or
-stochastic-block models that call may run and cache a short prior-only chain.
-For \code{bgmCompare()} fits the exchangeable difference prior supplies a single
-prior inclusion probability (Bernoulli or Beta-Bernoulli); a stochastic-block
-difference prior has no single marginal, so the result is left as posterior
-odds there.
+the inclusion Bayes factor rather than the posterior odds: the two coincide
+only at a prior inclusion probability of \eqn{1/2} (the default). For \code{bgm()}
+fits the prior odds come from \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}}; for
+continuous or stochastic-block models that call may run and cache a short
+prior-only chain. For \code{bgmCompare()} fits the exchangeable difference prior
+supplies a single prior inclusion probability (Bernoulli or Beta-Bernoulli);
+a stochastic-block difference prior has no single marginal, so the result is
+posterior odds there. The \code{log} argument applies to that return unchanged.
+
+The accumulators are exact on the log scale everywhere, while the Bayes
+factor scale saturates at double precision: an entry whose log exceeds about
+709.78 nats (a Bayes factor beyond about 1.8e308) is \code{+Inf} under
+\code{log = FALSE} even though its log-scale value is finite. Use \code{log = TRUE} for
+workflows that must separate such extreme evidence.
 }
 \seealso{
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},

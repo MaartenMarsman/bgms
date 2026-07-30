@@ -206,7 +206,7 @@ test_that("rb_inclusion is exposed, interior, and edge-aligned for GGM", {
 test_that("extract_inclusion_bf is finite for saturated edges and matches the RB odds", {
   skip_unless_slow()
   fit = rb_saturated_fit()
-  logbf = extract_inclusion_bf(fit)
+  logbf = extract_inclusion_bf(fit, log = TRUE)
   rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
   pip = extract_posterior_inclusion_probabilities(fit)
 
@@ -238,6 +238,55 @@ test_that("extract_inclusion_bf is finite for saturated edges and matches the RB
       tolerance = 1e-6
     )
   }
+
+  # The default (log = FALSE) is the Bayes factor itself. Saturated edges whose
+  # log-scale value is +Inf stay +Inf on the Bayes factor scale, as do edges
+  # whose finite log exceeds the double-precision ceiling of about 709.78 nats.
+  bf = extract_inclusion_bf(fit)
+  expect_equal(bf, exp(logbf))
+  overflow = !is.na(logbf) & (logbf == Inf | logbf > 709.79)
+  expect_true(all(bf[overflow] == Inf))
+})
+
+test_that("extract_inclusion_bf returns Bayes factors by default and logs on request", {
+  fit = rb_omrf_fit()
+
+  bf = extract_inclusion_bf(fit)
+  logbf = extract_inclusion_bf(fit, log = TRUE)
+
+  expect_equal(dim(bf), dim(logbf))
+  expect_equal(dimnames(bf), dimnames(logbf))
+  expect_equal(bf, exp(logbf))
+  expect_true(all(bf[!is.na(bf)] >= 0))
+
+  # log = TRUE is the pre-argument behaviour: the log odds of the RB inclusion
+  # probability, at the default prior inclusion probability of 1/2.
+  rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
+  lt = lower.tri(rb)
+  interior = rb[lt] > 0.02 & rb[lt] < 0.98
+  expect_true(any(interior))
+  expect_equal(logbf[lt][interior],
+    log(rb[lt][interior] / (1 - rb[lt][interior])),
+    tolerance = 1e-6
+  )
+
+  expect_error(extract_inclusion_bf(fit, log = NA), "single logical value")
+  expect_error(extract_inclusion_bf(fit, log = "yes"), "single logical value")
+})
+
+test_that("rb_bf_scale maps the boundary values as documented", {
+  rb_bf_scale = bgms:::rb_bf_scale
+  x = matrix(c(-Inf, Inf, NA_real_, 0, 800, log(3)), nrow = 2)
+
+  expect_identical(rb_bf_scale(x, TRUE), x)
+
+  bf = rb_bf_scale(x, FALSE)
+  expect_identical(bf[1, 1], 0) # -Inf: no inclusion evidence remains
+  expect_identical(bf[2, 1], Inf) # +Inf: no exclusion evidence remains
+  expect_true(is.na(bf[1, 2]))
+  expect_identical(bf[2, 2], 1)
+  expect_identical(bf[1, 3], Inf) # 800 nats overflows double precision
+  expect_equal(bf[2, 3], 3)
 })
 
 test_that("rb_inclusion is exposed and interior for a mixed MRF", {
@@ -275,8 +324,12 @@ test_that("extract_inclusion_bf pins the bgmCompare interleaved flattening", {
     display_progress = "none"
   )
 
-  logbf = extract_inclusion_bf(fit)
+  logbf = extract_inclusion_bf(fit, log = TRUE)
   rb = extract_posterior_inclusion_probabilities(fit, estimator = "rb")
+
+  # The bgmCompare method takes the same log argument; the default is the Bayes
+  # factor scale.
+  expect_equal(extract_inclusion_bf(fit), exp(logbf))
 
   # Same VxV shape and names as the RB probability matrix, and symmetric.
   expect_equal(dim(logbf), dim(rb))

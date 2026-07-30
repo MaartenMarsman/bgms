@@ -49,7 +49,9 @@ the stored \eqn{J_t} draws still rounds to exactly 0 or 1 for edges with
 overwhelming per-iteration evidence, because \eqn{1 - \alpha_t} underflows
 once \eqn{\alpha_t} drops below about \code{1e-16}. For inclusion Bayes factors,
 use \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which accumulates the odds on the
-acceptance-probability scale and stays finite far beyond that ceiling. The
+acceptance-probability scale and stays finite far beyond that ceiling; its
+\code{log = TRUE} return carries evidence beyond what the Bayes factor scale can
+represent in double precision. The
 \code{"rb"} estimator changes only the summary, not the sampler; it inherits the
 chain's mixing, does not rescue a chain that has failed to explore the model
 space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
