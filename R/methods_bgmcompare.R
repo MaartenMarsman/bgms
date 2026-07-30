@@ -148,10 +148,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
-    # mean/mcse/sd/n_eff are the Rao-Blackwellized inclusion estimate;
-    # n_eff_mixt is the indicator's transition-based ESS (exploration), shown
-    # honestly (NA for zero-flip edges) beside the RB n_eff; n0->1 / n1->0 are
-    # the raw directional flip counts.
+    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate;
+    # n0->1 / n1->0 are the raw directional flip counts, which record the
+    # indicator's exploration beside them.
     ind = head(x$indicator, 6)
 
     ind_has_na = anyNA(ind)

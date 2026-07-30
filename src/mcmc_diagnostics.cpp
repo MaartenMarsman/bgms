@@ -48,8 +48,11 @@ static double compute_column_ess(const double* x, int n, int max_order) {
     acov[lag] = s / n;
   }
 
-  // Constant chain: no autocorrelation structure to estimate
-  if(acov[0] < 1e-15) return NA_REAL;
+  // Constant chain: no autocorrelation structure to estimate, so it carries no
+  // effective draws. Zero rather than NA, so that pooling over chains keeps the
+  // ESS of the chains that do vary (a near-saturated edge indicator is often
+  // constant in some chains and not in others).
+  if(acov[0] < 1e-15) return 0.0;
 
   // Step 3: Levinson-Durbin + AIC selection
   double best_aic = n * std::log(acov[0]); // AIC for order 0
@@ -137,7 +140,9 @@ struct ESSWorker : public RcppParallel::Worker {
         const double* col = data + c * niter + j * niter * nchains;
         total_ess += compute_column_ess(col, niter, max_order);
       }
-      ess[j] = total_ess;
+      // A zero total means every chain was constant; a non-finite one means a
+      // chain carried non-finite draws. Neither yields an effective sample size.
+      ess[j] = (total_ess > 0.0) ? total_ess : NA_REAL;
     }
   }
 };

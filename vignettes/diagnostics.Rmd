@@ -57,21 +57,39 @@ summary(fit)$pairwise
 
 The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the transition counts (`n0->0`, `n0->1`, `n1->0`, `n1->1`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
 
-## Two ESS measures for edge-selected parameters
+## Diagnostics for edge-selected parameters
 
 With edge or difference selection active, the effect parameters are governed by
-spike-and-slab priors. The corresponding parameter is set to exactly zero when 
-the effect is excluded, rather than being removed from the model. Because the 
-parameter has a well-defined value at every iteration, the full chain — 
+spike-and-slab priors. The corresponding parameter is set to exactly zero when
+the effect is excluded, rather than being removed from the model. Because the
+parameter has a well-defined value at every iteration, the full chain —
 including zeros — is a valid sequence for computing ESS.
 
-- **n_eff** is the unconditional ESS, computed from the full effect chain. It
-  measures how precisely the overall posterior mean is estimated.
-- **n_eff_mixt** is the mixture ESS. It measures how precisely the posterior
-  mean of the effect is estimated while accounting for the additional
-  uncertainty introduced by the spike-and-slab selection. When the indicator
-  rarely switches between inclusion and exclusion (fewer than 5 transitions),
-  `n_eff_mixt` is suppressed in the printed output.
+- **n_eff** in the pairwise table is the composite ESS of the model-averaged
+  weight: it combines the Monte Carlo error of the conditional (included-only)
+  weight with the Monte Carlo error of the inclusion probability.
+- **share_incl** is the share of that composite Monte Carlo variance
+  contributed by the inclusion part, so it says which of the two limits the
+  precision of the weight.
+
+The inclusion table carries its own diagnostics:
+
+```{r}
+summary(fit)$indicator
+```
+
+- **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
+  Rao-Blackwellized inclusion probability. The sampler records a one-step
+  inclusion draw at every indicator update, and that draw is continuous, so the
+  standard Monte Carlo machinery applies to it. They are `NA` only for an
+  indicator whose Rao-Blackwellized draws are constant to double precision,
+  where the inclusion probability sits at its numerical bound.
+- **n0->1** and **n1->0** are the directional flip counts of the binary
+  indicator chain. They record how much the chain explored the two states, which
+  the Rao-Blackwellized columns cannot see: those measure precision conditional
+  on exploration, so a chain stuck in one structure can show a large `n_eff`.
+  Few flips are expected on an edge whose inclusion probability sits near 0 or
+  1, and the asymmetry between the two counts is itself informative.
 
 ## Traceplots
 

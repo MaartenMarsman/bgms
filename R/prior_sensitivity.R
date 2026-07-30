@@ -568,7 +568,7 @@ prior_sensitivity_check = function(bgms_object,
     rhat_continuous = vapply(all_gates, `[[`, numeric(1), "rhat_cont"),
     rhat_continuous_max = vapply(all_gates, `[[`, numeric(1), "rhat_cont_max"),
     ess_continuous = vapply(all_gates, `[[`, numeric(1), "ess_cont"),
-    indicator_pair_ess = vapply(all_gates, `[[`, numeric(1), "pair_ess"),
+    inclusion_ess_min = vapply(all_gates, `[[`, numeric(1), "ess_incl"),
     rb_median_rhat = vapply(all_gates, `[[`, numeric(1), "rb_med_rhat"),
     warmup_incomplete = c(
       vapply(anchor_fits, warmup_incomplete_of, logical(1)),

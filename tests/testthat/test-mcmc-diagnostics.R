@@ -384,7 +384,7 @@ test_that("constant-but-unequal sub-chains give +Inf, not NA", {
   expect_identical(rhat, Inf)
 })
 
-test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked for zero-flip edges", {
+test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked only for constant draws", {
   skip_on_cran()
   data = Wenchuan[, 1:6]
   fit = bgm(
@@ -406,15 +406,30 @@ test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked fo
   for(c in seq_len(nchains)) arr[, c, ] = chains[[c]]
   manual = classic_rhat_ref(bgms:::split_chains(arr))
 
-  # Zero-flip edges (n_eff_mixt NA) carry no exploration information, so the RB
-  # Rhat and RB n_eff are masked to NA: a heavy-tailed near-constant J chain
-  # would otherwise report a misleading ~1.29 next to a falsely reassuring ESS.
-  zero_flip = is.na(summ$n_eff_mixt)
-  expect_true(all(is.na(reported[zero_flip])))
-  expect_true(all(is.na(summ$n_eff[zero_flip])))
+  # Masking keys on the J draws being constant to double precision, not on the
+  # indicator's flip count: where J varies there is an MCSE, an ESS and an Rhat
+  # to report, and near-boundary edges in short runs often have zero flips.
+  sds = apply(arr, 3, function(z) stats::sd(as.vector(z)))
+  expect_true(all(is.na(reported[sds == 0])))
+  expect_true(all(is.na(summ$n_eff[sds == 0])))
+  expect_true(all(is.na(summ$mcse[sds == 0])))
 
-  # On the remaining (few/many-flip) edges the reported Rhat is exactly the
-  # classic split-Rhat on the J draws, with no df adjustment.
+  # Nothing that varies appreciably is masked; what masking remains beyond the
+  # exactly-constant columns sits at the autocovariance kernel's numerical
+  # floor, where the inclusion probability is at its bound.
+  expect_true(all(sds[is.na(reported)] < 1e-6))
+
+  # Edges whose indicator never flipped keep their numbers as long as J varies:
+  # those are the near-boundary short-run edges where the MCSE is needed.
+  zero_flip = summ[["n0->1"]] + summ[["n1->0"]] == 0
+  varying = zero_flip & sds > 1e-6
+  expect_true(any(varying))
+  expect_true(all(is.finite(reported[varying])))
+  expect_true(all(is.finite(summ$mcse[varying])))
+  expect_true(all(is.finite(summ$n_eff[varying])))
+
+  # On the unmasked edges the reported Rhat is exactly the classic split-Rhat on
+  # the J draws, with no df adjustment.
   keep = !is.na(reported)
   expect_equal(reported[keep], manual[keep], tolerance = 1e-8)
 })

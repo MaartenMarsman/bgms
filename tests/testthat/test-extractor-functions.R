@@ -275,27 +275,35 @@ test_that("extract_ess indicators default to the RB n_eff and honour estimator",
     fit = spec$get_fit()
     ind = summary(fit)$indicator
 
-    if(is.null(ind) || !all(c("n_eff", "n_eff_mixt") %in% names(ind))) next
+    if(is.null(ind) || !("n_eff" %in% names(ind))) next
     checked = checked + 1L
 
     rb = extract_ess(fit)$indicator
-    mixt = extract_ess(fit, estimator = "mixt")$indicator
 
     # The default is the RB n_eff column, matching summary() and the R-hat that
-    # extract_rhat() reports; "mixt" is the transition ESS column.
+    # extract_rhat() reports.
     expect_equal(unname(rb), ind$n_eff, info = paste(ctx, "default is RB n_eff"))
-    expect_equal(unname(mixt), ind$n_eff_mixt, info = paste(ctx, "mixt is n_eff_mixt"))
     expect_equal(unname(extract_ess(fit, estimator = "rb")$indicator), ind$n_eff,
       info = paste(ctx, "explicit rb is RB n_eff")
     )
 
-    # NA masking is inherited from the summary table, per column.
+    # NA masking is inherited from the summary table.
     expect_identical(is.na(unname(rb)), is.na(ind$n_eff),
       info = paste(ctx, "RB NA positions")
     )
-    expect_identical(is.na(unname(mixt)), is.na(ind$n_eff_mixt),
-      info = paste(ctx, "transition NA positions")
+
+    # The transition ESS is deprecated and no longer a summary column; the
+    # estimator still resolves, warns, and recomputes it from the raw draws.
+    expect_false("n_eff_mixt" %in% names(ind), info = paste(ctx, "no transition column"))
+    expect_warning(
+      mixt <- extract_ess(fit, estimator = "mixt")$indicator,
+      class = "lifecycle_warning_deprecated"
     )
+    raw = bgms:::get_fit_cache(fit)$raw
+    ref = bgms:::.compute_indicator_ess_cpp(
+      bgms:::combine_chains(raw, "indicator_samples")
+    )[, "n_eff_mixt"]
+    expect_equal(unname(mixt), unname(ref), info = paste(ctx, "mixt is the transition ESS"))
 
     expect_error(extract_ess(fit, estimator = "nonsense"))
   }
@@ -305,21 +313,24 @@ test_that("extract_ess indicators default to the RB n_eff and honour estimator",
 
 test_that("extract_ess indicators fall back to the transition ESS without RB draws", {
   # Summary tables from fits predating the RB regime (bgms < 0.2.0.0) carry no
-  # n_eff column: a default call falls back, an explicit "rb" errors.
-  rb_table = data.frame(n_eff = c(100, NA), n_eff_mixt = c(80, NA))
+  # n_eff column: a default call falls back, an explicit "rb" errors, and an
+  # explicit "mixt" reads the legacy column.
+  rb_table = data.frame(n_eff = c(100, NA))
   legacy_table = data.frame(n_eff_mixt = c(80, NA))
   default_arg = c("rb", "mixt")
 
-  expect_equal(indicator_ess_column(rb_table, default_arg, TRUE), c(100, NA))
-  expect_equal(indicator_ess_column(rb_table, "mixt", FALSE), c(80, NA))
-  expect_equal(indicator_ess_column(legacy_table, default_arg, TRUE), c(80, NA))
-  expect_error(indicator_ess_column(legacy_table, "rb", FALSE), "Rao-Blackwellized")
+  expect_equal(indicator_ess_column(NULL, rb_table, default_arg, TRUE), c(100, NA))
+  expect_equal(indicator_ess_column(NULL, legacy_table, default_arg, TRUE), c(80, NA))
+  expect_equal(indicator_ess_column(NULL, legacy_table, "mixt", FALSE), c(80, NA))
+  expect_error(indicator_ess_column(NULL, legacy_table, "rb", FALSE), "Rao-Blackwellized")
 })
 
 test_that("extract_ess indicator names and other elements ignore estimator", {
   fit = get_bgms_fit()
   rb = extract_ess(fit)
-  mixt = extract_ess(fit, estimator = "mixt")
+  expect_warning(mixt <- extract_ess(fit, estimator = "mixt"),
+    class = "lifecycle_warning_deprecated"
+  )
 
   expect_identical(names(rb), names(mixt))
   expect_identical(names(rb$indicator), names(mixt$indicator))

@@ -235,8 +235,8 @@ summarize_indicator = function(fit, component = c("indicator_samples"), param_na
 # plus MCSE/ESS/split-Rhat on the RB draws, which the binary indicator draws
 # cannot give. Columns that were never updated (unselected indicators, e.g. main
 # differences when main_difference_selection = FALSE) are all NA and get an NA
-# row rather than being fed to the ESS/Rhat kernels. Zero-flip edges (and
-# saturated or constant columns) keep their mean but report NA for the RB
+# row rather than being fed to the ESS/Rhat kernels. Columns whose RB draws are
+# constant to double precision keep their mean but report NA for the RB
 # mcse/n_eff/Rhat (see the masking block below).
 summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) {
   array3d = combine_chains(raw, "rb_inclusion_samples")
@@ -257,39 +257,28 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
     mat[keep, ] = as.matrix(sub[, cols, drop = FALSE])
   }
 
-  # The exploration diagnostic kept beside the RB n_eff: the indicator's
-  # transition-based ESS (n_eff_mixt), the calibrated, run-length-normalized
-  # form of the flip count. The RB n_eff measures precision *conditional on
-  # exploration* and cannot see a stuck sampler; n_eff_mixt measures the
-  # exploration itself. The pair is the diagnostic -- a large RB n_eff with a
-  # small or NA n_eff_mixt is the boundary signature (a precise one-step
-  # estimate resting on little transition evidence).
   ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
-  no_flips = is.na(ind_stats[, "n_eff_mixt"])
 
-  # Mask the RB precision/convergence columns where the chain carries no
-  # exploration information: zero-flip edges (n_eff_mixt NA) plus machine-
-  # constant or saturated J chains. With zero transitions the RB moments
-  # describe conditional wiggles whose tail bears on no verdict, while the
-  # classic split-Rhat of a heavy-tailed near-constant J chain reads a
-  # misleading ~1.29 and the large RB n_eff beside it falsely reassures. Report
-  # NA for the RB mcse/n_eff/Rhat there; the honest columns are then the mean,
-  # the (NA) transition ESS, the directional counts, and -- via
-  # extract_inclusion_bf() -- the accumulator Bayes factor. Few-flip edges
-  # (flips > 0) keep their numbers; the pair reading covers them.
-  bad = no_flips |
-    !is.finite(mat[, "n_eff"]) |
-    (is.finite(mat[, "sd"]) & mat[, "sd"] == 0)
-  mat[bad, c("mcse", "n_eff", "Rhat")] = NA_real_
+  # Mask the RB precision/convergence columns only where the RB draws are
+  # constant to double precision: there is no variability from which an MCSE, an
+  # ESS, or a split-R-hat could be formed, and the mean is at its numerical
+  # bound. Everywhere else the RB draws vary and the continuous machinery
+  # applies as it does to any smooth quantity -- including on edges whose
+  # indicator never flipped, where the RB chain is still informative and the
+  # MCSE is what a boundary-stable fragility check needs. Draws whose variance
+  # falls below the autocovariance kernel's numerical floor pick up an NA ESS
+  # there rather than here, with the same meaning. Chains stuck constant at
+  # different values are not masked: their ESS is NA and their split-R-hat is
+  # +Inf, which is the alarm. The directional flip counts stay in the table.
+  constant = is.finite(mat[, "sd"]) & mat[, "sd"] == 0
+  mat[constant, c("mcse", "n_eff", "Rhat")] = NA_real_
 
   full = cbind(
-    mat[, c("mean", "mcse", "sd", "n_eff"), drop = FALSE],
-    n_eff_mixt = ind_stats[, "n_eff_mixt"],
-    Rhat = mat[, "Rhat"],
+    mat[, c("mean", "mcse", "sd", "n_eff", "Rhat"), drop = FALSE],
     ind_stats[, c("n01", "n10"), drop = FALSE]
   )
-  # Keep the directional transition counts whole (their asymmetry is
-  # decision-relevant and the symmetric n_eff_mixt cannot recover it).
+  # Keep the directional transition counts whole; their asymmetry is
+  # decision-relevant and no symmetric summary recovers it.
   colnames(full)[colnames(full) == "n01"] = "n0->1"
   colnames(full)[colnames(full) == "n10"] = "n1->0"
 
