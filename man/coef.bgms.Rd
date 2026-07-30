@@ -45,6 +45,8 @@ coef(fit)
 
 Other posterior-methods:
 \code{\link[=coef.bgmCompare]{coef.bgmCompare()}},
+\code{\link[=plot.bgms]{plot.bgms()}},
+\code{\link[=plot_edge_posterior]{plot_edge_posterior()}},
 \code{\link[=print.bgmCompare]{print.bgmCompare()}},
 \code{\link[=print.bgms]{print.bgms()}},
 \code{\link[=print.bgms_verdicts]{print.bgms_verdicts()}},

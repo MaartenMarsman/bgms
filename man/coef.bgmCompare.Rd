@@ -41,6 +41,8 @@ and group-specific effects from a \code{bgmCompare} fit, as well as inclusion in
 
 Other posterior-methods:
 \code{\link[=coef.bgms]{coef.bgms()}},
+\code{\link[=plot.bgms]{plot.bgms()}},
+\code{\link[=plot_edge_posterior]{plot_edge_posterior()}},
 \code{\link[=print.bgmCompare]{print.bgmCompare()}},
 \code{\link[=print.bgms]{print.bgms()}},
 \code{\link[=print.bgms_verdicts]{print.bgms_verdicts()}},

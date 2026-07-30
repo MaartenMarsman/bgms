@@ -351,12 +351,20 @@ ppc_panel_scatter = function(df, title, level, labels = NULL, max_labels = 6L) {
     pch = 17, cex = 0.9, col = accent
   )
 
-  if(!is.null(labels) && any(miss)) {
+  if(!is.null(labels) && any(miss) && max_labels > 0L) {
     idx = which(miss)
     idx = idx[order(abs(df$observed[idx] - df$predicted[idx]), decreasing = TRUE)]
     idx = utils::head(idx, max_labels)
-    graphics::text(df$predicted[idx], df$observed[idx], labels[idx],
-      pos = 4, offset = 0.4, cex = 0.7, col = ink, xpd = NA
+    # Missed elements cluster, so their labels would land on top of one
+    # another; nudge them apart vertically and connect each to its point.
+    idx = idx[order(df$observed[idx])]
+    usr = graphics::par("usr")
+    label_y = spread_labels(df$observed[idx], gap = 0.05 * diff(usr[3:4]))
+    graphics::segments(df$predicted[idx], df$observed[idx], df$predicted[idx], label_y,
+      col = grDevices::adjustcolor(muted, 0.6), lwd = 0.7
+    )
+    graphics::text(df$predicted[idx], label_y, labels[idx],
+      pos = 4, offset = 0.35, cex = 0.65, col = ink
     )
   }
 
