@@ -18,6 +18,51 @@
 
 
 # ------------------------------------------------------------------
+# fitted_observed_data
+# ------------------------------------------------------------------
+# The data the model saw, on the scale simulate() and predict() work in: the
+# fit stores it zero-based with the original levels alongside.
+#
+# @param bgms_object  A bgms fit.
+#
+# Returns: an integer matrix of observed responses on the original scale.
+# ------------------------------------------------------------------
+fitted_observed_data = function(bgms_object) {
+  spec = get_fit_spec(bgms_object)
+  x = spec$data$x
+  levels_list = spec$data$category_levels
+
+  out = x
+  for(j in seq_len(ncol(x))) {
+    out[, j] = levels_list[[j]][x[, j] + 1L]
+  }
+  colnames(out) = spec$data$data_columnnames
+  out
+}
+
+
+# ------------------------------------------------------------------
+# check_interval_probs
+# ------------------------------------------------------------------
+# Validate an interval-quantile pair.
+#
+# @param probs  The value to check.
+#
+# Returns: invisible(TRUE), or stops.
+# ------------------------------------------------------------------
+check_interval_probs = function(probs) {
+  if(!is.numeric(probs) || length(probs) != 2L || anyNA(probs) ||
+    any(probs < 0) || any(probs > 1) || probs[1] >= probs[2]) {
+    stop(
+      "Argument 'probs' must be two increasing probabilities, the lower and ",
+      "upper quantiles of the interval, e.g. c(0.025, 0.975)."
+    )
+  }
+  invisible(TRUE)
+}
+
+
+# ------------------------------------------------------------------
 # pav_curve
 # ------------------------------------------------------------------
 # Pool-adjacent-violators fit of y on p, read off on a common grid.
@@ -79,10 +124,14 @@ pav_curve = function(p, y, grid) {
 #'
 #' Calibrated conditional predictions do not imply that the model reproduces
 #' the joint distribution: a model can predict each variable well from the
-#' others and still understate how strongly they depend on one another. See
-#' [posterior_predictive_check()] for the joint layer.
+#' others and still understate how strongly they depend on one another. That
+#' second question is answered by a display built on [simulate()], not by this
+#' check.
 #'
-#' Discrete variables only in this release.
+#' The check covers discrete variables, whose predictions are distributions
+#' over categories that an observed category either falls in or does not. A
+#' continuous variable's prediction is a density, which needs a different
+#' construction.
 #'
 #' @examples
 #' \donttest{
@@ -93,7 +142,7 @@ pav_curve = function(p, y, grid) {
 #' }
 #'
 #' @seealso [predict.bgms()] for the conditional predictions themselves,
-#'   [posterior_predictive_check()] for the joint layer
+#'   [simulate.bgms()] for replicated datasets to build a joint-level display on
 #' @family diagnostics
 #' @export
 calibration_check = function(bgms_object,
@@ -123,13 +172,14 @@ calibration_check.bgms = function(bgms_object,
   arguments = extract_arguments(bgms_object)
   if(any(arguments$variable_type == "continuous")) {
     stop(
-      "Calibration checks currently cover discrete variables only. This fit ",
-      "contains continuous variables, whose predictions are densities rather ",
-      "than category probabilities."
+      "Calibration checks cover discrete variables. This fit contains ",
+      "continuous variables, whose predictions are densities rather than ",
+      "distributions over categories, so the isotonic curve and its ",
+      "category-resampling band do not apply to them."
     )
   }
 
-  if(is.null(newdata)) newdata = ppc_observed_data(bgms_object)
+  if(is.null(newdata)) newdata = fitted_observed_data(bgms_object)
   if(anyNA(newdata)) {
     stop(
       "The data carry missing values, which have no observed category to ",

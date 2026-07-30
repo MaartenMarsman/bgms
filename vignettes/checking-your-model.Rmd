@@ -21,12 +21,14 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-A fitted network answers two different questions, and they need two different
-checks. *Which edges does the evidence settle?* is a question about the
-posterior, and `verdicts()` answers it. *Does the model reproduce the data?*
-is a question about fit, and the two predictive checks answer it.
+A fitted network raises questions of two kinds. *Which edges does the evidence
+settle?* is a question about the posterior, and `verdicts()` answers it. *Does
+the model describe the data?* is a question about fit, and it splits in two:
+whether the conditional prediction for each variable is calibrated, which
+`calibration_check()` answers, and whether the joint distribution is
+reproduced, which you check by building a display on `simulate()`.
 
-This vignette runs all three on the Wenchuan data. The convergence
+This vignette works through all of them on the Wenchuan data. The convergence
 diagnostics -- R-hat, effective sample size, the trust gauge -- are a separate
 matter and live in the diagnostics vignette.
 
@@ -98,42 +100,6 @@ head(summary(strength))
 plot(strength)
 ```
 
-# Does the model reproduce the data?
-
-`posterior_predictive_check()` draws one replicated dataset per posterior
-draw, so uncertainty about both the parameters and the structure propagates
-into the replicates, and compares three statistics with their predictive
-intervals.
-
-```{r}
-ppc = posterior_predictive_check(fit, ndraws = 200, seed = 1, display_progress = "none")
-ppc
-```
-
-The statistics run from local to global. The category proportions involve one
-variable at a time, the Spearman correlations two, and the sum-score
-distribution depends on how all nine variables depend on one another. A model
-can pass the first and fail the last.
-
-```{r, fig.height = 3.2, fig.width = 8}
-plot(ppc)
-```
-
-Read this on two layers.
-
-The first is **coverage**: how many elements fall outside their interval. With
-95% intervals about one element in twenty lands outside even when the model
-fits, which is why each panel's subtitle states the number a calibrated model
-is expected to cover. A handful of accent-coloured points is the expected
-picture.
-
-The second is **pattern**, and it is the layer a coverage count cannot show. In
-the pairwise panel the observed correlations sit above the identity line
-almost without exception at the low end: the model systematically understates
-the weaker associations. That is misfit even where the intervals happen to
-cover, and it is visible only because the panel plots observed against
-predicted rather than reporting a single number.
-
 # Are the conditional predictions calibrated?
 
 The model's person-level predictions are the conditional distributions
@@ -161,29 +127,86 @@ cumulative events of one case are nested, and treating them as independent
 would make the band too narrow and an ordinary wander look like
 miscalibration.
 
-# Reading the two checks together
+# Checking the joint distribution with simulate()
 
-The two checks find different things on these data, which is the reason to run
-both.
+Calibrated conditional predictions do not imply that the model reproduces the
+joint distribution: predicting each variable from its neighbours is an easier
+task than reproducing how all of them covary, and a model can do the first
+while falling short on the second.
 
-The calibration curves stay near the diagonal and wander in and out of their
-bands, with the departures concentrated in a few variables (`avoidth` and
-`avoidact` here) and mild in the rest. Read alongside the per-variable panels,
-that is a model whose conditional predictions are usable but not uniformly
-well calibrated.
+bgms ships no joint-level check, and the omission is deliberate. The natural
+candidates -- category proportions, pairwise correlations, sum scores -- are
+close to quantities the model already fits, so predictive intervals around
+them usually cover, and a check that usually passes is reassurance rather than
+evidence. What does have diagnostic value is reading a display for systematic
+pattern, and that is an analyst's judgement rather than a pass/fail statistic.
 
-The predictive check is more clear-cut, and it points somewhere else: the
-pairwise panel covers well below expectation and tilts systematically, so the
-model understates how strongly the variables covary. Predicting each variable
-from its neighbours is an easier task than reproducing how all of them covary,
-and a model can do reasonably at the first while falling short on the second.
+`simulate()` gives you the material. One replicated dataset per posterior draw
+propagates both parameter and structure uncertainty into the replicates:
 
-So the checks answer different questions. The calibration check bears on
-whether to trust a prediction for one variable; the predictive check bears on
-whether to trust the network as a description of the joint distribution. And
-`verdicts()` bears on which of its edges the data actually settle, which is a
-third question again -- an edge can be firmly settled in a model that
-reproduces the joint distribution poorly.
+```{r}
+observed = as.matrix(data[complete.cases(data), ])
+
+replicates = simulate(fit,
+  nsim = nrow(observed), method = "posterior-sample",
+  ndraws = 200, seed = 1, display_progress = "none"
+)
+
+lower_triangle = lower.tri(matrix(0, ncol(observed), ncol(observed)))
+observed_rho = cor(observed, method = "spearman")[lower_triangle]
+replicated_rho = vapply(
+  replicates,
+  function(x) cor(x, method = "spearman")[lower_triangle],
+  observed_rho
+)
+```
+
+Plot the observed value against the predictive distribution rather than
+counting how often the two agree. The count is the weak reading; the
+informative one is whether the points depart from the identity line in a
+direction:
+
+```{r, fig.height = 3.6, fig.width = 4.6}
+predicted_rho = rowMeans(replicated_rho)
+plot(predicted_rho, observed_rho,
+  xlab = "Posterior predictive Spearman correlation",
+  ylab = "Observed Spearman correlation",
+  pch = 16, col = "grey25", cex = 0.8, las = 1,
+  xlim = range(c(predicted_rho, observed_rho)),
+  ylim = range(c(predicted_rho, observed_rho))
+)
+abline(0, 1, col = "grey55")
+
+mean(observed_rho > apply(replicated_rho, 1, median))
+```
+
+Every one of the observed correlations sits above its predictive median, and
+the cloud tilts away from the identity line at the low end: the model
+understates the weaker associations. Under a model that reproduced the
+dependence, each correlation would fall above or below its median at about
+even odds, so a clean sweep is not something Monte Carlo error produces. That
+is a real finding, and no interval-coverage summary would have delivered it --
+the tilt is visible because the display shows observed against predicted, one
+point per pair.
+
+Any statistic works the same way: replace the correlation with a sum-score
+distribution, a tail probability, or whatever the substantive question turns
+on.
+
+# What the three checks answer
+
+They are three different questions, and answering one says nothing about the
+other two.
+
+- `verdicts()`: which edges the data settle, and which verdicts the run is too
+  short to settle.
+- `calibration_check()`: whether to trust a prediction for one variable.
+- A `simulate()`-based display: whether to trust the network as a description
+  of the joint distribution.
+
+An edge can be firmly settled in a model that reproduces the joint
+distribution poorly, and a model can predict each variable well while
+understating the dependence among them.
 
 # Next steps
 

@@ -27,10 +27,7 @@ Prints the per-variable departure from the diagonal, worst variable first.
 Other diagnostics:
 \code{\link[=calibration_check]{calibration_check()}},
 \code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
-\code{\link[=plot.bgms_ppc]{plot.bgms_ppc()}},
 \code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
-\code{\link[=posterior_predictive_check]{posterior_predictive_check()}},
-\code{\link[=print.bgms_ppc]{print.bgms_ppc()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}

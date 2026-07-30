@@ -63,10 +63,14 @@ harder to pass.
 
 Calibrated conditional predictions do not imply that the model reproduces
 the joint distribution: a model can predict each variable well from the
-others and still understate how strongly they depend on one another. See
-\code{\link[=posterior_predictive_check]{posterior_predictive_check()}} for the joint layer.
+others and still understate how strongly they depend on one another. That
+second question is answered by a display built on \code{\link[=simulate]{simulate()}}, not by this
+check.
 
-Discrete variables only in this release.
+The check covers discrete variables, whose predictions are distributions
+over categories that an observed category either falls in or does not. A
+continuous variable's prediction is a density, which needs a different
+construction.
 }
 \examples{
 \donttest{
@@ -79,15 +83,12 @@ plot(check)
 }
 \seealso{
 \code{\link[=predict.bgms]{predict.bgms()}} for the conditional predictions themselves,
-\code{\link[=posterior_predictive_check]{posterior_predictive_check()}} for the joint layer
+\code{\link[=simulate.bgms]{simulate.bgms()}} for replicated datasets to build a joint-level display on
 
 Other diagnostics:
 \code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
-\code{\link[=plot.bgms_ppc]{plot.bgms_ppc()}},
 \code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
-\code{\link[=posterior_predictive_check]{posterior_predictive_check()}},
 \code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
-\code{\link[=print.bgms_ppc]{print.bgms_ppc()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}
