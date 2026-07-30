@@ -44,6 +44,7 @@ extract_precision(fit)
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},
 \code{\link[=extract_category_thresholds]{extract_category_thresholds()}},
+\code{\link[=extract_centrality]{extract_centrality()}},
 \code{\link[=extract_ess]{extract_ess()}},
 \code{\link[=extract_group_params]{extract_group_params()}},
 \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}},
@@ -56,6 +57,8 @@ Other extractors:
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
 \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
-\code{\link[=extract_sbm]{extract_sbm()}}
+\code{\link[=extract_sbm]{extract_sbm()}},
+\code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}},
+\code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}

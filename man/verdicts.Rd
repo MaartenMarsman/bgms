@@ -26,7 +26,9 @@ order of the fit's raw indicator draws, with columns:
 \item{bf, log10_bf}{Inclusion Bayes factor and its base-10 logarithm,
 from \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}. \code{log10_bf} stays finite where \code{bf}
 saturates at \code{0} or \code{Inf}.}
-\item{verdict}{Factor with levels \code{presence}, \code{undecided}, \code{absence}.}
+\item{verdict}{Factor with levels \code{presence}, \code{undecided}, \code{absence},
+and \code{NA} for indicators that were never updated (main-effect
+differences under \code{main_difference_selection = FALSE}).}
 \item{se_two_state, se_rb}{Standard errors of the logit inclusion
 probability, from the Jeffreys-smoothed two-state model of the
 indicator chain and from the Rao-Blackwellized draws. \code{se_rb} is \code{NA}
