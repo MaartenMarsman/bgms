@@ -357,6 +357,14 @@ check_evidence_threshold = function(evidence_threshold) {
 #' @family posterior-methods
 #' @export
 print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
+  # Subsetting columns keeps the class but not the table: print what is left as
+  # the plain data frame it has become, rather than failing on a missing column.
+  required = c("parameter", "pip", "log10_bf", "verdict", "fragile")
+  if(!all(required %in% names(x))) {
+    print(as.data.frame(x), ...)
+    return(invisible(x))
+  }
+
   threshold = attr(x, "evidence_threshold")
   cat(sprintf(
     "Edge verdicts at an inclusion Bayes factor of %g (and %g for absence):\n\n",

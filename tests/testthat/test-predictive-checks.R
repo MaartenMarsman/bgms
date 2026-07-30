@@ -50,7 +50,8 @@ test_that("ppc statistics line up between observed data and replicates", {
   sumscore = ppc_statistic_fun("sumscore", observed, levels_list)
   values = sumscore$fun(observed)
   expect_equal(sum(values), 1, tolerance = 1e-12)
-  expect_equal(sumscore$labels$score[which.max(values)],
+  expect_equal(
+    sumscore$labels$score[which.max(values)],
     as.numeric(names(sort(table(rowSums(observed)), decreasing = TRUE))[1])
   )
 })

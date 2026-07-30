@@ -1,0 +1,194 @@
+---
+title: "Checking your fitted model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Checking your fitted model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 3.4
+)
+```
+
+# Introduction
+
+A fitted network answers two different questions, and they need two different
+checks. *Which edges does the evidence settle?* is a question about the
+posterior, and `verdicts()` answers it. *Does the model reproduce the data?*
+is a question about fit, and the two predictive checks answer it.
+
+This vignette runs all three on the Wenchuan data. The convergence
+diagnostics -- R-hat, effective sample size, the trust gauge -- are a separate
+matter and live in the diagnostics vignette.
+
+```{r, eval=FALSE}
+library(bgms)
+data = Wenchuan[, 1:9]
+fit = bgm(data, seed = 1234)
+```
+
+```{r, include=FALSE}
+library(bgms)
+data = Wenchuan[, 1:9]
+fit = bgm(data,
+  seed = 1234, chains = 2, iter = 1000, warmup = 1000,
+  display_progress = "none", verbose = FALSE
+)
+```
+
+# What the evidence settles
+
+Each edge carries an inclusion Bayes factor, and reading it at a threshold
+gives one of three verdicts: evidence of presence, evidence of absence, or
+undecided. The third is not a failure of the analysis; it is the honest answer
+when the data do not separate the two hypotheses.
+
+```{r}
+edges = verdicts(fit)
+edges
+```
+
+The `fragile` column is the part that cannot be read off the Bayes factor
+alone. A verdict is fragile when a threshold sits within two standard errors of
+the estimated evidence, which is exactly the regime in which Monte Carlo noise,
+not the data, decides the answer. In a known-truth calibration study of 37,010
+edge-fits across ordinal, binary, and Gaussian graphical models, every verdict
+error sat within 0.25 of a threshold on the log10 Bayes factor scale, and no
+edge further out was ever misclassified.
+
+A fragile verdict is not a wrong verdict; it is a verdict the run is too short
+to settle. The remedy is more iterations, not a different model.
+
+```{r}
+edges[edges$fragile, c("parameter", "log10_bf", "verdict")]
+```
+
+The default picture encodes the same three verdicts, so what a reader sees and
+what the table says cannot drift apart.
+
+```{r, fig.height = 5.5, fig.width = 6}
+plot(fit)
+```
+
+Solid edges have evidence of presence, with width scaled by the model-averaged
+weight; dotted grey edges are undecided; edges with evidence of absence are not
+drawn at all. For one edge in detail, the spike-and-slab posterior shows how
+the mass is actually divided:
+
+```{r, fig.height = 3.6, fig.width = 5}
+plot_edge_posterior(fit, "intrusion", "upset")
+```
+
+Centrality is a function of the network, so it inherits the same uncertainty.
+Evaluating it on every posterior draw gives its posterior directly, which is
+what `extract_centrality()` returns.
+
+```{r, fig.height = 3.6, fig.width = 6}
+strength = extract_centrality(fit)
+head(summary(strength))
+plot(strength)
+```
+
+# Does the model reproduce the data?
+
+`posterior_predictive_check()` draws one replicated dataset per posterior
+draw, so uncertainty about both the parameters and the structure propagates
+into the replicates, and compares three statistics with their predictive
+intervals.
+
+```{r}
+ppc = posterior_predictive_check(fit, ndraws = 200, seed = 1, display_progress = "none")
+ppc
+```
+
+The statistics run from local to global. The category proportions involve one
+variable at a time, the Spearman correlations two, and the sum-score
+distribution depends on how all nine variables depend on one another. A model
+can pass the first and fail the last.
+
+```{r, fig.height = 3.2, fig.width = 8}
+plot(ppc)
+```
+
+Read this on two layers.
+
+The first is **coverage**: how many elements fall outside their interval. With
+95% intervals about one element in twenty lands outside even when the model
+fits, which is why each panel's subtitle states the number a calibrated model
+is expected to cover. A handful of accent-coloured points is the expected
+picture.
+
+The second is **pattern**, and it is the layer a coverage count cannot show. In
+the pairwise panel the observed correlations sit above the identity line
+almost without exception at the low end: the model systematically understates
+the weaker associations. That is misfit even where the intervals happen to
+cover, and it is visible only because the panel plots observed against
+predicted rather than reporting a single number.
+
+# Are the conditional predictions calibrated?
+
+The model's person-level predictions are the conditional distributions
+`P(x_ij | the rest of case i's responses)`, which is the model's own regression
+unit. `calibration_check()` compares those predicted probabilities with the
+observed frequencies through an isotonic fit, one variable at a time.
+
+```{r}
+calibration = calibration_check(fit, nrep = 200, seed = 1)
+calibration
+```
+
+One panel per variable is not a display preference. Pooling across variables
+lets a variable predicted too high and one predicted too low cancel, and the
+pooled curve then tracks the diagonal while neither variable does.
+
+```{r, fig.height = 5.5, fig.width = 7}
+plot(calibration)
+```
+
+The grey band is the wander of a model that is calibrated by construction. It
+is built by resampling each case's *category* from its own predicted
+distribution, rather than resampling the threshold events independently: the
+cumulative events of one case are nested, and treating them as independent
+would make the band too narrow and an ordinary wander look like
+miscalibration.
+
+# Reading the two checks together
+
+The two checks find different things on these data, which is the reason to run
+both.
+
+The calibration curves stay near the diagonal and wander in and out of their
+bands, with the departures concentrated in a few variables (`avoidth` and
+`avoidact` here) and mild in the rest. Read alongside the per-variable panels,
+that is a model whose conditional predictions are usable but not uniformly
+well calibrated.
+
+The predictive check is more clear-cut, and it points somewhere else: the
+pairwise panel covers well below expectation and tilts systematically, so the
+model understates how strongly the variables covary. Predicting each variable
+from its neighbours is an easier task than reproducing how all of them covary,
+and a model can do reasonably at the first while falling short on the second.
+
+So the checks answer different questions. The calibration check bears on
+whether to trust a prediction for one variable; the predictive check bears on
+whether to trust the network as a description of the joint distribution. And
+`verdicts()` bears on which of its edges the data actually settle, which is a
+third question again -- an edge can be firmly settled in a model that
+reproduces the joint distribution poorly.
+
+# Next steps
+
+- The diagnostics vignette covers convergence: R-hat, effective sample size,
+  the NUTS diagnostics, and the hierarchical prior trust gauge.
+- `prior_sensitivity_check()` reports whether a verdict depends on the prior
+  rather than on the run length, which is the other way a verdict can be
+  unstable.

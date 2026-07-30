@@ -192,4 +192,19 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   v_none$fragile = rep(FALSE, nrow(v))
   quiet = paste(utils::capture.output(print(v_none)), collapse = "\n")
   expect_false(grepl("Run longer", quiet))
+
+  # Selecting columns keeps the class but not the table; printing what is left
+  # must degrade to the plain data frame rather than fail on a missing column.
+  subset_columns = v[, c("parameter", "log10_bf", "verdict")]
+  expect_s3_class(subset_columns, "bgms_verdicts")
+  expect_silent(plain <- utils::capture.output(print(subset_columns)))
+  expect_false(any(grepl("Edge verdicts at", plain)))
+  expect_true(any(grepl("intrusion", plain)))
+
+  # Selecting rows keeps the full table, and the header with it.
+  subset_rows = v[v$verdict == "absence", ]
+  expect_match(
+    paste(utils::capture.output(print(subset_rows)), collapse = "\n"),
+    "Edge verdicts at"
+  )
 })

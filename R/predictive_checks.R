@@ -369,7 +369,8 @@ ppc_panel_scatter = function(df, title, level, labels = NULL, max_labels = 6L) {
   }
 
   graphics::mtext(
-    sprintf("%d of %d inside the interval (about %d expected)",
+    sprintf(
+      "%d of %d inside the interval (about %d expected)",
       sum(df$covered), nrow(df), round(level / 100 * nrow(df))
     ),
     side = 3, line = 0.1, cex = 0.72, col = muted
