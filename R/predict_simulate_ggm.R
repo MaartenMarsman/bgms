@@ -24,7 +24,6 @@ reconstruct_precision = function(associations, residual_variance) {
 }
 
 
-
 # Reconstruct precision matrix from a single posterior draw.
 # GGM raw samples are already on precision scale.
 #
@@ -41,7 +40,6 @@ build_precision_from_draw = function(pairwise_vec, main_vec, p) {
   diag(omega) = main_vec
   return(omega)
 }
-
 
 
 # ==============================================================================
@@ -140,11 +138,15 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
 # @param type "probabilities" or "response".
 # @param method "posterior-mean" or "posterior-sample".
 # @param ndraws Number of posterior draws (NULL = all).
+# @param return_draws Internal. With method = "posterior-sample", return the
+#   per-draw conditional parameters instead of their average, for callers that
+#   need the predictive mixture rather than a plug-in Gaussian.
 #
 # @return See predict.bgms() documentation for GGM return format.
 predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
                             num_variables,
-                            type, method, ndraws) {
+                            type, method, ndraws,
+                            return_draws = FALSE) {
   # Center newdata on the training column means so predictions match the
   # scale the model was fit on. Older fits without stored means fall back to
   # centering newdata by its own means.
@@ -213,6 +215,16 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
       }
 
       all_preds[[i]] = preds
+    }
+
+    if(isTRUE(return_draws)) {
+      for(i in seq_len(ndraws)) {
+        names(all_preds[[i]]) = data_columnnames[predict_vars]
+        for(v in seq_along(predict_vars)) {
+          colnames(all_preds[[i]][[v]]) = c("mean", "sd")
+        }
+      }
+      return(all_preds)
     }
 
     # Average over draws

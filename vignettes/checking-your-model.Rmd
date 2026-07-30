@@ -104,8 +104,10 @@ plot(strength)
 
 The model's person-level predictions are the conditional distributions
 `P(x_ij | the rest of case i's responses)`, which is the model's own regression
-unit. `calibration_check()` compares those predicted probabilities with the
-observed frequencies through an isotonic fit, one variable at a time.
+unit. `calibration_check()` compares those predictions with what was observed, one
+variable at a time: an isotonic fit of observed frequency on predicted
+probability for a discrete variable, and the probability integral transform
+for a continuous one.
 
 ```{r}
 calibration = calibration_check(fit, nrep = 200, seed = 1)
@@ -126,6 +128,17 @@ distribution, rather than resampling the threshold events independently: the
 cumulative events of one case are nested, and treating them as independent
 would make the band too narrow and an ordinary wander look like
 miscalibration.
+
+A continuous variable has no category to have fallen in, so it gets the same
+question through the probability integral transform: `u = F(y | rest)`, which is
+uniform exactly when the conditional predictive distribution is right. Its
+panel is the distribution of those `u` values against the uniform diagonal,
+and `F` is the mixture over posterior draws, so the parameter uncertainty is
+inside the distribution the observation is transformed by. That band is not
+resampled from the model at all -- under the transform the null is uniform
+whatever the density was -- so it depends only on the number of cases. A mixed
+fit draws both panel kinds on one figure and records which is which in the
+`kind` column.
 
 # Checking the joint distribution with simulate()
 
