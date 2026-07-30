@@ -37,7 +37,9 @@ where the Rao-Blackwellized draws are constant to double precision.}
 nearer verdict boundary, in units of each standard error.}
 \item{fragile}{\code{TRUE} when either distance is below 2.}
 }
-The evidence threshold is attached as an attribute.
+The evidence threshold is attached as the \code{evidence_threshold} attribute,
+and whether the fragility flag's operating point covers this kind of
+indicator as \code{flag_validated}.
 }
 \description{
 Reads each edge (or difference) indicator's inclusion Bayes factor as a
@@ -68,6 +70,13 @@ ordinal and binary ones.
 
 A fragile verdict is not a wrong verdict; it is a verdict the run is too
 short to settle. The remedy is more sampling iterations.
+
+Every arm of that study fitted a single network, so the operating point
+applies to the edge indicators of \code{\link[=bgm]{bgm()}}. On the difference indicators of
+\code{\link[=bgmCompare]{bgmCompare()}} the flag still marks verdicts sitting near a boundary, but no
+study has measured what share of difference-verdict errors it catches or how
+many correct verdicts it rejects; the print method says so, and the returned
+object carries a \code{flag_validated} attribute.
 }
 \examples{
 \donttest{

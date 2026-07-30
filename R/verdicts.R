@@ -122,10 +122,15 @@ compare_indicator_index = function(num_variables) {
 # @param mcse       Its MCSE, from the fit summary's inclusion table.
 # @param draws      List of raw indicator chains (niter x nparam 0/1 matrices).
 # @param evidence_threshold  The Bayes-factor threshold.
+# @param flag_validated  Whether the fragility flag's operating point was
+#   established for this kind of indicator. TRUE for single-network edge
+#   indicators; FALSE for bgmCompare difference indicators, which no arm of the
+#   calibration study covered.
 #
 # Returns: a bgms_verdicts data frame.
 # ------------------------------------------------------------------
-build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_threshold) {
+build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_threshold,
+                          flag_validated) {
   lthr = log10(evidence_threshold)
 
   se_two_state = two_state_se_logit(draws)
@@ -162,7 +167,8 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
   structure(
     out,
     class = c("bgms_verdicts", "data.frame"),
-    evidence_threshold = evidence_threshold
+    evidence_threshold = evidence_threshold,
+    flag_validated = flag_validated
   )
 }
 
@@ -201,7 +207,9 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
 #'       nearer verdict boundary, in units of each standard error.}
 #'     \item{fragile}{`TRUE` when either distance is below 2.}
 #'   }
-#'   The evidence threshold is attached as an attribute.
+#'   The evidence threshold is attached as the `evidence_threshold` attribute,
+#'   and whether the fragility flag's operating point covers this kind of
+#'   indicator as `flag_validated`.
 #'
 #' @details
 #' Monte Carlo verdict errors are a boundary phenomenon. In a known-truth
@@ -227,6 +235,13 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
 #'
 #' A fragile verdict is not a wrong verdict; it is a verdict the run is too
 #' short to settle. The remedy is more sampling iterations.
+#'
+#' Every arm of that study fitted a single network, so the operating point
+#' applies to the edge indicators of [bgm()]. On the difference indicators of
+#' [bgmCompare()] the flag still marks verdicts sitting near a boundary, but no
+#' study has measured what share of difference-verdict errors it catches or how
+#' many correct verdicts it rejects; the print method says so, and the returned
+#' object carries a `flag_validated` attribute.
 #'
 #' @examples
 #' \donttest{
@@ -281,7 +296,8 @@ verdicts.bgms = function(bgms_object, evidence_threshold = 10, ...) {
     pip = pip,
     mcse = summary_indicator[["mcse"]],
     draws = raw$indicator,
-    evidence_threshold = evidence_threshold
+    evidence_threshold = evidence_threshold,
+    flag_validated = TRUE
   )
 }
 
@@ -313,7 +329,8 @@ verdicts.bgmCompare = function(bgms_object, evidence_threshold = 10, ...) {
     pip = extract_posterior_inclusion_probabilities(bgms_object)[idx],
     mcse = summary_indicator[["mcse"]],
     draws = raw$indicator,
-    evidence_threshold = evidence_threshold
+    evidence_threshold = evidence_threshold,
+    flag_validated = FALSE
   )
 }
 
@@ -404,6 +421,18 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
       "\n%d %s Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Run longer.\n",
       n_fragile, if(n_fragile == 1L) "verdict is" else "verdicts are"
     ))
+  }
+  # The flag's operating point was established on single-network edge
+  # indicators. Borrowing those numbers for difference indicators would report a
+  # calibration that no study arm has measured.
+  if(isFALSE(attr(x, "flag_validated"))) {
+    cat(
+      "\nThe fragility flag is not validated for difference indicators: its\n",
+      "operating point was established on single-network edge indicators only.\n",
+      "Read it as an indication that a verdict sits near a boundary, not as a\n",
+      "calibrated error rate.\n",
+      sep = ""
+    )
   }
   invisible(x)
 }

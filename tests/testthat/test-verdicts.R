@@ -80,6 +80,7 @@ test_that("verdicts() reports one row per edge with a three-way verdict", {
   expect_equal(levels(v$verdict), c("presence", "undecided", "absence"))
   expect_false(anyNA(v$verdict))
   expect_identical(attr(v, "evidence_threshold"), 10)
+  expect_true(attr(v, "flag_validated"))
 
   # The verdict is the reading of the Bayes factor at the threshold, and the
   # Bayes factor is the one extract_inclusion_bf() reports.
@@ -167,8 +168,13 @@ test_that("verdicts() errors without selection and covers bgmCompare", {
   expect_false(anyNA(v$verdict[!is_main]))
   expect_false(any(v$fragile[is_main]))
 
+  # The fragility flag's operating point was measured on single-network edge
+  # indicators only; the difference-indicator print must say so rather than
+  # borrow the single-network numbers.
+  expect_false(attr(v, "flag_validated"))
   out = paste(utils::capture.output(print(v)), collapse = "\n")
   expect_match(out, "never updated and carry no verdict")
+  expect_match(out, "not validated for difference indicators")
 })
 
 test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
@@ -182,6 +188,8 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   out = paste(utils::capture.output(print(v)), collapse = "\n")
   expect_match(out, "presence \\d+ \\| undecided \\d+ \\| absence \\d+")
   expect_match(out, "15 indicators")
+  # Edge indicators are what the flag was calibrated on, so no caveat here.
+  expect_false(grepl("not validated", out))
   if(any(v$fragile)) {
     expect_match(out, "Monte-Carlo fragile")
     expect_match(out, "Run longer")
