@@ -43,7 +43,8 @@ bgm(
   burnin,
   save,
   threshold_alpha,
-  threshold_beta
+  threshold_beta,
+  standardize
 )
 }
 \arguments{
@@ -315,6 +316,15 @@ Default: \code{1}.}
 \item{interaction_scale, burnin, save, threshold_alpha, threshold_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
 Deprecated arguments as of \strong{bgms 0.1.6.0}.
 Use \code{interaction_prior}, \code{warmup}, and \code{threshold_prior} instead.}
+
+\item{standardize}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Logical. Deprecated
+as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+pair's interaction prior scale by the product of the two variables'
+maximum scores. Pairwise interactions are now on the association scale
+and share one prior scale, so the per-pair adjustment is gone:
+\code{standardize = FALSE} (the old default) warns and proceeds, while
+\code{standardize = TRUE} errors and points to setting the scale directly
+through \code{interaction_prior}.}
 }
 \value{
 An S7 object of class \code{bgms} with posterior summaries, posterior mean

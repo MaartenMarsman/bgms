@@ -4,11 +4,16 @@
 \alias{extract_ess}
 \title{Extract Effective Sample Size}
 \usage{
-extract_ess(bgms_object)
+extract_ess(bgms_object, estimator = c("rb", "mixt"))
 }
 \arguments{
 \item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
+
+\item{estimator}{Character; which effective sample size to return for the
+edge (or difference) indicators. \code{"rb"} (default) returns the ESS of the
+Rao-Blackwellized inclusion draws; \code{"mixt"} returns the indicator chain's
+transition-based ESS. Ignored for all other parameter types.}
 }
 \value{
 A named list with ESS values for each parameter type present in
@@ -18,8 +23,33 @@ the model (e.g., \code{main}, \code{pairwise}, \code{indicator}).
 Retrieves effective sample size estimates for all parameters from a
 model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
+\details{
+The \code{indicator} element reports the two effective sample sizes of the
+inclusion inference as a pair, and both also appear in the fit summary's
+inclusion table (\code{summary(fit)$indicator}).
+
+The default, \code{estimator = "rb"}, is the \code{n_eff} column: the continuous ESS
+of the Rao-Blackwellized inclusion draws, and therefore the ESS of the
+inclusion probability the fit reports (see
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}, which is Rao-Blackwellized
+by default). It quantifies precision \emph{conditional on exploration}.
+
+\code{estimator = "mixt"} is the \code{n_eff_mixt} column: the transition-based ESS of
+the binary indicator chain, which measures the exploration itself. Few
+transitions are expected when an edge's inclusion probability sits near 0 or
+1, so a small (or \code{NA}) transition ESS beside a confident Rao-Blackwellized
+ESS is the signature of a decisive edge rather than of a failure; read the
+two together. Edges whose indicator never flipped have no exploration
+information, and both columns are \code{NA} there.
+
+Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
+call falls back to the transition ESS, while an explicit \code{estimator = "rb"}
+errors.
+}
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}}
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}} for the
+Rao-Blackwellized indicator R-hat,
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},

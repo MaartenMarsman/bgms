@@ -297,6 +297,15 @@
 #'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
 #'   Use `interaction_prior`, `warmup`, and `threshold_prior` instead.
 #'
+#' @param standardize `r lifecycle::badge("deprecated")` Logical. Deprecated
+#'   as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+#'   pair's interaction prior scale by the product of the two variables'
+#'   maximum scores. Pairwise interactions are now on the association scale
+#'   and share one prior scale, so the per-pair adjustment is gone:
+#'   \code{standardize = FALSE} (the old default) warns and proceeds, while
+#'   \code{standardize = TRUE} errors and points to setting the scale directly
+#'   through \code{interaction_prior}.
+#'
 #' @return
 #' An S7 object of class \code{bgms} with posterior summaries, posterior mean
 #' matrices, and access to raw MCMC draws. Its fields are accessible with
@@ -436,7 +445,9 @@ bgm = function(
   burnin,
   save,
   threshold_alpha,
-  threshold_beta
+  threshold_beta,
+  # Deprecated arguments (v0.2.0.0)
+  standardize
 ) {
   # Set verbose option for internal functions, restore on exit
 
@@ -499,6 +510,34 @@ bgm = function(
       ma = if(hasArg(main_alpha)) main_alpha else 0.5
       mb = if(hasArg(main_beta)) main_beta else 0.5
       threshold_prior = beta_prime_prior(alpha = ma, beta = mb)
+    }
+  }
+
+  # --- Legacy deprecation: v0.2.0.0 removals ----------------------------------
+  # standardize scaled each pair's interaction prior by the product of the two
+  # variables' maximum scores. FALSE, its old default, is what the sampler does
+  # now, so it warns and proceeds; TRUE asks for an adjustment that no longer
+  # exists, so it stops with the manual alternative.
+  if(hasArg(standardize)) {
+    if(isFALSE(standardize)) {
+      lifecycle::deprecate_warn(
+        "0.2.0", "bgm(standardize =)",
+        details = paste(
+          "FALSE is what the sampler does, so the fit is unaffected; drop the",
+          "argument."
+        )
+      )
+    } else {
+      lifecycle::deprecate_stop(
+        "0.2.0", "bgm(standardize = 'no longer supports TRUE')",
+        details = paste(
+          "Pairwise interactions are on the association scale and share one",
+          "prior scale, so the per-pair adjustment by the maximum score",
+          "product (scale * m_i * m_j) has been dropped. Set the scale",
+          "directly, e.g. interaction_prior = normal_prior(scale =) or",
+          "cauchy_prior(scale =); there is no per-pair equivalent."
+        )
+      )
     }
   }
 

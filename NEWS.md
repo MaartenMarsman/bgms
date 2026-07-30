@@ -15,11 +15,12 @@
 
 * `update_method = "hamiltonian-mc"` has been removed. Use `update_method = "nuts"` instead. NUTS dynamically adapts trajectory length and is more reliable, especially with edge selection on GGM models.
 * The `hmc_num_leapfrogs` argument has been removed along with pure HMC.
-* The `standardize` argument of `bgm()` and `bgmCompare()` has been removed. Passing it now errors.
+* The `standardize` argument of `bgm()` and `bgmCompare()` has been removed: pairwise interactions are on the association scale and share one prior scale, so the per-pair adjustment by the product of the variables' maximum scores no longer applies. The argument stays a deprecated formal so the failure is informative rather than an unused-argument error: `standardize = FALSE`, the old default, warns and proceeds because it is what the sampler already does, while `standardize = TRUE` errors and points to setting the scale directly through `interaction_prior` (and `difference_scale` for `bgmCompare()`).
 
 * Pairwise interaction parameters for ordinal MRFs are now stored on association scale (half the sigma scale used in 0.1.6.3). Code that interprets raw pairwise posterior samples or sets `pairwise_scale` explicitly will need adjustment.
 * Default `pairwise_scale` changed from 2.5 to 1 to match the association-scale reparameterization.
 * `extract_category_thresholds()` is deprecated in favor of `extract_main_effects()`, which covers category thresholds, continuous means, and precision diagonal entries.
+* `extract_ess()` reports the Rao-Blackwellized effective sample size for the edge (or difference) indicators, the `n_eff` column of the fit summary's inclusion table, where 0.1.6.3 returned the indicator chain's transition-based ESS. The extractor family is now coherent: the Rao-Blackwellized inclusion probability (`extract_posterior_inclusion_probabilities()`), its R-hat (`extract_rhat()`), and its ESS all describe the same estimate. The transition ESS remains in the summary table as `n_eff_mixt` and is available as `extract_ess(fit, estimator = "mixt")`; few transitions are expected on edges whose inclusion probability sits near 0 or 1, so it reads as a secondary mixing diagnostic beside the Rao-Blackwellized number.
 
 ## New features
 
