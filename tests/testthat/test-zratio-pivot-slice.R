@@ -40,20 +40,20 @@ test_that("the exponential shape is bit-identical to the pre-split kernel", {
 
 test_that("the slice path reproduces the conjugate law it replaces", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the pivot slice law check"
-  )
+  # Runs every time rather than behind the slow gate: it is the only check that
+  # scores the split branch against ground truth instead of against another
+  # approximation, and it costs a few seconds.
+  #
   # A shape a hair off 1 takes the split branch, so the off-diagonal step
   # always accepts and the pivot conditional collapses to the same
   # Gamma(delta + 1, beta) the conjugate path draws directly. The two paths
   # must therefore agree on the block moments: this is the slice sampler and
   # the two-block restructure scored against the bit-identical kernel above.
   g = dense_block(12)
-  seeds = c(11L, 23L, 37L, 51L, 67L)
+  seeds = c(11L, 23L, 37L)
   draw = function(alpha) {
     vapply(seeds, function(s) {
-      r = oracle(g, alpha, 4000L, 800L, s)
+      r = oracle(g, alpha, 2500L, 500L, s)
       c(r$S1, r$S2, r$logR)
     }, numeric(3))
   }
