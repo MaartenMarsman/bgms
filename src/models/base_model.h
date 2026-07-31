@@ -12,6 +12,15 @@ struct WarmupSchedule;
 class ChainResult;
 
 /**
+ * Sampling phase for the Z-ratio engine's extrapolation accounting.
+ */
+enum class ZRatioPhase {
+    Warmup,    ///< warmup sweeps, including the full-graph initial transient
+    Retained,  ///< post-warmup sweeps, the draws the user keeps
+    Gauge      ///< post-sampling trust-gauge sweeps; counted in neither tally
+};
+
+/**
  * BaseModel — Abstract interface for all graphical models.
  *
  * Defines the virtual methods that the MCMC framework (MetropolisSampler,
@@ -188,6 +197,16 @@ public:
 
     /** Close the current gauge assessment sweep (pool its D). */
     virtual void gauge_end_sweep() {}
+
+    /**
+     * Tell the Z-ratio engine which sampling phase it is evaluating in, so its
+     * extrapolation accounting can separate warmup from retained sweeps. The
+     * sampler initializes from a complete graph, which puts every mediating
+     * block at ~q for the first sweeps, so a warmup-only extrapolation share
+     * says nothing about the posterior the user keeps. Gauge sweeps run after
+     * sampling and are excluded from both tallies.
+     */
+    virtual void set_zratio_phase(ZRatioPhase /*phase*/) {}
 
     // =========================================================================
     // Edge selection

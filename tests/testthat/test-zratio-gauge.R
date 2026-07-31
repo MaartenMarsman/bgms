@@ -278,9 +278,11 @@ test_that("the extrapolation notice is graceful, gated, and back-compatible", {
   expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))
   expect_false(res0)
   # Extrapolation -> one graceful message reporting the largest block size.
+  # These counters carry no warmup/retained split, so the notice reports the
+  # whole-run share rather than claiming a phase for them.
   expect_message(
     bgms:::zratio_extrapolation_notice(list(mk(120, 73, 4000), mk(80, 66, 4000))),
-    "beyond its validated size range \\(largest 73"
+    "beyond its anchored size range \\(largest 73"
   )
   # Old-format chains without the counter -> silent (back-compatible).
   old = list(zratio = list(counters = c(n_hit = 0, n_pred = 10)))

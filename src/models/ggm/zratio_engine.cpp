@@ -461,14 +461,22 @@ double ZRatioEngine::surface_logr_(const arma::imat& G) {
     // component and track the largest size seen. Runs on every call (before the
     // cache lookup below) so the tally is the true per-fit deploy count.
     bool extrapolated = false;
+    int largest = 0;
     for (const std::array<int, 5>& t : sl_sig_) {
         const double hull = (t[0] == 0) ? surf_cn_.size_hi : surf_bip_.size_hi;
         if (t[1] > hull) {
             extrapolated = true;
-            if (t[1] > max_extrap_size_) max_extrap_size_ = t[1];
+            if (t[1] > largest) largest = t[1];
         }
     }
-    if (extrapolated) n_extrap_++;
+    if (extrapolated && phase_ != ZRatioPhase::Gauge) {
+        n_extrap_++;
+        if (largest > max_extrap_size_) max_extrap_size_ = largest;
+        if (phase_ == ZRatioPhase::Retained) {
+            n_extrap_ret_++;
+            if (largest > max_extrap_size_ret_) max_extrap_size_ret_ = largest;
+        }
+    }
 
     // Canonical multiset -> cached saddle. Accumulating in sorted order makes
     // the sum bit-identical for any block with this multiset.
@@ -605,7 +613,10 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         return MY_LOG(psi0_);
     }
     if (surface_active) {
-        n_pred_++;
+        if (phase_ != ZRatioPhase::Gauge) {
+            n_pred_++;
+            if (phase_ == ZRatioPhase::Retained) n_pred_ret_++;
+        }
         return surface_logr_(G);
     }
     const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre;
