@@ -121,7 +121,7 @@ void impute_missing_bgmcompare(
     arma::vec group_main_effects = compute_group_main_effects(
       variable, num_groups, main_effects,  main_effect_indices, proj_g);
 
-    double rest_score =
+    double rest_score = 2.0 *
       arma::as_scalar(observations.row(person) * group_pairwise_effects[group].col(variable));
 
     if(is_ordinal_variable[variable] == true) {
@@ -364,9 +364,9 @@ static StepResult metropolis_update_pairwise_effect_cached(
 
       // Update residual matrix columns
       sweep_state.residual[g].col(var1) +=
-        sweep_state.obs_double[g].col(var2) * delta_g;
+        2.0 * sweep_state.obs_double[g].col(var2) * delta_g;
       sweep_state.residual[g].col(var2) +=
-        sweep_state.obs_double[g].col(var1) * delta_g;
+        2.0 * sweep_state.obs_double[g].col(var1) * delta_g;
     }
 
     // The proposed-state normalizer sums become current.
@@ -1339,9 +1339,9 @@ void update_indicator_differences_metropolis_bgmcompare (
         sweep_state.pairwise_group[g](var2, var1) = w_new;
 
         sweep_state.residual[g].col(var1) +=
-          sweep_state.obs_double[g].col(var2) * delta_g;
+          2.0 * sweep_state.obs_double[g].col(var2) * delta_g;
         sweep_state.residual[g].col(var2) +=
-          sweep_state.obs_double[g].col(var1) * delta_g;
+          2.0 * sweep_state.obs_double[g].col(var1) * delta_g;
       }
 
       // Both endpoints' rest scores changed; their cached normalizer sums

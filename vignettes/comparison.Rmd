@@ -67,6 +67,11 @@ You can extract posterior means and inclusion probabilities:
 coef(fit)
 ```
 
+Difference verdicts are scale-contingent. `bgmCompare()` prices group
+differences on the association scale through `difference_scale`, and the
+calibration of that default is under study, so a verdict close to a
+decision threshold can move with the scale.
+
 # Visualizing group networks
 
 We can use the output to plot the network for the ADHD group:

@@ -354,8 +354,10 @@ with \code{$discrete} (threshold matrix) and \code{$continuous}
 (q x 1 matrix of means).
 \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior
 mean partial associations (zero diagonal). For continuous variables
-these are unstandardized partial correlations; for discrete variables
-these are half the log adjacent-category odds ratio. Use
+these are half the negated precision off-diagonal,
+\eqn{\omega_{jk} = -\Theta_{jk}/2}{omega_jk = -Theta_jk / 2}; for
+discrete variables these are half the log adjacent-category odds
+ratio. Use
 \code{\link[=extract_precision]{extract_precision()}}, \code{\link[=extract_partial_correlations]{extract_partial_correlations()}}, or
 \code{\link[=extract_log_odds]{extract_log_odds()}} to convert to interpretable scales.
 \item \code{posterior_mean_residual_variance}: Named numeric vector of
