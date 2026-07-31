@@ -201,6 +201,9 @@ public:
         }
         zratio_gauge_.active = on;
     }
+    void set_zratio_phase(ZRatioPhase phase) override {
+        if (zratio_engine_) zratio_engine_->set_phase(phase);
+    }
     void gauge_begin_sweep() override { zratio_gauge_.begin_sweep(); }
     void gauge_end_sweep() override { zratio_gauge_.end_sweep(); }
 

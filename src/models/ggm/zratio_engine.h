@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "rng/rng_utils.h"
+#include "models/base_model.h"   // ZRatioPhase
 
 /**
  * Mediating-block descriptors for one candidate edge (i, j) on a graph.
@@ -274,9 +275,18 @@ public:
     long n_pred() const { return n_pred_; }
     long n_add() const { return n_add_; }
     /// Deploy-time extrapolation accounting: blocks with a component larger than
-    /// the trained hull (clamped at deploy), and the largest such size seen.
+    /// the trained hull (extended along the boundary slope at deploy), and the
+    /// largest such size seen. The _ret variants count the retained sweeps only.
+    /// The sampler initializes from a complete graph, so warmup alone can put
+    /// every block past the hull; only the retained share describes the
+    /// posterior the user keeps. Gauge sweeps enter neither tally.
     long n_extrap() const { return n_extrap_; }
     int max_extrap_size() const { return max_extrap_size_; }
+    long n_extrap_retained() const { return n_extrap_ret_; }
+    int max_extrap_size_retained() const { return max_extrap_size_ret_; }
+    long n_pred_retained() const { return n_pred_ret_; }
+    /// Which sampling phase the engine is evaluating in (set by chain_runner).
+    void set_phase(ZRatioPhase phase) { phase_ = phase; }
     /// Times the boundary-slope extension hit its zero floor, i.e. the fitted
     /// surface sloped downward in size at the hull edge and the tail degenerated
     /// to freezing. Non-zero means a fit pathology on some density band.
@@ -411,6 +421,9 @@ private:
     long n_pred_ = 0, n_add_ = 0;
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
+    long n_pred_ret_ = 0, n_extrap_ret_ = 0;
+    int max_extrap_size_ret_ = 0;
+    ZRatioPhase phase_ = ZRatioPhase::Warmup;
     /// Incremented from the const surface evaluator, hence mutable.
     mutable long n_slope_floor_ = 0;
 

@@ -260,7 +260,11 @@ void MixedMRFModel::collect_chain_diagnostics(ChainResult& chain_result) const {
         static_cast<double>(engine.n_add()),
         static_cast<double>(engine.cache_size()),
         static_cast<double>(engine.n_extrap()),
-        static_cast<double>(engine.max_extrap_size())
+        static_cast<double>(engine.max_extrap_size()),
+        static_cast<double>(engine.n_slope_floor()),
+        static_cast<double>(engine.n_pred_retained()),
+        static_cast<double>(engine.n_extrap_retained()),
+        static_cast<double>(engine.max_extrap_size_retained())
     };
     if (zratio_gauge_.n_sweeps > 0) {
         chain_result.zratio_gauge_ran = true;
