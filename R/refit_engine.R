@@ -268,8 +268,7 @@ refit_edge_stats = function(fit, evidence_threshold) {
   list(
     edge = enm, pip = pbar, prior_odds = prior_odds, lbf = lbf_bar,
     verdict = verdict, mcse_lbf = mcse_lbf, band_half = band_half,
-    unanimous = unanimous, zeroflip = zeroflip,
-    n_eff_mixt = ind[, "n_eff_mixt"], rhat_ind = ind[, "Rhat"]
+    unanimous = unanimous, zeroflip = zeroflip
   )
 }
 
@@ -293,7 +292,7 @@ refit_edge_stats = function(fit, evidence_threshold) {
 #   E-BFMI > 0.3 and first/second-half energy variance ratio < 2 (NUTS).
 # The energy-slope warmup heuristic is deliberately NOT gated (it flags healthy
 # cold fits; see the diagnostics doctrine). The max continuous Rhat and the
-# indicator transition-ESS pair are reported for transparency.
+# smallest Rao-Blackwellized inclusion ESS are reported for transparency.
 # ------------------------------------------------------------------
 refit_convergence_gate = function(fit) {
   rhats = numeric(0)
@@ -313,7 +312,7 @@ refit_convergence_gate = function(fit) {
   rhat_cont = stats::median(rhats, na.rm = TRUE)
   rhat_cont_max = max(rhats, na.rm = TRUE)
   ess_cont = min(esss, na.rm = TRUE)
-  pair_ess = min(ind[, "n_eff_mixt"], na.rm = TRUE)
+  ess_incl = min(ind[, "n_eff"], na.rm = TRUE)
   rb_med_rhat = stats::median(ind[, "Rhat"], na.rm = TRUE)
 
   wc = tryCatch(fit@nuts_diag$warmup_check, error = function(e) NULL)
@@ -328,7 +327,7 @@ refit_convergence_gate = function(fit) {
     rb_med_rhat < 1.01 && ebfmi > 0.3 && var_ratio < 2
   list(
     usable = usable, rhat_cont = rhat_cont, rhat_cont_max = rhat_cont_max,
-    ess_cont = ess_cont, pair_ess = pair_ess, rb_med_rhat = rb_med_rhat,
+    ess_cont = ess_cont, ess_incl = ess_incl, rb_med_rhat = rb_med_rhat,
     min_ebfmi = ebfmi, max_var_ratio = var_ratio
   )
 }

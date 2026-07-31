@@ -197,22 +197,17 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' `"rb"` estimator changes only the summary, not the sampler; it inherits the
 #' chain's mixing, does not rescue a chain that has failed to explore the model
 #' space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
-#' continuous, its effective sample size and split-R-hat in the fit summary
-#' (`n_eff`, `Rhat`) quantify precision *conditional on exploration*: a stuck
-#' chain can show a beautifully converged `J` chain with a high `n_eff`. The
-#' summary therefore reports them beside `n_eff_mixt`, the indicator's
-#' transition-based ESS, which measures the exploration itself. The pair is the
-#' diagnostic: large/large means converged and explored, while a small
-#' `n_eff_mixt` beside a confident `n_eff` is the boundary signature -- a
-#' precise one-step estimate resting on little transition evidence. Zero-flip
-#' edges (`n_eff_mixt` is `NA`) carry no exploration information at all, so the
-#' RB `mcse`, `n_eff`, and `Rhat` are reported as `NA` there rather than as a
-#' heavy-tailed near-constant chain's misleading numbers; the verdict for such a
-#' decisive edge comes from the mean and the accumulator Bayes factor
-#' ([extract_inclusion_bf()]). The per-direction flip counts underlying
-#' `n_eff_mixt` (`n0->1`, `n1->0`, whose asymmetry the symmetric ESS cannot
-#' recover) are retained in the fit summary's inclusion table,
-#' `summary(fit)$indicator`.
+#' continuous, the standard MCSE/ESS/split-R-hat machinery applies to it, and
+#' the fit summary's inclusion table reports `mcse`, `n_eff`, and `Rhat` on the
+#' RB draws. They quantify precision *conditional on exploration*: a stuck chain
+#' can show a beautifully converged `J` chain with a high `n_eff`, so read them
+#' beside the per-direction flip counts (`n0->1`, `n1->0`), which record the
+#' exploration itself and whose asymmetry no symmetric summary recovers. The RB
+#' draws vary on almost every edge, including edges whose indicator never
+#' flipped; the three columns are `NA` only where the RB draws are constant to
+#' double precision, which places the inclusion probability at its numerical
+#' bound and the verdict beyond any threshold. All of this is in the fit
+#' summary's inclusion table, `summary(fit)$indicator`.
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
@@ -1402,17 +1397,20 @@ extract_rhat.bgmCompare = function(bgms_object) {
 # ------------------------------------------------------------------------------
 # indicator_ess_column
 # ------------------------------------------------------------------------------
-# Resolve the indicator ESS column that extract_ess() returns. The default
-# "rb" is the continuous ESS of the Rao-Blackwellized inclusion draws, the ESS
-# of the inclusion probability the fit reports; "mixt" is the indicator chain's
-# transition-based ESS. Both are read from the summary table, so the NA masking
-# summarize_rb_inclusion() applies carries over unchanged.
+# Resolve the indicator ESS that extract_ess() returns. The default "rb" is the
+# continuous ESS of the Rao-Blackwellized inclusion draws, read from the summary
+# table, so the NA masking summarize_rb_inclusion() applies carries over
+# unchanged. The deprecated "mixt" is the indicator chain's transition-based
+# ESS, no longer a summary column; it is recomputed from the raw indicator draws
+# for as long as it is accepted. The deprecation warning is raised in the
+# generic, where the caller is the user rather than bgms itself.
 #
 # Fits without Rao-Blackwellized draws (bgms < 0.2.0.0) carry no n_eff column,
 # so a default call falls back to the transition ESS while an explicit
 # estimator = "rb" errors, as in
 # extract_posterior_inclusion_probabilities().
 #
+# @param fit                The fit object (for the raw indicator draws).
 # @param summary_indicator  The fit's posterior_summary_indicator table.
 # @param estimator          Character: "rb" or "mixt" (or the unevaluated
 #   default vector).
@@ -1420,8 +1418,9 @@ extract_rhat.bgmCompare = function(bgms_object) {
 #
 # Returns: numeric vector of ESS values, one per indicator.
 # ------------------------------------------------------------------------------
-indicator_ess_column = function(summary_indicator, estimator, estimator_missing) {
-  # names(), not $, because $ partial-matches n_eff to n_eff_mixt.
+indicator_ess_column = function(fit, summary_indicator, estimator, estimator_missing) {
+  # names(), not $, because $ partial-matches n_eff to a legacy table's
+  # n_eff_mixt.
   has_rb = "n_eff" %in% names(summary_indicator)
   estimator = if(estimator_missing && !has_rb) {
     "mixt"
@@ -1433,14 +1432,41 @@ indicator_ess_column = function(summary_indicator, estimator, estimator_missing)
       stop(
         "This fit carries no Rao-Blackwellized inclusion draws, so the ",
         "Rao-Blackwellized effective sample size is unavailable. Refit with ",
-        "bgms >= 0.2.0.0, or use estimator = \"mixt\" for the indicator ",
-        "chain's transition-based effective sample size."
+        "bgms >= 0.2.0.0."
       )
     }
-    summary_indicator$n_eff
-  } else {
-    summary_indicator$n_eff_mixt
+    return(summary_indicator$n_eff)
   }
+
+  if("n_eff_mixt" %in% names(summary_indicator)) {
+    return(summary_indicator$n_eff_mixt)
+  }
+  indicator_transition_ess(fit)
+}
+
+
+# ------------------------------------------------------------------------------
+# indicator_transition_ess
+# ------------------------------------------------------------------------------
+# Transition-based ESS of the binary indicator chains, recomputed from the raw
+# draws. Retained only to keep the deprecated extract_ess(estimator = "mixt")
+# working; the quantity is no longer a summary column.
+#
+# @param fit  A bgms or bgmCompare object.
+#
+# Returns: numeric vector of transition ESS values, one per indicator.
+# ------------------------------------------------------------------------------
+indicator_transition_ess = function(fit) {
+  cache = get_fit_cache(fit)
+  raw = if(is.null(cache)) NULL else cache$raw
+  if(is.null(raw) || is.null(raw[[1]][["indicator_samples"]])) {
+    stop(
+      "This fit carries no raw indicator draws, so the transition-based ",
+      "effective sample size cannot be recomputed."
+    )
+  }
+  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
+  unname(ind_stats[, "n_eff_mixt"])
 }
 
 
@@ -1454,34 +1480,35 @@ indicator_ess_column = function(summary_indicator, estimator, estimator_missing)
 #'   or `bgmCompare` (from [bgmCompare()]).
 #' @param estimator Character; which effective sample size to return for the
 #'   edge (or difference) indicators. `"rb"` (default) returns the ESS of the
-#'   Rao-Blackwellized inclusion draws; `"mixt"` returns the indicator chain's
+#'   Rao-Blackwellized inclusion draws. `"mixt"`
+#'   `r lifecycle::badge("deprecated")` returns the indicator chain's
 #'   transition-based ESS. Ignored for all other parameter types.
 #'
 #' @return A named list with ESS values for each parameter type present in
 #'   the model (e.g., `main`, `pairwise`, `indicator`).
 #'
 #' @details
-#' The `indicator` element reports the two effective sample sizes of the
-#' inclusion inference as a pair, and both also appear in the fit summary's
-#' inclusion table (`summary(fit)$indicator`).
+#' The `indicator` element is the effective sample size of the inclusion
+#' inference, and also the `n_eff` column of the fit summary's inclusion table
+#' (`summary(fit)$indicator`): the continuous ESS of the Rao-Blackwellized
+#' inclusion draws, and therefore the ESS of the inclusion probability the fit
+#' reports (see [extract_posterior_inclusion_probabilities()], which is
+#' Rao-Blackwellized by default). It is `NA` for indicators whose
+#' Rao-Blackwellized draws are constant to double precision, where the
+#' inclusion probability is at its numerical bound.
 #'
-#' The default, `estimator = "rb"`, is the `n_eff` column: the continuous ESS
-#' of the Rao-Blackwellized inclusion draws, and therefore the ESS of the
-#' inclusion probability the fit reports (see
-#' [extract_posterior_inclusion_probabilities()], which is Rao-Blackwellized
-#' by default). It quantifies precision *conditional on exploration*.
-#'
-#' `estimator = "mixt"` is the `n_eff_mixt` column: the transition-based ESS of
-#' the binary indicator chain, which measures the exploration itself. Few
-#' transitions are expected when an edge's inclusion probability sits near 0 or
-#' 1, so a small (or `NA`) transition ESS beside a confident Rao-Blackwellized
-#' ESS is the signature of a decisive edge rather than of a failure; read the
-#' two together. Edges whose indicator never flipped have no exploration
-#' information, and both columns are `NA` there.
+#' `estimator = "mixt"`, the transition-based ESS of the binary indicator chain,
+#' is deprecated and no longer a summary column; a call recomputes it from the
+#' raw indicator draws and warns. It converts flip counts to an effective sample
+#' size through a two-state first-order Markov model that a substantial share of
+#' edge chains violate, and the precision of the inclusion probability and its
+#' Bayes factor is carried by the Rao-Blackwellized ESS and Monte Carlo standard
+#' error. The directional flip counts themselves (`n0->1`, `n1->0`) remain in
+#' the inclusion table.
 #'
 #' Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
-#' call falls back to the transition ESS, while an explicit `estimator = "rb"`
-#' errors.
+#' call falls back to the transition ESS without warning, while an explicit
+#' `estimator = "rb"` errors.
 #'
 #' @seealso [bgm()], [bgmCompare()], [extract_rhat()] for the
 #'   Rao-Blackwellized indicator R-hat,
@@ -1489,6 +1516,20 @@ indicator_ess_column = function(summary_indicator, estimator, estimator_missing)
 #' @family extractors
 #' @export
 extract_ess = function(bgms_object, estimator = c("rb", "mixt")) {
+  if(!missing(estimator) && identical(estimator, "mixt")) {
+    lifecycle::deprecate_warn(
+      "0.2.0.0", "extract_ess(estimator = 'no longer supports \"mixt\"')",
+      details = paste(
+        "The transition-based effective sample size no longer bears on any",
+        "inclusion verdict: the two-state model behind it is rejected on a",
+        "substantial share of edge chains, and the precision of the inclusion",
+        "probability and its Bayes factor is carried by the Rao-Blackwellized",
+        "effective sample size and Monte Carlo standard error. Use the default",
+        "estimator = \"rb\"; the directional flip counts remain in",
+        "summary(fit)$indicator."
+      )
+    )
+  }
   UseMethod("extract_ess")
 }
 
@@ -1521,7 +1562,8 @@ extract_ess.bgms = function(bgms_object, estimator = c("rb", "mixt")) {
   # Indicator ESS (if edge selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
     result$indicator = indicator_ess_column(
-      bgms_object$posterior_summary_indicator, estimator, estimator_missing
+      bgms_object, bgms_object$posterior_summary_indicator,
+      estimator, estimator_missing
     )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
@@ -1568,7 +1610,8 @@ extract_ess.bgmCompare = function(bgms_object, estimator = c("rb", "mixt")) {
   # Indicator ESS (if difference selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
     result$indicator = indicator_ess_column(
-      bgms_object$posterior_summary_indicator, estimator, estimator_missing
+      bgms_object, bgms_object$posterior_summary_indicator,
+      estimator, estimator_missing
     )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
