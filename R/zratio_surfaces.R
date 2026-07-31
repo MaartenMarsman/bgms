@@ -212,8 +212,18 @@ zratio_anchor_sweeps = function(n) {
 # 35% at 4, 1-12% at 5), and with it the anchor Monte-Carlo error rises out of
 # reach of any affordable sweep budget (at shape 5, 50-500x the shape-1 anchor
 # error and not restored by 94x the sweeps).
+#
+# This pair is the single owner of the deployment policy: the C++ gate trusts
+# whether a surface was attached and does not re-derive the range (see
+# ZRatioEngine::log_zratio). The range now runs to 10. It is accuracy-validated
+# against block-Gibbs gold at shapes 0.5, 1, 2, 3 and 5 -- every interior cell
+# inside the 0.003-nat envelope -- and carries a different guarantee at 10,
+# where the whole mediated correction is bounded by 2.8e-04 nats over the
+# scored band at eta <= 2, so any method returning the isolated-edge value is
+# wrong by at most that. The interior of the range is interpolated, not
+# measured, at both ends.
 .zratio_surface_shape_lo = 0.5
-.zratio_surface_shape_hi = 2
+.zratio_surface_shape_hi = 10
 
 # Sweep multiplier restoring the shape-1 anchor Monte-Carlo error at a non-unit
 # shape, resolved by matching measured across-seed anchor spread rather than by
@@ -437,13 +447,12 @@ zratio_surface_fence_message = function(zc) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
       " -> additive path (coarser correction). The absolute-moment surface is ",
-      "validated at shapes ", format(.zratio_surface_shape_lo), ", 1, and ",
+      "scored against a block-Gibbs reference at shapes 0.5, 1, 2, 3 and 5, ",
+      "and deploys on the range those points span up to shape ",
       format(.zratio_surface_shape_hi),
-      ", and deploys on the range they span; outside it the surface's ",
-      "block-Gibbs anchors are sampled through an ",
-      "independence-Metropolis step whose acceptance falls too far for the ",
-      "anchors to converge (about 1% at shape 5), so the surface cannot be ",
-      "built to a known accuracy there."
+      "; the interior of that range is interpolated, not measured. Past it ",
+      "the surface is unscored, and the additive path that serves instead is ",
+      "measurably coarse on common-neighbour mediating blocks."
     )
   } else {
     message(

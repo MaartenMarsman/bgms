@@ -638,11 +638,20 @@ bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
 }
 
 double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
-    // Surface (Option B) serves the alpha = 1 cell (Normal or Cauchy slab, both
-    // built from the block-Gibbs oracle) when attached: decompose the block and
-    // sum per-component moments. Otherwise (surface absent, or the alpha != 1
-    // Gamma-shape fence) fall through to the additive-counts saddle.
-    const bool surface_active = has_surface_ && std::abs(alpha_ - 1.0) < 1e-12;
+    // Surface (Option B) serves the cell whenever one is attached: decompose
+    // the block and sum per-component moments. Otherwise fall through to the
+    // additive-counts saddle.
+    //
+    // The deployment policy -- which (shape, slab, eta) cells get a surface --
+    // lives in R (zratio_build_surfaces, which returns NULL outside the
+    // validated shape range). This gate must NOT re-derive it. It used to:
+    // it carried its own `alpha_ == 1` test from the original alpha = 1-only
+    // migration, so when R widened the validated range to [0.5, 2] the two
+    // layers disagreed silently -- R built and attached a surface, this line
+    // ignored it, and every non-unit-shape fit was served the additive kernel
+    // while the docs claimed otherwise. A policy enforced in two places is not
+    // defence in depth, it is two clocks. Trust the attachment.
+    const bool surface_active = has_surface_;
     // Neither branch needs the block adjacency matrix: the surface deploy reads
     // adjacency from G through the extract scratch (surface_logr_), the additive
     // saddle needs only the scalar counts.

@@ -82,6 +82,41 @@ test_that("the built surface tracks the gold oracle far tighter than additive", 
   expect_lt(err_surf, 0.4 * err_add)
 })
 
+test_that("the deployed route serves the surface at a non-unit shape", {
+  skip_on_cran()
+  # Deployment probe. Every accuracy figure in the validation program was
+  # scored on `logR`, the surface path; a fit takes `log_zratio`, the hot path.
+  # Those were not the same function: the hot path carried its own alpha == 1
+  # test, so a surface built and attached at a non-unit shape was silently
+  # ignored and the additive kernel served instead. Component-level scoring
+  # cannot certify deployment, so this asserts the deployed value IS the
+  # surface value -- not merely that it differs from the additive one, which
+  # would still pass under any future half-wired state that perturbs additive.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  q = 12
+  G = matrix(0L, q, q)
+  for(v in 3:q) G[1, v] = G[v, 1] = G[2, v] = G[v, 2] = 1L
+  for(a in 3:(q - 1)) for(b in (a + 1):q) G[a, b] = G[b, a] = 1L
+
+  for(alpha in c(0.5, 2)) {
+    zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = alpha)
+    surf = bgms:::zratio_build_surfaces(zc, max_size = 12L, cores = 1L)
+    expect_false(is.null(surf), label = paste("surface built at shape", alpha))
+    res = zratio_test_surface_eval(
+      G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
+      surf, zc$delta, zc$eta, FALSE, alpha
+    )
+    expect_equal(
+      res$log_zratio, res$logR,
+      tolerance = 1e-12,
+      label = sprintf("deployed route at shape %g", alpha)
+    )
+  }
+})
+
 test_that("anchors are drawn at the cell's own Gamma shape", {
   skip_on_cran()
   # The oracle's shape argument defaults to the exponential, so an anchor helper
@@ -139,11 +174,14 @@ test_that("a non-unit shape gets a raised anchor budget", {
 
 test_that("the fence message names the validated shapes and the reason", {
   withr::local_options(bgms.verbose = TRUE)
-  zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = 5)
-  # The claim is three scored points, not the interval they span: the message
+  zc = suppressWarnings(bgms:::zratio_constants(0.5 * log(12), 2, alpha = 15))
+  # The claim is the scored points, not the interval they span: the message
   # must not read as if every shape in between had been measured.
-  expect_message(bgms:::zratio_surface_fence_message(zc), "validated at shapes 0.5, 1, and 2")
-  expect_message(bgms:::zratio_surface_fence_message(zc), "independence-Metropolis")
+  expect_message(
+    bgms:::zratio_surface_fence_message(zc),
+    "shapes 0.5, 1, 2, 3 and 5"
+  )
+  expect_message(bgms:::zratio_surface_fence_message(zc), "interpolated, not measured")
 })
 
 test_that("the surface build is invariant to the core count", {
