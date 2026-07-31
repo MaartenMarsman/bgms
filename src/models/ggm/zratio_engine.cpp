@@ -756,6 +756,12 @@ bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                 accept = MY_LOG(runif(*rng_)) <
                          (alpha_ - 1.0) * (MY_LOG(kii_new) -
                                            MY_LOG(kii_old));
+                // A rejected row repeats the previous state, so the effective
+                // sweep count at alpha != 1 is the acceptance rate times the
+                // nominal one. Tallied so an anchor budget can be matched to
+                // the alpha = 1 reference instead of assumed equal to it.
+                ++im_prop_;
+                if (accept) ++im_acc_;
             }
             if (accept) {
                 double d_diag = 0.0;

@@ -54,6 +54,8 @@ Rcpp::List zratio_block_oracle_moments(
     return Rcpp::List::create(
         Rcpp::_["ok"] = ok,
         Rcpp::_["S1"] = s1,
-        Rcpp::_["S2"] = s2
+        Rcpp::_["S2"] = s2,
+        Rcpp::_["im_proposed"] = engine.im_proposed(),
+        Rcpp::_["im_accepted"] = engine.im_accepted()
     );
 }

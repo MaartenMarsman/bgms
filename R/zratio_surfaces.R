@@ -8,9 +8,9 @@
 # moments (C++ log_zratio surface branch), replacing the online ridge-OLS
 # correction. eta is a build parameter, not a switch: the surface is built at
 # the analysis's own eta and used at every eta. Deployment is fenced to the
-# validated alpha = 1 diagonal (Normal or Cauchy slab); a non-unit Gamma shape
-# (alpha != 1) returns NULL from zratio_build_surfaces, so the engine keeps the
-# additive path.
+# supported Gamma-shape range (Normal or Cauchy slab); a shape outside
+# [.zratio_surface_shape_lo, .zratio_surface_shape_hi] returns NULL from
+# zratio_build_surfaces, so the engine keeps the additive path.
 #
 # Anchors are drawn from the sampler's own kernel via the C++ bare-component
 # oracle (zratio_block_oracle_moments). Short chains suffice: the low-order fit
@@ -70,7 +70,10 @@ zratio_rand_conn_bip = function(na_, nb_, ne, seed) {
 }
 
 # One CN-cluster anchor: a random connected graph at (size, density), all nodes
-# common neighbours (adjacent to both endpoints), moments from the oracle.
+# common neighbours (adjacent to both endpoints), moments from the oracle. The
+# cell's Gamma shape is passed to the oracle: it selects the independence-
+# Metropolis row update, without which the anchors would be drawn at the
+# exponential shape while the constants carry the cell's own.
 zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
   e = max(n - 1, round(dens * choose(n, 2)))
   adj = zratio_rand_conn_graph(n, e, seed)
@@ -78,7 +81,7 @@ zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
   r = zratio_block_oracle_moments(
     adj, all_rows, all_rows, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
-    slab_cauchy = identical(zc$slab, "cauchy")
+    slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = e / choose(n, 2), S1 = r$S1, S2 = r$S2)
@@ -97,7 +100,7 @@ zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
   r = zratio_block_oracle_moments(
     bp$adj, si, sj, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
-    slab_cauchy = identical(zc$slab, "cauchy")
+    slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = ee / (na_ * nb_), S1 = r$S1, S2 = r$S2)
@@ -143,8 +146,8 @@ zratio_fit_surface_family = function(anchors) {
 # Build both family surfaces (CN + bipartite) for one analysis. `zc` is the
 # fit-time cell (zratio_cell_constants). Built for the Normal slab and for the
 # Cauchy slab (a scale-mixture of normals the oracle draws directly, so the same
-# anchor machinery covers it). Fenced to the alpha = 1 diagonal: a non-unit
-# Gamma shape returns NULL (open problem) and the engine keeps the additive path.
+# anchor machinery covers it). Fenced to the supported Gamma-shape range: a
+# shape outside it returns NULL and the engine keeps the additive path.
 # max_size caps the anchor sizes at the reachable giant; components larger than
 # the trained hull clamp to its edge at deploy. The anchor grids come from
 # zratio_anchor_grids. Returns list(cn = <family>, bip = <family>) or NULL.
@@ -198,6 +201,28 @@ zratio_anchor_sweeps = function(n) {
   ifelse(n >= 46, 600L, ifelse(n >= 32, 800L, 1000L))
 }
 
+# Gamma-shape deployment range for the absolute-moment surface. Outside it the
+# engine keeps the additive path. The surface is validated at three shapes --
+# 0.5, 1, and 2, each scored against block-Gibbs gold at eta 1 and 2 on both
+# component families -- and deploys on the interval they span; the interior is
+# interpolated, not measured. The upper end is set by the anchor oracle, not by
+# the surface: at a non-unit shape the oracle's row update is an
+# independence-Metropolis step whose acceptance falls away from shape 1
+# (measured at 20 nodes, density 0.9: 80% at shape 2, 70% at 2.5, 60% at 3,
+# 35% at 4, 1-12% at 5), and with it the anchor Monte-Carlo error rises out of
+# reach of any affordable sweep budget (at shape 5, 50-500x the shape-1 anchor
+# error and not restored by 94x the sweeps).
+.zratio_surface_shape_lo = 0.5
+.zratio_surface_shape_hi = 2
+
+# Sweep multiplier restoring the shape-1 anchor Monte-Carlo error at a non-unit
+# shape, resolved by matching measured across-seed anchor spread rather than by
+# the 1/acceptance heuristic (which understates the cost, since a rejected row
+# repeats the previous state and leaves autocorrelation behind).
+zratio_anchor_shape_multiplier = function(alpha) {
+  if(abs(alpha - 1) < 1e-12) 1L else if(alpha < 1) 4L else 2L
+}
+
 # ------------------------------------------------------------------------------
 # zratio_anchor_grids
 # ------------------------------------------------------------------------------
@@ -247,7 +272,10 @@ zratio_anchor_grids = function(cap) {
 
 zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
                                  cores = 1L, seed0 = 700000L) {
-  if(abs(zc$alpha - 1) > 1e-12) return(NULL)
+  if(zc$alpha < .zratio_surface_shape_lo ||
+    zc$alpha > .zratio_surface_shape_hi) {
+    return(NULL)
+  }
   cap = as.integer(max_size)
 
   # Get-or-build: the build is data-independent, so a repeat fit of the same
@@ -293,8 +321,13 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   }
 
   grids = zratio_anchor_grids(cap)
+  # A non-unit shape samples its anchors through an independence-Metropolis
+  # step, so the same nominal budget buys fewer effective sweeps.
+  shape_mult = zratio_anchor_shape_multiplier(zc$alpha)
   cn_jobs = grids$cn
   bip_jobs = grids$bip
+  cn_jobs$sweeps = as.integer(cn_jobs$sweeps * shape_mult)
+  bip_jobs$sweeps = as.integer(bip_jobs$sweeps * shape_mult)
 
   # One scheduling pool over both families, heaviest job first with dynamic
   # assignment (mc.preschedule = FALSE): anchor cost scales ~ n^3 * sweeps and
@@ -395,15 +428,22 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
 }
 
 # Message the fallback to the additive path when no surface is attached: a
-# non-unit Gamma diagonal shape (surface pending validation) or a failed
-# alpha = 1 build (which must not downgrade the fit silently). Shared by every
+# Gamma diagonal shape outside the validated range, or a failed build inside it
+# (which must not downgrade the fit silently). Shared by every
 # sampler call site so the two messages stay identical.
 zratio_surface_fence_message = function(zc) {
-  if(abs(zc$alpha - 1) > 1e-12) {
+  if(zc$alpha < .zratio_surface_shape_lo ||
+    zc$alpha > .zratio_surface_shape_hi) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
-      " -> additive path (absolute-moment surface validated only for the ",
-      "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+      " -> additive path (coarser correction). The absolute-moment surface is ",
+      "validated at shapes ", format(.zratio_surface_shape_lo), ", 1, and ",
+      format(.zratio_surface_shape_hi),
+      ", and deploys on the range they span; outside it the surface's ",
+      "block-Gibbs anchors are sampled through an ",
+      "independence-Metropolis step whose acceptance falls too far for the ",
+      "anchors to converge (about 1% at shape 5), so the surface cannot be ",
+      "built to a known accuracy there."
     )
   } else {
     message(
