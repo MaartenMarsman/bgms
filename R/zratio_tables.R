@@ -121,9 +121,26 @@ zratio_ispike = function(c_val, delta, beta, alpha = 1) {
 # weight, never the integrand). The slab density multiplies at the raw
 # entry (the tilt sees the Schur-shifted entry), so the Cauchy variant
 # only swaps the density factor.
+#
+# cmax/ngrid are paired to hold the node spacing at 18/120: the range extends
+# by appending nodes past the old edge rather than re-spreading the same count
+# over a wider interval, so every node the shorter grid carried is unchanged
+# to the bit and every cell validated against it stays valid by construction.
+# The range is set by decay, not by accuracy: the tabulated integrals fall off
+# more slowly as the shape grows and eta shrinks, and the ratio guard below
+# fires when they still carry mass at the edge. Measured worst-case decay at
+# eta = 1 (the slowest corner), against the guard's 1e-6:
+#
+#   shape      5        8       10       12
+#   cmax 18  1.3e-07  3.5e-05  5.0e-04  3.7e-03   <- shapes >= 8 fail
+#   cmax 42  8.3e-25  3.0e-20  1.0e-17  1.7e-15
+#
+# If a future change is ever forced to re-spread instead of append, ngrid must
+# scale with cmax: coarsening the interior to pay for the tail would trade a
+# validated region for an unvalidated one.
 zratio_pair_integrals = function(
   delta, sigma, beta, slab = "normal", alpha = 1,
-  cmax = 18, ngrid = 121, nlag = 48, nleg = 64
+  cmax = 42, ngrid = 281, nlag = 48, nleg = 64
 ) {
   gl = zratio_gauss_quad(nlag, "laguerre", glag_a = alpha - 1)
   xq = gl$nodes / beta
@@ -163,6 +180,22 @@ zratio_pair_integrals = function(
 zratio_saddle_grid = function(
   pair, Cmax = 40, nc = 8001L, Tmax = 160, nt = 801L
 ) {
+  # Producer/consumer domains must meet. pair$g and pair$ispike interpolate a
+  # table on [0, cmax]; read past it they clamp to the edge value, silently
+  # substituting a plateau for a decaying tail. That is what happened here: the
+  # table ended at 18 while this integration ran to 40, so 22 units of the
+  # saddle integrand carried the edge value instead of real decay, biasing
+  # ihat/ghat by ~2e-6 in every cell. The clamp is invisible at the call site,
+  # so the compatibility is asserted where the two grids meet rather than left
+  # to whoever next edits either constant.
+  if (max(pair$cg) < Cmax) {
+    stop(
+      "z-ratio: the pair table covers [0, ", format(max(pair$cg)),
+      "] but the saddle integration reads to ", format(Cmax),
+      "; widen cmax in zratio_pair_integrals or lower Cmax here.",
+      call. = FALSE
+    )
+  }
   cg = seq(0, Cmax, length.out = nc)
   dc = cg[2] - cg[1]
   is_v = pair$ispike(cg)
