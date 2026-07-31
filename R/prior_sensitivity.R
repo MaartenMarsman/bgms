@@ -34,17 +34,23 @@ verdict_from_bf = function(bf, threshold) {
 }
 
 
-#' @title Prior Sensitivity of Edge Inclusion Verdicts
+#' @title Prior Sensitivity of Inclusion Verdicts
 #'
 #' @description
-#' Recovers each edge's continuous inclusion-Bayes-factor curve
-#' \eqn{\mathrm{BF}_e(s)} across the interaction (pairwise) slab scale
-#' \eqn{s}, and classifies every edge's verdict trajectory along it. The
-#' curve is anchored at a handful of fixed-scale fits --- the chosen-scale
-#' anchor is the original fit itself --- and filled in between anchors by
-#' importance reweighting. Works on any \code{\link{bgm}()} fit with edge
-#' selection. A built-in Monte Carlo noise guard, calibrated from a repeated
-#' refit at one anchor, keeps the check from crying wolf on boundary edges.
+#' Recovers each indicator's continuous inclusion-Bayes-factor curve
+#' \eqn{\mathrm{BF}_e(s)} across the scale \eqn{s} of the slab that gates it,
+#' and classifies every verdict trajectory along it. The curve is anchored at a
+#' handful of fixed-scale fits --- the chosen-scale anchor is the original fit
+#' itself --- and filled in between anchors by importance reweighting. A
+#' built-in Monte Carlo noise guard, calibrated from a repeated refit at one
+#' anchor, keeps the check from crying wolf on boundary cases.
+#'
+#' On a \code{\link{bgm}()} fit with edge selection the unit is the edge
+#' indicator and the swept prior is the interaction slab. On a
+#' \code{\link{bgmCompare}()} fit with difference selection the unit is the
+#' difference indicator and the swept prior is the difference slab
+#' (\code{difference_scale}), which covers the pairwise and the main-effect
+#' difference families alike, since \code{bgmCompare()} gives them one scale.
 #'
 #' @details
 #' \strong{The anchored curve.} The model is refit at the non-unit
@@ -86,7 +92,12 @@ verdict_from_bf = function(bf, threshold) {
 #' the 95th percentile of the spread between one anchor refit and its
 #' repeat, over threshold-relevant edges
 #' (\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
-#' inflate it). The \code{$edges$mover} column stores \code{stable},
+#' inflate it). An edge that is threshold-relevant in one of the two refits and
+#' saturated in the other has a censored rather than an infinite spread, and is
+#' left out of that percentile; the printed report counts them. When no
+#' threshold-relevant edge has a measurable spread the noise band is \code{NA}
+#' and the mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+#' The \code{$edges$mover} column stores \code{stable},
 #' \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 #' printed report shows the same categories in plain language ("robust",
 #' "changed, within run-to-run noise", "changed, beyond run-to-run noise",
@@ -106,7 +117,8 @@ verdict_from_bf = function(bf, threshold) {
 #' used; a refit that fails is reported as unusable rather than silently pooled.
 #'
 #' @param bgms_object A fitted \code{bgms} object from \code{\link{bgm}()} run
-#'   with \code{edge_selection = TRUE}.
+#'   with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
+#'   \code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.
 #' @param anchors Numeric vector of positive anchor multipliers of the chosen
 #'   scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
 #'   anchors' usable reweighting radii overlap). The multiplier \code{1} is
@@ -115,6 +127,20 @@ verdict_from_bf = function(bf, threshold) {
 #' @param evidence_threshold Positive numeric. Inclusion Bayes factor threshold
 #'   for a presence verdict; \code{1 / evidence_threshold} is the absence
 #'   threshold. Default: \code{10}.
+#' @param vary One of \code{"auto"} (default), \code{"slab"}, or
+#'   \code{"slab-and-diagonal"}. Only relevant for models with a prior on the
+#'   precision diagonal (continuous and mixed); ignored for discrete ones, which
+#'   have none. The slab scale \eqn{s} and the diagonal rate are tied through
+#'   the standardized frame (raw rate \eqn{= \eta / s}), so a sweep of \eqn{s}
+#'   has to hold one of the two fixed. \code{"slab"} holds the raw diagonal rate
+#'   at the fitted value and moves the interaction prior alone, answering how
+#'   much the verdicts depend on how wide an edge is allowed to be.
+#'   \code{"slab-and-diagonal"} holds \eqn{\eta} fixed and lets the raw rate
+#'   follow, answering how much they depend on the overall prior scale with its
+#'   shape held fixed. \code{"auto"} follows the frame the fit itself used:
+#'   \code{"slab-and-diagonal"} when the diagonal prior was given as \code{eta},
+#'   \code{"slab"} when it was given as a raw \code{rate}. The resolved mode is
+#'   named in the printed report.
 #' @param refit_sampler One of \code{"same-as-fit"} (default; inherit the
 #'   original fit's update method) or an explicit \code{"nuts"},
 #'   \code{"adaptive-metropolis"}, or \code{"gibbs"}. NUTS refits of an ordinal
@@ -159,7 +185,9 @@ verdict_from_bf = function(bf, threshold) {
 #'   bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 #'   per-point chain unanimity), the \code{wobble} noise yardstick,
 #'   \code{refit_diagnostics} (the captured raw sampler notes per anchor and
-#'   the replicate), the data-\code{preferred_scale}, and the settings used.
+#'   the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
+#'   prior is not the one on the pairwise interactions), the \code{unit} the
+#'   check reported on, the resolved \code{vary} mode, and the settings used.
 #'
 #' @seealso \code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
 #' @family diagnostics
@@ -175,6 +203,7 @@ verdict_from_bf = function(bf, threshold) {
 prior_sensitivity_check = function(bgms_object,
                                    anchors = c(0.4, 0.63, 1, 1.6, 2.5),
                                    evidence_threshold = 10,
+                                   vary = c("auto", "slab", "slab-and-diagonal"),
                                    refit_sampler = "same-as-fit",
                                    iter = NULL,
                                    warmup = NULL,
@@ -185,9 +214,147 @@ prior_sensitivity_check = function(bgms_object,
                                    seed = 1L,
                                    keep_fits = FALSE,
                                    verbose = FALSE) {
-  if(!inherits(bgms_object, "bgms")) {
-    stop("prior_sensitivity_check() requires a fit from bgm().")
+  UseMethod("prior_sensitivity_check")
+}
+
+#' @inheritParams prior_sensitivity_check
+#' @exportS3Method
+#' @noRd
+prior_sensitivity_check.bgms = function(bgms_object,
+                                        anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+                                        evidence_threshold = 10,
+                                        vary = c("auto", "slab", "slab-and-diagonal"),
+                                        refit_sampler = "same-as-fit",
+                                        iter = NULL,
+                                        warmup = NULL,
+                                        tolerance = 0.5,
+                                        ess_floor = 400,
+                                        include_preferred_scale = FALSE,
+                                        cores = NULL,
+                                        seed = 1L,
+                                        keep_fits = FALSE,
+                                        verbose = FALSE) {
+  spec = get_fit_spec(bgms_object)
+  if(is.null(spec) || !isTRUE(spec$prior$edge_selection)) {
+    stop(
+      "prior_sensitivity_check() needs edge selection. Refit with ",
+      "edge_selection = TRUE."
+    )
   }
+  prior_sensitivity_engine(bgms_object,
+    unit = single_network_unit(spec),
+    anchors = anchors, evidence_threshold = evidence_threshold, vary = vary,
+    refit_sampler = refit_sampler, iter = iter, warmup = warmup,
+    tolerance = tolerance, ess_floor = ess_floor,
+    include_preferred_scale = include_preferred_scale, cores = cores,
+    seed = seed, keep_fits = keep_fits, verbose = verbose
+  )
+}
+
+#' @inheritParams prior_sensitivity_check
+#' @exportS3Method
+#' @noRd
+prior_sensitivity_check.bgmCompare = function(bgms_object,
+                                              anchors = c(0.4, 0.63, 1, 1.6, 2.5),
+                                              evidence_threshold = 10,
+                                              vary = c("auto", "slab", "slab-and-diagonal"),
+                                              refit_sampler = "same-as-fit",
+                                              iter = NULL,
+                                              warmup = NULL,
+                                              tolerance = 0.5,
+                                              ess_floor = 400,
+                                              include_preferred_scale = FALSE,
+                                              cores = NULL,
+                                              seed = 1L,
+                                              keep_fits = FALSE,
+                                              verbose = FALSE) {
+  spec = get_fit_spec(bgms_object)
+  if(is.null(spec) || !isTRUE(spec$prior$difference_selection)) {
+    stop(
+      "prior_sensitivity_check() needs difference selection. Refit with ",
+      "bgmCompare(difference_selection = TRUE); without it every difference ",
+      "is in the model and there is no inclusion Bayes factor to trace."
+    )
+  }
+  if(is.na(difference_prior_inclusion(bgms_object))) {
+    stop(
+      "A stochastic-block difference prior has no single marginal inclusion ",
+      "probability, so the curve would report posterior odds rather than ",
+      "Bayes factors. Refit with bernoulli_prior() or beta_bernoulli_prior() ",
+      "to trace the difference scale."
+    )
+  }
+  prior_sensitivity_engine(bgms_object,
+    unit = difference_unit(spec),
+    anchors = anchors, evidence_threshold = evidence_threshold, vary = vary,
+    refit_sampler = refit_sampler, iter = iter, warmup = warmup,
+    tolerance = tolerance, ess_floor = ess_floor,
+    include_preferred_scale = include_preferred_scale, cores = cores,
+    seed = seed, keep_fits = keep_fits, verbose = verbose
+  )
+}
+
+
+# ------------------------------------------------------------------
+# single_network_unit / difference_unit
+# ------------------------------------------------------------------
+# What the check sweeps and what it reports on. bgm() traces edge indicators
+# across the interaction slab scale; bgmCompare() traces difference indicators
+# across the difference slab scale. Everything between -- the anchored curve,
+# the convergence gate, the wobble yardstick, the reporting -- is shared.
+#
+# Returns: list(
+#   scale_field  Prior field the refits rescale.
+#   chosen_scale The fit's own value of it.
+#   noun         Singular name of one reported unit.
+#   nouns        Its plural.
+#   headline     The question the printed report opens with.
+#   preferred    Whether a data-preferred scale can be estimated.
+# )
+# ------------------------------------------------------------------
+single_network_unit = function(spec) {
+  list(
+    scale_field = "pairwise_scale",
+    chosen_scale = spec$prior$pairwise_scale,
+    noun = "edge", nouns = "edges",
+    headline = "are the edge verdicts robust to the slab scale?",
+    preferred = TRUE
+  )
+}
+
+difference_unit = function(spec) {
+  list(
+    scale_field = "difference_scale",
+    chosen_scale = spec$prior$difference_scale,
+    noun = "difference", nouns = "differences",
+    headline = "are the difference verdicts robust to the difference scale?",
+    preferred = FALSE
+  )
+}
+
+
+# ------------------------------------------------------------------
+# prior_sensitivity_engine
+# ------------------------------------------------------------------
+# The shared anchored-curve machinery behind both methods. `unit` names the
+# prior field to sweep and the vocabulary of the report; see single_network_unit
+# and difference_unit. Every other argument is the method's, unchanged.
+# ------------------------------------------------------------------
+prior_sensitivity_engine = function(bgms_object,
+                                    unit,
+                                    anchors,
+                                    evidence_threshold,
+                                    vary,
+                                    refit_sampler,
+                                    iter,
+                                    warmup,
+                                    tolerance,
+                                    ess_floor,
+                                    include_preferred_scale,
+                                    cores,
+                                    seed,
+                                    keep_fits,
+                                    verbose) {
   if(!is.numeric(evidence_threshold) || length(evidence_threshold) != 1L ||
     evidence_threshold <= 1) {
     stop("'evidence_threshold' must be a single number greater than 1.")
@@ -200,16 +367,12 @@ prior_sensitivity_check = function(bgms_object,
   }
 
   spec = get_fit_spec(bgms_object)
-  if(is.null(spec) || !isTRUE(spec$prior$edge_selection)) {
-    stop(
-      "prior_sensitivity_check() needs edge selection. Refit with ",
-      "edge_selection = TRUE."
-    )
-  }
-
-  chosen_scale = spec$prior$pairwise_scale
+  chosen_scale = unit$chosen_scale
   lthr = log10(evidence_threshold)
   if(is.null(cores)) cores = spec$sampler$chains
+
+  # Which prior the sweep moves; named in the printed report.
+  vary = resolve_vary(spec, vary)
 
   # --- Sampler resolution -----------------------------------------------------
   rs = resolve_refit_sampler(bgms_object, refit_sampler)
@@ -221,7 +384,13 @@ prior_sensitivity_check = function(bgms_object,
     !is.null(warm_state$inv_mass)
 
   # --- Data-preferred scale (no refit) ----------------------------------------
-  preferred = data_preferred_scale(bgms_object)
+  # Only defined where the swept prior is the one on the pairwise interactions;
+  # the difference slab has no comparable plug-in estimate.
+  preferred = if(isTRUE(unit$preferred)) {
+    data_preferred_scale(bgms_object)
+  } else {
+    list(s_hat = NA_real_, lo = NA_real_, hi = NA_real_)
+  }
 
   # --- Anchor set: 1x is the original fit, never refit ------------------------
   anchors = sort(unique(c(anchors, 1)))
@@ -255,12 +424,15 @@ prior_sensitivity_check = function(bgms_object,
   # verbose = TRUE re-enables live printing.
   refit_notes = vector("list", nrow(jobs))
   run_one_refit = function(i, show_progress = FALSE) {
+    s = jobs$multiplier[i] * chosen_scale
     refit_at_scale(
       bgms_object,
-      scale = jobs$multiplier[i] * chosen_scale,
+      scale = s,
       warm_state = warm_state, warmup = rl$warmup, iter = rl$iter,
       seed = seed + i, cores = refit_cores, sampler = rs$method,
-      show_progress = show_progress
+      show_progress = show_progress,
+      scale_field = unit$scale_field,
+      diagonal_rate = vary_diagonal_rate(vary, s)
     )
   }
   # Each anchor refit (the check's only real cost) renders the sampler's own
@@ -462,11 +634,13 @@ prior_sensitivity_check = function(bgms_object,
     d_wobble = wob$per_edge
     wobble_q95 = wob$q95
     wobble_med = wob$median
+    wobble_censored = wob$censored
   } else {
     # The failure was already reported once above, in plain voice.
     d_wobble = rep(NA_real_, n_edges)
     wobble_q95 = NA_real_
     wobble_med = NA_real_
+    wobble_censored = 0L
   }
 
   # --- Per-edge chosen-scale sufficiency (from the original fit) --------------
@@ -600,9 +774,11 @@ prior_sensitivity_check = function(bgms_object,
       ),
       wobble = list(
         q95 = wobble_q95, median = wobble_med, per_edge = d_wobble,
-        anchor = anchors[rep_anchor]
+        censored = wobble_censored, anchor = anchors[rep_anchor]
       ),
       preferred_scale = preferred,
+      unit = unit,
+      vary = vary,
       evidence_threshold = evidence_threshold,
       tolerance = tolerance,
       refit_sampler = rs$method,
@@ -654,11 +830,20 @@ order_upper_tri_rowmajor = function(p) {
 # ------------------------------------------------------------------
 wobble_yardstick = function(lbf_s0, lbf_rep) {
   per_edge = abs(lbf_s0 - lbf_rep)
-  relevant = which(abs(lbf_s0) <= 3)
+  relevant = is.finite(lbf_s0) & abs(lbf_s0) <= 3
+  # An edge that is threshold-relevant in one refit and saturated in the other
+  # has a censored spread, not an infinite one. Pooling it would carry the
+  # yardstick to Inf, which classes every verdict move as run-to-run noise.
+  measurable = relevant & is.finite(per_edge)
   list(
-    q95 = stats::quantile(per_edge[relevant], 0.95, names = FALSE, na.rm = TRUE),
-    median = stats::median(per_edge, na.rm = TRUE),
-    per_edge = per_edge
+    q95 = if(any(measurable)) {
+      stats::quantile(per_edge[measurable], 0.95, names = FALSE)
+    } else {
+      NA_real_
+    },
+    median = stats::median(per_edge[is.finite(per_edge)]),
+    per_edge = per_edge,
+    censored = sum(relevant & !is.finite(per_edge))
   )
 }
 
@@ -728,12 +913,57 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   w = min(getOption("width", 80L), 80L)
   wrap = function(...) writeLines(strwrap(paste0(...), width = w))
 
-  cat("Prior sensitivity check: are the edge verdicts robust to the slab scale?\n")
+  # bgm() traces edge indicators across the interaction slab; bgmCompare()
+  # traces difference indicators across the difference slab.
+  unit = x$unit %||% list(
+    noun = "edge", nouns = "edges",
+    headline = "are the edge verdicts robust to the slab scale?"
+  )
+
+  cat(sprintf("Prior sensitivity check: %s\n", unit$headline))
   wrap(sprintf(
-    "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s; the 1x anchor is the original fit); %d edges.",
-    gr[1], gr[2], paste(mlab, collapse = ", "), n_edges
+    "Bayes-factor curve from %.2gx to %.2gx the chosen scale (anchors at %s; the 1x anchor is the original fit); %d %s.",
+    gr[1], gr[2], paste(mlab, collapse = ", "), n_edges, unit$nouns
   ))
+  # What moved along the curve. On a model with a prior on the precision
+  # diagonal the slab scale and that diagonal are tied through the standardized
+  # frame, so the sweep holds one of the two fixed and the curve means
+  # different things depending on which.
+  vary_mode = if(is.null(x$vary)) "none" else x$vary$mode
+  if(identical(vary_mode, "slab")) {
+    wrap(
+      "Varied: the interaction slab scale alone; the prior on the precision ",
+      "diagonal is the fitted one at every scale (vary = \"slab\")."
+    )
+  } else if(identical(vary_mode, "slab-and-diagonal")) {
+    wrap(sprintf(
+      paste(
+        "Varied: the interaction slab scale together with the precision diagonal,",
+        "holding the standardized rate eta at %.3g so the prior's shape is fixed",
+        "and its overall scale moves (vary = \"slab-and-diagonal\")."
+      ),
+      x$vary$eta
+    ))
+  }
   cat("\n")
+
+  # An indicator the sampler never updated has no verdict to be robust or
+  # sensitive; bgmCompare() leaves the main-effect difference indicators there
+  # unless main_difference_selection = TRUE.
+  no_verdict = is.na(edges$chosen_scale_verdict)
+  if(any(no_verdict)) {
+    wrap(sprintf(
+      paste(
+        "%d of the %d %s were never updated by the sampler and carry no verdict",
+        "at any scale; they are excluded from the counts below."
+      ),
+      sum(no_verdict), n_edges, unit$nouns
+    ))
+    cat("\n")
+    edges = edges[!no_verdict, , drop = FALSE]
+    x$anchor_verdict = x$anchor_verdict[, !no_verdict, drop = FALSE]
+    n_edges = nrow(edges)
+  }
 
   # Stability headline: the scale range over which the verdicts hold.
   full_span = !is.na(edges$stability_lower) & !is.na(edges$stability_upper) &
@@ -767,18 +997,21 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   cat(sprintf("  %-38s %4d\n", labels[keep], counts[keep]), sep = "")
   cat("\n")
 
-  # Name the edges whose verdict genuinely depends on the scale.
+  # Name the units whose verdict genuinely depends on the scale.
   if(sum(beyond) > 0) {
     cat(if(sum(beyond) == 1L) {
-      "1 edge's verdict genuinely depends on the scale:\n"
+      sprintf("1 %s's verdict genuinely depends on the scale:\n", unit$noun)
     } else {
-      sprintf("%d edges' verdicts genuinely depend on the scale:\n", sum(beyond))
+      sprintf(
+        "%d %s' verdicts genuinely depend on the scale:\n",
+        sum(beyond), unit$nouns
+      )
     })
     idx = which(beyond)
     show = utils::head(idx, max_rows)
     vmat = t(x$anchor_verdict[, show, drop = FALSE])
     tab = cbind(edge = edges$edge[show], vmat)
-    colnames(tab) = c("edge", mlab)
+    colnames(tab) = c(unit$noun, mlab)
     rownames(tab) = rep("", nrow(tab))
     print(tab, quote = FALSE, print.gap = 2)
     if(length(idx) > length(show)) {
@@ -798,8 +1031,9 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     }
     one = length(nm) == 1L
     wrap(sprintf(
-      "%d edge%s too noisy to assess: %s%s.",
-      length(nm), if(one) " is" else "s are",
+      "%d %s %s too noisy to assess: %s%s.",
+      length(nm), if(one) unit$noun else unit$nouns,
+      if(one) "is" else "are",
       paste(shown, collapse = ", "), tail_txt
     ))
     # Name only the subcause(s) that actually occur among these edges.
@@ -843,10 +1077,13 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   cat(paste0("  ", out, collapse = "\n"), "\n", sep = "")
   ab = vt["absence", ]
   if(ab[length(ab)] > ab[1]) {
-    wrap(
-      "More absence at wider scales is expected: a wider slab strengthens ",
-      "evidence against borderline edges."
-    )
+    wrap(sprintf(
+      paste(
+        "More absence at wider scales is expected: a wider slab strengthens",
+        "evidence against borderline %s."
+      ),
+      unit$nouns
+    ))
   }
   cat("\n")
 
@@ -905,10 +1142,24 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     "Refits:  %d %s refits, %s, %s total.\n",
     n_refit, x$refit_sampler, start_txt, secs
   ))
-  cat(sprintf(
-    "Noise:   two identical refits at %.2gx differed by up to %.2g log10 BF across\n         threshold-relevant edges; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
-    x$wobble$anchor, x$wobble$q95
-  ))
+  if(is.na(x$wobble$q95)) {
+    cat(sprintf(
+      "Noise:   no threshold-relevant %s had a measurable spread between two identical\n         refits at %.2gx, so there is no run-to-run yardstick; verdict moves are\n         judged against the tolerance and Monte Carlo error alone.\n",
+      unit$noun, x$wobble$anchor
+    ))
+  } else {
+    cat(sprintf(
+      "Noise:   two identical refits at %.2gx differed by up to %.2g log10 BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
+      x$wobble$anchor, x$wobble$q95, unit$nouns
+    ))
+    if(isTRUE(x$wobble$censored > 0)) {
+      cat(sprintf(
+        "         %d edge%s saturated in one of the two and %s left out of that spread.\n",
+        x$wobble$censored, if(x$wobble$censored == 1L) "" else "s",
+        if(x$wobble$censored == 1L) "was" else "were"
+      ))
+    }
+  }
   cat("See ?prior_sensitivity_check for the full construction.\n")
   invisible(x)
 }
@@ -1007,19 +1258,26 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   ylim = range(c(-1.5 * thr, 1.5 * thr, named_bf))
   ylim = ylim + c(-0.4, 0.4)
 
+  unit = x$unit %||% list(noun = "edge", nouns = "edges")
+  scale_label = if(identical(unit$noun, "difference")) {
+    "difference scale (relative to the chosen scale)"
+  } else {
+    "slab scale (relative to the chosen scale)"
+  }
+
   n_dep = length(movers)
   title = if(n_dep == 0L) {
-    "No edge verdict depends on the slab scale"
+    sprintf("No %s verdict depends on the scale", unit$noun)
   } else if(n_dep == 1L) {
-    "1 edge verdict depends on the slab scale"
+    sprintf("1 %s verdict depends on the scale", unit$noun)
   } else {
-    sprintf("%d edge verdicts depend on the slab scale", n_dep)
+    sprintf("%d %s verdicts depend on the scale", n_dep, unit$noun)
   }
 
   graphics::plot(NA, NA,
     xlim = range(rel), ylim = ylim, log = "x", axes = FALSE,
-    xlab = "slab scale (relative to the chosen scale)",
-    ylab = expression("evidence for the edge (" * log[10] * " Bayes factor)"),
+    xlab = scale_label,
+    ylab = bquote("evidence for the" ~ .(unit$noun) ~ "(" * log[10] ~ "Bayes factor)"),
     main = title
   )
   graphics::axis(1,
@@ -1088,7 +1346,8 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   }, logical(1)))
   if(n_off > 0) {
     notes = c(notes, sprintf(
-      "%d edges beyond the plot range keep their verdict at every scale", n_off
+      "%d %s beyond the plot range keep their verdict at every scale",
+      n_off, unit$nouns
     ))
   }
   if(length(notes)) {

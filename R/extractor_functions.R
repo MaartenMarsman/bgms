@@ -517,7 +517,33 @@ extract_inclusion_bf.bgmCompare = function(bgms_object, log = FALSE) {
   # entry (main-effect differences on the diagonal, pairwise differences off
   # it). A stochastic-block difference prior has no single marginal, so the
   # result is left as posterior odds there.
-  prior_p = switch(as.character(arguments$difference_prior),
+  prior_p = difference_prior_inclusion(bgms_object)
+  if(length(prior_p) == 1L && !is.na(prior_p)) {
+    bf_mat = bf_mat - (log(prior_p) - log1p(-prior_p))
+  }
+
+  return(rb_bf_scale(bf_mat, log))
+}
+
+
+# ------------------------------------------------------------------
+# difference_prior_inclusion
+# ------------------------------------------------------------------
+# Marginal prior inclusion probability of a bgmCompare() difference indicator.
+#
+# The difference prior is exchangeable across difference indicators, so one
+# probability applies to every entry, main-effect differences on the diagonal
+# and pairwise differences off it. A stochastic-block difference prior has no
+# single marginal and returns NA, which leaves its caller reporting posterior
+# odds rather than a Bayes factor.
+#
+# @param bgms_object  A fitted bgmCompare object.
+#
+# Returns: a single probability, or NA_real_.
+# ------------------------------------------------------------------
+difference_prior_inclusion = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+  switch(as.character(arguments$difference_prior),
     "Bernoulli" = {
       dp = arguments$inclusion_probability
       if(is.matrix(dp)) dp[upper.tri(dp)][1L] else dp[1L]
@@ -527,11 +553,6 @@ extract_inclusion_bf.bgmCompare = function(bgms_object, log = FALSE) {
         arguments$difference_selection_beta),
     NA_real_
   )
-  if(length(prior_p) == 1L && !is.na(prior_p)) {
-    bf_mat = bf_mat - (log(prior_p) - log1p(-prior_p))
-  }
-
-  return(rb_bf_scale(bf_mat, log))
 }
 
 

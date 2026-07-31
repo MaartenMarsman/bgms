@@ -32,6 +32,9 @@ between the evidence thresholds; the zones are labeled at the left edge.
 \code{\link{prior_sensitivity_check}()}
 
 Other diagnostics:
+\code{\link[=calibration_check]{calibration_check()}},
+\code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
+\code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}

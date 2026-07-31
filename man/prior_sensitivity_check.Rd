@@ -2,12 +2,13 @@
 % Please edit documentation in R/prior_sensitivity.R
 \name{prior_sensitivity_check}
 \alias{prior_sensitivity_check}
-\title{Prior Sensitivity of Edge Inclusion Verdicts}
+\title{Prior Sensitivity of Inclusion Verdicts}
 \usage{
 prior_sensitivity_check(
   bgms_object,
   anchors = c(0.4, 0.63, 1, 1.6, 2.5),
   evidence_threshold = 10,
+  vary = c("auto", "slab", "slab-and-diagonal"),
   refit_sampler = "same-as-fit",
   iter = NULL,
   warmup = NULL,
@@ -22,7 +23,8 @@ prior_sensitivity_check(
 }
 \arguments{
 \item{bgms_object}{A fitted \code{bgms} object from \code{\link{bgm}()} run
-with \code{edge_selection = TRUE}.}
+with \code{edge_selection = TRUE}, or a \code{bgmCompare} object from
+\code{\link{bgmCompare}()} run with \code{difference_selection = TRUE}.}
 
 \item{anchors}{Numeric vector of positive anchor multipliers of the chosen
 scale. Default \code{c(0.4, 0.63, 1, 1.6, 2.5)} (log-spaced, so adjacent
@@ -33,6 +35,21 @@ refit.}
 \item{evidence_threshold}{Positive numeric. Inclusion Bayes factor threshold
 for a presence verdict; \code{1 / evidence_threshold} is the absence
 threshold. Default: \code{10}.}
+
+\item{vary}{One of \code{"auto"} (default), \code{"slab"}, or
+\code{"slab-and-diagonal"}. Only relevant for models with a prior on the
+precision diagonal (continuous and mixed); ignored for discrete ones, which
+have none. The slab scale \eqn{s} and the diagonal rate are tied through
+the standardized frame (raw rate \eqn{= \eta / s}), so a sweep of \eqn{s}
+has to hold one of the two fixed. \code{"slab"} holds the raw diagonal rate
+at the fitted value and moves the interaction prior alone, answering how
+much the verdicts depend on how wide an edge is allowed to be.
+\code{"slab-and-diagonal"} holds \eqn{\eta} fixed and lets the raw rate
+follow, answering how much they depend on the overall prior scale with its
+shape held fixed. \code{"auto"} follows the frame the fit itself used:
+\code{"slab-and-diagonal"} when the diagonal prior was given as \code{eta},
+\code{"slab"} when it was given as a raw \code{rate}. The resolved mode is
+named in the printed report.}
 
 \item{refit_sampler}{One of \code{"same-as-fit"} (default; inherit the
 original fit's update method) or an explicit \code{"nuts"},
@@ -87,17 +104,25 @@ curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 per-point chain unanimity), the \code{wobble} noise yardstick,
 \code{refit_diagnostics} (the captured raw sampler notes per anchor and
-the replicate), the data-\code{preferred_scale}, and the settings used.
+the replicate), the data-\code{preferred_scale} (\code{NA} where the swept
+prior is not the one on the pairwise interactions), the \code{unit} the
+check reported on, the resolved \code{vary} mode, and the settings used.
 }
 \description{
-Recovers each edge's continuous inclusion-Bayes-factor curve
-\eqn{\mathrm{BF}_e(s)} across the interaction (pairwise) slab scale
-\eqn{s}, and classifies every edge's verdict trajectory along it. The
-curve is anchored at a handful of fixed-scale fits --- the chosen-scale
-anchor is the original fit itself --- and filled in between anchors by
-importance reweighting. Works on any \code{\link{bgm}()} fit with edge
-selection. A built-in Monte Carlo noise guard, calibrated from a repeated
-refit at one anchor, keeps the check from crying wolf on boundary edges.
+Recovers each indicator's continuous inclusion-Bayes-factor curve
+\eqn{\mathrm{BF}_e(s)} across the scale \eqn{s} of the slab that gates it,
+and classifies every verdict trajectory along it. The curve is anchored at a
+handful of fixed-scale fits --- the chosen-scale anchor is the original fit
+itself --- and filled in between anchors by importance reweighting. A
+built-in Monte Carlo noise guard, calibrated from a repeated refit at one
+anchor, keeps the check from crying wolf on boundary cases.
+
+On a \code{\link{bgm}()} fit with edge selection the unit is the edge
+indicator and the swept prior is the interaction slab. On a
+\code{\link{bgmCompare}()} fit with difference selection the unit is the
+difference indicator and the swept prior is the difference slab
+(\code{difference_scale}), which covers the pairwise and the main-effect
+difference families alike, since \code{bgmCompare()} gives them one scale.
 }
 \details{
 \strong{The anchored curve.} The model is refit at the non-unit
@@ -139,7 +164,12 @@ between-chain and the importance-sampling uncertainty) and the noise band
 the 95th percentile of the spread between one anchor refit and its
 repeat, over threshold-relevant edges
 (\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
-inflate it). The \code{$edges$mover} column stores \code{stable},
+inflate it). An edge that is threshold-relevant in one of the two refits and
+saturated in the other has a censored rather than an infinite spread, and is
+left out of that percentile; the printed report counts them. When no
+threshold-relevant edge has a measurable spread the noise band is \code{NA}
+and the mover rule falls back to \code{max(tolerance, 2 * MCSE)}.
+The \code{$edges$mover} column stores \code{stable},
 \code{indistinguishable-from-wobble}, or \code{moved-beyond-wobble}; the
 printed report shows the same categories in plain language ("robust",
 "changed, within run-to-run noise", "changed, beyond run-to-run noise",
@@ -173,7 +203,10 @@ plot(ps)
 \code{\link{bgm}()}, \code{\link{extract_posterior_inclusion_probabilities}()}
 
 Other diagnostics:
+\code{\link[=calibration_check]{calibration_check()}},
+\code{\link[=plot.bgms_calibration]{plot.bgms_calibration()}},
 \code{\link[=plot.bgms_prior_sensitivity]{plot.bgms_prior_sensitivity()}},
+\code{\link[=print.bgms_calibration]{print.bgms_calibration()}},
 \code{\link[=print.bgms_prior_sensitivity]{print.bgms_prior_sensitivity()}},
 \code{\link[=summarize_zratio_gauge]{summarize_zratio_gauge()}}
 }

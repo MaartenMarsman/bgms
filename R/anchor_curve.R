@@ -20,19 +20,91 @@
 #
 # @param fit  A fitted bgms object.
 #
-# Returns: list(theta = per-chain iter x edges matrices in the frame the
+# Returns: list(theta = per-chain iter x parameters matrices in the frame the
 #   slab prior applies to (GGM pairwise values carry the -0.5 factor),
-#   gamma = per-chain iter x edges indicator matrices,
+#   gamma = per-chain iter x parameters indicator matrices aligned with theta,
+#   indicator = per-chain iter x indicators matrices, the unit the inclusion
+#   probability is reported on (identical to gamma for bgm()),
 #   family = "normal" or "cauchy").
 # ------------------------------------------------------------------
 anchor_draws = function(fit) {
   spec = get_fit_spec(fit)
   raw = get_raw_samples(fit)
+  if(identical(spec$model_type, "compare")) {
+    return(compare_anchor_draws(fit, spec, raw))
+  }
   slab_factor = if(identical(spec$model_type, "ggm")) -0.5 else 1
   theta = lapply(raw$pairwise, function(m) slab_factor * m)
   gamma = raw$indicator
   family = spec$prior$interaction_prior_type %||% "normal"
-  list(theta = theta, gamma = gamma, family = tolower(family))
+  list(
+    theta = theta, gamma = gamma, indicator = gamma,
+    family = tolower(family)
+  )
+}
+
+
+# ------------------------------------------------------------------
+# compare_anchor_draws
+# ------------------------------------------------------------------
+# Anchor draws for a bgmCompare() fit, where the swept prior is the difference
+# slab and one indicator can gate several parameters.
+#
+# A pairwise difference indicator gates that pair's difference in every group
+# contrast; a main-effect difference indicator gates the whole block of that
+# variable's threshold differences, again in every contrast. The prior is
+# evaluated once per gated parameter, so the importance weight sums over
+# parameters while the inclusion probability is reported per indicator.
+#
+# @param fit   A fitted bgmCompare object.
+# @param spec  Its spec.
+# @param raw   Its raw samples.
+#
+# Returns: as anchor_draws().
+# ------------------------------------------------------------------
+compare_anchor_draws = function(fit, spec, raw) {
+  arguments = extract_arguments(fit)
+  names_all = raw$parameter_names
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+
+  num_pairs = length(names_all$pairwise_baseline)
+  num_contrasts = length(names_all$pairwise_diff) / num_pairs
+  num_main_baseline = length(names_all$main_baseline)
+
+  # Main parameters per variable: one per threshold for an ordinal variable,
+  # a linear and a quadratic term for a Blume-Capel one.
+  block = ifelse(arguments$is_ordinal, as.integer(arguments$num_categories), 2L)
+
+  # Indicators run over the upper triangle with the diagonal: (v, v) is that
+  # variable's main-effect difference, (i, j) the pair's.
+  idx = compare_indicator_index(num_variables)
+  main_indicator = which(idx[, 1] == idx[, 2])
+  pair_indicator = which(idx[, 1] != idx[, 2])
+
+  # Which indicator gates each difference parameter, in the column order the
+  # draws carry: pairwise differences contrast by contrast, then main ones.
+  pairwise_owner = rep(pair_indicator, times = num_contrasts)
+  main_owner = rep(rep(main_indicator, times = block), times = num_contrasts)
+  owner = c(pairwise_owner, main_owner)
+
+  pairwise_diff_cols = num_pairs + seq_len(num_pairs * num_contrasts)
+  main_diff_cols = num_main_baseline + seq_len(num_main_baseline * num_contrasts)
+
+  theta = vector("list", length(raw$pairwise))
+  gamma = vector("list", length(raw$pairwise))
+  for(c in seq_along(raw$pairwise)) {
+    theta[[c]] = cbind(
+      raw$pairwise[[c]][, pairwise_diff_cols, drop = FALSE],
+      raw$main[[c]][, main_diff_cols, drop = FALSE]
+    )
+    gamma[[c]] = raw$indicator[[c]][, owner, drop = FALSE]
+  }
+
+  family = spec$prior$difference_prior_type %||% "cauchy"
+  list(
+    theta = theta, gamma = gamma, indicator = raw$indicator,
+    family = tolower(family)
+  )
 }
 
 
@@ -89,13 +161,17 @@ anchor_reweight = function(draws, s_a, s_grid) {
   lw = lapply(seq_len(n_chain), function(c) {
     anchor_log_weights(draws$theta[[c]], draws$gamma[[c]], draws$family, s_a, s_grid)
   })
+  # The weight sums over gated parameters; the inclusion probability is
+  # reported on the indicators, which are the same thing for bgm() and a
+  # coarser unit for bgmCompare().
+  indicator = draws$indicator %||% draws$gamma
   n_grid = length(s_grid)
-  n_edge = ncol(draws$gamma[[1]])
+  n_edge = ncol(indicator[[1]])
   chain_pip = vector("list", n_chain)
   chain_ess = matrix(NA_real_, n_chain, n_grid)
   pip = matrix(NA_real_, n_grid, n_edge)
   ess = numeric(n_grid)
-  gamma_all = do.call(rbind, draws$gamma)
+  gamma_all = do.call(rbind, indicator)
   for(p in seq_len(n_grid)) {
     lw_all = unlist(lapply(lw, function(m) m[, p]))
     w_all = exp(lw_all - max(lw_all))
@@ -107,7 +183,7 @@ anchor_reweight = function(draws, s_a, s_grid) {
     for(p in seq_len(n_grid)) {
       w = exp(lw[[c]][, p] - max(lw[[c]][, p]))
       chain_ess[c, p] = sum(w)^2 / sum(w^2)
-      cp[p, ] = colSums(w * draws$gamma[[c]]) / sum(w)
+      cp[p, ] = colSums(w * indicator[[c]]) / sum(w)
     }
     chain_pip[[c]] = cp
   }
