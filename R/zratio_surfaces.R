@@ -236,11 +236,14 @@ zratio_anchor_grids = function(cap) {
   list(cn = cn, bip = bip)
 }
 
-# Trained size-hull cap for the anchor build: components larger than this clamp
-# to the hull edge at deploy, so it must stay >= the anchor grid's largest size
-# (42). The build default and every sampler call site size through this one
-# value, so the cap cannot drift between them.
-.zratio_surface_size_cap = 44L
+# Trained size-hull cap for the anchor build. Components larger than this are
+# extended along the surface's boundary slope at deploy, which is accurate but
+# unanchored, so the cap sets where measured accuracy ends: at 80 the reachable
+# giant of an ordinary large fit sits inside the hull, and the one-time build
+# stays at 24 s serial (2 s on four cores at the small caps a modest fit uses).
+# The build default and every sampler call site size through this one value, so
+# the cap cannot drift between them.
+.zratio_surface_size_cap = 80L
 
 zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
                                  cores = 1L, seed0 = 700000L) {
