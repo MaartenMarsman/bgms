@@ -190,7 +190,16 @@ the edge prior under edge selection for continuous (GGM) data:
     Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
 \code{sbm_prior()} the hyperparameter updates carry the
 normalizing-constant correction described under
-\code{edge_prior}.}
+\code{edge_prior}. The realized edge-inclusion prior therefore
+differs from the nominal edge prior for every edge prior: at three
+variables a uniform \code{beta_bernoulli_prior(1, 1)} realizes about
+0.37, and a fixed \code{bernoulli_prior(0.5)} at \eqn{\delta = 0}
+realizes about 0.27. The correction keeps the learned inclusion
+probability coherent with the joint model; it does not restore the
+nominal prior, and with a fixed inclusion probability nothing
+absorbs the tilt. A message reports this when \code{verbose = TRUE};
+\code{\link{extract_prior_inclusion_probabilities}} returns the
+realized prior.}
 \item{"hierarchical"}{The hierarchical specification
 \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 normalized per graph, so the graph marginal is exactly the edge

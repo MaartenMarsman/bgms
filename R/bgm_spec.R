@@ -230,6 +230,62 @@ validate_bgm_spec = function(spec) {
 
 
 # ==============================================================================
+# zratio_joint_realized_prior_notice()
+# ==============================================================================
+#
+# Advisory notice for the joint precision-graph specification. Under that
+# specification the graph marginal is pi(Gamma) * Z(Gamma), the edge prior
+# reweighted by the per-graph normalizer of the tilted precision prior, so the
+# realized edge-inclusion prior is not the nominal one whatever the edge prior
+# is (a uniform Beta-Bernoulli at three variables realizes ~0.37; a fixed
+# bernoulli_prior(0.5) at delta = 0 realizes ~0.27; the magnitudes are in
+# ?bgm). Fires whenever a continuous precision block is under edge selection,
+# with two wordings: a learned inclusion probability (Beta-Bernoulli, SBM) gets
+# the corrected hyperparameter update, which is coherent with the joint model
+# but does not restore the nominal prior; a fixed one has nothing to absorb the
+# tilt. Advisory, not a warning: the joint specification is a modelling choice.
+#
+# @param precision_graph_prior  "joint" or "hierarchical".
+# @param model_type             Model family; only ggm/mixed_mrf carry a tilt.
+# @param edge_selection         Logical.
+# @param edge_prior             Resolved edge-prior name (ep_flat$edge_prior).
+# @param num_continuous         Number of continuous variables.
+#
+# Returns: invisible TRUE when the notice fired, FALSE otherwise.
+# ==============================================================================
+zratio_joint_realized_prior_notice = function(precision_graph_prior, model_type,
+                                              edge_selection, edge_prior,
+                                              num_continuous) {
+  fires = identical(precision_graph_prior, "joint") &&
+    model_type %in% c("ggm", "mixed_mrf") &&
+    isTRUE(edge_selection) && num_continuous >= 2
+  if(!fires || !isTRUE(getOption("bgms.verbose", TRUE))) {
+    return(invisible(FALSE))
+  }
+  learned = edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")
+  message(
+    "Joint precision-graph specification: the realized edge-inclusion prior ",
+    "is the edge prior reweighted by the per-graph normalizer, not the ",
+    "nominal edge prior",
+    if(learned) {
+      paste0(
+        " (the hyperparameter update is corrected, so it stays coherent with ",
+        "the joint model, but the realized prior still differs). "
+      )
+    } else {
+      paste0(
+        " (the inclusion probability is fixed, so nothing absorbs the tilt ",
+        "and no correction applies). "
+      )
+    },
+    "Use extract_prior_inclusion_probabilities() to read the realized prior, ",
+    "or precision_graph_prior = \"hierarchical\" to target the nominal one."
+  )
+  invisible(TRUE)
+}
+
+
+# ==============================================================================
 # bgm_spec()  --- user-facing constructor
 # ==============================================================================
 #
@@ -469,6 +525,14 @@ bgm_spec = function(x,
     ep_flat$edge_prior = "Not Applicable"
     ep_flat$inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
   }
+
+  zratio_joint_realized_prior_notice(
+    precision_graph_prior = precision_graph_prior,
+    model_type = model_type,
+    edge_selection = edge_selection,
+    edge_prior = ep_flat$edge_prior,
+    num_continuous = sum(variable_type == "continuous")
+  )
 
   # --- Build by model type ----------------------------------------------------
   if(model_type == "ggm") {
