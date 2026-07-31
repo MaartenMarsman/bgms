@@ -22,7 +22,11 @@ src/sources.mk
 docs/*
 /doc/
 /inst/doc/
-dev/
+dev/*
+# Validation artefacts are tracked: the block-Gibbs gold references anchor the
+# Z-ratio surface accuracy claims and cost hours of compute to regenerate.
+# ^dev$ in .Rbuildignore keeps them out of the tarball.
+!dev/validation/
 /paper/
 
 # testthat problem artefacts

@@ -193,15 +193,35 @@
 #'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
 #'       ratio with a fast local approximation: a theta-independent
 #'       absolute-moment surface built once at the start of the analysis from
-#'       block-Gibbs anchors. An optional trust gauge (off by default; enable
-#'       it with \code{options(bgms.zratio_gauge_sweeps = 2L)} before fitting)
-#'       audits the approximation after sampling on two channels: the rate at
-#'       which the chain's edge decisions would differ under the exact
-#'       calculation, and the projected distortion of the inclusion
-#'       probabilities from the measured error under the edge prior's feedback
-#'       (\code{\link{summarize_zratio_gauge}}; when enabled, the summary is
-#'       returned as \code{fit$zratio_diag} and issues print like other
-#'       sampler warnings; otherwise \code{fit$zratio_diag} is \code{NULL}).
+#'       block-Gibbs anchors on components of up to 80 variables. Within that
+#'       anchored range the surface tracks a block-Gibbs reference to about
+#'       0.003 nats. It is validated at three \code{gamma_prior()} diagonal
+#'       shapes -- 0.5, 1, and 2 -- and deploys on the range they span, with
+#'       the interior interpolated rather than measured; a shape outside that
+#'       range keeps the coarser additive kernel, because its anchors are
+#'       sampled through an independence-Metropolis step that stops mixing
+#'       there rather than because the surface itself fails. A mediating block beyond it is predicted by continuing
+#'       the surface along its own boundary slope, measured at blocks of 90 to
+#'       150 variables at a median of 0.0006 nats and at most 0.0011 for
+#'       common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for
+#'       bipartite ones: bounded and far tighter than the
+#'       alternatives, but outside the in-range figure, and reported by a note
+#'       when a fit relies on it. A fit reaches that regime only with a dense
+#'       posterior on many variables; sparse graphs never do. A trust gauge audits the approximation after
+#'       sampling on two channels: the rate at which the chain's edge
+#'       decisions would differ under the exact calculation, and the projected
+#'       distortion of the inclusion probabilities from the measured error
+#'       under the edge prior's feedback
+#'       (\code{\link{summarize_zratio_gauge}}). The summary is returned as
+#'       \code{fit$zratio_diag} and issues print like other sampler warnings.
+#'       The gauge runs by default; \code{options(bgms.zratio_gauge_sweeps =
+#'       0L)} turns it off, and \code{fit$zratio_diag} is then \code{NULL}.
+#'       Its cost is fixed per chain rather than proportional to \code{iter}:
+#'       zero on a sparse posterior, where no mediating block is non-trivial
+#'       and the ratio is exact, and about 5-10 seconds per chain on a dense
+#'       posterior at 100-200 variables. That is negligible on a
+#'       production-length fit and noticeable on a short exploratory one,
+#'       which is what the off switch is for.
 #'       Requires \code{edge_selection = TRUE}, a
 #'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
 #'       and continuous data — either all-continuous

@@ -287,6 +287,11 @@ public:
     long n_pred_retained() const { return n_pred_ret_; }
     /// Which sampling phase the engine is evaluating in (set by chain_runner).
     void set_phase(ZRatioPhase phase) { phase_ = phase; }
+    /// Independence-Metropolis row moves proposed and accepted in the
+    /// block-Gibbs oracle. Only a non-unit Gamma shape has an IM step; at
+    /// alpha = 1 both stay zero and every row move is a direct Gibbs draw.
+    long im_proposed() const { return im_prop_; }
+    long im_accepted() const { return im_acc_; }
     /// Times the boundary-slope extension hit its zero floor, i.e. the fitted
     /// surface sloped downward in size at the hull edge and the tail degenerated
     /// to freezing. Non-zero means a fit pathology on some density band.
@@ -422,6 +427,8 @@ private:
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
     long n_pred_ret_ = 0, n_extrap_ret_ = 0;
+    /// Tallied from the const oracle sweep, hence mutable.
+    mutable long im_prop_ = 0, im_acc_ = 0;
     int max_extrap_size_ret_ = 0;
     ZRatioPhase phase_ = ZRatioPhase::Warmup;
     /// Incremented from the const surface evaluator, hence mutable.
