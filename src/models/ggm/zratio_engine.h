@@ -38,7 +38,9 @@ struct ZRatioBlock {
  * fit once per analysis at the deployment (eta, delta) to block-Gibbs anchors
  * (R build_surfaces). c1 predicts log-S1, c2 log-S2. Predictions clamp (size,
  * density) to the trained hull [size_lo, size_hi] x [dens_lo, dens_hi] and the
- * log-moment to its trained range +/- 0.1. Components smaller than size_min
+ * log-moment to its trained range +/- 0.1; past size_hi the clamped edge value
+ * is then continued along the surface's own boundary slope in log-size (see
+ * surface_eval_). Components smaller than size_min
  * fall back to the additive per-component moment (exact through pairwise
  * overlap below the smallest trained size); with size_min = 3 the size-1/2
  * (single-bridge) trivial components land there and additive == exact for them,
@@ -275,6 +277,10 @@ public:
     /// the trained hull (clamped at deploy), and the largest such size seen.
     long n_extrap() const { return n_extrap_; }
     int max_extrap_size() const { return max_extrap_size_; }
+    /// Times the boundary-slope extension hit its zero floor, i.e. the fitted
+    /// surface sloped downward in size at the hull edge and the tail degenerated
+    /// to freezing. Non-zero means a fit pathology on some density band.
+    long n_slope_floor() const { return n_slope_floor_; }
     const arma::vec& addc() const { return addc_; }
 
 private:
@@ -405,6 +411,8 @@ private:
     long n_pred_ = 0, n_add_ = 0;
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
+    /// Incremented from the const surface evaluator, hence mutable.
+    mutable long n_slope_floor_ = 0;
 
     // Block-Gibbs oracle state (set by set_oracle_params; used by the surface
     // build, the gold reference, and the trust gauge).

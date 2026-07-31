@@ -165,6 +165,30 @@ double ZRatioEngine::surface_eval_(const SurfaceFamily& f, bool s2,
     const double lo = (s2 ? f.l2_lo : f.l1_lo) - 0.1;
     const double hi = (s2 ? f.l2_hi : f.l1_hi) + 0.1;
     p = std::min(std::max(p, lo), hi);
+
+    // Past the trained hull the prediction continues along the surface's own
+    // boundary slope in log-size instead of freezing at the hull edge. The
+    // clamped edge value stays the base, so the trained range still bounds
+    // where the tail starts. Scored against block-Gibbs gold at sizes 90-150
+    // against a size-80 hull, over two anchor-build seeds: the tangent holds a
+    // median 0.0006 nats and at most 0.0011 (common-neighbour) and a median
+    // 0.0043 and at most 0.0060 (bipartite), where freezing grows to 0.060 and
+    // 0.095 and the fitted quadratic, continued as its own extrapolant, grows
+    // to 0.0026 and 0.016.
+    if (size > f.size_hi) {
+        // d/dL of the 9-monomial polynomial at the hull edge.
+        double slope = c[1] + 2.0 * c[2] * L + c[5] * d + 2.0 * c[6] * L * d +
+                       c[7] * d * d + 2.0 * c[8] * L * d * d;
+        // The absolute moments grow with component size, so a negative fitted
+        // edge slope is a fit pathology, not a signal. Floor it at zero, which
+        // degenerates to the old freeze, and tally the floor: it is a silent
+        // per-density-band degeneracy the gold scoring above would not catch.
+        if (slope < 0.0) {
+            slope = 0.0;
+            ++n_slope_floor_;
+        }
+        p += slope * (MY_LOG(size) - L);
+    }
     return MY_EXP(p);
 }
 

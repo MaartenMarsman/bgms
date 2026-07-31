@@ -182,6 +182,7 @@ Rcpp::List zratio_test_surface_eval(
         Rcpp::_["logR"] = logr,
         Rcpp::_["S1"] = s1,
         Rcpp::_["S2"] = s2,
+        Rcpp::_["n_slope_floor"] = engine.n_slope_floor(),
         Rcpp::_["comp"] = Rcpp::DataFrame::create(
             Rcpp::_["family"] = fam, Rcpp::_["size"] = sz, Rcpp::_["e"] = ee,
             Rcpp::_["na"] = na, Rcpp::_["nb"] = nb, Rcpp::_["dens"] = dens,
@@ -228,7 +229,8 @@ Rcpp::List zratio_test_surface_batch(
         Rcpp::_["n_pred"] = engine.n_pred(),
         Rcpp::_["n_add"] = engine.n_add(),
         Rcpp::_["n_extrap"] = engine.n_extrap(),
-        Rcpp::_["max_extrap_size"] = engine.max_extrap_size()
+        Rcpp::_["max_extrap_size"] = engine.max_extrap_size(),
+        Rcpp::_["n_slope_floor"] = engine.n_slope_floor()
     );
 }
 
