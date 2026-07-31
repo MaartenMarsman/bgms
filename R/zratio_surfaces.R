@@ -350,8 +350,8 @@ zratio_surface_fence_message = function(zc) {
   } else {
     message(
       "z-ratio: the absolute-moment surface build failed -> additive ",
-      "path (coarser correction; enable the trust gauge with ",
-      "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+      "path (coarser correction; the trust gauge quantifies the impact in ",
+      "fit$zratio_diag)."
     )
   }
 }
@@ -376,11 +376,14 @@ zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
 }
 
 # Number of in-chain trust-gauge assessment sweeps. The gauge is a post-sampling
-# diagnostic (chain_runner.cpp), so it is OFF by default for production fits;
-# enable it with options(bgms.zratio_gauge_sweeps = 2L). The prior sampler wires
-# its own flag (sample_ggm_prior); this governs the deployed hierarchical path.
+# diagnostic (chain_runner.cpp) and runs by default; options(bgms.zratio_gauge_
+# sweeps = 0L) is the off switch. Its cost is fixed per chain (two sweeps, each
+# referencing a capped number of edge moves), so it does not scale with iter:
+# nothing on a sparse posterior, where no mediating block is non-trivial and the
+# ratio is exact, and seconds on a dense large-q one. The prior sampler wires its
+# own flag (sample_ggm_prior); this governs the deployed hierarchical path.
 zratio_gauge_sweeps = function() {
-  n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 0L)))
+  n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 2L)))
   if(length(n) != 1L || is.na(n) || n < 0L) n = 0L
   n
 }

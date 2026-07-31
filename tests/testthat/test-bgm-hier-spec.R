@@ -123,12 +123,12 @@ test_that("bgm fits the hierarchical spec and attaches the trust gauge", {
   expect_equal(length(fit@inclusion_parameter_samples), 2L)
 })
 
-test_that("the trust gauge is off by default on the hierarchical path", {
+test_that("the trust gauge runs by default on the hierarchical path", {
   skip_on_cran()
   # Default (no bgms.zratio_gauge_sweeps option): the post-sampling diagnostic
-  # does not run, so no gauge block is attached.
+  # runs and its summary is attached.
   Y = hier_test_data(q = 8)
-  fit = bgm(
+  fit_args = list(
     x = Y, variable_type = "continuous",
     iter = 100, warmup = 150,
     interaction_prior = normal_prior(scale = 0.5),
@@ -137,8 +137,14 @@ test_that("the trust gauge is off by default on the hierarchical path", {
     update_method = "gibbs", chains = 1, cores = 1, seed = 7,
     display_progress = "none", verbose = FALSE
   )
+  fit = do.call(bgm, fit_args)
   expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
-  expect_null(fit@zratio_diag)
+  expect_false(is.null(fit@zratio_diag))
+  expect_equal(nrow(fit@zratio_diag$per_chain), 1L)
+
+  # The option remains the off switch.
+  withr::local_options(bgms.zratio_gauge_sweeps = 0L)
+  expect_null(do.call(bgm, fit_args)@zratio_diag)
 })
 
 test_that("the joint default is unchanged", {

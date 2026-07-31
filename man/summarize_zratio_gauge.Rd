@@ -42,7 +42,9 @@ its \code{flag}, the signed mean and spread of the log-ratio error
 \code{se_mcse} and combined standard error \code{se_se} of
 \code{se_mean}, the reference \code{noise_floor}, the pair counts
 (\code{n_ent} non-trivial seen, \code{n_ref} referenced,
-\code{n_capped} cap hits), and the harm channel (\code{amplification},
+\code{n_capped} cap hits), the mediating-block sizes the audit
+covered (\code{block_lo}, \code{block_hi}), and the harm channel
+(\code{amplification},
 \code{kappa} = the predicted mean-inclusion shift per nat of coherent
 error, \code{harm_pred}, \code{harm_flag}).}
 \item{\code{threshold}}{The flag tolerance on \code{flip_rate}.}
@@ -89,6 +91,24 @@ Beta-Bernoulli edge priors; under other priors it is \code{NA}.}
 
 The gauge reads the \code{zratio$gauge} block that the sampler attaches
 under the hierarchical prior; it does not re-scan the stored draws.
+}
+\details{
+The gauge audits only the edge moves whose mediating block is non-trivial
+(two or more variables). On a sparse posterior no block reaches that size,
+the normalizer ratio is exact, and the gauge reports nothing because there
+is nothing to audit: silence there is exactness, not blindness. The cost
+follows the same rule -- it is zero where the approximation is exact and
+grows with the size of the blocks the chain actually visits.
+
+The audit is a sample. Each sweep references a capped number of edge moves,
+so on a dense large graph a few tens of moves stand in for tens of
+thousands of non-trivial ones (\code{n_ref} against \code{n_ent}, with the
+remainder counted in \code{n_capped}). That sample resolves coherent error
+-- error with a consistent sign across edges, which is what
+\code{harm_pred} projects onto the inclusion-probability scale and what
+shifts a recovered network. It does not resolve rare edge-specific
+failures: \code{flip_rate} is the flip rate among audited decisions, not a
+per-edge guarantee over all of them.
 }
 \examples{
 \donttest{
