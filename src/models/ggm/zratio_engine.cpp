@@ -13,6 +13,47 @@
 // and lets the correction anchor.
 static constexpr double kS2Floor = 1e-3;
 
+// Pivot slice sampler. kPivotFloor keeps the pivot strictly inside the domain
+// where log(xi) is finite; the two caps bound the stepping-out and shrinkage
+// loops so a pathologically shaped conditional cannot spin. The caps are
+// generous against measured use: over every prototype cell (shapes 0.5 to 10,
+// blocks of 4 to 80, including a certified non-log-concave conditional) the
+// shrinkage budget was never exhausted.
+static constexpr double kPivotFloor = 1e-12;
+static constexpr int kSliceOutCap = 20;
+static constexpr int kSliceShrinkCap = 50;
+
+double ZRatioEngine::log_pivot_(double xi, double q) const {
+    return delta_ * MY_LOG(xi) - beta_ * xi + (alpha_ - 1.0) * MY_LOG(xi + q);
+}
+
+double ZRatioEngine::slice_pivot_(double xi0, double q) const {
+    // Vertical level, then an interval stepped out from a random offset.
+    const double w = (delta_ + alpha_) / beta_;
+    const double ly = log_pivot_(xi0, q) - rexp(*rng_, 1.0);
+    double lo = xi0 - w * runif(*rng_);
+    double hi = lo + w;
+    int steps = 0;
+    while (lo > kPivotFloor && log_pivot_(lo, q) > ly && steps < kSliceOutCap) {
+        lo -= w;
+        ++steps;
+    }
+    if (lo < kPivotFloor) lo = kPivotFloor;
+    steps = 0;
+    while (log_pivot_(hi, q) > ly && steps < kSliceOutCap) {
+        hi += w;
+        ++steps;
+    }
+    for (int k = 0; k < kSliceShrinkCap; ++k) {
+        const double xi1 = lo + runif(*rng_) * (hi - lo);
+        if (log_pivot_(xi1, q) > ly) return xi1;
+        if (xi1 < xi0) lo = xi1;
+        else hi = xi1;
+    }
+    ++n_slice_cap_;
+    return xi0;
+}
+
 double ZRatioEngine::saddle_ratio(double s1, double s2) const {
     if (s1 <= 0 || s2 <= 0) return 1.0;
     double eh = s1 * s1 / (2.0 * s2), ur = s2 / s1, nf = 0, dg = 0;
@@ -743,42 +784,64 @@ bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             // the estimate costs as much as the back-substitution itself.
             arma::vec bvec =
                 arma::solve(arma::trimatu(r_chol), z, arma::solve_opts::fast);
-            double xi = rgamma(*rng_, delta_ + 1.0, beta_);
-            double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
-            // The diagonal factor K_ii^(alpha - 1) couples the Gamma pivot
-            // to the row draw; the alpha = 1 conjugate conditional serves
-            // as an independence-Metropolis proposal with acceptance
-            // ratio (K_ii_new / K_ii_old)^(alpha - 1).
-            bool accept = true;
+            const double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
+            // The diagonal factor K_ii^(alpha - 1) couples the pivot to the
+            // row draw. At alpha = 1 there is no coupling and the pair is a
+            // direct Gibbs draw; otherwise the row splits into two blocks, an
+            // accept/reject on the off-diagonals at a held pivot and then an
+            // exact slice update of the pivot itself. Drawing the pair jointly
+            // and accepting or rejecting both together is what froze the whole
+            // row once the weight became volatile.
+            double xi;
+            double q_cur = quad;
+            bool accept_b = true;
             if (std::abs(alpha_ - 1.0) > 1e-12) {
-                const double kii_new = xi + quad;
-                const double kii_old = k_blk(i, i);
-                accept = MY_LOG(runif(*rng_)) <
-                         (alpha_ - 1.0) * (MY_LOG(kii_new) -
-                                           MY_LOG(kii_old));
-                // A rejected row repeats the previous state, so the effective
-                // sweep count at alpha != 1 is the acceptance rate times the
-                // nominal one. Tallied so an anchor budget can be matched to
-                // the alpha = 1 reference instead of assumed equal to it.
+                // The pivot is not carried state: it is K_ii - b' C b, and C
+                // moves whenever a NEIGHBOURING row updates, so both it and
+                // the current quadratic form are recomputed against the C in
+                // hand. Reusing a stored pivot silently targets the wrong law.
+                arma::vec b_old(nq);
+                for (int j = 0; j < nq; ++j) b_old[j] = k_blk(ni[j], i);
+                const double quad_old =
+                    arma::as_scalar(b_old.t() * c_mat * b_old);
+                const double xi_old =
+                    std::max(k_blk(i, i) - quad_old, kPivotFloor);
+                // Off-diagonal step at a held pivot: the ratio no longer
+                // carries K_ii, only the quadratic form it moves.
+                accept_b = MY_LOG(runif(*rng_)) <
+                           (alpha_ - 1.0) * (MY_LOG(xi_old + quad) -
+                                             MY_LOG(xi_old + quad_old));
                 ++im_prop_;
-                if (accept) ++im_acc_;
+                if (accept_b) ++im_acc_;
+                q_cur = accept_b ? quad : quad_old;
+                xi = slice_pivot_(xi_old, q_cur);
+            } else {
+                xi = rgamma(*rng_, delta_ + 1.0, beta_);
             }
-            if (accept) {
+            {
                 double d_diag = 0.0;
                 if (have_sigma) {
-                    d_diag = (xi + quad - k_blk(i, i)) / 2.0;
-                    d_ni.set_size(nq);
-                    for (int j = 0; j < nq; ++j) {
-                        d_ni[j] = bvec[j] - k_blk(ni[j], i);
+                    d_diag = (xi + q_cur - k_blk(i, i)) / 2.0;
+                    if (accept_b) {
+                        d_ni.set_size(nq);
+                        for (int j = 0; j < nq; ++j) {
+                            d_ni[j] = bvec[j] - k_blk(ni[j], i);
+                        }
                     }
                 }
-                for (int j = 0; j < nq; ++j) {
-                    k_blk(ni[j], i) = bvec[j];
-                    k_blk(i, ni[j]) = bvec[j];
+                if (accept_b) {
+                    for (int j = 0; j < nq; ++j) {
+                        k_blk(ni[j], i) = bvec[j];
+                        k_blk(i, ni[j]) = bvec[j];
+                    }
                 }
-                k_blk(i, i) = xi + quad;
+                k_blk(i, i) = xi + q_cur;
+                // A rejected off-diagonal block still moves the pivot, so the
+                // covariance refresh drops to the diagonal alone.
                 if (have_sigma &&
-                    !smw_rank2_col_update_(sigma_blk, i, ni, d_ni, d_diag)) {
+                    !smw_rank2_col_update_(sigma_blk, i,
+                                           accept_b ? ni : arma::uvec(), d_ni,
+                                           d_diag)) {
                     have_sigma = arma::inv_sympd(sigma_blk, k_blk);
                 }
             }

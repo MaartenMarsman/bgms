@@ -272,7 +272,12 @@ Rcpp::List zratio_test_gold_moments(
         Rcpp::_["valid"] = valid,
         Rcpp::_["logR"] = logr,
         Rcpp::_["S1"] = s1,
-        Rcpp::_["S2"] = s2
+        Rcpp::_["S2"] = s2,
+        // Kernel health at a non-unit shape: the off-diagonal accept rate and
+        // the pivot slice sampler's cap hits (expected zero).
+        Rcpp::_["im_proposed"] = engine.im_proposed(),
+        Rcpp::_["im_accepted"] = engine.im_accepted(),
+        Rcpp::_["n_slice_cap"] = engine.n_slice_cap()
     );
 }
 
