@@ -287,11 +287,15 @@ public:
     long n_pred_retained() const { return n_pred_ret_; }
     /// Which sampling phase the engine is evaluating in (set by chain_runner).
     void set_phase(ZRatioPhase phase) { phase_ = phase; }
-    /// Independence-Metropolis row moves proposed and accepted in the
-    /// block-Gibbs oracle. Only a non-unit Gamma shape has an IM step; at
-    /// alpha = 1 both stay zero and every row move is a direct Gibbs draw.
+    /// Off-diagonal row moves proposed and accepted in the block-Gibbs oracle.
+    /// Only a non-unit Gamma shape has an accept step; at alpha = 1 both stay
+    /// zero and every row move is a direct Gibbs draw.
     long im_proposed() const { return im_prop_; }
     long im_accepted() const { return im_acc_; }
+    /// Times the pivot slice sampler exhausted its shrinkage budget and left
+    /// the pivot unmoved. Expected zero; non-zero means the conditional is
+    /// shaped in a way the stepping-out width does not cover.
+    long n_slice_cap() const { return n_slice_cap_; }
     /// Times the boundary-slope extension hit its zero floor, i.e. the fitted
     /// surface sloped downward in size at the hull edge and the tail degenerated
     /// to freezing. Non-zero means a fit pathology on some density band.
@@ -319,6 +323,28 @@ private:
     bool gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr,
                       arma::mat* sigma_out = nullptr) const;
+    /**
+     * Log of the unnormalized pivot conditional
+     *   pi(xi | b) ∝ xi^delta exp(-beta xi) (xi + q)^(alpha - 1),   xi > 0,
+     * where xi = K_ii - b' C b is the diagonal pivot and q = b' C b.
+     */
+    double log_pivot_(double xi, double q) const;
+    /**
+     * One slice-sampler update of the pivot (Neal 2003: stepping out, then
+     * shrinkage). Exact for the conditional above at any shape, which is why
+     * it replaces the independence-Metropolis pivot: there is no acceptance
+     * left to collapse as alpha grows.
+     *
+     * Slice rather than adaptive rejection because log-concavity is not
+     * unconditional. d2/dxi2 log pi = -delta/xi^2 - (alpha-1)/(xi+q)^2, so
+     * below shape 1 the second term is positive and concavity needs
+     * delta >= 1 - alpha; a user-set small delta breaks it over a region
+     * carrying real mass (measured: at delta = 0.2, alpha = 0.5, q = 1 the
+     * curvature flips at xi = 1.72 with 3.2% of the target beyond it).
+     * Stepping-out is capped; an exhausted budget leaves the pivot unmoved
+     * and is counted in n_slice_cap().
+     */
+    double slice_pivot_(double xi0, double q) const;
     /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
     void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
                      arma::mat& k_blk, arma::mat& omega_blk) const;
@@ -429,6 +455,7 @@ private:
     long n_pred_ret_ = 0, n_extrap_ret_ = 0;
     /// Tallied from the const oracle sweep, hence mutable.
     mutable long im_prop_ = 0, im_acc_ = 0;
+    mutable long n_slice_cap_ = 0;
     int max_extrap_size_ret_ = 0;
     ZRatioPhase phase_ = ZRatioPhase::Warmup;
     /// Incremented from the const surface evaluator, hence mutable.
