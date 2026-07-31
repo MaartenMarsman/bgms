@@ -39,6 +39,24 @@
 #' The gauge reads the \code{zratio$gauge} block that the sampler attaches
 #' under the hierarchical prior; it does not re-scan the stored draws.
 #'
+#' @details
+#' The gauge audits only the edge moves whose mediating block is non-trivial
+#' (two or more variables). On a sparse posterior no block reaches that size,
+#' the normalizer ratio is exact, and the gauge reports nothing because there
+#' is nothing to audit: silence there is exactness, not blindness. The cost
+#' follows the same rule -- it is zero where the approximation is exact and
+#' grows with the size of the blocks the chain actually visits.
+#'
+#' The audit is a sample. Each sweep references a capped number of edge moves,
+#' so on a dense large graph a few tens of moves stand in for tens of
+#' thousands of non-trivial ones (\code{n_ref} against \code{n_ent}, with the
+#' remainder counted in \code{n_capped}). That sample resolves coherent error
+#' -- error with a consistent sign across edges, which is what
+#' \code{harm_pred} projects onto the inclusion-probability scale and what
+#' shifts a recovered network. It does not resolve rare edge-specific
+#' failures: \code{flip_rate} is the flip rate among audited decisions, not a
+#' per-edge guarantee over all of them.
+#'
 #' @param chains List of per-chain sampler outputs, each carrying a
 #'   \code{zratio$gauge} block (\code{flip_rate}, \code{noise_floor},
 #'   \code{se_mean}, \code{se_sd}, \code{se_mcse}, \code{n_ent}, \code{n_ref},
@@ -63,7 +81,9 @@
 #'       \code{se_mcse} and combined standard error \code{se_se} of
 #'       \code{se_mean}, the reference \code{noise_floor}, the pair counts
 #'       (\code{n_ent} non-trivial seen, \code{n_ref} referenced,
-#'       \code{n_capped} cap hits), and the harm channel (\code{amplification},
+#'       \code{n_capped} cap hits), the mediating-block sizes the audit
+#'       covered (\code{block_lo}, \code{block_hi}), and the harm channel
+#'       (\code{amplification},
 #'       \code{kappa} = the predicted mean-inclusion shift per nat of coherent
 #'       error, \code{harm_pred}, \code{harm_flag}).}
 #'     \item{\code{threshold}}{The flag tolerance on \code{flip_rate}.}
@@ -168,6 +188,9 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       harm_flag = isTRUE(resolved && harm_pred > harm_threshold)
     }
 
+    # Mediating-block sizes the audit actually covered; the remediation text
+    # quotes them so a flag can be read against the trained hull.
+    pair_m = if(is.null(g$pair_m)) integer(0) else as.integer(g$pair_m)
     data.frame(
       chain = c_idx,
       flip_rate = flip,
@@ -180,6 +203,8 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       n_ent = as.integer(g$n_ent),
       n_ref = n_ref,
       n_capped = as.integer(g$n_capped),
+      block_lo = if(length(pair_m)) min(pair_m) else NA_integer_,
+      block_hi = if(length(pair_m)) max(pair_m) else NA_integer_,
       amplification = amplification,
       kappa = kappa,
       harm_pred = harm_pred,
@@ -190,9 +215,22 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
   flagged = any(per_chain$flag) || any(per_chain$harm_flag)
 
   # Print flagged chains under a single header, matching the NUTS-issues block
-  # (cat/stdout, one bullet per chain). The vignette pointer is emitted once by
-  # the output builder as a shared footer, not here.
+  # (cat/stdout, one bullet per chain), then one shared remediation ladder. The
+  # vignette pointer is emitted once by the output builder as a shared footer,
+  # not here. The ladder never proposes an automatic switch: the joint
+  # specification is a different model, not a more accurate version of this
+  # one, so it is the last rung and is labelled as such.
   if(verbose && flagged && isTRUE(getOption("bgms.verbose", TRUE))) {
+    audit = function(pc) {
+      blocks = if(is.na(pc$block_lo)) {
+        ""
+      } else {
+        sprintf("; mediating blocks %d-%d variables", pc$block_lo, pc$block_hi)
+      }
+      sprintf("audited %d of %d non-trivial edge moves%s",
+        pc$n_ref, pc$n_ent, blocks
+      )
+    }
     cat("Graph-prior approximation issues:\n")
     for(i in seq_len(nrow(per_chain))) {
       pc = per_chain[i, ]
@@ -200,25 +238,29 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
         cat(sprintf(
           paste0(
             "  - Chain %d: %.1f%% of edge-toggle decisions in the ",
-            "approximate chain differ from the exact reference - the ",
-            "normalizer-ratio approximation may be inaccurate here; ",
-            "consider the joint specification\n"
+            "approximate chain differ from the exact reference (%s).\n"
           ),
-          pc$chain, 100 * pc$flip_rate
+          pc$chain, 100 * pc$flip_rate, audit(pc)
         ))
       }
       if(pc$harm_flag) {
         cat(sprintf(
           paste0(
-            "  - Chain %d: the approximation biases the inclusion ",
-            "probabilities by an estimated %.2f - the normalizer-ratio ",
-            "approximation may be inaccurate here; consider the joint ",
-            "specification\n"
+            "  - Chain %d: the approximation shifts the inclusion ",
+            "probabilities by an estimated %.2f (%s).\n"
           ),
-          pc$chain, pc$harm_pred
+          pc$chain, pc$harm_pred, audit(pc)
         ))
       }
     }
+    cat(
+      "  Raise options(bgms.zratio_gauge_sweeps) and refit to audit more edge\n",
+      "  moves and resolve whether the signal is real. If it persists,\n",
+      "  precision_graph_prior = \"joint\" avoids the approximation, but it\n",
+      "  targets a different model: its graph marginal is the edge prior\n",
+      "  reweighted by the per-graph normalizer, not the edge prior itself.\n",
+      sep = ""
+    )
   }
 
   invisible(list(

@@ -334,8 +334,9 @@ build_output_bgm = function(spec, raw) {
   )
 
   # --- Z-ratio trust gauge (hierarchical graph-prior spec) ----------------------
-  # Only when the in-chain gauge actually ran; it is off by default
-  # (options(bgms.zratio_gauge_sweeps = 0)), so guard against empty output.
+  # Only when the in-chain gauge actually ran; it is on by default but can be
+  # switched off (options(bgms.zratio_gauge_sweeps = 0)), so guard against
+  # empty output.
   if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
     # Harm channel inputs: per-chain edge-inclusion probabilities from the
     # normalized chains (indicator_samples is iters x off-diagonal edges) and
@@ -357,7 +358,7 @@ build_output_bgm = function(spec, raw) {
     )
   }
 
-  # Extrapolation notice: independent of the gauge (which is off by default), so
+  # Extrapolation notice: independent of the gauge (which can be switched off), so
   # a fit that deployed the surface beyond its validated hull is never silent.
   if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
     zratio_extrapolation_notice(zratio_chains)

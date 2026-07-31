@@ -34,6 +34,8 @@ void GGMModel::collect_chain_diagnostics(ChainResult& chain_result) const {
             arma::conv_to<arma::ivec>::from(zratio_gauge_.rec_i);
         chain_result.zratio_gauge_pair_j =
             arma::conv_to<arma::ivec>::from(zratio_gauge_.rec_j);
+        chain_result.zratio_gauge_pair_m =
+            arma::conv_to<arma::ivec>::from(zratio_gauge_.rec_m);
         chain_result.zratio_gauge_pair_se = arma::vec(zratio_gauge_.rec_se);
         chain_result.zratio_gauge_pair_mcse =
             arma::vec(zratio_gauge_.rec_mcse);
