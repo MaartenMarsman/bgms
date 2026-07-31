@@ -47,31 +47,66 @@ gold_bank_key = function(cell, family, size, sweeps, burn, seed) {
 
 # Returns a data frame with one row per (family, size): mean, sd, se, n_reps.
 # Computes and banks any missing replicate.
+#
+# `cores` > 1 evaluates the missing replicates in parallel. Replicates are
+# independent and each oracle call is seeded from its own key, so the banked
+# value does not depend on the core count or the schedule. Only the parent
+# writes the bank: the workers return values and the merge happens here, so a
+# parallel run cannot interleave two writers over one file.
 gold_bank = function(zc, cell, family, sizes, sweeps, burn, seeds,
-                     verbose = TRUE) {
+                     verbose = TRUE, cores = 1L) {
   path = gold_bank_path()
   bank = if(file.exists(path)) readRDS(path) else list()
-  dirty = FALSE
-  rows = lapply(sizes, function(size) {
-    vals = vapply(seeds, function(sd_) {
-      key = gold_bank_key(cell, family, size, sweeps, burn, sd_)
-      if(!is.null(bank[[key]])) return(bank[[key]])
-      G = gold_block(family, size)
+
+  jobs = expand.grid(size = sizes, seed = seeds, KEEP.OUT.ATTRS = FALSE)
+  jobs$key = vapply(seq_len(nrow(jobs)), function(k) {
+    gold_bank_key(cell, family, jobs$size[k], sweeps, burn, jobs$seed[k])
+  }, character(1))
+  todo = jobs[!vapply(jobs$key, function(k) !is.null(bank[[k]]), logical(1)), ,
+              drop = FALSE]
+
+  if(nrow(todo) > 0L) {
+    run_one = function(k) {
+      G = gold_block(family, todo$size[k])
       t0 = proc.time()[["elapsed"]]
       g = bgms:::zratio_test_gold_moments(
         G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
         zc$delta, zc$eta, as.integer(sweeps), as.integer(burn),
-        as.integer(sd_), identical(cell$slab, "cauchy"), cell$alpha
+        as.integer(todo$seed[k]), identical(cell$slab, "cauchy"), cell$alpha
       )
       v = if(!isTRUE(g$valid)) NA_real_ else g$logR
-      bank[[key]] <<- v
-      dirty <<- TRUE
       if(verbose) {
-        cat(sprintf("  gold %s k=%d seed=%d -> %.4f (%.0fs)\n", family, size,
-                    sd_, v, proc.time()[["elapsed"]] - t0))
+        cat(sprintf("  gold %s k=%d seed=%d -> %.4f (%.0fs)\n", family,
+                    todo$size[k], todo$seed[k], v,
+                    proc.time()[["elapsed"]] - t0))
         utils::flush.console()
       }
       v
+    }
+    # Heaviest first: the oracle cost scales steeply in block size, so a
+    # dynamic largest-first schedule keeps the tail from stranding cores.
+    ord = order(-todo$size)
+    vals = vector("list", nrow(todo))
+    if(cores > 1L && .Platform$OS.type == "unix") {
+      vals[ord] = parallel::mclapply(ord, run_one, mc.cores = cores,
+                                     mc.preschedule = FALSE)
+    } else {
+      vals[ord] = lapply(ord, run_one)
+    }
+    for(k in seq_len(nrow(todo))) {
+      v = vals[[k]]
+      if(!is.numeric(v) || length(v) != 1L) {
+        stop("gold replicate failed for key ", todo$key[k], call. = FALSE)
+      }
+      bank[[todo$key[k]]] = v
+    }
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(bank, path)
+  }
+
+  rows = lapply(sizes, function(size) {
+    vals = vapply(seeds, function(sd_) {
+      bank[[gold_bank_key(cell, family, size, sweeps, burn, sd_)]]
     }, numeric(1))
     data.frame(
       family = family, size = size, sweeps = sweeps, burn = burn,
@@ -79,10 +114,6 @@ gold_bank = function(zc, cell, family, sizes, sweeps, burn, seeds,
       se = stats::sd(vals) / sqrt(length(vals))
     )
   })
-  if(dirty) {
-    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-    saveRDS(bank, path)
-  }
   do.call(rbind, rows)
 }
 

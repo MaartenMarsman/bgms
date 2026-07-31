@@ -195,12 +195,18 @@
 #'       absolute-moment surface built once at the start of the analysis from
 #'       block-Gibbs anchors on components of up to 80 variables. Within that
 #'       anchored range the surface tracks a block-Gibbs reference to about
-#'       0.003 nats. It is validated at three \code{gamma_prior()} diagonal
-#'       shapes -- 0.5, 1, and 2 -- and deploys on the range they span, with
-#'       the interior interpolated rather than measured; a shape outside that
-#'       range keeps the coarser additive kernel, because its anchors are
-#'       sampled through an independence-Metropolis step that stops mixing
-#'       there rather than because the surface itself fails. A mediating block beyond it is predicted by continuing
+#'       0.003 nats. It is scored against that reference at five
+#'       \code{gamma_prior()} diagonal shapes -- 0.5, 1, 2, 3 and 5 -- and
+#'       deploys on the range those points span up to shape 10, with the
+#'       interior interpolated rather than measured. At shape 10 the guarantee
+#'       is of a different kind: the diagonal has concentrated far enough that
+#'       the whole mediated correction is bounded by 0.00028 nats over the
+#'       scored blocks at a standardized rate (\code{eta}) of 2 or below, so
+#'       there is little left to approximate rather than a tight approximation
+#'       of something large. That bound is set at the top of the scored rate
+#'       range, since the correction grows with the rate, and does not extend
+#'       above it. A shape outside the range keeps the coarser additive
+#'       kernel. A mediating block beyond it is predicted by continuing
 #'       the surface along its own boundary slope, measured at blocks of 90 to
 #'       150 variables at a median of 0.0006 nats and at most 0.0011 for
 #'       common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for

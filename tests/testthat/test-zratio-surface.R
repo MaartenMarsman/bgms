@@ -107,14 +107,24 @@ test_that("per-component moments match the raw-poly surface, summed logR matches
   expect_equal(r$log_zratio, r$logR, tolerance = 1e-12)
 })
 
-test_that("alpha != 1 fences log_zratio to the additive path, bypassing the surface", {
+test_that("an attached surface serves log_zratio at any shape", {
+  # This test used to assert the opposite -- that a non-unit shape bypassed the
+  # attached surface and served the additive path -- and so pinned a defect as
+  # a contract. The engine carried its own `alpha == 1` gate left over from the
+  # alpha = 1-only migration, while the deployment policy in R had widened to a
+  # range of shapes; the two disagreed silently and every non-unit-shape fit
+  # got the additive kernel. The policy has one owner now (R decides whether to
+  # build and attach; see zratio_build_surfaces), so the contract here is that
+  # the engine honours the attachment it was given.
   G = make_graph1()
-  r = surf_eval(G, 1, 2, surface, alpha = 2)
-  add = zratio_test_eval(
-    G, matrix(c(1, 2), 1, 2), zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0
-  )
-  expect_equal(r$log_zratio, as.numeric(add$log_zratio[1]), tolerance = 1e-12)
-  expect_gt(abs(r$log_zratio - r$logR), 1e-6)
+  for(alpha in c(0.5, 2, 5)) {
+    r = surf_eval(G, 1, 2, surface, alpha = alpha)
+    expect_equal(
+      r$log_zratio, r$logR,
+      tolerance = 1e-12,
+      label = sprintf("deployed route at shape %g", alpha)
+    )
+  }
 })
 
 test_that("components below size_min fall back to additive (exact through pairwise overlap)", {

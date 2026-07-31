@@ -138,9 +138,21 @@ zratio_ispike = function(c_val, delta, beta, alpha = 1) {
 # If a future change is ever forced to re-spread instead of append, ngrid must
 # scale with cmax: coarsening the interior to pay for the tail would trade a
 # validated region for an unvalidated one.
+#
+# nleg is sized by the diagonal shape, not by delta. The inner integrand is
+# dnorm(b sin(theta) + c) cos(theta)^(2 delta + 1) with b = sqrt(s1 s2), and the
+# Laguerre nodes carrying the shape weight sit at s ~ alpha / beta. A larger
+# shape therefore pushes b up and collapses the Normal factor into a narrow
+# spike at theta = 0, which a fixed rule eventually stops resolving; a larger
+# eta halves the nodes, widens the spike, and hides the effect, so the loss
+# appears first at eta 1. Measured against a converged 320-point rule, the old
+# 64 points cost 2.4e-06 at shape 10, 2.4e-04 at 15 and 3.9e-03 at 20 (eta 1),
+# while 128 is converged to 1e-14 everywhere tested through shape 20. The
+# Laguerre axis is not the constraint: at nleg 192 sweeping nlag 48 -> 128
+# moves G(0) by 1e-15 even at shape 20.
 zratio_pair_integrals = function(
   delta, sigma, beta, slab = "normal", alpha = 1,
-  cmax = 42, ngrid = 281, nlag = 48, nleg = 64
+  cmax = 42, ngrid = 281, nlag = 48, nleg = 128
 ) {
   gl = zratio_gauss_quad(nlag, "laguerre", glag_a = alpha - 1)
   xq = gl$nodes / beta

@@ -43,13 +43,40 @@ cell_params = data.frame(
 # throughout; nothing reads them.
 variants = c("base", "direct", "clamp")
 
-TOL_STATIC = 1e-12  # addc/psi0: must not move beyond floating-point noise
 tol_report = function(x) formatC(x, format = "g", digits = 4)
 
 args = commandArgs(trailingOnly = TRUE)
 do_write = "--write" %in% args
 if(!do_write && !("--check" %in% args)) {
   stop("pass --check or --write", call. = FALSE)
+}
+
+# addc and psi0 do not read the saddle tail, so a change confined to the tail
+# must leave them at floating-point noise. A change to the quadrature itself
+# legitimately moves them, and then they have to be rebuilt too rather than
+# kept -- otherwise the cell mixes two vintages. The budget therefore has to be
+# raised deliberately, with the reason stated, instead of being wide enough to
+# cover both cases silently.
+#
+#   --static-budget=1e-12  (default) tail-only change: addc/psi0 kept as stored
+#   --static-budget=<x>    quadrature change: addc/psi0 rebuilt as well
+#
+# Regenerations so far:
+#   1. c-grid append (cmax 18 -> 42): tail only, addc/psi0 moved 1.2e-13, kept.
+#   2. nleg 64 -> 128 quadrature refinement: addc/psi0 move ~6e-11, rebuilt.
+arg_val = function(name, default) {
+  a = grep(paste0("^--", name, "="), args, value = TRUE)
+  if(length(a) == 0L) default else sub(paste0("^--", name, "="), "", a[1])
+}
+TOL_STATIC = as.numeric(arg_val("static-budget", "1e-12"))
+REASON = arg_val("reason", NA_character_)
+rebuild_static = TOL_STATIC > 1e-12
+if(rebuild_static && is.na(REASON)) {
+  stop("raising --static-budget requires --reason=<what changed>", call. = FALSE)
+}
+if(rebuild_static) {
+  cat("static budget raised to ", tol_report(TOL_STATIC),
+      "; addc/psi0 will be rebuilt. Reason: ", REASON, "\n\n", sep = "")
 }
 
 fx_old = readRDS(fixture_path)
@@ -101,16 +128,21 @@ for(i in regen) {
   d_ihat = max(abs(zc$ihat - cl$ihat))
   d_ghat = max(abs(zc$ghat - cl$ghat))
   cat(sprintf("cell %d (delta=%.6g eta=%g)\n", i, cl$delta, cl$sigma * cl$beta))
-  cat(sprintf("  addc/psi0 rel move  %s (kept as stored)\n",
-              tol_report(max(d_addc, d_psi0))))
+  cat(sprintf("  addc/psi0 rel move  %s (%s)\n",
+              tol_report(max(d_addc, d_psi0)),
+              if(rebuild_static) "rebuilt" else "kept as stored"))
   cat(sprintf("  ihat max abs move   %s\n", tol_report(d_ihat)))
   cat(sprintf("  ghat max abs move   %s  (%s relative to ghat[1] = %.6g)\n",
               tol_report(d_ghat), tol_report(d_ghat / abs(cl$ghat[1])),
               cl$ghat[1]))
 
-  # addc6/psi0 are kept as stored: they are the same number to floating point,
-  # and the evaluations below are rebuilt against the stored ones so the cell
-  # stays self-consistent.
+  # Under a tail-only change addc6/psi0 are kept as stored -- they are the same
+  # number to floating point. Under a quadrature change they moved for real and
+  # are rebuilt, so the cell carries one vintage across every field.
+  if(rebuild_static) {
+    cl$addc6 = zc$addc
+    cl$psi0 = zc$psi0
+  }
   cl$ihat = zc$ihat
   cl$ghat = zc$ghat
 
