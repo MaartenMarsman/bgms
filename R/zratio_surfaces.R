@@ -146,9 +146,8 @@ zratio_fit_surface_family = function(anchors) {
 # anchor machinery covers it). Fenced to the alpha = 1 diagonal: a non-unit
 # Gamma shape returns NULL (open problem) and the engine keeps the additive path.
 # max_size caps the anchor sizes at the reachable giant; components larger than
-# the trained hull clamp to its edge at deploy. Sparse, law-informed placement
-# with short chains (~800-1000 sweeps); the fit denoises. Returns
-# list(cn = <family>, bip = <family>) or NULL.
+# the trained hull clamp to its edge at deploy. The anchor grids come from
+# zratio_anchor_grids. Returns list(cn = <family>, bip = <family>) or NULL.
 # Session cache for the one-time surface build. The surface depends only on the
 # fit cell (delta, eta, alpha, slab) and the size cap, never on the data, so it
 # is built once per cell and reused. Backed by disk (same directory and toggle
@@ -159,13 +158,82 @@ zratio_fit_surface_family = function(anchors) {
 zratio_surface_cache_key = function(zc, max_size, seed0) {
   # The package version is part of the key: a release that changes the anchor
   # grids, the basis, or the fit must not be served a surface cached by an
-  # earlier version (the one-time rebuild per cell is seconds).
+  # earlier version (the one-time rebuild per cell is seconds). The vN tag
+  # carries the same guarantee within a version, and is bumped whenever the
+  # grids or the fit change during development.
   sprintf(
-    "zratio_surf_v1_%s_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
+    "zratio_surf_v2_%s_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
     as.character(utils::packageVersion("bgms")),
     as.numeric(zc$delta), as.numeric(zc$eta), as.numeric(zc$alpha),
     as.character(zc$slab), as.integer(max_size), as.integer(seed0)
   )
+}
+
+# ------------------------------------------------------------------------------
+# zratio_cap_tier
+# ------------------------------------------------------------------------------
+# Adds an anchor tier at the size cap when the surviving grid stops short of it.
+# The grid filter keeps tiers at or below the cap, so a cap that lands between
+# two tiers trains the hull at the lower one and every larger block is
+# extrapolated: at 40 variables the cap of 40 dropped the size-42 tier and left
+# a hull of 36. A tier within two sizes of the cap needs no top-up, because a
+# mediating block excludes the edge's own two endpoints and so never exceeds
+# cap - 2.
+#
+# @param jobs  Filtered anchor grid, columns n (size) and d (density).
+# @param cap   Size cap for this build.
+# @param dens  Densities to place at the cap tier.
+#
+# Returns: The grid, with a cap tier appended when one is needed.
+# ------------------------------------------------------------------------------
+zratio_cap_tier = function(jobs, cap, dens) {
+  if(nrow(jobs) == 0L || cap - max(jobs$n) <= 2) return(jobs)
+  rbind(jobs, expand.grid(n = as.numeric(cap), d = dens))
+}
+
+# Block-Gibbs sweeps per anchor, by anchor size. Anchor cost scales ~ n^3 *
+# sweeps, so the large tiers run shorter chains; the fit denoises across
+# anchors, and the measured hull accuracy at the top tiers is unaffected.
+zratio_anchor_sweeps = function(n) {
+  ifelse(n >= 46, 600L, ifelse(n >= 32, 800L, 1000L))
+}
+
+# ------------------------------------------------------------------------------
+# zratio_anchor_grids
+# ------------------------------------------------------------------------------
+# The (size, density, sweeps) anchor grids for both families at one size cap.
+# Sparse, law-informed placement: dense high-size tiers where the components the
+# engine meets live, a low-density tail at small sizes, and two replicates
+# throughout (the low-order fit denoises the Monte-Carlo noise across anchors).
+#
+# @param cap  Largest anchor size for this build.
+#
+# Returns: list(cn = <grid>, bip = <grid>), columns n, d, sweeps.
+# ------------------------------------------------------------------------------
+zratio_anchor_grids = function(cap) {
+  cn = rbind(
+    expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
+    expand.grid(n = c(3, 4),                                 d = c(0.5, 0.7, 0.85, 1.0)),
+    expand.grid(n = c(4, 6, 8, 10, 12, 15),                  d = c(0.35, 0.5)),
+    expand.grid(n = c(36, 42),                               d = c(0.8, 0.9)),
+    expand.grid(n = c(52, 64, 80),                           d = c(0.8, 0.9))
+  )
+  cn = zratio_cap_tier(cn[cn$n <= cap, , drop = FALSE], cap, dens = c(0.8, 0.9))
+  cn = rbind(cn, cn)                                         # 2 reps
+
+  bip = rbind(
+    expand.grid(n = c(4, 6, 8, 10, 12, 14, 16, 18, 20, 22), d = c(0.55, 0.7, 0.85, 1.0)),
+    expand.grid(n = c(30, 38, 52, 64, 80),                  d = c(0.7, 1.0))
+  )
+  bip = zratio_cap_tier(bip[bip$n <= cap, , drop = FALSE], cap, dens = c(0.7, 1.0))
+  bip = rbind(bip, bip)
+
+  # One sweeps rule for both families keeps the top tier affordable wherever
+  # the cap places it.
+  cn$sweeps = zratio_anchor_sweeps(cn$n)
+  bip$sweeps = zratio_anchor_sweeps(bip$n)
+
+  list(cn = cn, bip = bip)
 }
 
 # Trained size-hull cap for the anchor build: components larger than this clamp
@@ -221,22 +289,9 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
     )
   }
 
-  cn_jobs = rbind(
-    expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
-    expand.grid(n = c(3, 4),                                 d = c(0.5, 0.7, 0.85, 1.0)),
-    expand.grid(n = c(4, 6, 8, 10, 12, 15),                  d = c(0.35, 0.5)),
-    expand.grid(n = c(36, 42),                               d = c(0.8, 0.9))
-  )
-  cn_jobs = cn_jobs[cn_jobs$n <= cap, , drop = FALSE]
-  cn_jobs = rbind(cn_jobs, cn_jobs)                          # 2 reps
-  cn_jobs$sweeps = ifelse(cn_jobs$n >= 32, 800L, 1000L)
-
-  bip_jobs = expand.grid(
-    n = c(4, 6, 8, 10, 12, 14, 16, 18, 20, 22), d = c(0.55, 0.7, 0.85, 1.0)
-  )
-  bip_jobs = bip_jobs[bip_jobs$n <= cap, , drop = FALSE]
-  bip_jobs = rbind(bip_jobs, bip_jobs)
-  bip_jobs$sweeps = 1000L
+  grids = zratio_anchor_grids(cap)
+  cn_jobs = grids$cn
+  bip_jobs = grids$bip
 
   # One scheduling pool over both families, heaviest job first with dynamic
   # assignment (mc.preschedule = FALSE): anchor cost scales ~ n^3 * sweeps and
