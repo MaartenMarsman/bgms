@@ -13,7 +13,7 @@
  *
  * Holds the double-precision observation matrices, the group-specific
  * effective pairwise weights, and the residual (rest-score) matrices
- * `residual[g] = obs_double[g] * pairwise_group[g]`. The state is owned by
+ * `residual[g] = 2 * obs_double[g] * pairwise_group[g]`. The state is owned by
  * run_gibbs_sampler_bgmCompare() and threaded by reference through the
  * sweeps, which keep it consistent with the model parameters:
  *  - accepted pairwise-effect moves and accepted difference-indicator flips
@@ -36,7 +36,7 @@ struct CompareSweepState {
   arma::mat obs_double_all;              ///< Observations as double (n x V)
   std::vector<arma::mat> obs_double;     ///< Per-group observations as double (n_g x V)
   std::vector<arma::mat> pairwise_group; ///< Per-group effective pairwise weights (V x V)
-  std::vector<arma::mat> residual;       ///< Per-group rest scores obs_double[g] * pairwise_group[g] (n_g x V)
+  std::vector<arma::mat> residual;       ///< Per-group rest scores 2 * obs_double[g] * pairwise_group[g] (n_g x V)
   arma::mat log_normalizer;              ///< Cached pseudolikelihood log-normalizer sums (V x G)
   arma::uvec normalizer_valid;           ///< 1 if a variable's log_normalizer row is current (V)
 };

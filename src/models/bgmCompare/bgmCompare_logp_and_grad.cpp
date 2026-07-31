@@ -195,7 +195,9 @@ arma::vec gradient_observed_active(
     for (int v1 = 0; v1 < num_variables - 1; v1++) {
       for (int v2 = v1 + 1; v2 < num_variables; v2++) {
         const int row = pairwise_effect_indices(v1, v2);
-        const double pw_stats = 2.0 * pairwise_stats(v1, v2);
+        // Factor four: the pair enters two conditionals, each on the
+        // association scale.
+        const double pw_stats = 4.0 * pairwise_stats(v1, v2);
 
         off = pair_index(row, 0);
         grad_obs(off) += pw_stats; // upper tri counted once
@@ -330,7 +332,7 @@ arma::vec gradient(
     // observations_double is already arma::mat, no conversion needed
     const arma::mat obs = observations_double.rows(r0, r1);
     const arma::mat obs_t = obs.t();  // Pre-transpose for BLAS vectorization
-    const arma::mat residual_matrix = obs * pairwise_group;
+    const arma::mat residual_matrix = 2.0 * obs * pairwise_group;
 
     for (int v = 0; v < num_variables; ++v) {
       const int K = num_categories(v);
@@ -407,7 +409,7 @@ arma::vec gradient(
       for (int v2 = 0; v2 < num_variables; v2++) {
         if (v == v2) continue;
 
-        double sum_expectation = pw_grad(v2);
+        double sum_expectation = 2.0 * pw_grad(v2);
 
         const int row = (v < v2) ? pairwise_effect_indices(v, v2)
           : pairwise_effect_indices(v2, v);
@@ -583,10 +585,10 @@ std::pair<double, arma::vec> logp_and_gradient(
     const arma::mat obs_t = obs.t();  // Pre-transpose for BLAS vectorization
     const arma::mat& pairwise_stats = pairwise_stats_group[g];
 
-    log_pp += arma::accu(pairwise_group % pairwise_stats);
+    log_pp += 2.0 * arma::accu(pairwise_group % pairwise_stats);
 
     // ---- pseudolikelihood normalizing constants & gradient (per variable) ----
-    const arma::mat residual_matrix = obs * pairwise_group;
+    const arma::mat residual_matrix = 2.0 * obs * pairwise_group;
 
     for (int v = 0; v < num_variables; ++v) {
       const int K = num_categories(v);
@@ -671,7 +673,7 @@ std::pair<double, arma::vec> logp_and_gradient(
       for (int v2 = 0; v2 < num_variables; v2++) {
         if (v == v2) continue;
 
-        double sum_expectation = pw_grad(v2);
+        double sum_expectation = 2.0 * pw_grad(v2);
 
         const int row = (v < v2) ? pairwise_effect_indices(v, v2)
           : pairwise_effect_indices(v2, v);
@@ -1015,9 +1017,9 @@ double log_pseudoposterior_pair_component(
     const double suff_pair = pairwise_stats(variable1, variable2);
 
     if(h == 0) {
-      log_pp += 2.0 * suff_pair * proposed_value;
+      log_pp += 4.0 * suff_pair * proposed_value;
     } else {
-      log_pp += 2.0 * suff_pair * proj_g(h-1) * proposed_value;
+      log_pp += 4.0 * suff_pair * proj_g(h-1) * proposed_value;
     }
 
     // ---- pseudolikelihood normalizing constants ----
@@ -1049,7 +1051,7 @@ double log_pseudoposterior_pair_component(
       const int other = (v == variable1) ? variable2 : variable1;
 
       // Use residual_matrix with delta adjustment: O(n) instead of O(n*p)
-      arma::vec rest_score = residual_matrices[group].col(v) + obs_g.col(other) * delta_g;
+      arma::vec rest_score = residual_matrices[group].col(v) + 2.0 * obs_g.col(other) * delta_g;
 
       // bound to stabilize exp; clamp at 0 so exp cannot overflow (the
       // Blume-Capel branch overwrites bound with its own max).
@@ -1285,7 +1287,7 @@ double log_pseudolikelihood_ratio_pairwise(
     const double delta_g = w_prop - w_cur;
 
     // Add data contribution
-    lr += 2.0 * (w_prop - w_cur) * suff(var1, var2);
+    lr += 4.0 * (w_prop - w_cur) * suff(var1, var2);
 
     // Add ratio of normalizing constants for both endpoint variables
     const arma::mat& obs_g = obs_double_groups[g];
@@ -1298,7 +1300,7 @@ double log_pseudolikelihood_ratio_pairwise(
       );
 
       const arma::vec rest_current = residual_groups[g].col(v);
-      const arma::vec rest_proposed = rest_current + obs_g.col(other) * delta_g;
+      const arma::vec rest_proposed = rest_current + 2.0 * obs_g.col(other) * delta_g;
 
       arma::vec bound_current;
       arma::vec bound_proposed;

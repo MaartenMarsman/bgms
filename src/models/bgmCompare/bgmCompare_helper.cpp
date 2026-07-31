@@ -32,7 +32,9 @@ void initialize_sweep_state_observations(
 
 // Recomputes the per-group effective pairwise weights from the current
 // pairwise effects and inclusion indicators, and the residual matrices as
-// one matrix product per group. Invalidates the normalizer cache.
+// one matrix product per group. Pairwise effects are stored on the
+// association scale, so a rest score carries a factor two. Invalidates the
+// normalizer cache.
 void rebuild_sweep_state_weights(
     CompareSweepState& state,
     const arma::mat& pairwise_effects,
@@ -61,7 +63,7 @@ void rebuild_sweep_state_weights(
       }
     }
 
-    state.residual[g] = state.obs_double[g] * pairwise_g;
+    state.residual[g] = 2.0 * state.obs_double[g] * pairwise_g;
   }
 
   state.normalizer_valid.zeros();
