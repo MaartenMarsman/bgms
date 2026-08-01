@@ -183,6 +183,35 @@ test_that("the build fences shapes outside the validated range", {
   }
 })
 
+test_that("an analysis too small to anchor either family builds no surface", {
+  # A bipartite bridge needs 2 + 2 nodes, so the bipartite anchor grid starts at
+  # size 4 and filters to nothing at a cap of 3 or less. Assigning the family
+  # tag into that empty job table used to abort the fit ("replacement has 1 row,
+  # data has 0"), which made every hierarchical fit at 2 or 3 variables an error.
+  expect_true(bgms:::zratio_anchor_grids_empty(2L))
+  expect_true(bgms:::zratio_anchor_grids_empty(3L))
+  expect_false(bgms:::zratio_anchor_grids_empty(4L))
+  expect_equal(nrow(bgms:::zratio_anchor_grids(3L)$bip), 0L)
+
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  # The guard returns before any anchor runs, and only the cell's shape is read
+  # on the way there, so it is supplied directly; building the cell's constants
+  # would cost seconds and nothing else is used.
+  zc = list(alpha = 1)
+  for(cap in c(2L, 3L)) {
+    expect_null(bgms:::zratio_build_surfaces(zc, max_size = cap, cores = 1L))
+  }
+  # The route message says the surface is unnecessary here, not that its build
+  # failed.
+  expect_message(
+    bgms:::zratio_surface_fence_message(list(alpha = 1, eta = 1), size = 3L),
+    "none is needed"
+  )
+})
+
 test_that("a non-unit shape gets a raised anchor budget", {
   # The independence-Metropolis row update means the same nominal budget buys
   # fewer effective sweeps, so the anchors are run longer off shape 1. The
