@@ -228,3 +228,42 @@ test_that("naming one variable twice says which one and how to fix it", {
   )
   expect_error(plot_edge_posterior(fit, 1, 1), "plot_edge_posterior\\(fit, ")
 })
+
+test_that("a mixed network draws its weights at the pairs they belong to", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  set.seed(31)
+  n = 200
+  latent = rnorm(n)
+  x = cbind(
+    round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    latent + rnorm(n, sd = 0.5),
+    round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    latent + rnorm(n, sd = 0.5),
+    latent + rnorm(n, sd = 0.5)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "c3")
+  fit = bgm(x,
+    variable_type = c(
+      "ordinal", "continuous", "ordinal", "continuous",
+      "continuous"
+    ),
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 8,
+    display_progress = "none", verbose = FALSE
+  )
+
+  # The drawn weights come from the pairwise draws, which are in the fit's own
+  # indicator order; the pair index has to follow it or every weight lands on
+  # the wrong edge.
+  weight = colMeans(extract_pairwise_interactions(fit))
+  pairs = indicator_pair_index(fit, 5L)
+  names_out = colnames(x)
+  labels = paste(names_out[pairs[, 1]], names_out[pairs[, 2]], sep = "-")
+  flipped = paste(names_out[pairs[, 2]], names_out[pairs[, 1]], sep = "-")
+  expect_true(all(labels == names(weight) | flipped == names(weight)))
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_invisible(plot(fit, type = "network", evidence_threshold = 3))
+})

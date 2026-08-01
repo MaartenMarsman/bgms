@@ -150,8 +150,9 @@ plot.bgms = function(x,
   variables = extract_arguments(x)$data_columnnames
   num_variables = length(variables)
 
-  pairs = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
-  pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
+  # The weights and the verdicts are both in the fit's raw indicator order, so
+  # the pair positions have to be read off in that order too.
+  pairs = indicator_pair_index(x, num_variables)
 
   drawn = !is.na(edges$verdict) & edges$verdict != "absence"
   if(!any(drawn)) {

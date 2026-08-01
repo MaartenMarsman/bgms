@@ -245,3 +245,50 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
     "Edge verdicts at"
   )
 })
+
+test_that("indicator_pair_index follows the fit's own indicator layout", {
+  skip_on_cran()
+  # Interleaved types, so the block layout and the row-major upper triangle are
+  # genuinely different permutations.
+  set.seed(21)
+  n = 120
+  x = cbind(
+    sample(0:2, n, TRUE), rnorm(n), sample(0:2, n, TRUE), rnorm(n), rnorm(n)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "c3")
+  fit = bgm(x,
+    variable_type = c(
+      "ordinal", "continuous", "ordinal", "continuous",
+      "continuous"
+    ),
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 6,
+    display_progress = "none", verbose = FALSE
+  )
+
+  names_out = colnames(x)
+  idx = indicator_pair_index(fit, 5L)
+  labels = paste(names_out[idx[, 1]], names_out[idx[, 2]], sep = "-")
+  flipped = paste(names_out[idx[, 2]], names_out[idx[, 1]], sep = "-")
+  raw_names = get_raw_samples(fit)$parameter_names$indicator
+  expect_equal(nrow(idx), 10L)
+  expect_true(all(labels == raw_names | flipped == raw_names))
+
+  # Every reported number belongs to the edge the row names, which the
+  # row-major upper triangle got wrong for a mixed fit.
+  v = verdicts(fit)
+  expect_equal(v$parameter, raw_names)
+  bf = extract_inclusion_bf(fit, log = TRUE)
+  pip = extract_posterior_inclusion_probabilities(fit)
+  ends = strsplit(v$parameter, "-", fixed = TRUE)
+  expect_equal(v$log_bf, vapply(ends, function(e) bf[e[1], e[2]], numeric(1)))
+  expect_equal(v$pip, vapply(ends, function(e) pip[e[1], e[2]], numeric(1)))
+})
+
+test_that("a single-type fit keeps the row-major upper-triangle layout", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan6()
+  idx = indicator_pair_index(fit, 6L)
+  expected = which(upper.tri(matrix(0, 6L, 6L)), arr.ind = TRUE)
+  expected = expected[order(expected[, "row"], expected[, "col"]), , drop = FALSE]
+  expect_equal(unname(idx), unname(expected))
+})

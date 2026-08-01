@@ -116,6 +116,44 @@ format_log_bf = function(log_bf, cap = 1e4) {
 
 
 # ------------------------------------------------------------------
+# indicator_pair_index
+# ------------------------------------------------------------------
+# Row/column positions of a bgm fit's edge indicators, in the order its raw
+# indicator draws lay them out.
+#
+# A GGM or ordinal fit lays its indicators out as the row-major upper triangle
+# of the variable order. A mixed fit lays them out by block --
+# discrete-discrete, then continuous-continuous, then cross -- which is a
+# different permutation whenever the discrete and continuous columns interleave.
+# Reading a symmetric matrix (Bayes factors, inclusion probabilities) at the
+# wrong one attaches every number to the wrong edge.
+#
+# @param bgms_object   A bgms fit.
+# @param num_variables Number of variables.
+#
+# Returns: an E x 2 integer matrix of (row, column) positions.
+# ------------------------------------------------------------------
+indicator_pair_index = function(bgms_object, num_variables) {
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    num_pairs = num_variables * (num_variables - 1L) / 2L
+    blank = character(num_variables)
+    # fill_mixed_symmetric() is the layout the raw draws follow, so filling it
+    # with the draw positions reads that layout back off as an index.
+    positions = fill_mixed_symmetric(
+      seq_len(num_pairs), d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices, list(blank, blank)
+    )
+    upper = which(upper.tri(positions), arr.ind = TRUE)
+    return(upper[order(positions[upper]), , drop = FALSE])
+  }
+  idx = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
+  idx[order(idx[, "row"], idx[, "col"]), , drop = FALSE]
+}
+
+
+# ------------------------------------------------------------------
 # compare_indicator_index
 # ------------------------------------------------------------------
 # Row/column positions of the bgmCompare difference indicators in the order
@@ -311,8 +349,7 @@ verdicts.bgms = function(bgms_object, evidence_threshold = 10, ...) {
   summary_indicator = bgms_object$posterior_summary_indicator
 
   num_variables = nrow(bgms_object$posterior_mean_indicator)
-  idx = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
-  idx = idx[order(idx[, "row"], idx[, "col"]), , drop = FALSE]
+  idx = indicator_pair_index(bgms_object, num_variables)
 
   log_bf = extract_inclusion_bf(bgms_object, log = TRUE)[idx]
   pip = bgms_object$posterior_mean_indicator[idx]
