@@ -193,13 +193,47 @@ Fit construction: `bgm.R`, `bgmCompare.R`, `bgm_spec.R`, `build_spec.R`,
   run by `.github/workflows/weekly-compliance.yaml`. Must be `.Rbuildignore`d
   (F-017).
 - CI: R-CMD-check + lint + test-coverage on push/PR (main, develop);
-  nightly-validation Mon+Thu 03:00 UTC (`devtools::test`, slow tests);
-  weekly-compliance Sun 05:00 UTC. pkgdown workflow retired (docs live in the
-  bgms-docs repo).
+  fast-checks (T0) on develop pushes and PRs; nightly-validation (T1) daily
+  03:00 UTC; weekly-certification (T2) Sun 03:00 UTC; weekly-compliance Sun
+  05:00 UTC. pkgdown workflow retired (docs live in the bgms-docs repo).
 - Gold references: `dev/validation/` (tracked in git deliberately — hours of
   compute) — zratio gold bank + route certificates + WP artifacts.
 - Test-interface coverage gaps (00b §15): NUTS/adaptation/chain_runner/
   bgmCompare/mixed-kernels have no isolated entries — end-to-end only.
+
+### The tier contract (F-071)
+
+Which tier a block belongs to is decided by the **class of bug it catches**,
+not by how long it takes
+(`dev/plans/backlog/2026-07-29_test-suite-tiering-audit_AUDIT.md`). A slow
+product-surface test stays T0 (trimmed); a cheap calibration identity can still
+be T1. Budget is the tie-breaker, never the criterion.
+
+| Tier | Cadence | Content, by bug class | Budget | Gate |
+|---|---|---|---|---|
+| **T0** every run | local `devtools::test()`; every push to develop and every PR (`fast-checks.yaml`) | contracts, validation, wiring, unit guards, product surface | ~90 s of tests | none |
+| **T1** nightly heartbeat | daily 03:00 UTC on **develop** (`nightly-validation.yaml`) | curated calibration subset — graph-law and prior-chain identities, gauge detector, single surface-vs-gold cells, RB saturation, concordance smokes. "Does the settled math still hold tonight" | **≤ 60 min** on the 2-core runner; `timeout-minutes: 90` | `BGMS_RUN_SLOW_TESTS=true` |
+| **T2** weekly certification | Sunday 03:00 UTC on **develop** (`weekly-certification.yaml`) | the heavy Monte-Carlo machinery — SBC suites, full parameter-recovery sweeps, full NUTS-vs-MH condition grids, n = 2e6 MC channels, refit cross-validations (incl. the F-049 gate) | `timeout-minutes: 360` | `BGMS_RUN_CERTIFICATION=true` (the T2 workflow sets **both** vars, so a weekly run also carries T1) |
+
+Gate helpers: each T1 file defines its own `skip_unless_slow()`-style helper;
+T2 uses the shared `skip_unless_certification()` in
+`tests/testthat/helper-tiers.R`, whose skip message says explicitly that
+`BGMS_RUN_SLOW_TESTS` alone does not enable the block.
+
+Two mechanics worth knowing before editing these workflows:
+
+- **Schedules fire from the default branch.** GitHub reads the cron from
+  `main`'s copy of a workflow file, so the T1/T2 schedules only start firing
+  once this branch reaches `main` at the release re-merge, and until then
+  `main`'s old Mon+Thu nightly keeps firing (and cancelling at its 120-minute
+  timeout). What points a scheduled run at develop is the explicit checkout
+  ref, not the cron. A manual dispatch checks out the ref it was dispatched on,
+  so a branch can prove its own budget before it merges. `main` itself is
+  verified by hand at the release re-merge.
+- **Shared fixtures move together.** Several files trigger the same cached
+  marginal-Cauchy cell build (~5 s); gating one alone relocates the cost into
+  whichever consumer runs first rather than removing it. Same for the
+  hierarchical correction-table cells. Re-tier Cauchy-cell consumers as a set.
 
 ## 7. Build system
 
