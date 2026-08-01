@@ -235,6 +235,27 @@ Two mechanics worth knowing before editing these workflows:
   whichever consumer runs first rather than removing it. Same for the
   hierarchical correction-table cells. Re-tier Cauchy-cell consumers as a set.
 
+Measured split (2-core runner, 2026-08-01): **38 blocks T1, 60 blocks T2**,
+T1 ≈ 44 min against its 60-minute budget. The largest T1 items are
+`hier-zratio-identity` (424 s of single-cell graph-law identities),
+`prior-sensitivity` (~340 s), `mixed-correction` (200 s) and
+`rb-inclusion-probabilities` (193 s).
+
+Four blocks are in T2 for cost rather than bug class, and are the first place
+to look if the budget ever needs revisiting: `bgmCompare`'s full-defaults
+Boredom fit (~14 min alone), `zratio-extrapolation-notice`'s size-cap fit
+(~7.5 min), and `zratio-surface-build`'s three build blocks. The tier contract
+would call the first a product-surface check and the last surface-vs-gold, but
+"surface-vs-gold **single cells**" is deliberately minutes-scale and these are
+builds and full-defaults end-to-end fits.
+
+> **The old nightly never measured its own cost.** It died at the 120-minute
+> timeout in the same place every run, part-way through the `zratio-*` tail, so
+> nine files were never reached and their cost was never known — only the
+> floor was. Two of the reds now parked in T2 (`zratio-gauge`'s harm-threshold
+> case; see F-080/F-081 for the others) were invisible for the same reason.
+> When re-tiering, measure from a run that *finished*.
+
 ## 7. Build system
 
 `configure` / `configure.win` generate `src/Makevars` (from `Makevars.in`) and

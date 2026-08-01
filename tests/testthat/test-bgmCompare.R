@@ -368,12 +368,16 @@ test_that("bgmCompare pairwise effects are on the association scale", {
 })
 
 
+# Weekly certification (T2): this is the only test in the suite that runs
+# bgmCompare() at its shipped defaults on a full shipped dataset, and it costs
+# ~14 min on the 2-core CI runner -- by itself a quarter of the nightly budget.
+# A full-defaults end-to-end fit is a product-surface check, which the tier
+# contract puts in T1, but at that size it is not a smoke. The cheap end of the
+# same surface stays local: the label-propagation test below fits the same data
+# at iter = 50.
 test_that("the shipped data's own language column works as the group indicator", {
   skip_on_cran()
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run the full-defaults Boredom fit"
-  )
+  skip_unless_certification()
   data("Boredom", package = "bgms")
   fit = bgmCompare(Boredom[, -1], group_indicator = Boredom$language)
   expect_s3_class(fit, "bgmCompare")
