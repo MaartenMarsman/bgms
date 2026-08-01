@@ -872,6 +872,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// zratio_test_spec_eval
+Rcpp::List zratio_test_spec_eval(Rcpp::List zratio_spec, arma::imat G, arma::imat edges);
+RcppExport SEXP _bgms_zratio_test_spec_eval(SEXP zratio_specSEXP, SEXP GSEXP, SEXP edgesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type zratio_spec(zratio_specSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::imat >::type edges(edgesSEXP);
+    rcpp_result_gen = Rcpp::wrap(zratio_test_spec_eval(zratio_spec, G, edges));
+    return rcpp_result_gen;
+END_RCPP
+}
 // zratio_test_surface_batch
 Rcpp::List zratio_test_surface_batch(arma::imat G, arma::imat edges, arma::vec addc, arma::vec tg, arma::vec ihat, arma::vec ghat, arma::vec wt, double psi0, Rcpp::List surface, double delta, double eta, bool slab_cauchy, double alpha);
 RcppExport SEXP _bgms_zratio_test_surface_batch(SEXP GSEXP, SEXP edgesSEXP, SEXP addcSEXP, SEXP tgSEXP, SEXP ihatSEXP, SEXP ghatSEXP, SEXP wtSEXP, SEXP psi0SEXP, SEXP surfaceSEXP, SEXP deltaSEXP, SEXP etaSEXP, SEXP slab_cauchySEXP, SEXP alphaSEXP) {
@@ -1002,6 +1015,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_zratio_test_reference", (DL_FUNC) &_bgms_zratio_test_reference, 16},
     {"_bgms_zratio_test_saddle", (DL_FUNC) &_bgms_zratio_test_saddle, 8},
     {"_bgms_zratio_test_surface_eval", (DL_FUNC) &_bgms_zratio_test_surface_eval, 14},
+    {"_bgms_zratio_test_spec_eval", (DL_FUNC) &_bgms_zratio_test_spec_eval, 3},
     {"_bgms_zratio_test_surface_batch", (DL_FUNC) &_bgms_zratio_test_surface_batch, 13},
     {"_bgms_zratio_test_gold_moments", (DL_FUNC) &_bgms_zratio_test_gold_moments, 16},
     {"_bgms_zratio_test_precompute", (DL_FUNC) &_bgms_zratio_test_precompute, 10},

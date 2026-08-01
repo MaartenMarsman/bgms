@@ -83,12 +83,7 @@ run_sampler_ggm = function(spec) {
       scale_shape = p$scale_shape,
       slab = p$interaction_prior_type
     )
-    zratio = list(
-      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
-      wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      gauge_sweeps = zratio_gauge_sweeps()
-    )
+    zratio = zratio_spec_list(zc, gauge_sweeps = zratio_gauge_sweeps())
     # Option-B absolute-moment surface: build once at the analysis's own
     # (eta, delta) and let the engine deploy it per component. eta is a build
     # parameter, not a switch. Built for the Normal and Cauchy slabs across the
@@ -240,12 +235,7 @@ run_sampler_mixed_mrf = function(spec) {
       scale_shape = p$scale_shape,
       slab = p$interaction_prior_type
     )
-    zratio = list(
-      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
-      wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
-      gauge_sweeps = zratio_gauge_sweeps()
-    )
+    zratio = zratio_spec_list(zc, gauge_sweeps = zratio_gauge_sweeps())
     # Option-B surface on the continuous subgraph (same as the GGM path); sized
     # on the number of continuous variables.
     zratio = zratio_attach_surface(

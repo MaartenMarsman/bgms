@@ -358,9 +358,15 @@ build_output_bgm = function(spec, raw) {
     )
   }
 
-  # Extrapolation notice: independent of the gauge (which can be switched off), so
-  # a fit that deployed the surface beyond its validated hull is never silent.
+  # Routing and extrapolation notices: independent of the gauge (which can be
+  # switched off), so a fit that left the surface's validated range -- in shape
+  # or in block size -- is never silent. Both read the per-chain counters, so
+  # they report what the chains did rather than what the spec intended.
   if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_isolated_route_notice(
+      zratio_chains,
+      eta = zratio_eta(p$pairwise_scale, p$scale_rate, p$scale_eta)
+    )
     zratio_extrapolation_notice(zratio_chains)
   }
 

@@ -191,6 +191,42 @@ Rcpp::List zratio_test_surface_eval(
 }
 
 // -----------------------------------------------------------------------------
+// zratio_test_spec_eval:
+//   Evaluate log_zratio for every edge in `edges` (1-based) on an engine built
+//   from the R-side `zratio` spec list, through the SAME reader the samplers
+//   use (zratio_engine_from_spec). This is the deployed route, not a component
+//   API: the spec that reaches sample_ggm reaches this engine unchanged, so a
+//   policy field R sets and the engine ignores fails here.
+//
+//   That distinction is not academic. Every accuracy figure in this program was
+//   once scored through a component entry point while a fit took a different
+//   branch, and the disagreement was invisible for an entire validation
+//   programme. Probes for deployment go through the spec.
+// -----------------------------------------------------------------------------
+
+// [[Rcpp::export(name = "zratio_test_spec_eval")]]
+Rcpp::List zratio_test_spec_eval(
+    Rcpp::List zratio_spec,
+    arma::imat G,
+    arma::imat edges
+) {
+    std::shared_ptr<ZRatioEngine> engine = zratio_engine_from_spec(zratio_spec);
+    arma::vec out(edges.n_rows);
+    for (arma::uword e = 0; e < edges.n_rows; ++e) {
+        out[e] = engine->log_zratio(G, edges(e, 0) - 1, edges(e, 1) - 1);
+    }
+    return Rcpp::List::create(
+        Rcpp::_["log_zratio"] = out,
+        Rcpp::_["has_surface"] = engine->has_surface(),
+        Rcpp::_["mediation_off"] = engine->mediation_off(),
+        Rcpp::_["gauge_sweeps"] = zratio_gauge_sweeps_from_spec(zratio_spec),
+        Rcpp::_["n_pred"] = static_cast<double>(engine->n_pred()),
+        Rcpp::_["n_add"] = static_cast<double>(engine->n_add()),
+        Rcpp::_["n_isolated"] = static_cast<double>(engine->n_isolated())
+    );
+}
+
+// -----------------------------------------------------------------------------
 // zratio_test_surface_batch:
 //   Set the Option-B surface once, then evaluate log_zratio for every edge in
 //   `edges` (1-based) on a SHARED engine, so the deploy-time surface cache

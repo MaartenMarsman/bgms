@@ -142,38 +142,14 @@ Rcpp::List sample_mixed_mrf(
     // per-edge Z-ratio engine so the Gamma_yy between-edge moves target
     // p(K_yy | Gamma_yy) = rho/Z(Gamma_yy). The constants are resolved at R
     // spec-build (zratio_constants); each chain clone deep-copies the engine.
+    // Same spec reader as the GGM path (zratio_engine_from_spec), so the
+    // continuous block deploys whatever R resolved on either sampler. The rng
+    // pointer is rebound per chain clone by MixedMRFModel.
     int zratio_gauge_sweeps = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
-        auto engine = std::make_shared<ZRatioEngine>(
-            Rcpp::as<arma::vec>(zs["addc"]),
-            Rcpp::as<arma::vec>(zs["tg"]),
-            Rcpp::as<arma::vec>(zs["ihat"]),
-            Rcpp::as<arma::vec>(zs["ghat"]),
-            Rcpp::as<arma::vec>(zs["wt"]),
-            Rcpp::as<double>(zs["psi0"]));
-        if (zs.containsElementNamed("gauge_sweeps")) {
-            zratio_gauge_sweeps = Rcpp::as<int>(zs["gauge_sweeps"]);
-        }
-        bool zr_cauchy = zs.containsElementNamed("slab") &&
-            Rcpp::as<std::string>(zs["slab"]) == "cauchy";
-        const double zr_delta = Rcpp::as<double>(zs["delta"]);
-        const double zr_eta = Rcpp::as<double>(zs["eta"]);
-        const double zr_alpha = zs.containsElementNamed("alpha")
-            ? Rcpp::as<double>(zs["alpha"]) : 1.0;
-        // Option-B surfaces (built in R at the analysis eta on the continuous
-        // subgraph) are the deployed correction, exactly as on the GGM path.
-        if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
-            Rcpp::List zsurf(zs["surface"]);
-            engine->set_surface(surface_family_from_list(zsurf["cn"]),
-                                surface_family_from_list(zsurf["bip"]));
-        }
-        // The rng pointer is rebound per chain clone by MixedMRFModel.
-        engine->set_oracle_params(zr_delta, zr_eta, nullptr,
-                                  ZRatioEngine::default_oracle_n_sweep,
-                                  ZRatioEngine::default_oracle_burn,
-                                  zr_cauchy, zr_alpha);
-        model.set_zratio_engine(std::move(engine));
+        zratio_gauge_sweeps = zratio_gauge_sweeps_from_spec(zs);
+        model.set_zratio_engine(zratio_engine_from_spec(zs));
     }
 
     // Set up missing data imputation

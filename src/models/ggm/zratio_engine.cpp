@@ -638,6 +638,16 @@ bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
 }
 
 double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
+    // Isolated-edge routing: past the top of the surface's validated shape
+    // range the mediating correction is switched off and every edge gets
+    // log(psi0), the exact ratio for an edge with no mediating structure. The
+    // dropped mediation is what such a route costs, and at those shapes it is
+    // bounded by 2.84e-04 nats (see set_mediation_off). The block is not
+    // extracted at all, so this branch also skips the neighbourhood scan.
+    if (mediation_off_) {
+        n_isolated_++;
+        return MY_LOG(psi0_);
+    }
     // Surface (Option B) serves the cell whenever one is attached: decompose
     // the block and sum per-component moments. Otherwise fall through to the
     // additive-counts saddle.

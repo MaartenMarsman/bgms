@@ -218,8 +218,18 @@ scored blocks at a standardized rate (\code{eta}) of 2 or below, so
 there is little left to approximate rather than a tight approximation
 of something large. That bound is set at the top of the scored rate
 range, since the correction grows with the rate, and does not extend
-above it. A shape outside the range keeps the coarser additive
-kernel. A mediating block beyond it is predicted by continuing
+above it. Above shape 10 that bound is what the fit deploys: the
+mediating correction is switched off and every edge is served the
+isolated-edge ratio, which is exact for an edge with no mediating
+structure, so the whole error is the mediation it drops -- at most
+0.00028 nats, measured at shapes 12, 15 and 20. The alternative there
+is not a coarser correction but a broken one: the additive kernel
+returns zero on a large common-neighbour block and discards the whole
+ratio. A shape below 0.5 keeps that additive kernel, and shares its
+limitation: on a fully connected common-neighbour block the additive
+ratio collapses to zero from about 15 to 23 variables upward there
+(measured at shapes 0.1 and 0.25, both slabs). A mediating block beyond
+the anchored size range is predicted by continuing
 the surface along its own boundary slope, measured at blocks of 90 to
 150 variables at a median of 0.0006 nats and at most 0.0011 for
 common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for

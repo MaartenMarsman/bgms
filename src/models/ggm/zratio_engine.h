@@ -7,6 +7,7 @@
 #include <utility>
 #include <string>
 #include <cstdint>
+#include <memory>
 
 #include "rng/rng_utils.h"
 #include "models/base_model.h"   // ZRatioPhase
@@ -183,6 +184,31 @@ public:
     bool has_surface() const { return has_surface_; }
 
     /**
+     * Switch the mediating correction off: log_zratio then returns the
+     * isolated-edge ratio log(psi0) for every edge, the value an edge with no
+     * mediating structure carries, and neither the surface nor the additive
+     * saddle runs.
+     *
+     * This is the deployed route past the top of the surface's validated shape
+     * range. It is not a degradation to "no correction": psi0 is the exact
+     * ratio for an unmediated edge, so the whole error is the mediation that is
+     * dropped, and at those shapes the Gamma diagonal concentrates the
+     * precision diagonal until mediation dies. MEASURED against block-Gibbs
+     * gold, the entire mediated correction is at most 2.84e-04 nats over the
+     * scored band (shapes 12, 15 and 20 at k = 42, plus k = 100 at the shape-12
+     * maximum), two orders below the 0.003-nat envelope the surface's own
+     * accuracy claims live in. The alternative -- the additive saddle -- is not
+     * bounded that way: it returns essentially zero on common-neighbour
+     * mediating blocks and discards the whole ratio.
+     *
+     * Scoped to eta <= 2, the range every gate in this program was measured on;
+     * mediation grows with eta, so R emits a notice past it (see
+     * zratio_mediation_off in R/zratio_surfaces.R, which owns the policy).
+     */
+    void set_mediation_off(bool off) { mediation_off_ = off; }
+    bool mediation_off() const { return mediation_off_; }
+
+    /**
      * Surface-path moments for the edge (i, j): decompose the mediating block,
      * accumulate per-component (S1, S2), and return logR = log saddle_ratio.
      * Fills `comps` with the decomposition for inspection. Returns false when
@@ -274,6 +300,10 @@ public:
     long n_miss() const { return n_miss_; }
     long n_pred() const { return n_pred_; }
     long n_add() const { return n_add_; }
+    /// Edges served the isolated-edge ratio under set_mediation_off. Counted
+    /// separately from n_add so a fit shows which route it actually took: with
+    /// the flag live this is every evaluation and n_pred = n_add = 0.
+    long n_isolated() const { return n_isolated_; }
     /// Deploy-time extrapolation accounting: blocks with a component larger than
     /// the trained hull (extended along the boundary slope at deploy), and the
     /// largest such size seen. The _ret variants count the retained sweeps only.
@@ -420,6 +450,8 @@ private:
 
     // Option-B absolute-moment surfaces (inert unless set_surface ran).
     bool has_surface_ = false;
+    // Isolated-edge routing (inert unless set_mediation_off ran).
+    bool mediation_off_ = false;
     SurfaceFamily surf_cn_, surf_bip_;
     std::unordered_map<std::uint64_t, double> cache_;
     // Deploy-time surface caches. surf_cache_: block component-descriptor
@@ -449,7 +481,7 @@ private:
     std::unordered_map<std::array<int, 5>, std::pair<double, double>, IntSeqHash>
         comp_cache_;
     long n_hit_ = 0, n_miss_ = 0;
-    long n_pred_ = 0, n_add_ = 0;
+    long n_pred_ = 0, n_add_ = 0, n_isolated_ = 0;
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
     long n_pred_ret_ = 0, n_extrap_ret_ = 0;
@@ -495,3 +527,52 @@ private:
         if (ra != rb) sl_uf_[ra] = rb;
     }
 };
+
+/**
+ * Build the engine for one fit from the R-side `zratio` spec list
+ * (R/zratio_surfaces.R, zratio_spec_list): constants, oracle parameters, the
+ * Option-B surfaces when R attached them, and the isolated-edge routing flag
+ * when R set it. The rng pointer is rebound per chain clone by the model.
+ *
+ * One builder for every caller -- both samplers and the test interface -- so a
+ * spec field cannot be honoured on one route and ignored on another. The
+ * deploy gate already cost this program one such split, where R widened the
+ * surface's shape range and the engine kept its own copy of the old one; a
+ * policy enforced in two layers drifts, and a spec read in three places is the
+ * same shape of defect one level down.
+ */
+inline std::shared_ptr<ZRatioEngine> zratio_engine_from_spec(
+    const Rcpp::List& zs) {
+    auto engine = std::make_shared<ZRatioEngine>(
+        Rcpp::as<arma::vec>(zs["addc"]),
+        Rcpp::as<arma::vec>(zs["tg"]),
+        Rcpp::as<arma::vec>(zs["ihat"]),
+        Rcpp::as<arma::vec>(zs["ghat"]),
+        Rcpp::as<arma::vec>(zs["wt"]),
+        Rcpp::as<double>(zs["psi0"]));
+    const bool slab_cauchy = zs.containsElementNamed("slab") &&
+        Rcpp::as<std::string>(zs["slab"]) == "cauchy";
+    const double alpha = zs.containsElementNamed("alpha")
+        ? Rcpp::as<double>(zs["alpha"]) : 1.0;
+    if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
+        Rcpp::List zsurf(zs["surface"]);
+        engine->set_surface(surface_family_from_list(zsurf["cn"]),
+                            surface_family_from_list(zsurf["bip"]));
+    }
+    if (zs.containsElementNamed("mediation_off") &&
+        Rcpp::as<bool>(zs["mediation_off"])) {
+        engine->set_mediation_off(true);
+    }
+    engine->set_oracle_params(Rcpp::as<double>(zs["delta"]),
+                              Rcpp::as<double>(zs["eta"]), nullptr,
+                              ZRatioEngine::default_oracle_n_sweep,
+                              ZRatioEngine::default_oracle_burn,
+                              slab_cauchy, alpha);
+    return engine;
+}
+
+/** Assessment sweeps the in-chain trust gauge runs for this spec (0 = off). */
+inline int zratio_gauge_sweeps_from_spec(const Rcpp::List& zs) {
+    return zs.containsElementNamed("gauge_sweeps")
+        ? Rcpp::as<int>(zs["gauge_sweeps"]) : 0;
+}

@@ -110,6 +110,18 @@ shifts a recovered network. It does not resolve rare edge-specific
 failures: \code{flip_rate} is the flip rate among audited decisions, not a
 per-edge guarantee over all of them.
 }
+\section{Fits that route around the correction entirely}{
+
+Above the Gamma diagonal shape range the correction is scored on, the
+mediating correction is switched off and every edge is served the
+isolated-edge normalizer ratio, which is exact for an edge with no
+mediating structure. The per-chain \code{counters} vector records this as
+\code{n_isolated}, and a fit that took the route says so in a note
+reporting the measured bound on what it leaves out. The gauge still runs
+there and still measures that residual directly, so a flag on such a fit is
+as meaningful as on any other.
+}
+
 \examples{
 \donttest{
 draws = sample_ggm_prior(

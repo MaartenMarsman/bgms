@@ -403,7 +403,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                     "n_hit", "n_miss", "n_pred", "n_add", "cache_size",
                     "n_extrap", "max_extrap_size", "n_slope_floor",
                     "n_pred_retained", "n_extrap_retained",
-                    "max_extrap_size_retained");
+                    "max_extrap_size_retained", "n_isolated");
                 Rcpp::List zr = Rcpp::List::create(
                     Rcpp::_["addc"] = chain.zratio_addc,
                     Rcpp::_["counters"] = counters);

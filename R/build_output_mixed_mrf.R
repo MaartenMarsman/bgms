@@ -305,9 +305,14 @@ build_output_mixed_mrf = function(spec, raw) {
     results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
   }
 
-  # Extrapolation notice: independent of the gauge (which can be switched off), so
-  # a fit that deployed the surface beyond its validated hull is never silent.
+  # Routing and extrapolation notices: same pair as the GGM path (see
+  # build_output_bgm), independent of the gauge and driven by the per-chain
+  # counters.
   if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_isolated_route_notice(
+      zratio_chains,
+      eta = zratio_eta(pr$pairwise_scale, pr$scale_rate, pr$scale_eta)
+    )
     zratio_extrapolation_notice(zratio_chains)
   }
 

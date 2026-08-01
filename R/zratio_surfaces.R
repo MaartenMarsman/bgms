@@ -225,6 +225,50 @@ zratio_anchor_sweeps = function(n) {
 .zratio_surface_shape_lo = 0.5
 .zratio_surface_shape_hi = 10
 
+# Largest diagonal rate the isolated-edge routing below is measured at. Every
+# gate in this program was scored at eta 1 and 2, and mediation grows with eta
+# (measured at shape 10: eta 2 exceeds eta 1 by ~3.3x, so the bound is set at
+# the eta-2 end and does not transfer upward by argument). Past this the same
+# route deploys -- the additive alternative is no better there and one rule is
+# better than two -- but the bound is not claimed, and the user is told so.
+.zratio_mediation_off_eta_hi = 2
+
+# ------------------------------------------------------------------------------
+# zratio_mediation_off
+# ------------------------------------------------------------------------------
+# TRUE when the fit deploys the isolated-edge ratio log(psi0) with the mediating
+# correction switched off: the route past the top of the surface's validated
+# shape range.
+#
+# The alternative there is the additive saddle, which is not a coarser version
+# of the correction but a broken one on common-neighbour mediating blocks: it
+# returns essentially zero and discards the entire log-ratio (MEASURED at
+# shape 10, eta 2, k = 20..42: additive error 0.0478 against a gold of 0.0478,
+# 16x outside the 0.003-nat envelope). Serving log(psi0) instead is exact for an
+# unmediated edge and drops only the mediation, and past shape 10 the Gamma
+# diagonal concentrates the precision diagonal until mediation dies:
+#
+#   MEASURED max |gold - log(psi0)|, eta 2, block-Gibbs gold
+#     shape 10   2.84e-04   (22 cells: both families, both eta, sizes 20-100)
+#     shape 12   2.18e-04   (k = 42 and k = 100 at the measured shape-12 bump)
+#     shape 15   1.37e-04   (k = 42)
+#     shape 20   6.22e-05   (k = 42)
+#
+# so the whole error of this route is at most 2.84e-04 nats, two orders below
+# the 0.003-nat envelope every accuracy claim in this program lives in. The
+# decay is NOT pointwise monotone in shape (shape 12 sits above shape 10), so
+# the claim rests on the measured band maximum and not on a monotonicity
+# argument. The constants feeding psi0 are certified to 4.3e-08 through shape 20
+# (nleg = 128; R/zratio_tables.R).
+#
+# One rule for both component families: mediation is negligible for both at
+# these shapes, and two fallback routes would be interface surface with nothing
+# to buy. Below .zratio_surface_shape_lo the additive path is unchanged -- the
+# mediation bound is a large-shape phenomenon and does not apply there.
+zratio_mediation_off = function(zc) {
+  isTRUE(zc$alpha > .zratio_surface_shape_hi)
+}
+
 # Sweep multiplier restoring the shape-1 anchor Monte-Carlo error at a non-unit
 # shape, resolved by matching measured across-seed anchor spread rather than by
 # the 1/acceptance heuristic (which understates the cost, since a rejected row
@@ -437,20 +481,43 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
   cores
 }
 
-# Message the fallback to the additive path when no surface is attached: a
-# Gamma diagonal shape outside the validated range, or a failed build inside it
-# (which must not downgrade the fit silently). Shared by every
-# sampler call site so the two messages stay identical.
+# Message the route taken when no surface is attached. Three cases, and they
+# are different claims, so they get different wordings: a shape past the top of
+# the validated range (isolated-edge routing, bounded), a shape below it
+# (additive path, unchanged), or a failed build inside the range (which must not
+# downgrade the fit silently). Shared by every sampler call site so the wordings
+# cannot drift apart.
 zratio_surface_fence_message = function(zc) {
-  if(zc$alpha < .zratio_surface_shape_lo ||
-    zc$alpha > .zratio_surface_shape_hi) {
+  if(zratio_mediation_off(zc)) {
+    message(
+      "z-ratio: precision shape alpha = ", format(zc$alpha),
+      " is past the absolute-moment surface's validated range (up to shape ",
+      format(.zratio_surface_shape_hi),
+      "), so the mediating correction is switched off and every edge gets the ",
+      "isolated-edge ratio. At these shapes the Gamma diagonal concentrates ",
+      "the precision diagonal and the whole mediated correction is at most ",
+      "0.00028 nats, measured against a block-Gibbs reference at shapes 12, ",
+      "15 and 20; that is the entire error of this route, and it is two ",
+      "orders below the 0.003 nats the surface is claimed to within inside ",
+      "its range."
+    )
+    if(zc$eta > .zratio_mediation_off_eta_hi) {
+      message(
+        "z-ratio: that bound was measured at diagonal rates eta up to ",
+        format(.zratio_mediation_off_eta_hi), " and this fit runs at eta = ",
+        format(zc$eta),
+        ". Mediation grows with eta, so the same route deploys but the ",
+        "measured bound does not cover this cell."
+      )
+    }
+  } else if(zc$alpha < .zratio_surface_shape_lo) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
       " -> additive path (coarser correction). The absolute-moment surface is ",
       "scored against a block-Gibbs reference at shapes 0.5, 1, 2, 3 and 5, ",
       "and deploys on the range those points span up to shape ",
       format(.zratio_surface_shape_hi),
-      "; the interior of that range is interpolated, not measured. Past it ",
+      "; the interior of that range is interpolated, not measured. Below it ",
       "the surface is unscored, and the additive path that serves instead is ",
       "measurably coarse on common-neighbour mediating blocks."
     )
@@ -463,11 +530,43 @@ zratio_surface_fence_message = function(zc) {
   }
 }
 
+# ------------------------------------------------------------------------------
+# zratio_spec_list
+# ------------------------------------------------------------------------------
+# The `zratio` spec one fit hands the sampler: the cell's constants, its
+# (delta, eta, alpha, slab) identity, the trust-gauge sweep count, and the
+# routing R resolved. The C++ side reads it in exactly one place
+# (zratio_engine_from_spec, src/models/ggm/zratio_engine.h), which the GGM
+# sampler, the mixed sampler, and the deployed-route test entry all share.
+#
+# `mediation_off` travels with the constants rather than being re-derived
+# downstream: R owns the deployment policy, the engine deploys what it is
+# handed. The one time that rule was broken -- the engine keeping its own copy
+# of the shape range -- R widened the range, C++ did not, and every non-unit
+# shape silently took the wrong branch.
+#
+# @param zc            Cell constants from zratio_cell_constants.
+# @param gauge_sweeps  In-chain trust-gauge assessment sweeps (0 = off).
+#
+# Returns: the spec list, before any surface is attached.
+# ------------------------------------------------------------------------------
+zratio_spec_list = function(zc, gauge_sweeps) {
+  list(
+    addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
+    wt = zc$wt, psi0 = zc$psi0,
+    delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
+    gauge_sweeps = gauge_sweeps,
+    mediation_off = zratio_mediation_off(zc)
+  )
+}
+
 # Build the Option-B surface for cell `zc`, sized on `size` variables, and, on a
-# successful build, attach it to the `zratio` spec; otherwise keep the additive
-# path (messaging the reason when `verbose`). Centralizes the size cap, cores
-# policy, and fence message the GGM, mixed, and prior sampler paths share.
-# Returns the (possibly surface-carrying) `zratio` list.
+# successful build, attach it to the `zratio` spec; otherwise keep whatever
+# route the spec already carries -- isolated-edge past the validated shape
+# range, additive elsewhere -- and message the reason when `verbose`.
+# Centralizes the size cap, cores policy, and fence message the GGM, mixed, and
+# prior sampler paths share. Returns the (possibly surface-carrying) `zratio`
+# list.
 zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
   surf = zratio_build_surfaces(
     zc,

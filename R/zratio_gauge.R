@@ -91,6 +91,16 @@
 #'     \item{\code{flagged}}{Logical: any chain flagged on either channel.}
 #'   }
 #'
+#' @section Fits that route around the correction entirely:
+#'   Above the Gamma diagonal shape range the correction is scored on, the
+#'   mediating correction is switched off and every edge is served the
+#'   isolated-edge normalizer ratio, which is exact for an edge with no
+#'   mediating structure. The per-chain \code{counters} vector records this as
+#'   \code{n_isolated}, and a fit that took the route says so in a note
+#'   reporting the measured bound on what it leaves out. The gauge still runs
+#'   there and still measures that residual directly, so a flag on such a fit is
+#'   as meaningful as on any other.
+#'
 #' @examples
 #' \donttest{
 #' draws = sample_ggm_prior(
@@ -281,6 +291,87 @@ zratio_gauge_present = function(chains) {
   )))
 }
 
+# One per-chain Z-ratio counter, read defensively: chain output that predates a
+# counter reports it as absent rather than as zero, and a notice must not turn
+# a missing tally into a claim.
+zratio_counter = function(ct, nm) {
+  if(is.null(ct) || !(nm %in% names(ct))) {
+    return(0)
+  }
+  v = suppressWarnings(as.numeric(ct[[nm]]))
+  if(length(v) != 1L || is.na(v)) 0 else v
+}
+
+# The per-chain counter blocks of a fit, dropping chains that carry none.
+zratio_counter_blocks = function(chains) {
+  Filter(
+    function(ct) !is.null(ct),
+    lapply(chains, function(ch) ch$zratio$counters)
+  )
+}
+
+# ------------------------------------------------------------------------------
+# zratio_isolated_route_notice
+# ------------------------------------------------------------------------------
+# One graceful, per-fit notice when the hierarchical prior served the
+# isolated-edge ratio because the Gamma diagonal shape sits past the surface's
+# validated range (zratio_mediation_off). The engine tallies `n_isolated` per
+# chain, so this fires on what the fit actually did rather than on what the spec
+# intended -- the spec-build message states the policy before the chains launch,
+# and this states the outcome after they finish.
+#
+# It carries the bound, because the bound is the whole reason the route is
+# acceptable: the value served is exact for an edge with no mediating structure,
+# so the entire error is the mediation dropped, measured at no more than
+# 2.8e-04 nats at diagonal rates up to .zratio_mediation_off_eta_hi. Past that
+# rate the same route deploys and the notice says plainly that the measurement
+# does not cover the cell, which is the only honest thing to say about it.
+#
+# @param chains  Raw per-chain sampler output.
+# @param eta     The fit's standardized diagonal rate.
+#
+# Returns invisible(TRUE) when a notice was emitted.
+# ------------------------------------------------------------------------------
+zratio_isolated_route_notice = function(chains, eta) {
+  counters = zratio_counter_blocks(chains)
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_iso = sum(vapply(counters, zratio_counter, numeric(1), "n_isolated"))
+  if(n_iso <= 0) {
+    return(invisible(FALSE))
+  }
+  covered = is.finite(eta) && eta <= .zratio_mediation_off_eta_hi
+  message(sprintf(
+    paste0(
+      "Note: the precision diagonal's Gamma shape is past the range the ",
+      "hierarchical prior's edge correction is scored on, so all %s edge ",
+      "evaluations in this fit used the isolated-edge normalizer ratio with ",
+      "the mediating correction switched off. That value is exact for an edge ",
+      "with no mediating structure, so the whole error is the mediating ",
+      "correction it leaves out. %s"
+    ),
+    format(n_iso, big.mark = ",", scientific = FALSE),
+    if(covered) {
+      paste0(
+        "At this diagonal rate that correction was measured against a ",
+        "block-Gibbs reference at no more than 0.00028 nats, two orders below ",
+        "the 0.003 nats the correction is held to inside its range."
+      )
+    } else {
+      sprintf(
+        paste0(
+          "That correction grows with the diagonal rate and was measured only ",
+          "at rates up to %s; this fit runs at %s, so the measured bound does ",
+          "not cover it."
+        ),
+        format(.zratio_mediation_off_eta_hi), format(eta)
+      )
+    }
+  ))
+  invisible(TRUE)
+}
+
 # One graceful, per-fit notice when the hierarchical prior's fast edge correction
 # was extrapolated beyond its validated block-size range. Mediating blocks larger
 # than the trained surface hull are clamped at deploy (dense regions of large
@@ -288,33 +379,23 @@ zratio_gauge_present = function(chains) {
 # if any block exceeded the hull, emits a single summary message. Independent of
 # the trust gauge, so the signal reaches the user even with the gauge off.
 zratio_extrapolation_notice = function(chains) {
-  get_counter = function(ct, nm) {
-    if(is.null(ct) || !(nm %in% names(ct))) {
-      return(0)
-    }
-    v = suppressWarnings(as.numeric(ct[[nm]]))
-    if(length(v) != 1L || is.na(v)) 0 else v
-  }
-  counters = Filter(
-    function(ct) !is.null(ct),
-    lapply(chains, function(ch) ch$zratio$counters)
-  )
+  counters = zratio_counter_blocks(chains)
   if(length(counters) == 0) {
     return(invisible(FALSE))
   }
-  n_extrap = sum(vapply(counters, get_counter, numeric(1), "n_extrap"))
+  n_extrap = sum(vapply(counters, zratio_counter, numeric(1), "n_extrap"))
   if(n_extrap <= 0) {
     return(invisible(FALSE))
   }
-  n_pred = sum(vapply(counters, get_counter, numeric(1), "n_pred"))
+  n_pred = sum(vapply(counters, zratio_counter, numeric(1), "n_pred"))
   # The retained share is the one that describes the posterior: the sampler
   # initializes from a complete graph, so warmup alone puts every mediating
   # block past the hull for the first sweeps. Warmup is reported in brackets so
   # a warmup-only transient reads as what it is.
-  n_extrap_ret = sum(vapply(counters, get_counter, numeric(1), "n_extrap_retained"))
-  n_pred_ret = sum(vapply(counters, get_counter, numeric(1), "n_pred_retained"))
-  max_ret = max(vapply(counters, get_counter, numeric(1), "max_extrap_size_retained"))
-  max_all = max(vapply(counters, get_counter, numeric(1), "max_extrap_size"))
+  n_extrap_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_extrap_retained"))
+  n_pred_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_pred_retained"))
+  max_ret = max(vapply(counters, zratio_counter, numeric(1), "max_extrap_size_retained"))
+  max_all = max(vapply(counters, zratio_counter, numeric(1), "max_extrap_size"))
   pct_ret = if(n_pred_ret > 0) 100 * n_extrap_ret / n_pred_ret else 0
   pct_warm = if(n_pred - n_pred_ret > 0) {
     100 * (n_extrap - n_extrap_ret) / (n_pred - n_pred_ret)
