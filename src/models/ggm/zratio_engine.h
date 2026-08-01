@@ -304,6 +304,19 @@ public:
     /// separately from n_add so a fit shows which route it actually took: with
     /// the flag live this is every evaluation and n_pred = n_add = 0.
     long n_isolated() const { return n_isolated_; }
+    /// Additive-kernel evaluations whose first moment was non-positive, so the
+    /// saddle map returned 1.0 and the log-ratio was DISCARDED rather than
+    /// approximated. Counts only the additive branch, which is the only route
+    /// that can collapse, and excludes gauge sweeps. max_collapse_size is the
+    /// largest common-neighbour block involved, the scale the documented 15-23
+    /// variable boundary is quoted in.
+    long n_collapsed() const { return n_collapsed_; }
+    int max_collapse_size() const { return max_collapse_size_; }
+    /// The retained-sweep share of the above. The sampler starts from a
+    /// complete graph, so warmup alone collapses on any fit past the boundary;
+    /// only these describe the stored draws.
+    long n_collapsed_retained() const { return n_collapsed_ret_; }
+    int max_collapse_size_retained() const { return max_collapse_size_ret_; }
     /// Deploy-time extrapolation accounting: blocks with a component larger than
     /// the trained hull (extended along the boundary slope at deploy), and the
     /// largest such size seen. The _ret variants count the retained sweeps only.
@@ -481,7 +494,9 @@ private:
     std::unordered_map<std::array<int, 5>, std::pair<double, double>, IntSeqHash>
         comp_cache_;
     long n_hit_ = 0, n_miss_ = 0;
-    long n_pred_ = 0, n_add_ = 0, n_isolated_ = 0;
+    long n_pred_ = 0, n_add_ = 0, n_isolated_ = 0, n_collapsed_ = 0;
+    long n_collapsed_ret_ = 0;
+    int max_collapse_size_ = 0, max_collapse_size_ret_ = 0;
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
     long n_pred_ret_ = 0, n_extrap_ret_ = 0;

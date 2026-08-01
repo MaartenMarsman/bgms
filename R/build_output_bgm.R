@@ -367,6 +367,7 @@ build_output_bgm = function(spec, raw) {
       zratio_chains,
       eta = zratio_eta(p$pairwise_scale, p$scale_rate, p$scale_eta)
     )
+    zratio_collapse_notice(zratio_chains)
     zratio_extrapolation_notice(zratio_chains)
   }
 

@@ -202,6 +202,117 @@ test_that("the post-fit notice fires on the counters, and scopes its bound by et
   expect_identical(said(list(list()), 2), "")
 })
 
+test_that("the collapse counter counts exactly the guard hits, and nothing else", {
+  # The additive kernel's zero-collapse, in the cell it is actually deployed in
+  # (a Gamma diagonal shape below .zratio_surface_shape_lo). The contract is the
+  # COUNTER, not the discarded value: asserting that log_zratio is 0 there would
+  # pin a known defect as the specification, which is how the deploy-gate bug
+  # survived review. So the value is only ever used as the reference the counter
+  # is checked against, never as an expectation of its own.
+  zc = suppressWarnings(bgms:::zratio_constants(DELTA, 1, alpha = 0.25))
+  spec = bgms:::zratio_attach_surface(
+    bgms:::zratio_spec_list(zc, gauge_sweeps = 0L), zc, size = 40, cores = 1L
+  )
+  # The cell must actually be the additive one, or this tests nothing.
+  expect_false(isTRUE(spec$mediation_off))
+  expect_null(spec$surface)
+
+  collapsed = 0L
+  for(size in 3:30) {
+    r = bgms:::zratio_test_spec_eval(spec, cn_block(size), matrix(c(1L, 2L), 1, 2))
+    hit = r$log_zratio[1] == 0
+    collapsed = collapsed + as.integer(hit)
+    expect_equal(
+      r$n_collapsed, as.integer(hit),
+      label = sprintf("collapse tally at CN block %d", size)
+    )
+    expect_equal(unname(r$n_add), 1)
+    expect_equal(unname(r$n_isolated), 0)
+    expect_equal(unname(r$n_pred), 0)
+  }
+  # The sweep must straddle the boundary, or the equality above is vacuous:
+  # a run of all-zero tallies would pass it just as well.
+  expect_gt(collapsed, 0)
+  expect_lt(collapsed, 28)
+
+  # The reported size is the common-neighbour count, the scale the documented
+  # boundary is quoted in.
+  big = bgms:::zratio_test_spec_eval(spec, cn_block(30), matrix(c(1L, 2L), 1, 2))
+  expect_equal(unname(big$max_collapse_size), 30)
+})
+
+test_that("the surface and isolated-edge routes cannot contaminate the tally", {
+  # The collapse belongs to the additive kernel alone. A cell served by the
+  # surface, and a cell served by the isolated-edge route, must both leave the
+  # counter at zero however large the block.
+  mkfam = function(seed) {
+    set.seed(seed)
+    list(
+      c1 = round(rnorm(9) * 0.1, 4),
+      c2 = c(-4, round(rnorm(8) * 0.02, 4)),
+      size_lo = 3, size_hi = 40, dens_lo = 0.1, dens_hi = 1.0,
+      l1_lo = -10, l1_hi = 10, l2_lo = -10, l2_hi = 10, size_min = 3
+    )
+  }
+  surfaced = bgms:::zratio_spec_list(zc_one, gauge_sweeps = 0L)
+  surfaced$surface = list(cn = mkfam(11), bip = mkfam(22))
+  r = bgms:::zratio_test_spec_eval(surfaced, cn_block(30), matrix(c(1L, 2L), 1, 2))
+  expect_equal(unname(r$n_collapsed), 0)
+  expect_equal(unname(r$max_collapse_size), 0)
+
+  routed = bgms:::zratio_spec_list(zc_hi, gauge_sweeps = 0L)
+  r2 = bgms:::zratio_test_spec_eval(routed, cn_block(30), matrix(c(1L, 2L), 1, 2))
+  expect_true(r2$mediation_off)
+  expect_equal(unname(r2$n_collapsed), 0)
+})
+
+test_that("the collapse notice fires on the counters and is silent otherwise", {
+  said = function(chains) {
+    out = character(0)
+    withCallingHandlers(
+      bgms:::zratio_collapse_notice(chains),
+      message = function(m) {
+        out <<- c(out, conditionMessage(m))
+        invokeRestart("muffleMessage")
+      }
+    )
+    paste(out, collapse = " ")
+  }
+  hit = list(list(zratio = list(counters = list(
+    n_collapsed = 1400, max_collapse_size = 26,
+    n_collapsed_retained = 900, max_collapse_size_retained = 21, n_add = 5000
+  ))))
+  txt = said(hit)
+  expect_match(txt, "900 edge evaluations in the retained sweeps")
+  expect_match(txt, "21 variables")
+  expect_match(txt, "1,400 such evaluations over the whole run")
+  expect_match(txt, "discarded rather than approximated")
+  expect_match(txt, "12 and 32 common-neighbour variables")
+  expect_match(txt, "summarize_zratio_gauge")
+
+  # Warmup-only: the sampler starts from a complete graph, so an oversized
+  # block early on says nothing about the posterior. Reporting that as though
+  # it described the stored draws would be a false alarm on every fit past the
+  # boundary, which is why the tally is split by phase at the engine.
+  warm = list(list(zratio = list(counters = list(
+    n_collapsed = 1400, max_collapse_size = 26,
+    n_collapsed_retained = 0, max_collapse_size_retained = 0, n_add = 5000
+  ))))
+  wtxt = said(warm)
+  expect_match(wtxt, "during warmup only")
+  expect_match(wtxt, "stored draws are unaffected")
+  expect_match(wtxt, "discarded rather than approximated")
+  expect_false(grepl("retained sweeps the hierarchical", wtxt))
+
+  # Silent where nothing collapsed, and on chain output that predates the
+  # counter -- a missing tally is not a tally of zero to be reported.
+  expect_identical(said(list(list(zratio = list(counters = list(
+    n_collapsed = 0, n_add = 5000
+  ))))), "")
+  expect_identical(said(list(list(zratio = list(counters = list(n_add = 5000))))), "")
+  expect_identical(said(list(list())), "")
+})
+
 test_that("a fit past the shape range reports the isolated-edge counter", {
   # The chain-runner layer: the counter is filled in the model and named in
   # chain_runner, and nothing else spans the two. A real chain is the only

@@ -91,6 +91,42 @@
 #'     \item{\code{flagged}}{Logical: any chain flagged on either channel.}
 #'   }
 #'
+#' @section When the additive correction collapses:
+#'   Below a \code{gamma_prior()} diagonal shape of 0.5 the per-edge correction
+#'   is the additive kernel rather than the fitted surface. That kernel sums
+#'   per-channel moment constants over the mediating block's node and edge
+#'   counts and passes the pair to a saddle map, which returns a ratio of 1 --
+#'   log-ratio exactly 0 -- whenever the first moment is not positive. On a
+#'   common-neighbour block the edge constant is a difference and is negative in
+#'   most cells, while the edge count grows as the square of the block size
+#'   against a linear node count, so the sum crosses zero at a size the cell and
+#'   the density fix. Past that size the ratio is \emph{discarded}, not
+#'   approximated: those edge decisions are made with no correction at all.
+#'
+#'   MEASURED over 4160 cells spanning both interaction slabs, both block
+#'   families, ten diagonal shapes, two standardized rates, thirteen block sizes
+#'   and four densities: the moment-sign condition accounts for the collapse in
+#'   every one of them, and a closed-form expression for the size at which it
+#'   fires matches an exact size-by-size scan in 40 of 40 cells. Bipartite
+#'   bridge blocks are unaffected, since only the positive bridge constant
+#'   contributes there.
+#'
+#'   That boundary is not a single number. It moves with the cell and with the
+#'   determinant-tilt exponent \code{delta}, and \code{bgm()} resolves
+#'   \code{delta} from the model dimension by default
+#'   (\eqn{0.5 \log p}), which is also what bounds the largest possible
+#'   mediating block at \eqn{p - 2}. Both therefore move together. MEASURED at
+#'   the default \code{delta} across \eqn{p} from 6 to 120: the boundary runs
+#'   from about 12 to 32 common-neighbour variables, and the collapse is
+#'   \emph{out of reach} at small \eqn{p} (the largest possible block is below
+#'   the boundary) and reachable from roughly 20 to 30 variables upward. A fit
+#'   below that is not exposed to this at all.
+#'
+#'   The per-chain \code{counters} vector records \code{n_collapsed} and
+#'   \code{max_collapse_size}, and a fit on which it happened says so in a
+#'   note. This is a documented limitation of the fallback kernel and not a
+#'   property of the surface, which serves every shape from 0.5 up.
+#'
 #' @section Fits that route around the correction entirely:
 #'   Above the Gamma diagonal shape range the correction is scored on, the
 #'   mediating correction is switched off and every edge is served the
@@ -368,6 +404,82 @@ zratio_isolated_route_notice = function(chains, eta) {
         format(.zratio_mediation_off_eta_hi), format(eta)
       )
     }
+  ))
+  invisible(TRUE)
+}
+
+# ------------------------------------------------------------------------------
+# zratio_collapse_notice
+# ------------------------------------------------------------------------------
+# One graceful, per-fit notice when the hierarchical prior's additive fallback
+# kernel DISCARDED the normalizer ratio rather than approximating it. The
+# engine's saddle map returns a ratio of 1 -- log-ratio exactly 0 -- whenever the
+# accumulated first moment is not positive, which happens on a common-neighbour
+# mediating block once the (negative) edge constant outruns the node constant.
+# The engine tallies each occurrence, so this reports what the chains did.
+#
+# The wording says "discarded", not "approximated", because that is what
+# happened: the correction contributed nothing to those edge decisions.
+#
+# No share of evaluations is quoted. The obvious denominator, `n_add`, counts
+# gauge-sweep evaluations while `n_collapsed` deliberately does not, so a ratio
+# of the two would mix scopes; the count and the largest block are exact and are
+# what the documented boundary is read against.
+#
+# @param chains  Raw per-chain sampler output.
+#
+# Returns invisible(TRUE) when a notice was emitted.
+# ------------------------------------------------------------------------------
+zratio_collapse_notice = function(chains) {
+  counters = zratio_counter_blocks(chains)
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_collapsed = sum(vapply(counters, zratio_counter, numeric(1), "n_collapsed"))
+  if(n_collapsed <= 0) {
+    return(invisible(FALSE))
+  }
+  max_size = max(vapply(counters, zratio_counter, numeric(1), "max_collapse_size"))
+  n_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_collapsed_retained"))
+  max_ret = max(vapply(counters, zratio_counter, numeric(1),
+                       "max_collapse_size_retained"))
+  limitation = paste0(
+    "This is a known limitation of the additive kernel, which serves a Gamma ",
+    "diagonal shape below 0.5. The block size at which it discards the ratio ",
+    "depends on the cell and on the determinant-tilt exponent `delta`, and was ",
+    "measured between about 12 and 32 common-neighbour variables; at the ",
+    "default delta it is out of reach on small models and reachable from a few ",
+    "tens of variables upward. See ?summarize_zratio_gauge, section 'When the ",
+    "additive correction collapses'."
+  )
+  if(n_ret <= 0) {
+    # Complete-graph initialization guarantees oversized blocks early on, so a
+    # warmup-only collapse says nothing about the posterior. Saying so is the
+    # difference between a notice and a false alarm.
+    message(sprintf(
+      paste0(
+        "Note: the hierarchical prior's additive correction collapsed on %s ",
+        "edge evaluations during warmup only, and the normalizer ratio was ",
+        "discarded rather than approximated there (largest common-neighbour ",
+        "block involved: %d variables); no retained sweep collapsed. The ",
+        "sampler starts from a complete graph, so this is the initial ",
+        "transient and the stored draws are unaffected. %s"
+      ),
+      format(n_collapsed, big.mark = ",", scientific = FALSE),
+      as.integer(max_size), limitation
+    ))
+    return(invisible(TRUE))
+  }
+  message(sprintf(
+    paste0(
+      "Note: on %s edge evaluations in the retained sweeps the hierarchical ",
+      "prior's additive correction collapsed, and the normalizer ratio was ",
+      "discarded rather than approximated (largest common-neighbour block ",
+      "involved: %d variables; %s such evaluations over the whole run). Edge ",
+      "decisions on those blocks were made with no correction at all. %s"
+    ),
+    format(n_ret, big.mark = ",", scientific = FALSE), as.integer(max_ret),
+    format(n_collapsed, big.mark = ",", scientific = FALSE), limitation
   ))
   invisible(TRUE)
 }

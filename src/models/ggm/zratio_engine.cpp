@@ -683,6 +683,40 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
 
     double s1 = ncn * addc_[0] + cne * addc_[2] + bre * addc_[4];
     double s2 = ncn * addc_[1] + cne * addc_[3] + bre * addc_[5];
+    // Zero-collapse tally. saddle_ratio returns 1.0 -- log-ratio exactly 0 --
+    // whenever the first moment is not positive, so the additive kernel does
+    // not approximate the ratio there, it discards it. That happens because the
+    // common-neighbour edge constant addc_[2] is a difference (the clique-of-two
+    // moment net of its two endpoint nodes) and is negative in most cells, while
+    // cne grows as the square of the block size against a linear ncn. MEASURED
+    // over 4160 cells, this condition accounts for the collapse in every one of
+    // them (dev/validation/zratio_additive_collapse_map.R).
+    //
+    // Counted here rather than inside saddle_ratio for two reasons: this is the
+    // only branch the additive kernel serves, so the surface and isolated-edge
+    // routes cannot contaminate the tally; and s1 is computed on every call
+    // whereas saddle_ratio is skipped on a count-key cache hit, so a tally taken
+    // at the saddle would miss every repeat of a collapsing block.
+    //
+    // s2 is floored below and so cannot fire the guard; only s1 can. Gauge
+    // sweeps are excluded on the same reasoning as the extrapolation tallies --
+    // no stored draw comes from them.
+    if (s1 <= 0.0 && phase_ != ZRatioPhase::Gauge) {
+        n_collapsed_++;
+        // The boundary this is read against is quoted in common-neighbour block
+        // size, and the negative constant that drives the collapse is the CN
+        // edge one, so ncn is the size worth reporting.
+        if (ncn > max_collapse_size_) max_collapse_size_ = ncn;
+        // Split by phase for the same reason the extrapolation tally is: the
+        // sampler initializes from a complete graph, so warmup alone puts every
+        // mediating block at q - 2 and would collapse on any fit above the
+        // boundary regardless of what its posterior looks like. Only the
+        // retained share describes the draws the user keeps.
+        if (phase_ == ZRatioPhase::Retained) {
+            n_collapsed_ret_++;
+            if (ncn > max_collapse_size_ret_) max_collapse_size_ret_ = ncn;
+        }
+    }
     if (s2 <= 0.0) s2 = kS2Floor;
 
     // Additive saddle over (nCN, cne, bre), served from the persistent

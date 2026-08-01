@@ -222,7 +222,12 @@ Rcpp::List zratio_test_spec_eval(
         Rcpp::_["gauge_sweeps"] = zratio_gauge_sweeps_from_spec(zratio_spec),
         Rcpp::_["n_pred"] = static_cast<double>(engine->n_pred()),
         Rcpp::_["n_add"] = static_cast<double>(engine->n_add()),
-        Rcpp::_["n_isolated"] = static_cast<double>(engine->n_isolated())
+        Rcpp::_["n_isolated"] = static_cast<double>(engine->n_isolated()),
+        Rcpp::_["n_collapsed"] = static_cast<double>(engine->n_collapsed()),
+        Rcpp::_["max_collapse_size"] =
+            static_cast<double>(engine->max_collapse_size()),
+        Rcpp::_["n_collapsed_retained"] =
+            static_cast<double>(engine->n_collapsed_retained())
     );
 }
 

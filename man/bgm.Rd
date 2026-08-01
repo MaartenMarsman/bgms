@@ -227,8 +227,12 @@ is not a coarser correction but a broken one: the additive kernel
 returns zero on a large common-neighbour block and discards the whole
 ratio. A shape below 0.5 keeps that additive kernel, and shares its
 limitation: on a fully connected common-neighbour block the additive
-ratio collapses to zero from about 15 to 23 variables upward there
-(measured at shapes 0.1 and 0.25, both slabs). A mediating block beyond
+ratio collapses to zero above a size that depends on the cell and on
+\code{delta}, measured between about 12 and 32 variables. Because
+\code{delta} defaults to \eqn{0.5 \log p}, small models are not
+exposed at all -- the largest possible block sits below the boundary --
+and the collapse becomes reachable from roughly 20 to 30 variables
+upward. A fit reports it (\code{n_collapsed}). A mediating block beyond
 the anchored size range is predicted by continuing
 the surface along its own boundary slope, measured at blocks of 90 to
 150 variables at a median of 0.0006 nats and at most 0.0011 for

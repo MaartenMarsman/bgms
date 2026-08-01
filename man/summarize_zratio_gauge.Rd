@@ -110,6 +110,44 @@ shifts a recovered network. It does not resolve rare edge-specific
 failures: \code{flip_rate} is the flip rate among audited decisions, not a
 per-edge guarantee over all of them.
 }
+\section{When the additive correction collapses}{
+
+Below a \code{gamma_prior()} diagonal shape of 0.5 the per-edge correction
+is the additive kernel rather than the fitted surface. That kernel sums
+per-channel moment constants over the mediating block's node and edge
+counts and passes the pair to a saddle map, which returns a ratio of 1 --
+log-ratio exactly 0 -- whenever the first moment is not positive. On a
+common-neighbour block the edge constant is a difference and is negative in
+most cells, while the edge count grows as the square of the block size
+against a linear node count, so the sum crosses zero at a size the cell and
+the density fix. Past that size the ratio is \emph{discarded}, not
+approximated: those edge decisions are made with no correction at all.
+
+MEASURED over 4160 cells spanning both interaction slabs, both block
+families, ten diagonal shapes, two standardized rates, thirteen block sizes
+and four densities: the moment-sign condition accounts for the collapse in
+every one of them, and a closed-form expression for the size at which it
+fires matches an exact size-by-size scan in 40 of 40 cells. Bipartite
+bridge blocks are unaffected, since only the positive bridge constant
+contributes there.
+
+That boundary is not a single number. It moves with the cell and with the
+determinant-tilt exponent \code{delta}, and \code{bgm()} resolves
+\code{delta} from the model dimension by default
+(\eqn{0.5 \log p}), which is also what bounds the largest possible
+mediating block at \eqn{p - 2}. Both therefore move together. MEASURED at
+the default \code{delta} across \eqn{p} from 6 to 120: the boundary runs
+from about 12 to 32 common-neighbour variables, and the collapse is
+\emph{out of reach} at small \eqn{p} (the largest possible block is below
+the boundary) and reachable from roughly 20 to 30 variables upward. A fit
+below that is not exposed to this at all.
+
+The per-chain \code{counters} vector records \code{n_collapsed} and
+\code{max_collapse_size}, and a fit on which it happened says so in a
+note. This is a documented limitation of the fallback kernel and not a
+property of the surface, which serves every shape from 0.5 up.
+}
+
 \section{Fits that route around the correction entirely}{
 
 Above the Gamma diagonal shape range the correction is scored on, the

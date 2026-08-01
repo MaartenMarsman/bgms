@@ -313,6 +313,7 @@ build_output_mixed_mrf = function(spec, raw) {
       zratio_chains,
       eta = zratio_eta(pr$pairwise_scale, pr$scale_rate, pr$scale_eta)
     )
+    zratio_collapse_notice(zratio_chains)
     zratio_extrapolation_notice(zratio_chains)
   }
 

@@ -277,7 +277,9 @@ zratio_anchor_sweeps = function(n) {
 # the same route would discard something large. It would be measurably wrong by
 # construction, not merely unvalidated. The additive kernel serving there has a
 # known limitation of its own (it discards the ratio on common-neighbour blocks
-# from roughly 15 variables up; dev/validation/zratio_additive_collapse_map.R),
+# above a delta-dependent size, measured at 12-32 variables and out of reach on
+# small models; dev/validation/zratio_additive_collapse_map.R and
+# zratio_collapse_reachability.R),
 # and that is documented rather than traded for a worse approximation.
 zratio_mediation_off = function(zc) {
   isTRUE(zc$alpha > .zratio_surface_shape_hi)
