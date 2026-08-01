@@ -366,3 +366,19 @@ test_that("bgmCompare pairwise effects are on the association scale", {
   expect_lt(rmse(target), 0.2)
   expect_lt(rmse(target), 0.5 * rmse(2 * target))
 })
+
+
+test_that("the shipped data's own language column works as the group indicator", {
+  skip_on_cran()
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the full-defaults Boredom fit"
+  )
+  data("Boredom", package = "bgms")
+  fit = bgmCompare(Boredom[, -1], group_indicator = Boredom$language)
+  expect_s3_class(fit, "bgmCompare")
+  expect_equal(
+    tabulate(extract_arguments(fit)$group),
+    tabulate(match(Boredom$language, unique(Boredom$language)))
+  )
+})
