@@ -196,3 +196,74 @@ test_that("a sparse network draws rather than failing on the node set", {
     expect_invisible(plot(fit, evidence_threshold = threshold))
   }
 })
+
+test_that("the edge panel title reports a capped natural log Bayes factor", {
+  expect_equal(
+    edge_panel_title("a-b", "presence", 301.44),
+    "a-b\npresence, log BF = 301.4"
+  )
+  expect_equal(
+    edge_panel_title("a-b", "absence", -2.34),
+    "a-b\nabsence, log BF = -2.3"
+  )
+  # A saturated edge: exp(1e5) has no printable value, and exp(301) would put
+  # 131 digits in the title.
+  expect_equal(
+    edge_panel_title("a-b", "presence", Inf),
+    "a-b\npresence, log BF > 10,000"
+  )
+  expect_equal(
+    edge_panel_title("a-b", "absence", -Inf),
+    "a-b\nabsence, log BF < -10,000"
+  )
+  expect_snapshot(cat(edge_panel_title("intrusion-dreams", "presence", Inf)))
+})
+
+test_that("naming one variable twice says which one and how to fix it", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan6()
+  expect_error(
+    plot_edge_posterior(fit, 1, 1),
+    "both resolve to 'intrusion'"
+  )
+  expect_error(plot_edge_posterior(fit, 1, 1), "plot_edge_posterior\\(fit, ")
+})
+
+test_that("a mixed network draws its weights at the pairs they belong to", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  set.seed(31)
+  n = 200
+  latent = rnorm(n)
+  x = cbind(
+    round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    latent + rnorm(n, sd = 0.5),
+    round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    latent + rnorm(n, sd = 0.5),
+    latent + rnorm(n, sd = 0.5)
+  )
+  colnames(x) = c("d1", "c1", "d2", "c2", "c3")
+  fit = bgm(x,
+    variable_type = c(
+      "ordinal", "continuous", "ordinal", "continuous",
+      "continuous"
+    ),
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 8,
+    display_progress = "none", verbose = FALSE
+  )
+
+  # The drawn weights come from the pairwise draws, which are in the fit's own
+  # indicator order; the pair index has to follow it or every weight lands on
+  # the wrong edge.
+  weight = colMeans(extract_pairwise_interactions(fit))
+  pairs = indicator_pair_index(fit, 5L)
+  names_out = colnames(x)
+  labels = paste(names_out[pairs[, 1]], names_out[pairs[, 2]], sep = "-")
+  flipped = paste(names_out[pairs[, 2]], names_out[pairs[, 1]], sep = "-")
+  expect_true(all(labels == names(weight) | flipped == names(weight)))
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_invisible(plot(fit, type = "network", evidence_threshold = 3))
+})

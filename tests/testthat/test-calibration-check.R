@@ -178,3 +178,97 @@ test_that("plot.bgms_calibration draws small multiples and checks variables", {
   expect_match(out, "consistency band from 20 resamples")
   expect_match(out, "share_outside_band")
 })
+
+test_that("calibration_check handles Blume-Capel and mixed Blume-Capel fits", {
+  skip_on_cran()
+  x = Wenchuan[stats::complete.cases(Wenchuan[, 1:5]), 1:5]
+
+  # Blume-Capel columns carry an additive shift instead of a recode map, so
+  # the decode and the observed-category lookup both have to read the shift.
+  bc = bgm(x,
+    variable_type = "blume-capel", baseline_category = 1,
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 3,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_true(all(vapply(
+    extract_arguments(bc)$category_levels, is.null, logical(1)
+  )))
+  observed = fitted_observed_data(bc)
+  expect_equal(unname(observed), unname(as.matrix(x)))
+
+  check = calibration_check(bc, nrep = 20, seed = 1)
+  expect_s3_class(check, "bgms_calibration")
+  expect_equal(nrow(check$summary), 5L)
+  expect_true(all(check$summary$kind == "pav"))
+  expect_false(anyNA(check$curves$curve))
+
+  mixed = bgm(x,
+    variable_type = c(
+      "continuous", "continuous", "ordinal", "blume-capel",
+      "blume-capel"
+    ),
+    baseline_category = 1,
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 3,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_equal(unname(fitted_observed_data(mixed)), unname(as.matrix(x)))
+  mixed_check = calibration_check(mixed, nrep = 20, ndraws = 60, seed = 1)
+  expect_equal(nrow(mixed_check$summary), 5L)
+  expect_equal(
+    mixed_check$summary$kind[
+      match(colnames(x), mixed_check$summary$variable)
+    ],
+    c("pit", "pit", "pav", "pav", "pav")
+  )
+  expect_false(anyNA(mixed_check$curves$curve))
+})
+
+test_that("calibration_check reads non-contiguous ordinal category scores", {
+  skip_on_cran()
+  x = Wenchuan[stats::complete.cases(Wenchuan[, 1:5]), 1:5] * 2L + 1L
+
+  fit = bgm(x,
+    variable_type = "ordinal",
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 3,
+    display_progress = "none", verbose = FALSE
+  )
+  expect_equal(
+    extract_arguments(fit)$category_levels[[1]], sort(unique(x[, 1]))
+  )
+  expect_equal(unname(fitted_observed_data(fit)), unname(as.matrix(x)))
+
+  check = calibration_check(fit, nrep = 20, seed = 1)
+  expect_equal(nrow(check$summary), 5L)
+  expect_false(anyNA(check$curves$curve))
+})
+
+test_that("plot.bgms_calibration pages a wide fit and reports the paging", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan5()
+  check = calibration_check(fit, nrep = 20, seed = 2)
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # Five variables at three panels a page is two pages, and the message says so.
+  withr::local_options(bgms.verbose = TRUE)
+  expect_message(plot(check, max_panels = 3L), "Showing page 1 of 2")
+  expect_message(plot(check, max_panels = 3L, page = 2L), "Showing page 2 of 2")
+  expect_error(plot(check, max_panels = 3L, page = 3L), "make 2 pages")
+  # One page, nothing to page through, nothing to say.
+  expect_silent(plot(check))
+  expect_invisible(plot(check, variables = "intrusion", max_panels = 1L))
+})
+
+test_that("the printed calibration summary states the share's units", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan5()
+  check = calibration_check(fit, nrep = 20, seed = 2)
+
+  expect_true(all(check$summary$share_outside_band >= 0 &
+    check$summary$share_outside_band <= 1))
+  out = paste(utils::capture.output(print(check)), collapse = "\n")
+  expect_match(out, "proportion of the curve that does not")
+  expect_match(out, "0 to 1 scale")
+})

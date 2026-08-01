@@ -69,23 +69,87 @@ rb_se_logit = function(mcse, pip) {
 # ------------------------------------------------------------------
 # boundary_distance
 # ------------------------------------------------------------------
-# Distance from a log10 Bayes factor to the nearer of the two verdict
-# boundaries, measured in standard errors of that log10 Bayes factor. The
-# standard errors arrive on the logit (natural log odds) scale, so they are
-# divided by log(10) to match.
+# Distance from a log Bayes factor to the nearer of the two verdict
+# boundaries, measured in standard errors of that log Bayes factor. Both the
+# Bayes factor and the standard errors are on the natural log (logit) scale,
+# so the two are already commensurable.
 #
-# @param log10_bf  Log10 inclusion Bayes factor per indicator.
+# @param log_bf    Natural log inclusion Bayes factor per indicator.
 # @param se_logit  Logit-scale standard error per indicator.
-# @param lthr      log10 of the evidence threshold.
+# @param lthr      Natural log of the evidence threshold.
 #
 # Returns: numeric vector of distances in standard errors.
 # ------------------------------------------------------------------
-boundary_distance = function(log10_bf, se_logit, lthr) {
-  gap = pmin(abs(log10_bf - lthr), abs(log10_bf + lthr))
-  se10 = se_logit / log(10)
-  out = gap / se10
-  out[!is.finite(se10) | se10 <= 0] = NA_real_
+boundary_distance = function(log_bf, se_logit, lthr) {
+  gap = pmin(abs(log_bf - lthr), abs(log_bf + lthr))
+  out = gap / se_logit
+  out[!is.finite(se_logit) | se_logit <= 0] = NA_real_
   out
+}
+
+
+# ------------------------------------------------------------------
+# format_log_bf
+# ------------------------------------------------------------------
+# Display form of a log Bayes factor: the rounded value inside the reporting
+# cap, and an inequality outside it. Past the cap the digits carry no
+# information a longer run would reproduce, and an infinite Bayes factor has
+# no value to print at all.
+#
+# @param log_bf  Natural log inclusion Bayes factor (scalar).
+# @param cap     Magnitude past which an inequality is printed.
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+format_log_bf = function(log_bf, cap = 1e4) {
+  if(is.na(log_bf)) {
+    return("NA")
+  }
+  if(log_bf > cap) {
+    return(sprintf("> %s", format(cap, big.mark = ",", scientific = FALSE)))
+  }
+  if(log_bf < -cap) {
+    return(sprintf("< -%s", format(cap, big.mark = ",", scientific = FALSE)))
+  }
+  sprintf("= %.1f", log_bf)
+}
+
+
+# ------------------------------------------------------------------
+# indicator_pair_index
+# ------------------------------------------------------------------
+# Row/column positions of a bgm fit's edge indicators, in the order its raw
+# indicator draws lay them out.
+#
+# A GGM or ordinal fit lays its indicators out as the row-major upper triangle
+# of the variable order. A mixed fit lays them out by block --
+# discrete-discrete, then continuous-continuous, then cross -- which is a
+# different permutation whenever the discrete and continuous columns interleave.
+# Reading a symmetric matrix (Bayes factors, inclusion probabilities) at the
+# wrong one attaches every number to the wrong edge.
+#
+# @param bgms_object   A bgms fit.
+# @param num_variables Number of variables.
+#
+# Returns: an E x 2 integer matrix of (row, column) positions.
+# ------------------------------------------------------------------
+indicator_pair_index = function(bgms_object, num_variables) {
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    num_pairs = num_variables * (num_variables - 1L) / 2L
+    blank = character(num_variables)
+    # fill_mixed_symmetric() is the layout the raw draws follow, so filling it
+    # with the draw positions reads that layout back off as an index.
+    positions = fill_mixed_symmetric(
+      seq_len(num_pairs), d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices, list(blank, blank)
+    )
+    upper = which(upper.tri(positions), arr.ind = TRUE)
+    return(upper[order(positions[upper]), , drop = FALSE])
+  }
+  idx = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
+  idx[order(idx[, "row"], idx[, "col"]), , drop = FALSE]
 }
 
 
@@ -117,7 +181,7 @@ compare_indicator_index = function(num_variables) {
 # per-indicator name, Bayes factor, and inclusion probability.
 #
 # @param parameter  Indicator names, in the raw draws' order.
-# @param log10_bf   Log10 inclusion Bayes factor per indicator.
+# @param log_bf     Natural log inclusion Bayes factor per indicator.
 # @param pip        Rao-Blackwellized inclusion probability per indicator.
 # @param mcse       Its MCSE, from the fit summary's inclusion table.
 # @param draws      List of raw indicator chains (niter x nparam 0/1 matrices).
@@ -129,15 +193,15 @@ compare_indicator_index = function(num_variables) {
 #
 # Returns: a bgms_verdicts data frame.
 # ------------------------------------------------------------------
-build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_threshold,
+build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshold,
                           flag_validated) {
-  lthr = log10(evidence_threshold)
+  lthr = log(evidence_threshold)
 
   se_two_state = two_state_se_logit(draws)
   se_rb = rb_se_logit(mcse, pip)
 
-  d_two_state = boundary_distance(log10_bf, se_two_state, lthr)
-  d_rb = boundary_distance(log10_bf, se_rb, lthr)
+  d_two_state = boundary_distance(log_bf, se_two_state, lthr)
+  d_rb = boundary_distance(log_bf, se_rb, lthr)
 
   # Union rule: an edge is fragile when EITHER standard error places a verdict
   # boundary within two of them. Neither alone catches every Monte Carlo
@@ -150,10 +214,10 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
   out = data.frame(
     parameter = parameter,
     pip = pip,
-    bf = 10^log10_bf,
-    log10_bf = log10_bf,
+    bf = exp(log_bf),
+    log_bf = log_bf,
     verdict = factor(
-      verdict_from_lbf(log10_bf, lthr),
+      verdict_from_lbf(log_bf, lthr),
       levels = c("presence", "undecided", "absence")
     ),
     se_two_state = se_two_state,
@@ -193,9 +257,10 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
 #'   \describe{
 #'     \item{parameter}{Indicator name, as in `summary(fit)$indicator`.}
 #'     \item{pip}{Rao-Blackwellized posterior inclusion probability.}
-#'     \item{bf, log10_bf}{Inclusion Bayes factor and its base-10 logarithm,
-#'       from [extract_inclusion_bf()]. `log10_bf` stays finite where `bf`
-#'       saturates at `0` or `Inf`.}
+#'     \item{bf, log_bf}{Inclusion Bayes factor and its natural logarithm,
+#'       from [extract_inclusion_bf()], which returns the same natural-log
+#'       scale under `log = TRUE`. `log_bf` stays finite where `bf` saturates
+#'       at `0` or `Inf`.}
 #'     \item{verdict}{Factor with levels `presence`, `undecided`, `absence`,
 #'       and `NA` for indicators that were never updated (main-effect
 #'       differences under `main_difference_selection = FALSE`).}
@@ -203,7 +268,7 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
 #'       probability, from the Jeffreys-smoothed two-state model of the
 #'       indicator chain and from the Rao-Blackwellized draws. `se_rb` is `NA`
 #'       where the Rao-Blackwellized draws are constant to double precision.}
-#'     \item{distance_two_state, distance_rb}{Distance from `log10_bf` to the
+#'     \item{distance_two_state, distance_rb}{Distance from `log_bf` to the
 #'       nearer verdict boundary, in units of each standard error.}
 #'     \item{fragile}{`TRUE` when either distance is below 2.}
 #'   }
@@ -215,7 +280,7 @@ build_verdicts = function(parameter, log10_bf, pip, mcse, draws, evidence_thresh
 #' Monte Carlo verdict errors are a boundary phenomenon. In a known-truth
 #' calibration study of 37,010 graded edge-fits across ordinal, binary, and
 #' Gaussian graphical models, every one of the 66 verdict errors sat within
-#' 0.25 of a threshold on the log10 Bayes factor scale, and no edge further out
+#' 0.58 of a threshold on the log Bayes factor scale, and no edge further out
 #' was ever misclassified. The fragility flag turns that into a per-edge
 #' statement: an edge is fragile when a verdict boundary lies within two
 #' standard errors of the estimated evidence, which is the regime where the
@@ -284,15 +349,14 @@ verdicts.bgms = function(bgms_object, evidence_threshold = 10, ...) {
   summary_indicator = bgms_object$posterior_summary_indicator
 
   num_variables = nrow(bgms_object$posterior_mean_indicator)
-  idx = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
-  idx = idx[order(idx[, "row"], idx[, "col"]), , drop = FALSE]
+  idx = indicator_pair_index(bgms_object, num_variables)
 
-  log10_bf = extract_inclusion_bf(bgms_object, log = TRUE)[idx] / log(10)
+  log_bf = extract_inclusion_bf(bgms_object, log = TRUE)[idx]
   pip = bgms_object$posterior_mean_indicator[idx]
 
   build_verdicts(
     parameter = raw$parameter_names$indicator,
-    log10_bf = log10_bf,
+    log_bf = log_bf,
     pip = pip,
     mcse = summary_indicator[["mcse"]],
     draws = raw$indicator,
@@ -325,7 +389,7 @@ verdicts.bgmCompare = function(bgms_object, evidence_threshold = 10, ...) {
 
   build_verdicts(
     parameter = raw$parameter_names$indicator,
-    log10_bf = bf[idx] / log(10),
+    log_bf = bf[idx],
     pip = extract_posterior_inclusion_probabilities(bgms_object)[idx],
     mcse = summary_indicator[["mcse"]],
     draws = raw$indicator,
@@ -376,7 +440,7 @@ check_evidence_threshold = function(evidence_threshold) {
 print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
   # Subsetting columns keeps the class but not the table: print what is left as
   # the plain data frame it has become, rather than failing on a missing column.
-  required = c("parameter", "pip", "log10_bf", "verdict", "fragile")
+  required = c("parameter", "pip", "log_bf", "verdict", "fragile")
   if(!all(required %in% names(x))) {
     print(as.data.frame(x), ...)
     return(invisible(x))
@@ -384,8 +448,14 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
 
   threshold = attr(x, "evidence_threshold")
   cat(sprintf(
-    "Edge verdicts at an inclusion Bayes factor of %g (and %g for absence):\n\n",
+    "Edge verdicts at an inclusion Bayes factor of %g (and %g for absence):\n",
     threshold, 1 / threshold
+  ))
+  # The table reports the evidence as a natural log Bayes factor, so the
+  # boundaries are stated in that unit rather than left to be converted.
+  cat(sprintf(
+    "presence: log BF > %.2f; absence: log BF < -%.2f\n\n",
+    log(threshold), log(threshold)
   ))
 
   tally = table(x$verdict)
@@ -405,7 +475,7 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
   body = data.frame(
     parameter = shown$parameter,
     pip = round(shown$pip, digits),
-    log10_bf = round(shown$log10_bf, digits),
+    log_bf = round(shown$log_bf, digits),
     verdict = as.character(shown$verdict),
     fragile = shown$fragile,
     check.names = FALSE

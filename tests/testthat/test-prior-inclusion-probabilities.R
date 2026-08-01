@@ -18,6 +18,15 @@ prior_pip_ggm_data = function() {
   x
 }
 
+# The hierarchical specification builds a Z-ratio surface at fit time, whose
+# bipartite anchor grid starts at four nodes, so its fits need a wider block.
+prior_pip_hier_data = function() {
+  set.seed(7)
+  x = matrix(rnorm(80 * 5), 80, 5)
+  colnames(x) = paste0("c", 1:5)
+  x
+}
+
 # Interleaved variable order so the class placement in the output matrix is
 # exercised through the reordering, not just the block layout.
 prior_pip_mixed_data = function() {
@@ -242,4 +251,99 @@ test_that("posterior extractor maps mixed indicators through block order", {
     extract_posterior_inclusion_probabilities(fit),
     fit$posterior_mean_indicator
   )
+})
+
+
+# --------------------------------------------------------------------------- #
+# The hierarchical specification
+#
+# p(K | Gamma) is normalized per graph there, so integrating K out returns
+# pi(Gamma) exactly: the prior inclusion probability of a
+# continuous-continuous edge is the edge prior's own marginal, with no tilt to
+# read off a table and no prior-only chain to run.
+# --------------------------------------------------------------------------- #
+
+test_that("a hierarchical fit's prior inclusion probability is the edge prior", {
+  skip_on_cran()
+
+  x = prior_pip_hier_data()
+  hier = small_fit(x, "continuous", bernoulli_prior(0.4),
+    precision_graph_prior = "hierarchical"
+  )
+  joint = small_fit(x, "continuous", bernoulli_prior(0.4),
+    precision_graph_prior = "joint"
+  )
+
+  hier_pip = extract_prior_inclusion_probabilities(hier)
+  expect_equal(hier_pip[upper.tri(hier_pip)], rep(0.4, 10L))
+
+  # The joint specification's tilt is what the two differ by, and it is real.
+  joint_pip = extract_prior_inclusion_probabilities(joint)
+  expect_false(isTRUE(all.equal(joint_pip[1, 2], 0.4)))
+
+  bb = small_fit(x, "continuous", beta_bernoulli_prior(alpha = 2, beta = 3),
+    precision_graph_prior = "hierarchical"
+  )
+  bb_pip = extract_prior_inclusion_probabilities(bb)
+  expect_equal(bb_pip[upper.tri(bb_pip)], rep(2 / 5, 10L))
+})
+
+test_that("a hierarchical fit needs neither a correction table nor a chain", {
+  skip_on_cran()
+
+  # An empty cache directory with table building disabled: a route that reaches
+  # ggm_correction_table() would have to run the sweep, which takes minutes.
+  # The closed form returns at once.
+  withr::local_options(
+    bgms.correction_cache_dir = withr::local_tempdir()
+  )
+  x = prior_pip_hier_data()
+  fit = small_fit(x, "continuous", bernoulli_prior(0.5),
+    precision_graph_prior = "hierarchical"
+  )
+
+  elapsed = system.time(
+    pip <- extract_prior_inclusion_probabilities(fit, recompute = TRUE)
+  )[["elapsed"]]
+  expect_lt(elapsed, 5)
+  expect_equal(pip[1, 2], 0.5)
+})
+
+test_that("hierarchical per-edge Bernoulli probabilities pass through", {
+  skip_on_cran()
+
+  x = prior_pip_hier_data()
+  probability = matrix(0.3, 5L, 5L)
+  probability[1, 2] = probability[2, 1] = 0.7
+  fit = small_fit(x, "continuous", bernoulli_prior(probability),
+    precision_graph_prior = "hierarchical"
+  )
+
+  pip = extract_prior_inclusion_probabilities(fit)
+  expect_equal(pip[1, 2], 0.7)
+  expect_equal(pip[1, 3], 0.3)
+  expect_equal(unname(diag(pip)), rep(0, 5L))
+})
+
+test_that("the class values are cached on the fit and survive a round trip", {
+  skip_on_cran()
+
+  x = prior_pip_hier_data()
+  fit = small_fit(x, "continuous", bernoulli_prior(0.4),
+    precision_graph_prior = "hierarchical"
+  )
+  cache = get_fit_cache(fit)
+  expect_null(cache$prior_inclusion_class_values)
+
+  first = extract_prior_inclusion_probabilities(fit)
+  expect_false(is.null(cache$prior_inclusion_class_values))
+
+  path = withr::local_tempfile(fileext = ".rds")
+  saveRDS(fit, path)
+  restored = readRDS(path)
+  expect_equal(
+    get_fit_cache(restored)$prior_inclusion_class_values,
+    cache$prior_inclusion_class_values
+  )
+  expect_equal(extract_prior_inclusion_probabilities(restored), first)
 })

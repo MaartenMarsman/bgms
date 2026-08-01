@@ -150,8 +150,9 @@ plot.bgms = function(x,
   variables = extract_arguments(x)$data_columnnames
   num_variables = length(variables)
 
-  pairs = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
-  pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
+  # The weights and the verdicts are both in the fit's raw indicator order, so
+  # the pair positions have to be read off in that order too.
+  pairs = indicator_pair_index(x, num_variables)
 
   drawn = !is.na(edges$verdict) & edges$verdict != "absence"
   if(!any(drawn)) {
@@ -540,7 +541,13 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   first = resolve_variable(variable1, variables, "variable1")
   second = resolve_variable(variable2, variables, "variable2")
   if(first == second) {
-    stop("Arguments 'variable1' and 'variable2' must name two different variables.")
+    stop(
+      "Arguments 'variable1' and 'variable2' both resolve to '",
+      variables[first], "', but an edge joins two different variables. ",
+      "Name the other end of the edge, for example plot_edge_posterior(fit, '",
+      variables[first], "', '",
+      variables[if(first == 1L) 2L else 1L], "')."
+    )
   }
   if(first > second) {
     swap = first
@@ -564,17 +571,7 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
 
   edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
   row = edges[edges$parameter == label, , drop = FALSE]
-  bayes_factor = row$bf
-  title = sprintf(
-    "%s\n%s, BF = %s", label, as.character(row$verdict),
-    if(is.finite(bayes_factor) && bayes_factor >= 1) {
-      sprintf("%.1f", bayes_factor)
-    } else if(is.finite(bayes_factor)) {
-      sprintf("%.3f", bayes_factor)
-    } else {
-      format(bayes_factor)
-    }
-  )
+  title = edge_panel_title(label, as.character(row$verdict), row$log_bf)
 
   ink = "grey25"
   muted = "grey55"
@@ -615,6 +612,25 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   )
 
   invisible(bgms_object)
+}
+
+
+# ------------------------------------------------------------------
+# edge_panel_title
+# ------------------------------------------------------------------
+# Two-line title of an edge posterior panel: the edge, then its verdict and
+# the evidence as a natural log Bayes factor. A saturated edge gets an
+# inequality; printing exp() of a three-figure log Bayes factor would fill the
+# title with a hundred digits none of which the run resolves.
+#
+# @param label    The edge label.
+# @param verdict  The verdict, as a character string.
+# @param log_bf   Natural log inclusion Bayes factor.
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+edge_panel_title = function(label, verdict, log_bf) {
+  sprintf("%s\n%s, log BF %s", label, verdict, format_log_bf(log_bf))
 }
 
 

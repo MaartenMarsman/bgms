@@ -349,3 +349,41 @@ test_that("return list has all expected elements", {
   )
   expect_named(res, expected_names)
 })
+
+
+# ==============================================================================
+# 12. R CMD check's two-core limit
+# ==============================================================================
+
+test_that("_R_CHECK_LIMIT_CORES_ caps the resolved sampler cores at two", {
+  detected = as.integer(parallel::detectCores())
+  skip_if(detected < 3L, "machine has fewer than three cores")
+
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "TRUE")
+  expect_equal(vs(cores = detected)$cores, 2L)
+  expect_equal(vs(cores = 1L)$cores, 1L)
+  expect_equal(normalize_parallel_cores(detected), 2L)
+  expect_true(check_limit_cores())
+})
+
+test_that("the core cap is off without the check environment variable", {
+  detected = as.integer(parallel::detectCores())
+  skip_if(detected < 3L, "machine has fewer than three cores")
+
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = NA)
+  expect_false(check_limit_cores())
+  expect_equal(vs(cores = detected)$cores, detected)
+  # The literal string "false" is what R CMD check writes when it does not
+  # want the limit, and it is not a request for two cores.
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = "false")
+  expect_false(check_limit_cores())
+  expect_equal(normalize_parallel_cores(detected), detected)
+})
+
+test_that("resolved cores never exceed the machine and stay integer", {
+  detected = as.integer(parallel::detectCores())
+  withr::local_envvar(`_R_CHECK_LIMIT_CORES_` = NA)
+  expect_equal(normalize_parallel_cores(detected + 100L), detected)
+  expect_identical(normalize_parallel_cores(2), 2L)
+  expect_identical(vs(cores = 2)$cores, 2L)
+})

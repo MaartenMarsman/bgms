@@ -44,7 +44,9 @@ An object of class \code{bgms_calibration}, a list with:
 \code{curve}, and the band bounds \code{lower} and \code{upper}.}
 \item{summary}{One row per variable, worst first: \code{kind}, \code{mean_dev} and
 \code{max_dev}, the mean and maximum absolute distance of the curve from the
-diagonal, and \code{share_outside_band}.}
+diagonal, and \code{share_outside_band}, the proportion of the grid points
+at which the curve lies outside its consistency band, on a 0 to 1
+scale rather than a percentage.}
 \item{nrep, probs, grid, ndraws}{The settings the check ran under.}
 }
 }

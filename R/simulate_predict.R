@@ -132,7 +132,7 @@ simulate.bgms = function(object,
 
   # Validate cores
   check_positive_integer(cores, "cores")
-  cores = as.integer(cores)
+  cores = normalize_parallel_cores(cores)
 
   # Setting the seed
   seed = check_seed(seed)

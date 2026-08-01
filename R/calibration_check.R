@@ -45,9 +45,11 @@ fitted_observed_data = function(bgms_object) {
     return(out)
   }
 
-  decode = function(x, levels_list) {
-    for(j in seq_len(ncol(x))) x[, j] = levels_list[[j]][x[, j] + 1L]
-    x
+  # Regular ordinal columns carry a recode map, Blume-Capel columns an additive
+  # shift, so the inverse of the training recode is the same one simulate()
+  # uses to return data on the original scale.
+  decode = function(x) {
+    recode_simulated_to_original(x, d$category_levels, d$blume_capel_shift)
   }
 
   if(identical(spec$model_type, "mixed_mrf")) {
@@ -55,14 +57,45 @@ fitted_observed_data = function(bgms_object) {
       nrow = d$num_cases, ncol = d$num_variables,
       dimnames = list(NULL, d$data_columnnames)
     )
-    out[, d$discrete_indices] = decode(d$x_discrete, d$category_levels)
+    out[, d$discrete_indices] = decode(d$x_discrete)
     out[, d$continuous_indices] = d$x_continuous
     return(out)
   }
 
-  out = decode(d$x, d$category_levels)
+  out = decode(d$x)
   colnames(out) = d$data_columnnames
   out
+}
+
+
+# ------------------------------------------------------------------
+# discrete_category_index
+# ------------------------------------------------------------------
+# 1-based index of each observed value among a discrete variable's categories,
+# i.e. the column of the predicted-probability matrix the case fell in.
+#
+# @param values      Observed values on the original scale.
+# @param levels_v    The variable's recode map, or NULL for Blume-Capel.
+# @param shift_v     The variable's additive shift, or NA for regular ordinal.
+# @param variable    Variable name, for the error message.
+#
+# Returns: integer vector of category indices.
+# ------------------------------------------------------------------
+discrete_category_index = function(values, levels_v, shift_v, variable) {
+  index = if(!is.null(levels_v)) {
+    match(values, levels_v)
+  } else if(!is.na(shift_v)) {
+    # Blume-Capel: the category score itself indexes the categories once the
+    # training shift to the 0-based scale is removed.
+    as.integer(round(values - shift_v)) + 1L
+  } else {
+    stop(
+      "The fit carries neither a recode map nor a category shift for ",
+      "variable '", variable, "', so its observed categories cannot be ",
+      "located. Re-fit with the current bgms version."
+    )
+  }
+  index
 }
 
 
@@ -214,7 +247,9 @@ uniform_ecdf_band = function(n, nrep, probs, grid) {
 #'       `curve`, and the band bounds `lower` and `upper`.}
 #'     \item{summary}{One row per variable, worst first: `kind`, `mean_dev` and
 #'       `max_dev`, the mean and maximum absolute distance of the curve from the
-#'       diagonal, and `share_outside_band`.}
+#'       diagonal, and `share_outside_band`, the proportion of the grid points
+#'       at which the curve lies outside its consistency band, on a 0 to 1
+#'       scale rather than a percentage.}
 #'     \item{nrep, probs, grid, ndraws}{The settings the check ran under.}
 #'   }
 #'
@@ -360,12 +395,18 @@ calibration_check.bgms = function(bgms_object,
       newdata = newdata, variables = disc_names,
       type = "probabilities", method = "posterior-mean"
     )
-    levels_list = arguments$category_levels
-    names(levels_list) = if(isTRUE(arguments$is_mixed)) {
+    # Both bookkeeping vectors are indexed over the discrete columns alone on
+    # the mixed path and over all columns otherwise.
+    discrete_names = if(isTRUE(arguments$is_mixed)) {
       arguments$data_columnnames_discrete
     } else {
       arguments$data_columnnames
     }
+    levels_list = arguments$category_levels
+    names(levels_list) = discrete_names
+    shifts = arguments$blume_capel_shift
+    if(is.null(shifts)) shifts = rep(NA_real_, length(discrete_names))
+    names(shifts) = discrete_names
 
     for(v in names(predicted)) {
       probabilities = predicted[[v]]
@@ -378,7 +419,9 @@ calibration_check.bgms = function(bgms_object,
       # information about calibration.
       p = as.vector(cumulative[, -num_categories, drop = FALSE])
 
-      observed_index = match(newdata[, v], levels_list[[v]])
+      observed_index = discrete_category_index(
+        newdata[, v], levels_list[[v]], shifts[[v]], v
+      )
       y = as.integer(outer(observed_index, seq_len(num_thresholds), "<="))
       observed_curve = pav_curve(p, y, grid)
 
@@ -459,7 +502,8 @@ print.bgms_calibration = function(x, digits = 3, max_rows = 10L, ...) {
   }
   cat(
     "\nA calibrated variable tracks the diagonal and stays inside its band;",
-    "\n'share_outside_band' is the share of the curve that does not.\n"
+    "\n'share_outside_band' is the proportion of the curve that does not, on a",
+    "\n0 to 1 scale (0.3 is 30% of the curve, not 0.3%).\n"
   )
   kinds = unique(x$summary$kind)
   if("pit" %in% kinds) {
@@ -492,26 +536,63 @@ print.bgms_calibration = function(x, digits = 3, max_rows = 10L, ...) {
 #' @param x An object of class `bgms_calibration`, from [calibration_check()].
 #' @param variables Optional character vector selecting which variables to
 #'   draw. Defaults to all, worst departure first.
+#' @param max_panels Number of panels drawn at once. A fit with more variables
+#'   than this is drawn one page at a time, worst departure first. Default `9`.
+#' @param page Which page of `max_panels` panels to draw. Default `1`.
 #' @param ... Ignored.
 #'
 #' @return `x`, invisibly. Called for the side effect of drawing.
 #'
+#' @details
+#' Seventeen variables at once leave each panel too small to read, so the
+#' default draws the nine worst and reports how to reach the rest. `variables`
+#' selects panels by name; `page` walks through them a screen at a time.
+#'
 #' @examples
 #' \donttest{
 #' fit = bgm(Wenchuan[, 1:5], display_progress = "none")
-#' plot(calibration_check(fit, nrep = 50))
+#' check = calibration_check(fit, nrep = 50)
+#' plot(check)
+#'
+#' # One variable at a time.
+#' plot(check, variables = "intrusion")
 #' }
 #'
 #' @seealso [calibration_check()]
 #' @family diagnostics
 #' @export
-plot.bgms_calibration = function(x, variables = NULL, ...) {
-  shown = if(is.null(variables)) x$summary$variable else variables
-  unknown = setdiff(shown, x$summary$variable)
+plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
+                                 page = 1L, ...) {
+  check_positive_integer(max_panels, "max_panels")
+  check_positive_integer(page, "page")
+  selected = if(is.null(variables)) x$summary$variable else variables
+  unknown = setdiff(selected, x$summary$variable)
   if(length(unknown)) {
     stop(
       "These variables are not in the calibration check: ",
       paste(unknown, collapse = ", "), "."
+    )
+  }
+
+  max_panels = as.integer(max_panels)
+  page = as.integer(page)
+  num_pages = max(1L, ceiling(length(selected) / max_panels))
+  if(page > num_pages) {
+    stop(
+      "Argument 'page' is ", page, ", but ", length(selected), " variable",
+      if(length(selected) == 1L) "" else "s", " at ", max_panels,
+      " panels a page make ", num_pages, " page",
+      if(num_pages == 1L) "" else "s", "."
+    )
+  }
+  first = (page - 1L) * max_panels + 1L
+  shown = selected[seq.int(first, min(first + max_panels - 1L, length(selected)))]
+  if(num_pages > 1L && isTRUE(getOption("bgms.verbose", TRUE))) {
+    message(
+      "Showing page ", page, " of ", num_pages, " (", length(selected),
+      " variables, worst departure first). Draw the rest with page = ",
+      paste(setdiff(seq_len(num_pages), page), collapse = ", "),
+      ", or select panels with variables = ."
     )
   }
 
