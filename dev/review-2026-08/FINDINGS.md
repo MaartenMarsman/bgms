@@ -81,6 +81,7 @@ as reports 00a–00c and later land.
 | F-068 | major | fixed-verified | `predict.bgmCompare()` centered every Blume-Capel term at baseline 0: `build_arguments_compare()` never stored `baseline_category`, so both the target's own quadratic term AND every neighbour's rest score were mis-centered — up to 0.23 category-probability error on a Boredom BC fit. Found by the F-021 calibration work (the new check caught it — the credibility argument for shipping it). FIXED `2934f3b4` (+ field whitelist `1508a888`) with a manual-reference test pinning the sampler's convention. Never released; rc1-era compare predictions with BC variables were wrong. Merged `4969f843`. | report 06 NEW-1 |
 | F-069 | minor | open (MM) | In-sample calibration of the Boredom compare fit (first output of the new bgmCompare check): several variables sit outside the 95% consistency band for up to ~30% of the curve (worst `entertain`, `loose_ends` in group 1, max_dev ≈ 0.17–0.19) while marginal category probabilities match to <0.01 — conditional-shape miscalibration, not marginal bias. Plausibly REAL pseudolikelihood misfit on real data rather than a machinery defect (margins + F-035-standard round-trips argue the code is right). MM eyeballs `assets/calibration_compare_fixed.pdf`; lead recommends: not a release gate; candidate documented example of what conditional misfit looks like. | report 06 NEW-3 |
 | F-070 | note | open | Sensitivity plot right-margin edge labels can clip at the device edge at default width (pre-existing; visible in before AND after PDFs). Fold into brief 11's style sweep. | report 06 NEW-4 |
+| F-071 | minor | open (process) | The full suite no longer fits the nightly's CI budget: the 2026-08-01 `workflow_dispatch` run on develop was CANCELLED at exactly `timeout-minutes: 120` (17:01:41→19:01:57 UTC) with no test verdict. Pre-freeze scheduled runs finished in ~1h39-40m; the 0.2.0.0 suite (tests +25.8k lines) exceeds 2 h on GitHub's 2-core runners (locally ~12 min on 15 cores). CONSEQUENCE: Monday 2026-08-03's scheduled run on main will be CANCELLED too — it will show neither the 4 expected stale-fence failures nor any clean signal, and reads as infra failure. Remedies: bump `timeout-minutes` (≥240) and/or split fast/slow into separate jobs; note a develop-side fix does NOT rescue Monday (scheduled runs use MAIN's workflow file) — main is frozen, so either pre-announce Monday's cancellation or authorize a CI-only touch to main. Local signal is not degraded: the definitive suite state is report 06's branch-build gates (slow tier: 1 failure = F-049 only). | lead, CI run 30709427193 |
 
 ## Details and verification notes
 
@@ -167,4 +168,8 @@ red Monday run is baked in. Mitigations: (1) the workflow has
 (expected: exactly one failure, F-049); (2) pre-announce Monday's red as
 known-stale. Standing process gap filed under F-044: scheduled validation that
 only ever runs the frozen branch cannot gate integration — point it at develop
-(or run both) post-release.
+(or run both) post-release. UPDATE 2026-08-01 evening: the dispatched develop
+run never produced its verdict — cancelled at the 120-minute job timeout
+(F-071). The "expected signatures" above are therefore unobservable on CI
+until the timeout is raised; the authoritative tier state remains the local
+gates in reports 05/06.
