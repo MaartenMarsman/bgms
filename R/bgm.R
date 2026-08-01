@@ -242,16 +242,33 @@
 #'       posterior at 100-200 variables. That is negligible on a
 #'       production-length fit and noticeable on a short exploratory one,
 #'       which is what the off switch is for.
-#'       Requires \code{edge_selection = TRUE}, a
-#'       \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
-#'       and continuous data — either all-continuous
-#'       (GGM) or mixed with at least two continuous variables. On mixed data the
+#'       Requires a \code{normal_prior()} or \code{cauchy_prior()} interaction
+#'       prior; a \code{beta_prime_prior()} slab is rejected. On mixed data the
 #'       normalizer lives on the continuous block \eqn{K_{yy}}, so the
 #'       Z-ratio enters the continuous-continuous edge moves only, with the
 #'       mediating-block counts read off the continuous subgraph; discrete
 #'       and cross edges are unchanged.}
 #'   }
 #'   Default: \code{"joint"}.
+#'
+#'   The two specifications differ only in how \eqn{p(K \mid \Gamma)} is
+#'   normalized across graphs, so they differ only where the sampler moves
+#'   between graphs. Where it does not, \code{"hierarchical"} is accepted and
+#'   the fit is the same under either value:
+#'   \itemize{
+#'     \item With \code{edge_selection = FALSE} the graph is fixed, there is
+#'       nothing to normalize across, and the two specifications coincide
+#'       exactly. The correction surface and the trust gauge are skipped, so
+#'       the fit does not pay to build them, and \code{fit$zratio_diag} is
+#'       \code{NULL}.
+#'     \item With no continuous precision block — an ordinal model, or mixed
+#'       data with fewer than two continuous variables — there is no \eqn{K}
+#'       for the argument to refer to. A message reports this when
+#'       \code{verbose = TRUE}.
+#'   }
+#'   The slab is checked only where the choice is meaningful, so a
+#'   \code{beta_prime_prior()} is rejected on a continuous block under edge
+#'   selection and tolerated where the argument has no referent.
 #'
 #' @param inclusion_probability `r lifecycle::badge("deprecated")` Numeric
 #'   scalar. Use \code{edge_prior = bernoulli_prior(inclusion_probability)}
