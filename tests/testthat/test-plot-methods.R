@@ -202,28 +202,6 @@ test_that("a sparse network draws rather than failing on the node set", {
   }
 })
 
-test_that("the edge panel title reports a capped natural log Bayes factor", {
-  expect_equal(
-    edge_panel_title("a-b", "presence", 301.44),
-    "a-b\npresence, log BF = 301.4"
-  )
-  expect_equal(
-    edge_panel_title("a-b", "absence", -2.34),
-    "a-b\nabsence, log BF = -2.3"
-  )
-  # A saturated edge: exp(1e5) has no printable value, and exp(301) would put
-  # 131 digits in the title.
-  expect_equal(
-    edge_panel_title("a-b", "presence", Inf),
-    "a-b\npresence, log BF > 10,000"
-  )
-  expect_equal(
-    edge_panel_title("a-b", "absence", -Inf),
-    "a-b\nabsence, log BF < -10,000"
-  )
-  expect_snapshot(cat(edge_panel_title("intrusion-dreams", "presence", Inf)))
-})
-
 test_that("naming one variable twice says which one and how to fix it", {
   skip_on_cran()
   fit = get_bgms_fit_wenchuan6()
@@ -271,4 +249,289 @@ test_that("a mixed network draws its weights at the pairs they belong to", {
   grDevices::pdf(path)
   on.exit(grDevices::dev.off(), add = TRUE)
   expect_invisible(plot(fit, type = "network", evidence_threshold = 3))
+})
+
+
+# ==============================================================================
+# The JASP-style edge posterior panel (F-066)
+# ==============================================================================
+
+# What a panel says, as text: the wording and the structure, with the numbers
+# at a precision a rerun reproduces. Snapshotting this rather than a raster
+# keeps the reviewable content of the figure under test without pinning pixels.
+describe_panel = function(panel) {
+  present = function(part) if(is.null(part)) "no" else "yes"
+  cat("label     : ", panel$label, "\n", sep = "")
+  cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
+  cat("evidence  : ", paste(panel$evidence, collapse = " | "), "\n", sep = "")
+  cat("estimate  : ", paste(panel$estimate %||% "(none)", collapse = " | "),
+    "\n", sep = "")
+  cat("wheel     : ", sprintf("%.3f", panel$wheel_prob), "\n", sep = "")
+  cat("wheel tags: ", paste(panel$wheel_labels %||% "(none)", collapse = " / "),
+    "\n", sep = "")
+  cat("posterior : ", present(panel$posterior), "\n", sep = "")
+  cat("prior     : ", present(panel$prior), "\n", sep = "")
+  cat("dots      : ", if(is.null(panel$dots)) {
+    "none"
+  } else {
+    paste(sprintf("%.3f", panel$dots$y), collapse = ", ")
+  }, "\n", sep = "")
+  cat("window    : ", paste(sprintf("%.2f", edge_panel_window(panel)),
+    collapse = " to "), "\n", sep = "")
+  cat("caption   : ", panel$caption, "\n", sep = "")
+  invisible(NULL)
+}
+
+# One prior, fixed, so the snapshots test the panel and not the fit.
+test_slab_prior = function(scale = 1) {
+  list(
+    density = function(w) stats::dnorm(w, 0, scale),
+    quantile = function(p) stats::qnorm(p, 0, scale),
+    family = "normal", scale = scale
+  )
+}
+
+test_that("the panel of a decisive edge carries the wheel, not a stem", {
+  set.seed(101)
+  draws = c(rnorm(1990, 0.32, 0.04), rep(0, 10))
+  panel = edge_panel_selection(
+    "intrusion-dreams", draws, test_slab_prior(),
+    pip = 0.995, log_bf = 12.4, verdict = "presence"
+  )
+  # The evidence is the Rao-Blackwellized indicator Bayes factor, so there are
+  # no Savage-Dickey ordinates to mark.
+  expect_null(panel$dots)
+  expect_null(panel$wheel_labels)
+  expect_equal(panel$wheel_prob, 0.995)
+  expect_snapshot(describe_panel(panel))
+})
+
+test_that("the panel of an undecided edge splits its wheel", {
+  set.seed(102)
+  draws = c(rnorm(1200, 0.09, 0.03), rep(0, 800))
+  panel = edge_panel_selection(
+    "intrusion-upset", draws, test_slab_prior(),
+    pip = 0.6, log_bf = 0.41, verdict = "undecided"
+  )
+  # "undecided" is not evidence of anything, so the panel does not say it is.
+  expect_equal(panel$subtitle, "undecided")
+  expect_snapshot(describe_panel(panel))
+})
+
+test_that("a saturated edge prints the capped Bayes factor and a full wheel", {
+  set.seed(103)
+  draws = rnorm(2000, 0.41, 0.03)
+  panel = edge_panel_selection(
+    "upset-physior", draws, test_slab_prior(),
+    pip = 1, log_bf = Inf, verdict = "presence"
+  )
+  expect_equal(panel$evidence[1], "PIP > .99")
+  expect_equal(panel$evidence[2], "log BF > 10,000")
+  # The estimate is of the conditional posterior and is unaffected by the cap.
+  expect_snapshot(describe_panel(panel))
+})
+
+test_that("a decisive absence with no included draw is a figure, not an error", {
+  panel = edge_panel_selection(
+    "a-b", rep(0, 2000), test_slab_prior(),
+    pip = 0.0004, log_bf = -7.2, verdict = "absence"
+  )
+  # No conditional posterior exists, so the prior and the wheel carry the
+  # panel; nothing is claimed about a weight that was never sampled.
+  expect_null(panel$posterior)
+  expect_null(panel$estimate)
+  expect_null(panel$interval)
+  expect_false(is.null(panel$prior))
+  expect_match(panel$caption, "No retained draw included this edge")
+  expect_snapshot(describe_panel(panel))
+})
+
+test_that("without edge selection the panel is the Savage-Dickey figure", {
+  set.seed(104)
+  # A posterior that has left zero: the ordinate at zero is near nothing and
+  # the Bayes factor for the edge is decisive.
+  decisive = edge_panel_savage_dickey(
+    "intrusion-dreams", rnorm(4000, 0.32, 0.04), test_slab_prior()
+  )
+  expect_equal(decisive$wheel_labels, c("data|H1", "data|H0"))
+  expect_false(is.null(decisive$dots))
+  # The prior ordinate is exact; the first dot is dnorm(0, 0, 1).
+  expect_equal(decisive$dots$y[1], stats::dnorm(0), tolerance = 1e-12)
+  expect_snapshot(describe_panel(decisive))
+
+  # A posterior piled on zero: the posterior ordinate exceeds the prior one,
+  # the log Bayes factor is negative, and the wheel is mostly pale.
+  absent = edge_panel_savage_dickey(
+    "intrusion-avoidth", rnorm(4000, 0, 0.03), test_slab_prior()
+  )
+  expect_lt(absent$wheel_prob, 0.05)
+  expect_gt(absent$dots$y[2], absent$dots$y[1])
+  expect_snapshot(describe_panel(absent))
+})
+
+test_that("the panel reads a Blume-Capel fit like any other", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:4],
+    variable_type = "blume-capel", baseline_category = 2,
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 3,
+    display_progress = "none", verbose = FALSE
+  )
+  label = "intrusion-dreams"
+  evidence = edge_selection_evidence(fit, label, 10)
+  panel = edge_panel_selection(
+    label, extract_pairwise_interactions(fit)[, label],
+    edge_slab_prior(fit), evidence$pip, evidence$log_bf, evidence$verdict
+  )
+  # Weights are continuous whatever the variable type, so the panel is the
+  # ordinary one; what is asserted here is that nothing about the parameter
+  # layout of a Blume-Capel fit reaches the figure.
+  expect_false(is.null(panel$posterior))
+  expect_null(panel$dots)
+  expect_equal(panel$prior$family, "normal")
+  expect_snapshot({
+    cat("subtitle  : ", panel$subtitle, "\n", sep = "")
+    cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
+    cat("caption   : ", panel$caption, "\n", sep = "")
+  })
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_invisible(plot_edge_posterior(fit, "intrusion", "dreams"))
+})
+
+test_that("the slab prior is the fit's own, not the package default", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  cauchy = bgm(Wenchuan[1:150, 1:4],
+    interaction_prior = cauchy_prior(scale = 2.5),
+    chains = 2, iter = 200, warmup = 200, cores = 2, seed = 6,
+    display_progress = "none", verbose = FALSE
+  )
+  prior = edge_slab_prior(cauchy)
+  expect_equal(prior$family, "cauchy")
+  expect_equal(prior$scale, 2.5)
+  # The default changed in 0.2.0, so a hardcoded Normal(0, 1) would be wrong
+  # here by a factor of three at the origin.
+  expect_equal(prior$density(0), stats::dcauchy(0, 0, 2.5))
+  expect_equal(prior$density(0.4), stats::dcauchy(0.4, 0, 2.5))
+
+  # extract_pairwise_interactions() reports every model type in the frame the
+  # slab applies to, which is what makes one closed form serve them all: it is
+  # the same theta the anchored sensitivity curve reweights on.
+  expect_equal(
+    unname(extract_pairwise_interactions(cauchy)[, 1]),
+    unname(do.call(rbind, anchor_draws(cauchy)$theta)[, 1])
+  )
+})
+
+test_that("a beta-prime slab is drawn through its logistic Jacobian", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[1:150, 1:4],
+    interaction_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
+    chains = 2, iter = 200, warmup = 200, cores = 2, seed = 6,
+    display_progress = "none", verbose = FALSE
+  )
+  prior = edge_slab_prior(fit)
+  expect_equal(prior$family, "beta-prime")
+  at = c(-0.8, 0, 0.35)
+  p = stats::plogis(at)
+  expect_equal(prior$density(at), stats::dbeta(p, 0.5, 0.5) * p * (1 - p))
+  # It is a density: it integrates to one. The tails are evaluated rather than
+  # returning NaN where the Beta density overflows and the Jacobian underflows.
+  expect_equal(stats::integrate(prior$density, -60, 60)$value, 1,
+    tolerance = 1e-4
+  )
+  expect_equal(prior$density(c(-800, 800)), c(0, 0))
+})
+
+test_that("a fit without edge selection takes the Savage-Dickey branch", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan6_noselection()
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # verdicts() refuses such a fit, so the panel must not be reaching for it.
+  expect_error(verdicts(fit), "require edge selection")
+  expect_invisible(plot_edge_posterior(fit, "intrusion", "dreams"))
+
+  panel = edge_panel_savage_dickey(
+    "intrusion-dreams",
+    extract_pairwise_interactions(fit)[, "intrusion-dreams"],
+    edge_slab_prior(fit)
+  )
+  expect_equal(panel$wheel_labels, c("data|H1", "data|H0"))
+  expect_length(panel$dots$y, 2L)
+})
+
+test_that("binwidth is deprecated rather than silently dropped", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan6()
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  withr::local_options(lifecycle_verbosity = "warning")
+  warning = tryCatch(
+    plot_edge_posterior(fit, "intrusion", "dreams", binwidth = 0.02),
+    warning = function(w) w
+  )
+  expect_s3_class(warning, "lifecycle_warning_deprecated")
+  expect_match(conditionMessage(warning), "binwidth")
+  # The message says what replaced it rather than only that it went away.
+  expect_match(conditionMessage(warning), "wheel")
+  expect_match(conditionMessage(warning), "ignored")
+
+  # Without it there is no warning at all.
+  expect_no_warning(plot_edge_posterior(fit, "intrusion", "dreams"))
+})
+
+test_that("a compare fit is refused rather than drawn as one network's edge", {
+  skip_on_cran()
+  fit = get_bgmcompare_fit_wenchuan5()
+  expect_error(
+    plot_edge_posterior(fit, 1, 2),
+    "parameterizes differences between networks"
+  )
+})
+
+test_that("an edge is found in whichever order its fit names it", {
+  columns = c("d1-d2", "c1-c2", "d1-c1", "d2-c1")
+  # A mixed fit lays its pairwise draws out by block and names a cross edge by
+  # its discrete end, which need not be the earlier column.
+  expect_equal(edge_column_label("c1", "d2", columns), "d2-c1")
+  expect_equal(edge_column_label("d2", "c1", columns), "d2-c1")
+  expect_equal(edge_column_label("d1", "d2", columns), "d1-d2")
+  expect_null(edge_column_label("d1", "nope", columns))
+})
+
+test_that("a mixed fit's cross edge is drawn rather than reported missing", {
+  skip_on_cran()
+  set.seed(31)
+  n = 250
+  latent = rnorm(n)
+  x = cbind(
+    d1 = round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    c1 = latent + rnorm(n, sd = 0.5),
+    d2 = round(pmin(pmax(latent + rnorm(n, sd = 0.6), -1.2), 1.2)) + 1,
+    c2 = latent + rnorm(n, sd = 0.5)
+  )
+  fit = bgm(x,
+    variable_type = c("ordinal", "continuous", "ordinal", "continuous"),
+    chains = 2, iter = 300, warmup = 300, cores = 2, seed = 8,
+    display_progress = "none", verbose = FALSE
+  )
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # The stored name is "d2-c1"; asking for it in variable order used to fail.
+  expect_true("d2-c1" %in% colnames(extract_pairwise_interactions(fit)))
+  expect_invisible(plot_edge_posterior(fit, "c1", "d2"))
+  expect_invisible(plot_edge_posterior(fit, "c1", "c2"))
 })

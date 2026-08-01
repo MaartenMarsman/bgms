@@ -9,22 +9,23 @@ plot_edge_posterior(
   variable1,
   variable2,
   evidence_threshold = 10,
-  binwidth = 0.01,
+  binwidth = lifecycle::deprecated(),
   ...
 )
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class \code{bgms}, from \code{\link[=bgm]{bgm()}} with
-\code{edge_selection = TRUE}.}
+\item{bgms_object}{A fitted model object of class \code{bgms}, from \code{\link[=bgm]{bgm()}}.}
 
 \item{variable1, variable2}{The two variables naming the edge. Either names
 or column positions.}
 
-\item{evidence_threshold}{Numeric > 1; the threshold used for the verdict in
-the panel's title, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
+\item{evidence_threshold}{Numeric > 1; the threshold used for the verdict
+printed on the panel, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}. Ignored for a fit
+without edge selection, which has no inclusion verdict to read.}
 
-\item{binwidth}{Width of the weight bin the slab's height is expressed per,
-so that the stem and the slab are on one scale. Default \code{0.01}.}
+\item{binwidth}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} The panel no longer
+expresses the weight as probability per bin, so this has nothing to set;
+it is warned about and ignored.}
 
 \item{...}{Ignored.}
 }
@@ -32,20 +33,76 @@ so that the stem and the slab are on one scale. Default \code{0.01}.}
 \code{bgms_object}, invisibly. Called for the side effect of drawing.
 }
 \description{
-Draws the spike-and-slab posterior of a single edge weight: a stem at zero
-whose height is the posterior probability that the edge is absent, and the
-slab of the weight given that it is present.
+Draws one edge's weight the way JASP draws a parameter: the posterior
+density against the prior it was updated from, with the evidence for the
+edge as a filled probability wheel and the estimate printed beside it.
 }
 \details{
-The two parts are commensurable, which is the point of the picture: the stem
-is the probability of exactly zero, and the slab is drawn as probability per
-weight bin, so the visible areas divide the posterior mass as the model
-does. A decisive edge is a short stem under a well-separated slab; an
-undecided edge splits its mass between them.
+The panel shows two curves on one density scale. The solid accented curve is
+the posterior of the edge weight; the dashed grey curve is the prior it was
+updated from, computed in closed form from the fit's own \code{interaction_prior}
+rather than assumed, so a panel drawn from a \code{cauchy_prior(scale = 2.5)} fit
+and one drawn from the \code{normal_prior(scale = 1)} default do not look alike.
 
-The y axis carries no numbers. Its unit is a display choice, and the two
-quantities a reader needs -- the probability of absence and the location of
-the weight -- are printed and on the x axis respectively.
+What the two curves are, and how the evidence is read off them, follows the
+model the fit actually used.
+
+\strong{With edge selection} (the default), the posterior of the weight is a
+spike-and-slab: a point mass at zero and a continuous part. The panel draws
+the continuous part \emph{conditional on the edge being included}, which is a
+genuine density integrating to one, so the y axis carries numbers. The mass
+at zero is not drawn as a stem competing with that density; it is carried by
+the probability wheel, whose accented share is the posterior inclusion
+probability and whose pale share is the probability that the edge is absent.
+The evidence is printed as the natural log of the inclusion Bayes factor
+from \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which \code{bgms} estimates by Rao-Blackwellizing
+the indicator draws. It is \emph{not} a ratio of densities at zero, so the
+panel does not draw Savage-Dickey ordinates: dots at zero would assert an
+estimator the package does not use.
+
+\strong{Without edge selection} there is no indicator and no point mass; the
+posterior of the weight is continuous and the Savage-Dickey density ratio is
+the licensed estimator of the inclusion Bayes factor. The panel then draws
+the JASP figure exactly: both ordinates at zero are marked with grey dots,
+and their ratio -- prior over posterior -- is the Bayes factor for the edge,
+printed on the same natural-log scale. The wheel is filled by
+\eqn{BF/(1 + BF)}, which is the posterior probability of the edge at equal
+prior odds, so the wheel still shows a probability, and it is labelled with
+JASP's \code{data|H1} / \code{data|H0} pair.
+
+The prior ordinate at zero is exact. The posterior ordinate is estimated
+from the draws by a Gaussian kernel density with the Sheather-Jones
+bandwidth (\code{stats::density(bw = "SJ")}), evaluated at zero; JASP's own
+implementations use a logspline fit, which \code{bgms} does not adopt because it
+would add a dependency for one number. The two estimators agree closely
+where the posterior is smooth near zero and diverge where it is not, which
+is the regime in which a Savage-Dickey Bayes factor is unreliable whatever
+fits its density.
+
+On a block of continuous variables the slab sits on an entry of a precision
+matrix, whose joint prior is that slab times a prior on the diagonal,
+restricted to the positive-definite cone. The curve drawn is the slab -- the
+density the sampler evaluates for that edge, and the one the prior
+sensitivity machinery reweights on -- which is the marginal prior of the
+entry only up to that restriction. The restriction pulls the true marginal
+in, so on a continuous block the drawn prior is the wider of the two. On a
+discrete block the parameters are unconstrained and the slab is the marginal
+prior exactly.
+
+The median and the 95\% credible interval printed at the top right are of the
+same posterior the density shows -- conditional on inclusion under edge
+selection, unconditional without it -- and the interval is repeated as a bar
+above the curve.
+
+An edge the data rule out is still drawn. When no retained draw included it
+there is no conditional posterior to show, so the panel draws the prior, the
+wheel (nearly all pale), and the evidence, and says so in its caption:
+decisive absence is a result, not a failure.
+
+The panel follows the package's plotting conventions (see the internal
+\code{R/plot_style.R}): offset axes, no box, large type, no headline title. The
+edge and its verdict are printed as annotations, where the rest of the
+numbers are.
 }
 \examples{
 \donttest{
@@ -55,7 +112,8 @@ plot_edge_posterior(fit, "intrusion", "dreams")
 
 }
 \seealso{
-\code{\link[=verdicts]{verdicts()}}, \code{\link[=extract_pairwise_interactions]{extract_pairwise_interactions()}}
+\code{\link[=verdicts]{verdicts()}}, \code{\link[=extract_pairwise_interactions]{extract_pairwise_interactions()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}
 
 Other posterior-methods:
 \code{\link[=coef.bgmCompare]{coef.bgmCompare()}},
