@@ -247,7 +247,9 @@ uniform_ecdf_band = function(n, nrep, probs, grid) {
 #'       `curve`, and the band bounds `lower` and `upper`.}
 #'     \item{summary}{One row per variable, worst first: `kind`, `mean_dev` and
 #'       `max_dev`, the mean and maximum absolute distance of the curve from the
-#'       diagonal, and `share_outside_band`.}
+#'       diagonal, and `share_outside_band`, the proportion of the grid points
+#'       at which the curve lies outside its consistency band, on a 0 to 1
+#'       scale rather than a percentage.}
 #'     \item{nrep, probs, grid, ndraws}{The settings the check ran under.}
 #'   }
 #'
@@ -500,7 +502,8 @@ print.bgms_calibration = function(x, digits = 3, max_rows = 10L, ...) {
   }
   cat(
     "\nA calibrated variable tracks the diagonal and stays inside its band;",
-    "\n'share_outside_band' is the share of the curve that does not.\n"
+    "\n'share_outside_band' is the proportion of the curve that does not, on a",
+    "\n0 to 1 scale (0.3 is 30% of the curve, not 0.3%).\n"
   )
   kinds = unique(x$summary$kind)
   if("pit" %in% kinds) {
@@ -533,26 +536,63 @@ print.bgms_calibration = function(x, digits = 3, max_rows = 10L, ...) {
 #' @param x An object of class `bgms_calibration`, from [calibration_check()].
 #' @param variables Optional character vector selecting which variables to
 #'   draw. Defaults to all, worst departure first.
+#' @param max_panels Number of panels drawn at once. A fit with more variables
+#'   than this is drawn one page at a time, worst departure first. Default `9`.
+#' @param page Which page of `max_panels` panels to draw. Default `1`.
 #' @param ... Ignored.
 #'
 #' @return `x`, invisibly. Called for the side effect of drawing.
 #'
+#' @details
+#' Seventeen variables at once leave each panel too small to read, so the
+#' default draws the nine worst and reports how to reach the rest. `variables`
+#' selects panels by name; `page` walks through them a screen at a time.
+#'
 #' @examples
 #' \donttest{
 #' fit = bgm(Wenchuan[, 1:5], display_progress = "none")
-#' plot(calibration_check(fit, nrep = 50))
+#' check = calibration_check(fit, nrep = 50)
+#' plot(check)
+#'
+#' # One variable at a time.
+#' plot(check, variables = "intrusion")
 #' }
 #'
 #' @seealso [calibration_check()]
 #' @family diagnostics
 #' @export
-plot.bgms_calibration = function(x, variables = NULL, ...) {
-  shown = if(is.null(variables)) x$summary$variable else variables
-  unknown = setdiff(shown, x$summary$variable)
+plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
+                                 page = 1L, ...) {
+  check_positive_integer(max_panels, "max_panels")
+  check_positive_integer(page, "page")
+  selected = if(is.null(variables)) x$summary$variable else variables
+  unknown = setdiff(selected, x$summary$variable)
   if(length(unknown)) {
     stop(
       "These variables are not in the calibration check: ",
       paste(unknown, collapse = ", "), "."
+    )
+  }
+
+  max_panels = as.integer(max_panels)
+  page = as.integer(page)
+  num_pages = max(1L, ceiling(length(selected) / max_panels))
+  if(page > num_pages) {
+    stop(
+      "Argument 'page' is ", page, ", but ", length(selected), " variable",
+      if(length(selected) == 1L) "" else "s", " at ", max_panels,
+      " panels a page make ", num_pages, " page",
+      if(num_pages == 1L) "" else "s", "."
+    )
+  }
+  first = (page - 1L) * max_panels + 1L
+  shown = selected[seq.int(first, min(first + max_panels - 1L, length(selected)))]
+  if(num_pages > 1L && isTRUE(getOption("bgms.verbose", TRUE))) {
+    message(
+      "Showing page ", page, " of ", num_pages, " (", length(selected),
+      " variables, worst departure first). Draw the rest with page = ",
+      paste(setdiff(seq_len(num_pages), page), collapse = ", "),
+      ", or select panels with variables = ."
     )
   }
 

@@ -242,3 +242,33 @@ test_that("calibration_check reads non-contiguous ordinal category scores", {
   expect_false(anyNA(check$curves$curve))
 })
 
+test_that("plot.bgms_calibration pages a wide fit and reports the paging", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan5()
+  check = calibration_check(fit, nrep = 20, seed = 2)
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # Five variables at three panels a page is two pages, and the message says so.
+  withr::local_options(bgms.verbose = TRUE)
+  expect_message(plot(check, max_panels = 3L), "Showing page 1 of 2")
+  expect_message(plot(check, max_panels = 3L, page = 2L), "Showing page 2 of 2")
+  expect_error(plot(check, max_panels = 3L, page = 3L), "make 2 pages")
+  # One page, nothing to page through, nothing to say.
+  expect_silent(plot(check))
+  expect_invisible(plot(check, variables = "intrusion", max_panels = 1L))
+})
+
+test_that("the printed calibration summary states the share's units", {
+  skip_on_cran()
+  fit = get_bgms_fit_wenchuan5()
+  check = calibration_check(fit, nrep = 20, seed = 2)
+
+  expect_true(all(check$summary$share_outside_band >= 0 &
+    check$summary$share_outside_band <= 1))
+  out = paste(utils::capture.output(print(check)), collapse = "\n")
+  expect_match(out, "proportion of the curve that does not")
+  expect_match(out, "0 to 1 scale")
+})
