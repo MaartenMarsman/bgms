@@ -286,6 +286,39 @@ zratio_joint_realized_prior_notice = function(precision_graph_prior, model_type,
 
 
 # ==============================================================================
+# zratio_vacuous_spec_notice()
+# ==============================================================================
+#
+# Advisory notice for a hierarchical specification with no continuous precision
+# block: an ordinal model, or mixed data with fewer than two continuous
+# variables. The two specifications differ only in how p(K | Gamma) is
+# normalized across graphs, so with no K there is nothing for the argument to
+# refer to and the fit is the same under either value.
+#
+# The fixed-graph case is deliberately silent. There the argument does refer to
+# something -- the specifications coincide exactly, because with no between-
+# model move there is no normalizer to compare across graphs -- and a message
+# would report a difference that does not exist.
+#
+# @param has_precision_block  Whether the model carries a continuous precision
+#   block of at least two variables.
+#
+# Returns: invisible TRUE when the notice fired, FALSE otherwise.
+# ==============================================================================
+zratio_vacuous_spec_notice = function(has_precision_block) {
+  if(has_precision_block || !isTRUE(getOption("bgms.verbose", TRUE))) {
+    return(invisible(FALSE))
+  }
+  message(
+    "precision_graph_prior has no effect for this model: it normalizes the ",
+    "continuous precision prior across graphs, and this model has no ",
+    "continuous precision block. The fit is the same under either value."
+  )
+  invisible(TRUE)
+}
+
+
+# ==============================================================================
 # bgm_spec()  --- user-facing constructor
 # ==============================================================================
 #
@@ -431,34 +464,33 @@ bgm_spec = function(x,
   }
 
   # --- Hierarchical graph-prior spec eligibility --------------------------------
-  # The Z-ratio constants are derived for a Normal or Cauchy slab with a
-  # Gamma diagonal, on the continuous precision matrix, under edge
-  # selection. Anything else keeps the joint specification.
+  # The two specifications differ only in how p(K | Gamma) is normalized across
+  # graphs, so they differ only where a between-model move exists. Where none
+  # does -- a fixed graph, or no continuous precision block -- the argument is
+  # vacuous rather than wrong and is accepted; the fit follows the joint path,
+  # which applies no correction on exactly those configurations either
+  # (ggm_edge_prior_correction() returns NULL for both), so the two coincide.
+  #
+  # zratio_active is resolved here and nowhere else: run_sampler_*() and
+  # build_output_*() read this flag rather than re-deriving eligibility, so the
+  # engine, the surface build and the trust gauge cannot disagree about whether
+  # the hierarchical machinery is in force.
+  #
+  # Vacuity is settled before the slab, and the order is load-bearing. The
+  # Z-ratio constants are derived for a Normal or Cauchy slab, so a beta-prime
+  # slab is rejected -- but only where the argument refers to something. With
+  # no precision block there is no slab of the precision prior for that error
+  # to be about, and reporting one would name the wrong cause.
   precision_graph_prior = match.arg(precision_graph_prior)
+  num_continuous = sum(variable_type == "continuous")
+  has_precision_block = model_type %in% c("ggm", "mixed_mrf") &&
+    num_continuous >= 2
+  zratio_active = precision_graph_prior == "hierarchical" &&
+    has_precision_block && isTRUE(edge_selection)
   if(precision_graph_prior == "hierarchical") {
-    if(!model_type %in% c("ggm", "mixed_mrf")) {
-      stop(
-        "precision_graph_prior = \"hierarchical\" needs a continuous precision ",
-        "block to normalize; the current model_type is '", model_type,
-        "'. Use the joint specification, or data with continuous variables."
-      )
-    }
-    if(model_type == "mixed_mrf" && sum(variable_type == "continuous") < 2) {
-      stop(
-        "precision_graph_prior = \"hierarchical\" on mixed data needs at least ",
-        "two continuous variables (the specification normalizes the ",
-        "continuous-block prior across its graphs). Use the joint ",
-        "specification."
-      )
-    }
-    if(!edge_selection) {
-      stop(
-        "precision_graph_prior = \"hierarchical\" normalizes p(K | Gamma) ",
-        "across graphs and needs edge_selection = TRUE; with a fixed ",
-        "graph the specifications coincide."
-      )
-    }
-    if(!interaction_prior_type %in% c("normal", "cauchy")) {
+    # Rejected exactly when the request is meaningful and unsupported; zratio_
+    # active is what "meaningful" means, so a vacuous cell never reaches this.
+    if(zratio_active && !interaction_prior_type %in% c("normal", "cauchy")) {
       stop(sprintf(
         paste0(
           "precision_graph_prior = \"hierarchical\" supports a normal or Cauchy ",
@@ -469,6 +501,7 @@ bgm_spec = function(x,
         interaction_prior_type
       ))
     }
+    zratio_vacuous_spec_notice(has_precision_block)
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
@@ -553,6 +586,7 @@ bgm_spec = function(x,
       scale_eta = scale_eta,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
+      zratio_active = zratio_active,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -579,6 +613,7 @@ bgm_spec = function(x,
       scale_eta = scale_eta,
       delta = delta,
       precision_graph_prior = precision_graph_prior,
+      zratio_active = zratio_active,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {

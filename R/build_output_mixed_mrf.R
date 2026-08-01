@@ -38,7 +38,7 @@ build_output_mixed_mrf = function(spec, raw) {
   # Keep the raw chains for the Z-ratio trust gauge: it needs the untouched
   # indicator layout and the per-chain zratio block, both dropped by the
   # normalization below.
-  zratio_chains = if(identical(pr$precision_graph_prior, "hierarchical")) {
+  zratio_chains = if(isTRUE(pr$zratio_active)) {
     raw
   } else {
     NULL
@@ -305,9 +305,15 @@ build_output_mixed_mrf = function(spec, raw) {
     results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
   }
 
-  # Extrapolation notice: independent of the gauge (which can be switched off), so
-  # a fit that deployed the surface beyond its validated hull is never silent.
+  # Routing and extrapolation notices: same pair as the GGM path (see
+  # build_output_bgm), independent of the gauge and driven by the per-chain
+  # counters.
   if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_isolated_route_notice(
+      zratio_chains,
+      eta = zratio_eta(pr$pairwise_scale, pr$scale_rate, pr$scale_eta)
+    )
+    zratio_collapse_notice(zratio_chains)
     zratio_extrapolation_notice(zratio_chains)
   }
 

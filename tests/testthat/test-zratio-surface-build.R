@@ -174,7 +174,11 @@ test_that("a non-unit shape gets a raised anchor budget", {
 
 test_that("the fence message names the validated shapes and the reason", {
   withr::local_options(bgms.verbose = TRUE)
-  zc = suppressWarnings(bgms:::zratio_constants(0.5 * log(12), 2, alpha = 15))
+  # Below the range, where the additive kernel is what actually serves. A shape
+  # ABOVE the range no longer reaches the additive path at all -- it routes to
+  # the isolated-edge ratio, and its wording is pinned in
+  # test-zratio-isolated-edge-routing.R.
+  zc = suppressWarnings(bgms:::zratio_constants(0.5 * log(12), 2, alpha = 0.25))
   # The claim is the scored points, not the interval they span: the message
   # must not read as if every shape in between had been measured.
   expect_message(

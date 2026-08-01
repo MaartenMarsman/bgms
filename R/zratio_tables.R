@@ -425,9 +425,34 @@ zratio_bridge_channel = function(delta, sigma, beta, slab = "normal",
 zratio_cell_constants = function(delta, pairwise_scale, scale_rate,
                                  scale_eta = NA_real_, scale_shape = 1,
                                  slab = "normal") {
-  eta = if(is.finite(scale_eta)) scale_eta else pairwise_scale * scale_rate
+  eta = zratio_eta(pairwise_scale, scale_rate, scale_eta)
   zratio_constants(delta, eta, alpha = scale_shape, slab = slab)
 }
+
+# The standardized diagonal rate a fit's prior block resolves to: the
+# user-specified rate when the scale prior carries one, else
+# pairwise_scale * scale_rate (the same number up to rounding). Its own function
+# because the constants builder and the post-fit routing notice must agree on
+# which cell a fit is in, and a rule copied into two places is a rule that
+# drifts.
+zratio_eta = function(pairwise_scale, scale_rate, scale_eta = NA_real_) {
+  if(is.finite(scale_eta)) scale_eta else pairwise_scale * scale_rate
+}
+
+# Diagonal-shape range over which the fixed quadrature grids are scored. The
+# pair-integral channels -- the generalized Gauss-Laguerre rule against the
+# closed-form Gamma moments, I_spike against nested adaptive Gauss-Kronrod, G
+# against a refined (nlag 96, nleg 320) rule, and psi0 against both -- were
+# certified at shapes {2, 10, 12, 15, 20} x eta {1, 2}, worst deviation 8.6e-08
+# against a 1e-06 tolerance (dev/validation/zratio_stageA_highshape.R, run at
+# the shipped nleg = 128). Nothing is measured past 20, so the warning stays
+# there.
+#
+# The two deployed routes are covered between them: inside the surface's shape
+# range the whole correction is scored end to end against block-Gibbs gold, and
+# past it only psi0 is read, which is one of the certified channels.
+.zratio_constants_shape_lo = 0.5
+.zratio_constants_shape_hi = 20
 
 # Session cache for zratio_constants: the constant set is deterministic per
 # (delta, eta, alpha, slab) cell, and one fit resolves the same cell more
@@ -471,11 +496,15 @@ zratio_constants = function(delta, eta, alpha = 1, slab = "normal") {
   }
   pair = zratio_pair_integrals(delta, sigma, beta, slab, alpha)
   if(abs(alpha - 1) > 1e-12) {
-    if(alpha < 0.5 || alpha > 5) {
+    if(alpha < .zratio_constants_shape_lo ||
+      alpha > .zratio_constants_shape_hi) {
       warning(
         "Z-ratio constants at diagonal shape ", format(alpha),
-        " lie outside the tuned range [0.5, 5]; ",
-        "the fixed quadrature grids may lose accuracy.",
+        " lie outside the certified range [",
+        format(.zratio_constants_shape_lo), ", ",
+        format(.zratio_constants_shape_hi),
+        "]; the fixed quadrature grids are not scored there and may lose ",
+        "accuracy.",
         call. = FALSE
       )
     }

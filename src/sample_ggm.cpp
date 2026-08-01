@@ -110,41 +110,16 @@ Rcpp::List sample_ggm(
     // so the between-edge moves target p(K | Gamma) = rho_Gamma(K)/Z(Gamma).
     // The constants are resolved at R spec-build (zratio_constants); each
     // chain clone deep-copies the engine with its cache.
+    // The spec carries the whole deployment policy R resolved -- constants,
+    // Option-B surfaces, isolated-edge routing, gauge sweeps -- and
+    // zratio_engine_from_spec is the one place that reads it, shared with the
+    // mixed sampler and the test interface so the routes cannot diverge. The
+    // rng pointer is rebound per chain clone by GGMModel.
     int zratio_gauge_sweeps = 0;
     if (zratio_spec.isNotNull()) {
         Rcpp::List zs(zratio_spec.get());
-        auto engine = std::make_shared<ZRatioEngine>(
-            Rcpp::as<arma::vec>(zs["addc"]),
-            Rcpp::as<arma::vec>(zs["tg"]),
-            Rcpp::as<arma::vec>(zs["ihat"]),
-            Rcpp::as<arma::vec>(zs["ghat"]),
-            Rcpp::as<arma::vec>(zs["wt"]),
-            Rcpp::as<double>(zs["psi0"]));
-        if (zs.containsElementNamed("gauge_sweeps")) {
-            zratio_gauge_sweeps = Rcpp::as<int>(zs["gauge_sweeps"]);
-        }
-        bool zr_cauchy = zs.containsElementNamed("slab") &&
-            Rcpp::as<std::string>(zs["slab"]) == "cauchy";
-        const double zr_delta = Rcpp::as<double>(zs["delta"]);
-        const double zr_eta = Rcpp::as<double>(zs["eta"]);
-        const double zr_alpha = zs.containsElementNamed("alpha")
-            ? Rcpp::as<double>(zs["alpha"]) : 1.0;
-        // Option-B surfaces (built once in R at the analysis eta) are the
-        // per-edge correction: attach them so log_zratio decomposes each block
-        // and sums per-component surface moments.
-        if (zs.containsElementNamed("surface") && !Rf_isNull(zs["surface"])) {
-            Rcpp::List zsurf(zs["surface"]);
-            engine->set_surface(surface_family_from_list(zsurf["cn"]),
-                                surface_family_from_list(zsurf["bip"]));
-        }
-        // The rng pointer is rebound per chain clone by GGMModel. Hand the
-        // engine the standardized-cell prior params so its sibling paths (the
-        // gold reference and the trust gauge) can sample.
-        engine->set_oracle_params(zr_delta, zr_eta, nullptr,
-                                  ZRatioEngine::default_oracle_n_sweep,
-                                  ZRatioEngine::default_oracle_burn,
-                                  zr_cauchy, zr_alpha);
-        model.set_zratio_engine(std::move(engine));
+        zratio_gauge_sweeps = zratio_gauge_sweeps_from_spec(zs);
+        model.set_zratio_engine(zratio_engine_from_spec(zs));
     }
 
     // Set up missing data imputation (same pattern as OMRF)

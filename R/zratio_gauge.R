@@ -91,6 +91,52 @@
 #'     \item{\code{flagged}}{Logical: any chain flagged on either channel.}
 #'   }
 #'
+#' @section When the additive correction collapses:
+#'   Below a \code{gamma_prior()} diagonal shape of 0.5 the per-edge correction
+#'   is the additive kernel rather than the fitted surface. That kernel sums
+#'   per-channel moment constants over the mediating block's node and edge
+#'   counts and passes the pair to a saddle map, which returns a ratio of 1 --
+#'   log-ratio exactly 0 -- whenever the first moment is not positive. On a
+#'   common-neighbour block the edge constant is a difference and is negative in
+#'   most cells, while the edge count grows as the square of the block size
+#'   against a linear node count, so the sum crosses zero at a size the cell and
+#'   the density fix. Past that size the ratio is \emph{discarded}, not
+#'   approximated: those edge decisions are made with no correction at all.
+#'
+#'   MEASURED over 4160 cells spanning both interaction slabs, both block
+#'   families, ten diagonal shapes, two standardized rates, thirteen block sizes
+#'   and four densities: the moment-sign condition accounts for the collapse in
+#'   every one of them, and a closed-form expression for the size at which it
+#'   fires matches an exact size-by-size scan in 40 of 40 cells. Bipartite
+#'   bridge blocks are unaffected, since only the positive bridge constant
+#'   contributes there.
+#'
+#'   That boundary is not a single number. It moves with the cell and with the
+#'   determinant-tilt exponent \code{delta}, and \code{bgm()} resolves
+#'   \code{delta} from the model dimension by default
+#'   (\eqn{0.5 \log p}), which is also what bounds the largest possible
+#'   mediating block at \eqn{p - 2}. Both therefore move together. MEASURED at
+#'   the default \code{delta} across \eqn{p} from 6 to 120: the boundary runs
+#'   from about 12 to 32 common-neighbour variables, and the collapse is
+#'   \emph{out of reach} at small \eqn{p} (the largest possible block is below
+#'   the boundary) and reachable from roughly 20 to 30 variables upward. A fit
+#'   below that is not exposed to this at all.
+#'
+#'   The per-chain \code{counters} vector records \code{n_collapsed} and
+#'   \code{max_collapse_size}, and a fit on which it happened says so in a
+#'   note. This is a documented limitation of the fallback kernel and not a
+#'   property of the surface, which serves every shape from 0.5 up.
+#'
+#' @section Fits that route around the correction entirely:
+#'   Above the Gamma diagonal shape range the correction is scored on, the
+#'   mediating correction is switched off and every edge is served the
+#'   isolated-edge normalizer ratio, which is exact for an edge with no
+#'   mediating structure. The per-chain \code{counters} vector records this as
+#'   \code{n_isolated}, and a fit that took the route says so in a note
+#'   reporting the measured bound on what it leaves out. The gauge still runs
+#'   there and still measures that residual directly, so a flag on such a fit is
+#'   as meaningful as on any other.
+#'
 #' @examples
 #' \donttest{
 #' draws = sample_ggm_prior(
@@ -281,6 +327,163 @@ zratio_gauge_present = function(chains) {
   )))
 }
 
+# One per-chain Z-ratio counter, read defensively: chain output that predates a
+# counter reports it as absent rather than as zero, and a notice must not turn
+# a missing tally into a claim.
+zratio_counter = function(ct, nm) {
+  if(is.null(ct) || !(nm %in% names(ct))) {
+    return(0)
+  }
+  v = suppressWarnings(as.numeric(ct[[nm]]))
+  if(length(v) != 1L || is.na(v)) 0 else v
+}
+
+# The per-chain counter blocks of a fit, dropping chains that carry none.
+zratio_counter_blocks = function(chains) {
+  Filter(
+    function(ct) !is.null(ct),
+    lapply(chains, function(ch) ch$zratio$counters)
+  )
+}
+
+# ------------------------------------------------------------------------------
+# zratio_isolated_route_notice
+# ------------------------------------------------------------------------------
+# One graceful, per-fit notice when the hierarchical prior served the
+# isolated-edge ratio because the Gamma diagonal shape sits past the surface's
+# validated range (zratio_mediation_off). The engine tallies `n_isolated` per
+# chain, so this fires on what the fit actually did rather than on what the spec
+# intended -- the spec-build message states the policy before the chains launch,
+# and this states the outcome after they finish.
+#
+# It carries the bound, because the bound is the whole reason the route is
+# acceptable: the value served is exact for an edge with no mediating structure,
+# so the entire error is the mediation dropped, measured at no more than
+# 2.8e-04 nats at diagonal rates up to .zratio_mediation_off_eta_hi. Past that
+# rate the same route deploys and the notice says plainly that the measurement
+# does not cover the cell, which is the only honest thing to say about it.
+#
+# @param chains  Raw per-chain sampler output.
+# @param eta     The fit's standardized diagonal rate.
+#
+# Returns invisible(TRUE) when a notice was emitted.
+# ------------------------------------------------------------------------------
+zratio_isolated_route_notice = function(chains, eta) {
+  counters = zratio_counter_blocks(chains)
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_iso = sum(vapply(counters, zratio_counter, numeric(1), "n_isolated"))
+  if(n_iso <= 0) {
+    return(invisible(FALSE))
+  }
+  covered = is.finite(eta) && eta <= .zratio_mediation_off_eta_hi
+  message(sprintf(
+    paste0(
+      "Note: the precision diagonal's Gamma shape is past the range the ",
+      "hierarchical prior's edge correction is scored on, so all %s edge ",
+      "evaluations in this fit used the isolated-edge normalizer ratio with ",
+      "the mediating correction switched off. That value is exact for an edge ",
+      "with no mediating structure, so the whole error is the mediating ",
+      "correction it leaves out. %s"
+    ),
+    format(n_iso, big.mark = ",", scientific = FALSE),
+    if(covered) {
+      paste0(
+        "At this diagonal rate that correction was measured against a ",
+        "block-Gibbs reference at no more than 0.00028 nats, two orders below ",
+        "the 0.003 nats the correction is held to inside its range."
+      )
+    } else {
+      sprintf(
+        paste0(
+          "That correction grows with the diagonal rate and was measured only ",
+          "at rates up to %s; this fit runs at %s, so the measured bound does ",
+          "not cover it."
+        ),
+        format(.zratio_mediation_off_eta_hi), format(eta)
+      )
+    }
+  ))
+  invisible(TRUE)
+}
+
+# ------------------------------------------------------------------------------
+# zratio_collapse_notice
+# ------------------------------------------------------------------------------
+# One graceful, per-fit notice when the hierarchical prior's additive fallback
+# kernel DISCARDED the normalizer ratio rather than approximating it. The
+# engine's saddle map returns a ratio of 1 -- log-ratio exactly 0 -- whenever the
+# accumulated first moment is not positive, which happens on a common-neighbour
+# mediating block once the (negative) edge constant outruns the node constant.
+# The engine tallies each occurrence, so this reports what the chains did.
+#
+# The wording says "discarded", not "approximated", because that is what
+# happened: the correction contributed nothing to those edge decisions.
+#
+# No share of evaluations is quoted. The obvious denominator, `n_add`, counts
+# gauge-sweep evaluations while `n_collapsed` deliberately does not, so a ratio
+# of the two would mix scopes; the count and the largest block are exact and are
+# what the documented boundary is read against.
+#
+# @param chains  Raw per-chain sampler output.
+#
+# Returns invisible(TRUE) when a notice was emitted.
+# ------------------------------------------------------------------------------
+zratio_collapse_notice = function(chains) {
+  counters = zratio_counter_blocks(chains)
+  if(length(counters) == 0) {
+    return(invisible(FALSE))
+  }
+  n_collapsed = sum(vapply(counters, zratio_counter, numeric(1), "n_collapsed"))
+  if(n_collapsed <= 0) {
+    return(invisible(FALSE))
+  }
+  max_size = max(vapply(counters, zratio_counter, numeric(1), "max_collapse_size"))
+  n_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_collapsed_retained"))
+  max_ret = max(vapply(counters, zratio_counter, numeric(1),
+                       "max_collapse_size_retained"))
+  limitation = paste0(
+    "This is a known limitation of the additive kernel, which serves a Gamma ",
+    "diagonal shape below 0.5. The block size at which it discards the ratio ",
+    "depends on the cell and on the determinant-tilt exponent `delta`, and was ",
+    "measured between about 12 and 32 common-neighbour variables; at the ",
+    "default delta it is out of reach on small models and reachable from a few ",
+    "tens of variables upward. See ?summarize_zratio_gauge, section 'When the ",
+    "additive correction collapses'."
+  )
+  if(n_ret <= 0) {
+    # Complete-graph initialization guarantees oversized blocks early on, so a
+    # warmup-only collapse says nothing about the posterior. Saying so is the
+    # difference between a notice and a false alarm.
+    message(sprintf(
+      paste0(
+        "Note: the hierarchical prior's additive correction collapsed on %s ",
+        "edge evaluations during warmup only, and the normalizer ratio was ",
+        "discarded rather than approximated there (largest common-neighbour ",
+        "block involved: %d variables); no retained sweep collapsed. The ",
+        "sampler starts from a complete graph, so this is the initial ",
+        "transient and the stored draws are unaffected. %s"
+      ),
+      format(n_collapsed, big.mark = ",", scientific = FALSE),
+      as.integer(max_size), limitation
+    ))
+    return(invisible(TRUE))
+  }
+  message(sprintf(
+    paste0(
+      "Note: on %s edge evaluations in the retained sweeps the hierarchical ",
+      "prior's additive correction collapsed, and the normalizer ratio was ",
+      "discarded rather than approximated (largest common-neighbour block ",
+      "involved: %d variables; %s such evaluations over the whole run). Edge ",
+      "decisions on those blocks were made with no correction at all. %s"
+    ),
+    format(n_ret, big.mark = ",", scientific = FALSE), as.integer(max_ret),
+    format(n_collapsed, big.mark = ",", scientific = FALSE), limitation
+  ))
+  invisible(TRUE)
+}
+
 # One graceful, per-fit notice when the hierarchical prior's fast edge correction
 # was extrapolated beyond its validated block-size range. Mediating blocks larger
 # than the trained surface hull are clamped at deploy (dense regions of large
@@ -288,33 +491,23 @@ zratio_gauge_present = function(chains) {
 # if any block exceeded the hull, emits a single summary message. Independent of
 # the trust gauge, so the signal reaches the user even with the gauge off.
 zratio_extrapolation_notice = function(chains) {
-  get_counter = function(ct, nm) {
-    if(is.null(ct) || !(nm %in% names(ct))) {
-      return(0)
-    }
-    v = suppressWarnings(as.numeric(ct[[nm]]))
-    if(length(v) != 1L || is.na(v)) 0 else v
-  }
-  counters = Filter(
-    function(ct) !is.null(ct),
-    lapply(chains, function(ch) ch$zratio$counters)
-  )
+  counters = zratio_counter_blocks(chains)
   if(length(counters) == 0) {
     return(invisible(FALSE))
   }
-  n_extrap = sum(vapply(counters, get_counter, numeric(1), "n_extrap"))
+  n_extrap = sum(vapply(counters, zratio_counter, numeric(1), "n_extrap"))
   if(n_extrap <= 0) {
     return(invisible(FALSE))
   }
-  n_pred = sum(vapply(counters, get_counter, numeric(1), "n_pred"))
+  n_pred = sum(vapply(counters, zratio_counter, numeric(1), "n_pred"))
   # The retained share is the one that describes the posterior: the sampler
   # initializes from a complete graph, so warmup alone puts every mediating
   # block past the hull for the first sweeps. Warmup is reported in brackets so
   # a warmup-only transient reads as what it is.
-  n_extrap_ret = sum(vapply(counters, get_counter, numeric(1), "n_extrap_retained"))
-  n_pred_ret = sum(vapply(counters, get_counter, numeric(1), "n_pred_retained"))
-  max_ret = max(vapply(counters, get_counter, numeric(1), "max_extrap_size_retained"))
-  max_all = max(vapply(counters, get_counter, numeric(1), "max_extrap_size"))
+  n_extrap_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_extrap_retained"))
+  n_pred_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_pred_retained"))
+  max_ret = max(vapply(counters, zratio_counter, numeric(1), "max_extrap_size_retained"))
+  max_all = max(vapply(counters, zratio_counter, numeric(1), "max_extrap_size"))
   pct_ret = if(n_pred_ret > 0) 100 * n_extrap_ret / n_pred_ret else 0
   pct_warm = if(n_pred - n_pred_ret > 0) {
     100 * (n_extrap - n_extrap_ret) / (n_pred - n_pred_ret)

@@ -325,10 +325,8 @@ sample_ggm_prior = function(
       scale_shape = sp$scale_shape,
       slab = ip$interaction_prior_type
     )
-    zratio = list(
-      addc = zc$addc, tg = zc$tg, ihat = zc$ihat, ghat = zc$ghat,
-      wt = zc$wt, psi0 = zc$psi0,
-      delta = zc$delta, eta = zc$eta, alpha = zc$alpha, slab = zc$slab,
+    zratio = zratio_spec_list(
+      zc,
       gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
     )
     # Deploy the same Option-B surface the posterior chain uses, so the prior

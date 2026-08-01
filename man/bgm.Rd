@@ -185,9 +185,9 @@ the edge prior under edge selection for continuous (GGM) data:
 \describe{
 \item{"joint"}{(default) The un-normalised joint specification
 \eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
-    \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
-    \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
-    Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
+      \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
+      \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
+      Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
 \code{sbm_prior()} the hyperparameter updates carry the
 normalizing-constant correction described under
 \code{edge_prior}. The realized edge-inclusion prior therefore
@@ -218,8 +218,22 @@ scored blocks at a standardized rate (\code{eta}) of 2 or below, so
 there is little left to approximate rather than a tight approximation
 of something large. That bound is set at the top of the scored rate
 range, since the correction grows with the rate, and does not extend
-above it. A shape outside the range keeps the coarser additive
-kernel. A mediating block beyond it is predicted by continuing
+above it. Above shape 10 that bound is what the fit deploys: the
+mediating correction is switched off and every edge is served the
+isolated-edge ratio, which is exact for an edge with no mediating
+structure, so the whole error is the mediation it drops -- at most
+0.00028 nats, measured at shapes 12, 15 and 20. The alternative there
+is not a coarser correction but a broken one: the additive kernel
+returns zero on a large common-neighbour block and discards the whole
+ratio. A shape below 0.5 keeps that additive kernel, and shares its
+limitation: on a fully connected common-neighbour block the additive
+ratio collapses to zero above a size that depends on the cell and on
+\code{delta}, measured between about 12 and 32 variables. Because
+\code{delta} defaults to \eqn{0.5 \log p}, small models are not
+exposed at all -- the largest possible block sits below the boundary --
+and the collapse becomes reachable from roughly 20 to 30 variables
+upward. A fit reports it (\code{n_collapsed}). A mediating block beyond
+the anchored size range is predicted by continuing
 the surface along its own boundary slope, measured at blocks of 90 to
 150 variables at a median of 0.0006 nats and at most 0.0011 for
 common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for
@@ -234,23 +248,40 @@ under the edge prior's feedback
 (\code{\link{summarize_zratio_gauge}}). The summary is returned as
 \code{fit$zratio_diag} and issues print like other sampler warnings.
 The gauge runs by default; \code{options(bgms.zratio_gauge_sweeps =
-    0L)} turns it off, and \code{fit$zratio_diag} is then \code{NULL}.
+      0L)} turns it off, and \code{fit$zratio_diag} is then \code{NULL}.
 Its cost is fixed per chain rather than proportional to \code{iter}:
 zero on a sparse posterior, where no mediating block is non-trivial
 and the ratio is exact, and about 5-10 seconds per chain on a dense
 posterior at 100-200 variables. That is negligible on a
 production-length fit and noticeable on a short exploratory one,
 which is what the off switch is for.
-Requires \code{edge_selection = TRUE}, a
-\code{normal_prior()} or \code{cauchy_prior()} interaction prior,
-and continuous data — either all-continuous
-(GGM) or mixed with at least two continuous variables. On mixed data the
+Requires a \code{normal_prior()} or \code{cauchy_prior()} interaction
+prior; a \code{beta_prime_prior()} slab is rejected. On mixed data the
 normalizer lives on the continuous block \eqn{K_{yy}}, so the
 Z-ratio enters the continuous-continuous edge moves only, with the
 mediating-block counts read off the continuous subgraph; discrete
 and cross edges are unchanged.}
 }
-Default: \code{"joint"}.}
+Default: \code{"joint"}.
+
+The two specifications differ only in how \eqn{p(K \mid \Gamma)} is
+normalized across graphs, so they differ only where the sampler moves
+between graphs. Where it does not, \code{"hierarchical"} is accepted and
+the fit is the same under either value:
+\itemize{
+\item With \code{edge_selection = FALSE} the graph is fixed, there is
+nothing to normalize across, and the two specifications coincide
+exactly. The correction surface and the trust gauge are skipped, so
+the fit does not pay to build them, and \code{fit$zratio_diag} is
+\code{NULL}.
+\item With no continuous precision block — an ordinal model, or mixed
+data with fewer than two continuous variables — there is no \eqn{K}
+for the argument to refer to. A message reports this when
+\code{verbose = TRUE}.
+}
+The slab is checked only where the choice is meaningful, so a
+\code{beta_prime_prior()} is rejected on a continuous block under edge
+selection and tolerated where the argument has no referent.}
 
 \item{na_action}{Character. Specifies missing data handling. Either
 \code{"listwise"} (drop rows with missing values) or \code{"impute"}
