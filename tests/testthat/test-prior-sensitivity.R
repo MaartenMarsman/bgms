@@ -428,49 +428,43 @@ test_that("prior_sensitivity_check needs difference selection", {
 })
 
 
-# Weekly certification (T2): nine independent 4-chain refits.
+# Weekly certification (T2): eleven independent 4-chain fits.
 #
 # The gate asks whether the reweighted curve at a doubled difference scale
-# reproduces a refit at that scale, in units of refit-to-refit spread. Both
-# sides of that ratio used to rest on a SINGLE refit pair, and both were
-# therefore high-variance: the test flipped between seeds and went red on the
-# 2026-08-01 nightly. The 20-seed study in
-# dev/review-2026-08/reports/06-bgmcompare-defect-batch.md separated the two
-# effects -- a real, systematic reweighting bias of about 0.01 in inclusion
-# probability at the extrapolation end (every one of the 20 seeds had
-# gap > noise), sitting under a pass/fail decided by seed luck (4/20 seeds
-# tripped the x4 gate, median ratio 2.78).
+# reproduces a refit at that scale, in units of refit-to-refit spread. Every
+# term in that ratio used to rest on a SINGLE fit, so the test flipped between
+# seeds and went red on the 2026-08-01 nightly. Report 06's 20-seed study
+# separated the two effects: a real systematic reweighting bias of about 0.01
+# in inclusion probability at the extrapolation end, under a pass/fail decided
+# by seed luck (4/20 tripped the x4 gate).
 #
-# So both sides are now pooled over eight refits at the target scale:
+# All three terms are now pooled:
 #
-#   reference    the mean of all eight, which cuts the reference's own Monte
-#                Carlo error by ~sqrt(8) and leaves the systematic bias the
-#                gate is actually about;
-#   yardstick    four independent pairs, each contributing its max-over-edges
-#                deviation, averaged -- the same "two refits, worst edge" scale
-#                as before, estimated from four observations instead of one.
+#   prediction   the mean over THREE anchor fits at the chosen scale. This is
+#                the term that mattered: the reweighting prediction inherits
+#                its anchor's Monte Carlo error whole, and pooling the other
+#                two sides without this one leaves the gate seed-fragile.
+#   reference    the mean of EIGHT refits at the target scale, so the
+#                numerator is the reweighting bias rather than the bias plus
+#                one refit's noise.
+#   yardstick    four independent refit pairs, each contributing its
+#                max-over-edges deviation, averaged.
 #
-# The gate itself is unchanged: gap < 4 x pooled_noise.
+# The gate itself is the maintainer's, unchanged: gap < 4 x pooled_noise.
 #
-# Measured on this build over 8 seed bases (s0 in 11, 31, 51, 71, 91, 111, 131,
-# 151; each base = one anchor fit plus eight refits), ratio = gap / pooled_noise:
+# Measured over 8 seed bases (s0 in 11, 31, 51, 71, 91, 111, 131, 151), ratio
+# = gap / pooled_noise:
 #
-#   pooling the yardstick only (the shipped fix's first half)
-#     0.61 1.45 1.48 2.70 3.31 3.33 4.58 4.94   median 3.00, 2/8 over the gate
-#   pooling the yardstick AND the reference (what this block does)
-#     0.78 1.00 1.53 2.01 2.89 3.52 3.87 5.44   median 2.45, 1/8 over the gate
+#   1 anchor,  1 refit   (the original)   0.61 1.45 1.48 2.70 3.31 3.33 4.58 4.94
+#                                         median 3.00, 2/8 over the gate
+#   1 anchor,  8 refits                   0.78 1.00 1.53 2.01 2.89 3.52 3.87 5.44
+#                                         median 2.45, 1/8 over the gate
+#   3 anchors, 8 refits  (this block)     0.41 0.47 0.92 1.41 1.69 1.81 2.12 2.83
+#                                         median 1.55, 0/8 over the gate
 #
-# So pooling helps the median but does NOT make the ratio gate safe, and it is
-# worth being clear why: the residual variance is on the side this construction
-# does not pool. The reweighting prediction still comes from ONE anchor fit
-# (f1), and its Monte Carlo error lands in the numerator whole. Base 91 is the
-# example -- pooled noise 0.0031, gap 0.0170, ratio 5.44.
-#
-# The block ships at base 11 (ratio 1.00) and the gate is the maintainer's x4,
-# as specified. Expect roughly a 1-in-8 seed to trip it; if it goes red, check
-# the gap against the ~0.01-pip documented bound (observed range over these 8
-# bases: 0.0052-0.0170) before assuming a regression. Report 12 carries the
-# table and the options for making this gate seed-proof.
+# The pooled gap over those bases is 0.0018-0.0088 in inclusion probability,
+# inside the ~0.01 bound ?prior_sensitivity_check documents. Report 12 carries
+# the table.
 test_that("the difference-scale reweighting reproduces a refit at that scale", {
   skip_on_cran()
   skip_unless_certification()
@@ -486,36 +480,43 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
   }
   pip_of = function(f) rowMeans(sapply(get_raw_samples(f)$rb_inclusion, colMeans))
 
-  f1 = compare_at(1, 11)
-
-  # Four independent pairs at the doubled scale, deterministic seeds.
+  # Three anchor fits at the chosen scale and four independent refit pairs at
+  # the doubled scale, all on deterministic seeds.
+  anchors = lapply(c(11, 1011, 2011), function(s) compare_at(1, s))
   pair_seeds = list(c(12, 13), c(14, 15), c(16, 17), c(18, 19))
   pips = lapply(pair_seeds, function(s) list(pip_of(compare_at(2, s[1])),
                                              pip_of(compare_at(2, s[2]))))
 
-  rw = anchor_reweight(anchor_draws(f1), s_a = 1, s_grid = c(1, 2))
-  nm = get_raw_samples(f1)$parameter_names$indicator
+  nm = get_raw_samples(anchors[[1]])$parameter_names$indicator
   pairwise = !grepl("(main)", nm, fixed = TRUE)
+  npw = sum(pairwise)
+  rws = lapply(anchors, function(f) {
+    anchor_reweight(anchor_draws(f), s_a = 1, s_grid = c(1, 2))
+  })
 
-  # Reweighting to the anchor's own scale is the identity up to Monte Carlo.
-  expect_lt(max(abs(rw$pip[1, pairwise] - pip_of(f1)[pairwise])), 0.02)
-
-  # A doubling is a real extrapolation; it stays usable and lands on the refit
-  # to within a small multiple of the refit's own run-to-run spread. Without
-  # this the whole curve would be reweighting an untested density.
-  expect_gt(rw$ess[2], 400)
+  # Reweighting to an anchor's own scale is the identity up to Monte Carlo, and
+  # that has to hold for every anchor the prediction pools.
+  for(i in seq_along(anchors)) {
+    expect_lt(
+      max(abs(rws[[i]]$pip[1, pairwise] - pip_of(anchors[[i]])[pairwise])), 0.02
+    )
+    expect_gt(rws[[i]]$ess[2], 400)
+  }
 
   # Yardstick: four independent two-refit deviations, pooled.
   pooled_noise = mean(vapply(
     pips, function(p) max(abs(p[[1]][pairwise] - p[[2]][pairwise])), numeric(1)
   ))
-  # Reference: the eight-refit mean, so the numerator is the reweighting bias
-  # rather than the bias plus one refit's Monte Carlo error.
+  # Prediction and reference, each pooled over its own fits.
+  prediction = rowMeans(vapply(rws, function(r) r$pip[2, pairwise], numeric(npw)))
   reference = rowMeans(vapply(
-    unlist(pips, recursive = FALSE), function(p) p[pairwise],
-    numeric(sum(pairwise))
+    unlist(pips, recursive = FALSE), function(p) p[pairwise], numeric(npw)
   ))
-  gap = max(abs(rw$pip[2, pairwise] - reference))
+
+  # A doubling is a real extrapolation; it stays usable and lands on the refit
+  # to within a small multiple of the refit's own run-to-run spread. Without
+  # this the whole curve would be reweighting an untested density.
+  gap = max(abs(prediction - reference))
   expect_lt(gap, 4 * pooled_noise)
 })
 
