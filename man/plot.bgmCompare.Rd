@@ -57,15 +57,16 @@ A network with no edges left is a result, not an error: "the groups do not
 differ anywhere" is a common and correct finding, so the nodes are drawn on
 their own and the subtitle says so.
 
-Main-effect differences are not edges. When \code{main_difference_selection = TRUE} gave them their own indicators, their verdicts are carried on the
-nodes: a square node with an accented border where the data settle a
-main-effect difference, a circle with a grey border where they leave it
-undecided, and a faint border where they rule it out. Shape carries the
-settled/unsettled distinction so the encoding does not rest on colour alone.
-Under the default \code{main_difference_selection = FALSE} those indicators are
-never updated and have no verdict, so every node is drawn alike and the
-subtitle says the channel is empty. \code{verdicts()} remains the place to read
-main-effect differences precisely; the nodes are a summary of it.
+Main-effect differences are not edges. When \code{main_difference_selection = TRUE} gave them their own indicators, their evidence is carried on the
+nodes: each node wears a ring filled to its difference indicator's
+posterior inclusion probability -- a full ring is probability 1, half a
+ring 0.5 -- coloured by the verdict (accented for presence, grey for
+undecided, faint for absence). The fill fraction carries the number, so
+the encoding does not rest on colour alone. Under the default
+\code{main_difference_selection = FALSE} those indicators do not exist, so no
+ring is drawn and the subtitle names the setting. \code{verdicts()} remains the
+place to read main-effect differences precisely; the rings are a summary
+of it.
 
 Drawing needs the suggested package qgraph.
 }

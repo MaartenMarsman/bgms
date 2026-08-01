@@ -221,6 +221,7 @@ compare_difference_verdicts = function(x, evidence_threshold) {
   list(
     pairwise = as.character(table$verdict[!is_main]),
     main = main,
+    main_pip = table$pip[is_main],
     pairs = pairs,
     # Without main_difference_selection those indicators are never updated and
     # carry no verdict, so the node channel has nothing to say.
@@ -232,25 +233,29 @@ compare_difference_verdicts = function(x, evidence_threshold) {
 # ------------------------------------------------------------------
 # main_difference_nodes
 # ------------------------------------------------------------------
-# Node shape and border colour encoding the main-effect difference verdicts.
-# Shape carries the settled/unsettled distinction, so the encoding does not
-# ride on colour alone; the border colour grades it.
+# Node-ring encoding of the main-effect difference evidence: each node wears a
+# ring (qgraph's pie channel) filled to its difference indicator's posterior
+# inclusion probability -- a full ring is 1, half a ring 0.5 -- coloured by the
+# verdict. The fill fraction carries the number, so the encoding does not ride
+# on colour alone. Without main_difference_selection there is no indicator and
+# no ring.
 #
 # @param verdict        Verdict per variable, or all NA when never updated.
+# @param pip            Posterior inclusion probability per variable.
 # @param main_selected  Whether the indicators were updated at all.
 #
-# Returns: list(shape, border_color).
+# Returns: list(pie, pie_color), both NULL when no ring is drawn.
 # ------------------------------------------------------------------
-main_difference_nodes = function(verdict, main_selected) {
-  n = length(verdict)
+main_difference_nodes = function(verdict, pip, main_selected) {
   if(!main_selected) {
-    return(list(shape = rep("circle", n), border_color = rep("grey55", n)))
+    return(list(pie = NULL, pie_color = NULL))
   }
-  shape = ifelse(verdict %in% "presence", "square", "circle")
-  border = rep("grey80", n)
-  border[verdict %in% "undecided"] = "grey55"
-  border[verdict %in% "presence"] = mover_palette()[1]
-  list(shape = shape, border_color = border)
+  pie = pip
+  pie[!is.finite(pie)] = 0
+  color = rep("grey55", length(verdict))
+  color[verdict %in% "presence"] = mover_palette()[1]
+  color[verdict %in% "absence"] = "grey80"
+  list(pie = pie, pie_color = color)
 }
 
 
@@ -292,15 +297,16 @@ main_difference_nodes = function(verdict, main_selected) {
 #' their own and the subtitle says so.
 #'
 #' Main-effect differences are not edges. When `main_difference_selection =
-#' TRUE` gave them their own indicators, their verdicts are carried on the
-#' nodes: a square node with an accented border where the data settle a
-#' main-effect difference, a circle with a grey border where they leave it
-#' undecided, and a faint border where they rule it out. Shape carries the
-#' settled/unsettled distinction so the encoding does not rest on colour alone.
-#' Under the default `main_difference_selection = FALSE` those indicators are
-#' never updated and have no verdict, so every node is drawn alike and the
-#' subtitle says the channel is empty. `verdicts()` remains the place to read
-#' main-effect differences precisely; the nodes are a summary of it.
+#' TRUE` gave them their own indicators, their evidence is carried on the
+#' nodes: each node wears a ring filled to its difference indicator's
+#' posterior inclusion probability -- a full ring is probability 1, half a
+#' ring 0.5 -- coloured by the verdict (accented for presence, grey for
+#' undecided, faint for absence). The fill fraction carries the number, so
+#' the encoding does not rest on colour alone. Under the default
+#' `main_difference_selection = FALSE` those indicators do not exist, so no
+#' ring is drawn and the subtitle names the setting. `verdicts()` remains the
+#' place to read main-effect differences precisely; the rings are a summary
+#' of it.
 #'
 #' Drawing needs the suggested package qgraph.
 #'
@@ -372,7 +378,7 @@ plot.bgmCompare = function(x,
     return(invisible(x))
   }
 
-  nodes = main_difference_nodes(found$main, found$main_selected)
+  nodes = main_difference_nodes(found$main, found$main_pip, found$main_selected)
   draw_difference_network(
     weight, found$pairwise, found$pairs, variables, num_variables,
     nodes, layout, legend, found$main_selected, ...
@@ -403,43 +409,53 @@ draw_difference_network = function(weight, verdict, pairs, variables,
     layout = layout,
     edge.color = network$edge.color,
     lty = network$lty,
-    shape = nodes$shape,
-    border.color = nodes$border_color,
     fade = FALSE,
     minimum = 0,
     title = title,
     DoNotPlot = FALSE
   )
+  if(!is.null(nodes$pie)) {
+    arguments$pie = nodes$pie
+    arguments$pieColor = nodes$pie_color
+  }
+  # qgraph folds its mar argument into the coordinate range (the nodes live in
+  # [-1, 1]), so a wide bottom margin opens a strip under the network that the
+  # subtitle and the legend draw into without touching a node.
+  arguments$mar = c(8, 3, 3, 3)
   result = do.call(qgraph::qgraph, utils::modifyList(arguments, list(...)))
+  usr = graphics::par("usr")
 
   subtitle = character(0)
   if(!any(drawn)) {
     subtitle = c(subtitle, "no difference reaches presence or undecided")
   }
   if(!main_selected) {
-    subtitle = c(subtitle, "main-effect differences not selected")
+    subtitle = c(subtitle,
+      "main-effect differences not under selection (main_difference_selection = FALSE)"
+    )
   }
   if(length(subtitle)) {
-    # Along the top, left-aligned: qgraph leaves no bottom margin, and the
-    # centre of the panel is where the nodes are.
-    graphics::mtext(paste(subtitle, collapse = "; "),
-      side = 3, line = -1, adj = 0, cex = 0.7, col = "grey55"
+    graphics::text(
+      usr[1] + 0.01 * diff(usr[1:2]), -1.22,
+      paste(subtitle, collapse = "; "),
+      adj = c(0, 1), cex = 0.7, col = "grey55", xpd = NA
     )
   }
   if(isTRUE(legend)) {
     keys = c("difference, positive", "difference, negative", "undecided")
     colors = c(mover_palette()[1:2], "grey65")
     line = c(1L, 1L, 3L)
-    if(main_selected) {
-      keys = c(keys, "node: main-effect difference")
+    if(!is.null(nodes$pie)) {
+      keys = c(keys, "node ring: P(main-effect difference); full ring = 1")
       colors = c(colors, mover_palette()[1])
       line = c(line, NA)
     }
     graphics::legend("bottomleft",
       legend = keys, col = colors,
       lty = line, lwd = c(rep(2.4, 2), 1.2, rep(NA, length(keys) - 3L)),
-      pch = c(rep(NA, 3L), rep(22L, length(keys) - 3L)),
-      pt.cex = 1.2, bty = "n", cex = 0.7, text.col = "grey25", xpd = NA
+      pch = c(rep(NA, 3L), rep(21L, length(keys) - 3L)),
+      pt.cex = 1.1, pt.lwd = 2, bty = "n", cex = 0.7, text.col = "grey25",
+      xpd = NA
     )
   }
   invisible(result$layout)
@@ -456,7 +472,7 @@ draw_difference_network = function(weight, verdict, pairs, variables,
 compare_group_panels = function(x, found, weight, variables, num_groups,
                                 layout, legend, ...) {
   num_variables = length(variables)
-  nodes = main_difference_nodes(found$main, found$main_selected)
+  nodes = main_difference_nodes(found$main, found$main_pip, found$main_selected)
 
   # Posterior-mean group networks, in the same row-major upper-triangle order
   # as the pairs.
@@ -490,9 +506,15 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
       # deficiency most often collapses; the difference panel's Okabe-Ito pair
       # carries the sign here too, so all three panels read alike.
       posCol = mover_palette()[1], negCol = mover_palette()[2],
-      shape = nodes$shape, border.color = nodes$border_color,
       title = sprintf("group %d", g)
     )
+    if(!is.null(nodes$pie)) {
+      panel$pie = nodes$pie
+      panel$pieColor = nodes$pie_color
+    }
+    # The difference panel opens a bottom strip for its subtitle and legend;
+    # the group panels match it so the three networks share their extent.
+    panel$mar = c(8, 3, 3, 3)
     do.call(qgraph::qgraph, utils::modifyList(panel, list(...)))
   }
   draw_difference_network(
