@@ -24,10 +24,7 @@ test_that("resolve_variable accepts names and positions and rejects the rest", {
 test_that("plot.bgms draws the verdict-encoded network and the centrality panel", {
   skip_on_cran()
   skip_if_not_installed("qgraph")
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
 
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
@@ -46,10 +43,7 @@ test_that("plot.bgms draws the verdict-encoded network and the centrality panel"
 
 test_that("plot_edge_posterior draws one edge and validates its arguments", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
 
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
@@ -71,10 +65,7 @@ test_that("plot_edge_posterior draws one edge and validates its arguments", {
 test_that("the network needs at least one edge that is not ruled out", {
   skip_on_cran()
   skip_if_not_installed("qgraph")
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   edges = verdicts(fit, evidence_threshold = 10)
   skip_if(all(edges$verdict == "absence"))
 
@@ -109,12 +100,7 @@ test_that("main_difference_nodes encodes the verdict on shape, not colour alone"
 
 test_that("compare_difference_verdicts splits the two indicator families", {
   skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
-    iter = 300, warmup = 300, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
+  fit = get_bgmcompare_fit_wenchuan5()
   found = compare_difference_verdicts(fit, evidence_threshold = 10)
 
   expect_equal(length(found$pairwise), 10L)
@@ -137,12 +123,7 @@ test_that("compare_difference_verdicts splits the two indicator families", {
 test_that("plot.bgmCompare draws the difference network and the group panels", {
   skip_on_cran()
   skip_if_not_installed("qgraph")
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
-    iter = 300, warmup = 300, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
+  fit = get_bgmcompare_fit_wenchuan5()
 
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
@@ -203,11 +184,7 @@ test_that("verdict_network_input aligns the encoding with qgraph's read order", 
 test_that("a sparse network draws rather than failing on the node set", {
   skip_on_cran()
   skip_if_not_installed("qgraph")
-  data("Wenchuan", package = "bgms")
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
   on.exit(grDevices::dev.off(), add = TRUE)

@@ -1,13 +1,6 @@
-calibration_fit = function() {
-  bgm(Wenchuan[, 1:5],
-    chains = 2, iter = 300, warmup = 300, seed = 7,
-    display_progress = "none", verbose = FALSE
-  )
-}
-
 test_that("fitted_observed_data returns the fitted data on the input scale", {
   skip_on_cran()
-  fit = calibration_fit()
+  fit = get_bgms_fit_wenchuan5()
   observed = fitted_observed_data(fit)
 
   complete = Wenchuan[stats::complete.cases(Wenchuan[, 1:5]), 1:5]
@@ -25,7 +18,7 @@ test_that("fitted_observed_data returns the fitted data on the input scale", {
 
 test_that("calibration_check fits isotonic curves inside a nested-event band", {
   skip_on_cran()
-  fit = calibration_fit()
+  fit = get_bgms_fit_wenchuan5()
   check = calibration_check(fit, nrep = 50, seed = 2)
 
   expect_s3_class(check, "bgms_calibration")
@@ -54,7 +47,7 @@ test_that("calibration_check fits isotonic curves inside a nested-event band", {
 
 test_that("calibration_check is reproducible and accepts newdata", {
   skip_on_cran()
-  fit = calibration_fit()
+  fit = get_bgms_fit_wenchuan5()
   first = calibration_check(fit, nrep = 40, seed = 9)
   second = calibration_check(fit, nrep = 40, seed = 9)
   expect_equal(first$curves, second$curves)
@@ -102,7 +95,7 @@ test_that("continuous variables get a PIT panel on the same geometry", {
   colnames(y) = paste0("v", 1:4)
   ggm = bgm(y,
     variable_type = "continuous", chains = 2, iter = 400, warmup = 400,
-    seed = 6, display_progress = "none", verbose = FALSE
+    cores = 2, seed = 6, display_progress = "none", verbose = FALSE
   )
   check = calibration_check(ggm, nrep = 40, ndraws = 100, seed = 4)
 
@@ -148,7 +141,7 @@ test_that("a mixed fit produces both panel kinds in one check", {
   )
   fit = bgm(data,
     variable_type = c("ordinal", "ordinal", "continuous", "continuous"),
-    chains = 2, iter = 400, warmup = 400, seed = 5,
+    chains = 2, iter = 400, warmup = 400, cores = 2, seed = 5,
     display_progress = "none", verbose = FALSE
   )
   check = calibration_check(fit, nrep = 30, ndraws = 80, seed = 1)
@@ -171,7 +164,7 @@ test_that("a mixed fit produces both panel kinds in one check", {
 
 test_that("plot.bgms_calibration draws small multiples and checks variables", {
   skip_on_cran()
-  fit = calibration_fit()
+  fit = get_bgms_fit_wenchuan5()
   check = calibration_check(fit, nrep = 20, seed = 2)
 
   path = withr::local_tempfile(fileext = ".pdf")

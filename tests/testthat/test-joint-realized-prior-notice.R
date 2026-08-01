@@ -57,12 +57,23 @@ test_that("bgm wires the realized-prior notice into the joint spec", {
     update_method = "gibbs", chains = 1, cores = 1, seed = 1,
     display_progress = "none", verbose = TRUE
   )
-  expect_message(
-    do.call(bgm, fit_args),
-    "realized edge-inclusion prior"
-  )
-  expect_no_message(
-    do.call(bgm, c(fit_args, list(precision_graph_prior = "hierarchical"))),
-    message = "realized edge-inclusion prior"
-  )
+  # verbose = TRUE is what makes the notice fire, and it also un-silences the
+  # rest of the fit's advisory output (the correction build). Collect every
+  # message and read the notice out of it, so the others neither satisfy the
+  # expectation nor escape to the console.
+  fit_messages = function(extra = list()) {
+    msgs = character(0)
+    withCallingHandlers(
+      do.call(bgm, c(fit_args, extra)),
+      message = function(m) {
+        msgs <<- c(msgs, conditionMessage(m))
+        invokeRestart("muffleMessage")
+      }
+    )
+    msgs
+  }
+  fires = function(msgs) any(grepl("realized edge-inclusion prior", msgs, fixed = TRUE))
+
+  expect_true(fires(fit_messages()))
+  expect_false(fires(fit_messages(list(precision_graph_prior = "hierarchical"))))
 })

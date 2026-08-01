@@ -1,9 +1,6 @@
 test_that("extract_centrality returns draws x nodes strength", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   samples = extract_pairwise_interactions(fit)
   strength = extract_centrality(fit)
 
@@ -36,10 +33,7 @@ test_that("extract_centrality returns draws x nodes strength", {
 
 test_that("centrality is model-averaged, so excluded edges contribute zero", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   samples = extract_pairwise_interactions(fit)
   strength = extract_centrality(fit)
 
@@ -60,10 +54,7 @@ test_that("centrality is model-averaged, so excluded edges contribute zero", {
 
 test_that("summary.bgms_centrality orders by mean and normalises p_most_central", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   strength = extract_centrality(fit)
   summ = summary(strength)
 
@@ -84,10 +75,7 @@ test_that("summary.bgms_centrality orders by mean and normalises p_most_central"
 
 test_that("plot.bgms_centrality draws and returns its argument invisibly", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:5],
-    chains = 2, iter = 200, warmup = 200, seed = 4,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan5()
   strength = extract_centrality(fit)
 
   path = withr::local_tempfile(fileext = ".pdf")
@@ -98,12 +86,7 @@ test_that("plot.bgms_centrality draws and returns its argument invisibly", {
 
 test_that("extract_centrality.bgmCompare rebuilds each group per draw", {
   skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
-    iter = 300, warmup = 300, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
+  fit = get_bgmcompare_fit_wenchuan5()
   arguments = extract_arguments(fit)
 
   g1 = extract_centrality(fit, group = 1)
@@ -139,12 +122,7 @@ test_that("extract_centrality.bgmCompare rebuilds each group per draw", {
 
 test_that("a centrality difference is summarized and drawn against zero", {
   skip_on_cran()
-  data("Wenchuan", package = "bgms")
-  fit = bgmCompare(
-    x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
-    iter = 300, warmup = 300, chains = 2, seed = 13,
-    difference_selection = TRUE, display_progress = "none"
-  )
+  fit = get_bgmcompare_fit_wenchuan5()
   difference = extract_centrality(fit, group = c(1, 2))
   summ = summary(difference)
 

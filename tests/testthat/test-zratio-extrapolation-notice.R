@@ -62,11 +62,12 @@ test_that("counters missing the retained split claim no phase", {
   legacy = list(list(zratio = list(counters = list(
     n_pred = 5000, n_extrap = 600, max_extrap_size = 198
   ))))
-  expect_message(bgms:::zratio_extrapolation_notice(legacy), "12.0% of the hierarchical")
-  expect_no_message(
-    bgms:::zratio_extrapolation_notice(legacy),
-    message = "warmup"
-  )
+  # One notice, read twice: asserting the absence of "warmup" against a second
+  # call would let the notice itself through to the console, since a filtered
+  # expectation only intercepts the messages it matches.
+  msg = capture_messages(bgms:::zratio_extrapolation_notice(legacy))
+  expect_match(msg, "12.0% of the hierarchical", all = FALSE)
+  expect_no_match(msg, "warmup")
 })
 
 test_that("the retained split reaches R from a fit past the size cap", {

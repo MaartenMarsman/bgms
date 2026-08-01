@@ -68,10 +68,7 @@ test_that("compare_indicator_index lays out main then pairwise per variable", {
 
 test_that("verdicts() reports one row per edge with a three-way verdict", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   v = verdicts(fit)
 
   expect_s3_class(v, "bgms_verdicts")
@@ -98,10 +95,7 @@ test_that("verdicts() reports one row per edge with a three-way verdict", {
 
 test_that("the fragility flag is the union of the two standard errors", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   v = verdicts(fit)
 
   expected = (!is.na(v$distance_two_state) & v$distance_two_state < 2) |
@@ -122,10 +116,7 @@ test_that("the fragility flag is the union of the two standard errors", {
 
 test_that("verdicts() moves the boundaries with evidence_threshold", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   loose = verdicts(fit, evidence_threshold = 3)
   strict = verdicts(fit, evidence_threshold = 100)
 
@@ -144,7 +135,7 @@ test_that("verdicts() moves the boundaries with evidence_threshold", {
 test_that("verdicts() errors without selection and covers bgmCompare", {
   skip_on_cran()
   no_selection = bgm(Wenchuan[, 1:4],
-    chains = 2, iter = 200, warmup = 200, seed = 2,
+    chains = 2, iter = 200, warmup = 200, cores = 2, seed = 2,
     edge_selection = FALSE, display_progress = "none", verbose = FALSE
   )
   expect_error(verdicts(no_selection), "edge selection")
@@ -152,7 +143,7 @@ test_that("verdicts() errors without selection and covers bgmCompare", {
   x = Wenchuan[1:80, 1:4]
   fit = bgmCompare(
     x = x, group_indicator = rep(1:2, each = 40),
-    iter = 300, warmup = 300, chains = 2, seed = 13,
+    iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
     difference_selection = TRUE, display_progress = "none"
   )
   v = verdicts(fit)
@@ -179,10 +170,7 @@ test_that("verdicts() errors without selection and covers bgmCompare", {
 
 test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   skip_on_cran()
-  fit = bgm(Wenchuan[, 1:6],
-    chains = 2, iter = 400, warmup = 400, seed = 1,
-    display_progress = "none", verbose = FALSE
-  )
+  fit = get_bgms_fit_wenchuan6()
   v = verdicts(fit)
 
   out = paste(utils::capture.output(print(v)), collapse = "\n")

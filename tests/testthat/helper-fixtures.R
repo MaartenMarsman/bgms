@@ -757,6 +757,54 @@ get_bgms_fit_mixed_mrf_multichain = function() {
   .test_cache$bgms_fit_mixed_mrf_multichain
 }
 
+# The user-facing check surface -- verdicts(), extract_centrality(),
+# calibration_check(), plot() -- reads a settled posterior rather than driving
+# the sampler, so one fit per cell serves every test that inspects it. The
+# chains are long enough for the fragility flag to see both of its states, which
+# is what these fits are sized for.
+
+#' @description Get cached bgms fit
+#' (6 ordinal Wenchuan variables, edge selection, 2 chains)
+get_bgms_fit_wenchuan6 = function() {
+  if(is.null(.test_cache$bgms_fit_wenchuan6)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_wenchuan6 = bgm(
+      Wenchuan[, 1:6],
+      chains = 2, iter = 400, warmup = 400, cores = 2, seed = 1,
+      display_progress = "none", verbose = FALSE
+    )
+  }
+  .test_cache$bgms_fit_wenchuan6
+}
+
+#' @description Get cached bgms fit
+#' (5 ordinal Wenchuan variables, edge selection, 2 chains)
+get_bgms_fit_wenchuan5 = function() {
+  if(is.null(.test_cache$bgms_fit_wenchuan5)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_wenchuan5 = bgm(
+      Wenchuan[, 1:5],
+      chains = 2, iter = 300, warmup = 300, cores = 2, seed = 7,
+      display_progress = "none", verbose = FALSE
+    )
+  }
+  .test_cache$bgms_fit_wenchuan5
+}
+
+#' @description Get cached bgmCompare fit
+#' (5 ordinal Wenchuan variables, 2 groups, difference selection, 2 chains)
+get_bgmcompare_fit_wenchuan5 = function() {
+  if(is.null(.test_cache$bgmcompare_fit_wenchuan5)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgmcompare_fit_wenchuan5 = bgmCompare(
+      x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
+      iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
+      difference_selection = TRUE, display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_wenchuan5
+}
+
 # ------------------------------------------------------------------------------
 # 2. Prediction Data Helpers
 # ------------------------------------------------------------------------------
