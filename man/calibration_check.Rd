@@ -16,10 +16,13 @@ calibration_check(
 )
 }
 \arguments{
-\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}).}
+\item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}}) or
+\code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 
 \item{newdata}{Optional data to evaluate the predictions on, in the layout
-\code{\link[=bgm]{bgm()}} was given. Defaults to the data the model was fitted to.}
+the fitting function was given. Defaults to the data the model was fitted
+to. For a \code{bgmCompare} fit the rows must be the fitted cases in the order
+the data were given, because each case's group is read from the fit.}
 
 \item{nrep}{Number of resampled datasets behind the consistency band.
 Default \code{200}.}
@@ -49,6 +52,8 @@ at which the curve lies outside its consistency band, on a 0 to 1
 scale rather than a percentage.}
 \item{nrep, probs, grid, ndraws}{The settings the check ran under.}
 }
+For a \code{\link[=bgmCompare]{bgmCompare()}} fit both tables carry an extra \code{group} column and
+the object a \code{groups} element.
 }
 \description{
 Reliability diagrams of the model's conditional predictions, one per
@@ -84,6 +89,15 @@ continuous variable in the fit.
 Both panels live on the unit square with the diagonal as the calibrated
 reference, so a mixed fit produces one figure and one summary table, with the
 \code{kind} column recording which construction produced each row.
+
+\strong{Group comparisons.} On a \code{\link[=bgmCompare]{bgmCompare()}} fit the check runs per
+group: a group's cases are the ones its own parameters predict, so pooling
+them would let a variable predicted too high in one group cancel against
+the other, exactly as pooling variables would. Every variable is discrete
+there, so every panel is isotonic, and the \code{group} argument of the
+\code{bgmCompare} method selects which groups to check (default: all).
+\code{predict.bgmCompare()} issues posterior-mean predictions, which is what the
+isotonic curve conditions on anyway, so \code{ndraws} has no effect.
 
 Evaluated on the fitted data the check is in-sample, and the band is the
 reference a model that is calibrated by construction produces on the same

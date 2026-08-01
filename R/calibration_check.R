@@ -52,6 +52,21 @@ fitted_observed_data = function(bgms_object) {
     recode_simulated_to_original(x, d$category_levels, d$blume_capel_shift)
   }
 
+  if(identical(spec$model_type, "compare")) {
+    # A compare fit stores its Blume-Capel columns centered at the baseline
+    # category on top of the 0-based shift; put the baseline back and the
+    # shared decode inverts the rest. The recode lookup is many-to-one after
+    # a cross-group category collapse, and inverts to the smallest original
+    # value in each class, which predicts identically to any other member.
+    out = d$x
+    for(j in which(!spec$variables$is_ordinal)) {
+      out[, j] = out[, j] + spec$variables$baseline_category[j]
+    }
+    out = decode(out)
+    colnames(out) = d$data_columnnames
+    return(out)
+  }
+
   if(identical(spec$model_type, "mixed_mrf")) {
     out = matrix(NA_real_,
       nrow = d$num_cases, ncol = d$num_variables,
@@ -83,7 +98,14 @@ fitted_observed_data = function(bgms_object) {
 # ------------------------------------------------------------------
 discrete_category_index = function(values, levels_v, shift_v, variable) {
   index = if(!is.null(levels_v)) {
-    match(values, levels_v)
+    if(!is.null(names(levels_v))) {
+      # bgmCompare stores a named lookup from the original value to the final
+      # (possibly collapsed) 0-based category; any original value in a
+      # collapsed class predicts identically, so the lookup is the index.
+      unname(levels_v[match(values, as.numeric(names(levels_v)))]) + 1L
+    } else {
+      match(values, levels_v)
+    }
   } else if(!is.na(shift_v)) {
     # Blume-Capel: the category score itself indexes the categories once the
     # training shift to the 0-based scale is removed.
@@ -221,15 +243,133 @@ uniform_ecdf_band = function(n, nrep, probs, grid) {
 }
 
 
+
+
+# ------------------------------------------------------------------
+# calibration_panel
+# ------------------------------------------------------------------
+# One panel's table rows. Both panel kinds are a curve on the unit square read
+# against the diagonal, so they share their rows and their summary; only the
+# construction of the curve and its band differs.
+#
+# @param v               Variable name.
+# @param kind            "pav" or "pit".
+# @param observed_curve  The fitted curve on the grid.
+# @param bounds          2-row matrix of band bounds on the grid.
+# @param grid            The grid itself.
+#
+# Returns: list(curve = data frame, summary = one-row data frame).
+# ------------------------------------------------------------------
+calibration_panel = function(v, kind, observed_curve, bounds, grid) {
+  list(
+    curve = data.frame(
+      variable = v, kind = kind, grid = grid, curve = observed_curve,
+      lower = bounds[1, ], upper = bounds[2, ],
+      row.names = NULL, stringsAsFactors = FALSE
+    ),
+    summary = data.frame(
+      variable = v, kind = kind,
+      mean_dev = mean(abs(observed_curve - grid)),
+      max_dev = max(abs(observed_curve - grid)),
+      share_outside_band = mean(
+        observed_curve < bounds[1, ] | observed_curve > bounds[2, ]
+      ),
+      row.names = NULL, stringsAsFactors = FALSE
+    )
+  )
+}
+
+
+# ------------------------------------------------------------------
+# pav_panels
+# ------------------------------------------------------------------
+# Isotonic reliability panels for a set of discrete variables, with the
+# category-resampling band.
+#
+# @param predicted    Named list of per-variable category-probability matrices.
+# @param observed     The data those predictions were made for, original scale.
+# @param levels_list  Named per-variable recode maps (NULL for Blume-Capel).
+# @param shifts       Named per-variable Blume-Capel shifts (NA otherwise).
+# @param grid         The grid to read the curves off on.
+# @param nrep         Resampled datasets behind the band.
+# @param probs        The band's quantiles.
+#
+# Returns: named list of calibration_panel() results.
+# ------------------------------------------------------------------
+pav_panels = function(predicted, observed, levels_list, shifts, grid, nrep, probs) {
+  panels = list()
+  for(v in names(predicted)) {
+    probabilities = predicted[[v]]
+    num_categories = ncol(probabilities)
+    num_thresholds = num_categories - 1L
+    if(num_thresholds < 1L) next
+
+    cumulative = t(apply(probabilities, 1, cumsum))
+    # The last cumulative probability is 1 for every case and carries no
+    # information about calibration.
+    p = as.vector(cumulative[, -num_categories, drop = FALSE])
+
+    observed_index = discrete_category_index(
+      observed[, v], levels_list[[v]], shifts[[v]], v
+    )
+    y = as.integer(outer(observed_index, seq_len(num_thresholds), "<="))
+    observed_curve = pav_curve(p, y, grid)
+
+    band = vapply(seq_len(nrep), function(r) {
+      # Inverse-CDF draw of one category per case, from that case's own
+      # predicted distribution: nested threshold events by construction.
+      u = stats::runif(nrow(probabilities))
+      resampled = rowSums(u > cumulative) + 1L
+      pav_curve(p, as.integer(outer(resampled, seq_len(num_thresholds), "<=")), grid)
+    }, numeric(length(grid)))
+    panels[[v]] = calibration_panel(
+      v, "pav", observed_curve,
+      apply(band, 1, stats::quantile, probs = probs), grid
+    )
+  }
+  panels
+}
+
+
+# ------------------------------------------------------------------
+# calibration_result
+# ------------------------------------------------------------------
+# Assemble the panels into the returned object, worst departure first.
+# ------------------------------------------------------------------
+calibration_result = function(panels, nrep, probs, grid, ndraws) {
+  curves = lapply(panels, `[[`, "curve")
+  summaries = lapply(panels, `[[`, "summary")
+  summary_table = do.call(rbind, c(summaries, list(make.row.names = FALSE)))
+  summary_table = summary_table[order(summary_table$max_dev, decreasing = TRUE), ,
+    drop = FALSE
+  ]
+
+  structure(
+    list(
+      curves = do.call(rbind, c(curves, list(make.row.names = FALSE))),
+      summary = summary_table,
+      nrep = nrep,
+      probs = probs,
+      grid = grid,
+      ndraws = ndraws
+    ),
+    class = "bgms_calibration"
+  )
+}
+
+
 #' @title Calibration Check
 #'
 #' @description
 #' Reliability diagrams of the model's conditional predictions, one per
 #' variable, with the consistency band a calibrated model would wander inside.
 #'
-#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()]) or
+#'   `bgmCompare` (from [bgmCompare()]).
 #' @param newdata Optional data to evaluate the predictions on, in the layout
-#'   [bgm()] was given. Defaults to the data the model was fitted to.
+#'   the fitting function was given. Defaults to the data the model was fitted
+#'   to. For a `bgmCompare` fit the rows must be the fitted cases in the order
+#'   the data were given, because each case's group is read from the fit.
 #' @param nrep Number of resampled datasets behind the consistency band.
 #'   Default `200`.
 #' @param probs Numeric of length two; the band's quantiles. Default
@@ -252,6 +392,8 @@ uniform_ecdf_band = function(n, nrep, probs, grid) {
 #'       scale rather than a percentage.}
 #'     \item{nrep, probs, grid, ndraws}{The settings the check ran under.}
 #'   }
+#'   For a [bgmCompare()] fit both tables carry an extra `group` column and
+#'   the object a `groups` element.
 #'
 #' @details
 #' \strong{Discrete variables} are checked against the categories they fall in.
@@ -283,6 +425,15 @@ uniform_ecdf_band = function(n, nrep, probs, grid) {
 #' Both panels live on the unit square with the diagonal as the calibrated
 #' reference, so a mixed fit produces one figure and one summary table, with the
 #' `kind` column recording which construction produced each row.
+#'
+#' \strong{Group comparisons.} On a [bgmCompare()] fit the check runs per
+#' group: a group's cases are the ones its own parameters predict, so pooling
+#' them would let a variable predicted too high in one group cancel against
+#' the other, exactly as pooling variables would. Every variable is discrete
+#' there, so every panel is isotonic, and the `group` argument of the
+#' `bgmCompare` method selects which groups to check (default: all).
+#' `predict.bgmCompare()` issues posterior-mean predictions, which is what the
+#' isotonic curve conditions on anyway, so `ndraws` has no effect.
 #'
 #' Evaluated on the fitted data the check is in-sample, and the band is the
 #' reference a model that is calibrated by construction produces on the same
@@ -366,28 +517,6 @@ calibration_check.bgms = function(bgms_object,
   grid = seq(0, 1, length.out = grid_size)
   panels = list()
 
-  # Both panel kinds are a curve on the unit square read against the diagonal,
-  # so they share their table rows and their summary; only the construction of
-  # the curve and its band differs.
-  panel = function(v, kind, observed_curve, bounds) {
-    list(
-      curve = data.frame(
-        variable = v, kind = kind, grid = grid, curve = observed_curve,
-        lower = bounds[1, ], upper = bounds[2, ],
-        row.names = NULL, stringsAsFactors = FALSE
-      ),
-      summary = data.frame(
-        variable = v, kind = kind,
-        mean_dev = mean(abs(observed_curve - grid)),
-        max_dev = max(abs(observed_curve - grid)),
-        share_outside_band = mean(
-          observed_curve < bounds[1, ] | observed_curve > bounds[2, ]
-        ),
-        row.names = NULL, stringsAsFactors = FALSE
-      )
-    )
-  }
-
   # --- Discrete variables: isotonic reliability curve -------------------------
   disc_names = arguments$data_columnnames[!is_continuous]
   if(length(disc_names)) {
@@ -408,34 +537,7 @@ calibration_check.bgms = function(bgms_object,
     if(is.null(shifts)) shifts = rep(NA_real_, length(discrete_names))
     names(shifts) = discrete_names
 
-    for(v in names(predicted)) {
-      probabilities = predicted[[v]]
-      num_categories = ncol(probabilities)
-      num_thresholds = num_categories - 1L
-      if(num_thresholds < 1L) next
-
-      cumulative = t(apply(probabilities, 1, cumsum))
-      # The last cumulative probability is 1 for every case and carries no
-      # information about calibration.
-      p = as.vector(cumulative[, -num_categories, drop = FALSE])
-
-      observed_index = discrete_category_index(
-        newdata[, v], levels_list[[v]], shifts[[v]], v
-      )
-      y = as.integer(outer(observed_index, seq_len(num_thresholds), "<="))
-      observed_curve = pav_curve(p, y, grid)
-
-      band = vapply(seq_len(nrep), function(r) {
-        # Inverse-CDF draw of one category per case, from that case's own
-        # predicted distribution: nested threshold events by construction.
-        u = stats::runif(nrow(probabilities))
-        resampled = rowSums(u > cumulative) + 1L
-        pav_curve(p, as.integer(outer(resampled, seq_len(num_thresholds), "<=")), grid)
-      }, numeric(grid_size))
-      panels[[v]] = panel(
-        v, "pav", observed_curve, apply(band, 1, stats::quantile, probs = probs)
-      )
-    }
+    panels = pav_panels(predicted, newdata, levels_list, shifts, grid, nrep, probs)
   }
 
   # --- Continuous variables: probability integral transform ------------------
@@ -447,28 +549,114 @@ calibration_check.bgms = function(bgms_object,
     for(v in cont_names) {
       u = pit[[v]]
       ecdf_curve = vapply(grid, function(g) mean(u <= g), numeric(1))
-      panels[[v]] = panel(v, "pit", ecdf_curve, bounds)
+      panels[[v]] = calibration_panel(v, "pit", ecdf_curve, bounds, grid)
     }
   }
 
-  curves = lapply(panels, `[[`, "curve")
-  summaries = lapply(panels, `[[`, "summary")
-  summary_table = do.call(rbind, c(summaries, list(make.row.names = FALSE)))
-  summary_table = summary_table[order(summary_table$max_dev, decreasing = TRUE), ,
-    drop = FALSE
-  ]
-
-  structure(
-    list(
-      curves = do.call(rbind, c(curves, list(make.row.names = FALSE))),
-      summary = summary_table,
-      nrep = nrep,
-      probs = probs,
-      grid = grid,
-      ndraws = if(length(cont_names)) ndraws else NA_integer_
-    ),
-    class = "bgms_calibration"
+  calibration_result(
+    panels, nrep, probs, grid,
+    ndraws = if(length(cont_names)) ndraws else NA_integer_
   )
+}
+
+
+#' @inheritParams calibration_check
+#' @exportS3Method
+#' @noRd
+calibration_check.bgmCompare = function(bgms_object,
+                                        newdata = NULL,
+                                        nrep = 200,
+                                        probs = c(0.025, 0.975),
+                                        grid_size = 101,
+                                        seed = NULL,
+                                        ndraws = 500,
+                                        group = NULL,
+                                        ...) {
+  check_interval_probs(probs)
+  check_positive_integer(nrep, "nrep")
+  check_positive_integer(grid_size, "grid_size")
+
+  arguments = extract_arguments(bgms_object)
+  spec = get_fit_spec(bgms_object)
+  num_groups = as.integer(arguments$num_groups)
+  # The fit stores its cases sorted by group; this membership vector is in
+  # that internal order, aligned with fitted_observed_data().
+  membership = sort(as.integer(spec$data$group))
+
+  if(is.null(newdata)) {
+    newdata = fitted_observed_data(bgms_object)
+  } else {
+    if(inherits(newdata, "data.frame")) newdata = data.matrix(newdata)
+    if(nrow(newdata) != length(membership)) {
+      stop(
+        "'newdata' must have one row per case of the fitted data (after any ",
+        "listwise removal), in the order the data were given to bgmCompare(), ",
+        "because the check reads each case's group from the fit. Supply the ",
+        "rows the model was fitted to, or leave 'newdata' unset."
+      )
+    }
+    if(ncol(newdata) != arguments$num_variables) {
+      stop(
+        "'newdata' must have ", arguments$num_variables,
+        " columns, one per variable in the fit, but has ", ncol(newdata), "."
+      )
+    }
+    # Rows arrive in the order the data were given; the fit stores its cases
+    # sorted by group, so the same (stable) permutation aligns them.
+    newdata = newdata[order(spec$data$group), , drop = FALSE]
+  }
+  colnames(newdata) = arguments$data_columnnames
+  if(anyNA(newdata)) {
+    stop(
+      "The data carry missing values, which have no observed value to ",
+      "calibrate against. Supply complete data through 'newdata', or refit ",
+      "with na_action = \"listwise\"."
+    )
+  }
+
+  if(is.null(group)) group = seq_len(num_groups)
+  if(!is.numeric(group) || anyNA(group) || any(group != as.integer(group)) ||
+    any(group < 1L) || any(group > num_groups)) {
+    stop(
+      "Argument 'group' must be group indices between 1 and ", num_groups, "."
+    )
+  }
+  group = as.integer(unique(group))
+  if(!is.null(seed)) set.seed(check_seed(seed))
+
+  grid = seq(0, 1, length.out = grid_size)
+  levels_list = arguments$category_levels
+  names(levels_list) = arguments$data_columnnames
+  shifts = arguments$blume_capel_shift
+  if(is.null(shifts)) shifts = rep(NA_real_, arguments$num_variables)
+  names(shifts) = arguments$data_columnnames
+
+  # One curve per variable per group: a group's cases are the ones its own
+  # parameters predict, so pooling them would let a variable predicted too
+  # high in one group cancel against the other, exactly as pooling variables
+  # would.
+  panels = list()
+  for(g in group) {
+    rows = which(membership == g)
+    if(!length(rows)) next
+    subset = newdata[rows, , drop = FALSE]
+    predicted = stats::predict(bgms_object,
+      newdata = subset, group = g,
+      type = "probabilities", method = "posterior-mean"
+    )
+    found = pav_panels(predicted, subset, levels_list, shifts, grid, nrep, probs)
+    for(v in names(found)) {
+      found[[v]]$curve$group = g
+      found[[v]]$summary$group = g
+      panels[[paste(v, g, sep = "\r")]] = found[[v]]
+    }
+  }
+
+  # predict.bgmCompare() issues posterior-mean predictions only, which is what
+  # the isotonic curve conditions on anyway; ndraws has no role here.
+  result = calibration_result(panels, nrep, probs, grid, ndraws = NA_integer_)
+  result$groups = group
+  result
 }
 
 
@@ -522,6 +710,15 @@ print.bgms_calibration = function(x, digits = 3, max_rows = 10L, ...) {
       "frequency\non posterior-mean predicted probability.\n"
     )
   }
+  if(!is.null(x$groups)) {
+    cat(sprintf(
+      paste(
+        "\nEach group's cases are checked against that group's own predictions,",
+        "one\ncurve per variable per group (%s).\n"
+      ),
+      paste("group", x$groups, collapse = ", ")
+    ))
+  }
   invisible(x)
 }
 
@@ -565,32 +762,41 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
                                  page = 1L, ...) {
   check_positive_integer(max_panels, "max_panels")
   check_positive_integer(page, "page")
-  selected = if(is.null(variables)) x$summary$variable else variables
-  unknown = setdiff(selected, x$summary$variable)
-  if(length(unknown)) {
-    stop(
-      "These variables are not in the calibration check: ",
-      paste(unknown, collapse = ", "), "."
-    )
+  # The panel unit is a summary row: one per variable, or one per variable and
+  # group when the check ran on a group comparison. Rows are already worst
+  # departure first.
+  by_group = !is.null(x$summary$group)
+  rows = x$summary
+  if(!is.null(variables)) {
+    unknown = setdiff(variables, rows$variable)
+    if(length(unknown)) {
+      stop(
+        "These variables are not in the calibration check: ",
+        paste(unknown, collapse = ", "), "."
+      )
+    }
+    rows = rows[rows$variable %in% variables, , drop = FALSE]
   }
 
   max_panels = as.integer(max_panels)
   page = as.integer(page)
-  num_pages = max(1L, ceiling(length(selected) / max_panels))
+  n_units = nrow(rows)
+  unit_noun = if(by_group) "panel" else "variable"
+  num_pages = max(1L, ceiling(n_units / max_panels))
   if(page > num_pages) {
     stop(
-      "Argument 'page' is ", page, ", but ", length(selected), " variable",
-      if(length(selected) == 1L) "" else "s", " at ", max_panels,
+      "Argument 'page' is ", page, ", but ", n_units, " ", unit_noun,
+      if(n_units == 1L) "" else "s", " at ", max_panels,
       " panels a page make ", num_pages, " page",
       if(num_pages == 1L) "" else "s", "."
     )
   }
   first = (page - 1L) * max_panels + 1L
-  shown = selected[seq.int(first, min(first + max_panels - 1L, length(selected)))]
+  rows = rows[seq.int(first, min(first + max_panels - 1L, n_units)), , drop = FALSE]
   if(num_pages > 1L && isTRUE(getOption("bgms.verbose", TRUE))) {
     message(
-      "Showing page ", page, " of ", num_pages, " (", length(selected),
-      " variables, worst departure first). Draw the rest with page = ",
+      "Showing page ", page, " of ", num_pages, " (", n_units,
+      " ", unit_noun, "s, worst departure first). Draw the rest with page = ",
       paste(setdiff(seq_len(num_pages), page), collapse = ", "),
       ", or select panels with variables = ."
     )
@@ -600,7 +806,7 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   muted = "grey55"
   accent = mover_palette()[1]
 
-  n = length(shown)
+  n = nrow(rows)
   ncol_panels = min(n, ceiling(sqrt(n)))
   nrow_panels = ceiling(n / ncol_panels)
 
@@ -612,11 +818,15 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
     col.axis = ink, col.lab = ink, col.main = ink
   )
 
-  for(v in shown) {
+  for(k in seq_len(n)) {
+    v = rows$variable[k]
     df = x$curves[x$curves$variable == v, , drop = FALSE]
+    if(by_group) df = df[df$group == rows$group[k], , drop = FALSE]
     graphics::plot(NA, NA,
       xlim = c(0, 1), ylim = c(0, 1), axes = FALSE, asp = 1,
-      xlab = "", ylab = "", main = v, cex.main = 0.9
+      xlab = "", ylab = "",
+      main = if(by_group) sprintf("%s (group %d)", v, rows$group[k]) else v,
+      cex.main = 0.9
     )
     # The two panel kinds share the unit square and the diagonal but not their
     # construction, so each names its own.
@@ -640,7 +850,7 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
     graphics::lines(df$grid, df$curve, col = accent, lwd = 1.8)
   }
 
-  kinds = unique(x$curves$kind[x$curves$variable %in% shown])
+  kinds = unique(x$curves$kind[x$curves$variable %in% rows$variable])
   xlab = if(setequal(kinds, "pit")) {
     "Probability integral transform"
   } else if(setequal(kinds, "pav")) {
