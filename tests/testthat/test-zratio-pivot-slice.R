@@ -27,20 +27,27 @@ test_that("the exponential shape is bit-identical to the pre-split kernel", {
   # The guard for every validated cell: at alpha = 1 there is no coupling, so
   # the row stays a direct Gibbs draw and the RNG call order is unchanged
   # (nq normals, then the conjugate Gamma, no uniform). These values were
-  # produced by the kernel as it stood before the pivot split, same seed, and
-  # are pinned to every digit a decimal literal round-trips: a changed draw
-  # stream moves them in the first few, not the last.
+  # produced by the kernel as it stood before the pivot split, same seed. What
+  # they detect is a changed draw stream, which moves them in the leading
+  # digits, not the last.
   #
-  # The two literals pin different things. S1 is a moment of the draw stream
-  # alone, so it is the kernel pin and does not move when the constants change.
-  # logR pushes that moment through the saddle tables, so it also tracks the
-  # constants vintage: it was refreshed when the theta quadrature went from 64
-  # to 128 points, which moved it by 6e-15. Refresh it only alongside a
-  # deliberate constants change, and never to make a failure go away -- a
-  # changed draw stream would move S1 too, and in the leading digits.
+  # The tolerance sits above the cross-platform floating-point floor, not at
+  # the precision of the literals. The RNG stream is portable, but S1 averages
+  # 2000 sweeps of Cholesky and solve results and logR pushes that through the
+  # saddle quadratures, so the last bits follow the platform's BLAS/LAPACK and
+  # libm. Measured on CI against these literals: S1 differs by 6.7e-15 relative
+  # on macOS (Accelerate), logR by 3.5e-15 on Linux. A 1e-15 pin therefore fails
+  # everywhere but the machine that recorded it, while catching nothing a 1e-12
+  # pin misses.
+  #
+  # One consequence: logR also tracks the constants vintage (the theta
+  # quadrature going from 64 to 128 points moved it by 6e-15), and that signal
+  # is the same size as the platform noise, so this test cannot carry it.
+  # Vintage detection belongs to the fixture's static-move guard and the
+  # certification ladder, both of which compare runs on one machine.
   r = oracle(dense_block(8), 1, 2000L, 500L, 11L)
-  expect_equal(r$S1, 0.1798251775467119, tolerance = 1e-15)
-  expect_equal(r$logR, 0.60844358005727470, tolerance = 1e-15)
+  expect_equal(r$S1, 0.1798251775467119, tolerance = 1e-12)
+  expect_equal(r$logR, 0.60844358005727470, tolerance = 1e-12)
   # No accept step and no slice at the exponential shape.
   expect_equal(r$im_proposed, 0)
   expect_equal(r$n_slice_cap, 0)
