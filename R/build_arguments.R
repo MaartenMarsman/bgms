@@ -180,6 +180,7 @@ build_arguments_compare = function(spec) {
     is_ordinal_variable                = spec$variables$is_ordinal,
     baseline_category                  = spec$variables$baseline_category,
     group                              = sort(spec$data$group),
+    group_labels                       = spec$data$group_labels,
     model_type                         = "compare"
   )
 }

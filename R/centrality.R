@@ -168,15 +168,16 @@ extract_centrality.bgmCompare = function(bgms_object, measure = "strength",
     out
   }
 
+  labels = compare_group_labels(arguments, num_groups)
   if(length(group) == 1L) {
     centrality = strength_from_pairwise(weights_of(group), num_variables)
-    label = sprintf("group %d %s centrality", group, measure)
+    label = sprintf("%s %s centrality", group_tag(labels, group), measure)
   } else {
     centrality = strength_from_pairwise(weights_of(group[1]), num_variables) -
       strength_from_pairwise(weights_of(group[2]), num_variables)
     label = sprintf(
-      "difference in %s centrality (group %d - group %d)",
-      measure, group[1], group[2]
+      "difference in %s centrality (%s - %s)",
+      measure, group_tag(labels, group[1]), group_tag(labels, group[2])
     )
   }
 

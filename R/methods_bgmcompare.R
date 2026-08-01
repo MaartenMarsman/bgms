@@ -1,5 +1,46 @@
 # R/methods_bgmcompare.R
 
+# ---- group labels on human-facing displays ----------------------------------
+# bgmCompare numbers its groups 1..K by first appearance in the group indicator
+# and every extractor keys on that number: the `group1` / `group2` column names
+# are a downstream contract (easybgm, JASP) and must stay numeric. The original
+# indicator values are stored alongside as `group_labels`, and the displays a
+# person reads -- print/summary headers, plot titles, calibration panels,
+# centrality labels -- name the group as well as number it. Fits made before
+# the field existed carry no labels and degrade to the bare number.
+
+compare_group_labels = function(arguments, num_groups = NULL) {
+  labels = arguments$group_labels
+  if(is.null(labels) || !length(labels)) return(NULL)
+  labels = as.character(labels)
+  if(anyNA(labels)) return(NULL)
+  if(!is.null(num_groups) && length(labels) != num_groups) return(NULL)
+  labels
+}
+
+# "group 3" or "group 3 (fr)", for a title or a label.
+group_tag = function(labels, g) {
+  if(is.null(labels) || g > length(labels)) return(sprintf("group %d", g))
+  sprintf("group %d (%s)", g, labels[g])
+}
+
+# The one-line legend that ties the numbers to the labels, with group sizes
+# when the fit kept its case-level group vector.
+group_mapping_line = function(arguments, num_groups = NULL) {
+  labels = compare_group_labels(arguments, num_groups)
+  if(is.null(labels)) return(NULL)
+  sizes = NULL
+  if(!is.null(arguments$group)) {
+    counts = tabulate(as.integer(arguments$group), nbins = length(labels))
+    if(all(counts > 0L)) sizes = sprintf(" (n = %d)", counts)
+  }
+  if(is.null(sizes)) sizes = rep("", length(labels))
+  paste0(
+    "groups: ",
+    paste0(seq_along(labels), " = ", labels, sizes, collapse = ", ")
+  )
+}
+
 #' @name print.bgmCompare
 #' @title Print method for `bgmCompare` objects
 #' @description Minimal console output for `bgmCompare` fit objects.
@@ -35,6 +76,8 @@ print.bgmCompare = function(x, ...) {
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
   if(!is.null(arguments$num_groups)) {
     cat(paste0(" Number of groups: ", arguments$num_groups, "\n"))
+    mapping = group_mapping_line(arguments, arguments$num_groups)
+    if(!is.null(mapping)) cat(paste0(" ", mapping, "\n"))
   }
   if(!is.null(arguments$num_cases)) {
     # In our build_output_compare() we stored total cases in num_cases.
@@ -119,6 +162,9 @@ summary.bgmCompare = function(object, ...) {
 #' @export
 print.summary.bgmCompare = function(x, digits = 3, ...) {
   cat("Posterior summaries from Bayesian grouped MRF estimation (bgmCompare):\n\n")
+
+  mapping = group_mapping_line(x$arguments, x$arguments$num_groups)
+  if(!is.null(mapping)) cat(paste0(mapping, "\n\n"))
 
   print_df = function(df, digits) {
     df2 = df

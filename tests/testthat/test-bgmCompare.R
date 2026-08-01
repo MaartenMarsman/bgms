@@ -417,3 +417,81 @@ test_that("predict.bgmCompare centers Blume-Capel variables at the fit's baselin
     expect_equal(unname(probs[[j]]), unname(expected), tolerance = 1e-10)
   }
 })
+
+
+# ---- group labels on human displays (F-072) ---------------------------------
+# Groups are numbered by first appearance in the indicator and every extractor
+# keys on that number; the original labels ride along so the displays a person
+# reads can name the group as well as number it.
+
+test_that("a compare fit stores the group indicator's own labels", {
+  data("Boredom", package = "bgms")
+  # The shipped data is fr-first, so first-appearance numbering makes fr group 1
+  # even though "en" sorts first -- exactly the confusion the labels remove.
+  expect_identical(Boredom$language[1], "fr")
+  fit = bgmCompare(
+    x = Boredom[, 2:5], group_indicator = Boredom$language,
+    iter = 50, warmup = 100, chains = 2, seed = 8, display_progress = "none"
+  )
+  arguments = extract_arguments(fit)
+  expect_identical(arguments$group_labels, c("fr", "en"))
+  expect_equal(tabulate(arguments$group), c(490L, 496L))
+
+  # print() and summary() name the groups; the numbers stay the key.
+  expect_output(print(fit), "groups: 1 = fr \\(n = 490\\), 2 = en \\(n = 496\\)")
+  expect_output(
+    print(summary(fit)),
+    "groups: 1 = fr \\(n = 490\\), 2 = en \\(n = 496\\)"
+  )
+
+  # Centrality labels carry them too.
+  expect_match(
+    attr(extract_centrality(fit, group = 2), "label"), "group 2 (en)",
+    fixed = TRUE
+  )
+  expect_match(
+    attr(extract_centrality(fit, group = c(1, 2)), "label"),
+    "(group 1 (fr) - group 2 (en))",
+    fixed = TRUE
+  )
+
+  # The extractor contract is numeric and must not move: easybgm and JASP read
+  # these column names.
+  expect_identical(
+    colnames(extract_group_params(fit)$pairwise_effects_groups),
+    c("group1", "group2")
+  )
+})
+
+test_that("the x/y path labels the groups x and y", {
+  fit = get_bgmcompare_fit_xy()
+  expect_identical(extract_arguments(fit)$group_labels, c("x", "y"))
+  # The counts are the fit's own, after listwise deletion -- which is the point
+  # of reporting them next to the labels.
+  n = tabulate(extract_arguments(fit)$group)
+  expect_output(
+    print(fit),
+    sprintf("groups: 1 = x \\(n = %d\\), 2 = y \\(n = %d\\)", n[1], n[2])
+  )
+  expect_match(
+    attr(extract_centrality(fit, group = 1), "label"), "group 1 (x)",
+    fixed = TRUE
+  )
+})
+
+test_that("a fit without the stored labels degrades to bare group numbers", {
+  # Fits made before the field existed have no group_labels; every display path
+  # goes through these two helpers, so this is the whole degradation contract.
+  legacy = extract_arguments(get_bgmcompare_fit())
+  legacy$group_labels = NULL
+
+  expect_null(compare_group_labels(legacy))
+  expect_null(group_mapping_line(legacy))
+  expect_identical(group_tag(NULL, 2L), "group 2")
+  expect_identical(group_tag(c("fr", "en"), 2L), "group 2 (en)")
+
+  # A label vector that cannot name every group is refused wholesale rather
+  # than half-applied.
+  expect_null(compare_group_labels(list(group_labels = "only-one"), 2L))
+  expect_null(compare_group_labels(list(group_labels = c("a", NA))))
+})
