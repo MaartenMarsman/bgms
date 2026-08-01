@@ -32,8 +32,9 @@ Package code: R +19.5k/−4.6k (51 files, 14 new); C++ reorganized (old
 - [x] Merge develop→main, tag `v0.2.0.0-rc1`; tag CRAN anchor `cran-0.1.6.3`.
 - [x] Verify all six unmerged branches are absorbed or deliberately
       post-release (F-014); freeze integrity confirmed.
-- [ ] 00a prior-audit inventory; 00b C++ diff map; 00c R/API diff map
-      (internal sweeps, running).
+- [x] 00a prior-audit inventory; 00b C++ diff map; 00c R/API diff map
+      (internal sweeps, done 2026-08-01 — see reports/, findings folded into
+      FINDINGS.md F-017..F-034; MAINTAINERS.md seeded).
 - [ ] **Brief 01 (Opus)**: baseline — clean-export build, CRAN-tarball anchor
       verification (F-012), `R CMD check --as-cran`, full suite with and
       without CRAN skips.
