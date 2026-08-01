@@ -27,6 +27,9 @@ dev/*
 # Z-ratio surface accuracy claims and cost hours of compute to regenerate.
 # ^dev$ in .Rbuildignore keeps them out of the tarball.
 !dev/validation/
+# The August 2026 pre-CRAN review record (briefs, reports, findings) is
+# tracked so the review is versioned and visible to every clone.
+!dev/review-2026-08/
 /paper/
 
 # testthat problem artefacts
