@@ -75,6 +75,13 @@ Verification, three parts:
    `reports/assets/sensitivity_compare_fixed.pdf`.
 4. State the blast radius in your report: were single-group (`bgm`) sensitivity
    results ever touched by this path, yes or no, with the code evidence.
+5. Re-run `tests/testthat/test-prior-sensitivity.R:432` (the F-049 gate) after
+   the fix and report its status PROMINENTLY. The lead suspects F-049 may be
+   downstream of this same defect: the engine returns `edge` (names layout)
+   beside `pip` (RB draw layout) in one object, so the test's `pairwise`
+   indexing may be comparing misaligned entries — a gap of 0.0255 vs a 0.0202
+   gate is exactly what a few misaligned edges would produce. Do NOT modify
+   that test either way; report pass/fail and the new gap value.
 
 ### 2. F-057 — character/factor `group_indicator` crashes (major)
 
@@ -138,15 +145,38 @@ footer serves single-group fits; change it once, everywhere.
 Snapshot tests for the default-fit print, the selection-on print, and the
 footer.
 
-### 5. F-021 — `calibration_check()` on a compare fit: graceful refusal (decided)
+### 5. F-021 — SHIP `calibration_check()` for bgmCompare fits (decided: method, not stub)
 
 Today: `Error in UseMethod("calibration_check"): no applicable method ... class
-"c('bgmCompare', 'S7_object')"`. The full method is DELIBERATELY deferred
-(maintainer decision; a prepared patch exists and was not applied — do NOT
-implement the method). Add a stub that fails informatively: calibration checks
-are not yet available for bgmCompare fits, planned for a future release. Match
-however the package words its other not-supported errors. Test asserts the
-message, not the raw dispatch error.
+"c('bgmCompare', 'S7_object')"`. The maintainer has decided 0.2.0.0 ships a
+real calibration check for compare fits. A 19 KB draft exists at
+`/Users/maartenmarsman/Library/CloudStorage/Dropbox/Projecten/R/bgms/dev/audit/2026-07-30-b4-calibration-bgmcompare.patch`
+(NAMESPACE + `R/calibration_check.R` + Rd; +277/−60). Read it from that
+absolute path — `dev/audit/` is deliberately untracked, so it is NOT on your
+worktree.
+
+Treat the patch as a design draft, not something to `git apply`: it was
+authored 2026-07-30 against PRE-review calibration internals, and the
+checking-layer batch (`0131bcdc`, F-035) has since rewritten exactly the code
+it touches. The shipped decode now goes through
+`recode_simulated_to_original()` + `discrete_category_index()`; the patch
+carries its own parallel `category_levels` lookup helpers and deletes a line
+at the old silent-NA `match()` site. Reconcile the patch's per-group logic
+onto the SHIPPED helpers — do not reintroduce a second decode path. Compare
+specifics to mind: per-group simulation must use the current association-scale
+convention, and parameter extraction must read the fit's own layout (the
+F-037 fix, `indicator_pair_index()`, is the precedent).
+
+Verification, same standard the F-035 fixes met: round-trip tests on compare
+fits including non-contiguous ordinal scores (and a Blume-Capel variable if
+the compare path supports one); per-group calibration curves on the Boredom
+fit sanity-checked against observed margins; a layout-divergent regression
+test.
+
+FALLBACK, pre-authorized: if the adaptation cannot reach that standard inside
+this batch, land a graceful not-yet-available stub instead (test asserts the
+message, not the raw S7 dispatch error) and report exactly what blocked the
+method — the maintainer then decides ship-without or hold the release item.
 
 ### 6. F-063 — difference centrality: remove from the plot surface (decided)
 
@@ -216,8 +246,10 @@ structural, report the breakdown and stop — no redesign in this batch.
 From a clean install of the branch:
 1. Changed-file tests pass; new regression tests fail on `b04dbd06` (spot-check
    one per item, state which).
-2. Full slow tier: exactly ONE failure (`test-prior-sensitivity.R:432`, F-049),
-   ZERO warnings.
+2. Full slow tier: ZERO warnings; AT MOST one failure, and the only failure
+   allowed is `test-prior-sensitivity.R:432` (F-049). If that test now PASSES,
+   that is a headline result — it means F-049 was downstream of F-061; if it
+   still fails, report the new gap (item 1.5).
 3. Full CRAN-mode suite: 0 failures, 0 warnings.
 4. `R CMD check --as-cran` on a `git archive` tarball: the same 2 baseline
    NOTEs (stale Date, old HTML Tidy), nothing new.
