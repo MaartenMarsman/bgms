@@ -13,7 +13,9 @@ ProgressManager::ProgressManager(int nChains_, int nIter_, int nWarmup_, int pri
 
   for (size_t i = 0; i < nChains; i++) progress[i] = 0;
   start = Clock::now();
-  lastPrint = Clock::now();
+  // Backdate the print throttle so the first poll() renders immediately
+  // instead of waiting out the half-second window.
+  lastPrint = Clock::now() - std::chrono::seconds(1);
 
   // Check if we're in RStudio
   Rcpp::Environment base("package:base");
@@ -69,7 +71,13 @@ void ProgressManager::update(size_t chainId) {
   // iterations only bump the counter. main_thread_updates_ is touched solely
   // on the main thread and needs no atomicity.
   if (std::this_thread::get_id() != main_thread_id) return;
-  if (++main_thread_updates_ % printEvery == 0) poll();
+  // Poll on the very first main-thread iteration so the display appears as
+  // soon as sampling starts: the early warmup iterations are the slowest
+  // (step sizes not yet adapted), and waiting printEvery of them left the
+  // console silent for seconds on a large fit. poll() itself throttles
+  // printing to twice a second, so the extra call cannot spam.
+  ++main_thread_updates_;
+  if (main_thread_updates_ == 1 || main_thread_updates_ % printEvery == 0) poll();
 }
 
 void ProgressManager::poll() {

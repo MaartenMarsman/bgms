@@ -289,7 +289,8 @@ data_preferred_scale = function(fit) {
 # ------------------------------------------------------------------
 # verdict_from_lbf
 # ------------------------------------------------------------------
-# Map a log10 inclusion Bayes factor to a verdict at threshold lthr = log10(t).
+# Map a natural log inclusion Bayes factor to a verdict at threshold
+# lthr = log(t).
 # ------------------------------------------------------------------
 verdict_from_lbf = function(lbf, lthr) {
   out = rep("undecided", length(lbf))
@@ -304,9 +305,9 @@ verdict_from_lbf = function(lbf, lthr) {
 # refit_edge_stats
 # ------------------------------------------------------------------
 # Per-edge quantities from one refit: the Rao-Blackwellized inclusion
-# probability (canonical), its log10 inclusion Bayes factor and verdict, the
-# within-chain MCSE of the log10 BF (RB machinery, PR #182), the between-chain
-# half-band (2 * SEM of the grand mean from chain spread, propagated to the log10
+# probability (canonical), its natural log inclusion Bayes factor and verdict,
+# the within-chain MCSE of the log BF (RB machinery, PR #182), the between-chain
+# half-band (2 * SEM of the grand mean from chain spread, propagated to the log
 # BF), per-chain verdict unanimity, and the zero-flip mask. Edge order is the
 # native row-major upper triangle.
 # ------------------------------------------------------------------
@@ -331,10 +332,10 @@ refit_edge_stats = function(fit, evidence_threshold) {
 
   ind = fit@posterior_summary_indicator
   mcse_pip = ind[, "mcse"]
-  lthr = log10(evidence_threshold)
+  lthr = log(evidence_threshold)
 
-  lbf = function(p) log10((p / (1 - p)) / prior_odds)
-  dfac = 1 / (log(10) * pmax(pbar * (1 - pbar), 1e-6)) # d log10 BF / d p
+  lbf = function(p) log((p / (1 - p)) / prior_odds)
+  dfac = 1 / pmax(pbar * (1 - pbar), 1e-6) # d log BF / d p
   lbf_bar = lbf(pbar)
   mcse_lbf = mcse_pip * dfac
   se_between = apply(pc, 1, stats::sd) / sqrt(M)

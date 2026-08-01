@@ -80,22 +80,25 @@ test_that("the network needs at least one edge that is not ruled out", {
   expect_invisible(plot(fit))
 })
 
-test_that("main_difference_nodes encodes the verdict on shape, not colour alone", {
+test_that("main_difference_nodes fills each node's ring to its inclusion probability", {
   verdict = c("presence", "undecided", "absence")
-  nodes = main_difference_nodes(verdict, main_selected = TRUE)
+  pip = c(0.97, 0.5, 0.02)
+  nodes = main_difference_nodes(verdict, pip, main_selected = TRUE)
 
-  expect_equal(nodes$shape, c("square", "circle", "circle"))
-  expect_equal(nodes$border_color[1], mover_palette()[1])
-  expect_equal(nodes$border_color[2:3], c("grey55", "grey80"))
-  # Shape separates settled from unsettled on its own, so the encoding does
-  # not fail for a reader who cannot tell the border colours apart.
-  expect_false(nodes$shape[1] == nodes$shape[2])
+  # The ring fraction carries the number, so the encoding does not fail for a
+  # reader who cannot tell the ring colours apart.
+  expect_equal(nodes$pie, pip)
+  expect_equal(nodes$pie_color, c(mover_palette()[1], "grey55", "grey80"))
 
-  # Indicators the sampler never updated carry no verdict, so the channel is
-  # empty and every node is drawn alike.
-  empty = main_difference_nodes(rep(NA_character_, 3), main_selected = FALSE)
-  expect_equal(length(unique(empty$shape)), 1L)
-  expect_equal(length(unique(empty$border_color)), 1L)
+  # A never-updated indicator has a NaN probability; its ring stays empty
+  # rather than poisoning qgraph's arc arithmetic.
+  partial = main_difference_nodes(c("presence", NA), c(0.9, NaN), main_selected = TRUE)
+  expect_equal(partial$pie, c(0.9, 0))
+
+  # Without main selection there is no indicator and no ring channel at all.
+  empty = main_difference_nodes(rep(NA_character_, 3), rep(NaN, 3), main_selected = FALSE)
+  expect_null(empty$pie)
+  expect_null(empty$pie_color)
 })
 
 test_that("compare_difference_verdicts splits the two indicator families", {
@@ -132,7 +135,9 @@ test_that("plot.bgmCompare draws the difference network and the group panels", {
   expect_invisible(plot(fit))
   expect_invisible(plot(fit, type = "groups"))
   expect_invisible(plot(fit, type = "centrality"))
-  expect_invisible(plot(fit, type = "centrality", group = c(1, 2)))
+  # The difference-centrality display is refused (F-063); its numbers remain
+  # available through summary(extract_centrality()).
+  expect_error(plot(fit, type = "centrality", group = c(1, 2)), "not offered")
 
   # An empty difference network is a result, not an error: at an unreachable
   # threshold every difference is ruled out and the nodes are drawn alone.

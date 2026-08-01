@@ -139,6 +139,77 @@ test_that("bgmCompare errors on mismatched group_indicator length", {
   )
 })
 
+test_that("bgmCompare accepts character, factor, integer, and 0/1 group indicators alike", {
+  data("Boredom", package = "bgms")
+  rows = c(1:25, 491:515)
+  x = Boredom[rows, 2:4]
+  language = Boredom[rows, "language"]
+
+  indicators = list(
+    character = language,
+    factor = factor(language),
+    integer = match(language, unique(language)),
+    zero_one = match(language, unique(language)) - 1L
+  )
+  specs = lapply(indicators, function(g) {
+    bgm_spec(x = x, model_type = "compare", group_indicator = g, chains = 1)
+  })
+  for(nm in names(specs)) {
+    expect_equal(tabulate(specs[[nm]]$data$group), c(25L, 25L),
+      info = sprintf("group sizes under a %s indicator", nm)
+    )
+  }
+  # First-appearance numbering: every coding maps the same rows to group 1.
+  reference = specs$integer$data$group
+  for(nm in names(specs)) {
+    expect_equal(specs[[nm]]$data$group, reference,
+      info = sprintf("group membership under a %s indicator", nm)
+    )
+  }
+
+  fit = bgmCompare(
+    x = x, group_indicator = language,
+    iter = 25, warmup = 50, chains = 1, seed = 21,
+    display_progress = "none"
+  )
+  expect_s3_class(fit, "bgmCompare")
+  expect_equal(sort(unique(extract_arguments(fit)$group)), c(1L, 2L))
+})
+
+test_that("a character group indicator survives listwise removal", {
+  data("Boredom", package = "bgms")
+  rows = c(1:25, 491:515)
+  x = Boredom[rows, 2:4]
+  x[3, 1] = NA
+  spec = bgm_spec(
+    x = x, model_type = "compare",
+    group_indicator = Boredom[rows, "language"],
+    na_action = "listwise", chains = 1
+  )
+  expect_equal(tabulate(spec$data$group), c(24L, 25L))
+})
+
+test_that("bgmCompare gives the validator's message for a vector x", {
+  data("Boredom", package = "bgms")
+  expect_error(
+    bgmCompare(Boredom[, 1], group_indicator = rep(1:2, length.out = nrow(Boredom))),
+    regexp = "x must be a matrix or data.frame",
+    fixed = TRUE
+  )
+  # The single-group entry point owes the same message.
+  expect_error(
+    bgm(Boredom[, 2]),
+    regexp = "x must be a matrix or data.frame",
+    fixed = TRUE
+  )
+  # A vector y hits the same validator under its own name.
+  expect_error(
+    bgmCompare(x = Boredom[1:50, 2:4], y = Boredom[1:50, 2]),
+    regexp = "y must be a matrix or data.frame",
+    fixed = TRUE
+  )
+})
+
 test_that("bgmCompare rejects continuous variable type", {
   x = matrix(rnorm(100), nrow = 50, ncol = 2)
   group_ind = rep(1:2, each = 25)

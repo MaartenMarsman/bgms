@@ -198,7 +198,7 @@ anchor_reweight = function(draws, s_a, s_grid) {
 # At each display point every anchor whose importance ESS clears the floor
 # contributes its reweighted PIP, weighted by inverse variance on the PIP
 # scale (w = ESS / (p(1-p)), the reciprocal of p(1-p)/ESS). Pooling on the
-# PIP scale, then transforming to the log10 BF, removes the staircase seams
+# PIP scale, then transforming to the log BF, removes the staircase seams
 # and the infinities that winner-take-all selection produced at anchor
 # switch points (a capped-edge anchor no longer hands off discontinuously to
 # a finite one). Points where no anchor clears the floor are masked. The

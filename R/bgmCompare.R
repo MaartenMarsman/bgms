@@ -424,7 +424,10 @@ bgmCompare = function(
   difference_family = match.arg(difference_family)
   difference_prior_type = tolower(difference_family)
 
-  # Unpack difference prior to flat params for bgm_spec
+  # Unpack difference prior to flat params for bgm_spec. The prior needs the
+  # variable count, so x is validated here rather than left to bgm_spec()
+  # (data_check() is idempotent; the spec runs it again harmlessly).
+  x = data_check(x, "x")
   num_variables = ncol(x)
   dp = unpack_indicator_prior(difference_prior, num_variables)
 

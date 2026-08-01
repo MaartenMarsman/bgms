@@ -98,7 +98,7 @@ ps
 #> Details: curve over 43 scales from 5 anchors, stitched by importance
 #> reweighting; points with importance ESS under 400 mask NA. 5 nuts refits
 #> (warm-started from the fit; the 1x anchor is the original fit) in 345 s;
-#> run-to-run noise band 0.31 log10 BF (95th pct of the repeated 1.6x
+#> run-to-run noise band 0.71 log BF (95th pct of the repeated 1.6x
 #> refit). ?prior_sensitivity_check for how to read this.
 ```
 
@@ -145,7 +145,7 @@ $|\Delta \log_{10} \mathrm{BF}|$ between the two as the empirical noise band
 line, computed over edges whose evidence is near the decision thresholds).
 
 An edge is reported as "changed, beyond run-to-run noise" only if its verdict
-changes along the curve *and* its $\log_{10}$ Bayes-factor swing exceeds that
+changes along the curve *and* its natural log Bayes-factor swing exceeds that
 band (and its own Monte Carlo error, and a small tolerance). An edge that
 flips inside the band is "changed, within run-to-run noise": the check
 refuses to call it a move. This is what keeps a robustness tool from crying
@@ -163,7 +163,7 @@ the verdict zones labeled; edges whose verdict depends on the scale are
 colored and labeled by name, everything else is muted background, and any
 low-ESS curve points leave visible gaps.
 
-The per-edge table carries the chosen-scale verdict and $\log_{10}$ Bayes
+The per-edge table carries the chosen-scale verdict and natural log Bayes
 factor with its Monte Carlo standard error, the per-anchor verdict columns, the
 stability range, the mover category, and an `insufficient` flag for edges the
 fit cannot certify (its chains disagree, or the Bayes-factor band straddles a

@@ -213,7 +213,7 @@ get_bgmcompare_fit_main_selection = function() {
     data("Boredom", package = "bgms")
     # Select 25 rows from each language group
     rows = c(1:25, 491:515)
-    lang = as.integer(as.factor(Boredom[rows, "language"]))
+    lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_main_sel = bgmCompare(
       x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
       group_indicator = lang,
@@ -324,8 +324,8 @@ get_bgmcompare_fit_blumecapel = function() {
     data("Boredom", package = "bgms")
     # Select 25 rows from each language group
     rows = c(1:25, 491:515)
-    # Convert language to integer: 1 for first level, 2 for second
-    lang = as.integer(as.factor(Boredom[rows, "language"]))
+    # The character column is a valid indicator; groups number by first appearance.
+    lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_bc = bgmCompare(
       x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
       group_indicator = lang,
@@ -347,8 +347,8 @@ get_bgmcompare_fit_am_blumecapel = function() {
     data("Boredom", package = "bgms")
     # Select 25 rows from each language group
     rows = c(1:25, 491:515)
-    # Convert language to integer: 1 for first level, 2 for second
-    lang = as.integer(as.factor(Boredom[rows, "language"]))
+    # The character column is a valid indicator; groups number by first appearance.
+    lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_am_bc = bgmCompare(
       x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
       group_indicator = lang,
@@ -393,8 +393,8 @@ get_bgmcompare_fit_blumecapel_impute = function() {
     x = Boredom[rows, 2:5] # 4 ordinal variables (7 categories)
     x[5, 2] = NA
     x[30, 3] = NA # Row in second group
-    # Convert language to integer: 1 for first level, 2 for second
-    lang = as.integer(as.factor(Boredom[rows, "language"]))
+    # The character column is a valid indicator; groups number by first appearance.
+    lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_bc_impute = bgmCompare(
       x = x,
       group_indicator = lang,

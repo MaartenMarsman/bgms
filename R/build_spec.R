@@ -436,10 +436,10 @@ build_spec_compare = function(x, y, group_indicator,
       stop("The input group_indicator contains only unique group values.")
     }
 
-    group = group_indicator
-    for(u in unique_g) {
-      group[group_indicator == u] = which(unique_g == u)
-    }
+    # Number the groups by first appearance, whatever the indicator's storage
+    # type: a character or factor indicator would otherwise coerce the recode
+    # back to character and fail tabulate().
+    group = match(group_indicator, unique_g)
     tab = tabulate(group)
     if(any(tab < 2L)) {
       stop("One or more groups only had one member in the input group_indicator.")
@@ -500,10 +500,7 @@ build_spec_compare = function(x, y, group_indicator,
         "there was only one value in the input g left."
       ))
     }
-    g = group
-    for(u in unique_g) {
-      group[g == u] = which(unique_g == u)
-    }
+    group = match(group, unique_g)
     tab = tabulate(group)
     if(any(tab < 2)) {
       stop(paste0(
