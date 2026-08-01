@@ -6,7 +6,9 @@
 #
 # Every block below scores the kernel by Monte-Carlo against ground truth or
 # against a recorded draw stream, which is calibration of a settled kernel
-# rather than a wiring check, so they run in the BGMS_RUN_SLOW_TESTS tier. The
+# rather than a wiring check. The bitwise pin and the two backstop guards run
+# nightly (T1, BGMS_RUN_SLOW_TESTS); scoring the split branch against the
+# conjugate ground truth is weekly certification (T2, BGMS_RUN_CERTIFICATION). The
 # log-concavity premise the slice step rests on is arithmetic, and stays local.
 
 skip_unless_slow = function() {
@@ -70,7 +72,7 @@ test_that("the exponential shape is bit-identical to the pre-split kernel", {
 
 test_that("the slice path reproduces the conjugate law it replaces", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   # The only check that scores the split branch against ground truth instead of
   # against another approximation.
   #

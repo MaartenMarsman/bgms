@@ -2,7 +2,10 @@
 # Correctness validation for the GGM NUTS sampler.
 #
 # Tests compare NUTS posterior to MH baseline using long chains.
-# Gated behind BGMS_RUN_SLOW_TESTS because they take several minutes.
+# Nightly tier (T1, BGMS_RUN_SLOW_TESTS): NUTS-vs-MH concordance smokes. The
+# fits here are small -- the whole file is about 13 s on the 2-core CI runner --
+# so this is the cheap agreement check, not the full condition grid that
+# test-mixed-nuts.R and test-scaling-diagnostics.R run weekly (T2).
 #
 #   1. Posterior moment comparison (means, variances, KS, bivariate)
 #   2. Edge selection accuracy (PIPs)

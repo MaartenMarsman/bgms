@@ -5,7 +5,8 @@
 # updates (no C-correction on this path). The joint spec fails these
 # identities (its graph marginal carries the Z(Gamma) tilt), which is the
 # negative control. Fast identity smokes run under NOT_CRAN; the fuller
-# cell battery is gated behind BGMS_RUN_SLOW_TESTS.
+# single-cell identities run nightly (T1, BGMS_RUN_SLOW_TESTS); the ten-cell
+# battery is weekly certification (T2, BGMS_RUN_CERTIFICATION).
 
 hier_prior_run = function(q, delta, sigma, p_inc, um, edge_prior = NULL,
                           spec = "hierarchical", n_samples = 4000L,
@@ -205,10 +206,7 @@ test_that("hierarchical BB identity: theta ~ Beta(a, b), PIP = a/(a+b)", {
 })
 
 test_that("hierarchical graph law across cells (slow battery)", {
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run the cell battery"
-  )
+  skip_unless_certification()
   q = 10L
   E = q * (q - 1L) / 2L
   cells = list(
