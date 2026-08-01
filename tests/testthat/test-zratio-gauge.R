@@ -187,30 +187,61 @@ test_that("a clean chain prints nothing", {
   expect_equal(s$per_chain$block_hi, 5L)
 })
 
+# A 16-variable prior draw under a dense-leaning Beta-Bernoulli prior with no
+# data: the feedback-amplified regime where the flip rate stays quiet but the
+# projected distortion is first-order. The Gamma-diagonal shape selects which
+# kernel the engine reaches, so both sides of the surface's deployment fence
+# run the same fixture.
+biased_evidence_free_fit = function(shape) {
+  sample_ggm_prior(
+    p = 16L, n_samples = 1200L, n_warmup = 500L,
+    interaction_prior = normal_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = shape, rate = 6),
+    spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
+    update_method = "gibbs",
+    zratio_diagnostics = TRUE, seed = 7L, verbose = FALSE
+  )
+}
+
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
   skip_if(
     !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
     "Set BGMS_RUN_SLOW_TESTS=true to run the p=16 biased-fit detector"
   )
-  # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
-  # data: the feedback-amplified regime where the flip rate stays quiet but the
-  # projected distortion is first-order. The additive kernel is reached through
-  # the non-unit Gamma-diagonal fence (shape = 2), where the surface is not
-  # deployed and the engine falls back to the additive-counts saddle.
-  f = sample_ggm_prior(
-    p = 16L, n_samples = 1200L, n_warmup = 500L,
-    interaction_prior = normal_prior(scale = 0.5),
-    precision_scale_prior = gamma_prior(shape = 2, rate = 6),
-    spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
-    update_method = "gibbs",
-    zratio_diagnostics = TRUE, seed = 7L, verbose = FALSE
-  )
+  # Below the surface's deployment fence (.zratio_surface_shape_lo = 0.5) the
+  # engine falls back to the additive-counts saddle, and that coarse kernel is
+  # what this channel exists to police. The Gamma-shape constants are
+  # themselves unscored there, which is what the cell warns about; the fixture
+  # is chosen for the kernel it reaches, not as a certified cell.
+  f = suppressWarnings(biased_evidence_free_fit(0.4))
   pc = f$zratio_diagnostics$per_chain
   expect_true(is.finite(pc$se_mcse) && pc$se_mcse > 0)
   expect_true(is.finite(pc$harm_pred))
   expect_gt(pc$amplification, 5)
+  expect_gt(pc$harm_pred, f$zratio_diagnostics$harm_threshold)
   expect_true(pc$harm_flag)
+  # Rung 1 stays quiet: the coarse kernel is invisible on the flip rate, which
+  # is why the harm channel is a separate one.
+  expect_lt(pc$flip_rate, 0.01)
+})
+
+test_that("the deployed surface holds that fixture under the harm threshold", {
+  skip_on_cran()
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the p=16 biased-fit detector"
+  )
+  # The same fixture at shape 2, which the surface's deployment range [0.5, 10]
+  # covers. The amplification is a property of the prior and the fit, so it
+  # stays first-order; the accurate kernel cuts the projected distortion about
+  # five-fold and the flag correctly stays down. This is the harm channel's
+  # negative control on a cell that is genuinely at risk.
+  f = biased_evidence_free_fit(2)
+  pc = f$zratio_diagnostics$per_chain
+  expect_gt(pc$amplification, 5)
+  expect_lt(pc$harm_pred, f$zratio_diagnostics$harm_threshold)
+  expect_false(pc$harm_flag)
 })
 
 test_that("the harm channel weights errors by per-edge sensitivity", {

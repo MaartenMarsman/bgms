@@ -331,6 +331,29 @@ zratio_anchor_grids = function(cap) {
   list(cn = cn, bip = bip)
 }
 
+# ------------------------------------------------------------------------------
+# zratio_anchor_grids_empty
+# ------------------------------------------------------------------------------
+# TRUE when a size cap admits no anchors in one of the two families, so there is
+# no surface to fit. A bipartite bridge needs 2 + 2 nodes, so its grid starts at
+# size 4 and filters to nothing at a cap of 3 or less.
+#
+# Nothing is given up there. A mediating block excludes the toggled edge's own
+# two endpoints, so at these caps every component is a single node or a single
+# bridge -- below the surface's size_min, where the additive path the engine
+# keeps is exact (see SurfaceFamily in src/models/ggm/zratio_engine.h). The
+# families are genuinely empty, not un-anchored, and a NULL surface is the
+# honest answer rather than a failed build.
+#
+# @param cap  Largest anchor size for this build.
+#
+# Returns: TRUE when either family's grid is empty.
+# ------------------------------------------------------------------------------
+zratio_anchor_grids_empty = function(cap) {
+  grids = zratio_anchor_grids(cap)
+  nrow(grids$cn) == 0L || nrow(grids$bip) == 0L
+}
+
 # Trained size-hull cap for the anchor build. Components larger than this are
 # extended along the surface's boundary slope at deploy, which is accurate but
 # unanchored, so the cap sets where measured accuracy ends: at 80 the reachable
@@ -347,6 +370,7 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
     return(NULL)
   }
   cap = as.integer(max_size)
+  if(zratio_anchor_grids_empty(cap)) return(NULL)
 
   # Get-or-build: the build is data-independent, so a repeat fit of the same
   # cell returns the cached surface (session memory first, then disk) instead of
@@ -497,13 +521,18 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
   normalize_parallel_cores(cores)
 }
 
-# Message the route taken when no surface is attached. Three cases, and they
-# are different claims, so they get different wordings: a shape past the top of
-# the validated range (isolated-edge routing, bounded), a shape below it
-# (additive path, unchanged), or a failed build inside the range (which must not
+# Message the route taken when no surface is attached. Four cases, and they are
+# different claims, so they get different wordings: a shape past the top of the
+# validated range (isolated-edge routing, bounded), a shape below it (additive
+# path, unchanged), an analysis too small to anchor either family (additive
+# path, exact there), or a failed build inside the range (which must not
 # downgrade the fit silently). Shared by every sampler call site so the wordings
 # cannot drift apart.
-zratio_surface_fence_message = function(zc) {
+#
+# @param zc    Cell constants.
+# @param size  Size cap the build was asked for; NA when unknown, which skips
+#              the too-small branch.
+zratio_surface_fence_message = function(zc, size = NA_integer_) {
   if(zratio_mediation_off(zc)) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
@@ -536,6 +565,14 @@ zratio_surface_fence_message = function(zc) {
       "; the interior of that range is interpolated, not measured. Below it ",
       "the surface is unscored, and the additive path that serves instead is ",
       "measurably coarse on common-neighbour mediating blocks."
+    )
+  } else if(!is.na(size) && zratio_anchor_grids_empty(as.integer(size))) {
+    message(
+      "z-ratio: at ", as.integer(size), " variables no absolute-moment ",
+      "surface is built, and none is needed. A mediating block excludes the ",
+      "toggled edge's own two endpoints, so every component here is a single ",
+      "node or a single bridge, where the additive path that serves instead ",
+      "is exact."
     )
   } else {
     message(
@@ -584,15 +621,12 @@ zratio_spec_list = function(zc, gauge_sweeps) {
 # prior sampler paths share. Returns the (possibly surface-carrying) `zratio`
 # list.
 zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
-  surf = zratio_build_surfaces(
-    zc,
-    max_size = min(size, .zratio_surface_size_cap),
-    cores = cores
-  )
+  max_size = min(size, .zratio_surface_size_cap)
+  surf = zratio_build_surfaces(zc, max_size = max_size, cores = cores)
   if(!is.null(surf)) {
     zratio$surface = surf
   } else if(isTRUE(verbose)) {
-    zratio_surface_fence_message(zc)
+    zratio_surface_fence_message(zc, size = max_size)
   }
   zratio
 }

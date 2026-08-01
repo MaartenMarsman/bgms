@@ -154,17 +154,62 @@ test_that("the build fences shapes outside the validated range", {
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
-  # Above the range the anchor oracle's independence-Metropolis step stops
-  # mixing (about 1% acceptance at shape 5), so no surface is built.
-  for(shape in c(2.5, 5)) {
+  # The deployment range is [.zratio_surface_shape_lo, .zratio_surface_shape_hi]
+  # and zratio_build_surfaces is its single owner, so the contract is read off
+  # those two constants rather than restated as literals.
+  lo = bgms:::.zratio_surface_shape_lo
+  hi = bgms:::.zratio_surface_shape_hi
+  expect_equal(c(lo, hi), c(0.5, 10))
+
+  # Inside the range the build proceeds -- at both endpoints and at interior
+  # shapes, which are interpolated rather than separately scored.
+  for(shape in c(lo, 2.5, 5, hi)) {
     zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L))
+    expect_false(
+      is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)),
+      label = sprintf("surface built at shape %g", shape)
+    )
   }
-  # Inside it the build proceeds at both validated endpoints.
-  for(shape in c(0.5, 2)) {
-    zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_false(is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)))
+  # Outside it no surface is built and the engine keeps the route the fence
+  # assigns: the isolated-edge ratio above the range, the additive path below.
+  for(shape in c(0.25, 12)) {
+    zc = suppressWarnings(
+      bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
+    )
+    expect_null(
+      bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L),
+      label = sprintf("surface at shape %g", shape)
+    )
   }
+})
+
+test_that("an analysis too small to anchor either family builds no surface", {
+  # A bipartite bridge needs 2 + 2 nodes, so the bipartite anchor grid starts at
+  # size 4 and filters to nothing at a cap of 3 or less. Assigning the family
+  # tag into that empty job table used to abort the fit ("replacement has 1 row,
+  # data has 0"), which made every hierarchical fit at 2 or 3 variables an error.
+  expect_true(bgms:::zratio_anchor_grids_empty(2L))
+  expect_true(bgms:::zratio_anchor_grids_empty(3L))
+  expect_false(bgms:::zratio_anchor_grids_empty(4L))
+  expect_equal(nrow(bgms:::zratio_anchor_grids(3L)$bip), 0L)
+
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  # The guard returns before any anchor runs, and only the cell's shape is read
+  # on the way there, so it is supplied directly; building the cell's constants
+  # would cost seconds and nothing else is used.
+  zc = list(alpha = 1)
+  for(cap in c(2L, 3L)) {
+    expect_null(bgms:::zratio_build_surfaces(zc, max_size = cap, cores = 1L))
+  }
+  # The route message says the surface is unnecessary here, not that its build
+  # failed.
+  expect_message(
+    bgms:::zratio_surface_fence_message(list(alpha = 1, eta = 1), size = 3L),
+    "none is needed"
+  )
 })
 
 test_that("a non-unit shape gets a raised anchor budget", {

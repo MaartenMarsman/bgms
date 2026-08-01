@@ -205,6 +205,46 @@ test_that("the hierarchical spec accepts a gamma-shape diagonal", {
   expect_false(is.null(fit@zratio_diag))
 })
 
+test_that("the hierarchical spec runs at the smallest analyses", {
+  skip_on_cran()
+  # A bipartite bridge needs 2 + 2 nodes, so at 2 or 3 variables the bipartite
+  # anchor grid is empty and no surface is built. That used to abort the fit
+  # ("replacement has 1 row, data has 0"); it now routes to the additive path,
+  # which is exact at these block sizes. From 4 variables up both families
+  # anchor and the surface is built as usual.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  for(q in 2:5) {
+    outcome = tryCatch(
+      {
+        fit = bgm(
+          x = hier_test_data(q = q, n = 60), variable_type = "continuous",
+          iter = 100, warmup = 150,
+          interaction_prior = normal_prior(scale = 0.5),
+          precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+          precision_graph_prior = "hierarchical",
+          update_method = "gibbs", chains = 1, cores = 1, seed = 7,
+          display_progress = "none", verbose = FALSE
+        )
+        if(all(is.finite(summary(fit)$pairwise$mean))) "fitted" else "non-finite"
+      },
+      error = function(e) conditionMessage(e)
+    )
+    expect_equal(outcome, "fitted", info = sprintf("q = %d", q))
+  }
+  expect_true(bgms:::zratio_anchor_grids_empty(2L))
+  expect_true(bgms:::zratio_anchor_grids_empty(3L))
+  for(q in c(4L, 5L)) {
+    surf = bgms:::zratio_build_surfaces(
+      bgms:::zratio_constants(0.5 * log(q), 2),
+      max_size = q, cores = 1L
+    )
+    expect_false(is.null(surf$bip), label = sprintf("bip surface at q = %d", q))
+  }
+})
+
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
   skip_on_cran()
   skip_unless_slow()
