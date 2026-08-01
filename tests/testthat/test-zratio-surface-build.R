@@ -101,9 +101,14 @@ test_that("the deployed route serves the surface at a non-unit shape", {
   for(v in 3:q) G[1, v] = G[v, 1] = G[2, v] = G[v, 2] = 1L
   for(a in 3:(q - 1)) for(b in (a + 1):q) G[a, b] = G[b, a] = 1L
 
+  # The claim is that two routes over one surface return the same value, which
+  # does not depend on how well that surface is anchored: an eight-variable hull
+  # leaves the ten-node mediating block extrapolating past its boundary, and the
+  # two routes have to agree there too. Anchoring the full block instead costs
+  # three times as long and asserts nothing further.
   for(alpha in c(0.5, 2)) {
     zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = alpha)
-    surf = bgms:::zratio_build_surfaces(zc, max_size = 12L, cores = 1L)
+    surf = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)
     expect_false(is.null(surf), label = paste("surface built at shape", alpha))
     res = zratio_test_surface_eval(
       G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
@@ -178,7 +183,10 @@ test_that("the fence message names the validated shapes and the reason", {
   # ABOVE the range no longer reaches the additive path at all -- it routes to
   # the isolated-edge ratio, and its wording is pinned in
   # test-zratio-isolated-edge-routing.R.
-  zc = suppressWarnings(bgms:::zratio_constants(0.5 * log(12), 2, alpha = 0.25))
+  # The wording is a function of the cell's shape and rate alone, so those two
+  # fields are supplied directly; building the cell's constants would cost
+  # seconds and none of them are read.
+  zc = list(alpha = 0.25, eta = 2)
   # The claim is the scored points, not the interval they span: the message
   # must not read as if every shape in between had been measured.
   expect_message(
