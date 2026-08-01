@@ -35,13 +35,18 @@ Package code: R +19.5k/−4.6k (51 files, 14 new); C++ reorganized (old
 - [x] 00a prior-audit inventory; 00b C++ diff map; 00c R/API diff map
       (internal sweeps, done 2026-08-01 — see reports/, findings folded into
       FINDINGS.md F-017..F-034; MAINTAINERS.md seeded).
-- [ ] **Brief 01 (Opus)**: baseline — clean-export build, CRAN-tarball anchor
-      verification (F-012), `R CMD check --as-cran`, full suite with and
-      without CRAN skips.
-- [ ] **Brief 02 (MM)**: hands-on user evaluation of the new checking layer
-      (verdicts, centrality, calibration, plots, sensitivity check).
-- Exit: check/test status known; anchor verified; 00a findings folded into
-  FINDINGS.md; Phase 1 briefs finalized against the risk map.
+- [x] **Brief 01 (Opus)**: DONE 2026-08-01 (report 01). Check clean (2 known
+      NOTEs), suite 0 failures in every tier, determinism verified, anchor
+      faithful (F-012 closed), CRAN test time a non-issue (F-030 closed).
+      Corrections: examples NOT core-capped → F-018 upgraded to blocker;
+      F-017 regraded major.
+- [x] **Brief 02 (MM)**: DONE 2026-08-01 (report 02). New defects F-035..F-041,
+      F-046/F-047 (calibration crash on BC/mixed; silent prior chain in
+      verdicts on hierarchical fits; mixed-BF anomaly; title/print UX).
+      Lead cross-checked: the reported "classification boundary bug" is a
+      log10-vs-ln misread — classification verified correct (F-039).
+- Exit: **met 2026-08-01.** Phase 1 opens with briefs 03 (defect batch) and
+  04 (statistical certification).
 
 ## Phase 1 — Correctness of the new statistical machinery
 
@@ -101,8 +106,9 @@ orientation, cumulatively covering the architecture.
 
 | Brief | Assignee | Status | Report |
 |---|---|---|---|
-| 01 baseline check | Opus | **issued 2026-08-01** | pending |
-| 02 user-facing checks | MM | **issued 2026-08-01** | pending |
-| 03 hierarchical/zratio validation | Opus | draft after 00a/00b | — |
-| 04 bgmCompare cross-path consistency | Opus | draft after 00b | — |
-| 05+ | per Phase 1 table | — | — |
+| 01 baseline check | Opus | done | `reports/01-baseline-check.md` |
+| 02 user-facing checks | MM | done | `reports/02-user-facing-checks.md` |
+| 03 checking-layer defect batch (F-035..F-041, F-047; fixes on `fix/checking-layer-batch`) | Opus | **issued 2026-08-01** | pending |
+| 04 statistical certification (slow-tier suites + zratio route certificates vs rc1; F-044) | Opus | **issued 2026-08-01** | pending |
+| 05 bgmCompare cross-path consistency | Opus | draft after 03/04 land | — |
+| 06 MM curriculum step 2: zratio law + gauge math read | MM | draft after 04 lands | — |
