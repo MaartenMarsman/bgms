@@ -130,6 +130,20 @@ Fit construction: `bgm.R`, `bgmCompare.R`, `bgm_spec.R`, `build_spec.R`,
     correctness gates are the recovery and cross-validation suites. Never
     add an SBC-style test to a pseudolikelihood path, and never read one as
     evidence about it (MM, 2026-08-01).
+12. **Anchor budgets: the end-to-end certificates are the authority, not the
+    per-cell budget re-derivation (F-052 decision record, MM 2026-08-01).**
+    The certification harness re-derives what anchor-budget multiplier each
+    cell would need to reach reference precision and disagrees with the
+    shipped 2× (`zratio_anchor_shape_multiplier()`) in 5 of 20 cells — it
+    wants 4× — and in one cell (eta 2, common-neighbour, shape 0.5) parity
+    is unmet even at 4×. ACCEPTED as shipped, because: the disagreement is
+    banked (the gold bank was built at the same 2×; predates rc1), all five
+    end-to-end route certificates PASS, and the trust gauge polices realized
+    deployment harm at fit time — the operative guard in the stubborn cell.
+    Do not raise the budgets casually: 4× means rebuilding every surface,
+    rebuilding the gold bank, and recertifying, and still does not close the
+    one cell. Revisit triggers: a route certificate fails, or the GGM
+    paper's post-release calibration work reopens the derivation.
 
 ## 4. If you touch X, also check Y
 

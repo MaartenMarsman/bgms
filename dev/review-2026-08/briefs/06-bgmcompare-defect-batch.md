@@ -82,6 +82,15 @@ Verification, three parts:
    indexing may be comparing misaligned entries — a gap of 0.0255 vs a 0.0202
    gate is exactly what a few misaligned edges would produce. Do NOT modify
    that test either way; report pass/fail and the new gap value.
+6. IF the gate still fails after the fix: run the maintainer-pre-approved
+   diagnostic. Repeat the test's construction over ~20 seeds — per seed, one
+   reweighting prediction plus two independent refits — and report the
+   distribution of gap/noise ratios (all ~20 numbers, plus where the shipped
+   seed's 5.05 sits among them). A distribution sitting systematically near 5
+   says the reweighting is biased on this path; wide scatter with the shipped
+   seed in the tail says the 4× gate is threshold-luck. Still do NOT modify
+   the test — the gate-vs-substance call stays with the maintainer, who will
+   then have data.
 
 ### 2. F-057 — character/factor `group_indicator` crashes (major)
 
