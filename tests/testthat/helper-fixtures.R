@@ -778,6 +778,22 @@ get_bgms_fit_wenchuan6 = function() {
 }
 
 #' @description Get cached bgms fit
+#' (6 ordinal Wenchuan variables, NO edge selection, 2 chains).
+#' The panel of such a fit reads its evidence off the prior and posterior
+#' ordinates at zero, because there is no indicator to Rao-Blackwellize.
+get_bgms_fit_wenchuan6_noselection = function() {
+  if(is.null(.test_cache$bgms_fit_wenchuan6_nosel)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_wenchuan6_nosel = bgm(
+      Wenchuan[, 1:6], edge_selection = FALSE,
+      chains = 2, iter = 400, warmup = 400, cores = 2, seed = 1,
+      display_progress = "none", verbose = FALSE
+    )
+  }
+  .test_cache$bgms_fit_wenchuan6_nosel
+}
+
+#' @description Get cached bgms fit
 #' (5 ordinal Wenchuan variables, edge selection, 2 chains)
 get_bgms_fit_wenchuan5 = function() {
   if(is.null(.test_cache$bgms_fit_wenchuan5)) {

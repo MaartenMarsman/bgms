@@ -530,32 +530,89 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
 #' @title Plot the Posterior of One Edge Weight
 #'
 #' @description
-#' Draws the spike-and-slab posterior of a single edge weight: a stem at zero
-#' whose height is the posterior probability that the edge is absent, and the
-#' slab of the weight given that it is present.
+#' Draws one edge's weight the way JASP draws a parameter: the posterior
+#' density against the prior it was updated from, with the evidence for the
+#' edge as a filled probability wheel and the estimate printed beside it.
 #'
-#' @param bgms_object A fitted model object of class `bgms`, from [bgm()] with
-#'   `edge_selection = TRUE`.
+#' @param bgms_object A fitted model object of class `bgms`, from [bgm()].
 #' @param variable1,variable2 The two variables naming the edge. Either names
 #'   or column positions.
-#' @param evidence_threshold Numeric > 1; the threshold used for the verdict in
-#'   the panel's title, as in [verdicts()]. Default `10`.
-#' @param binwidth Width of the weight bin the slab's height is expressed per,
-#'   so that the stem and the slab are on one scale. Default `0.01`.
+#' @param evidence_threshold Numeric > 1; the threshold used for the verdict
+#'   printed on the panel, as in [verdicts()]. Default `10`. Ignored for a fit
+#'   without edge selection, which has no inclusion verdict to read.
+#' @param binwidth `r lifecycle::badge("deprecated")` The panel no longer
+#'   expresses the weight as probability per bin, so this has nothing to set;
+#'   it is warned about and ignored.
 #' @param ... Ignored.
 #'
 #' @return `bgms_object`, invisibly. Called for the side effect of drawing.
 #'
 #' @details
-#' The two parts are commensurable, which is the point of the picture: the stem
-#' is the probability of exactly zero, and the slab is drawn as probability per
-#' weight bin, so the visible areas divide the posterior mass as the model
-#' does. A decisive edge is a short stem under a well-separated slab; an
-#' undecided edge splits its mass between them.
+#' The panel shows two curves on one density scale. The solid accented curve is
+#' the posterior of the edge weight; the dashed grey curve is the prior it was
+#' updated from, computed in closed form from the fit's own `interaction_prior`
+#' rather than assumed, so a panel drawn from a `cauchy_prior(scale = 2.5)` fit
+#' and one drawn from the `normal_prior(scale = 1)` default do not look alike.
 #'
-#' The y axis carries no numbers. Its unit is a display choice, and the two
-#' quantities a reader needs -- the probability of absence and the location of
-#' the weight -- are printed and on the x axis respectively.
+#' What the two curves are, and how the evidence is read off them, follows the
+#' model the fit actually used.
+#'
+#' \strong{With edge selection} (the default), the posterior of the weight is a
+#' spike-and-slab: a point mass at zero and a continuous part. The panel draws
+#' the continuous part \emph{conditional on the edge being included}, which is a
+#' genuine density integrating to one, so the y axis carries numbers. The mass
+#' at zero is not drawn as a stem competing with that density; it is carried by
+#' the probability wheel, whose accented share is the posterior inclusion
+#' probability and whose pale share is the probability that the edge is absent.
+#' The evidence is printed as the natural log of the inclusion Bayes factor
+#' from [extract_inclusion_bf()], which `bgms` estimates by Rao-Blackwellizing
+#' the indicator draws. It is \emph{not} a ratio of densities at zero, so the
+#' panel does not draw Savage-Dickey ordinates: dots at zero would assert an
+#' estimator the package does not use.
+#'
+#' \strong{Without edge selection} there is no indicator and no point mass; the
+#' posterior of the weight is continuous and the Savage-Dickey density ratio is
+#' the licensed estimator of the inclusion Bayes factor. The panel then draws
+#' the JASP figure exactly: both ordinates at zero are marked with grey dots,
+#' and their ratio -- prior over posterior -- is the Bayes factor for the edge,
+#' printed on the same natural-log scale. The wheel is filled by
+#' \eqn{BF/(1 + BF)}, which is the posterior probability of the edge at equal
+#' prior odds, so the wheel still shows a probability, and it is labelled with
+#' JASP's `data|H1` / `data|H0` pair.
+#'
+#' The prior ordinate at zero is exact. The posterior ordinate is estimated
+#' from the draws by a Gaussian kernel density with the Sheather-Jones
+#' bandwidth (`stats::density(bw = "SJ")`), evaluated at zero; JASP's own
+#' implementations use a logspline fit, which `bgms` does not adopt because it
+#' would add a dependency for one number. The two estimators agree closely
+#' where the posterior is smooth near zero and diverge where it is not, which
+#' is the regime in which a Savage-Dickey Bayes factor is unreliable whatever
+#' fits its density.
+#'
+#' On a block of continuous variables the slab sits on an entry of a precision
+#' matrix, whose joint prior is that slab times a prior on the diagonal,
+#' restricted to the positive-definite cone. The curve drawn is the slab -- the
+#' density the sampler evaluates for that edge, and the one the prior
+#' sensitivity machinery reweights on -- which is the marginal prior of the
+#' entry only up to that restriction. The restriction pulls the true marginal
+#' in, so on a continuous block the drawn prior is the wider of the two. On a
+#' discrete block the parameters are unconstrained and the slab is the marginal
+#' prior exactly.
+#'
+#' The median and the 95% credible interval printed at the top right are of the
+#' same posterior the density shows -- conditional on inclusion under edge
+#' selection, unconditional without it -- and the interval is repeated as a bar
+#' above the curve.
+#'
+#' An edge the data rule out is still drawn. When no retained draw included it
+#' there is no conditional posterior to show, so the panel draws the prior, the
+#' wheel (nearly all pale), and the evidence, and says so in its caption:
+#' decisive absence is a result, not a failure.
+#'
+#' The panel follows the package's plotting conventions (see the internal
+#' `R/plot_style.R`): offset axes, no box, large type, no headline title. The
+#' edge and its verdict are printed as annotations, where the rest of the
+#' numbers are.
 #'
 #' @examples
 #' \donttest{
@@ -563,14 +620,37 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
 #' plot_edge_posterior(fit, "intrusion", "dreams")
 #' }
 #'
-#' @seealso [verdicts()], [extract_pairwise_interactions()]
+#' @seealso [verdicts()], [extract_pairwise_interactions()],
+#'   [extract_inclusion_bf()]
 #' @family posterior-methods
 #' @export
 plot_edge_posterior = function(bgms_object, variable1, variable2,
-                               evidence_threshold = 10, binwidth = 0.01, ...) {
+                               evidence_threshold = 10,
+                               binwidth = lifecycle::deprecated(), ...) {
+  if(lifecycle::is_present(binwidth)) {
+    lifecycle::deprecate_warn(
+      "0.2.0.0", "plot_edge_posterior(binwidth =)",
+      details = paste(
+        "The panel draws the posterior of the weight as a density conditional",
+        "on inclusion, not as probability per weight bin, so there is no bin",
+        "to set a width for. The inclusion probability is now shown as a",
+        "filled wheel. The argument is ignored."
+      )
+    )
+  }
   check_evidence_threshold(evidence_threshold)
+  if(inherits(bgms_object, "bgmCompare")) {
+    stop(
+      "plot_edge_posterior() draws an edge of a single network, and a ",
+      "bgmCompare() fit parameterizes differences between networks rather ",
+      "than one edge weight. Use plot(fit) for the difference network and ",
+      "verdicts(fit) for the per-difference evidence."
+    )
+  }
+
   samples = extract_pairwise_interactions(bgms_object)
-  variables = extract_arguments(bgms_object)$data_columnnames
+  arguments = extract_arguments(bgms_object)
+  variables = arguments$data_columnnames
 
   first = resolve_variable(variable1, variables, "variable1")
   second = resolve_variable(variable2, variables, "variable2")
@@ -583,88 +663,526 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
       variables[if(first == 1L) 2L else 1L], "')."
     )
   }
-  if(first > second) {
-    swap = first
-    first = second
-    second = swap
-  }
-  label = paste(variables[first], variables[second], sep = "-")
-  if(!label %in% colnames(samples)) {
+  label = edge_column_label(variables[first], variables[second],
+    colnames(samples))
+  if(is.null(label)) {
     stop("No edge between '", variables[first], "' and '", variables[second], "'.")
   }
 
   draws = samples[, label]
-  p_spike = mean(draws == 0)
-  slab = draws[draws != 0]
-  if(length(slab) < 2L) {
-    stop(
-      "The edge '", label, "' was included in fewer than two retained draws, ",
-      "so there is no slab to draw. verdicts(fit) reports its evidence."
-    )
+  prior = edge_slab_prior(bgms_object)
+
+  if(isTRUE(arguments$edge_selection)) {
+    evidence = edge_selection_evidence(bgms_object, label, evidence_threshold)
+    panel = edge_panel_selection(label, draws, prior,
+      evidence$pip, evidence$log_bf, evidence$verdict)
+  } else {
+    panel = edge_panel_savage_dickey(label, draws, prior)
   }
-
-  edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
-  row = edges[edges$parameter == label, , drop = FALSE]
-  title = edge_panel_title(label, as.character(row$verdict), row$log_bf)
-
-  ink = "grey25"
-  muted = "grey55"
-  accent = mover_palette()[1]
-
-  span = max(abs(slab))
-  density = stats::density(slab, from = -1.1 * span, to = 1.1 * span, n = 512)
-  height = density$y * (1 - p_spike) * binwidth
-
-  old_par = graphics::par(no.readonly = TRUE)
-  on.exit(graphics::par(old_par), add = TRUE)
-  graphics::par(
-    mar = c(5.4, 1.6, 3.6, 1.6), mgp = c(2.3, 0.6, 0),
-    col.axis = ink, col.lab = ink, col.main = ink
-  )
-
-  graphics::plot(NA, NA,
-    xlim = range(c(density$x, 0)), ylim = c(0, 1.18 * max(c(height, p_spike))),
-    axes = FALSE, xlab = "Edge weight", ylab = "", main = title, cex.main = 1
-  )
-  graphics::axis(1, col = muted, col.ticks = muted)
-
-  # Fill without a border, then trace the top only: a bordered polygon would
-  # close along y = 0 and draw a baseline across the whole weight range.
-  graphics::polygon(
-    c(density$x, rev(density$x)), c(height, rep(0, length(height))),
-    col = grDevices::adjustcolor(accent, 0.25), border = NA
-  )
-  graphics::lines(density$x, height, col = accent, lwd = 1.6)
-  graphics::segments(0, 0, 0, p_spike, col = ink, lwd = 2.6, lend = 1)
-  graphics::points(0, p_spike, pch = 16, col = ink, cex = 1.2)
-  graphics::text(0, p_spike,
-    labels = if(p_spike < 0.01) "<.01" else sub("^0", "", sprintf("%.2f", p_spike)),
-    pos = 3, offset = 0.5, cex = 0.85, col = ink
-  )
-  graphics::mtext("P(edge absent) at the stem; slab on the same scale",
-    side = 1, line = 3.8, cex = 0.75, col = muted
-  )
+  draw_edge_panel(panel)
 
   invisible(bgms_object)
 }
 
 
 # ------------------------------------------------------------------
-# edge_panel_title
+# edge_column_label
 # ------------------------------------------------------------------
-# Two-line title of an edge posterior panel: the edge, then its verdict and
-# the evidence as a natural log Bayes factor. A saturated edge gets an
-# inequality; printing exp() of a three-figure log Bayes factor would fill the
-# title with a hundred digits none of which the run resolves.
+# The column name a pair of variables is stored under, in whichever order the
+# fit stores it. A single-network fit names an edge in variable order, but a
+# mixed fit lays its pairwise draws out by block -- discrete, continuous, cross
+# -- and names a cross edge by its discrete end first, which need not be the
+# earlier column. Looking for one orientation only would report "no edge"
+# for an edge that exists.
+#
+# @param a, b     The two variable names.
+# @param columns  The pairwise draws' column names.
+#
+# Returns: the matching column name, or NULL.
+# ------------------------------------------------------------------
+edge_column_label = function(a, b, columns) {
+  forward = paste(a, b, sep = "-")
+  if(forward %in% columns) {
+    return(forward)
+  }
+  reverse = paste(b, a, sep = "-")
+  if(reverse %in% columns) {
+    return(reverse)
+  }
+  NULL
+}
+
+
+# ------------------------------------------------------------------
+# edge_slab_prior
+# ------------------------------------------------------------------
+# The fit's own slab prior on one edge weight, as a function of the weight.
+#
+# The family and its scale are read from the spec rather than assumed: the
+# default changed in 0.2.0 (from Cauchy to Normal), and a panel that hardcoded
+# either would misdraw half the fits.
+#
+# No change of variable is needed. The sampler evaluates the slab on the
+# association-scale parameter -- for a continuous block that is -K_ij/2 rather
+# than the precision entry itself (ggm_model.cpp, mixed_mrf_gradient.cpp) --
+# and extract_pairwise_interactions() reports the draws in exactly that frame
+# for every model type. It returns, element for element, the theta that
+# anchor_draws() reweights the sensitivity curve on, which is defined as the
+# frame the slab prior applies to.
+#
+# @param bgms_object  The fit.
+#
+# Returns: list(density = function(w), quantile = function(p), family, scale),
+#   or NULL when the fit carries no spec to read the prior from, or carries a
+#   slab family with no closed form here.
+# ------------------------------------------------------------------
+edge_slab_prior = function(bgms_object) {
+  spec = get_fit_spec(bgms_object)
+  if(is.null(spec) || is.null(spec$prior$interaction_prior_type)) {
+    return(NULL)
+  }
+  prior = spec$prior
+  family = tolower(prior$interaction_prior_type)
+  scale = prior$pairwise_scale
+  alpha = prior$interaction_alpha
+  beta = prior$interaction_beta
+
+  density = switch(family,
+    normal = function(w) stats::dnorm(w, 0, scale),
+    cauchy = function(w) stats::dcauchy(w, 0, scale),
+    # mu = logit(Y) with Y ~ Beta(alpha, beta), so the density of mu carries
+    # the logistic Jacobian. Far out in either tail the Beta density overflows
+    # while the Jacobian underflows; the product tends to zero, so that is what
+    # is returned rather than the NaN the floating-point form produces.
+    `beta-prime` = function(w) {
+      p = stats::plogis(w)
+      out = stats::dbeta(p, alpha, beta) * p * (1 - p)
+      out[!is.finite(out)] = 0
+      out
+    },
+    NULL
+  )
+  if(is.null(density)) {
+    return(NULL)
+  }
+
+  quantile = switch(family,
+    normal = function(p) stats::qnorm(p, 0, scale),
+    cauchy = function(p) stats::qcauchy(p, 0, scale),
+    `beta-prime` = function(p) stats::qlogis(stats::qbeta(p, alpha, beta))
+  )
+
+  list(density = density, quantile = quantile, family = family, scale = scale)
+}
+
+
+# ------------------------------------------------------------------
+# conditional_density
+# ------------------------------------------------------------------
+# Kernel density of a set of draws on a grid covering them and zero. The
+# Sheather-Jones bandwidth is the package's choice everywhere a density is
+# read at a point; it can fail on a degenerate sample, in which case the
+# default rule stands in rather than the call failing.
+#
+# @param draws  The draws.
+# @param n      Grid size.
+#
+# Returns: list(x, y), or NULL when there is nothing to smooth.
+# ------------------------------------------------------------------
+conditional_density = function(draws, n = 512L) {
+  if(length(draws) < 2L || !any(is.finite(draws))) {
+    return(NULL)
+  }
+  span = diff(range(draws))
+  if(!is.finite(span) || span <= 0) {
+    return(NULL)
+  }
+  fit = tryCatch(
+    stats::density(draws, bw = "SJ", n = n),
+    error = function(e) NULL, warning = function(w) NULL
+  )
+  if(is.null(fit)) {
+    fit = stats::density(draws, n = n)
+  }
+  list(x = fit$x, y = fit$y)
+}
+
+
+# ------------------------------------------------------------------
+# edge_selection_evidence
+# ------------------------------------------------------------------
+# The verdicts() row of one edge: its inclusion probability, its evidence, and
+# its verdict. A mixed fit names its indicators in block order, which need not
+# be variable order, so the other orientation is tried before giving up.
+#
+# @param bgms_object        The fit.
+# @param label              The edge label, as the pairwise draws name it.
+# @param evidence_threshold The verdict threshold.
+#
+# Returns: list(pip, log_bf, verdict); all NA when the edge has no row.
+# ------------------------------------------------------------------
+edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
+  edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
+  row = edges[edges$parameter == label, , drop = FALSE]
+  if(!nrow(row)) {
+    ends = strsplit(label, "-", fixed = TRUE)[[1]]
+    if(length(ends) == 2L) {
+      flipped = paste(ends[2], ends[1], sep = "-")
+      row = edges[edges$parameter == flipped, , drop = FALSE]
+    }
+  }
+  if(!nrow(row)) {
+    return(list(pip = NA_real_, log_bf = NA_real_, verdict = NA_character_))
+  }
+  list(
+    pip = row$pip[1], log_bf = row$log_bf[1],
+    verdict = as.character(row$verdict[1])
+  )
+}
+
+
+# ------------------------------------------------------------------
+# edge_panel_selection
+# ------------------------------------------------------------------
+# The panel of an edge from a fit with edge selection: a conditional posterior,
+# the prior, and the inclusion probability on the wheel. No Savage-Dickey
+# ordinates -- the Bayes factor printed here is the Rao-Blackwellized indicator
+# Bayes factor, not a ratio of densities at zero, and marking the ordinates
+# would claim otherwise.
 #
 # @param label    The edge label.
-# @param verdict  The verdict, as a character string.
+# @param draws    The edge's pairwise draws.
+# @param prior    From edge_slab_prior(), or NULL.
+# @param pip      Posterior inclusion probability.
 # @param log_bf   Natural log inclusion Bayes factor.
+# @param verdict  The verdict, as a character string, or NA.
 #
-# Returns: a length-one character string.
+# Returns: a panel description for draw_edge_panel().
 # ------------------------------------------------------------------
-edge_panel_title = function(label, verdict, log_bf) {
-  sprintf("%s\n%s, log BF %s", label, verdict, format_log_bf(log_bf))
+edge_panel_selection = function(label, draws, prior, pip, log_bf, verdict) {
+  slab = draws[draws != 0]
+  if(!is.finite(pip)) {
+    pip = mean(draws != 0)
+  }
+  posterior = conditional_density(slab)
+
+  style = bgms_style()
+  list(
+    label = label,
+    subtitle = verdict_phrase(verdict),
+    posterior = posterior,
+    prior = prior,
+    dots = NULL,
+    wheel_prob = pip,
+    wheel_labels = NULL,
+    evidence = c(
+      paste("PIP", format_probability(pip)),
+      paste("log BF", format_log_bf(log_bf))
+    ),
+    estimate = if(is.null(posterior)) NULL else estimate_lines(slab),
+    interval = if(is.null(posterior)) NULL else stats::quantile(
+      slab, c(0.025, 0.975), names = FALSE
+    ),
+    caption = if(is.null(posterior)) {
+      "No retained draw included this edge. Pale share of the wheel: P(absent)."
+    } else {
+      "Density: the weight given inclusion. Pale share of the wheel: P(absent)."
+    },
+    style = style
+  )
+}
+
+
+# ------------------------------------------------------------------
+# edge_panel_savage_dickey
+# ------------------------------------------------------------------
+# The panel of an edge from a fit without edge selection. There is no
+# indicator, the posterior of the weight is continuous, and the Savage-Dickey
+# density ratio at zero is the licensed estimator of the inclusion Bayes
+# factor -- so this is the JASP figure, ordinate dots and all.
+#
+# @param label  The edge label.
+# @param draws  The edge's pairwise draws.
+# @param prior  From edge_slab_prior(), or NULL.
+#
+# Returns: a panel description for draw_edge_panel().
+# ------------------------------------------------------------------
+edge_panel_savage_dickey = function(label, draws, prior) {
+  posterior = conditional_density(draws)
+
+  prior_at_zero = if(is.null(prior)) NA_real_ else prior$density(0)
+  posterior_at_zero = if(is.null(posterior)) {
+    NA_real_
+  } else {
+    stats::approx(posterior$x, posterior$y, xout = 0, rule = 2)$y
+  }
+  # BF for the edge: prior ordinate over posterior ordinate at zero. A
+  # posterior that has left zero entirely gives an infinite Bayes factor,
+  # which format_log_bf() prints as the capped inequality.
+  log_bf = log(prior_at_zero) - log(posterior_at_zero)
+  bf = exp(min(log_bf, 700))
+  wheel = bf / (1 + bf)
+  if(!is.finite(wheel)) {
+    wheel = if(is.finite(log_bf) && log_bf > 0) 1 else NA_real_
+  }
+
+  dots = if(is.finite(prior_at_zero) && is.finite(posterior_at_zero)) {
+    list(x = c(0, 0), y = c(prior_at_zero, posterior_at_zero))
+  } else {
+    NULL
+  }
+
+  list(
+    label = label,
+    subtitle = "no edge selection",
+    posterior = posterior,
+    prior = prior,
+    dots = dots,
+    wheel_prob = wheel,
+    wheel_labels = c("data|H1", "data|H0"),
+    evidence = paste("log BF", format_log_bf(log_bf)),
+    estimate = estimate_lines(draws),
+    interval = stats::quantile(draws, c(0.025, 0.975), names = FALSE),
+    caption = paste(
+      "Savage-Dickey ratio at zero (grey dots).",
+      "Accented share: P(edge | data), equal prior odds."
+    ),
+    style = bgms_style()
+  )
+}
+
+
+# ------------------------------------------------------------------
+# verdict_phrase
+# ------------------------------------------------------------------
+# The verdict as a panel says it. "presence" and "absence" are readings of the
+# evidence and are named as such; "undecided" is not evidence of anything, so
+# it stands alone rather than being wrapped in "evidence of".
+#
+# @param verdict  The verdict, as a character string, or NA.
+#
+# Returns: a length-one character string, or NULL for an unread verdict.
+# ------------------------------------------------------------------
+verdict_phrase = function(verdict) {
+  if(is.null(verdict) || is.na(verdict)) {
+    return(NULL)
+  }
+  switch(verdict,
+    presence = "evidence of presence",
+    absence = "evidence of absence",
+    undecided = "undecided",
+    verdict
+  )
+}
+
+
+# ------------------------------------------------------------------
+# estimate_lines
+# ------------------------------------------------------------------
+# The two estimate lines a JASP panel prints at its top right.
+#
+# @param draws  The draws the estimate summarizes.
+#
+# Returns: a length-two character vector.
+# ------------------------------------------------------------------
+estimate_lines = function(draws) {
+  quantiles = stats::quantile(draws, c(0.025, 0.5, 0.975), names = FALSE)
+  # A weight that rounds to nothing is nothing, not "-0.00": the sign of a
+  # rounded-away quantity is not information the run established.
+  shown = round(quantiles, 2)
+  shown[shown == 0] = 0
+  c(
+    sprintf("median = %.2f", shown[2]),
+    sprintf("95%% CI [%.2f, %.2f]", shown[1], shown[3])
+  )
+}
+
+
+# ------------------------------------------------------------------
+# edge_panel_window
+# ------------------------------------------------------------------
+# The weight range the panel is drawn over: the posterior's own support where
+# there is one, and the prior's central 90% where there is not, always
+# including zero, which is the point the whole figure is about.
+#
+# @param panel  The panel description.
+#
+# Returns: a length-two numeric.
+# ------------------------------------------------------------------
+edge_panel_window = function(panel) {
+  if(!is.null(panel$posterior)) {
+    return(range(c(panel$posterior$x, 0)))
+  }
+  if(!is.null(panel$prior)) {
+    edge = panel$prior$quantile(0.95)
+    return(c(-abs(edge), abs(edge)))
+  }
+  c(-1, 1)
+}
+
+
+# ------------------------------------------------------------------
+# draw_edge_panel
+# ------------------------------------------------------------------
+# Render a panel description in the package style. The layout is the JASP
+# prior-and-posterior figure's: curves in the plot region, everything a reader
+# would otherwise look for in a title arranged across the top margin -- the
+# edge and its verdict at the left, the estimate at the right, the evidence on
+# and beside the wheel between them.
+#
+# @param panel  A panel description from edge_panel_selection() or
+#   edge_panel_savage_dickey().
+# ------------------------------------------------------------------
+draw_edge_panel = function(panel) {
+  style = bgms_panel_par()
+  on.exit(graphics::par(style$old_par), add = TRUE)
+
+  window = edge_panel_window(panel)
+  x_axis = bgms_axis_range(window)
+  grid = seq(x_axis$lim[1], x_axis$lim[2], length.out = 1024)
+
+  prior_y = if(is.null(panel$prior)) NULL else panel$prior$density(grid)
+  posterior_y = if(is.null(panel$posterior)) {
+    NULL
+  } else {
+    stats::approx(panel$posterior$x, panel$posterior$y, xout = grid,
+      yleft = 0, yright = 0)$y
+  }
+  # A fit old enough to carry no spec and an edge no draw included leave both
+  # curves empty; max() of nothing warns, so the empty case is named instead.
+  heights = c(posterior_y, prior_y, panel$dots$y)
+  peak = if(length(heights)) max(heights, na.rm = TRUE) else NA_real_
+  if(!is.finite(peak) || peak <= 0) peak = 1
+  # The tick range starts at zero and the data region drops just below it, so
+  # the density baseline sits above the x axis rather than on it.
+  y_axis = bgms_axis_range(c(0, style$stretch * peak))
+
+  graphics::plot(NA, NA,
+    xlim = x_axis$lim, ylim = y_axis$lim,
+    axes = FALSE, xlab = "", ylab = "", main = ""
+  )
+  bgms_axis(1, x_axis$at, style = style)
+  bgms_axis(2, y_axis$at, style = style)
+  graphics::mtext("Edge weight",
+    side = 1, line = 2.9, cex = style$cex_lab, col = style$ink
+  )
+  graphics::mtext("Density",
+    side = 2, line = 3.3, las = 0, cex = style$cex_lab, col = style$ink
+  )
+
+  if(!is.null(prior_y)) {
+    graphics::lines(grid, prior_y,
+      col = style$muted, lwd = style$lwd_curve, lty = 3
+    )
+  }
+  if(!is.null(posterior_y)) {
+    graphics::polygon(
+      c(grid, rev(grid)), c(posterior_y, rep(0, length(posterior_y))),
+      col = grDevices::adjustcolor(style$accent, style$fill_alpha), border = NA
+    )
+    graphics::lines(grid, posterior_y,
+      col = style$accent, lwd = style$lwd_curve
+    )
+  }
+  if(!is.null(panel$dots)) {
+    graphics::points(panel$dots$x, panel$dots$y,
+      pch = 21, col = style$ink, bg = "grey75", cex = 1.5, lwd = style$lwd_axis
+    )
+  }
+
+  # The credible interval, as a bar above the curve it belongs to.
+  if(!is.null(panel$interval) && all(is.finite(panel$interval))) {
+    bar = 1.1 * peak
+    graphics::arrows(
+      panel$interval[1], bar, panel$interval[2], bar,
+      angle = 90, code = 3, length = 0.05,
+      col = style$ink, lwd = style$lwd_axis
+    )
+  }
+
+  legend_labels = c(
+    if(!is.null(posterior_y)) "Posterior",
+    if(!is.null(prior_y)) "Prior"
+  )
+  if(length(legend_labels)) {
+    # The compendium puts the legend on the side the mass is not; with the
+    # posterior usually right of zero that is the left, and a left-heavy
+    # posterior moves it rather than being drawn over.
+    left_heavy = !is.null(posterior_y) &&
+      sum(posterior_y[grid < mean(x_axis$lim)]) > sum(posterior_y) / 2
+    graphics::legend(
+      if(left_heavy) x_axis$lim[2] else x_axis$lim[1], max(y_axis$at),
+      legend = legend_labels,
+      lty = if(length(legend_labels) == 2L) c(1, 3) else if(is.null(posterior_y)) 3 else 1,
+      col = if(length(legend_labels) == 2L) c(style$accent, style$muted) else {
+        if(is.null(posterior_y)) style$muted else style$accent
+      },
+      lwd = style$lwd_curve, bty = "n", cex = style$cex_legend,
+      xjust = if(left_heavy) 1 else 0, yjust = 1,
+      x.intersp = 0.7, seg.len = 1.3, text.col = style$ink
+    )
+  }
+
+  draw_edge_annotations(panel, x_axis, style)
+
+  graphics::mtext(panel$caption,
+    side = 1, line = 4.4, cex = style$cex_caption, col = style$muted
+  )
+  invisible(NULL)
+}
+
+
+# ------------------------------------------------------------------
+# draw_edge_annotations
+# ------------------------------------------------------------------
+# The top-margin band: identity and verdict at the left, estimate at the right,
+# and the probability wheel with the evidence beside it between them. Positions
+# are figure fractions, so the band holds its shape while the axis scale moves
+# under it -- the same device JASP's own code uses.
+#
+# @param panel   The panel description.
+# @param x_axis  The x tick/limit list.
+# @param style   The style list.
+# ------------------------------------------------------------------
+draw_edge_annotations = function(panel, x_axis, style) {
+  old_xpd = graphics::par("xpd")
+  graphics::par(xpd = NA)
+  on.exit(graphics::par(xpd = old_xpd), add = TRUE)
+
+  left = x_axis$lim[1]
+  right = x_axis$lim[2]
+
+  annotation_block(left, panel_y(0.975), panel$label,
+    adj = 0, cex = style$cex_label, col = style$ink, style = style
+  )
+  if(!is.null(panel$subtitle)) {
+    annotation_block(left, panel_y(0.920), panel$subtitle,
+      adj = 0, cex = style$cex_annotation, col = style$muted, style = style
+    )
+  }
+  if(!is.null(panel$estimate)) {
+    annotation_block(right, panel_y(0.975), panel$estimate,
+      adj = 1, cex = style$cex_annotation, col = style$ink, style = style
+    )
+  }
+
+  # A labelled wheel needs room above and below it for its labels, so it hangs
+  # lower in the band than a bare one.
+  wheel_y = panel_y(if(is.null(panel$wheel_labels)) 0.815 else 0.795)
+  wheel = probability_wheel(
+    panel_x(0.20), wheel_y, panel$wheel_prob,
+    labels = panel$wheel_labels, style = style
+  )
+  gap = 0.6 * graphics::strwidth("M", cex = style$cex_annotation)
+  top = wheel_y + if(length(panel$evidence) == 2L) {
+    0.9 * graphics::strheight("Mg", cex = style$cex_annotation)
+  } else {
+    0.35 * graphics::strheight("Mg", cex = style$cex_annotation)
+  }
+  annotation_block(wheel$x + wheel$dx + gap, top, panel$evidence,
+    adj = 0, cex = style$cex_annotation, col = style$ink, style = style
+  )
+  invisible(NULL)
 }
 
 
