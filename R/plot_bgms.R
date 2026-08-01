@@ -541,7 +541,13 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   first = resolve_variable(variable1, variables, "variable1")
   second = resolve_variable(variable2, variables, "variable2")
   if(first == second) {
-    stop("Arguments 'variable1' and 'variable2' must name two different variables.")
+    stop(
+      "Arguments 'variable1' and 'variable2' both resolve to '",
+      variables[first], "', but an edge joins two different variables. ",
+      "Name the other end of the edge, for example plot_edge_posterior(fit, '",
+      variables[first], "', '",
+      variables[if(first == 1L) 2L else 1L], "')."
+    )
   }
   if(first > second) {
     swap = first
