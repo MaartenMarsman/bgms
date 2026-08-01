@@ -63,11 +63,21 @@ there); the vignette is the in-package copy. Corrected reading is drafted in
 **F-012** — if the tarball diff shows real differences, every "unchanged since
 CRAN" claim in the diff map must be rechecked against the true baseline.
 
-**F-016 (major, open, maintainability+process)** — `dev/audit/` (the July 2026
-audit, all PR reviews, specs, decision records — the package's institutional
-memory) is **not tracked by git** (`.gitignore:25 dev/*`; only `dev/validation/`
-and now `dev/review-2026-08/` are allowlisted). It exists only in the Dropbox
-working tree: one bad sync from loss, invisible to fresh clones, unversioned.
-MM to decide: allowlist `!dev/audit/` (contents become public on push) or move
-to a private archive. Until decided, treat the Dropbox copy as the single
-fragile source. Source: review lead, 2026-08-01.
+**F-016 (major, decided, maintainability+process)** — `dev/audit/` (the July
+2026 audit, all PR reviews, specs, decision records) is not tracked by git
+(`.gitignore:25 dev/*`). **MM decided 2026-08-01: keep it private** — it stays
+out of the public repo. Snapshot archived to
+`../bgms-audit-archive/dev-audit-plans-2026-08-01.tar.gz` (3.4 MB; covers
+`dev/audit`, `dev/plans`, and the loose handoff docs). Residual risk: both
+copies live in the same Dropbox; optional hardening is a private git remote
+(see MAINTAINERS backlog #1). Re-snapshot when the decision record grows.
+
+**Tag-hygiene record (under F-014)** — the two pre-review tags were deleted
+outright at MM's direction (2026-08-01), archival declined:
+`ggm-release-eval-ref` → commit `252c52df` (tag object `e7a42ad8`; never-merged
+GGM SBC/oracle gates, 2026-07-06); `scratch-buffer-logz-ref` → commit
+`9c61b99c` (tag object `19d6394f`; parked OMRF/mixed scratch-buffer tip,
+2026-04-29). The commits remain recoverable from the local/remote object
+stores until garbage collection (`git tag <name> <sha>` restores). The two
+`dev/plans/backlog` scratch-buffer documents cite the deleted ref; these SHAs
+are now the only pointer.

@@ -196,8 +196,10 @@ Reconciled with the July 2026 audit (00a §3): Phases 1–2 of that audit are
 done and verified in git; Phase 3 partial; Phase 4 items are in FINDINGS as
 release blockers (F-003, F-017, F-018). Remaining + new, ranked:
 
-1. **Track the institutional memory** (F-016): allowlist `dev/audit/` (or move
-   to a private archive). Minutes of work; protects months of review record.
+1. **Institutional memory** (F-016, decided: private): snapshot exists at
+   `../bgms-audit-archive/dev-audit-plans-2026-08-01.tar.gz`; re-snapshot as
+   the record grows. Optional hardening: push `dev/audit` + `dev/plans` to a
+   private remote so a copy lives outside Dropbox.
 2. **Test interfaces for the blind spots** (00b §15): bgmCompare first (it has
    none), then NUTS step / adaptation controllers. Each unlocks unit-level
    regression tests where today only end-to-end runs exist.
