@@ -40,7 +40,10 @@ nearer verdict boundary, in units of each standard error.}
 }
 The evidence threshold is attached as the \code{evidence_threshold} attribute,
 and whether the fragility flag's operating point covers this kind of
-indicator as \code{flag_validated}.
+indicator as \code{flag_validated}. A \code{bgmCompare} fit additionally carries
+\code{difference_fit}, and, under \code{main_difference_selection = FALSE},
+\code{unselected_main}, marking the main-effect rows the print leaves out of
+its counts because no indicator exists for them.
 }
 \description{
 Reads each edge (or difference) indicator's inclusion Bayes factor as a

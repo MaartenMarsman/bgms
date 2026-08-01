@@ -193,20 +193,25 @@ test_that("verdicts() errors without selection and covers bgmCompare", {
   expect_equal(nrow(v), 10L)
 
   # The pairwise differences were selected and carry verdicts; the main-effect
-  # differences were not updated (main_difference_selection defaults to FALSE),
-  # so they carry none, and are reported as such rather than as undecided.
+  # differences are not under selection (main_difference_selection defaults to
+  # FALSE), so the table keeps their rows as NA while the print leaves them
+  # out of the counts and says why.
   is_main = grepl("(main)", v$parameter, fixed = TRUE)
   expect_true(all(is.na(v$verdict[is_main])))
   expect_false(anyNA(v$verdict[!is_main]))
   expect_false(any(v$fragile[is_main]))
+  expect_equal(attr(v, "unselected_main"), is_main)
 
   # The fragility flag's operating point was measured on single-network edge
   # indicators only; the difference-indicator print must say so rather than
   # borrow the single-network numbers.
   expect_false(attr(v, "flag_validated"))
   out = paste(utils::capture.output(print(v)), collapse = "\n")
-  expect_match(out, "never updated and carry no verdict")
+  expect_match(out, "not under selection")
+  expect_match(out, "6 indicators")
+  expect_false(grepl("never updated and carry no verdict", out))
   expect_match(out, "not validated for difference indicators")
+  expect_match(out, "scale-contingent")
 })
 
 test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
@@ -221,14 +226,14 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
   expect_false(grepl("not validated", out))
   if(any(v$fragile)) {
     expect_match(out, "Monte-Carlo fragile")
-    expect_match(out, "Run longer")
+    expect_match(out, "Consider a")
   }
 
   # No fragile edges, no advice line.
   v_none = v
   v_none$fragile = rep(FALSE, nrow(v))
   quiet = paste(utils::capture.output(print(v_none)), collapse = "\n")
-  expect_false(grepl("Run longer", quiet))
+  expect_false(grepl("Monte-Carlo fragile", quiet))
 
   # Selecting columns keeps the class but not the table; printing what is left
   # must degrade to the plain data frame rather than fail on a missing column.
@@ -291,4 +296,61 @@ test_that("a single-type fit keeps the row-major upper-triangle layout", {
   expected = which(upper.tri(matrix(0, 6L, 6L)), arr.ind = TRUE)
   expected = expected[order(expected[, "row"], expected[, "col"]), , drop = FALSE]
   expect_equal(unname(idx), unname(expected))
+})
+
+
+# ------------------------------------------------------------------------------
+# Printed report for bgmCompare difference verdicts (F-060)
+# ------------------------------------------------------------------------------
+
+# A hand-built verdicts table prints deterministically on every platform,
+# which is what a snapshot of the layout needs; fitted numbers would not.
+make_compare_verdicts = function(main_selected) {
+  parameter = c(
+    "A (main)", "A-B (pairwise)", "A-C (pairwise)",
+    "B (main)", "B-C (pairwise)", "C (main)"
+  )
+  is_main = grepl("(main)", parameter, fixed = TRUE)
+  pip = c(NaN, 0.95, 0.10, NaN, 0.52, NaN)
+  log_bf = c(NA, 2.94, -2.20, NA, 0.08, NA)
+  if(main_selected) {
+    pip[is_main] = c(0.05, 0.90, 0.50)
+    log_bf[is_main] = c(-2.94, 2.20, 0)
+  }
+  out = data.frame(
+    parameter = parameter,
+    pip = pip,
+    bf = exp(log_bf),
+    log_bf = log_bf,
+    verdict = factor(
+      verdict_from_lbf(log_bf, log(10)),
+      levels = c("presence", "undecided", "absence")
+    ),
+    se_two_state = 0.1, se_rb = 0.1,
+    distance_two_state = 5, distance_rb = 5,
+    fragile = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE),
+    stringsAsFactors = FALSE
+  )
+  structure(
+    out,
+    class = c("bgms_verdicts", "data.frame"),
+    evidence_threshold = 10,
+    flag_validated = FALSE,
+    difference_fit = TRUE,
+    unselected_main = if(main_selected) NULL else is_main
+  )
+}
+
+test_that("the compare print leaves unselected main differences out of the table", {
+  expect_snapshot(print(make_compare_verdicts(main_selected = FALSE)))
+})
+
+test_that("the compare print tabulates selected main differences as rows", {
+  expect_snapshot(print(make_compare_verdicts(main_selected = TRUE)))
+})
+
+test_that("the fragility footer suggests a longer run without commanding one", {
+  out = capture.output(print(make_compare_verdicts(main_selected = FALSE)))
+  expect_true(any(grepl("Consider a", out)))
+  expect_false(any(grepl("Run longer", out)))
 })

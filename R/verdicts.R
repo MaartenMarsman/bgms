@@ -274,7 +274,10 @@ build_verdicts = function(parameter, log_bf, pip, mcse, draws, evidence_threshol
 #'   }
 #'   The evidence threshold is attached as the `evidence_threshold` attribute,
 #'   and whether the fragility flag's operating point covers this kind of
-#'   indicator as `flag_validated`.
+#'   indicator as `flag_validated`. A `bgmCompare` fit additionally carries
+#'   `difference_fit`, and, under `main_difference_selection = FALSE`,
+#'   `unselected_main`, marking the main-effect rows the print leaves out of
+#'   its counts because no indicator exists for them.
 #'
 #' @details
 #' Monte Carlo verdict errors are a boundary phenomenon. In a known-truth
@@ -387,7 +390,7 @@ verdicts.bgmCompare = function(bgms_object, evidence_threshold = 10, ...) {
   bf = extract_inclusion_bf(bgms_object, log = TRUE)
   idx = compare_indicator_index(nrow(bf))
 
-  build_verdicts(
+  out = build_verdicts(
     parameter = raw$parameter_names$indicator,
     log_bf = bf[idx],
     pip = extract_posterior_inclusion_probabilities(bgms_object)[idx],
@@ -396,6 +399,14 @@ verdicts.bgmCompare = function(bgms_object, evidence_threshold = 10, ...) {
     evidence_threshold = evidence_threshold,
     flag_validated = FALSE
   )
+  # The print method needs to know these are difference verdicts (for the
+  # scale-contingency caveat) and, under main_difference_selection = FALSE,
+  # which rows are main-effect differences with no indicator to read.
+  attr(out, "difference_fit") = TRUE
+  if(!isTRUE(arguments$main_difference_selection)) {
+    attr(out, "unselected_main") = idx[, 1] == idx[, 2]
+  }
+  out
 }
 
 
@@ -458,12 +469,24 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
     log(threshold), log(threshold)
   ))
 
-  tally = table(x$verdict)
+  # A main-effect difference outside selection has no indicator, so there is
+  # no verdict to tabulate; a bgmCompare fit marks those rows and they are
+  # left out of the counts and the table.
+  hidden = attr(x, "unselected_main")
+  rows = if(is.null(hidden)) x else x[!hidden, , drop = FALSE]
+
+  tally = table(rows$verdict)
   cat(sprintf(
     "  presence %d | undecided %d | absence %d   (%d indicators)\n",
-    tally[["presence"]], tally[["undecided"]], tally[["absence"]], nrow(x)
+    tally[["presence"]], tally[["undecided"]], tally[["absence"]], nrow(rows)
   ))
-  n_unselected = sum(is.na(x$verdict))
+  if(!is.null(hidden) && any(hidden)) {
+    cat(
+      "  Main-effect differences are not under selection",
+      "(main_difference_selection = FALSE).\n"
+    )
+  }
+  n_unselected = sum(is.na(rows$verdict))
   if(n_unselected > 0) {
     cat(sprintf(
       "  %d indicator(s) were never updated and carry no verdict.\n", n_unselected
@@ -471,7 +494,7 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
   }
   cat("\n")
 
-  shown = utils::head(x, max_rows)
+  shown = utils::head(rows, max_rows)
   body = data.frame(
     parameter = shown$parameter,
     pip = round(shown$pip, digits),
@@ -481,14 +504,14 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
     check.names = FALSE
   )
   print(body, row.names = FALSE)
-  if(nrow(x) > max_rows) {
-    cat(sprintf("... (%d more rows)\n", nrow(x) - max_rows))
+  if(nrow(rows) > max_rows) {
+    cat(sprintf("... (%d more rows)\n", nrow(rows) - max_rows))
   }
 
-  n_fragile = sum(x$fragile)
+  n_fragile = sum(rows$fragile)
   if(n_fragile > 0) {
     cat(sprintf(
-      "\n%d %s Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Run longer.\n",
+      "\n%d %s Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n",
       n_fragile, if(n_fragile == 1L) "verdict is" else "verdicts are"
     ))
   }
@@ -501,6 +524,15 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
       "operating point was established on single-network edge indicators only.\n",
       "Read it as an indication that a verdict sits near a boundary, not as a\n",
       "calibrated error rate.\n",
+      sep = ""
+    )
+  }
+  if(isTRUE(attr(x, "difference_fit"))) {
+    cat(
+      "\nDifference verdicts are scale-contingent: group differences are priced\n",
+      "on the association scale through difference_scale, and the calibration\n",
+      "of that default is under study, so a verdict close to a decision\n",
+      "threshold can move with the scale.\n",
       sep = ""
     )
   }
