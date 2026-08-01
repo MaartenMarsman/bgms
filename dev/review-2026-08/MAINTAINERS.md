@@ -243,6 +243,25 @@ release blockers (F-003, F-017, F-018). Remaining + new, ranked:
    tiers #23–27. Post-release; measured gains already banked.
 10. **SLAB-2 conditional-means diagnostic** (F-020) if deferred at release —
     the known blind spot with a designed detector.
+11. **Feature-gap quick wins** (source: `plans/strategic/
+    bgms-feature-gap-analysis.md`, 25 Jul 2026 — the competitive analysis;
+    placement rule: bgms owns computation, easybgm owns presentation):
+    `predictability()` with posterior intervals (the pie-ring visual slot
+    already exists once the brief-10 style module lands); `centrality()` over
+    posterior draws + a `roll_your_own`-style apply-over-draws generic; draws
+    interoperability (`as_draws_df()` / `as.mcmc.list()` — cheapest win,
+    zero plot code); posterior predictive checks (grow them out of
+    `calibration_check`, which is the seed); order-constrained BF tests
+    (nobody has this for MRFs). Note the analysis PREDATES 0.2.0.0's surface
+    — its "zero plotting"/"sensitivity lives in easybgm" claims are
+    superseded by deliberate reversals.
+12. **Extraction contract + release choreography** (same source, "what the
+    split requires"): formalize "the extractors are the API, internals are
+    not" — easybgm consumes `extract_*`/summary objects, never the S3-list
+    shim — and version it; when an engine capability lands, file the
+    corresponding easybgm issue in the same release cycle (JASP sits two hops
+    downstream: JASP → easybgm → bgms). Highest-leverage single item on this
+    list; extends the F-002 memo from defaults to surface.
 
 ## 9. Reference points
 
