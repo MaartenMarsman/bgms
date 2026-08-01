@@ -54,6 +54,12 @@
 #' contributes exactly zero to the difference, which is why this is computed per
 #' draw and not from summaries.
 #'
+#' Read a centrality difference with care, and as numbers rather than as a
+#' picture ([summary()]; there is no plot method for it): strength sums
+#' absolute weights, so a difference of zero can mean identical networks or
+#' compensating edge differences, and its sign says nothing about which edges
+#' moved. [verdicts()] is the per-difference evidence.
+#'
 #' @examples
 #' \donttest{
 #' fit = bgm(Wenchuan[, 1:5], display_progress = "none")
@@ -298,6 +304,14 @@ summary.bgms_centrality = function(object, probs = c(0.025, 0.975), ...) {
 #' @family extractors
 #' @export
 plot.bgms_centrality = function(x, probs = c(0.025, 0.975), ...) {
+  if(is_centrality_difference(x)) {
+    stop(
+      "A difference-centrality plot is not offered: strength centrality sums ",
+      "the absolute weights of a node's edges, so a between-group difference ",
+      "in it conflates which edges differ with how their signs cancel and has ",
+      "no edge-level reading. summary() reports the difference as numbers."
+    )
+  }
   summ = summary(x, probs = probs)
   # Largest mean at the top of the panel.
   summ = summ[order(summ$mean), , drop = FALSE]

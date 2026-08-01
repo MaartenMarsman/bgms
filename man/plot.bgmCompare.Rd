@@ -26,9 +26,10 @@ group's own network and the difference panel on one shared layout;
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
 evidence of a difference from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
-\item{group}{For \code{type = "centrality"}: passed to \code{\link[=extract_centrality]{extract_centrality()}}, so
-a single index gives that group's centrality and two give the difference.
-Default \code{1}.}
+\item{group}{For \code{type = "centrality"}: a single group index, passed to
+\code{\link[=extract_centrality]{extract_centrality()}} for that group's centrality. A difference in
+centrality (two indices) can be extracted and summarized but has no plot;
+see \code{\link[=extract_centrality]{extract_centrality()}} for the interpretation caveat. Default \code{1}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
 

@@ -120,7 +120,7 @@ test_that("extract_centrality.bgmCompare rebuilds each group per draw", {
   expect_error(extract_centrality(fit, group = c(2, 2)), "must be different")
 })
 
-test_that("a centrality difference is summarized and drawn against zero", {
+test_that("a centrality difference is summarized but not drawn", {
   skip_on_cran()
   fit = get_bgmcompare_fit_wenchuan5()
   difference = extract_centrality(fit, group = c(1, 2))
@@ -145,8 +145,14 @@ test_that("a centrality difference is summarized and drawn against zero", {
     c("node", "mean", "lower", "upper", "p_most_central")
   )
 
+  # The plot surface refuses a difference: strength sums absolute weights, so
+  # the difference has no edge-level reading. The numbers stay available.
+  expect_error(plot(difference), "not offered")
+  expect_error(plot(fit, type = "centrality", group = c(1, 2)), "not offered")
+
+  # A single group's centrality still draws.
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
   on.exit(grDevices::dev.off(), add = TRUE)
-  expect_invisible(plot(difference))
+  expect_invisible(plot(fit, type = "centrality", group = 2))
 })

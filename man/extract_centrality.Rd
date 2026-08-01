@@ -53,6 +53,12 @@ in it directly, where two separately drawn intervals do not. A draw in which
 a difference indicator is zero gives both groups the same edge weight and so
 contributes exactly zero to the difference, which is why this is computed per
 draw and not from summaries.
+
+Read a centrality difference with care, and as numbers rather than as a
+picture (\code{\link[=summary]{summary()}}; there is no plot method for it): strength sums
+absolute weights, so a difference of zero can mean identical networks or
+compensating edge differences, and its sign says nothing about which edges
+moved. \code{\link[=verdicts]{verdicts()}} is the per-difference evidence.
 }
 \examples{
 \donttest{

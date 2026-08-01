@@ -268,9 +268,10 @@ main_difference_nodes = function(verdict, main_selected) {
 #'   [extract_centrality()].
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
 #'   evidence of a difference from undecided, as in [verdicts()]. Default `10`.
-#' @param group For `type = "centrality"`: passed to [extract_centrality()], so
-#'   a single index gives that group's centrality and two give the difference.
-#'   Default `1`.
+#' @param group For `type = "centrality"`: a single group index, passed to
+#'   [extract_centrality()] for that group's centrality. A difference in
+#'   centrality (two indices) can be extracted and summarized but has no plot;
+#'   see [extract_centrality()] for the interpretation caveat. Default `1`.
 #' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
 #' @param legend Logical; draw the legend. Default `TRUE`.
 #' @param ... Passed to [qgraph::qgraph()], or to [plot.bgms_centrality()] for
@@ -327,6 +328,16 @@ plot.bgmCompare = function(x,
                            ...) {
   type = match.arg(type)
   if(type == "centrality") {
+    if(length(group) == 2L) {
+      stop(
+        "A difference-centrality plot is not offered: strength centrality ",
+        "sums the absolute weights of a node's edges, so a between-group ",
+        "difference in it conflates which edges differ with how their signs ",
+        "cancel and has no edge-level reading. Plot one group at a time ",
+        "(group = 1), or inspect the difference as numbers with ",
+        "summary(extract_centrality(fit, group = c(1, 2)))."
+      )
+    }
     plot(extract_centrality(x, group = group), ...)
     return(invisible(x))
   }
