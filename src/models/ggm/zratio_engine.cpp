@@ -13,6 +13,47 @@
 // and lets the correction anchor.
 static constexpr double kS2Floor = 1e-3;
 
+// Pivot slice sampler. kPivotFloor keeps the pivot strictly inside the domain
+// where log(xi) is finite; the two caps bound the stepping-out and shrinkage
+// loops so a pathologically shaped conditional cannot spin. The caps are
+// generous against measured use: over every prototype cell (shapes 0.5 to 10,
+// blocks of 4 to 80, including a certified non-log-concave conditional) the
+// shrinkage budget was never exhausted.
+static constexpr double kPivotFloor = 1e-12;
+static constexpr int kSliceOutCap = 20;
+static constexpr int kSliceShrinkCap = 50;
+
+double ZRatioEngine::log_pivot_(double xi, double q) const {
+    return delta_ * MY_LOG(xi) - beta_ * xi + (alpha_ - 1.0) * MY_LOG(xi + q);
+}
+
+double ZRatioEngine::slice_pivot_(double xi0, double q) const {
+    // Vertical level, then an interval stepped out from a random offset.
+    const double w = (delta_ + alpha_) / beta_;
+    const double ly = log_pivot_(xi0, q) - rexp(*rng_, 1.0);
+    double lo = xi0 - w * runif(*rng_);
+    double hi = lo + w;
+    int steps = 0;
+    while (lo > kPivotFloor && log_pivot_(lo, q) > ly && steps < kSliceOutCap) {
+        lo -= w;
+        ++steps;
+    }
+    if (lo < kPivotFloor) lo = kPivotFloor;
+    steps = 0;
+    while (log_pivot_(hi, q) > ly && steps < kSliceOutCap) {
+        hi += w;
+        ++steps;
+    }
+    for (int k = 0; k < kSliceShrinkCap; ++k) {
+        const double xi1 = lo + runif(*rng_) * (hi - lo);
+        if (log_pivot_(xi1, q) > ly) return xi1;
+        if (xi1 < xi0) lo = xi1;
+        else hi = xi1;
+    }
+    ++n_slice_cap_;
+    return xi0;
+}
+
 double ZRatioEngine::saddle_ratio(double s1, double s2) const {
     if (s1 <= 0 || s2 <= 0) return 1.0;
     double eh = s1 * s1 / (2.0 * s2), ur = s2 / s1, nf = 0, dg = 0;
@@ -165,6 +206,30 @@ double ZRatioEngine::surface_eval_(const SurfaceFamily& f, bool s2,
     const double lo = (s2 ? f.l2_lo : f.l1_lo) - 0.1;
     const double hi = (s2 ? f.l2_hi : f.l1_hi) + 0.1;
     p = std::min(std::max(p, lo), hi);
+
+    // Past the trained hull the prediction continues along the surface's own
+    // boundary slope in log-size instead of freezing at the hull edge. The
+    // clamped edge value stays the base, so the trained range still bounds
+    // where the tail starts. Scored against block-Gibbs gold at sizes 90-150
+    // against a size-80 hull, over two anchor-build seeds: the tangent holds a
+    // median 0.0006 nats and at most 0.0011 (common-neighbour) and a median
+    // 0.0043 and at most 0.0060 (bipartite), where freezing grows to 0.060 and
+    // 0.095 and the fitted quadratic, continued as its own extrapolant, grows
+    // to 0.0026 and 0.016.
+    if (size > f.size_hi) {
+        // d/dL of the 9-monomial polynomial at the hull edge.
+        double slope = c[1] + 2.0 * c[2] * L + c[5] * d + 2.0 * c[6] * L * d +
+                       c[7] * d * d + 2.0 * c[8] * L * d * d;
+        // The absolute moments grow with component size, so a negative fitted
+        // edge slope is a fit pathology, not a signal. Floor it at zero, which
+        // degenerates to the old freeze, and tally the floor: it is a silent
+        // per-density-band degeneracy the gold scoring above would not catch.
+        if (slope < 0.0) {
+            slope = 0.0;
+            ++n_slope_floor_;
+        }
+        p += slope * (MY_LOG(size) - L);
+    }
     return MY_EXP(p);
 }
 
@@ -437,14 +502,22 @@ double ZRatioEngine::surface_logr_(const arma::imat& G) {
     // component and track the largest size seen. Runs on every call (before the
     // cache lookup below) so the tally is the true per-fit deploy count.
     bool extrapolated = false;
+    int largest = 0;
     for (const std::array<int, 5>& t : sl_sig_) {
         const double hull = (t[0] == 0) ? surf_cn_.size_hi : surf_bip_.size_hi;
         if (t[1] > hull) {
             extrapolated = true;
-            if (t[1] > max_extrap_size_) max_extrap_size_ = t[1];
+            if (t[1] > largest) largest = t[1];
         }
     }
-    if (extrapolated) n_extrap_++;
+    if (extrapolated && phase_ != ZRatioPhase::Gauge) {
+        n_extrap_++;
+        if (largest > max_extrap_size_) max_extrap_size_ = largest;
+        if (phase_ == ZRatioPhase::Retained) {
+            n_extrap_ret_++;
+            if (largest > max_extrap_size_ret_) max_extrap_size_ret_ = largest;
+        }
+    }
 
     // Canonical multiset -> cached saddle. Accumulating in sorted order makes
     // the sum bit-identical for any block with this multiset.
@@ -565,11 +638,20 @@ bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
 }
 
 double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
-    // Surface (Option B) serves the alpha = 1 cell (Normal or Cauchy slab, both
-    // built from the block-Gibbs oracle) when attached: decompose the block and
-    // sum per-component moments. Otherwise (surface absent, or the alpha != 1
-    // Gamma-shape fence) fall through to the additive-counts saddle.
-    const bool surface_active = has_surface_ && std::abs(alpha_ - 1.0) < 1e-12;
+    // Surface (Option B) serves the cell whenever one is attached: decompose
+    // the block and sum per-component moments. Otherwise fall through to the
+    // additive-counts saddle.
+    //
+    // The deployment policy -- which (shape, slab, eta) cells get a surface --
+    // lives in R (zratio_build_surfaces, which returns NULL outside the
+    // validated shape range). This gate must NOT re-derive it. It used to:
+    // it carried its own `alpha_ == 1` test from the original alpha = 1-only
+    // migration, so when R widened the validated range to [0.5, 2] the two
+    // layers disagreed silently -- R built and attached a surface, this line
+    // ignored it, and every non-unit-shape fit was served the additive kernel
+    // while the docs claimed otherwise. A policy enforced in two places is not
+    // defence in depth, it is two clocks. Trust the attachment.
+    const bool surface_active = has_surface_;
     // Neither branch needs the block adjacency matrix: the surface deploy reads
     // adjacency from G through the extract scratch (surface_logr_), the additive
     // saddle needs only the scalar counts.
@@ -581,7 +663,10 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
         return MY_LOG(psi0_);
     }
     if (surface_active) {
-        n_pred_++;
+        if (phase_ != ZRatioPhase::Gauge) {
+            n_pred_++;
+            if (phase_ == ZRatioPhase::Retained) n_pred_ret_++;
+        }
         return surface_logr_(G);
     }
     const int ncn = bl.ncn, cne = bl.cne, bre = bl.bre;
@@ -708,36 +793,64 @@ bool ZRatioEngine::gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
             // the estimate costs as much as the back-substitution itself.
             arma::vec bvec =
                 arma::solve(arma::trimatu(r_chol), z, arma::solve_opts::fast);
-            double xi = rgamma(*rng_, delta_ + 1.0, beta_);
-            double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
-            // The diagonal factor K_ii^(alpha - 1) couples the Gamma pivot
-            // to the row draw; the alpha = 1 conjugate conditional serves
-            // as an independence-Metropolis proposal with acceptance
-            // ratio (K_ii_new / K_ii_old)^(alpha - 1).
-            bool accept = true;
+            const double quad = arma::as_scalar(bvec.t() * c_mat * bvec);
+            // The diagonal factor K_ii^(alpha - 1) couples the pivot to the
+            // row draw. At alpha = 1 there is no coupling and the pair is a
+            // direct Gibbs draw; otherwise the row splits into two blocks, an
+            // accept/reject on the off-diagonals at a held pivot and then an
+            // exact slice update of the pivot itself. Drawing the pair jointly
+            // and accepting or rejecting both together is what froze the whole
+            // row once the weight became volatile.
+            double xi;
+            double q_cur = quad;
+            bool accept_b = true;
             if (std::abs(alpha_ - 1.0) > 1e-12) {
-                const double kii_new = xi + quad;
-                const double kii_old = k_blk(i, i);
-                accept = MY_LOG(runif(*rng_)) <
-                         (alpha_ - 1.0) * (MY_LOG(kii_new) -
-                                           MY_LOG(kii_old));
+                // The pivot is not carried state: it is K_ii - b' C b, and C
+                // moves whenever a NEIGHBOURING row updates, so both it and
+                // the current quadratic form are recomputed against the C in
+                // hand. Reusing a stored pivot silently targets the wrong law.
+                arma::vec b_old(nq);
+                for (int j = 0; j < nq; ++j) b_old[j] = k_blk(ni[j], i);
+                const double quad_old =
+                    arma::as_scalar(b_old.t() * c_mat * b_old);
+                const double xi_old =
+                    std::max(k_blk(i, i) - quad_old, kPivotFloor);
+                // Off-diagonal step at a held pivot: the ratio no longer
+                // carries K_ii, only the quadratic form it moves.
+                accept_b = MY_LOG(runif(*rng_)) <
+                           (alpha_ - 1.0) * (MY_LOG(xi_old + quad) -
+                                             MY_LOG(xi_old + quad_old));
+                ++im_prop_;
+                if (accept_b) ++im_acc_;
+                q_cur = accept_b ? quad : quad_old;
+                xi = slice_pivot_(xi_old, q_cur);
+            } else {
+                xi = rgamma(*rng_, delta_ + 1.0, beta_);
             }
-            if (accept) {
+            {
                 double d_diag = 0.0;
                 if (have_sigma) {
-                    d_diag = (xi + quad - k_blk(i, i)) / 2.0;
-                    d_ni.set_size(nq);
-                    for (int j = 0; j < nq; ++j) {
-                        d_ni[j] = bvec[j] - k_blk(ni[j], i);
+                    d_diag = (xi + q_cur - k_blk(i, i)) / 2.0;
+                    if (accept_b) {
+                        d_ni.set_size(nq);
+                        for (int j = 0; j < nq; ++j) {
+                            d_ni[j] = bvec[j] - k_blk(ni[j], i);
+                        }
                     }
                 }
-                for (int j = 0; j < nq; ++j) {
-                    k_blk(ni[j], i) = bvec[j];
-                    k_blk(i, ni[j]) = bvec[j];
+                if (accept_b) {
+                    for (int j = 0; j < nq; ++j) {
+                        k_blk(ni[j], i) = bvec[j];
+                        k_blk(i, ni[j]) = bvec[j];
+                    }
                 }
-                k_blk(i, i) = xi + quad;
+                k_blk(i, i) = xi + q_cur;
+                // A rejected off-diagonal block still moves the pivot, so the
+                // covariance refresh drops to the diagonal alone.
                 if (have_sigma &&
-                    !smw_rank2_col_update_(sigma_blk, i, ni, d_ni, d_diag)) {
+                    !smw_rank2_col_update_(sigma_blk, i,
+                                           accept_b ? ni : arma::uvec(), d_ni,
+                                           d_diag)) {
                     have_sigma = arma::inv_sympd(sigma_blk, k_blk);
                 }
             }

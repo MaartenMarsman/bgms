@@ -137,6 +137,56 @@ test_that("the harm channel computes the documented statistics", {
   expect_null(zratio_harm_inputs(list(pip), "Stochastic-Block", a = 1, b = 1))
 })
 
+test_that("a flagged chain prints the remediation ladder in order", {
+  withr::local_options(bgms.verbose = TRUE)
+  gauge = list(
+    flip_rate = 0.05, noise_floor = 1e-4, se_mean = 0.05, se_sd = 0.02,
+    se_mcse = 0.002, n_ent = 9900, n_ref = 50, n_capped = 9850,
+    pair_m = c(4L, 38L)
+  )
+  out = capture.output(
+    summarize_zratio_gauge(list(list(zratio = list(gauge = gauge))))
+  )
+  txt = paste(out, collapse = " ")
+
+  # Rung 1: what was measured, on which blocks, out of how many moves.
+  expect_match(txt, "5.0% of edge-toggle decisions")
+  expect_match(txt, "audited 50 of 9900 non-trivial edge moves")
+  expect_match(txt, "mediating blocks 4-38 variables")
+  # Rung 2: resolve the signal before changing the model.
+  expect_match(txt, "Raise options\\(bgms.zratio_gauge_sweeps\\)")
+  # Rung 3: the joint specification, named as a different inferential target.
+  expect_match(txt, "targets a different model")
+  expect_match(txt, "reweighted by the per-graph normalizer")
+  # The ladder is ordered: measurement, then more sweeps, then the joint spec.
+  expect_lt(
+    regexpr("Raise options", txt, fixed = TRUE),
+    regexpr("precision_graph_prior = \"joint\"", txt, fixed = TRUE)
+  )
+  expect_lt(
+    regexpr("audited 50 of", txt, fixed = TRUE),
+    regexpr("Raise options", txt, fixed = TRUE)
+  )
+})
+
+test_that("a clean chain prints nothing", {
+  withr::local_options(bgms.verbose = TRUE)
+  gauge = list(
+    flip_rate = 0.0001, noise_floor = 1e-4, se_mean = 0, se_sd = 0.02,
+    se_mcse = 0.002, n_ent = 100, n_ref = 25, n_capped = 0, pair_m = c(3L, 5L)
+  )
+  s = summarize_zratio_gauge(list(list(zratio = list(gauge = gauge))))
+  expect_false(s$flagged)
+  expect_equal(
+    capture.output(
+      summarize_zratio_gauge(list(list(zratio = list(gauge = gauge))))
+    ),
+    character(0)
+  )
+  expect_equal(s$per_chain$block_lo, 3L)
+  expect_equal(s$per_chain$block_hi, 5L)
+})
+
 test_that("a known-biased evidence-free fit fires the harm channel", {
   skip_on_cran()
   skip_if(
@@ -228,9 +278,11 @@ test_that("the extrapolation notice is graceful, gated, and back-compatible", {
   expect_silent(res0 <- bgms:::zratio_extrapolation_notice(list(mk(0, 0, 100))))
   expect_false(res0)
   # Extrapolation -> one graceful message reporting the largest block size.
+  # These counters carry no warmup/retained split, so the notice reports the
+  # whole-run share rather than claiming a phase for them.
   expect_message(
     bgms:::zratio_extrapolation_notice(list(mk(120, 73, 4000), mk(80, 66, 4000))),
-    "beyond its validated size range \\(largest 73"
+    "beyond its anchored size range \\(largest 73"
   )
   # Old-format chains without the counter -> silent (back-compatible).
   old = list(zratio = list(counters = c(n_hit = 0, n_pred = 10)))

@@ -92,7 +92,14 @@ void run_mcmc_chain(
     const int total_iter = schedule.total_warmup + config.no_iter;
 
     // ---- Main MCMC loop (warmup + sampling) ----
+    model.set_zratio_phase(ZRatioPhase::Warmup);
     for (int iter = 0; iter < total_iter; ++iter) {
+
+        // The Z-ratio engine tallies its extrapolations per phase, so the
+        // switch has to happen before this iteration's edge selection.
+        if (iter == schedule.total_warmup) {
+            model.set_zratio_phase(ZRatioPhase::Retained);
+        }
 
         // Per-iteration preparation (e.g., shuffle edge order)
         model.prepare_iteration();
@@ -178,6 +185,9 @@ void run_mcmc_chain(
     // pair-by-pair as usual. Post-sampling, so no stored samples are touched.
     if (config.zratio_gauge_sweeps > 0 && model.gauge_available() &&
         model.has_edge_selection()) {
+        // Gauge sweeps are extra deploy evaluations that no stored draw comes
+        // from, so they enter neither extrapolation tally.
+        model.set_zratio_phase(ZRatioPhase::Gauge);
         model.set_gauge_active(true, ZRatioGauge::default_n_draws,
                                ZRatioGauge::default_cap);
         for (int k = 0; k < config.zratio_gauge_sweeps; ++k) {
@@ -391,7 +401,9 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                                              chain.zratio_counters.end());
                 counters.names() = Rcpp::CharacterVector::create(
                     "n_hit", "n_miss", "n_pred", "n_add", "cache_size",
-                    "n_extrap", "max_extrap_size");
+                    "n_extrap", "max_extrap_size", "n_slope_floor",
+                    "n_pred_retained", "n_extrap_retained",
+                    "max_extrap_size_retained");
                 Rcpp::List zr = Rcpp::List::create(
                     Rcpp::_["addc"] = chain.zratio_addc,
                     Rcpp::_["counters"] = counters);
@@ -410,6 +422,7 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
                             static_cast<double>(chain.zratio_gauge_n_capped),
                         Rcpp::_["pair_i"] = chain.zratio_gauge_pair_i,
                         Rcpp::_["pair_j"] = chain.zratio_gauge_pair_j,
+                        Rcpp::_["pair_m"] = chain.zratio_gauge_pair_m,
                         Rcpp::_["pair_se"] = chain.zratio_gauge_pair_se,
                         Rcpp::_["pair_mcse"] = chain.zratio_gauge_pair_mcse);
                 }

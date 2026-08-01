@@ -8,9 +8,9 @@
 # moments (C++ log_zratio surface branch), replacing the online ridge-OLS
 # correction. eta is a build parameter, not a switch: the surface is built at
 # the analysis's own eta and used at every eta. Deployment is fenced to the
-# validated alpha = 1 diagonal (Normal or Cauchy slab); a non-unit Gamma shape
-# (alpha != 1) returns NULL from zratio_build_surfaces, so the engine keeps the
-# additive path.
+# supported Gamma-shape range (Normal or Cauchy slab); a shape outside
+# [.zratio_surface_shape_lo, .zratio_surface_shape_hi] returns NULL from
+# zratio_build_surfaces, so the engine keeps the additive path.
 #
 # Anchors are drawn from the sampler's own kernel via the C++ bare-component
 # oracle (zratio_block_oracle_moments). Short chains suffice: the low-order fit
@@ -70,7 +70,10 @@ zratio_rand_conn_bip = function(na_, nb_, ne, seed) {
 }
 
 # One CN-cluster anchor: a random connected graph at (size, density), all nodes
-# common neighbours (adjacent to both endpoints), moments from the oracle.
+# common neighbours (adjacent to both endpoints), moments from the oracle. The
+# cell's Gamma shape is passed to the oracle: it selects the independence-
+# Metropolis row update, without which the anchors would be drawn at the
+# exponential shape while the constants carry the cell's own.
 zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
   e = max(n - 1, round(dens * choose(n, 2)))
   adj = zratio_rand_conn_graph(n, e, seed)
@@ -78,7 +81,7 @@ zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
   r = zratio_block_oracle_moments(
     adj, all_rows, all_rows, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
-    slab_cauchy = identical(zc$slab, "cauchy")
+    slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = e / choose(n, 2), S1 = r$S1, S2 = r$S2)
@@ -97,7 +100,7 @@ zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
   r = zratio_block_oracle_moments(
     bp$adj, si, sj, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
-    slab_cauchy = identical(zc$slab, "cauchy")
+    slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
   if(!isTRUE(r$ok)) return(NULL)
   data.frame(size = n, dens = ee / (na_ * nb_), S1 = r$S1, S2 = r$S2)
@@ -143,12 +146,11 @@ zratio_fit_surface_family = function(anchors) {
 # Build both family surfaces (CN + bipartite) for one analysis. `zc` is the
 # fit-time cell (zratio_cell_constants). Built for the Normal slab and for the
 # Cauchy slab (a scale-mixture of normals the oracle draws directly, so the same
-# anchor machinery covers it). Fenced to the alpha = 1 diagonal: a non-unit
-# Gamma shape returns NULL (open problem) and the engine keeps the additive path.
+# anchor machinery covers it). Fenced to the supported Gamma-shape range: a
+# shape outside it returns NULL and the engine keeps the additive path.
 # max_size caps the anchor sizes at the reachable giant; components larger than
-# the trained hull clamp to its edge at deploy. Sparse, law-informed placement
-# with short chains (~800-1000 sweeps); the fit denoises. Returns
-# list(cn = <family>, bip = <family>) or NULL.
+# the trained hull clamp to its edge at deploy. The anchor grids come from
+# zratio_anchor_grids. Returns list(cn = <family>, bip = <family>) or NULL.
 # Session cache for the one-time surface build. The surface depends only on the
 # fit cell (delta, eta, alpha, slab) and the size cap, never on the data, so it
 # is built once per cell and reused. Backed by disk (same directory and toggle
@@ -159,24 +161,131 @@ zratio_fit_surface_family = function(anchors) {
 zratio_surface_cache_key = function(zc, max_size, seed0) {
   # The package version is part of the key: a release that changes the anchor
   # grids, the basis, or the fit must not be served a surface cached by an
-  # earlier version (the one-time rebuild per cell is seconds).
+  # earlier version (the one-time rebuild per cell is seconds). The vN tag
+  # carries the same guarantee within a version, and is bumped whenever the
+  # grids or the fit change during development.
   sprintf(
-    "zratio_surf_v1_%s_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
+    "zratio_surf_v2_%s_delta%.8g_eta%.8g_alpha%.8g_%s_ms%d_sd%d",
     as.character(utils::packageVersion("bgms")),
     as.numeric(zc$delta), as.numeric(zc$eta), as.numeric(zc$alpha),
     as.character(zc$slab), as.integer(max_size), as.integer(seed0)
   )
 }
 
-# Trained size-hull cap for the anchor build: components larger than this clamp
-# to the hull edge at deploy, so it must stay >= the anchor grid's largest size
-# (42). The build default and every sampler call site size through this one
-# value, so the cap cannot drift between them.
-.zratio_surface_size_cap = 44L
+# ------------------------------------------------------------------------------
+# zratio_cap_tier
+# ------------------------------------------------------------------------------
+# Adds an anchor tier at the size cap when the surviving grid stops short of it.
+# The grid filter keeps tiers at or below the cap, so a cap that lands between
+# two tiers trains the hull at the lower one and every larger block is
+# extrapolated: at 40 variables the cap of 40 dropped the size-42 tier and left
+# a hull of 36. A tier within two sizes of the cap needs no top-up, because a
+# mediating block excludes the edge's own two endpoints and so never exceeds
+# cap - 2.
+#
+# @param jobs  Filtered anchor grid, columns n (size) and d (density).
+# @param cap   Size cap for this build.
+# @param dens  Densities to place at the cap tier.
+#
+# Returns: The grid, with a cap tier appended when one is needed.
+# ------------------------------------------------------------------------------
+zratio_cap_tier = function(jobs, cap, dens) {
+  if(nrow(jobs) == 0L || cap - max(jobs$n) <= 2) return(jobs)
+  rbind(jobs, expand.grid(n = as.numeric(cap), d = dens))
+}
+
+# Block-Gibbs sweeps per anchor, by anchor size. Anchor cost scales ~ n^3 *
+# sweeps, so the large tiers run shorter chains; the fit denoises across
+# anchors, and the measured hull accuracy at the top tiers is unaffected.
+zratio_anchor_sweeps = function(n) {
+  ifelse(n >= 46, 600L, ifelse(n >= 32, 800L, 1000L))
+}
+
+# Gamma-shape deployment range for the absolute-moment surface. Outside it the
+# engine keeps the additive path. The surface is validated at three shapes --
+# 0.5, 1, and 2, each scored against block-Gibbs gold at eta 1 and 2 on both
+# component families -- and deploys on the interval they span; the interior is
+# interpolated, not measured. The upper end is set by the anchor oracle, not by
+# the surface: at a non-unit shape the oracle's row update is an
+# independence-Metropolis step whose acceptance falls away from shape 1
+# (measured at 20 nodes, density 0.9: 80% at shape 2, 70% at 2.5, 60% at 3,
+# 35% at 4, 1-12% at 5), and with it the anchor Monte-Carlo error rises out of
+# reach of any affordable sweep budget (at shape 5, 50-500x the shape-1 anchor
+# error and not restored by 94x the sweeps).
+#
+# This pair is the single owner of the deployment policy: the C++ gate trusts
+# whether a surface was attached and does not re-derive the range (see
+# ZRatioEngine::log_zratio). The range now runs to 10. It is accuracy-validated
+# against block-Gibbs gold at shapes 0.5, 1, 2, 3 and 5 -- every interior cell
+# inside the 0.003-nat envelope -- and carries a different guarantee at 10,
+# where the whole mediated correction is bounded by 2.8e-04 nats over the
+# scored band at eta <= 2, so any method returning the isolated-edge value is
+# wrong by at most that. The interior of the range is interpolated, not
+# measured, at both ends.
+.zratio_surface_shape_lo = 0.5
+.zratio_surface_shape_hi = 10
+
+# Sweep multiplier restoring the shape-1 anchor Monte-Carlo error at a non-unit
+# shape, resolved by matching measured across-seed anchor spread rather than by
+# the 1/acceptance heuristic (which understates the cost, since a rejected row
+# repeats the previous state and leaves autocorrelation behind).
+zratio_anchor_shape_multiplier = function(alpha) {
+  if(abs(alpha - 1) < 1e-12) 1L else if(alpha < 1) 4L else 2L
+}
+
+# ------------------------------------------------------------------------------
+# zratio_anchor_grids
+# ------------------------------------------------------------------------------
+# The (size, density, sweeps) anchor grids for both families at one size cap.
+# Sparse, law-informed placement: dense high-size tiers where the components the
+# engine meets live, a low-density tail at small sizes, and two replicates
+# throughout (the low-order fit denoises the Monte-Carlo noise across anchors).
+#
+# @param cap  Largest anchor size for this build.
+#
+# Returns: list(cn = <grid>, bip = <grid>), columns n, d, sweeps.
+# ------------------------------------------------------------------------------
+zratio_anchor_grids = function(cap) {
+  cn = rbind(
+    expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
+    expand.grid(n = c(3, 4),                                 d = c(0.5, 0.7, 0.85, 1.0)),
+    expand.grid(n = c(4, 6, 8, 10, 12, 15),                  d = c(0.35, 0.5)),
+    expand.grid(n = c(36, 42),                               d = c(0.8, 0.9)),
+    expand.grid(n = c(52, 64, 80),                           d = c(0.8, 0.9))
+  )
+  cn = zratio_cap_tier(cn[cn$n <= cap, , drop = FALSE], cap, dens = c(0.8, 0.9))
+  cn = rbind(cn, cn)                                         # 2 reps
+
+  bip = rbind(
+    expand.grid(n = c(4, 6, 8, 10, 12, 14, 16, 18, 20, 22), d = c(0.55, 0.7, 0.85, 1.0)),
+    expand.grid(n = c(30, 38, 52, 64, 80),                  d = c(0.7, 1.0))
+  )
+  bip = zratio_cap_tier(bip[bip$n <= cap, , drop = FALSE], cap, dens = c(0.7, 1.0))
+  bip = rbind(bip, bip)
+
+  # One sweeps rule for both families keeps the top tier affordable wherever
+  # the cap places it.
+  cn$sweeps = zratio_anchor_sweeps(cn$n)
+  bip$sweeps = zratio_anchor_sweeps(bip$n)
+
+  list(cn = cn, bip = bip)
+}
+
+# Trained size-hull cap for the anchor build. Components larger than this are
+# extended along the surface's boundary slope at deploy, which is accurate but
+# unanchored, so the cap sets where measured accuracy ends: at 80 the reachable
+# giant of an ordinary large fit sits inside the hull, and the one-time build
+# stays at 24 s serial (2 s on four cores at the small caps a modest fit uses).
+# The build default and every sampler call site size through this one value, so
+# the cap cannot drift between them.
+.zratio_surface_size_cap = 80L
 
 zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
                                  cores = 1L, seed0 = 700000L) {
-  if(abs(zc$alpha - 1) > 1e-12) return(NULL)
+  if(zc$alpha < .zratio_surface_shape_lo ||
+    zc$alpha > .zratio_surface_shape_hi) {
+    return(NULL)
+  }
   cap = as.integer(max_size)
 
   # Get-or-build: the build is data-independent, so a repeat fit of the same
@@ -221,22 +330,14 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
     )
   }
 
-  cn_jobs = rbind(
-    expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
-    expand.grid(n = c(3, 4),                                 d = c(0.5, 0.7, 0.85, 1.0)),
-    expand.grid(n = c(4, 6, 8, 10, 12, 15),                  d = c(0.35, 0.5)),
-    expand.grid(n = c(36, 42),                               d = c(0.8, 0.9))
-  )
-  cn_jobs = cn_jobs[cn_jobs$n <= cap, , drop = FALSE]
-  cn_jobs = rbind(cn_jobs, cn_jobs)                          # 2 reps
-  cn_jobs$sweeps = ifelse(cn_jobs$n >= 32, 800L, 1000L)
-
-  bip_jobs = expand.grid(
-    n = c(4, 6, 8, 10, 12, 14, 16, 18, 20, 22), d = c(0.55, 0.7, 0.85, 1.0)
-  )
-  bip_jobs = bip_jobs[bip_jobs$n <= cap, , drop = FALSE]
-  bip_jobs = rbind(bip_jobs, bip_jobs)
-  bip_jobs$sweeps = 1000L
+  grids = zratio_anchor_grids(cap)
+  # A non-unit shape samples its anchors through an independence-Metropolis
+  # step, so the same nominal budget buys fewer effective sweeps.
+  shape_mult = zratio_anchor_shape_multiplier(zc$alpha)
+  cn_jobs = grids$cn
+  bip_jobs = grids$bip
+  cn_jobs$sweeps = as.integer(cn_jobs$sweeps * shape_mult)
+  bip_jobs$sweeps = as.integer(bip_jobs$sweeps * shape_mult)
 
   # One scheduling pool over both families, heaviest job first with dynamic
   # assignment (mc.preschedule = FALSE): anchor cost scales ~ n^3 * sweeps and
@@ -337,21 +438,27 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
 }
 
 # Message the fallback to the additive path when no surface is attached: a
-# non-unit Gamma diagonal shape (surface pending validation) or a failed
-# alpha = 1 build (which must not downgrade the fit silently). Shared by every
+# Gamma diagonal shape outside the validated range, or a failed build inside it
+# (which must not downgrade the fit silently). Shared by every
 # sampler call site so the two messages stay identical.
 zratio_surface_fence_message = function(zc) {
-  if(abs(zc$alpha - 1) > 1e-12) {
+  if(zc$alpha < .zratio_surface_shape_lo ||
+    zc$alpha > .zratio_surface_shape_hi) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
-      " -> additive path (absolute-moment surface validated only for the ",
-      "exponential alpha = 1 diagonal; Gamma shapes are pending)."
+      " -> additive path (coarser correction). The absolute-moment surface is ",
+      "scored against a block-Gibbs reference at shapes 0.5, 1, 2, 3 and 5, ",
+      "and deploys on the range those points span up to shape ",
+      format(.zratio_surface_shape_hi),
+      "; the interior of that range is interpolated, not measured. Past it ",
+      "the surface is unscored, and the additive path that serves instead is ",
+      "measurably coarse on common-neighbour mediating blocks."
     )
   } else {
     message(
       "z-ratio: the absolute-moment surface build failed -> additive ",
-      "path (coarser correction; enable the trust gauge with ",
-      "options(bgms.zratio_gauge_sweeps = 2L) to quantify the impact)."
+      "path (coarser correction; the trust gauge quantifies the impact in ",
+      "fit$zratio_diag)."
     )
   }
 }
@@ -376,11 +483,14 @@ zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
 }
 
 # Number of in-chain trust-gauge assessment sweeps. The gauge is a post-sampling
-# diagnostic (chain_runner.cpp), so it is OFF by default for production fits;
-# enable it with options(bgms.zratio_gauge_sweeps = 2L). The prior sampler wires
-# its own flag (sample_ggm_prior); this governs the deployed hierarchical path.
+# diagnostic (chain_runner.cpp) and runs by default; options(bgms.zratio_gauge_
+# sweeps = 0L) is the off switch. Its cost is fixed per chain (two sweeps, each
+# referencing a capped number of edge moves), so it does not scale with iter:
+# nothing on a sparse posterior, where no mediating block is non-trivial and the
+# ratio is exact, and seconds on a dense large-q one. The prior sampler wires its
+# own flag (sample_ggm_prior); this governs the deployed hierarchical path.
 zratio_gauge_sweeps = function() {
-  n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 0L)))
+  n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 2L)))
   if(length(n) != 1L || is.na(n) || n < 0L) n = 0L
   n
 }

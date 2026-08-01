@@ -1,0 +1,171 @@
+# Durable block-Gibbs gold references for the Z-ratio surface bands.
+#
+# Gold at the large sizes is expensive (a size-150 CN block costs ~90 s per
+# replicate at 2000 sweeps), and the same bands get re-scored whenever the
+# surface changes: extension rule, cap raise, and the alpha != 1 validation all
+# want them. This banks every reference that has been paid for, keyed on the
+# cell, the block descriptor, and the Monte-Carlo budget, so a re-score costs a
+# lookup instead of a rerun.
+#
+# The bank is additive: gold_bank() returns cached rows when the key matches and
+# computes (and stores) only what is missing. Delete the RDS to force a rebuild.
+#
+# Blocks are the canonical single-component ones: a CN clique of `size` nodes
+# adjacent to both endpoints, or a near-balanced bipartite bridge, both at
+# density 1. The generators live here so a banked row is reproducible from this
+# file alone.
+
+# Location of the bank; BGMS_GOLD_BANK overrides it for a scratch run.
+gold_bank_path = function() {
+  p = Sys.getenv("BGMS_GOLD_BANK", "")
+  if(nzchar(p)) p else "dev/validation/zratio_gold_bank.rds"
+}
+
+gold_block = function(family, size) {
+  q = size + 2L
+  G = matrix(0L, q, q)
+  if(family == "cn") {
+    for(v in 3:q) G[1, v] = G[v, 1] = G[2, v] = G[v, 2] = 1L
+    for(a in 3:(q - 1)) for(b in (a + 1):q) G[a, b] = G[b, a] = 1L
+  } else {
+    na_ = size %/% 2L
+    A = 2L + seq_len(na_)
+    B = setdiff(3:q, A)
+    for(v in A) G[1, v] = G[v, 1] = 1L
+    for(v in B) G[2, v] = G[v, 2] = 1L
+    for(a in A) for(b in B) G[a, b] = G[b, a] = 1L
+  }
+  G
+}
+
+gold_bank_key = function(cell, family, size, sweeps, burn, seed) {
+  sprintf(
+    "%s|d%.8g|e%.8g|a%.8g|%s|n%d|s%d|b%d|sd%d",
+    family, cell$delta, cell$eta, cell$alpha, cell$slab, size, sweeps, burn, seed
+  )
+}
+
+# Returns a data frame with one row per (family, size): mean, sd, se, n_reps.
+# Computes and banks any missing replicate.
+#
+# `cores` > 1 evaluates the missing replicates in parallel. Replicates are
+# independent and each oracle call is seeded from its own key, so the banked
+# value does not depend on the core count or the schedule. Only the parent
+# writes the bank: the workers return values and the merge happens here, so a
+# parallel run cannot interleave two writers over one file.
+gold_bank = function(zc, cell, family, sizes, sweeps, burn, seeds,
+                     verbose = TRUE, cores = 1L) {
+  path = gold_bank_path()
+  bank = if(file.exists(path)) readRDS(path) else list()
+
+  jobs = expand.grid(size = sizes, seed = seeds, KEEP.OUT.ATTRS = FALSE)
+  jobs$key = vapply(seq_len(nrow(jobs)), function(k) {
+    gold_bank_key(cell, family, jobs$size[k], sweeps, burn, jobs$seed[k])
+  }, character(1))
+  todo = jobs[!vapply(jobs$key, function(k) !is.null(bank[[k]]), logical(1)), ,
+              drop = FALSE]
+
+  if(nrow(todo) > 0L) {
+    run_one = function(k) {
+      G = gold_block(family, todo$size[k])
+      t0 = proc.time()[["elapsed"]]
+      g = bgms:::zratio_test_gold_moments(
+        G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
+        zc$delta, zc$eta, as.integer(sweeps), as.integer(burn),
+        as.integer(todo$seed[k]), identical(cell$slab, "cauchy"), cell$alpha
+      )
+      v = if(!isTRUE(g$valid)) NA_real_ else g$logR
+      if(verbose) {
+        cat(sprintf("  gold %s k=%d seed=%d -> %.4f (%.0fs)\n", family,
+                    todo$size[k], todo$seed[k], v,
+                    proc.time()[["elapsed"]] - t0))
+        utils::flush.console()
+      }
+      v
+    }
+    # Heaviest first: the oracle cost scales steeply in block size, so a
+    # dynamic largest-first schedule keeps the tail from stranding cores.
+    ord = order(-todo$size)
+    vals = vector("list", nrow(todo))
+    if(cores > 1L && .Platform$OS.type == "unix") {
+      vals[ord] = parallel::mclapply(ord, run_one, mc.cores = cores,
+                                     mc.preschedule = FALSE)
+    } else {
+      vals[ord] = lapply(ord, run_one)
+    }
+    for(k in seq_len(nrow(todo))) {
+      v = vals[[k]]
+      if(!is.numeric(v) || length(v) != 1L) {
+        stop("gold replicate failed for key ", todo$key[k], call. = FALSE)
+      }
+      bank[[todo$key[k]]] = v
+    }
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(bank, path)
+  }
+
+  rows = lapply(sizes, function(size) {
+    vals = vapply(seeds, function(sd_) {
+      bank[[gold_bank_key(cell, family, size, sweeps, burn, sd_)]]
+    }, numeric(1))
+    data.frame(
+      family = family, size = size, sweeps = sweeps, burn = burn,
+      n_reps = length(vals), mean = mean(vals), sd = stats::sd(vals),
+      se = stats::sd(vals) / sqrt(length(vals))
+    )
+  })
+  do.call(rbind, rows)
+}
+
+# Human-readable manifest of everything banked, written next to the RDS.
+gold_bank_manifest = function() {
+  path = gold_bank_path()
+  if(!file.exists(path)) {
+    return(invisible(NULL))
+  }
+  bank = readRDS(path)
+  parts = do.call(rbind, lapply(names(bank), function(k) {
+    f = strsplit(k, "|", fixed = TRUE)[[1]]
+    data.frame(
+      family = f[1], delta = f[2], eta = f[3], alpha = f[4], slab = f[5],
+      size = as.integer(sub("^n", "", f[6])),
+      sweeps = as.integer(sub("^s", "", f[7])),
+      burn = as.integer(sub("^b", "", f[8])),
+      seed = as.integer(sub("^sd", "", f[9])),
+      logR = bank[[k]]
+    )
+  }))
+  agg = stats::aggregate(
+    logR ~ family + delta + eta + alpha + slab + size + sweeps + burn,
+    data = parts, FUN = function(v) c(n = length(v), m = mean(v), s = stats::sd(v))
+  )
+  out = data.frame(
+    agg[, c("family", "delta", "eta", "alpha", "slab", "size", "sweeps", "burn")],
+    n_reps = agg$logR[, "n"], mean = agg$logR[, "m"], sd = agg$logR[, "s"]
+  )
+  out = out[order(out$family, out$eta, out$alpha, out$size), ]
+  md = file.path(dirname(path), "zratio_gold_bank.md")
+  writeLines(
+    c(
+      "# Z-ratio block-Gibbs gold bank",
+      "",
+      "Generated by `dev/validation/zratio_gold_bank.R`. One row per",
+      "(family, cell, block size, budget); `sd` is the spread across",
+      "replicate seeds and bounds what any claim against these references can",
+      "resolve. Blocks are single-component at density 1.",
+      "",
+      knitr_kable(out)
+    ),
+    md
+  )
+  invisible(out)
+}
+
+# Minimal markdown table writer so the manifest has no package dependency.
+knitr_kable = function(df) {
+  fmt = function(x) if(is.numeric(x)) formatC(x, format = "g", digits = 6) else as.character(x)
+  head = paste0("| ", paste(names(df), collapse = " | "), " |")
+  rule = paste0("|", paste(rep("---", ncol(df)), collapse = "|"), "|")
+  body = apply(df, 1, function(r) paste0("| ", paste(fmt(r), collapse = " | "), " |"))
+  c(head, rule, body)
+}

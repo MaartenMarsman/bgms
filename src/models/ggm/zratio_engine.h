@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "rng/rng_utils.h"
+#include "models/base_model.h"   // ZRatioPhase
 
 /**
  * Mediating-block descriptors for one candidate edge (i, j) on a graph.
@@ -38,7 +39,9 @@ struct ZRatioBlock {
  * fit once per analysis at the deployment (eta, delta) to block-Gibbs anchors
  * (R build_surfaces). c1 predicts log-S1, c2 log-S2. Predictions clamp (size,
  * density) to the trained hull [size_lo, size_hi] x [dens_lo, dens_hi] and the
- * log-moment to its trained range +/- 0.1. Components smaller than size_min
+ * log-moment to its trained range +/- 0.1; past size_hi the clamped edge value
+ * is then continued along the surface's own boundary slope in log-size (see
+ * surface_eval_). Components smaller than size_min
  * fall back to the additive per-component moment (exact through pairwise
  * overlap below the smallest trained size); with size_min = 3 the size-1/2
  * (single-bridge) trivial components land there and additive == exact for them,
@@ -272,9 +275,31 @@ public:
     long n_pred() const { return n_pred_; }
     long n_add() const { return n_add_; }
     /// Deploy-time extrapolation accounting: blocks with a component larger than
-    /// the trained hull (clamped at deploy), and the largest such size seen.
+    /// the trained hull (extended along the boundary slope at deploy), and the
+    /// largest such size seen. The _ret variants count the retained sweeps only.
+    /// The sampler initializes from a complete graph, so warmup alone can put
+    /// every block past the hull; only the retained share describes the
+    /// posterior the user keeps. Gauge sweeps enter neither tally.
     long n_extrap() const { return n_extrap_; }
     int max_extrap_size() const { return max_extrap_size_; }
+    long n_extrap_retained() const { return n_extrap_ret_; }
+    int max_extrap_size_retained() const { return max_extrap_size_ret_; }
+    long n_pred_retained() const { return n_pred_ret_; }
+    /// Which sampling phase the engine is evaluating in (set by chain_runner).
+    void set_phase(ZRatioPhase phase) { phase_ = phase; }
+    /// Off-diagonal row moves proposed and accepted in the block-Gibbs oracle.
+    /// Only a non-unit Gamma shape has an accept step; at alpha = 1 both stay
+    /// zero and every row move is a direct Gibbs draw.
+    long im_proposed() const { return im_prop_; }
+    long im_accepted() const { return im_acc_; }
+    /// Times the pivot slice sampler exhausted its shrinkage budget and left
+    /// the pivot unmoved. Expected zero; non-zero means the conditional is
+    /// shaped in a way the stepping-out width does not cover.
+    long n_slice_cap() const { return n_slice_cap_; }
+    /// Times the boundary-slope extension hit its zero floor, i.e. the fitted
+    /// surface sloped downward in size at the hull edge and the tail degenerated
+    /// to freezing. Non-zero means a fit pathology on some density band.
+    long n_slope_floor() const { return n_slope_floor_; }
     const arma::vec& addc() const { return addc_; }
 
 private:
@@ -298,6 +323,28 @@ private:
     bool gibbs_sweep_(arma::mat& k_blk, arma::mat& omega_blk,
                       const std::vector<arma::uvec>& nbr,
                       arma::mat* sigma_out = nullptr) const;
+    /**
+     * Log of the unnormalized pivot conditional
+     *   pi(xi | b) ∝ xi^delta exp(-beta xi) (xi + q)^(alpha - 1),   xi > 0,
+     * where xi = K_ii - b' C b is the diagonal pivot and q = b' C b.
+     */
+    double log_pivot_(double xi, double q) const;
+    /**
+     * One slice-sampler update of the pivot (Neal 2003: stepping out, then
+     * shrinkage). Exact for the conditional above at any shape, which is why
+     * it replaces the independence-Metropolis pivot: there is no acceptance
+     * left to collapse as alpha grows.
+     *
+     * Slice rather than adaptive rejection because log-concavity is not
+     * unconditional. d2/dxi2 log pi = -delta/xi^2 - (alpha-1)/(xi+q)^2, so
+     * below shape 1 the second term is positive and concavity needs
+     * delta >= 1 - alpha; a user-set small delta breaks it over a region
+     * carrying real mass (measured: at delta = 0.2, alpha = 0.5, q = 1 the
+     * curvature flips at xi = 1.72 with 3.2% of the target beyond it).
+     * Stepping-out is capped; an exhausted budget leaves the pivot unmoved
+     * and is counted in n_slice_cap().
+     */
+    double slice_pivot_(double xi0, double q) const;
     /** Build neighbour lists, seed k_blk (+omega_blk under Cauchy), burn. */
     void init_block_(const arma::imat& a_blk, std::vector<arma::uvec>& nbr,
                      arma::mat& k_blk, arma::mat& omega_blk) const;
@@ -405,6 +452,14 @@ private:
     long n_pred_ = 0, n_add_ = 0;
     long n_extrap_ = 0;
     int max_extrap_size_ = 0;
+    long n_pred_ret_ = 0, n_extrap_ret_ = 0;
+    /// Tallied from the const oracle sweep, hence mutable.
+    mutable long im_prop_ = 0, im_acc_ = 0;
+    mutable long n_slice_cap_ = 0;
+    int max_extrap_size_ret_ = 0;
+    ZRatioPhase phase_ = ZRatioPhase::Warmup;
+    /// Incremented from the const surface evaluator, hence mutable.
+    mutable long n_slope_floor_ = 0;
 
     // Block-Gibbs oracle state (set by set_oracle_params; used by the surface
     // build, the gold reference, and the trust gauge).

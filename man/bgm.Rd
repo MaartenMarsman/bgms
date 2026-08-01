@@ -190,22 +190,57 @@ the edge prior under edge selection for continuous (GGM) data:
     Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
 \code{sbm_prior()} the hyperparameter updates carry the
 normalizing-constant correction described under
-\code{edge_prior}.}
+\code{edge_prior}. The realized edge-inclusion prior therefore
+differs from the nominal edge prior for every edge prior: at three
+variables a uniform \code{beta_bernoulli_prior(1, 1)} realizes about
+0.37, and a fixed \code{bernoulli_prior(0.5)} at \eqn{\delta = 0}
+realizes about 0.27. The correction keeps the learned inclusion
+probability coherent with the joint model; it does not restore the
+nominal prior, and with a fixed inclusion probability nothing
+absorbs the tilt. A message reports this when \code{verbose = TRUE};
+\code{\link{extract_prior_inclusion_probabilities}} returns the
+realized prior.}
 \item{"hierarchical"}{The hierarchical specification
 \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 normalized per graph, so the graph marginal is exactly the edge
 prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
 ratio with a fast local approximation: a theta-independent
 absolute-moment surface built once at the start of the analysis from
-block-Gibbs anchors. An optional trust gauge (off by default; enable
-it with \code{options(bgms.zratio_gauge_sweeps = 2L)} before fitting)
-audits the approximation after sampling on two channels: the rate at
-which the chain's edge decisions would differ under the exact
-calculation, and the projected distortion of the inclusion
-probabilities from the measured error under the edge prior's feedback
-(\code{\link{summarize_zratio_gauge}}; when enabled, the summary is
-returned as \code{fit$zratio_diag} and issues print like other
-sampler warnings; otherwise \code{fit$zratio_diag} is \code{NULL}).
+block-Gibbs anchors on components of up to 80 variables. Within that
+anchored range the surface tracks a block-Gibbs reference to about
+0.003 nats. It is scored against that reference at five
+\code{gamma_prior()} diagonal shapes -- 0.5, 1, 2, 3 and 5 -- and
+deploys on the range those points span up to shape 10, with the
+interior interpolated rather than measured. At shape 10 the guarantee
+is of a different kind: the diagonal has concentrated far enough that
+the whole mediated correction is bounded by 0.00028 nats over the
+scored blocks at a standardized rate (\code{eta}) of 2 or below, so
+there is little left to approximate rather than a tight approximation
+of something large. That bound is set at the top of the scored rate
+range, since the correction grows with the rate, and does not extend
+above it. A shape outside the range keeps the coarser additive
+kernel. A mediating block beyond it is predicted by continuing
+the surface along its own boundary slope, measured at blocks of 90 to
+150 variables at a median of 0.0006 nats and at most 0.0011 for
+common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for
+bipartite ones: bounded and far tighter than the
+alternatives, but outside the in-range figure, and reported by a note
+when a fit relies on it. A fit reaches that regime only with a dense
+posterior on many variables; sparse graphs never do. A trust gauge audits the approximation after
+sampling on two channels: the rate at which the chain's edge
+decisions would differ under the exact calculation, and the projected
+distortion of the inclusion probabilities from the measured error
+under the edge prior's feedback
+(\code{\link{summarize_zratio_gauge}}). The summary is returned as
+\code{fit$zratio_diag} and issues print like other sampler warnings.
+The gauge runs by default; \code{options(bgms.zratio_gauge_sweeps =
+    0L)} turns it off, and \code{fit$zratio_diag} is then \code{NULL}.
+Its cost is fixed per chain rather than proportional to \code{iter}:
+zero on a sparse posterior, where no mediating block is non-trivial
+and the ratio is exact, and about 5-10 seconds per chain on a dense
+posterior at 100-200 variables. That is negligible on a
+production-length fit and noticeable on a short exploratory one,
+which is what the off switch is for.
 Requires \code{edge_selection = TRUE}, a
 \code{normal_prior()} or \code{cauchy_prior()} interaction prior,
 and continuous data — either all-continuous

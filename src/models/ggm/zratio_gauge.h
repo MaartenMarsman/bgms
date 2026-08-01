@@ -56,10 +56,11 @@ struct ZRatioGauge {
     double se_mcse2_sum = 0.0; ///< sum of squared per-pair log-scale reference MCSE
 
     // Per-referenced-pair record stream (bounded by cap * n_sweeps, so tens
-    // of entries): the audited edge, its signed log-ratio error, and the
-    // reference MCSE. Lets the summary weight each error by that edge's own
-    // inclusion sensitivity instead of pairing chain-level averages.
-    std::vector<int> rec_i, rec_j;
+    // of entries): the audited edge, its mediating-block size, its signed
+    // log-ratio error, and the reference MCSE. Lets the summary weight each
+    // error by that edge's own inclusion sensitivity instead of pairing
+    // chain-level averages, and report the block sizes the audit covered.
+    std::vector<int> rec_i, rec_j, rec_m;
     std::vector<double> rec_se, rec_mcse;
 
     void reset() {
@@ -72,6 +73,7 @@ struct ZRatioGauge {
         se_mcse2_sum = 0.0;
         rec_i.clear();
         rec_j.clear();
+        rec_m.clear();
         rec_se.clear();
         rec_mcse.clear();
     }
@@ -152,6 +154,7 @@ inline void zratio_gauge_record(ZRatioGauge& g, ZRatioEngine* engine,
     g.se_mcse2_sum += mcse * mcse;
     g.rec_i.push_back(i);
     g.rec_j.push_back(j);
+    g.rec_m.push_back(bl.m);
     g.rec_se.push_back(se);
     g.rec_mcse.push_back(mcse);
 }

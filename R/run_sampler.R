@@ -91,9 +91,11 @@ run_sampler_ggm = function(spec) {
     )
     # Option-B absolute-moment surface: build once at the analysis's own
     # (eta, delta) and let the engine deploy it per component. eta is a build
-    # parameter, not a switch. Built for the Normal and Cauchy slabs (both
-    # alpha = 1); a non-unit Gamma diagonal shape returns NULL and keeps the
-    # additive path (open problem).
+    # parameter, not a switch. Built for the Normal and Cauchy slabs across the
+    # validated Gamma diagonal shape range; a shape outside it returns NULL and
+    # keeps the additive path. This call is the sole owner of that decision --
+    # the engine deploys whatever it is attached and does not re-test the
+    # shape.
     zratio = zratio_attach_surface(
       zratio, zc, d$num_variables,
       cores = zratio_surface_build_cores(s$cores),

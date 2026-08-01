@@ -22,7 +22,9 @@ mkfam = function(seed) {
 surface = list(cn = mkfam(11), bip = mkfam(22))
 
 # R mirror of surface_eval_ (clamp size/dens to hull, raw quadratic in
-# (log size, dens), clamp the log-moment to its range +/- 0.1).
+# (log size, dens), clamp the log-moment to its range +/- 0.1, then continue
+# past the size hull along the boundary slope in log-size with the slope floored
+# at zero).
 eval_surf = function(f, s2, size, dens) {
   n = min(max(size, f$size_lo), f$size_hi)
   d = min(max(dens, f$dens_lo), f$dens_hi)
@@ -31,7 +33,13 @@ eval_surf = function(f, s2, size, dens) {
   cc = if(s2) f$c2 else f$c1
   lo = (if(s2) f$l2_lo else f$l1_lo) - 0.1
   hi = (if(s2) f$l2_hi else f$l1_hi) + 0.1
-  exp(min(max(sum(cc * x), lo), hi))
+  p = min(max(sum(cc * x), lo), hi)
+  if(size > f$size_hi) {
+    slope = cc[2] + 2 * cc[3] * L + cc[6] * d + 2 * cc[7] * L * d +
+      cc[8] * d^2 + 2 * cc[9] * L * d^2
+    p = p + max(slope, 0) * (log(size) - L)
+  }
+  exp(p)
 }
 
 # CN K4 (size 4, dens 1) + bipartite bridge (na 2, nb 3, e 4) on edge (1, 2).
@@ -99,14 +107,24 @@ test_that("per-component moments match the raw-poly surface, summed logR matches
   expect_equal(r$log_zratio, r$logR, tolerance = 1e-12)
 })
 
-test_that("alpha != 1 fences log_zratio to the additive path, bypassing the surface", {
+test_that("an attached surface serves log_zratio at any shape", {
+  # This test used to assert the opposite -- that a non-unit shape bypassed the
+  # attached surface and served the additive path -- and so pinned a defect as
+  # a contract. The engine carried its own `alpha == 1` gate left over from the
+  # alpha = 1-only migration, while the deployment policy in R had widened to a
+  # range of shapes; the two disagreed silently and every non-unit-shape fit
+  # got the additive kernel. The policy has one owner now (R decides whether to
+  # build and attach; see zratio_build_surfaces), so the contract here is that
+  # the engine honours the attachment it was given.
   G = make_graph1()
-  r = surf_eval(G, 1, 2, surface, alpha = 2)
-  add = zratio_test_eval(
-    G, matrix(c(1, 2), 1, 2), zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0
-  )
-  expect_equal(r$log_zratio, as.numeric(add$log_zratio[1]), tolerance = 1e-12)
-  expect_gt(abs(r$log_zratio - r$logR), 1e-6)
+  for(alpha in c(0.5, 2, 5)) {
+    r = surf_eval(G, 1, 2, surface, alpha = alpha)
+    expect_equal(
+      r$log_zratio, r$logR,
+      tolerance = 1e-12,
+      label = sprintf("deployed route at shape %g", alpha)
+    )
+  }
 })
 
 test_that("components below size_min fall back to additive (exact through pairwise overlap)", {
@@ -169,8 +187,9 @@ test_that("gold reference is finite on a non-trivial block", {
 })
 
 test_that("size / density / log-moment clamps match the R predictor", {
-  # Narrow hulls so every clamp fires: size_hi 4 (bip size 5 -> 4), dens_hi 0.5
-  # (dens 0.667 -> 0.5), and a degenerate log-S2 range -> exp(-3.1).
+  # Narrow hulls so every guard fires: size_hi 4 (bip size 5 is past it, so the
+  # boundary-slope extension applies), dens_hi 0.5 (dens 0.667 -> 0.5), and a
+  # degenerate log-S2 range -> exp(-3.1) before any extension.
   clamped = mkfam(22)
   clamped$size_hi = 4
   clamped$dens_hi = 0.5
@@ -180,7 +199,10 @@ test_that("size / density / log-moment clamps match the R predictor", {
   r = surf_eval(make_graph1(), 1, 2, surf)
   bp = r$comp[r$comp$family == 1, ]
   expect_equal(bp$s1, eval_surf(clamped, FALSE, 5, 4 / 6), tolerance = 1e-12)
-  expect_equal(bp$s2, exp(-3.1), tolerance = 1e-12)   # log-moment clamp
+  expect_equal(bp$s2, eval_surf(clamped, TRUE, 5, 4 / 6), tolerance = 1e-12)
+  # The log-S2 range is degenerate, so the clamp pins the base at exp(-3.1)
+  # and the extension can only carry it upward from there.
+  expect_gte(bp$s2, exp(-3.1))
 })
 
 test_that("the extrapolation counter fires only beyond the trained hull", {

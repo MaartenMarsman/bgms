@@ -56,6 +56,21 @@ test_that("fit-time constant builders match the reference builders", {
   }
 })
 
+test_that("the pair table and the saddle integration assert a common domain", {
+  # The pair integrals are interpolated, and a read past the table's end clamps
+  # to its edge value: a plateau where the integrand should decay. The saddle
+  # grid therefore refuses a table it would have to read past.
+  short = bgms:::zratio_pair_integrals(delta = 1, sigma = 1, beta = 1, cmax = 8)
+  expect_error(
+    bgms:::zratio_saddle_grid(short, Cmax = 40),
+    "pair table covers"
+  )
+  # The shipped pairing satisfies it, checked on the domains rather than by
+  # running the transform.
+  wide = bgms:::zratio_pair_integrals(delta = 1, sigma = 1, beta = 1)
+  expect_gte(max(wide$cg), eval(formals(bgms:::zratio_saddle_grid)$Cmax))
+})
+
 test_that("Gauss quadrature nodes integrate known moments exactly", {
   gl = bgms:::zratio_gauss_quad(24, "laguerre")
   expect_equal(sum(gl$weights), 1, tolerance = 1e-12) # int e^-x
