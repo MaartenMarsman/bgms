@@ -494,7 +494,7 @@ zratio_surface_build_cores = function(fit_cores = 1L) {
     getOption("bgms.zratio_surface_cores", fallback)
   ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
-  cores
+  normalize_parallel_cores(cores)
 }
 
 # Message the route taken when no surface is attached. Three cases, and they

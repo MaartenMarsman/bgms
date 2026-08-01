@@ -149,15 +149,10 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
 # core limit, never fork on Windows, and never exceed the machine.
 # ------------------------------------------------------------------
 normalize_builder_cores = function(cores) {
-  cores = max(1L, as.integer(cores))
   if(identical(.Platform$OS.type, "windows")) {
     return(1L)
   }
-  check_limit = Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-  if(nzchar(check_limit) && !identical(tolower(check_limit), "false")) {
-    cores = min(cores, 2L)
-  }
-  min(cores, parallel::detectCores())
+  normalize_parallel_cores(cores)
 }
 
 

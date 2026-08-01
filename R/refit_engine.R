@@ -107,7 +107,8 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
   spec$sampler$warmup = as.integer(warmup)
   spec$sampler$iter = as.integer(iter)
   spec$sampler$seed = as.integer(seed)
-  spec$sampler$cores = as.integer(cores)
+  # The refit bypasses validate_sampler(), so it applies the core guard itself.
+  spec$sampler$cores = normalize_parallel_cores(cores)
   # Render the sampler's own native display (a bar per chain, with the
   # warmup/sampling stage and ETA) for this refit when asked; otherwise stay
   # silent. The manager redraws its block in place, so a refit's chains do not
