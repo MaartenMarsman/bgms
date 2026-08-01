@@ -224,7 +224,7 @@ test_that("Compare build_arguments: all expected field names present", {
     "num_chains", "num_groups",
     "data_columnnames", "projection",
     "num_categories", "category_levels", "blume_capel_shift",
-    "is_ordinal_variable",
+    "is_ordinal_variable", "baseline_category",
     "group",
     "model_type"
   )
