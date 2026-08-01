@@ -46,6 +46,16 @@ Scheduled runs move to **develop** (the branch where change happens); `main`
 is verified manually at the release re-merge. The existing weekly-compliance
 bitwise workflow is UNTOUCHED.
 
+MECHANICS you must design around, not "fix": GitHub fires `schedule:` crons
+from the DEFAULT branch's copy of the workflow file. So (a) the way a
+scheduled run tests develop is an explicit `ref: develop` in the checkout
+step, NOT the file's location; (b) the new schedules only go LIVE when this
+batch reaches `main` at the release re-merge — until then, main's old
+Mon+Thu nightly keeps firing and cancelling (known, pre-announced noise);
+(c) `weekly-certification.yaml` is not even dispatchable until it exists on
+main, so its budget is proven at its first real Sunday run post-re-merge —
+state this in the report rather than working around it.
+
 ### Tasks
 
 1. **Measure with real 2-core numbers.** Harvest per-file wall times from the
@@ -71,13 +81,21 @@ bitwise workflow is UNTOUCHED.
    contract in a comment header in each file AND as a new subsection of
    `dev/review-2026-08/MAINTAINERS.md` §6.
 5. **Prove T1's budget**: `workflow_dispatch` the rewritten nightly on your
-   branch ref, and report the wall time and totals. Expected: completes
-   well under 60 min, ZERO failures (Part B item 6 re-founds the one red
-   test and moves it to T2). If it exceeds budget, re-cut and re-run — the
-   budget is the spec.
-6. **(D1 — only if the maintainer has approved it in the relay)**: add a
-   fast-tier PR/push workflow running the ~90 s T0 on develop pushes and PRs.
-   If D1 is not approved, skip entirely.
+   branch ref and report the wall time and totals. SCOPED EXCEPTION to the
+   no-pushing rule, for this task only: you MAY push the fix branch itself
+   (`git push origin fix/nightly-respec` — NEVER develop, never main),
+   because dispatch needs the ref to exist on the remote; this works for
+   `nightly-validation.yaml` since that file already exists on the default
+   branch. Expected: completes well under 60 min, ZERO failures (Part B
+   item 7 re-founds the one red test and moves it to T2). If it exceeds
+   budget, re-cut and re-run — the budget is the spec.
+6. **D1 — APPROVED (maintainer, 2026-08-01): the fast tier gates every
+   push/PR.** Add `fast-checks.yaml`: on push to develop and on pull_request,
+   run the ~90 s T0 (plain `devtools::test()`, no slow env vars) plus
+   `R CMD check --no-manual --no-vignettes` if it fits the runner budget
+   (drop the check half if it pushes the job past ~15 min — the test tier is
+   the point). Push/PR triggers use the workflow file on the pushed branch,
+   so this activates the moment it lands on develop — no re-merge wait.
 
 ## Part B — decided release polish
 
