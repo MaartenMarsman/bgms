@@ -66,6 +66,8 @@ as reports 00a–00c and later land.
 | F-053 | minor | open | No bgms computation can be interrupted: `Rcpp::checkUserInterrupt()` exists only in `mrf_simulation.cpp`; SIGINT during any chain/sweep/surface build is swallowed until the C++ call returns (demonstrated on a 69 s sweep). Benign for correctness (completed results are bit-identical); bad UX on long fits. C++ backlog item — add interrupt checks at safe points in the chain loops. | report 03 §2.3, §4.3 |
 | F-054 | minor | open | Correction-table disk cache key omits the package version (`ggm_ctable_v1_...`) unlike the surface cache (`zratio_surf_v2_0.2.0.0_...`); observed cross-version contamination: rc1-built vs develop-built tables share a key and differ (max edens diff 0.042). Add the version to the key before CRAN (one rebuild per cell per release). Brief 05. | report 03 §4.2 |
 | F-055 | blocker-candidate | open (MM shape call) | `bgm(variable_type = "continuous", precision_graph_prior = "hierarchical")` CRASHES at q = 2 or 3: the bipartite anchor grid's smallest size is 4, so `zratio_anchor_grids(cap ≤ 3)` returns 0 rows and `bip_jobs$fam = "bip"` (`R/zratio_surfaces.R:411`) errors. Pre-existing in rc1; q=4+ fine. Bipartite bridges genuinely need 2+2 nodes, so the honest fix is a NULL bip family at q ≤ 3 (few lines); MM confirms the shape (NULL family vs additive fallback), then brief 05 lands it with q=2..5 smoke tests. | report 03 §4.1 |
+| F-056 | minor | open | `bgmCompare()` reads `ncol(x)` on UNVALIDATED input: `R/bgmCompare.R:428-429` computes `num_variables = ncol(x)` and unpacks the difference prior *before* `bgm_spec()` runs `data_check(x, "x")` (`R/bgm_spec.R:409`). A vector `x` therefore yields `ncol(x)` = NULL, and `matrix(theta, nrow = NULL, ncol = NULL)` inside `validate_bernoulli_inclusion` (`R/validate_model.R:471`) fails with "non-numeric matrix extent" — an internal error where the shipped validator would have said "x must be a matrix or data.frame." `bgm()` is correct by construction: its edge prior is unpacked *inside* `bgm_spec` (`:527`), after the data check. Cross-path convention divergence — the resident defect class, hit by MM on his opening bgmCompare call. Fix: drop the two lines below the data check (or call `data_check()` at the top of `bgmCompare()`); regression test = vector `x` gives the clean message. | MM, brief 07 |
+| F-057 | major | open | Character or factor `group_indicator` CRASHES `bgmCompare()` with "'bin' must be numeric or a factor". `R/build_spec.R:439-442`: `group = group_indicator` inherits character storage, the recode loop writes integers into it (coerced straight back to character), and `tabulate(group)` then rejects it. The repair `as.integer(group)` exists but only at `:652`, far downstream of both `tabulate()` sites (the post-listwise recode, `~:505-507`, repeats the pattern). Factors are hit too: `as.vector(factor)` returns character. Not exotic — the package's OWN shipped `Boredom` dataset carries a character grouping column (`language`, "en"/"fr", 496/490), so the natural two-group call on it fails. Zero test coverage: every fixture hand-coerces (`helper-fixtures.R:216,328,351` `lang = as.integer(as.factor(...))`, comment "Convert language to integer: 1 for first level, 2 for second") — the workaround stands in for the missing test, which is why this survived to rc1. Fix: coerce once, `group = match(group_indicator, unique_g)`, which also deletes the loop; add character/factor fixtures. Next fix batch (not brief 05 — nothing here reaches the nightly). | MM, brief 07 |
 
 ## Details and verification notes
 
@@ -102,3 +104,40 @@ GGM SBC/oracle gates, 2026-07-06); `scratch-buffer-logz-ref` → commit
 stores until garbage collection (`git tag <name> <sha>` restores). The two
 `dev/plans/backlog` scratch-buffer documents cite the deleted ref; these SHAs
 are now the only pointer.
+
+**F-056 / F-057 (both from MM's first bgmCompare call, 2026-08-01)** — one
+call, `bgmCompare(Boredom[,1], group_indicator = Boredom[,1], seed = 1)`,
+exposed two independent input-handling defects, and both are instances of
+patterns this review has already named:
+
+1. *Convention divergence* (PLAN strategy #3). `bgm()` unpacks its edge prior
+   inside `bgm_spec()`, downstream of `data_check()`; `bgmCompare()` hoists the
+   equivalent two lines into its own body, upstream of every validator. The
+   divergence is invisible until input is malformed, and then the two functions
+   give different-quality errors for the same mistake.
+2. *The workaround standing in for the test*. F-057's character/factor path has
+   no coverage because all four fixtures hand-coerce with
+   `as.integer(as.factor(...))` and a comment explaining the coercion — the
+   authors met the defect, routed around it in test code, and never filed it.
+   Grep-for-coercion-in-fixtures is a cheap audit worth running once across the
+   suite; a fixture that pre-massages input is evidence about the API, not just
+   about the fixture.
+
+Both are small fixes held for the batch after brief 05 (nothing here touches
+the nightly, and brief 05 is in flight). Verification for F-057 must include
+the natural call on the shipped dataset, not only a synthetic factor.
+
+*Measured 2026-08-01* against the rc1 install (`~/bgms-review/lib`; both
+`R/bgmCompare.R` and `R/build_spec.R` are unchanged `v0.2.0.0-rc1..develop`, so
+both defects are pre-existing, not merge fallout). Four calls, same data:
+
+| call | result |
+|---|---|
+| `bgmCompare(Boredom[,1], group_indicator = Boredom[,1])` | `non-numeric matrix extent` (F-056) |
+| `bgmCompare(x = Boredom[,-1], group_indicator = Boredom$language)` | `'bin' must be numeric or a factor` (F-057) |
+| same, `group_indicator = factor(Boredom$language)` | `'bin' must be numeric or a factor` (F-057) |
+| `bgm(Boredom[,1])` — identical bad input, other path | `x must be a matrix or data.frame.` ← the message bgmCompare owes the user |
+
+Both documented workarounds run clean: `group_indicator =
+as.integer(factor(Boredom$language))`, and the x/y split
+(`x = Boredom[lang=="en", -1], y = Boredom[lang=="fr", -1]`).
