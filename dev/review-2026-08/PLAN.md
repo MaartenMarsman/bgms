@@ -108,9 +108,9 @@ orientation, cumulatively covering the architecture.
 |---|---|---|---|
 | 01 baseline check | Opus | done | `reports/01-baseline-check.md` |
 | 02 user-facing checks | MM | done | `reports/02-user-facing-checks.md` |
-| 03 checking-layer defect batch | Opus | done — 8 commits on `fix/checking-layer-batch`, all gates green; merge gated on MM confirming `ff29d177` (F-036 math) | `reports/03-checking-layer-defects.md` |
+| 03 checking-layer defect batch | Opus | done — **merged to develop `adf87013`** (MM confirmed the F-036 math, 2026-08-01) | `reports/03-checking-layer-defects.md` |
 | 04 statistical certification | Opus | done — all 5 zratio certificates PASS vs the gold bank; 4 deterministic slow-tier failures, all test-side (F-048/F-049); drifter resolved (quick-fit artifact) | `reports/04-statistical-certification.md` |
-| 05 test-repair + follow-ups batch (F-048 stale fences, F-050 deprecation sweep, F-054 cache-key version, F-055 q≤3 guard once MM confirms shape, F-017 .Rbuildignore lines, `^\.git$` hardening) | Opus | draft after MM's answers; before the Mon 08-03 nightly if possible | — |
+| 05 test-repair + release-hygiene batch (F-048 stale fences, F-050 deprecation sweep, F-054 cache-key version, F-055 q≤3 guard, F-017 .Rbuildignore, F-051 docs line, `^\.git$` hardening) | Opus | **issued 2026-08-01** — land before the Mon 08-03 nightly | pending |
 | 06 bgmCompare cross-path consistency | Opus | draft after 05 | — |
-| 07 MM: bgmCompare user pass (difference verdicts, group/difference plots, difference-scale sensitivity trace; ~1 h) | MM | issue after 03 merges | — |
+| 07 MM: bgmCompare user pass (difference verdicts, group/difference plots, difference-scale sensitivity trace; ~1 h) | MM | **issued 2026-08-01** — runnable on develop ≥ `adf87013` | pending |
 | 08 MM curriculum step 2: zratio law + gauge math read | MM | draft after 05 | — |
