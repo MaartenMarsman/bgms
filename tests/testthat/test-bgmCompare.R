@@ -382,3 +382,38 @@ test_that("the shipped data's own language column works as the group indicator",
     tabulate(match(Boredom$language, unique(Boredom$language)))
   )
 })
+
+
+test_that("predict.bgmCompare centers Blume-Capel variables at the fit's baseline", {
+  fit = get_bgmcompare_fit_blumecapel()
+  arguments = extract_arguments(fit)
+  # The fit's own baseline (category 3, shifted to the 0-based scale) must be
+  # stored; without it predict() silently centered every Blume-Capel term at 0.
+  expect_equal(arguments$baseline_category, rep(2L, 4L))
+
+  data("Boredom", package = "bgms")
+  newdata = Boredom[c(1:4, 494:497), 2:5]
+  probs = predict(fit, newdata = newdata, group = 1)
+
+  # Manual reference, the sampler's own convention: category c contributes
+  # exp(lin*(c-ref) + quad*(c-ref)^2 + (c-ref)*rest), with the rest score
+  # summing 2 * (x_v - ref_v) * pairwise[v, j] over the other variables.
+  shift = arguments$blume_capel_shift
+  ref = arguments$baseline_category
+  x0 = sweep(data.matrix(newdata), 2, shift)
+  gp = extract_group_params(fit)
+  p = arguments$num_variables
+  pw = matrix(0, p, p)
+  pw[lower.tri(pw)] = gp$pairwise_effects_groups[, 1]
+  pw = pw + t(pw)
+  main = matrix(gp$main_effects_groups[, 1], ncol = 2, byrow = TRUE)
+  for(j in seq_len(p)) {
+    rest = as.numeric((sweep(x0[, -j, drop = FALSE], 2, ref[-j])) %*% (2 * pw[-j, j]))
+    cats = 0:arguments$num_categories[j] - ref[j]
+    expected = t(vapply(rest, function(r) {
+      e = exp(main[j, 1] * cats + main[j, 2] * cats^2 + cats * r)
+      e / sum(e)
+    }, numeric(length(cats))))
+    expect_equal(unname(probs[[j]]), unname(expected), tolerance = 1e-10)
+  }
+})
