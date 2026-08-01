@@ -154,16 +154,32 @@ test_that("the build fences shapes outside the validated range", {
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
-  # Above the range the anchor oracle's independence-Metropolis step stops
-  # mixing (about 1% acceptance at shape 5), so no surface is built.
-  for(shape in c(2.5, 5)) {
+  # The deployment range is [.zratio_surface_shape_lo, .zratio_surface_shape_hi]
+  # and zratio_build_surfaces is its single owner, so the contract is read off
+  # those two constants rather than restated as literals.
+  lo = bgms:::.zratio_surface_shape_lo
+  hi = bgms:::.zratio_surface_shape_hi
+  expect_equal(c(lo, hi), c(0.5, 10))
+
+  # Inside the range the build proceeds -- at both endpoints and at interior
+  # shapes, which are interpolated rather than separately scored.
+  for(shape in c(lo, 2.5, 5, hi)) {
     zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L))
+    expect_false(
+      is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)),
+      label = sprintf("surface built at shape %g", shape)
+    )
   }
-  # Inside it the build proceeds at both validated endpoints.
-  for(shape in c(0.5, 2)) {
-    zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_false(is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)))
+  # Outside it no surface is built and the engine keeps the route the fence
+  # assigns: the isolated-edge ratio above the range, the additive path below.
+  for(shape in c(0.25, 12)) {
+    zc = suppressWarnings(
+      bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
+    )
+    expect_null(
+      bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L),
+      label = sprintf("surface at shape %g", shape)
+    )
   }
 })
 
