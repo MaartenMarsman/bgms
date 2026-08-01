@@ -57,12 +57,24 @@ throughout: large fonts, offset axes, no box, needless ink omitted.
    the slab is shown conditional on inclusion; absence probability is the
    wheel's pale share.
 
-**The one deliberate deviation from JASP, do NOT "fix" it:** the JASP figure
-puts two grey Savage-Dickey dots at zero and reads the Bayes factor off that
-density ratio. bgms edge BFs are NOT Savage-Dickey ratios — they are
-Rao-Blackwellized indicator BFs from the spike-and-slab — so the dots would
-visually assert an estimator the package does not use. The wheel + printed
-log BF carry that job instead. No dots at zero.
+**The dots rule (maintainer-set): the panel shows whichever estimator the
+model licenses.** The JASP figure reads the BF off the prior/posterior
+ordinates at zero (Savage-Dickey). Whether that transfers depends on the fit:
+
+- `edge_selection = TRUE` (default): bgms BFs are Rao-Blackwellized INDICATOR
+  BFs from the spike-and-slab, not density ratios — Savage-Dickey dots would
+  visually assert an estimator the package does not use. NO dots; the PIP
+  wheel + printed RB log BF carry the evidence.
+- `edge_selection = FALSE`: no indicator exists, the posterior is continuous,
+  and Savage-Dickey IS the licensed estimator. Draw the JASP figure exactly:
+  both grey ordinate dots at zero; BF = prior ordinate (analytic, from the
+  fit's interaction prior) / posterior ordinate (from the draws — use
+  `stats::density(bw = "SJ")` interpolated at 0; JASP's own implementations
+  use logspline, but do NOT add a dependency — document the estimator choice
+  in the Rd); print it as natural-log "log BF" via `format_log_bf()`; wheel
+  filled by BF/(1+BF) with JASP's data|H1 / data|H0 labeling (that fill is a
+  posterior probability at equal prior odds, so the wheels-carry-
+  probabilities convention holds); median/CI as usual.
 
 ## Edge cases (all tested)
 
@@ -72,9 +84,11 @@ log BF carry that job instead. No dots at zero.
   the PRIOR density, the wheel (nearly all pale), and the log BF, with the
   caption noting no included draws — a decisive-absence edge deserves a
   figure too, not an error.
-- Fits without edge selection (if `edge_selection = FALSE` reaches this
-  path): no spike exists — draw prior + full posterior density, omit the
-  wheel, print the CI/median; no BF text (there is no indicator).
+- Fits without edge selection: the Savage-Dickey case in the dots rule above
+  — full posterior density, prior, both ordinate dots, SD log BF, BF-filled
+  wheel, median/CI. Snapshot this case specifically, including one where the
+  posterior ordinate at 0 is near-zero (decisive) and one where it exceeds
+  the prior ordinate (evidence for absence).
 - Blume-Capel / mixed fits: weights are continuous; nothing special, but
   include one in the snapshots.
 
@@ -85,6 +99,28 @@ log BF carry that job instead. No dots at zero.
   pattern), do not silently drop it.
 - No other signature changes; `evidence_threshold` keeps feeding the verdict
   in the title.
+
+## The style becomes a module (this panel is the reference implementation)
+
+The maintainer has decided the JASP/compendium feel goes PACKAGE-WIDE (brief
+11 will restyle every other plot). So do not inline the styling: extract it as
+roxygen-documented internal helpers — a new `R/plot_style.R` — written as if
+they are the package's plotting law:
+
+- `bgms_panel_par()` — typography, margins, offset-axis (eps) conventions,
+  no box, large fonts, ink/muted/accent colors from `mover_palette()`.
+- `probability_wheel(x, y, prob, radius, labels)` — the `cos()`/`sin()` +
+  `polygon()` wheel, usable by this panel, the compare node rings (F-062d),
+  and anything else that shows a probability.
+- `annotation_block()` — the median/CI/log-BF text placement.
+- A NO-BIG-TITLES convention: JASP plots carry annotations, not headline
+  titles. State it in the helper docs; this panel may keep only a compact
+  title (or none — your judgment against the reference figures).
+
+Consult the compendium beyond the one figure, and the JASP source
+(github.com/jasp-stats — `jaspGraphs` encodes their working constants: font
+sizes, axis break logic, expansion factors) for the conventions; distill,
+don't port (they are ggplot2, we are base graphics).
 
 ## Verification gate
 
