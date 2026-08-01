@@ -451,3 +451,19 @@ test_that("a warm-start list with the wrong length errors", {
   spec$initial_state = list(parameters = c(ws$parameters, ws$parameters[1]))
   expect_error(run_sampler(spec), "one entry per chain")
 })
+
+test_that("the refit gate abstains on an all-NA warmup check without warning", {
+  # A degenerate source fit leaves every energy diagnostic NA. min()/max() over
+  # nothing warns and returns an infinity, which reads as a criterion rather
+  # than as an absent one.
+  expect_equal(finite_reduce(c(NA_real_, NA_real_), min, Inf), Inf)
+  expect_equal(finite_reduce(numeric(0), max, 0), 0)
+  expect_equal(finite_reduce(c(NA_real_, 2, 5), max, 0), 5)
+  expect_identical(finite_reduce(c(NA_real_, NaN), stats::median, NA_real_), NA_real_)
+  expect_silent(finite_reduce(rep(NA_real_, 3L), min, Inf))
+  expect_silent(finite_reduce(rep(NA_real_, 3L), max, 0))
+
+  # Infinities are not finite values to reduce either: an unusable diagnostic
+  # abstains whichever way it is unusable.
+  expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
+})
