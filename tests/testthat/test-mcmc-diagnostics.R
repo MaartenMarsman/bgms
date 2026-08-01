@@ -430,8 +430,15 @@ test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked on
 
   # On the unmasked edges the reported Rhat is exactly the classic split-Rhat on
   # the J draws, with no df adjustment.
+  #
+  # The tolerance sits above the cross-platform floating-point floor, not at the
+  # local one: the two sides sum the same autocovariances in different orders,
+  # so the last digits follow the machine's BLAS. Measured 3.1e-8 relative on
+  # the Linux CI runner against a 1e-8 pin that holds on macOS (2026-08-02, run
+  # 30719120127). What this guards against is a df adjustment or a wrong split,
+  # which move Rhat by ~1e-2 -- four orders above this pin.
   keep = !is.na(reported)
-  expect_equal(reported[keep], manual[keep], tolerance = 1e-8)
+  expect_equal(reported[keep], manual[keep], tolerance = 1e-6)
 })
 
 
