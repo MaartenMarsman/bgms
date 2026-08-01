@@ -4,7 +4,9 @@
 # classifies every edge; it works on any bgm() fit with edge selection.
 # Structural tests use small fits and reduced anchor grids: every refit is a
 # full MCMC run, so the anchor set is the dominant cost. The warm-vs-cold
-# agreement certification runs in the BGMS_RUN_SLOW_TESTS tier.
+# agreement certification and the other refit cross-validations run in the
+# weekly certification tier (T2, BGMS_RUN_CERTIFICATION); the verdict and
+# compare-trace checks run nightly (T1, BGMS_RUN_SLOW_TESTS).
 
 skip_unless_slow = function() {
   skip_if_not(
@@ -213,7 +215,7 @@ test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
 
 test_that("warm-started short refits agree with cold full refits within wobble", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:8],
     chains = 4, iter = 2000, warmup = 1000, seed = 11,
@@ -252,7 +254,7 @@ test_that("anchors must include a multiplier other than 1", {
 
 test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   set.seed(32)
   xg = matrix(rnorm(180 * 5), 180, 5)
   fg = bgm(xg,
@@ -426,9 +428,52 @@ test_that("prior_sensitivity_check needs difference selection", {
 })
 
 
+# Weekly certification (T2): nine independent 4-chain refits.
+#
+# The gate asks whether the reweighted curve at a doubled difference scale
+# reproduces a refit at that scale, in units of refit-to-refit spread. Both
+# sides of that ratio used to rest on a SINGLE refit pair, and both were
+# therefore high-variance: the test flipped between seeds and went red on the
+# 2026-08-01 nightly. The 20-seed study in
+# dev/review-2026-08/reports/06-bgmcompare-defect-batch.md separated the two
+# effects -- a real, systematic reweighting bias of about 0.01 in inclusion
+# probability at the extrapolation end (every one of the 20 seeds had
+# gap > noise), sitting under a pass/fail decided by seed luck (4/20 seeds
+# tripped the x4 gate, median ratio 2.78).
+#
+# So both sides are now pooled over eight refits at the target scale:
+#
+#   reference    the mean of all eight, which cuts the reference's own Monte
+#                Carlo error by ~sqrt(8) and leaves the systematic bias the
+#                gate is actually about;
+#   yardstick    four independent pairs, each contributing its max-over-edges
+#                deviation, averaged -- the same "two refits, worst edge" scale
+#                as before, estimated from four observations instead of one.
+#
+# The gate itself is unchanged: gap < 4 x pooled_noise.
+#
+# Measured on this build over 8 seed bases (s0 in 11, 31, 51, 71, 91, 111, 131,
+# 151; each base = one anchor fit plus eight refits), ratio = gap / pooled_noise:
+#
+#   pooling the yardstick only (the shipped fix's first half)
+#     0.61 1.45 1.48 2.70 3.31 3.33 4.58 4.94   median 3.00, 2/8 over the gate
+#   pooling the yardstick AND the reference (what this block does)
+#     0.78 1.00 1.53 2.01 2.89 3.52 3.87 5.44   median 2.45, 1/8 over the gate
+#
+# So pooling helps the median but does NOT make the ratio gate safe, and it is
+# worth being clear why: the residual variance is on the side this construction
+# does not pool. The reweighting prediction still comes from ONE anchor fit
+# (f1), and its Monte Carlo error lands in the numerator whole. Base 91 is the
+# example -- pooled noise 0.0031, gap 0.0170, ratio 5.44.
+#
+# The block ships at base 11 (ratio 1.00) and the gate is the maintainer's x4,
+# as specified. Expect roughly a 1-in-8 seed to trip it; if it goes red, check
+# the gap against the ~0.01-pip documented bound (observed range over these 8
+# bases: 0.0052-0.0170) before assuming a regression. Report 12 carries the
+# table and the options for making this gate seed-proof.
 test_that("the difference-scale reweighting reproduces a refit at that scale", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   data("Wenchuan", package = "bgms")
   x = Wenchuan[, 1:6]
   g = rep(1:2, length.out = nrow(x))
@@ -442,8 +487,11 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
   pip_of = function(f) rowMeans(sapply(get_raw_samples(f)$rb_inclusion, colMeans))
 
   f1 = compare_at(1, 11)
-  f2 = compare_at(2, 12)
-  f2b = compare_at(2, 13)
+
+  # Four independent pairs at the doubled scale, deterministic seeds.
+  pair_seeds = list(c(12, 13), c(14, 15), c(16, 17), c(18, 19))
+  pips = lapply(pair_seeds, function(s) list(pip_of(compare_at(2, s[1])),
+                                             pip_of(compare_at(2, s[2]))))
 
   rw = anchor_reweight(anchor_draws(f1), s_a = 1, s_grid = c(1, 2))
   nm = get_raw_samples(f1)$parameter_names$indicator
@@ -456,8 +504,19 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
   # to within a small multiple of the refit's own run-to-run spread. Without
   # this the whole curve would be reweighting an untested density.
   expect_gt(rw$ess[2], 400)
-  noise = max(abs(pip_of(f2)[pairwise] - pip_of(f2b)[pairwise]))
-  expect_lt(max(abs(rw$pip[2, pairwise] - pip_of(f2)[pairwise])), 4 * noise)
+
+  # Yardstick: four independent two-refit deviations, pooled.
+  pooled_noise = mean(vapply(
+    pips, function(p) max(abs(p[[1]][pairwise] - p[[2]][pairwise])), numeric(1)
+  ))
+  # Reference: the eight-refit mean, so the numerator is the reweighting bias
+  # rather than the bias plus one refit's Monte Carlo error.
+  reference = rowMeans(vapply(
+    unlist(pips, recursive = FALSE), function(p) p[pairwise],
+    numeric(sum(pairwise))
+  ))
+  gap = max(abs(rw$pip[2, pairwise] - reference))
+  expect_lt(gap, 4 * pooled_noise)
 })
 
 
