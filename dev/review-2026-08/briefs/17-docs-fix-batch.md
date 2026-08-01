@@ -125,6 +125,56 @@ not a grading criterion.
     exact" without that distinction, sharpen it to match the NEWS wording
     brief 14 merged. One sentence; cite both files in your report.
 
+### NEWS amendments from the maintainer's ratification read (F-096)
+
+14. Lead-verified facts at `cran-0.1.6.3`, which you build on rather than
+    re-derive: (i) BOTH released samplers use the old scale with NO factor 2 —
+    compare: `src/bgmCompare/bgmCompare_sampler.cpp:118-139`
+    (`category * rest_score` off plain `observations · effects`); bgm:
+    `src/bgm/bgm_logp_and_grad.cpp:178`; simulator: `src/mrf_simulation.cpp:98`
+    — i.e. the released pair was MUTUALLY CONSISTENT, and the
+    "compare = 2× bgm" mismatch existed only mid-development; (ii) the tag's
+    NAMESPACE exports `predict`/`simulate` methods for both classes, plus
+    `simulate_mrf` and `mrfSampler`. Amendments, all in NEWS.md:
+    a. REWRITE the bgmCompare association-scale entry for the 0.1.6.3
+       reader: both `bgm()` and `bgmCompare()` moved to the association
+       scale together in 0.2.0.0; compare pairwise values are ~half their
+       0.1.6.3 values (mirroring the bgm() entry). KEEP refit-not-rescale,
+       the prior-tightening consequence, and the scale-contingency caveat.
+       DROP the omega-vs-2omega internal-mismatch narrative.
+    b. DROP the "predict()/simulate() on a bgmCompare fit were wrong"
+       entry outright (dev-only defect; at 0.1.6.3 sampler and predictor
+       agreed). The Wenchuan numbers go with it.
+    c. The `simulate_mrf()` bullet STAYS as merged (it WAS exported at
+       0.1.6.3 — verified).
+    d. The hamiltonian-mc removal bullet gains one clause cross-referencing
+       the GGM `update_method = "gibbs"` addition.
+    e. The `standardize` bullet gains the maintainer's rationale: a
+       forthcoming g-prior formulation of the interaction prior addresses
+       standardization in the model itself; the per-pair max-score
+       adjustment is retired in favour of that direction.
+    f. The compare RB-NA bullet gains the maintainer-requested
+       clarification: an always-included edge indicator in `bgm()` is still
+       PROPOSED every iteration, so RB evaluates its conditional odds and
+       reports a finite Bayes factor; an unselected main-difference
+       indicator is never proposed at all, so no RB quantity exists — NA is
+       the honest value (`R/extractor_functions.R:342`: NA ⇔ zero visits).
+       Mirror the clause in the Rd where the NA is documented if a natural
+       slot exists; say so in the report if not.
+    g. Apply the never-shipped rule UNIFORMLY to the Bug-fixes section: for
+       EACH entry, establish at `cran-0.1.6.3` whether the defect could
+       reach a user there. Mixed-model and GGM-only fixes (PIP block order,
+       cross-indicator asymmetry, `delta = NULL` mixed default, Cholesky
+       downdate) — confirm their features are absent at the tag and DROP.
+       Verify the ambiguous ones AT THE TAG before deciding: the
+       category-scale recode fix, the Alpine/musl include, the two
+       imputation-cache fixes, and the two NUTS fixes (`target_accept`
+       pass-through; acceptance accumulation — NUTS EXISTED at 0.1.6.3, so
+       these may be genuine user-facing fixes: keep with 0.1.6.3 framing if
+       the tag shows the defect). Your report carries a per-entry verdict
+       table with tag citations. Re-run the markdown-NEWS parse gate from
+       report 14 after all edits.
+
 ### Explicitly OUT of scope
 
 - The "NUTS issues: Warmup may be incomplete" notices in three flagship
