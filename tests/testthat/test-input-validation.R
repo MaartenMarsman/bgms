@@ -189,6 +189,27 @@ test_that("a character group indicator survives listwise removal", {
   expect_equal(tabulate(spec$data$group), c(24L, 25L))
 })
 
+test_that("bgmCompare gives the validator's message for a vector x", {
+  data("Boredom", package = "bgms")
+  expect_error(
+    bgmCompare(Boredom[, 1], group_indicator = rep(1:2, length.out = nrow(Boredom))),
+    regexp = "x must be a matrix or data.frame",
+    fixed = TRUE
+  )
+  # The single-group entry point owes the same message.
+  expect_error(
+    bgm(Boredom[, 2]),
+    regexp = "x must be a matrix or data.frame",
+    fixed = TRUE
+  )
+  # A vector y hits the same validator under its own name.
+  expect_error(
+    bgmCompare(x = Boredom[1:50, 2:4], y = Boredom[1:50, 2]),
+    regexp = "y must be a matrix or data.frame",
+    fixed = TRUE
+  )
+})
+
 test_that("bgmCompare rejects continuous variable type", {
   x = matrix(rnorm(100), nrow = 50, ncol = 2)
   group_ind = rep(1:2, each = 25)
