@@ -124,6 +124,12 @@ Fit construction: `bgm.R`, `bgmCompare.R`, `bgm_spec.R`, `build_spec.R`,
    produce unloadable builds; `git archive` to a clean dir (F-009).
 10. **Tests fit live models via `helper-fixtures.R`** (session-scoped cache,
     no stale RDS). Costly on CRAN — see F-030 before adding fixture users.
+11. **SBC certifies the GGM path only.** The omrf, mixed, and bgmCompare
+    paths target pseudolikelihood approximations, so simulation-based
+    calibration against simulated data is not a valid check there — their
+    correctness gates are the recovery and cross-validation suites. Never
+    add an SBC-style test to a pseudolikelihood path, and never read one as
+    evidence about it (MM, 2026-08-01).
 
 ## 4. If you touch X, also check Y
 

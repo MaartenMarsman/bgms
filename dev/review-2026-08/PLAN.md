@@ -112,3 +112,4 @@ orientation, cumulatively covering the architecture.
 | 04 statistical certification (slow-tier suites + zratio route certificates vs rc1; F-044) | Opus | **issued 2026-08-01** | pending |
 | 05 bgmCompare cross-path consistency | Opus | draft after 03/04 land | — |
 | 06 MM curriculum step 2: zratio law + gauge math read | MM | draft after 04 lands | — |
+| 07 MM: bgmCompare user pass (difference verdicts, group/difference plots, difference-scale sensitivity trace; time-boxed ~1 h) | MM | **issue after 03 merges** — running it on rc1 would just re-hit the known checking-layer bugs | — |

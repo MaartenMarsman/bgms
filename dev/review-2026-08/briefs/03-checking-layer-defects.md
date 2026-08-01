@@ -63,25 +63,34 @@ Mechanism (verified by the lead): `extract_inclusion_bf()`
 which for hierarchical specs runs `prior_only_chain_pips(spec, iter = 4000L,
 warmup = 1000L)` (`R/extract_prior_inclusion_probabilities.R:134,299`).
 
-Your tasks, in order:
+**MM's directive (2026-08-01): the 2-minute chain is unexpected AND UNNEEDED.**
+So the primary fix is not messaging — it is eliminating the chain where a
+cheaper correct route exists. Your tasks, in order:
 1. **Correctness first**: determine what MM's interrupted call actually
    returned. Find the interrupt/tryCatch path — can an aborted prior chain
    yield partial prior PIPs (and therefore silently wrong Bayes factors and
    verdicts)? Test empirically: interrupt-simulating wrapper or reduced-iter
    comparison. If partial results are possible, make interruption ERROR
    cleanly instead of degrading.
-2. Check the caching story: `recompute = FALSE` suggests the prior PIPs are
-   cached on first computation — confirm where (fit object? env?), whether
-   MM's second call was served from cache (explaining "then it does show
-   results!"), and whether an interrupt can poison the cache.
-3. UX: emit an upfront message ("computing prior inclusion probabilities for
-   the hierarchical prior via a prior-only chain (~N iterations); one-time,
-   cached") + progress; document the `iter`/`warmup` control in
-   `?extract_prior_inclusion_probabilities` and reference it from `?verdicts`
-   and `?extract_inclusion_bf`.
-4. Regression tests: hierarchical fixture fit → first verdicts() call messages
-   and caches; cached second call is instant; interrupt behavior per your
-   fix.
+2. **Find the cheaper route.** PR #193 built machinery that computes/reports
+   the REALIZED edge prior under the joint specification (see
+   `tests/testthat/test-joint-realized-prior-notice.R` and the related
+   `R/zratio_*`/spec code, plus `dev/plans/active/2026-07-31_hier-gating_NOTE.md`
+   WP "realized-prior notice"). Establish whether the hierarchical spec's
+   prior inclusion probabilities are obtainable from that machinery (or
+   another closed/cheap form) instead of a 5000-iteration prior-only chain.
+   Write up the mathematical claim explicitly (what quantity the realized-
+   prior machinery yields, and why it equals — or does not equal — the prior
+   PIP the BF needs); MM confirms validity before you switch the default
+   route. If no cheap route survives scrutiny, fall back to: upfront message
+   + progress + documented `iter`/`warmup` control.
+3. Check the caching story either way: `recompute = FALSE` suggests the prior
+   PIPs are cached on first computation — confirm where (fit object? env?),
+   whether MM's second call was served from cache (explaining "then it does
+   show results!"), and whether an interrupt can poison the cache. Does the
+   cache survive `saveRDS`/`readRDS`?
+4. Regression tests matching whichever route ships: correctness of the prior
+   PIPs (against a long reference chain), caching, interrupt behavior.
 
 ### F-037 (major) — mixed-fit inclusion BFs anomalously small: DIAGNOSE, do not fix without sign-off
 
@@ -102,23 +111,56 @@ same data. Protocol:
    (wrong index, wrong prior-odds source), fix it with a test. If it is
    anything with statistical judgment in it, STOP and write it up for MM.
 
-### F-038 (minor) — `plot_edge_posterior()` title prints a 131-digit number
+### F-038 + F-039 (minor, DECIDED by MM) — display Bayes-factor evidence in NATURAL log, capped
 
-`R/plot_bgms.R` (title block in `plot_edge_posterior`): `bayes_factor = row$bf`
-then `sprintf("%.1f", bayes_factor)` — a decisive edge (log10 BF ≈ 130) prints
-the full non-scientific integer. Fix: display log10 BF (consistent with
-`verdicts()` output), or switch to scientific notation past |log10 BF| ≈ 4.
-Match whatever `print.bgms_verdicts` does after F-039. Test: title string for
-a saturated-edge fixture stays short and parseable.
+MM's decision (2026-08-01): user-facing displays print the **natural** log
+Bayes factor, labeled "log BF" — not log10 ("nobody does that"), not raw BF —
+and large magnitudes are CAPPED to avoid fake accuracy, e.g. `log BF > 10,000`.
 
-### F-039 (minor) — verdicts print must state the log10 base and boundaries
+Background: classification is CORRECT today (`build_verdicts`:
+`lthr = log10(evidence_threshold)`, boundaries ±1 for threshold 10) but the
+`log10_bf` column invited a base misread — MM read −1.474 as natural log and
+filed it as a classification bug. The unit itself is now decided: natural log.
 
-Classification is CORRECT (`build_verdicts`: `lthr = log10(evidence_threshold)`,
-boundaries ±1 for threshold 10) but the printed header names only "10 / 0.1"
-while the column is `log10_bf` — MM himself misread −1.474 as a natural log and
-filed it as a classification bug. Amend the header to state the boundaries in
-the displayed unit, e.g. "presence: log10 BF > 1; absence: log10 BF < −1
-(threshold 10)". Snapshot-test the print.
+Implement consistently:
+1. `verdicts()`: the displayed evidence column becomes natural-log BF
+   (`log_bf`), classification boundaries at `±log(evidence_threshold)`
+   (≈ ±2.303 for 10); the printed header states them in the displayed unit
+   ("presence: log BF > 2.30; absence: log BF < −2.30 (threshold 10)").
+   The verdicts object is new in 0.2.0.0 — rename the stored `log10_bf`
+   field to `log_bf` (natural) rather than carrying both; update Rd and any
+   internal consumers (`R/plot_bgms.R` verdict tables, sensitivity internals
+   that read verdict frames). Grep for `log10_bf` package-wide.
+2. `plot_edge_posterior()` title: print `log BF = <x.x>` in natural log, and
+   past a magnitude cap print an inequality (`log BF > 10,000`). No raw BFs,
+   no 131-digit strings. Snapshot-test a saturated-edge title.
+3. `extract_inclusion_bf(log = TRUE)` already returns natural log — say so
+   in `?verdicts` so the printed unit and the extractor agree.
+4. CONSISTENCY FLAG, do not change: `prior_sensitivity_check()` output and
+   plot currently speak log10 ("0.41 log10 BF" noise line, curve scale). Its
+   figures ship in the tutorial manuscript, so converting is NOT yours to
+   decide — record in your report where its log10 usages live (file:line)
+   and leave them; MM settles the package-wide unit with the guidelines
+   terminology sync.
+
+### F-018 (BLOCKER, fix authorized) — sampler path must honour CRAN's 2-core limit
+
+Confirmed by MM ("CRAN rejects if you use more than 2 cores"). Report 01 f4
+measured: 76 uncapped example fit calls sustain ~3.9 cores; the env var
+`_R_CHECK_LIMIT_CORES_` is ignored on the sampler path
+(`R/run_sampler.R:365` passes `s$cores` straight through), while
+`R/correction_tables.R:151-160` (`normalize_builder_cores`) already implements
+the correct guard.
+
+Fix: apply the same guard on the sampler path — resolve the effective core
+count where `run_sampler()` reads `s$cores` (cap to 2 when
+`_R_CHECK_LIMIT_CORES_` is set and truthy, per `normalize_builder_cores`'s
+exact semantics, Windows nuance included; keep `detectCores()` as the
+interactive default). Also audit `simulate_predict.R:127` and any other
+`cores =` consumer reaches the same guard. Verify empirically with brief 01's
+probe (`~/bgms-review/probe-cores.R`): user/elapsed ratio for a default
+`bgm()` call must drop to ≤ 2 under `_R_CHECK_LIMIT_CORES_=TRUE`, unchanged
+without it. Add a regression test (env-var set → resolved cores ≤ 2).
 
 ### F-040 (minor) — calibration output UX
 

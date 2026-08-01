@@ -41,6 +41,15 @@ time. If a failure looks stochastic, rerun that file once with the same seed
 settings and say whether it reproduces. These are the package's core
 statistical-correctness gates — treat any failure as at least `major`.
 
+**Scope caveat from MM (the maintainer): SBC is only a valid certification for
+the GGM path.** The ordinal (omrf), mixed, and bgmCompare paths target
+pseudolikelihood approximations, so simulation-based calibration against
+simulated data does not certify them the same way — their gates are the
+recovery/cross-validation suites instead. Interpret accordingly: do not read
+any pseudolikelihood-path behavior as an "SBC failure", and if any test appears
+to run SBC-style checks against a non-GGM path, FLAG it as a finding (the test
+may be miscalibrated by construction) rather than interpreting its outcome.
+
 ## Task B — zratio route certificates and gold-bank spot checks
 
 `dev/validation/` (present in the rc1 export) contains runnable certification
