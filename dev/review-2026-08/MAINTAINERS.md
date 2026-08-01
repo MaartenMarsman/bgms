@@ -240,7 +240,7 @@ release blockers (F-003, F-017, F-018). Remaining + new, ranked:
    decision (F-007).
 9. **Deferred perf items** (00a PERF-open): compare-imputation deltas, shared
    clones, O(q³) extraction floor + Phase-4 cross-sweep cache (SPH-2), opt-in
-   tiers #23–27. Post-release; measured gains already banked.
+   tiers #23–27. Post-release; measured gains already banked. Plus: warm-start port for compare-fit sensitivity refits (cold refits cost 250 s on the Boredom fit — report 06 OQ4).
 10. **SLAB-2 conditional-means diagnostic** (F-020) if deferred at release —
     the known blind spot with a designed detector.
 11. **Feature-gap quick wins** (source: `plans/strategic/
