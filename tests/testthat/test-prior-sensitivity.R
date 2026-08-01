@@ -16,11 +16,11 @@ skip_unless_slow = function() {
 # ---- refit-based prior_sensitivity_check() ----------------------------------
 
 test_that("the wobble q95 pools threshold-relevant edges only", {
-  # Two near-saturated edges (|log10 BF| > 3 at s0) with huge replicate
+  # Two near-saturated edges (|log BF| > 3 log(10) at s0) with huge replicate
   # spread must not inflate the yardstick; the median and per-edge spread
   # keep covering every edge.
-  lbf_s0 = c(0.2, -1.5, 2.9, 8.0, -12.0)
-  lbf_rep = c(0.3, -1.3, 2.7, 9.3, -10.7)
+  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 8.0, -12.0)
+  lbf_rep = log(10) * c(0.3, -1.3, 2.7, 9.3, -10.7)
   d = abs(lbf_s0 - lbf_rep)
   w = wobble_yardstick(lbf_s0, lbf_rep)
   expect_equal(w$per_edge, d)
@@ -28,7 +28,7 @@ test_that("the wobble q95 pools threshold-relevant edges only", {
   expect_equal(w$q95, stats::quantile(d[1:3], 0.95, names = FALSE))
   expect_lt(w$q95, min(d[4:5]))
   # with every edge saturated the yardstick is undefined
-  expect_true(is.na(wobble_yardstick(c(5, -7), c(6, -8))$q95))
+  expect_true(is.na(wobble_yardstick(log(10) * c(5, -7), log(10) * c(6, -8))$q95))
   expect_equal(w$censored, 0L)
 })
 
@@ -37,8 +37,8 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
   # A threshold-relevant edge whose replicate saturates has a censored spread.
   # Pooling the Inf would make the yardstick infinite, and every verdict move
   # would then read as run-to-run noise.
-  lbf_s0 = c(0.2, -1.5, 2.9, -1.0)
-  lbf_rep = c(0.3, -1.3, 2.7, -Inf)
+  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, -1.0)
+  lbf_rep = log(10) * c(0.3, -1.3, 2.7, -Inf)
   w = wobble_yardstick(lbf_s0, lbf_rep)
 
   expect_true(is.finite(w$q95))
@@ -51,7 +51,7 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
 
   # Both refits saturating leaves nothing measurable, and the yardstick drops
   # out rather than becoming Inf.
-  none = wobble_yardstick(c(-1.0, 0.5), c(-Inf, Inf))
+  none = wobble_yardstick(log(10) * c(-1.0, 0.5), c(-Inf, Inf))
   expect_true(is.na(none$q95))
   expect_equal(none$censored, 2L)
 })
@@ -136,11 +136,11 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_gte(length(ps$multipliers), 41L)
   expect_equal(ps$multipliers[ps$anchor_index], ps$anchors)
   expect_equal(ps$multipliers[ps$chosen_index], 1)
-  expect_equal(dim(ps$log10_bf), c(length(ps$multipliers), 15L))
+  expect_equal(dim(ps$log_bf), c(length(ps$multipliers), 15L))
   # Exactness lives on the anchor fits, not the pooled curve: the 1x verdict
   # column and every chosen-scale quantity are the original fit's own RB
-  # analysis. The reported PIP is the fit's RB inclusion, and the log10 BF is
-  # its exact prior-odds transform (checked on the pip scale, since the log10
+  # analysis. The reported PIP is the fit's RB inclusion, and the log BF is
+  # its exact prior-odds transform (checked on the pip scale, since the log
   # BF derivative amplifies a 1e-10 pip agreement near saturation).
   rb = extract_posterior_inclusion_probabilities(fit)
   rbv = unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)])
@@ -149,27 +149,27 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_equal(ps$edges$chosen_scale_pip, rbv, tolerance = 1e-10)
   pc = ps$edges$chosen_scale_pip
   expect_equal(
-    ps$edges$chosen_scale_log10_bf,
-    log10((pc / (1 - pc)) / po),
+    ps$edges$chosen_scale_log_bf,
+    log((pc / (1 - pc)) / po),
     tolerance = 1e-12
   )
   expect_equal(
     ps$edges$verdict_x1,
-    verdict_from_lbf(ps$edges$chosen_scale_log10_bf, log10(ps$evidence_threshold)),
+    verdict_from_lbf(ps$edges$chosen_scale_log_bf, log(ps$evidence_threshold)),
     tolerance = 1e-10
   )
   # the pooled curve at 1x tracks the fit's own raw 1x inclusion proportions:
   # dominated by the 1x anchor (an identity reweight) but pooled with the
-  # neighbours, so on the log10 BF scale it agrees on median within a modest
+  # neighbours, so on the log BF scale it agrees on median within a modest
   # margin. The exact 1x analysis lives in the chosen-scale columns above; this
-  # is a tracking check on absolute log10 BF, robust to the tiny per-point MCSE
+  # is a tracking check on absolute log BF, robust to the tiny per-point MCSE
   # of near-saturated edges that makes a normalised ratio platform-unstable.
   g = do.call(rbind, fit$raw_samples$indicator)
-  raw_lbf = unname(log10((colMeans(g) / (1 - colMeans(g))) / po))
-  fin = is.finite(ps$log10_bf[ps$chosen_index, ]) & is.finite(raw_lbf)
+  raw_lbf = unname(log((colMeans(g) / (1 - colMeans(g))) / po))
+  fin = is.finite(ps$log_bf[ps$chosen_index, ]) & is.finite(raw_lbf)
   expect_lt(
-    stats::median(abs(ps$log10_bf[ps$chosen_index, ] - raw_lbf)[fin]),
-    0.5
+    stats::median(abs(ps$log_bf[ps$chosen_index, ] - raw_lbf)[fin]),
+    0.5 * log(10)
   )
   # verdicts and movers take only the documented levels
   expect_true(all(unlist(ps$verdict) %in%
@@ -177,7 +177,7 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_true(all(ps$edges$mover %in%
     c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
   # pooling keeps the curve finite even where an edge saturates at some scale
-  expect_false(any(is.infinite(ps$log10_bf)))
+  expect_false(any(is.infinite(ps$log_bf)))
   # the data-preferred scale is reported without a refit
   expect_true(is.finite(ps$preferred_scale$s_hat))
   # print and plot run
@@ -204,10 +204,10 @@ test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
     anchors = c(1, 2), iter = 300, warmup = 300, seed = 5
   )))
   expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
-  # log10 BF divides posterior odds by the 0.2/0.8 prior odds
+  # the log BF divides posterior odds by the 0.2/0.8 prior odds
   p = ps$edges$chosen_scale_pip
-  expected = log10((p / (1 - p)) / (0.2 / 0.8))
-  expect_equal(ps$edges$chosen_scale_log10_bf, expected, tolerance = 1e-8)
+  expected = log((p / (1 - p)) / (0.2 / 0.8))
+  expect_equal(ps$edges$chosen_scale_log_bf, expected, tolerance = 1e-8)
 })
 
 
@@ -286,8 +286,8 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   # curve points that clear the ESS floor carry a finite BF; masked ones are NA
   finite_pts = !is.na(psg$curve$anchor_used)
   expect_true(any(finite_pts))
-  expect_true(all(is.finite(psg$log10_bf[finite_pts, 1])))
-  expect_true(all(is.na(psg$log10_bf[!finite_pts, ])))
+  expect_true(all(is.finite(psg$log_bf[finite_pts, 1])))
+  expect_true(all(is.na(psg$log_bf[!finite_pts, ])))
 
   n = 180
   xm = data.frame(

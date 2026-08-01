@@ -62,8 +62,8 @@ verdict_from_bf = function(bf, threshold) {
 #' log-spaced display grid pools every anchor that clears \code{ess_floor}
 #' there, weighting each anchor's inclusion-probability estimate by its
 #' inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
-#' inclusion-probability scale and is then transformed to the
-#' \eqn{\log_{10}} Bayes factor, which keeps the curve continuous across
+#' inclusion-probability scale and is then transformed to the natural log
+#' Bayes factor, which keeps the curve continuous across
 #' anchor hand-offs and finite at capped edges. Points where no anchor
 #' clears the floor are \code{NA} rather than extrapolated, and
 #' non-overlapping anchor radii trigger a warning to add anchors; log-spaced
@@ -84,14 +84,14 @@ verdict_from_bf = function(bf, threshold) {
 #' mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
 #'
 #' \strong{The mover rule.} An edge is flagged scale-sensitive only if its
-#' verdict differs somewhere along the curve \emph{and} its \eqn{\log_{10}}
+#' verdict differs somewhere along the curve \emph{and} its natural log
 #' Bayes-factor change across scales exceeds
 #' \code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
 #' chain-level spread of the reweighted estimate (so it carries both the
 #' between-chain and the importance-sampling uncertainty) and the noise band
 #' the 95th percentile of the spread between one anchor refit and its
 #' repeat, over threshold-relevant edges
-#' (\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
+#' (\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}; near-saturated edges would
 #' inflate it). An edge that is threshold-relevant in one of the two refits and
 #' saturated in the other has a censored rather than an infinite spread, and is
 #' left out of that percentile; the printed report counts them. When no
@@ -106,7 +106,7 @@ verdict_from_bf = function(bf, threshold) {
 #' reported as a move.
 #'
 #' \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
-#' whose between-chain-inflated \eqn{\log_{10}} BF band straddles a verdict
+#' whose between-chain-inflated log-BF band straddles a verdict
 #' threshold, is marked \code{insufficient} at that scale: the refit cannot
 #' certify its verdict. This errs toward caution --- disagreement widens the
 #' band rather than vanishing into a pooled estimate.
@@ -152,9 +152,10 @@ verdict_from_bf = function(bf, threshold) {
 #' @param iter,warmup Integer sampling and warmup iterations per refit, or
 #'   \code{NULL} (default) to use the validated short schedule for warm NUTS
 #'   refits and inherit the original fit's schedule otherwise.
-#' @param tolerance Numeric. Minimum \eqn{\log_{10}} BF change across scales for
+#' @param tolerance Numeric. Minimum natural log BF change across scales for
 #'   a verdict flip to count as a move, before the MCSE and noise floors.
-#'   Default: \code{0.5}.
+#'   Default: \code{0.5 * log(10)} (about 1.15, the same decision boundary the
+#'   former 0.5 carried in \eqn{\log_{10}} units).
 #' @param ess_floor Positive numeric. Minimum pooled importance effective
 #'   sample size for a curve point to be reported; points below it are
 #'   \code{NA}. Default: \code{400}.
@@ -180,7 +181,7 @@ verdict_from_bf = function(bf, threshold) {
 #'   threshold) and \code{insufficient_disagree} (chains disagree on the
 #'   verdict)), a \code{grid} data frame (one row per anchor fit and
 #'   the replicate, with convergence gates), the \code{multipliers} display
-#'   grid with the \code{log10_bf}, \code{log10_bf_mcse}, and \code{verdict}
+#'   grid with the \code{log_bf}, \code{log_bf_mcse}, and \code{verdict}
 #'   curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 #'   bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 #'   per-point chain unanimity), the \code{wobble} noise yardstick,
@@ -207,7 +208,7 @@ prior_sensitivity_check = function(bgms_object,
                                    refit_sampler = "same-as-fit",
                                    iter = NULL,
                                    warmup = NULL,
-                                   tolerance = 0.5,
+                                   tolerance = 0.5 * log(10),
                                    ess_floor = 400,
                                    include_preferred_scale = FALSE,
                                    cores = NULL,
@@ -227,7 +228,7 @@ prior_sensitivity_check.bgms = function(bgms_object,
                                         refit_sampler = "same-as-fit",
                                         iter = NULL,
                                         warmup = NULL,
-                                        tolerance = 0.5,
+                                        tolerance = 0.5 * log(10),
                                         ess_floor = 400,
                                         include_preferred_scale = FALSE,
                                         cores = NULL,
@@ -261,7 +262,7 @@ prior_sensitivity_check.bgmCompare = function(bgms_object,
                                               refit_sampler = "same-as-fit",
                                               iter = NULL,
                                               warmup = NULL,
-                                              tolerance = 0.5,
+                                              tolerance = 0.5 * log(10),
                                               ess_floor = 400,
                                               include_preferred_scale = FALSE,
                                               cores = NULL,
@@ -368,7 +369,7 @@ prior_sensitivity_engine = function(bgms_object,
 
   spec = get_fit_spec(bgms_object)
   chosen_scale = unit$chosen_scale
-  lthr = log10(evidence_threshold)
+  lthr = log(evidence_threshold)
   if(is.null(cores)) cores = spec$sampler$chains
 
   # Which prior the sweep moves; named in the printed report.
@@ -594,7 +595,7 @@ prior_sensitivity_engine = function(bgms_object,
     }
   }
 
-  # --- Curve quantities: log10 BF, per-point MCSE, verdicts -------------------
+  # --- Curve quantities: log BF, per-point MCSE, verdicts ---------------------
   # Cap the pooled PIP away from 0 and 1 (the same 1e-6 floor the RB machinery
   # uses) so an edge that saturates at some scale stays a large finite BF
   # rather than an infinity: the verdict is unchanged (still decisive), and the
@@ -602,7 +603,7 @@ prior_sensitivity_engine = function(bgms_object,
   lbf_of = function(pip_mat) {
     t(apply(pip_mat, 1, function(p) {
       pc = pmin(pmax(p, 1e-6), 1 - 1e-6)
-      log10((pc / (1 - pc)) / prior_odds)
+      log((pc / (1 - pc)) / prior_odds)
     }))
   }
   lbf_mat = lbf_of(curve$pip)
@@ -632,7 +633,7 @@ prior_sensitivity_engine = function(bgms_object,
   own_lbf = function(fit) {
     d = anchor_draws(fit)
     p = colMeans(do.call(rbind, d$indicator))
-    log10((p / (1 - p)) / prior_odds)
+    log((p / (1 - p)) / prior_odds)
   }
   if(usable[rep_anchor] && rep_gate$usable) {
     wob = wobble_yardstick(own_lbf(anchor_fits[[rep_anchor]]), own_lbf(rep_fit))
@@ -703,7 +704,7 @@ prior_sensitivity_engine = function(bgms_object,
     edge = edge_names,
     prior_inclusion_probability = prior_odds / (1 + prior_odds),
     chosen_scale_pip = s0$pip,
-    chosen_scale_log10_bf = s0$lbf,
+    chosen_scale_log_bf = s0$lbf,
     chosen_scale_mcse = s0$mcse_lbf,
     chosen_scale_verdict = s0$verdict,
     stability_lower = stability_lower,
@@ -769,8 +770,8 @@ prior_sensitivity_engine = function(bgms_object,
       chosen_scale = chosen_scale,
       chosen_index = chosen_idx,
       anchor_index = anchor_index,
-      log10_bf = lbf_mat,
-      log10_bf_mcse = mcse_mat,
+      log_bf = lbf_mat,
+      log_bf_mcse = mcse_mat,
       verdict = verdict_mat,
       anchor_verdict = anchor_verdict,
       curve = list(
@@ -822,20 +823,21 @@ order_upper_tri_rowmajor = function(p) {
 # wobble_yardstick
 # ------------------------------------------------------------------
 # Monte Carlo wobble from the chosen-scale refit and its replicate. The
-# q95 pools threshold-relevant edges only (|log10 BF| <= 3 at s0):
+# q95 pools threshold-relevant edges only (|log BF| <= 3 log(10) at s0,
+# the former 3-log10 window in natural log units):
 # near-saturated edges have an exploding log-odds derivative, and their
 # replicate spread would inflate the yardstick past any genuine
 # scale-driven move. The per-edge spread and its median cover all edges.
 #
-# @param lbf_s0   Per-edge log10 BF from the chosen-scale refit.
-# @param lbf_rep  Per-edge log10 BF from the s0 replicate.
+# @param lbf_s0   Per-edge natural log BF from the chosen-scale refit.
+# @param lbf_rep  Per-edge natural log BF from the s0 replicate.
 #
 # Returns: list(q95, median, per_edge); q95 is NA when no edge is
 # threshold-relevant.
 # ------------------------------------------------------------------
 wobble_yardstick = function(lbf_s0, lbf_rep) {
   per_edge = abs(lbf_s0 - lbf_rep)
-  relevant = is.finite(lbf_s0) & abs(lbf_s0) <= 3
+  relevant = is.finite(lbf_s0) & abs(lbf_s0) <= 3 * log(10)
   # An edge that is threshold-relevant in one refit and saturated in the other
   # has a censored spread, not an infinite one. Pooling it would carry the
   # yardstick to Inf, which classes every verdict move as run-to-run noise.
@@ -1154,7 +1156,7 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
     ))
   } else {
     cat(sprintf(
-      "Noise:   two identical refits at %.2gx differed by up to %.2g log10 BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
+      "Noise:   two identical refits at %.2gx differed by up to %.2g log BF across\n         threshold-relevant %s; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n",
       x$wobble$anchor, x$wobble$q95, unit$nouns
     ))
     if(isTRUE(x$wobble$censored > 0)) {
@@ -1207,7 +1209,7 @@ spread_labels = function(y, gap) {
 #'
 #' @description
 #' One panel, answer first: the title states how many edge verdicts depend on
-#' the slab scale. Each edge's \eqn{\log_{10}} inclusion-Bayes-factor curve
+#' the slab scale. Each edge's natural log inclusion-Bayes-factor curve
 #' (the evidence for the edge) is drawn across the anchored scale range, with
 #' dots at the anchor scales; curve points masked for low importance ESS
 #' leave visible gaps, and an edge that saturates at some scale is capped at a
@@ -1218,11 +1220,11 @@ spread_labels = function(y, gap) {
 #'
 #' @details
 #' The drawn curves clamp the pooled inclusion probability at
-#' \eqn{1 - 10^{-6}}, which caps a plotted \eqn{\log_{10}} Bayes factor at 6.
-#' A curve running flat along 6.0 has reached that display cap; it is not
-#' evidence levelling off. The uncapped value at the chosen scale is
-#' \code{x$edges$chosen_scale_log10_bf}, which \code{print()} reports and which
-#' can be far larger. \code{x$edges$saturated} does not mark capped curves: it
+#' \eqn{1 - 10^{-6}}, which caps a plotted log Bayes factor at
+#' \eqn{\ln(10^6) \approx 13.8}. A curve running flat along 13.8 has reached
+#' that display cap; it is not evidence levelling off. The uncapped value at
+#' the chosen scale is \code{x$edges$chosen_scale_log_bf}, which
+#' \code{print()} reports and which can be far larger. \code{x$edges$saturated} does not mark capped curves: it
 #' records that the edge's inclusion indicator never flipped in the chain,
 #' which is a different condition.
 #'
@@ -1238,7 +1240,7 @@ spread_labels = function(y, gap) {
 #' @export
 plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   rel = x$multipliers
-  thr = log10(x$evidence_threshold)
+  thr = log(x$evidence_threshold)
   edges = x$edges
   n_edges = nrow(edges)
   ink = "grey25"
@@ -1252,7 +1254,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
       !(edges$saturated %in% TRUE) & !(edges$insufficient %in% TRUE)
   )
   # Label the largest evidence swings first.
-  swing = apply(x$log10_bf, 2, function(v) {
+  swing = apply(x$log_bf, 2, function(v) {
     v = v[is.finite(v)]
     if(length(v)) diff(range(v)) else 0
   })
@@ -1268,7 +1270,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
 
   # The y-range covers the decision band and every named line; edges that
   # live entirely outside it never change verdict and clip silently.
-  named_bf = x$log10_bf[, named, drop = FALSE]
+  named_bf = x$log_bf[, named, drop = FALSE]
   named_bf = named_bf[is.finite(named_bf)]
   ylim = range(c(-1.5 * thr, 1.5 * thr, named_bf))
   ylim = ylim + c(-0.4, 0.4)
@@ -1292,7 +1294,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   graphics::plot(NA, NA,
     xlim = range(rel), ylim = ylim, log = "x", axes = FALSE,
     xlab = scale_label,
-    ylab = bquote("evidence for the" ~ .(unit$noun) ~ "(" * log[10] ~ "Bayes factor)"),
+    ylab = sprintf("evidence for the %s (natural log Bayes factor)", unit$noun),
     main = title
   )
   graphics::axis(1,
@@ -1318,7 +1320,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   # Background: every other edge in one muted color.
   for(e in setdiff(seq_len(n_edges), named)) {
     if(isTRUE(edges$saturated[e])) next
-    graphics::lines(rel, x$log10_bf[, e], col = faint, lwd = 1)
+    graphics::lines(rel, x$log_bf[, e], col = faint, lwd = 1)
   }
 
   # Foreground: the named movers, colored in fixed order and name-labeled.
@@ -1326,15 +1328,15 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     pal = mover_palette()
     # Anchor each name at the line's last finite point (0 if none is finite).
     anchor = vapply(named, function(e) {
-      v = x$log10_bf[, e]
+      v = x$log_bf[, e]
       v = v[is.finite(v)]
       if(length(v)) v[length(v)] else 0
     }, numeric(1))
     end_y = spread_labels(anchor, gap = 0.05 * diff(ylim))
     for(k in seq_along(named)) {
       e = named[k]
-      graphics::lines(rel, x$log10_bf[, e], col = pal[k], lwd = 2.5)
-      graphics::points(rel[x$anchor_index], x$log10_bf[x$anchor_index, e],
+      graphics::lines(rel, x$log_bf[, e], col = pal[k], lwd = 2.5)
+      graphics::points(rel[x$anchor_index], x$log_bf[x$anchor_index, e],
         col = pal[k], pch = 16, cex = 0.9
       )
       graphics::segments(
@@ -1355,7 +1357,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     notes = c(notes, sprintf("and %d more; see $edges", n_dep - length(named)))
   }
   n_off = sum(vapply(seq_len(n_edges), function(e) {
-    v = x$log10_bf[, e]
+    v = x$log_bf[, e]
     v = v[is.finite(v)]
     length(v) == 0L || all(v > ylim[2]) || all(v < ylim[1])
   }, logical(1)))
