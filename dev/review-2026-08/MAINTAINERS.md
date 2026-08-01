@@ -245,7 +245,7 @@ release blockers (F-003, F-017, F-018). Remaining + new, ranked:
     the known blind spot with a designed detector.
 11. **Feature-gap quick wins** (source: `plans/strategic/
     bgms-feature-gap-analysis.md`, 25 Jul 2026 — the competitive analysis;
-    placement rule: bgms owns computation, easybgm owns presentation):
+    placement rule as AMENDED 2026-08-01 — bgms owns computation AND ships paper-grade default presentation (MM explicitly owns this deviation from the July doc); easybgm keeps derived/fancy variants):
     `predictability()` with posterior intervals (the pie-ring visual slot
     already exists once the brief-10 style module lands); `centrality()` over
     posterior draws + a `roll_your_own`-style apply-over-draws generic; draws
