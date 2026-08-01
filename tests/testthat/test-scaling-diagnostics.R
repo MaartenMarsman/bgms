@@ -191,7 +191,8 @@ test_that("S.G1: GGM NUTS healthy at p=5, no edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3001
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3001
   )
 
   check_nuts_health(fit, "S.G1")
@@ -206,7 +207,8 @@ test_that("S.G2: GGM NUTS healthy at p=10, no edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3002
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3002
   )
 
   check_nuts_health(fit, "S.G2")
@@ -221,7 +223,8 @@ test_that("S.G3: GGM NUTS healthy at p=10 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3003
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3003
   )
 
   check_nuts_health(fit, "S.G3")
@@ -236,7 +239,8 @@ test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3004
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3004
   )
 
   check_nuts_health(fit, "S.G4")
@@ -255,7 +259,8 @@ test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3011
   )
 
@@ -272,7 +277,8 @@ test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3012
   )
 
@@ -289,7 +295,8 @@ test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3013
   )
 
@@ -311,7 +318,8 @@ test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3014
   )
 
@@ -339,7 +347,8 @@ test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3015
   )
 

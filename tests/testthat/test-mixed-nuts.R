@@ -162,7 +162,8 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 101
   )
 
@@ -171,7 +172,8 @@ test_that("M.2A: NUTS vs MH agree (conditional PL, no ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 201
   )
 
@@ -198,7 +200,8 @@ test_that("M.2B: NUTS vs MH agree (marginal PL, no ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 102
   )
 
@@ -207,7 +210,8 @@ test_that("M.2B: NUTS vs MH agree (marginal PL, no ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 202
   )
 
@@ -231,7 +235,8 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 103
   )
 
@@ -240,7 +245,8 @@ test_that("M.2C: NUTS vs MH agree (conditional PL, ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 203
   )
 
@@ -274,7 +280,8 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 104
   )
 
@@ -283,7 +290,8 @@ test_that("M.2D: NUTS vs MH agree (marginal PL, ES, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 204
   )
 
@@ -318,7 +326,8 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 105
   )
 
@@ -327,7 +336,8 @@ test_that("M.2E: NUTS vs MH agree (conditional PL, ES, interleaved)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = TRUE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 205
   )
 
@@ -392,7 +402,8 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 106
   )
 
@@ -401,7 +412,8 @@ test_that("M.2F: NUTS vs MH agree (conditional PL, no ES, interleaved)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 206
   )
 
@@ -443,7 +455,8 @@ test_that("M.2G: NUTS vs MH main effects agree (conditional PL, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 107
   )
 
@@ -452,7 +465,8 @@ test_that("M.2G: NUTS vs MH main effects agree (conditional PL, grouped)", {
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 207
   )
 
@@ -504,7 +518,8 @@ test_that("M.2H: coef/summary/simulate/predict work on mixed NUTS fit", {
     variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 1,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 301
   )
 
@@ -548,7 +563,8 @@ test_that("M.2I: simulate/predict preserve interleaved column order", {
     variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 1,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     display_progress = "none", seed = 302
   )
 
@@ -575,7 +591,8 @@ test_that("M.2J: NUTS diagnostics are clean for mixed MRF", {
     variable_type = vtype,
     iter = 2000, warmup = 1000, chains = 2,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     delta = 0,
     display_progress = "none", seed = 303
   )
@@ -600,7 +617,8 @@ test_that("M.2T: NUTS vs MH agree under tilt (conditional PL, no ES, delta=1)", 
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     delta = 1,
     display_progress = "none", seed = 104
   )
@@ -610,7 +628,8 @@ test_that("M.2T: NUTS vs MH agree under tilt (conditional PL, no ES, delta=1)", 
     variable_type = vtype,
     iter = n_iter, warmup = n_warmup, chains = n_chains,
     edge_selection = FALSE, update_method = "adaptive-metropolis",
-    pairwise_scale = pw_scale, main_alpha = main_a, main_beta = main_b,
+    interaction_prior = cauchy_prior(scale = pw_scale),
+    threshold_prior = beta_prime_prior(alpha = main_a, beta = main_b),
     delta = 1,
     display_progress = "none", seed = 204
   )
