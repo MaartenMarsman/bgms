@@ -45,18 +45,59 @@ test_that("two_state_se_logit reproduces the Jeffreys-smoothed reference", {
 })
 
 test_that("boundary_distance measures both boundaries in standard errors", {
-  lthr = log10(10)
+  lthr = log(10)
   # Evidence sitting exactly on the presence boundary is zero standard errors
   # away from it, whatever the standard error.
-  expect_equal(boundary_distance(1, 0.5, lthr), 0)
-  expect_equal(boundary_distance(-1, 0.5, lthr), 0)
-  # Two log10 units above the presence boundary, with a standard error of
-  # log(10) on the logit scale (one log10 unit), is one standard error.
-  expect_equal(boundary_distance(2, log(10), lthr), 1)
+  expect_equal(boundary_distance(lthr, 0.5, lthr), 0)
+  expect_equal(boundary_distance(-lthr, 0.5, lthr), 0)
+  # The Bayes factor and the standard errors share the natural log scale, so a
+  # gap of two standard errors reads as two.
+  expect_equal(boundary_distance(lthr + 1, 0.5, lthr), 2)
   # A saturated Bayes factor is infinitely far from either boundary.
-  expect_equal(boundary_distance(Inf, log(10), lthr), Inf)
+  expect_equal(boundary_distance(Inf, 0.5, lthr), Inf)
   # No standard error, no distance.
   expect_true(is.na(boundary_distance(0.5, NA_real_, lthr)))
+})
+
+test_that("the reported evidence is the natural log Bayes factor", {
+  # The classification boundaries sit at +/- log(t), not at +/- log10(t), and
+  # the two evidence columns are exp/log inverses of each other.
+  parameter = c("a-b", "a-c", "b-c", "a-d")
+  log_bf = c(log(50), log(0.01), 0, -1.474)
+  set.seed(4)
+  draws = list(matrix(rbinom(4L * 60L, 1L, 0.5), nrow = 60L))
+
+  v = build_verdicts(
+    parameter = parameter, log_bf = log_bf, pip = c(0.9, 0.02, 0.5, 0.2),
+    mcse = rep(0.01, 4L), draws = draws, evidence_threshold = 10,
+    flag_validated = TRUE
+  )
+
+  expect_true("log_bf" %in% names(v))
+  expect_false("log10_bf" %in% names(v))
+  expect_equal(v$log_bf, log_bf)
+  expect_equal(v$bf, exp(log_bf))
+  # -1.474 is below the log10 boundary but inside the natural-log one.
+  expect_equal(
+    as.character(v$verdict),
+    c("presence", "absence", "undecided", "undecided")
+  )
+
+  # The printed header names the boundaries in the unit the table reports.
+  out = paste(utils::capture.output(print(v)), collapse = "\n")
+  expect_match(out, "presence: log BF > 2.30; absence: log BF < -2.30")
+  expect_match(out, "log_bf")
+  expect_false(grepl("log10", out, fixed = TRUE))
+})
+
+test_that("format_log_bf caps the magnitude it prints", {
+  expect_equal(format_log_bf(301.4), "= 301.4")
+  expect_equal(format_log_bf(-2.3456), "= -2.3")
+  expect_equal(format_log_bf(1e5), "> 10,000")
+  expect_equal(format_log_bf(-1e5), "< -10,000")
+  expect_equal(format_log_bf(Inf), "> 10,000")
+  expect_equal(format_log_bf(-Inf), "< -10,000")
+  expect_equal(format_log_bf(NA_real_), "NA")
 })
 
 test_that("compare_indicator_index lays out main then pairwise per variable", {
@@ -191,7 +232,7 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
 
   # Selecting columns keeps the class but not the table; printing what is left
   # must degrade to the plain data frame rather than fail on a missing column.
-  subset_columns = v[, c("parameter", "log10_bf", "verdict")]
+  subset_columns = v[, c("parameter", "log_bf", "verdict")]
   expect_s3_class(subset_columns, "bgms_verdicts")
   expect_silent(plain <- utils::capture.output(print(subset_columns)))
   expect_false(any(grepl("Edge verdicts at", plain)))

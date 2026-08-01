@@ -64,14 +64,14 @@ alone. A verdict is fragile when a threshold sits within two standard errors of
 the estimated evidence, which is exactly the regime in which Monte Carlo noise,
 not the data, decides the answer. In a known-truth calibration study of 37,010
 edge-fits across ordinal, binary, and Gaussian graphical models, every verdict
-error sat within 0.25 of a threshold on the log10 Bayes factor scale, and no
+error sat within 0.58 of a threshold on the log Bayes factor scale, and no
 edge further out was ever misclassified.
 
 A fragile verdict is not a wrong verdict; it is a verdict the run is too short
 to settle. The remedy is more iterations, not a different model.
 
 ```{r}
-edges[edges$fragile, c("parameter", "log10_bf", "verdict")]
+edges[edges$fragile, c("parameter", "log_bf", "verdict")]
 ```
 
 The default picture encodes the same three verdicts, so what a reader sees and

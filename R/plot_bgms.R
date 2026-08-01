@@ -564,17 +564,7 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
 
   edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
   row = edges[edges$parameter == label, , drop = FALSE]
-  bayes_factor = row$bf
-  title = sprintf(
-    "%s\n%s, BF = %s", label, as.character(row$verdict),
-    if(is.finite(bayes_factor) && bayes_factor >= 1) {
-      sprintf("%.1f", bayes_factor)
-    } else if(is.finite(bayes_factor)) {
-      sprintf("%.3f", bayes_factor)
-    } else {
-      format(bayes_factor)
-    }
-  )
+  title = edge_panel_title(label, as.character(row$verdict), row$log_bf)
 
   ink = "grey25"
   muted = "grey55"
@@ -615,6 +605,25 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   )
 
   invisible(bgms_object)
+}
+
+
+# ------------------------------------------------------------------
+# edge_panel_title
+# ------------------------------------------------------------------
+# Two-line title of an edge posterior panel: the edge, then its verdict and
+# the evidence as a natural log Bayes factor. A saturated edge gets an
+# inequality; printing exp() of a three-figure log Bayes factor would fill the
+# title with a hundred digits none of which the run resolves.
+#
+# @param label    The edge label.
+# @param verdict  The verdict, as a character string.
+# @param log_bf   Natural log inclusion Bayes factor.
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+edge_panel_title = function(label, verdict, log_bf) {
+  sprintf("%s\n%s, log BF %s", label, verdict, format_log_bf(log_bf))
 }
 
 
