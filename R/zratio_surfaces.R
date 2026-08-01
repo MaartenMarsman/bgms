@@ -263,8 +263,22 @@ zratio_anchor_sweeps = function(n) {
 #
 # One rule for both component families: mediation is negligible for both at
 # these shapes, and two fallback routes would be interface surface with nothing
-# to buy. Below .zratio_surface_shape_lo the additive path is unchanged -- the
-# mediation bound is a large-shape phenomenon and does not apply there.
+# to buy.
+#
+# This route is one-sided on purpose, and the asymmetry is the whole argument.
+# Below .zratio_surface_shape_lo the additive path stays, and this route must
+# NOT be extended down there. Mediation is what the route discards, and it grows
+# as the shape falls -- MEASURED at k = 42, eta 2, the band maximum runs
+#
+#   shape           10        5        3        2
+#   max mediation   2.8e-04   0.0408   0.161    0.307
+#
+# so the route above the range is justified by mediation dying, while below it
+# the same route would discard something large. It would be measurably wrong by
+# construction, not merely unvalidated. The additive kernel serving there has a
+# known limitation of its own (it discards the ratio on common-neighbour blocks
+# from roughly 15 variables up; dev/validation/zratio_additive_collapse_map.R),
+# and that is documented rather than traded for a worse approximation.
 zratio_mediation_off = function(zc) {
   isTRUE(zc$alpha > .zratio_surface_shape_hi)
 }
