@@ -15,9 +15,8 @@
 #
 # names(fit) contract:
 # The .field_names property stores the set of names that names(fit)
-# should return, matching the previous S3 list-based behavior where
-# conditional fields only appear when present. This is computed during
-# construction.
+# returns; conditional fields appear only when present. This is computed
+# during construction.
 # ==============================================================================
 
 
@@ -46,6 +45,15 @@ bgms_class = new_class("bgms",
 
     # --- Pre-computed summaries (not lazy) ---
     posterior_summary_pairwise_allocations = new_property(class_any, default = NULL),
+
+    # --- Sampled edge-prior inclusion parameter (per-chain list) ---
+    inclusion_parameter_samples = new_property(class_any, default = NULL),
+
+    # --- Per-chain final NUTS step size, for warm-starting refits (internal) ---
+    refit_step_sizes = new_property(class_any, default = NULL),
+
+    # --- Per-chain final NUTS diagonal metric, for warm-starting refits (internal) ---
+    refit_inv_mass = new_property(class_any, default = NULL),
 
     # --- Lazy MCMC diagnostics (computed on first access via getter) ---
     posterior_summary_main = new_property(
@@ -76,10 +84,10 @@ bgms_class = new_class("bgms",
         self@cache[["posterior_summary_quadratic"]]
       }
     ),
-
     # --- Optional ---
     nuts_diag = new_property(class_any, default = NULL),
     am_diag = new_property(class_any, default = NULL),
+    zratio_diag = new_property(class_any, default = NULL),
 
     # --- easybgm compatibility (deprecated) ---
     indicator = new_property(class_any, default = NULL),
@@ -117,8 +125,12 @@ s3_list_to_bgms = function(results) {
     posterior_mode_allocations = .subset2(results, "posterior_mode_allocations"),
     posterior_num_blocks = .subset2(results, "posterior_num_blocks"),
     posterior_summary_pairwise_allocations = .subset2(results, "posterior_summary_pairwise_allocations"),
+    inclusion_parameter_samples = .subset2(results, "inclusion_parameter_samples"),
+    refit_step_sizes = .subset2(results, "refit_step_sizes"),
+    refit_inv_mass = .subset2(results, "refit_inv_mass"),
     nuts_diag = .subset2(results, "nuts_diag"),
     am_diag = .subset2(results, "am_diag"),
+    zratio_diag = .subset2(results, "zratio_diag"),
     indicator = .subset2(results, "indicator"),
     interactions = .subset2(results, "interactions"),
     thresholds = .subset2(results, "thresholds"),

@@ -3,7 +3,6 @@
 # Split out of build_output.R (cleanup S4).
 
 
-
 # ==============================================================================
 # build_output_mixed_mrf()  --- Mixed MRF builder
 # ==============================================================================
@@ -36,6 +35,15 @@ build_output_mixed_mrf = function(spec, raw) {
   num_categories = d$num_categories
   edge_selection = pr$edge_selection
 
+  # Keep the raw chains for the Z-ratio trust gauge: it needs the untouched
+  # indicator layout and the per-chain zratio block, both dropped by the
+  # normalization below.
+  zratio_chains = if(isTRUE(pr$zratio_active)) {
+    raw
+  } else {
+    NULL
+  }
+
   # --- Compute index layout in flat parameter vector --------------------------
   layout = compute_mixed_parameter_indices(
     num_thresholds = spec$precomputed$num_thresholds,
@@ -63,8 +71,17 @@ build_output_mixed_mrf = function(spec, raw) {
     if(!is.null(chain$indicator_samples)) {
       res$indicator_samples = t(chain$indicator_samples)
     }
+    if(!is.null(chain$rb_inclusion_samples)) {
+      res$rb_inclusion_samples = t(chain$rb_inclusion_samples)
+    }
+    if(!is.null(chain$rb_counts)) {
+      res$rb_counts = chain$rb_counts
+    }
     if(!is.null(chain$allocation_samples)) {
       res$allocations = t(chain$allocation_samples)
+    }
+    if(!is.null(chain$inclusion_parameter_samples)) {
+      res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
     }
     attach_diagnostic_traces(res, chain)
   })
@@ -175,6 +192,11 @@ build_output_mixed_mrf = function(spec, raw) {
       results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
       co_occur_matrix = sbm_convergence$co_occur_matrix
     }
+
+    if("inclusion_parameter" %in% names(raw[[1]])) {
+      results$inclusion_parameter_samples =
+        lapply(raw, `[[`, "inclusion_parameter")
+    }
   }
 
   # --- Posterior mean: main ---------------------------------------------------
@@ -225,8 +247,16 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- Posterior mean: indicator -----------------------------------------------
   if(edge_selection) {
-    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
-    indicator_means = colMeans(pooled_ind)
+    # Report the Rao-Blackwellized inclusion probability as the canonical
+    # estimate, matching posterior_summary_indicator and the default of
+    # extract_posterior_inclusion_probabilities(); fall back to the raw
+    # indicator average for fits without RB draws.
+    if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$rb_inclusion_samples))
+    } else {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    }
+    indicator_means = colMeans(pooled_ind, na.rm = TRUE)
     results$posterior_mean_indicator = fill_mixed_symmetric(
       indicator_means, p, q, disc_idx, cont_idx, dn
     )
@@ -239,6 +269,9 @@ build_output_mixed_mrf = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # Report the number of chains actually kept; failed chains are dropped
+  # upstream, so raw holds only the survivors.
+  results$arguments$num_chains = length(raw)
   # NULL placeholders ensure names(fit) lists these fields for easybgm compat.
   # Use list(NULL) because results$x = NULL removes the element in R.
   results["posterior_summary_main"] = list(NULL)
@@ -266,6 +299,32 @@ build_output_mixed_mrf = function(spec, raw) {
     target_accept = s$target_accept
   )
 
+  # --- Z-ratio trust gauge (hierarchical spec on the continuous block) ---------
+  # Only when the in-chain gauge actually ran (see build_output_bgm).
+  if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
+    results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
+  }
+
+  # Routing and extrapolation notices: same pair as the GGM path (see
+  # build_output_bgm), independent of the gauge and driven by the per-chain
+  # counters.
+  if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_isolated_route_notice(
+      zratio_chains,
+      eta = zratio_eta(pr$pairwise_scale, pr$scale_rate, pr$scale_eta)
+    )
+    zratio_collapse_notice(zratio_chains)
+    zratio_extrapolation_notice(zratio_chains)
+  }
+
+  # Single vignette pointer covering both diagnostic blocks: print once if
+  # either the NUTS diagnostics or the trust gauge reported issues.
+  if(isTRUE(getOption("bgms.verbose", TRUE)) &&
+    (isTRUE(results$nuts_diag$has_issues) ||
+      isTRUE(results$zratio_diag$flagged))) {
+    cat("See vignette('diagnostics') for guidance.\n")
+  }
+
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
     results
@@ -273,4 +332,3 @@ build_output_mixed_mrf = function(spec, raw) {
     s3_list_to_bgms(results)
   }
 }
-

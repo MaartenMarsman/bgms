@@ -102,10 +102,21 @@ void cholesky_update(arma::mat& R, arma::vec& u, double eps) {
     chol_up(R.memptr(), u.memptr(), &n, &up, &eps);
 }
 
-void cholesky_downdate(arma::mat& R, arma::vec& u, double eps) {
+bool cholesky_downdate(arma::mat& R, arma::vec& u, double eps) {
     int n = R.n_cols;
+    if (n == 1) {
+        // chol_up cannot signal failure for n = 1; handle directly.
+        double d = R(0, 0) * R(0, 0) - u(0) * u(0);
+        if (d <= 0.0) return false;
+        R(0, 0) = std::sqrt(d);
+        return true;
+    }
     int up = 0;
     chol_up(R.memptr(), u.memptr(), &n, &up, &eps);
+    // chol_up signals a non-positive-definite downdate by writing -2.0 into
+    // the (1,0) sub-diagonal slot and returning early; on success that slot
+    // is always 0.
+    return R.memptr()[1] != -2.0;
 }
 
 // for testing

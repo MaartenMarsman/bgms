@@ -16,40 +16,21 @@
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
 
-// R-exported function to sample from a Mixed MRF model.
-//
-// @param inputFromR              List with model specification:
-//                                  discrete_observations (integer matrix n x p),
-//                                  continuous_observations (numeric matrix n x q),
-//                                  num_categories (integer vector, length p),
-//                                  is_ordinal_variable (integer vector, length p),
-//                                  baseline_category (integer vector, length p),
-//                                  main_alpha, main_beta, pairwise_scale (doubles)
-// @param prior_inclusion_prob    Prior inclusion probabilities ((p+q) x (p+q) matrix)
-// @param initial_edge_indicators Initial edge indicators ((p+q) x (p+q) integer matrix)
-// @param no_iter                 Number of post-warmup iterations
-// @param no_warmup               Number of warmup iterations
-// @param no_chains               Number of parallel chains
-// @param edge_selection          Whether to do edge selection (spike-and-slab)
-// @param seed                    Random seed
-// @param no_threads              Number of threads for parallel execution
-// @param progress_type           Progress bar type
-// @param progress_callback       R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue
-// @param edge_prior              Edge prior type
-// @param beta_bernoulli_alpha         Beta-Bernoulli alpha hyperparameter
-// @param beta_bernoulli_beta          Beta-Bernoulli beta hyperparameter
-// @param beta_bernoulli_alpha_between SBM between-cluster alpha
-// @param beta_bernoulli_beta_between  SBM between-cluster beta
-// @param dirichlet_alpha         Dirichlet alpha for SBM
-// @param lambda                  Lambda for SBM
-// @param sampler_type            Sampler type string ("adaptive-metropolis" or "nuts")
-// @param target_acceptance       Target acceptance rate for gradient-based samplers
-// @param max_tree_depth          Maximum tree depth for NUTS
-// @param na_impute               Whether to impute missing data
-// @param missing_index_discrete  Matrix of missing discrete indices (n_miss x 2, 0-based)
-// @param missing_index_continuous Matrix of missing continuous indices (n_miss x 2, 0-based)
-//
-// @return List with per-chain results including samples and diagnostics
+// R-exported function to sample from a Mixed MRF model. Takes the model
+// specification list (discrete_observations: integer n x p,
+// continuous_observations: numeric n x q, num_categories /
+// is_ordinal_variable / baseline_category: length-p vectors, main_alpha,
+// main_beta, pairwise_scale), (p+q) x (p+q) prior inclusion probabilities and
+// initial edge indicators, iteration/warmup/chain counts, the sampler type
+// ("adaptive-metropolis" or "nuts") with target acceptance and max tree
+// depth, the edge prior with its Beta-Bernoulli/SBM hyperparameters,
+// missing-data indices (n_miss x 2, 0-based, per block), the
+// determinant-tilt exponent delta on |Kyy|, the normalizing-constant
+// correction list for hierarchical edge priors (see R/correction_tables.R,
+// or R_NilValue), and the Z-ratio spec for the continuous block (constants +
+// surfaces, or R_NilValue for the joint spec). Progress_callback
+// is called as callback(completed, total), or R_NilValue.
+// Returns a list of per-chain results with samples and diagnostics.
 // [[Rcpp::export]]
 Rcpp::List sample_mixed_mrf(
     const Rcpp::List& inputFromR,
@@ -73,10 +54,13 @@ Rcpp::List sample_mixed_mrf(
     const std::string& sampler_type = "adaptive-metropolis",
     const double target_acceptance = 0.80,
     const int max_tree_depth = 10,
+    const bool learn_mass_matrix = true,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_discrete_nullable = R_NilValue,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_continuous_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue,
+    const Rcpp::Nullable<Rcpp::List> zratio_spec = R_NilValue
 ) {
     // Extract model inputs from R list
     arma::imat discrete_obs = Rcpp::as<arma::imat>(inputFromR["discrete_observations"]);
@@ -154,6 +138,20 @@ Rcpp::List sample_mixed_mrf(
     // MixedMRFModel.
     model.set_determinant_tilt_yy(delta);
 
+    // Hierarchical prior specification on the continuous block: attach the
+    // per-edge Z-ratio engine so the Gamma_yy between-edge moves target
+    // p(K_yy | Gamma_yy) = rho/Z(Gamma_yy). The constants are resolved at R
+    // spec-build (zratio_constants); each chain clone deep-copies the engine.
+    // Same spec reader as the GGM path (zratio_engine_from_spec), so the
+    // continuous block deploys whatever R resolved on either sampler. The rng
+    // pointer is rebound per chain clone by MixedMRFModel.
+    int zratio_gauge_sweeps = 0;
+    if (zratio_spec.isNotNull()) {
+        Rcpp::List zs(zratio_spec.get());
+        zratio_gauge_sweeps = zratio_gauge_sweeps_from_spec(zs);
+        model.set_zratio_engine(zratio_engine_from_spec(zs));
+    }
+
     // Set up missing data imputation
     if(na_impute) {
         arma::imat missing_disc, missing_cont;
@@ -177,6 +175,13 @@ Rcpp::List sample_mixed_mrf(
         dirichlet_alpha, lambda
     );
 
+    // Attach the normalizing-constant correction for the |Kyy| tilt so the
+    // hyperparameter updates target the corrected conditionals. The list's
+    // is_continuous mask restricts the tilt terms to continuous-continuous
+    // pairs; the table is built for the continuous block alone.
+    attach_edge_prior_correction(
+        edge_prior_obj.get(), edge_prior_correction, "sample_mixed_mrf");
+
     // Configure sampler
     SamplerConfig config;
     config.sampler_type = sampler_type;
@@ -187,6 +192,8 @@ Rcpp::List sample_mixed_mrf(
     config.na_impute = na_impute;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
+    config.zratio_gauge_sweeps = zratio_gauge_sweeps;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);

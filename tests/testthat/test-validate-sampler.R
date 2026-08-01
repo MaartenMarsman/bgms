@@ -6,7 +6,7 @@
 # Helper: minimal valid call with sensible defaults
 vs = function(...) {
   defaults = list(
-    update_method     = c("nuts", "adaptive-metropolis"),
+    update_method     = c("nuts", "adaptive-metropolis", "gibbs"),
     target_accept     = NULL,
     iter              = 1000L,
     warmup            = 250L,
@@ -65,6 +65,18 @@ test_that("GGM + explicit 'adaptive-metropolis' OK", {
 test_that("GGM + explicit 'nuts' OK", {
   res = vs(is_continuous = TRUE, update_method = "nuts")
   expect_equal(res$update_method, "nuts")
+})
+
+test_that("GGM + explicit 'gibbs' OK", {
+  res = vs(is_continuous = TRUE, update_method = "gibbs")
+  expect_equal(res$update_method, "gibbs")
+})
+
+test_that("gibbs is rejected for non-continuous data", {
+  expect_error(
+    vs(is_continuous = FALSE, update_method = "gibbs"),
+    "available only for the Gaussian"
+  )
 })
 
 
@@ -332,7 +344,8 @@ test_that("return list has all expected elements", {
   expected_names = c(
     "update_method", "target_accept", "iter", "warmup",
     "nuts_max_depth", "learn_mass_matrix",
-    "chains", "cores", "seed", "progress_type", "progress_callback"
+    "chains", "cores", "seed", "progress_type", "progress_callback",
+    "verbose"
   )
   expect_named(res, expected_names)
 })

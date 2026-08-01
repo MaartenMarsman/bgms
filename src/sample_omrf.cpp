@@ -15,33 +15,15 @@
 #include "mcmc/execution/chain_runner.h"
 #include "mcmc/execution/sampler_config.h"
 
-// R-exported function to sample from an OMRF model
-//
-// @param inputFromR          List with model specification
-// @param prior_inclusion_prob Prior inclusion probabilities (p x p matrix)
-// @param initial_edge_indicators Initial edge indicators (p x p integer matrix)
-// @param no_iter             Number of post-warmup iterations
-// @param no_warmup           Number of warmup iterations
-// @param no_chains           Number of parallel chains
-// @param edge_selection      Whether to do edge selection (spike-and-slab)
-// @param sampler_type        "adaptive-metropolis" or "nuts"
-// @param seed                Random seed
-// @param no_threads          Number of threads for parallel execution
-// @param progress_type       Progress bar type
-// @param progress_callback   R function (SEXP) called as callback(completed, total) at regular intervals, or R_NilValue
-// @param edge_prior          Edge prior type: "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
-// @param na_impute           Whether to impute missing data
-// @param missing_index       Matrix of missing data indices (n_missing x 2, 0-based)
-// @param beta_bernoulli_alpha     Beta-Bernoulli alpha hyperparameter
-// @param beta_bernoulli_beta      Beta-Bernoulli beta hyperparameter
-// @param beta_bernoulli_alpha_between SBM between-cluster alpha
-// @param beta_bernoulli_beta_between  SBM between-cluster beta
-// @param dirichlet_alpha     Dirichlet alpha for SBM
-// @param lambda              Lambda for SBM
-// @param target_acceptance   Target acceptance rate for NUTS (default: 0.8)
-// @param max_tree_depth      Maximum tree depth for NUTS (default: 10)
-//
-// @return List with per-chain results including samples and diagnostics
+// R-exported function to sample from an OMRF model. Takes the model
+// specification list, p x p prior inclusion probabilities and initial edge
+// indicators, iteration/warmup/chain counts, the sampler type
+// ("adaptive-metropolis" or "nuts") with target acceptance and max tree depth,
+// the edge prior ("Bernoulli", "Beta-Bernoulli", "Stochastic-Block") with its
+// Beta-Bernoulli/SBM hyperparameters, missing-data options (missing_index:
+// n_missing x 2, 0-based), seed, thread count, and progress settings
+// (progress_callback is called as callback(completed, total), or R_NilValue).
+// Returns a list of per-chain results with samples and diagnostics.
 // [[Rcpp::export]]
 Rcpp::List sample_omrf(
     const Rcpp::List& inputFromR,
@@ -67,7 +49,10 @@ Rcpp::List sample_omrf(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
-    const Rcpp::Nullable<Rcpp::NumericMatrix> pairwise_scaling_factors_nullable = R_NilValue
+    const bool learn_mass_matrix = true,
+    const Rcpp::Nullable<Rcpp::List> initial_parameters = R_NilValue,
+    const Rcpp::Nullable<Rcpp::NumericVector> initial_step_sizes = R_NilValue,
+    const Rcpp::Nullable<Rcpp::List> initial_inv_mass = R_NilValue
 ) {
     // Create parameter priors from R input
     double pairwise_scale = Rcpp::as<double>(inputFromR["pairwise_scale"]);
@@ -106,13 +91,6 @@ Rcpp::List sample_omrf(
     const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
     model.set_metropolis_target_accept(mh_target);
 
-    // Set pairwise scaling factors (if provided)
-    if (pairwise_scaling_factors_nullable.isNotNull()) {
-        arma::mat sf = Rcpp::as<arma::mat>(
-            Rcpp::NumericMatrix(pairwise_scaling_factors_nullable.get()));
-        model.set_pairwise_scaling_factors(sf);
-    }
-
     // Set up missing data imputation
     if (na_impute && missing_index_nullable.isNotNull()) {
         arma::imat missing_index = Rcpp::as<arma::imat>(
@@ -138,14 +116,52 @@ Rcpp::List sample_omrf(
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
     config.na_impute = na_impute;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
 
+    // Optional per-chain warm start (final state of a previous fit).
+    std::vector<arma::vec> init_params;
+    if (initial_parameters.isNotNull()) {
+        Rcpp::List ip(initial_parameters.get());
+        init_params.reserve(ip.size());
+        for (int c = 0; c < ip.size(); ++c) {
+            init_params.push_back(Rcpp::as<arma::vec>(ip[c]));
+        }
+    }
+    std::vector<double> init_step_sizes;
+    if (initial_step_sizes.isNotNull()) {
+        init_step_sizes = Rcpp::as<std::vector<double>>(
+            Rcpp::NumericVector(initial_step_sizes.get()));
+    }
+    std::vector<arma::vec> init_inv_mass;
+    if (initial_inv_mass.isNotNull()) {
+        Rcpp::List im(initial_inv_mass.get());
+        init_inv_mass.reserve(im.size());
+        for (int c = 0; c < im.size(); ++c) {
+            init_inv_mass.push_back(Rcpp::as<arma::vec>(im[c]));
+        }
+    }
+
+    // A warm-start list is per chain: an empty list means cold, otherwise it
+    // must carry exactly one entry per chain (each is indexed by chain id).
+    auto require_per_chain = [&](std::size_t n, const char* what) {
+        if (n != 0 && n != static_cast<std::size_t>(no_chains)) {
+            Rcpp::stop("%s has %d entries but there are %d chains; a warm-start "
+                       "list must be empty or one entry per chain.",
+                       what, static_cast<int>(n), no_chains);
+        }
+    };
+    require_per_chain(init_params.size(), "initial_parameters");
+    require_per_chain(init_step_sizes.size(), "initial_step_sizes");
+    require_per_chain(init_inv_mass.size(), "initial_inv_mass");
+
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(
-        model, *edge_prior_obj, config, no_chains, no_threads, pm);
+        model, *edge_prior_obj, config, no_chains, no_threads, pm,
+        init_params, init_step_sizes, init_inv_mass);
 
     // Convert to R list format
     Rcpp::List output = convert_results_to_list(results);

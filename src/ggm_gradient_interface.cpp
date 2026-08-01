@@ -1,7 +1,6 @@
 // Test interface for the GGM gradient engine and RATTLE projection.
 //
-// Exposes logp_and_gradient, forward_map, project_position,
-// project_momentum, and constrained leapfrog to R for validation.
+// Exposes logp_and_gradient and forward_map to R for validation.
 // Also exposes sample_ggm_prior() for sampling from the GGM prior
 // from the GGM prior using NUTS.
 
@@ -59,7 +58,7 @@ Rcpp::List ggm_test_forward_map(
     GGMGradientEngine engine;
     engine.rebuild(cs, 100, dummy_S, ip, dp);
 
-    ForwardMapResult fm = engine.forward_map(theta);
+    const ForwardMapResult& fm = engine.forward_map(theta);
 
     return Rcpp::List::create(
         Rcpp::Named("Phi") = Rcpp::wrap(fm.Phi),

@@ -4,11 +4,17 @@
 \alias{extract_ess}
 \title{Extract Effective Sample Size}
 \usage{
-extract_ess(bgms_object)
+extract_ess(bgms_object, estimator = c("rb", "mixt"))
 }
 \arguments{
 \item{bgms_object}{A fitted model object of class \code{bgms} (from \code{\link[=bgm]{bgm()}})
 or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
+
+\item{estimator}{Character; which effective sample size to return for the
+edge (or difference) indicators. \code{"rb"} (default) returns the ESS of the
+Rao-Blackwellized inclusion draws. \code{"mixt"}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} returns the indicator chain's
+transition-based ESS. Ignored for all other parameter types.}
 }
 \value{
 A named list with ESS values for each parameter type present in
@@ -18,13 +24,40 @@ the model (e.g., \code{main}, \code{pairwise}, \code{indicator}).
 Retrieves effective sample size estimates for all parameters from a
 model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
+\details{
+The \code{indicator} element is the effective sample size of the inclusion
+inference, and also the \code{n_eff} column of the fit summary's inclusion table
+(\code{summary(fit)$indicator}): the continuous ESS of the Rao-Blackwellized
+inclusion draws, and therefore the ESS of the inclusion probability the fit
+reports (see \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}, which is
+Rao-Blackwellized by default). It is \code{NA} for indicators whose
+Rao-Blackwellized draws are constant to double precision, where the
+inclusion probability is at its numerical bound.
+
+\code{estimator = "mixt"}, the transition-based ESS of the binary indicator chain,
+is deprecated and no longer a summary column; a call recomputes it from the
+raw indicator draws and warns. It converts flip counts to an effective sample
+size through a two-state first-order Markov model that a substantial share of
+edge chains violate, and the precision of the inclusion probability and its
+Bayes factor is carried by the Rao-Blackwellized ESS and Monte Carlo standard
+error. The directional flip counts themselves (\code{n0->1}, \code{n1->0}) remain in
+the inclusion table.
+
+Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
+call falls back to the transition ESS without warning, while an explicit
+\code{estimator = "rb"} errors.
+}
 \seealso{
-\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}}
+\code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_rhat]{extract_rhat()}} for the
+Rao-Blackwellized indicator R-hat,
+\code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},
 \code{\link[=extract_category_thresholds]{extract_category_thresholds()}},
+\code{\link[=extract_centrality]{extract_centrality()}},
 \code{\link[=extract_group_params]{extract_group_params()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}},
 \code{\link[=extract_indicator_priors]{extract_indicator_priors()}},
 \code{\link[=extract_indicators]{extract_indicators()}},
 \code{\link[=extract_log_odds]{extract_log_odds()}},
@@ -33,7 +66,10 @@ Other extractors:
 \code{\link[=extract_partial_correlations]{extract_partial_correlations()}},
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
 \code{\link[=extract_precision]{extract_precision()}},
+\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
 \code{\link[=extract_rhat]{extract_rhat()}},
-\code{\link[=extract_sbm]{extract_sbm()}}
+\code{\link[=extract_sbm]{extract_sbm()}},
+\code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}},
+\code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}

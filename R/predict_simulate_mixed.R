@@ -3,7 +3,6 @@
 # Split out of simulate_predict.R (cleanup S4).
 
 
-
 # ==============================================================================
 #   Mixed MRF Simulation Helper
 # ==============================================================================
@@ -34,6 +33,8 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
   cont_idx = arguments$continuous_indices
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal
+  category_levels = arguments$category_levels
+  blume_capel_shift = arguments$blume_capel_shift
   baseline_category_disc = arguments$baseline_category
 
   disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
@@ -66,6 +67,9 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
       seed = seed
     )
 
+    result$x = recode_simulated_to_original(
+      result$x, category_levels, blume_capel_shift
+    )
     out = combine_mixed_result(result, disc_idx, cont_idx, data_columnnames)
     return(out)
   } else {
@@ -98,6 +102,9 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
     )
 
     for(i in seq_along(results)) {
+      results[[i]]$x = recode_simulated_to_original(
+        results[[i]]$x, category_levels, blume_capel_shift
+      )
       results[[i]] = combine_mixed_result(
         results[[i]], disc_idx, cont_idx, data_columnnames
       )
@@ -106,7 +113,6 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
     return(results)
   }
 }
-
 
 
 # ==============================================================================
@@ -125,11 +131,16 @@ simulate_bgms_mixed = function(object, nsim, seed, method, ndraws,
 # @param type         "probabilities" or "response".
 # @param method       "posterior-mean" or "posterior-sample".
 # @param ndraws       Number of posterior draws (for posterior-sample).
+# @param return_draws Internal. With method = "posterior-sample", return the
+#                     per-draw prediction matrices instead of their average,
+#                     for callers that need the predictive mixture rather than
+#                     a plug-in summary.
 #
 # Returns: Named list of prediction matrices.
 # ------------------------------------------------------------------
 predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
-                              type, method, ndraws) {
+                              type, method, ndraws,
+                              return_draws = FALSE) {
   p = arguments$num_discrete
   q = arguments$num_continuous
   data_columnnames = arguments$data_columnnames
@@ -137,6 +148,8 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
   cont_idx = arguments$continuous_indices
   num_categories = arguments$num_categories
   is_ordinal = arguments$is_ordinal
+  category_levels = arguments$category_levels
+  blume_capel_shift = arguments$blume_capel_shift
   baseline_category_disc = arguments$baseline_category
 
   disc_variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
@@ -150,8 +163,14 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
     }
   }
 
-  # Split newdata into discrete and continuous parts
+  # Split newdata into discrete and continuous parts. The discrete columns are
+  # recoded from their original category values to the internal 0-based codes
+  # (the mapping bgm() applied to the training data), as in the OMRF predict
+  # path; unobserved categories warn and yield NA predictions.
   x_data = as.matrix(newdata[, disc_idx, drop = FALSE])
+  x_data = recode_data_for_prediction(
+    x_data, num_categories, is_ordinal, category_levels, blume_capel_shift
+  )
   storage.mode(x_data) = "integer"
   y_data = as.matrix(newdata[, cont_idx, drop = FALSE])
   storage.mode(y_data) = "double"
@@ -219,6 +238,14 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
       )
     }
 
+    if(isTRUE(return_draws)) {
+      return(lapply(all_results, format_mixed_predictions,
+        predict_vars = predict_vars,
+        internal_predict_vars = internal_predict_vars, p = p,
+        num_categories = num_categories, data_columnnames = data_columnnames
+      ))
+    }
+
     # Average predictions across draws
     num_pv = length(predict_vars)
     probs = vector("list", num_pv)
@@ -249,7 +276,6 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
 
   return(probs)
 }
-
 
 
 # ==============================================================================
@@ -309,7 +335,6 @@ build_mixed_params_mean = function(object, arguments) {
 
   list(pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont, mux = mux, muy = muy)
 }
-
 
 
 # ------------------------------------------------------------------
@@ -402,7 +427,6 @@ split_mixed_raw_samples = function(object, arguments) {
 }
 
 
-
 # ------------------------------------------------------------------
 # build_mixed_params_row
 # ------------------------------------------------------------------
@@ -475,7 +499,6 @@ build_mixed_params_row = function(sample_info, row_idx,
 }
 
 
-
 # ------------------------------------------------------------------
 # combine_mixed_result
 # ------------------------------------------------------------------
@@ -498,7 +521,6 @@ combine_mixed_result = function(result, disc_idx, cont_idx, colnames) {
   colnames(out) = colnames
   out
 }
-
 
 
 # ------------------------------------------------------------------
@@ -536,7 +558,6 @@ format_mixed_predictions = function(raw_result, predict_vars,
 }
 
 
-
 # ------------------------------------------------------------------
 # format_mixed_response
 # ------------------------------------------------------------------
@@ -568,4 +589,3 @@ format_mixed_response = function(probs, predict_vars,
 
   out
 }
-

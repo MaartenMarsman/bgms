@@ -1,7 +1,73 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 #include "models/bgmCompare/bgmCompare_helper.h"
+#include "models/bgmCompare/bgmCompare_state.h"
 #include "utils/common_helpers.h"
+
+
+
+// Converts the integer observations to double, whole-matrix and per group.
+// Weight and residual members are left untouched; call
+// rebuild_sweep_state_weights() afterwards to make the state consistent.
+void initialize_sweep_state_observations(
+    CompareSweepState& state,
+    const arma::imat& observations,
+    const arma::imat& group_indices,
+    const int num_groups
+) {
+  state.obs_double_all = arma::conv_to<arma::mat>::from(observations);
+  state.obs_double.resize(num_groups);
+  for (int g = 0; g < num_groups; g++) {
+    const int r0 = group_indices(g, 0);
+    const int r1 = group_indices(g, 1);
+    state.obs_double[g] = state.obs_double_all.rows(r0, r1);
+  }
+
+  const int num_variables = observations.n_cols;
+  state.log_normalizer.zeros(num_variables, num_groups);
+  state.normalizer_valid.zeros(num_variables);
+}
+
+
+
+// Recomputes the per-group effective pairwise weights from the current
+// pairwise effects and inclusion indicators, and the residual matrices as
+// one matrix product per group. Pairwise effects are stored on the
+// association scale, so a rest score carries a factor two. Invalidates the
+// normalizer cache.
+void rebuild_sweep_state_weights(
+    CompareSweepState& state,
+    const arma::mat& pairwise_effects,
+    const arma::imat& pairwise_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const int num_groups
+) {
+  const int num_variables = inclusion_indicator.n_rows;
+  state.pairwise_group.resize(num_groups);
+  state.residual.resize(num_groups);
+
+  for (int g = 0; g < num_groups; g++) {
+    const arma::vec proj_g = projection.row(g).t();
+
+    arma::mat& pairwise_g = state.pairwise_group[g];
+    pairwise_g.zeros(num_variables, num_variables);
+    for (int v = 0; v < num_variables - 1; v++) {
+      for (int u = v + 1; u < num_variables; u++) {
+        double w = compute_group_pairwise_effects(
+          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
+          inclusion_indicator, proj_g
+        );
+        pairwise_g(v, u) = w;
+        pairwise_g(u, v) = w;
+      }
+    }
+
+    state.residual[g] = 2.0 * state.obs_double[g] * pairwise_g;
+  }
+
+  state.normalizer_valid.zeros();
+}
 
 
 
@@ -482,6 +548,15 @@ arma::vec inv_mass_active(
   active_inv_diag.subvec(off, off + num_pair - 1) = inv_diag.subvec(off, off + num_pair - 1);
   off += num_pair;
 
+  // inv_diag was learned in stage 2 with all indicators on, i.e. in the full
+  // parameter layout. Read it through full-layout positions (main_index /
+  // pair_index reflect the selection-reduced layout and would misalign once
+  // parameters are excluded). The full layout is: main overall, pair overall,
+  // then per-row main differences and per-row pairwise differences, each row
+  // repeated over the G-1 group contrasts.
+  const int diff_base = num_main + num_pair;
+  const int pair_diff_base = diff_base + num_main * (num_groups - 1);
+
   // 3) MAIN differences (cols 1..G-1) for selected variables
   for (int v = 0; v < num_variables; ++v) {
     if (inclusion_indicator(v, v) == 0) continue;
@@ -489,7 +564,7 @@ arma::vec inv_mass_active(
     const int r1 = main_effect_indices(v, 1);
     for (int r = r0; r <= r1; ++r) {
       for (int g = 1; g < num_groups; ++g) {
-        int idx = main_index(r, g);
+        int idx = diff_base + r * (num_groups - 1) + (g - 1);
         active_inv_diag(off++) = inv_diag(idx);
       }
     }
@@ -501,7 +576,7 @@ arma::vec inv_mass_active(
       if (inclusion_indicator(v1, v2) != 1) continue;
       const int row = pairwise_effect_indices(v1, v2);
       for (int g = 1; g < num_groups; ++g) {
-        int idx = pair_index(row, g);
+        int idx = pair_diff_base + row * (num_groups - 1) + (g - 1);
         active_inv_diag(off++) = inv_diag(idx);
       }
     }

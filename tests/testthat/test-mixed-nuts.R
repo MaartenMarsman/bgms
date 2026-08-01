@@ -620,7 +620,8 @@ test_that("M.2T: NUTS vs MH agree under tilt (conditional PL, no ES, delta=1)", 
 
   diff = abs(fit_nuts$posterior_mean_pairwise - fit_mh$posterior_mean_pairwise)
   expect_lt(max(diff), 0.1,
-    label = "M.2T max abs diff in associations < 0.1 (delta=1)")
+    label = "M.2T max abs diff in associations < 0.1 (delta=1)"
+  )
 
   expect_equal(fit_nuts$nuts_diag$summary$total_divergences, 0)
 })

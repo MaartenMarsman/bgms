@@ -4,24 +4,31 @@
 \alias{exponential_prior}
 \title{Exponential Prior for Scale Parameters}
 \usage{
-exponential_prior(rate = 1)
+exponential_prior(rate = NULL, eta = NULL)
 }
 \arguments{
 \item{rate}{Positive numeric. Rate parameter of the Exponential
-distribution. Default: \code{1}.}
+distribution in the raw frame. Mutually exclusive with \code{eta}.}
+
+\item{eta}{Positive numeric. Rate parameter of the Exponential
+distribution on the standardized diagonal (unit slab scale). Mutually
+exclusive with \code{rate}. Default when neither is supplied: \code{1}.}
 }
 \value{
 An object of class \code{"bgms_scale_prior"} with
 \code{family = "exponential"}.
 }
 \description{
-Specifies an Exponential(rate) prior for positive scale parameters.
-This is a convenience function equivalent to
-\code{gamma_prior(shape = 1, rate = rate)}.
+Specifies an Exponential prior for positive scale parameters. This is a
+convenience function equivalent to \code{gamma_prior(shape = 1)} with the
+same rate argument. As in \code{\link{gamma_prior}}, the rate can be given
+in the raw frame (\code{rate}) or the standardized frame (\code{eta}, the
+rate on the standardized diagonal at unit slab scale); supply one of the
+two, not both. With neither, the default is \code{eta = 1}.
 }
 \examples{
-exponential_prior()
-exponential_prior(rate = 2)
+exponential_prior() # standardized frame, eta = 1
+exponential_prior(rate = 2) # raw frame
 
 }
 \seealso{

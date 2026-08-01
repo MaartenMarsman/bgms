@@ -100,6 +100,49 @@ test_that("exponential_prior creates valid prior object", {
   expect_equal(p$hyper.parameters$rate, 2)
 })
 
+test_that("gamma_prior supports the standardized frame via eta", {
+  p = gamma_prior(shape = 2, eta = 0.5)
+  expect_equal(p$hyper.parameters$eta, 0.5)
+  expect_true(is.na(p$hyper.parameters$rate))
+
+  # Default is the standardized frame with eta = 1
+  d = gamma_prior()
+  expect_equal(d$hyper.parameters$eta, 1)
+  expect_true(is.na(d$hyper.parameters$rate))
+
+  # Raw frame stores the rate and leaves eta unset
+  r = gamma_prior(shape = 2, rate = 0.5)
+  expect_equal(r$hyper.parameters$rate, 0.5)
+  expect_true(is.na(r$hyper.parameters$eta))
+
+  expect_error(gamma_prior(shape = 1, rate = 1, eta = 1), "not both")
+  expect_error(gamma_prior(eta = -1), "positive")
+})
+
+test_that("exponential_prior supports the standardized frame via eta", {
+  p = exponential_prior(eta = 2)
+  expect_equal(p$hyper.parameters$eta, 2)
+  expect_true(is.na(p$hyper.parameters$rate))
+
+  d = exponential_prior()
+  expect_equal(d$hyper.parameters$eta, 1)
+
+  expect_error(exponential_prior(rate = 1, eta = 1), "not both")
+  expect_error(exponential_prior(eta = Inf), "positive and finite")
+})
+
+test_that("resolve_scale_rate derives the raw rate and guards scale-free slabs", {
+  # Raw frame passes through untouched
+  expect_equal(bgms:::resolve_scale_rate(0.7, NA_real_, 4), 0.7)
+  # Standardized frame: rate = eta / slab scale
+  expect_equal(bgms:::resolve_scale_rate(NA_real_, 1, 4), 0.25)
+  # No slab scale (e.g. beta-prime interaction prior): eta cannot resolve
+  expect_error(
+    bgms:::resolve_scale_rate(NA_real_, 1, NA_real_),
+    "scale parameter"
+  )
+})
+
 
 # ==============================================================================
 # 2. bgm() with Prior Objects <U+2014> Ordinal
@@ -217,6 +260,34 @@ test_that("bgm ggm works with precision_scale_prior", {
   expect_equal(spec$prior$scale_prior_type, "exponential")
   expect_equal(spec$prior$scale_shape, 1)
   expect_equal(spec$prior$scale_rate, 2)
+})
+
+test_that("bgm ggm resolves eta to the raw rate eta / slab scale", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  common = list(
+    variable_type = "continuous",
+    interaction_prior = cauchy_prior(scale = 4),
+    update_method = "adaptive-metropolis",
+    iter = 25, warmup = 50, chains = 1, seed = 3,
+    display_progress = "none", verbose = FALSE
+  )
+  fit_eta = do.call(bgm, c(
+    list(Y, precision_scale_prior = gamma_prior(shape = 1, eta = 1)), common
+  ))
+  spec = fit_eta$.bgm_spec
+  expect_equal(spec$prior$scale_rate, 0.25)
+  expect_equal(spec$prior$scale_eta, 1)
+
+  # The eta spec and its pre-derived raw-rate spec give identical chains
+  fit_rate = do.call(bgm, c(
+    list(Y, precision_scale_prior = gamma_prior(shape = 1, rate = 0.25)),
+    common
+  ))
+  raw_eta = S7::prop(fit_eta, "raw_samples")
+  raw_rate = S7::prop(fit_rate, "raw_samples")
+  expect_equal(raw_eta$main, raw_rate$main)
+  expect_equal(raw_eta$pairwise, raw_rate$pairwise)
 })
 
 
@@ -384,6 +455,66 @@ test_that("deprecated main_alpha/main_beta still works", {
   expect_s3_class(fit, "bgms")
 })
 
+test_that("deprecated standardize = FALSE warns and proceeds", {
+  data("Wenchuan", package = "bgms")
+  expect_warning(
+    fit <- bgm(Wenchuan[1:50, 1:4],
+      standardize = FALSE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "standardize"
+  )
+  expect_s3_class(fit, "bgms")
+})
+
+test_that("deprecated standardize = TRUE errors with the manual alternative", {
+  data("Wenchuan", package = "bgms")
+  # The removed per-pair adjustment has no replacement, so this must fail
+  # through lifecycle rather than as an unused-argument error.
+  expect_error(
+    bgm(Wenchuan[1:50, 1:4],
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "interaction_prior"
+  )
+  expect_error(
+    bgm(Wenchuan[1:50, 1:4],
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    class = "defunctError"
+  )
+})
+
+test_that("bgmCompare handles the deprecated standardize on both paths", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:40, 1:4]
+  y = Wenchuan[41:80, 1:4]
+
+  expect_warning(
+    fit <- bgmCompare(x, y,
+      standardize = FALSE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "standardize"
+  )
+  expect_s3_class(fit, "bgmCompare")
+
+  expect_error(
+    bgmCompare(x, y,
+      standardize = TRUE,
+      iter = 25, warmup = 50, chains = 1,
+      display_progress = "none"
+    ),
+    "difference_scale"
+  )
+})
+
 
 # ==============================================================================
 # 8. Backward Compatibility <U+2014> Deprecated String Edge Priors
@@ -503,4 +634,31 @@ test_that("prior info is stored in .bgm_spec", {
   expect_equal(spec$prior$pairwise_scale, 0.5)
   expect_equal(spec$prior$threshold_prior_type, "normal")
   expect_equal(spec$prior$threshold_scale, 0.5)
+})
+
+test_that("the exponential default matches gamma_prior(shape = 1, eta = 1) exactly", {
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+
+  fit_default = bgm(Y,
+    variable_type = "continuous",
+    iter = 25, warmup = 50, chains = 1, seed = 7,
+    display_progress = "none"
+  )
+  fit_gamma = bgm(Y,
+    variable_type = "continuous",
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    iter = 25, warmup = 50, chains = 1, seed = 7,
+    display_progress = "none"
+  )
+
+  p_default = fit_default$.bgm_spec$prior
+  p_gamma = fit_gamma$.bgm_spec$prior
+  expect_equal(p_default$scale_prior_type, "exponential")
+  expect_equal(p_gamma$scale_prior_type, "gamma")
+  expect_identical(p_default$scale_shape, p_gamma$scale_shape)
+  expect_identical(p_default$scale_rate, p_gamma$scale_rate)
+  expect_identical(p_default$scale_eta, p_gamma$scale_eta)
+
+  expect_identical(fit_default$raw_samples, fit_gamma$raw_samples)
 })

@@ -2,10 +2,11 @@
 #include "models/bgmCompare/bgmCompare_helper.h"
 #include "models/bgmCompare/bgmCompare_logp_and_grad.h"
 #include "models/bgmCompare/bgmCompare_sampler.h"
+#include "models/bgmCompare/bgmCompare_state.h"
 #include "models/bgmCompare/bgmCompare_output.h"
 #include "mcmc/samplers/metropolis_adaptation.h"
 #include "mcmc/samplers/nuts_adaptation.h"
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
 #include "mcmc/algorithms/metropolis.h"
@@ -58,9 +59,10 @@
 //
 // Notes:
 //  - The function updates both raw data and sufficient statistics in-place.
-//  - Group-specific pairwise effects are recomputed per missing entry.
-//  - For efficiency, you may consider incremental updates to `pairwise_stats`
-//    instead of full recomputation (`obs.t() * obs`) after each change.
+//  - Group-specific pairwise effects are built once per group; parameters
+//    are constant across the imputation pass.
+//  - `pairwise_stats` is updated incrementally: a changed cell only alters
+//    row and column `variable` of the group crossproduct.
 void impute_missing_bgmcompare(
     const arma::mat& main_effects,
     const arma::mat& pairwise_effects,
@@ -89,6 +91,24 @@ void impute_missing_bgmcompare(
   double exponent, cumsum, u;
   int score, person, variable, new_value, old_value, group;
 
+  // Group-specific pairwise effect matrices; the parameters are constant
+  // across the imputation pass, so one build per group suffices.
+  std::vector<arma::mat> group_pairwise_effects(num_groups);
+  for(int g = 0; g < num_groups; g++) {
+    const arma::vec proj_g = projection.row(g).t();
+    group_pairwise_effects[g].zeros(num_variables, num_variables);
+    for(int v1 = 0; v1 < num_variables-1; v1++) {
+      for(int v2 = v1 + 1; v2 < num_variables; v2++) {
+        double w = compute_group_pairwise_effects(
+            v1, v2, num_groups, pairwise_effects, pairwise_effect_indices,
+            inclusion_indicator, proj_g
+        );
+        group_pairwise_effects[g](v1, v2) = w;
+        group_pairwise_effects[g](v2, v1) = w;
+      }
+    }
+  }
+
   //Impute missing data
   for(int missing = 0; missing < num_missings; missing++) {
     // Identify the observation to impute
@@ -101,21 +121,8 @@ void impute_missing_bgmcompare(
     arma::vec group_main_effects = compute_group_main_effects(
       variable, num_groups, main_effects,  main_effect_indices, proj_g);
 
-    // Generate a new observation based on the model
-    arma::mat group_pairwise_effects(num_variables, num_variables, arma::fill::zeros);
-    for(int v1 = 0; v1 < num_variables-1; v1++) {
-      for(int v2 = v1 + 1; v2 < num_variables; v2++) {
-        double w = compute_group_pairwise_effects(
-            v1, v2, num_groups, pairwise_effects, pairwise_effect_indices,
-            inclusion_indicator, proj_g
-        );
-        group_pairwise_effects(v1, v2) = w;
-        group_pairwise_effects(v2, v1) = w;
-      }
-    }
-
-    double rest_score =
-      arma::as_scalar(observations.row(person) * group_pairwise_effects.col(variable));
+    double rest_score = 2.0 *
+      arma::as_scalar(observations.row(person) * group_pairwise_effects[group].col(variable));
 
     if(is_ordinal_variable[variable] == true) {
       // For regular binary or ordinal variables
@@ -159,30 +166,215 @@ void impute_missing_bgmcompare(
 
       // Update sufficient statistics for main effects
       if(is_ordinal_variable[variable] == true) {
-        arma::imat counts_per_category_group = counts_per_category[group];
+        arma::imat& counts_per_category_group = counts_per_category[group];
         if(old_value > 0)
           counts_per_category_group(old_value-1, variable)--;
         if(new_value > 0)
           counts_per_category_group(new_value-1, variable)++;
-        counts_per_category[group] = counts_per_category_group;
       } else {
-        arma::imat blume_capel_stats_group = blume_capel_stats[group];
+        arma::imat& blume_capel_stats_group = blume_capel_stats[group];
         blume_capel_stats_group(0, variable) -= old_value;
         blume_capel_stats_group(0, variable) += new_value;
         blume_capel_stats_group(1, variable) -= old_value * old_value;
         blume_capel_stats_group(1, variable) += new_value * new_value;
-        blume_capel_stats[group] = blume_capel_stats_group;
       }
 
-      // Update sufficient statistics for pairwise effects
-      const int r0 = group_indices(group, 0);
-      const int r1 = group_indices(group, 1);
-      arma::mat obs = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
-      arma::mat pairwise_stats_group = obs.t() * obs; // crossprod
-      pairwise_stats[group] = pairwise_stats_group;
+      // Update sufficient statistics for pairwise effects. In the group
+      // crossproduct X.t() * X only row and column `variable` depend on the
+      // changed cell: with delta = new_value - old_value and x the person's
+      // row (which already holds new_value), entry (u, variable) gains
+      // delta * x(u), symmetrically; the diagonal gain 2 * delta * new_value
+      // - delta^2 equals new_value^2 - old_value^2.
+      const double delta = static_cast<double>(new_value - old_value);
+      const arma::rowvec obs_row =
+        arma::conv_to<arma::rowvec>::from(observations.row(person));
+      arma::mat& pairwise_stats_group = pairwise_stats[group];
+      pairwise_stats_group.col(variable) += delta * obs_row.t();
+      pairwise_stats_group.row(variable) += delta * obs_row;
+      pairwise_stats_group(variable, variable) -= delta * delta;
     }
   }
   return;
+}
+
+
+
+// Performs one cached random-walk Metropolis update of a single main-effect
+// parameter (row, h) of `variable`.
+//
+// The current-state log-pseudoposterior is reconstructed from the sweep
+// state's per-variable normalizer cache, computing and caching the
+// normalizer sums on a miss; only the proposed state is evaluated in full.
+// On acceptance the parameter and the variable's cached normalizer sums are
+// updated in place. Shared by the Metropolis sweep and the proposal-sd tuner.
+static StepResult metropolis_update_main_effect_cached(
+    arma::mat& main_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const arma::ivec& num_categories,
+    CompareSweepState& sweep_state,
+    const int num_groups,
+    const std::vector<arma::imat>& counts_per_category,
+    const std::vector<arma::imat>& blume_capel_stats,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const int row,
+    const int variable,
+    const int category,
+    const int par,
+    const int h,
+    const double proposal_sd,
+    SafeRNG& rng,
+    const BaseParameterPrior& difference_prior,
+    const BaseParameterPrior& threshold_prior
+) {
+  const double current = main_effects(row, h);
+
+  auto component = [&](const arma::vec* norm_in, arma::vec* norm_out) {
+    return log_pseudoposterior_main_component(
+      main_effects, main_effect_indices, projection,
+      sweep_state.residual, num_categories, counts_per_category,
+      blume_capel_stats, num_groups, inclusion_indicator,
+      is_ordinal_variable, baseline_category,
+      variable, category, par, h,
+      difference_prior, threshold_prior,
+      norm_in, norm_out
+    );
+  };
+
+  // Current-state value: reconstruct from the cached per-group normalizer
+  // sums, or compute and cache them on a miss.
+  double logp_current;
+  if (sweep_state.normalizer_valid(variable)) {
+    const arma::vec norm_cur = sweep_state.log_normalizer.row(variable).t();
+    logp_current = component(&norm_cur, nullptr);
+  } else {
+    arma::vec norm_cur(num_groups);
+    logp_current = component(nullptr, &norm_cur);
+    sweep_state.log_normalizer.row(variable) = norm_cur.t();
+    sweep_state.normalizer_valid(variable) = 1;
+  }
+
+  arma::vec norm_prop(num_groups);
+  auto log_post_proposed = [&](double theta) {
+    main_effects(row, h) = theta;
+    return component(nullptr, &norm_prop);
+  };
+
+  StepResult result = metropolis_step_cached(
+    current, proposal_sd, logp_current, log_post_proposed, rng
+  );
+  main_effects(row, h) = result.state[0];
+  if (result.state[0] != current) {
+    // Accepted: the proposed-state normalizer sums become current.
+    sweep_state.log_normalizer.row(variable) = norm_prop.t();
+  }
+
+  return result;
+}
+
+
+
+// Performs one cached random-walk Metropolis update of a single
+// pairwise-effect parameter (idx, h) of the pair (var1, var2).
+//
+// The current-state log-pseudoposterior is reconstructed from the sweep
+// state's normalizer cache of both endpoint variables, computing and caching
+// the normalizer sums on a miss; only the proposed state is evaluated in
+// full. On acceptance the parameter, the effective weights, the residual
+// columns, and both variables' cached normalizer sums are updated in place.
+// Shared by the Metropolis sweep and the proposal-sd tuner.
+static StepResult metropolis_update_pairwise_effect_cached(
+    arma::mat& main_effects,
+    arma::mat& pairwise_effects,
+    const arma::imat& main_effect_indices,
+    const arma::imat& pairwise_effect_indices,
+    const arma::imat& inclusion_indicator,
+    const arma::mat& projection,
+    const arma::ivec& num_categories,
+    CompareSweepState& sweep_state,
+    const int num_groups,
+    const std::vector<arma::mat>& pairwise_stats,
+    const arma::uvec& is_ordinal_variable,
+    const arma::ivec& baseline_category,
+    const int var1,
+    const int var2,
+    const int h,
+    const double proposal_sd,
+    SafeRNG& rng,
+    const BaseParameterPrior& interaction_prior,
+    const BaseParameterPrior& difference_prior
+) {
+  const int idx = pairwise_effect_indices(var1, var2);
+  const double current = pairwise_effects(idx, h);
+
+  auto component = [&](double delta, const arma::mat* norm_in,
+                       arma::mat* norm_out) {
+    return log_pseudoposterior_pair_component(
+      main_effects, pairwise_effects, main_effect_indices,
+      pairwise_effect_indices, projection, sweep_state.obs_double,
+      num_categories, pairwise_stats, sweep_state.residual, num_groups,
+      inclusion_indicator, is_ordinal_variable, baseline_category,
+      var1, var2, h, delta,
+      interaction_prior, difference_prior,
+      norm_in, norm_out
+    );
+  };
+
+  // Current-state value: reconstruct from the cached per-group normalizer
+  // sums of both endpoints, or compute and cache them on a miss.
+  double logp_current;
+  arma::mat norm_cur(num_groups, 2);
+  if (sweep_state.normalizer_valid(var1) &&
+      sweep_state.normalizer_valid(var2)) {
+    norm_cur.col(0) = sweep_state.log_normalizer.row(var1).t();
+    norm_cur.col(1) = sweep_state.log_normalizer.row(var2).t();
+    logp_current = component(0.0, &norm_cur, nullptr);
+  } else {
+    logp_current = component(0.0, nullptr, &norm_cur);
+    sweep_state.log_normalizer.row(var1) = norm_cur.col(0).t();
+    sweep_state.log_normalizer.row(var2) = norm_cur.col(1).t();
+    sweep_state.normalizer_valid(var1) = 1;
+    sweep_state.normalizer_valid(var2) = 1;
+  }
+
+  arma::mat norm_prop(num_groups, 2);
+  auto log_post_proposed = [&](double theta) {
+    return component(theta - current, nullptr, &norm_prop);
+  };
+
+  StepResult result = metropolis_step_cached(
+    current, proposal_sd, logp_current, log_post_proposed, rng
+  );
+  const double value = result.state[0];
+
+  // Update the parameter and sweep state if the move was accepted
+  if (current != value) {
+    const double delta = value - current;
+    pairwise_effects(idx, h) = value;
+
+    for (int g = 0; g < num_groups; ++g) {
+      const arma::vec proj_g = projection.row(g).t();
+      double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
+
+      // Update pairwise_group for this group
+      sweep_state.pairwise_group[g](var1, var2) += delta_g;
+      sweep_state.pairwise_group[g](var2, var1) += delta_g;
+
+      // Update residual matrix columns
+      sweep_state.residual[g].col(var1) +=
+        2.0 * sweep_state.obs_double[g].col(var2) * delta_g;
+      sweep_state.residual[g].col(var2) +=
+        2.0 * sweep_state.obs_double[g].col(var1) * delta_g;
+    }
+
+    // The proposed-state normalizer sums become current.
+    sweep_state.log_normalizer.row(var1) = norm_prop.col(0).t();
+    sweep_state.log_normalizer.row(var2) = norm_prop.col(1).t();
+  }
+
+  return result;
 }
 
 
@@ -211,15 +403,14 @@ void impute_missing_bgmcompare(
 // Inputs:
 //  - main_effects: Matrix of main effect parameters [rows = effects, cols = groups];
 //                  updated in place.
-//  - pairwise_effects: Current pairwise effects (passed through to log posterior).
 //  - main_effect_indices: Row index ranges for each variable’s main effects.
-//  - pairwise_effect_indices: Index map for pairwise effects.
 //  - inclusion_indicator: Indicator matrix; diagonal entries control group differences.
 //  - projection: Group projection matrix.
 //  - num_categories: Number of categories for each variable.
-//  - observations: Data matrix [persons × variables].
+//  - sweep_state: Maintained per-group sweep state; the residual matrices
+//                 supply the rest scores, and accepted moves update the
+//                 per-variable normalizer cache.
 //  - num_groups: Number of groups (G).
-//  - group_indices: Row ranges per group in `observations`.
 //  - counts_per_category, blume_capel_stats: Group-specific sufficient statistics.
 //  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel.
 //  - baseline_category: Reference categories (Blume–Capel only).
@@ -233,21 +424,18 @@ void impute_missing_bgmcompare(
 //
 // Notes:
 //  - Acceptance probabilities are stored per parameter and fed to `metropolis_adapt.update()`.
-//  - This function does not alter pairwise effects, but passes them into
-//    the posterior for likelihood consistency.
+//  - This function does not alter pairwise effects; the sweep state stays
+//    valid throughout the sweep.
 //  - The helper lambda `do_update` encapsulates the proposal/accept/revert loop
 //    for a single parameter, improving readability.
 void update_main_effects_metropolis_bgmcompare (
     arma::mat& main_effects,
-    arma::mat& pairwise_effects,
     const arma::imat& main_effect_indices,
-    const arma::imat& pairwise_effect_indices,
     const arma::imat& inclusion_indicator,
     const arma::mat& projection,
     const arma::ivec& num_categories,
-    const arma::imat& observations,
+    CompareSweepState& sweep_state,
     const int num_groups,
-    const arma::imat& group_indices,
     const std::vector<arma::imat>& counts_per_category,
     const std::vector<arma::imat>& blume_capel_stats,
     const arma::uvec& is_ordinal_variable,
@@ -259,7 +447,7 @@ void update_main_effects_metropolis_bgmcompare (
     const BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior
 ) {
-  const int num_vars = observations.n_cols;
+  const int num_vars = inclusion_indicator.n_rows;
   arma::umat index_mask_main = arma::zeros<arma::umat>(proposal_sd_main.n_rows,
                                                        proposal_sd_main.n_cols);
   arma::mat accept_prob_main = arma::zeros<arma::mat>(proposal_sd_main.n_rows,
@@ -268,24 +456,13 @@ void update_main_effects_metropolis_bgmcompare (
   // --- helper for one update ---
   auto do_update = [&](int row, int variable, int category, int par, int h) {
     index_mask_main(row, h) = 1;
-    double& current = main_effects(row, h);
-    double proposal_sd = proposal_sd_main(row, h);
-
-    auto log_post = [&](double theta) {
-      main_effects(row, h) = theta;
-      return log_pseudoposterior_main_component(
-        main_effects, pairwise_effects, main_effect_indices,
-        pairwise_effect_indices, projection, observations,
-        group_indices, num_categories, counts_per_category,
-        blume_capel_stats, num_groups, inclusion_indicator,
-        is_ordinal_variable, baseline_category,
-        variable, category, par, h,
-        difference_prior, threshold_prior
-      );
-    };
-
-    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
-    current = result.state[0];
+    StepResult result = metropolis_update_main_effect_cached(
+      main_effects, main_effect_indices, inclusion_indicator, projection,
+      num_categories, sweep_state, num_groups, counts_per_category,
+      blume_capel_stats, is_ordinal_variable, baseline_category,
+      row, variable, category, par, h, proposal_sd_main(row, h), rng,
+      difference_prior, threshold_prior
+    );
     accept_prob_main(row, h) = result.accept_prob;
   };
 
@@ -350,9 +527,9 @@ void update_main_effects_metropolis_bgmcompare (
 //  - inclusion_indicator: Indicator matrix; off-diagonal entries control group differences.
 //  - projection: Group projection matrix.
 //  - num_categories: Number of categories per variable.
-//  - observations: Data matrix [persons × variables].
+//  - sweep_state: Maintained per-group sweep state; accepted moves update
+//                 the effective weights and residual matrices in place.
 //  - num_groups: Number of groups (G).
-//  - group_indices: Row ranges per group in `observations`.
 //  - pairwise_stats: Group-specific sufficient statistics for pairwise effects.
 //  - is_ordinal_variable: Indicator for ordinal vs. Blume–Capel variables.
 //  - baseline_category: Reference categories (Blume–Capel only).
@@ -377,13 +554,11 @@ void update_pairwise_effects_metropolis_bgmcompare (
     const arma::imat& inclusion_indicator,
     const arma::mat& projection,
     const arma::ivec& num_categories,
-    const arma::imat& observations,
+    CompareSweepState& sweep_state,
     const int num_groups,
-    const arma::imat& group_indices,
     const std::vector<arma::mat>& pairwise_stats,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const int iteration,
     MetropolisAdaptationController& metropolis_adapt,
     SafeRNG& rng,
@@ -391,81 +566,23 @@ void update_pairwise_effects_metropolis_bgmcompare (
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior
 ) {
-  int num_variables = observations.n_cols;
+  int num_variables = inclusion_indicator.n_rows;
   int num_pairs = num_variables * (num_variables - 1) / 2;
   arma::mat accept_prob_pair = arma::zeros<arma::mat>(num_pairs, num_groups);
   arma::umat index_mask_pair = arma::zeros<arma::umat>(num_pairs, num_groups);
 
-  // --- Build group-specific pairwise matrices and residual matrices ---
-  std::vector<arma::mat> pairwise_groups(num_groups);
-  std::vector<arma::mat> residual_matrices(num_groups);
-  std::vector<arma::mat> obs_double_groups(num_groups);
-
-  for (int g = 0; g < num_groups; ++g) {
-    const int r0 = group_indices(g, 0);
-    const int r1 = group_indices(g, 1);
-    const arma::vec proj_g = projection.row(g).t();
-
-    // Build group-specific pairwise effects matrix
-    arma::mat pairwise_group(num_variables, num_variables, arma::fill::zeros);
-    for (int v = 0; v < num_variables - 1; ++v) {
-      for (int u = v + 1; u < num_variables; ++u) {
-        double w = compute_group_pairwise_effects(
-          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
-          inclusion_indicator, proj_g
-        );
-        pairwise_group(v, u) = w;
-        pairwise_group(u, v) = w;
-      }
-    }
-    pairwise_groups[g] = pairwise_group;
-
-    // Convert observations to double and compute residual matrix
-    obs_double_groups[g] = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
-    residual_matrices[g] = obs_double_groups[g] * pairwise_group;
-  }
-
-  // --- helper for one update using optimized residual-based function ---
+  // --- helper for one update using the cached pairwise Metropolis step ---
   auto do_update = [&](int var1, int var2, int h) {
     int idx = pairwise_effect_indices(var1, var2);
     index_mask_pair(idx, h) = 1;
-    double current = pairwise_effects(idx, h);
-    double proposal_sd = proposal_sd_pair(idx, h);
-
-    auto log_post = [&](double theta) {
-      double delta = theta - current;
-      return log_pseudoposterior_pair_component(
-        main_effects, pairwise_effects, main_effect_indices,
-        pairwise_effect_indices, projection, observations, group_indices,
-        num_categories, pairwise_stats, residual_matrices, num_groups,
-        inclusion_indicator, is_ordinal_variable, baseline_category,
-        pairwise_scaling_factors, var1, var2, h, delta,
-        interaction_prior, difference_prior
-      );
-    };
-
-    StepResult result = metropolis_step(current, proposal_sd, log_post, rng);
-    double value = result.state[0];
-
-    // Update residual matrices if move was accepted
-    if (current != value) {
-      double delta = value - current;
-      pairwise_effects(idx, h) = value;
-
-      for (int g = 0; g < num_groups; ++g) {
-        const arma::vec proj_g = projection.row(g).t();
-        double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
-
-        // Update pairwise_group for this group
-        pairwise_groups[g](var1, var2) += delta_g;
-        pairwise_groups[g](var2, var1) += delta_g;
-
-        // Update residual matrix columns
-        residual_matrices[g].col(var1) += obs_double_groups[g].col(var2) * delta_g;
-        residual_matrices[g].col(var2) += obs_double_groups[g].col(var1) * delta_g;
-      }
-    }
-
+    StepResult result = metropolis_update_pairwise_effect_cached(
+      main_effects, pairwise_effects, main_effect_indices,
+      pairwise_effect_indices, inclusion_indicator, projection,
+      num_categories, sweep_state, num_groups, pairwise_stats,
+      is_ordinal_variable, baseline_category,
+      var1, var2, h, proposal_sd_pair(idx, h), rng,
+      interaction_prior, difference_prior
+    );
     accept_prob_pair(idx, h) = result.accept_prob;
   };
 
@@ -539,6 +656,7 @@ double find_initial_stepsize_bgmcompare(
     const arma::mat& projection,
     const arma::ivec& num_categories,
     const arma::imat& observations,
+    const arma::mat& obs_double,
     const int num_groups,
     const arma::imat& group_indices,
     const std::vector<arma::imat>& counts_per_category,
@@ -546,7 +664,6 @@ double find_initial_stepsize_bgmcompare(
     const std::vector<arma::mat>& pairwise_stats,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const double target_acceptance,
     SafeRNG& rng,
     const BaseParameterPrior& interaction_prior,
@@ -559,9 +676,6 @@ double find_initial_stepsize_bgmcompare(
   );
   arma::mat current_main = main_effects;
   arma::mat current_pair = pairwise_effects;
-
-  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
-  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
 
   auto index_maps = build_index_maps(
     main_effects, pairwise_effects,
@@ -593,7 +707,7 @@ double find_initial_stepsize_bgmcompare(
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors, main_index, pair_index,
+      main_index, pair_index,
       grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -612,7 +726,6 @@ double find_initial_stepsize_bgmcompare(
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors,
       main_index, pair_index, grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -639,6 +752,7 @@ double find_initial_stepsize_bgmcompare(
 //  - projection: Group projection matrix for contrasts.
 //  - num_categories: Number of categories per variable [V].
 //  - observations: Data matrix [N × V].
+//  - obs_double: Data matrix pre-converted to double [N × V].
 //  - num_groups: Number of groups.
 //  - group_indices: Row ranges for each group in `observations`.
 //  - counts_per_category, blume_capel_stats: Per-group sufficient statistics.
@@ -675,6 +789,7 @@ StepResult update_nuts_bgmcompare(
     const arma::mat& projection,
     const arma::ivec& num_categories,
     const arma::imat& observations,
+    const arma::mat& obs_double,
     const int num_groups,
     const arma::imat& group_indices,
     const std::vector<arma::imat>& counts_per_category,
@@ -682,7 +797,6 @@ StepResult update_nuts_bgmcompare(
     const std::vector<arma::mat>& pairwise_stats,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     const int nuts_max_depth,
     const int iteration,
     NUTSAdaptationController& nuts_adapt,
@@ -693,9 +807,6 @@ StepResult update_nuts_bgmcompare(
     const BaseParameterPrior& difference_prior,
     const BaseParameterPrior& threshold_prior
 ) {
-  // Pre-convert observations to double once (avoids repeated conversion in gradient evaluations)
-  const arma::mat obs_double = arma::conv_to<arma::mat>::from(observations);
-
   arma::vec current_state = vectorize_model_parameters_bgmcompare(
     main_effects, pairwise_effects, inclusion_indicator,
     main_effect_indices, pairwise_effect_indices, num_categories,
@@ -735,7 +846,7 @@ StepResult update_nuts_bgmcompare(
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors, main_index, pair_index,
+      main_index, pair_index,
       grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -754,7 +865,6 @@ StepResult update_nuts_bgmcompare(
       counts_per_category, blume_capel_stats,
       pairwise_stats, num_groups, inclusion_indicator,
       is_ordinal_variable, baseline_category,
-      pairwise_scaling_factors,
       main_index, pair_index, grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -827,15 +937,15 @@ StepResult update_nuts_bgmcompare(
 //  - inclusion_indicator: Marks which group differences are active.
 //  - projection: Group projection matrix.
 //  - num_categories: Categories per variable.
-//  - observations: Data matrix [N × V].
+//  - sweep_state: Maintained per-group sweep state; accepted pairwise moves
+//                 update the effective weights and residual matrices in place.
 //  - num_groups: Number of groups.
-//  - group_indices: Row ranges per group in `observations`.
 //  - counts_per_category, blume_capel_stats: Per-group sufficient statistics for main effects.
 //  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
 //  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables.
 //  - baseline_category: Reference category for Blume–Capel variables.
-//  - pairwise_scale: Scale of Cauchy prior for pairwise effects.
-//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - pairwise_scale: Scale of the prior on pairwise effects.
+//  - difference_scale: Scale of the difference prior.
 //  - main_alpha, main_beta: Hyperparameters for Beta prior on main effects.
 //  - iteration: Current iteration (to check schedule stage).
 //  - rng: Random number generator.
@@ -860,15 +970,13 @@ void tune_proposal_sd_bgmcompare(
     const arma::imat& inclusion_indicator,
     const arma::mat& projection,
     const arma::ivec& num_categories,
-    const arma::imat& observations,
+    CompareSweepState& sweep_state,
     int num_groups,
-    const arma::imat& group_indices,
     const std::vector<arma::imat>& counts_per_category,
     const std::vector<arma::imat>& blume_capel_stats,
     const std::vector<arma::mat>& pairwise_stats,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
-    const arma::mat& pairwise_scaling_factors,
     int iteration,
     SafeRNG& rng,
     const WarmupSchedule& sched,
@@ -884,7 +992,7 @@ void tune_proposal_sd_bgmcompare(
   double t = iteration - sched.stage3b_start + 1;
   double rm_weight = std::pow(t, -rm_decay);
 
-  const int V = observations.n_cols;
+  const int V = inclusion_indicator.n_rows;
 
   // --- MAIN EFFECTS ---
   for (int var = 0; var < V; ++var) {
@@ -893,30 +1001,22 @@ void tune_proposal_sd_bgmcompare(
     int hmax = group_differences ? num_groups : 1;
 
     if (is_ordinal_variable[var]) {
-      // Ordinal variable: num_categories[var] - 1 free parameters
-      int ncat = num_categories[var] - 1;
+      // Ordinal variable: num_categories[var] free threshold parameters,
+      // matching the Metropolis sweep and count_num_main_effects.
+      int ncat = num_categories[var];
       for (int c = 0; c < ncat; ++c) {
         int row = start + c;
         for (int h = 0; h < hmax; ++h) {
-          double& current = main_effects(row, h);
           double& prop_sd = proposal_sd_main_effects(row, h);
 
-          auto log_post = [&](double theta) {
-            main_effects(row, h) = theta;
-            return log_pseudoposterior_main_component(
-              main_effects, pairwise_effects,
-              main_effect_indices, pairwise_effect_indices,
-              projection, observations, group_indices,
-              num_categories, counts_per_category, blume_capel_stats,
-              num_groups, inclusion_indicator, is_ordinal_variable,
-              baseline_category,
-              var, c, -1, h,
-              difference_prior, threshold_prior
-            );
-          };
-
-          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-          current = result.state[0];
+          StepResult result = metropolis_update_main_effect_cached(
+            main_effects, main_effect_indices, inclusion_indicator,
+            projection, num_categories, sweep_state, num_groups,
+            counts_per_category, blume_capel_stats, is_ordinal_variable,
+            baseline_category,
+            row, var, c, -1, h, prop_sd, rng,
+            difference_prior, threshold_prior
+          );
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
@@ -927,25 +1027,16 @@ void tune_proposal_sd_bgmcompare(
       for (int par = 0; par < 2; ++par) {
         int row = start + par;
         for (int h = 0; h < hmax; ++h) {
-          double& current = main_effects(row, h);
           double& prop_sd = proposal_sd_main_effects(row, h);
 
-          auto log_post = [&](double theta) {
-            main_effects(row, h) = theta;
-            return log_pseudoposterior_main_component(
-              main_effects, pairwise_effects,
-              main_effect_indices, pairwise_effect_indices,
-              projection, observations, group_indices,
-              num_categories, counts_per_category, blume_capel_stats,
-              num_groups, inclusion_indicator, is_ordinal_variable,
-              baseline_category,
-              var, -1, par, h,
-              difference_prior, threshold_prior
-            );
-          };
-
-          StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-          current = result.state[0];
+          StepResult result = metropolis_update_main_effect_cached(
+            main_effects, main_effect_indices, inclusion_indicator,
+            projection, num_categories, sweep_state, num_groups,
+            counts_per_category, blume_capel_stats, is_ordinal_variable,
+            baseline_category,
+            row, var, -1, par, h, prop_sd, rng,
+            difference_prior, threshold_prior
+          );
           prop_sd = update_proposal_sd_with_robbins_monro(
             prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
           );
@@ -955,32 +1046,6 @@ void tune_proposal_sd_bgmcompare(
   }
 
   // --- PAIRWISE EFFECTS ---
-  // Build group-specific pairwise matrices and residual matrices
-  std::vector<arma::mat> pairwise_groups(num_groups);
-  std::vector<arma::mat> residual_matrices(num_groups);
-  std::vector<arma::mat> obs_double_groups(num_groups);
-
-  for (int g = 0; g < num_groups; ++g) {
-    const int r0 = group_indices(g, 0);
-    const int r1 = group_indices(g, 1);
-    const arma::vec proj_g = projection.row(g).t();
-
-    arma::mat pairwise_group(V, V, arma::fill::zeros);
-    for (int v = 0; v < V - 1; ++v) {
-      for (int u = v + 1; u < V; ++u) {
-        double w = compute_group_pairwise_effects(
-          v, u, num_groups, pairwise_effects, pairwise_effect_indices,
-          inclusion_indicator, proj_g
-        );
-        pairwise_group(v, u) = w;
-        pairwise_group(u, v) = w;
-      }
-    }
-    pairwise_groups[g] = pairwise_group;
-    obs_double_groups[g] = arma::conv_to<arma::mat>::from(observations.rows(r0, r1));
-    residual_matrices[g] = obs_double_groups[g] * pairwise_group;
-  }
-
   for (int v1 = 0; v1 < V - 1; ++v1) {
     for (int v2 = v1 + 1; v2 < V; ++v2) {
       int idx = pairwise_effect_indices(v1, v2);
@@ -988,40 +1053,16 @@ void tune_proposal_sd_bgmcompare(
       int hmax = group_differences ? num_groups : 1;
 
       for (int h = 0; h < hmax; ++h) {
-        double& current = pairwise_effects(idx, h);
         double& prop_sd = proposal_sd_pairwise_effects(idx, h);
 
-        auto log_post = [&](double theta) {
-          double delta = theta - current;
-          return log_pseudoposterior_pair_component(
-            main_effects, pairwise_effects,
-            main_effect_indices, pairwise_effect_indices,
-            projection, observations, group_indices,
-            num_categories, pairwise_stats, residual_matrices, num_groups,
-            inclusion_indicator, is_ordinal_variable, baseline_category,
-            pairwise_scaling_factors, v1, v2, h, delta,
-            interaction_prior, difference_prior
-          );
-        };
-
-        StepResult result = metropolis_step(current, prop_sd, log_post, rng);
-        double value = result.state[0];
-
-        if (current != value) {
-          double delta = value - current;
-          current = value;
-
-          for (int g = 0; g < num_groups; ++g) {
-            const arma::vec proj_g = projection.row(g).t();
-            double delta_g = (h == 0) ? delta : delta * proj_g(h - 1);
-
-            pairwise_groups[g](v1, v2) += delta_g;
-            pairwise_groups[g](v2, v1) += delta_g;
-
-            residual_matrices[g].col(v1) += obs_double_groups[g].col(v2) * delta_g;
-            residual_matrices[g].col(v2) += obs_double_groups[g].col(v1) * delta_g;
-          }
-        }
+        StepResult result = metropolis_update_pairwise_effect_cached(
+          main_effects, pairwise_effects, main_effect_indices,
+          pairwise_effect_indices, inclusion_indicator, projection,
+          num_categories, sweep_state, num_groups, pairwise_stats,
+          is_ordinal_variable, baseline_category,
+          v1, v2, h, prop_sd, rng,
+          interaction_prior, difference_prior
+        );
 
         prop_sd = update_proposal_sd_with_robbins_monro(
           prop_sd, MY_LOG(result.accept_prob), rm_weight, target_accept
@@ -1045,7 +1086,7 @@ void tune_proposal_sd_bgmcompare(
 // The acceptance probability combines:
 //  - Pseudolikelihood ratio (data contribution),
 //  - Prior ratio on inclusion indicators,
-//  - Prior ratio on parameter values (Cauchy vs. point-mass-at-zero),
+//  - Prior ratio on parameter values (slab prior vs. point-mass-at-zero),
 //  - Proposal density correction.
 //
 // Inputs:
@@ -1055,16 +1096,16 @@ void tune_proposal_sd_bgmcompare(
 //  - main_effects, pairwise_effects: Parameter matrices, updated in place.
 //  - main_effect_indices, pairwise_effect_indices: Index maps for parameters.
 //  - projection: Group projection matrix.
-//  - observations: Data matrix [N × V].
+//  - sweep_state: Maintained per-group sweep state; accepted pairwise flips
+//    update the effective weights and residual matrices in place.
 //  - num_groups: Number of groups.
-//  - group_indices: Row ranges per group in `observations`.
 //  - num_categories: Categories per variable [V × G].
 //  - inclusion_indicator: Indicator matrix for differences, updated in place.
 //  - is_ordinal_variable: Marks ordinal vs. Blume–Capel variables [V].
 //  - baseline_category: Reference category for Blume–Capel variables [V].
 //  - proposal_sd_main, proposal_sd_pairwise: Proposal SD matrices for main
 //    and pairwise effects.
-//  - difference_scale: Scale of Cauchy prior for group differences.
+//  - difference_scale: Scale of the difference prior.
 //  - counts_per_category, blume_capel_stats: Per-group sufficient statistics
 //    for main effects.
 //  - pairwise_stats: Per-group sufficient statistics for pairwise effects.
@@ -1088,24 +1129,24 @@ void update_indicator_differences_metropolis_bgmcompare (
     const arma::imat& main_effect_indices,
     const arma::imat& pairwise_effect_indices,
     const arma::mat& projection,
-    const arma::imat& observations,
+    CompareSweepState& sweep_state,
     const int num_groups,
-    const arma::imat& group_indices,
     const arma::imat& num_categories,
     arma::imat& inclusion_indicator,
     const arma::uvec& is_ordinal_variable,
     const arma::ivec& baseline_category,
     const arma::mat& proposal_sd_main,
-    const arma::mat& pairwise_scaling_factors,
     const arma::mat& proposal_sd_pairwise,
     const std::vector<arma::imat>& counts_per_category,
     const std::vector<arma::imat>& blume_capel_stats,
     const std::vector<arma::mat>& pairwise_stats,
     const bool main_difference_selection,
     SafeRNG& rng,
-    const BaseParameterPrior& difference_prior
+    const BaseParameterPrior& difference_prior,
+    arma::mat& rb_alpha,
+    arma::imat& rb_pregamma
 ) {
-  const int num_variables = observations.n_cols;
+  const int num_variables = inclusion_indicator.n_rows;
 
   // --- main effects ---
   // Skip main effect indicator updates if main_difference_selection is disabled
@@ -1135,10 +1176,10 @@ void update_indicator_differences_metropolis_bgmcompare (
 
     // Calculate log acceptance probability
     double log_accept = log_pseudolikelihood_ratio_main(
-      current_main_effects, proposed_main_effects, pairwise_effects,
-      main_effect_indices, pairwise_effect_indices, projection,
-      observations, group_indices, num_categories, counts_per_category,
-      blume_capel_stats, num_groups, inclusion_indicator,
+      current_main_effects, proposed_main_effects,
+      main_effect_indices, projection, sweep_state.residual,
+      num_categories, counts_per_category,
+      blume_capel_stats, num_groups,
       is_ordinal_variable, baseline_category, var
     );
 
@@ -1174,12 +1215,22 @@ void update_indicator_differences_metropolis_bgmcompare (
       }
     }
 
+    // RB inputs on the alpha scale for this main-effect difference: raw
+    // acceptance probability and the pre-move state. The RB draw J and the
+    // odds accumulators derive from these.
+    rb_alpha(var, var) = MY_EXP(std::min(0.0, log_accept));
+    rb_pregamma(var, var) = current_ind;
+
     // Perform Metropolis-Hastings step
     double U = runif(rng);
     if(MY_LOG(U) < log_accept) {
       inclusion_indicator(var, var) = proposed_ind;
       main_effects.rows(start, stop).cols(1, num_groups - 1) =
         proposed_main_effects.rows(start, stop).cols(1, num_groups - 1);
+
+      // The variable's main effects changed; its cached normalizer sums
+      // are stale.
+      sweep_state.normalizer_valid(var) = 0;
     }
   }
   } // end if (main_difference_selection)
@@ -1211,8 +1262,9 @@ void update_indicator_differences_metropolis_bgmcompare (
     // Calculate log acceptance probability
     double log_accept = log_pseudolikelihood_ratio_pairwise(
       main_effects, current_pairwise_effects, proposed_pairwise_effects,
-      main_effect_indices, pairwise_effect_indices, projection, observations,
-      group_indices, num_categories, pairwise_stats, num_groups,
+      main_effect_indices, pairwise_effect_indices, projection,
+      sweep_state.obs_double, sweep_state.residual,
+      num_categories, pairwise_stats, num_groups,
       inclusion_indicator, is_ordinal_variable, baseline_category, var1, var2
     );
 
@@ -1230,7 +1282,7 @@ void update_indicator_differences_metropolis_bgmcompare (
       // Propose to set difference to non-zero
       for(int h = 1; h < num_groups; h++) {
         log_accept += difference_prior.logp(
-          proposed_pairwise_effects(int_index, h), pairwise_scaling_factors(var1, var2)
+          proposed_pairwise_effects(int_index, h)
         );
         log_accept -= R::dnorm(
           proposed_pairwise_effects(int_index, h),
@@ -1243,7 +1295,7 @@ void update_indicator_differences_metropolis_bgmcompare (
       // Propose to set difference to zero
       for(int h = 1; h < num_groups; h++) {
         log_accept -= difference_prior.logp(
-          current_pairwise_effects(int_index, h), pairwise_scaling_factors(var1, var2)
+          current_pairwise_effects(int_index, h)
         );
         log_accept += R::dnorm(
           current_pairwise_effects(int_index, h),
@@ -1252,6 +1304,13 @@ void update_indicator_differences_metropolis_bgmcompare (
         );
       }
     }
+
+    // RB inputs on the alpha scale for this pairwise difference.
+    const double alpha_pair = MY_EXP(std::min(0.0, log_accept));
+    rb_alpha(var1, var2) = alpha_pair;
+    rb_alpha(var2, var1) = alpha_pair;
+    rb_pregamma(var1, var2) = current_ind;
+    rb_pregamma(var2, var1) = current_ind;
 
     // Metropolis-Hastings acceptance step
     double U = runif(rng);
@@ -1264,6 +1323,31 @@ void update_indicator_differences_metropolis_bgmcompare (
       for (int h = 1; h < num_groups; h++) {
         pairwise_effects(int_index, h) = proposed_pairwise_effects(int_index, h);
       }
+
+      // Maintain the sweep state: the flip changes the pair's effective
+      // weight per group, which shifts two residual columns per group.
+      for (int g = 0; g < num_groups; g++) {
+        const arma::vec proj_g = projection.row(g).t();
+        const double w_old = sweep_state.pairwise_group[g](var1, var2);
+        const double w_new = compute_group_pairwise_effects(
+          var1, var2, num_groups, pairwise_effects, pairwise_effect_indices,
+          inclusion_indicator, proj_g
+        );
+        const double delta_g = w_new - w_old;
+
+        sweep_state.pairwise_group[g](var1, var2) = w_new;
+        sweep_state.pairwise_group[g](var2, var1) = w_new;
+
+        sweep_state.residual[g].col(var1) +=
+          2.0 * sweep_state.obs_double[g].col(var2) * delta_g;
+        sweep_state.residual[g].col(var2) +=
+          2.0 * sweep_state.obs_double[g].col(var1) * delta_g;
+      }
+
+      // Both endpoints' rest scores changed; their cached normalizer sums
+      // are stale.
+      sweep_state.normalizer_valid(var1) = 0;
+      sweep_state.normalizer_valid(var2) = 0;
     }
   }
 }
@@ -1291,6 +1375,8 @@ void update_indicator_differences_metropolis_bgmcompare (
 //
 // Inputs:
 //  - observations: Data matrix [N × V].
+//  - sweep_state: Maintained per-group sweep state (double observations,
+//    effective weights, residual matrices), kept consistent across updates.
 //  - num_categories: Number of categories per variable [V].
 //  - pairwise_scale, difference_scale: Prior scale parameters.
 //  - counts_per_category, blume_capel_stats: Sufficient statistics per group.
@@ -1327,8 +1413,8 @@ void update_indicator_differences_metropolis_bgmcompare (
 //    global (NUTS).
 void gibbs_update_step_bgmcompare (
     const arma::imat& observations,
+    CompareSweepState& sweep_state,
     const arma::ivec& num_categories,
-    const arma::mat& pairwise_scaling_factors,
     const std::vector<arma::imat>& counts_per_category,
     const std::vector<arma::imat>& blume_capel_stats,
     arma::imat& inclusion_indicator,
@@ -1362,7 +1448,9 @@ void gibbs_update_step_bgmcompare (
     const bool main_difference_selection,
     const BaseParameterPrior& interaction_prior,
     const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
+    const BaseParameterPrior& threshold_prior,
+    arma::mat& rb_alpha,
+    arma::imat& rb_pregamma
 ) {
 
   // Step 0: Initialise random graph structure when edge_selection = TRUE
@@ -1371,27 +1459,33 @@ void gibbs_update_step_bgmcompare (
       inclusion_indicator, main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_probability, main_difference_selection, rng
     );
+    // The excluded pairs' difference columns were zeroed; refresh the
+    // effective weights and residual matrices.
+    rebuild_sweep_state_weights(
+      sweep_state, pairwise_effects, pairwise_effect_indices,
+      inclusion_indicator, projection, num_groups
+    );
   }
 
   // Step 1: Difference selection via MH indicator updates (if enabled)
   if (schedule.selection_enabled(iteration)) {
     update_indicator_differences_metropolis_bgmcompare (
         inclusion_probability, index, main_effects, pairwise_effects,
-        main_effect_indices, pairwise_effect_indices, projection, observations,
-        num_groups, group_indices, num_categories, inclusion_indicator,
+        main_effect_indices, pairwise_effect_indices, projection, sweep_state,
+        num_groups, num_categories, inclusion_indicator,
         is_ordinal_variable, baseline_category, proposal_sd_main,
-        pairwise_scaling_factors, proposal_sd_pair, counts_per_category,
+        proposal_sd_pair, counts_per_category,
         blume_capel_stats, pairwise_stats, main_difference_selection, rng,
-        difference_prior
+        difference_prior, rb_alpha, rb_pregamma
     );
   }
 
   // Step 2: Update parameters
   if(update_method == adaptive_metropolis) {
     update_main_effects_metropolis_bgmcompare (
-        main_effects, pairwise_effects, main_effect_indices,
-        pairwise_effect_indices, inclusion_indicator, projection,
-        num_categories, observations, num_groups, group_indices,
+        main_effects, main_effect_indices,
+        inclusion_indicator, projection,
+        num_categories, sweep_state, num_groups,
         counts_per_category, blume_capel_stats, is_ordinal_variable,
         baseline_category, iteration,
         metropolis_adapt_main, rng, proposal_sd_main,
@@ -1401,9 +1495,9 @@ void gibbs_update_step_bgmcompare (
     update_pairwise_effects_metropolis_bgmcompare (
         main_effects, pairwise_effects, main_effect_indices,
         pairwise_effect_indices, inclusion_indicator, projection,
-        num_categories, observations, num_groups, group_indices,
+        num_categories, sweep_state, num_groups,
         pairwise_stats, is_ordinal_variable, baseline_category,
-        pairwise_scaling_factors, iteration, metropolis_adapt_pair, rng,
+        iteration, metropolis_adapt_pair, rng,
         proposal_sd_pair,
         interaction_prior, difference_prior
     );
@@ -1411,12 +1505,20 @@ void gibbs_update_step_bgmcompare (
     StepResult result = update_nuts_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
-      observations, num_groups, group_indices, counts_per_category,
+      observations, sweep_state.obs_double_all, num_groups, group_indices,
+      counts_per_category,
       blume_capel_stats, pairwise_stats, is_ordinal_variable,
-      baseline_category, pairwise_scaling_factors,
+      baseline_category,
       nuts_max_depth, iteration, nuts_adapt, learn_mass_matrix,
       schedule.selection_enabled(iteration), rng,
       interaction_prior, difference_prior, threshold_prior
+    );
+
+    // The NUTS update changes the parameters wholesale; rebuild the
+    // effective weights and residual matrices.
+    rebuild_sweep_state_weights(
+      sweep_state, pairwise_effects, pairwise_effect_indices,
+      inclusion_indicator, projection, num_groups
     );
 
     if (iteration >= schedule.total_warmup) {
@@ -1430,14 +1532,14 @@ void gibbs_update_step_bgmcompare (
     }
   }
 
-  /* --- 2b.  proposal-sd tuning during Stage-3b ------------------------------ */
+  // --- 2b.  proposal-sd tuning during Stage-3b ---
   tune_proposal_sd_bgmcompare(
     proposal_sd_main, proposal_sd_pair, main_effects,
     pairwise_effects, main_effect_indices, pairwise_effect_indices,
-    inclusion_indicator, projection, num_categories, observations, num_groups,
-    group_indices, counts_per_category, blume_capel_stats,
+    inclusion_indicator, projection, num_categories, sweep_state, num_groups,
+    counts_per_category, blume_capel_stats,
     pairwise_stats, is_ordinal_variable, baseline_category,
-    pairwise_scaling_factors, iteration, rng, schedule,
+    iteration, rng, schedule,
     interaction_prior, difference_prior, threshold_prior
   );
 }
@@ -1515,7 +1617,6 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
     std::vector<arma::imat>& blume_capel_stats,
     std::vector<arma::mat>& pairwise_stats,
     const arma::ivec& num_categories,
-    const arma::mat& pairwise_scaling_factors,
     const double difference_selection_alpha,
     const double difference_selection_beta,
     const std::string& difference_prior_type,
@@ -1556,14 +1657,36 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat main_effects(num_main, num_groups, arma::fill::zeros);
   arma::mat pairwise_effects(num_pair, num_groups, arma::fill::zeros);
   arma::imat inclusion_indicator(num_variables, num_variables, arma::fill::ones);
+  // RB inputs on the alpha scale, mirroring inclusion_indicator: raw
+  // acceptance probability and pre-move state per difference indicator. NaN /
+  // -1 mark indicators not being selected (e.g. main-effect differences when
+  // main_difference_selection is off), which contribute nothing to the RB
+  // average or the odds accumulators.
+  arma::mat rb_alpha(num_variables, num_variables);
+  rb_alpha.fill(arma::datum::nan);
+  arma::imat rb_pregamma(num_variables, num_variables);
+  rb_pregamma.fill(-1);
+  // Post-warmup RB odds accumulators on the alpha scale (see chain_result.h).
+  arma::mat rb_n01(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n10(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n0_visits(num_variables, num_variables, arma::fill::zeros);
+  arma::mat rb_n1_visits(num_variables, num_variables, arma::fill::zeros);
 
-  // Allocate optional storage for MCMC samples
+  // Allocate storage for MCMC samples. Iterations that never run (user
+  // interrupt) keep the fill values: NaN for floating samples, -1 for the
+  // integer indicator and allocation samples.
   arma::mat main_effect_samples(iter, num_main * num_groups);
+  main_effect_samples.fill(arma::datum::nan);
   arma::mat pairwise_effect_samples(iter, num_pair * num_groups);
+  pairwise_effect_samples.fill(arma::datum::nan);
   arma::imat indicator_samples;
+  arma::mat rb_inclusion_samples;
 
   if (difference_selection) {
     indicator_samples.set_size(iter, num_pair + num_variables);
+    indicator_samples.fill(-1);
+    rb_inclusion_samples.set_size(iter, num_pair + num_variables);
+    rb_inclusion_samples.fill(arma::datum::nan);
   }
 
   // SBM cluster allocation samples (only populated when difference prior is SBM).
@@ -1573,6 +1696,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::imat allocation_samples;
   if (is_sbm) {
     allocation_samples.set_size(num_variables, iter);
+    allocation_samples.fill(-1);
   }
 
   // For logging nuts performance
@@ -1590,15 +1714,27 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::mat proposal_sd_main(num_main, num_groups, arma::fill::ones);
   arma::mat proposal_sd_pair(num_pair, num_groups, arma::fill::ones);
 
+  // --- Persistent per-group sweep state (double observations, effective
+  //     pairwise weights, residual matrices), maintained across iterations.
+  CompareSweepState sweep_state;
+  initialize_sweep_state_observations(
+    sweep_state, observations, group_indices, num_groups
+  );
+  rebuild_sweep_state_weights(
+    sweep_state, pairwise_effects, pairwise_effect_indices,
+    inclusion_indicator, projection, num_groups
+  );
+
   // --- Optional NUTS warmup stage
   double initial_step_size = 1.0;
   if (update_method == nuts) {
     initial_step_size = find_initial_stepsize_bgmcompare(
       main_effects, pairwise_effects, main_effect_indices,
       pairwise_effect_indices, inclusion_indicator, projection, num_categories,
-      observations, num_groups, group_indices, counts_per_category,
+      observations, sweep_state.obs_double_all, num_groups, group_indices,
+      counts_per_category,
       blume_capel_stats, pairwise_stats, is_ordinal_variable,
-      baseline_category, pairwise_scaling_factors,
+      baseline_category,
       target_accept, rng,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -1647,11 +1783,20 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
           num_categories, missing_data_indices, is_ordinal_variable,
           baseline_category, rng
       );
+
+      // Imputation may change observations; refresh the sweep state.
+      initialize_sweep_state_observations(
+        sweep_state, observations, group_indices, num_groups
+      );
+      rebuild_sweep_state_weights(
+        sweep_state, pairwise_effects, pairwise_effect_indices,
+        inclusion_indicator, projection, num_groups
+      );
     }
 
     // Main Gibbs update step for parameters
     gibbs_update_step_bgmcompare (
-        observations, num_categories, pairwise_scaling_factors, counts_per_category,
+        observations, sweep_state, num_categories, counts_per_category,
         blume_capel_stats, inclusion_indicator,
         pairwise_effects, main_effects, is_ordinal_variable, baseline_category,
         iteration, pairwise_effect_indices, pairwise_stats, nuts_max_depth,
@@ -1661,7 +1806,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         rng, inclusion_probability,
         update_method, proposal_sd_main, proposal_sd_pair, index,
         main_difference_selection,
-        interaction_prior, difference_prior, threshold_prior
+        interaction_prior, difference_prior, threshold_prior, rb_alpha, rb_pregamma
     );
 
     // --- Update difference probabilities under the prior (if difference selection is active)
@@ -1736,6 +1881,20 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         for (int i = 0; i < num_variables; ++i) {
           for (int j = i; j < num_variables; ++j) {
             indicator_samples(sample_index, cntr) = inclusion_indicator(i, j);
+            // RB draw J = alpha for a birth (gamma = 0), 1 - alpha for a death
+            // (gamma = 1); NaN where the indicator is not selected.
+            const int g = rb_pregamma(i, j);
+            const double a = rb_alpha(i, j);
+            rb_inclusion_samples(sample_index, cntr) =
+              (g < 0) ? arma::datum::nan : (g == 1 ? 1.0 - a : a);
+            // Odds accumulators on the alpha scale (post-warmup by placement).
+            if (g == 0) {
+              rb_n01(i, j) += a;
+              rb_n0_visits(i, j) += 1.0;
+            } else if (g == 1) {
+              rb_n10(i, j) += a;
+              rb_n1_visits(i, j) += 1.0;
+            }
             cntr++;
           }
         }
@@ -1759,8 +1918,26 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   out.has_indicator = difference_selection;
   if (difference_selection) {
     out.indicator_samples = indicator_samples;
+    out.rb_inclusion_samples = rb_inclusion_samples;
+    // Flatten the RB odds accumulators into (num_pair + num_variables) x 4,
+    // in the same (i, j >= i) order as the indicator columns:
+    // [n01, n10, n0_visits, n1_visits].
+    arma::mat rb_counts(num_pair + num_variables, 4);
+    int cntr = 0;
+    for (int i = 0; i < num_variables; ++i) {
+      for (int j = i; j < num_variables; ++j) {
+        rb_counts(cntr, 0) = rb_n01(i, j);
+        rb_counts(cntr, 1) = rb_n10(i, j);
+        rb_counts(cntr, 2) = rb_n0_visits(i, j);
+        rb_counts(cntr, 3) = rb_n1_visits(i, j);
+        cntr++;
+      }
+    }
+    out.rb_counts = rb_counts;
   } else {
     out.indicator_samples = arma::imat();
+    out.rb_inclusion_samples = arma::mat();
+    out.rb_counts = arma::mat();
   }
   out.has_allocations = is_sbm;
   if (is_sbm) {

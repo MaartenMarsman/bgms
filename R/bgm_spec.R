@@ -92,7 +92,7 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
 
   # --- prior sub-list ---
   stopifnot(is.list(prior))
-  # All model types now carry interaction_prior_type
+  # All model types carry interaction_prior_type
   stopifnot(
     is.character(prior$interaction_prior_type),
     length(prior$interaction_prior_type) == 1L
@@ -103,13 +103,6 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
       is.character(prior$threshold_prior_type),
       length(prior$threshold_prior_type) == 1L
     )
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
-  }
-  if(model_type %in% c("omrf", "compare")) {
-    stopifnot(is.matrix(prior$pairwise_scaling_factors))
-  }
-  if(model_type == "mixed_mrf") {
-    stopifnot(is.logical(prior$standardize), length(prior$standardize) == 1L)
   }
   if(model_type %in% c("ggm", "omrf", "mixed_mrf")) {
     stopifnot(is.logical(prior$edge_selection), length(prior$edge_selection) == 1L)
@@ -132,6 +125,11 @@ new_bgm_spec = function(model_type, data, variables, missing, prior,
     stopifnot(
       is.numeric(prior$difference_scale),
       length(prior$difference_scale) == 1L
+    )
+    stopifnot(
+      is.character(prior$difference_prior_type),
+      length(prior$difference_prior_type) == 1L,
+      prior$difference_prior_type %in% c("cauchy", "normal")
     )
     stopifnot(is.matrix(prior$inclusion_probability_difference))
   }
@@ -197,14 +195,12 @@ validate_bgm_spec = function(spec) {
     }
   }
 
-  # Scaling factors dimensions
-  if(mt %in% c("omrf", "compare")) {
-    nv = spec$data$num_variables
-    sf = spec$prior$pairwise_scaling_factors
-    if(nrow(sf) != nv || ncol(sf) != nv) {
+  # Continuous-block scale prior must carry a resolved raw rate
+  if(mt %in% c("ggm", "mixed_mrf")) {
+    if(!is.null(spec$prior$scale_rate) && !is.finite(spec$prior$scale_rate)) {
       stop(
-        "bgm_spec: pairwise_scaling_factors dimensions (",
-        nrow(sf), "x", ncol(sf), ") don't match num_variables (", nv, ")."
+        "bgm_spec: prior$scale_rate is not finite; a standardized-frame ",
+        "scale prior (eta) was not resolved to a raw rate."
       )
     }
   }
@@ -234,6 +230,95 @@ validate_bgm_spec = function(spec) {
 
 
 # ==============================================================================
+# zratio_joint_realized_prior_notice()
+# ==============================================================================
+#
+# Advisory notice for the joint precision-graph specification. Under that
+# specification the graph marginal is pi(Gamma) * Z(Gamma), the edge prior
+# reweighted by the per-graph normalizer of the tilted precision prior, so the
+# realized edge-inclusion prior is not the nominal one whatever the edge prior
+# is (a uniform Beta-Bernoulli at three variables realizes ~0.37; a fixed
+# bernoulli_prior(0.5) at delta = 0 realizes ~0.27; the magnitudes are in
+# ?bgm). Fires whenever a continuous precision block is under edge selection,
+# with two wordings: a learned inclusion probability (Beta-Bernoulli, SBM) gets
+# the corrected hyperparameter update, which is coherent with the joint model
+# but does not restore the nominal prior; a fixed one has nothing to absorb the
+# tilt. Advisory, not a warning: the joint specification is a modelling choice.
+#
+# @param precision_graph_prior  "joint" or "hierarchical".
+# @param model_type             Model family; only ggm/mixed_mrf carry a tilt.
+# @param edge_selection         Logical.
+# @param edge_prior             Resolved edge-prior name (ep_flat$edge_prior).
+# @param num_continuous         Number of continuous variables.
+#
+# Returns: invisible TRUE when the notice fired, FALSE otherwise.
+# ==============================================================================
+zratio_joint_realized_prior_notice = function(precision_graph_prior, model_type,
+                                              edge_selection, edge_prior,
+                                              num_continuous) {
+  fires = identical(precision_graph_prior, "joint") &&
+    model_type %in% c("ggm", "mixed_mrf") &&
+    isTRUE(edge_selection) && num_continuous >= 2
+  if(!fires || !isTRUE(getOption("bgms.verbose", TRUE))) {
+    return(invisible(FALSE))
+  }
+  learned = edge_prior %in% c("Beta-Bernoulli", "Stochastic-Block")
+  message(
+    "Joint precision-graph specification: the realized edge-inclusion prior ",
+    "is the edge prior reweighted by the per-graph normalizer, not the ",
+    "nominal edge prior",
+    if(learned) {
+      paste0(
+        " (the hyperparameter update is corrected, so it stays coherent with ",
+        "the joint model, but the realized prior still differs). "
+      )
+    } else {
+      paste0(
+        " (the inclusion probability is fixed, so nothing absorbs the tilt ",
+        "and no correction applies). "
+      )
+    },
+    "Use extract_prior_inclusion_probabilities() to read the realized prior, ",
+    "or precision_graph_prior = \"hierarchical\" to target the nominal one."
+  )
+  invisible(TRUE)
+}
+
+
+# ==============================================================================
+# zratio_vacuous_spec_notice()
+# ==============================================================================
+#
+# Advisory notice for a hierarchical specification with no continuous precision
+# block: an ordinal model, or mixed data with fewer than two continuous
+# variables. The two specifications differ only in how p(K | Gamma) is
+# normalized across graphs, so with no K there is nothing for the argument to
+# refer to and the fit is the same under either value.
+#
+# The fixed-graph case is deliberately silent. There the argument does refer to
+# something -- the specifications coincide exactly, because with no between-
+# model move there is no normalizer to compare across graphs -- and a message
+# would report a difference that does not exist.
+#
+# @param has_precision_block  Whether the model carries a continuous precision
+#   block of at least two variables.
+#
+# Returns: invisible TRUE when the notice fired, FALSE otherwise.
+# ==============================================================================
+zratio_vacuous_spec_notice = function(has_precision_block) {
+  if(has_precision_block || !isTRUE(getOption("bgms.verbose", TRUE))) {
+    return(invisible(FALSE))
+  }
+  message(
+    "precision_graph_prior has no effect for this model: it normalizes the ",
+    "continuous precision prior across graphs, and this model has no ",
+    "continuous precision block. The fit is the same under either value."
+  )
+  invisible(TRUE)
+}
+
+
+# ==============================================================================
 # bgm_spec()  --- user-facing constructor
 # ==============================================================================
 #
@@ -246,7 +331,7 @@ bgm_spec = function(x,
                     model_type = c("omrf", "ggm", "compare", "mixed_mrf"),
                     # Variable specification
                     variable_type = "ordinal",
-                    baseline_category = 0L,
+                    baseline_category = NULL,
                     # Data (compare-specific)
                     y = NULL,
                     group_indicator = NULL,
@@ -265,13 +350,14 @@ bgm_spec = function(x,
                     means_scale = 1,
                     means_alpha = NA_real_,
                     means_beta = NA_real_,
-                    scale_prior_type = "gamma",
+                    scale_prior_type = "exponential",
                     scale_shape = 1,
                     scale_rate = 1,
+                    scale_eta = NA_real_,
                     delta = NULL,
-                    standardize = FALSE,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
+                    precision_graph_prior = c("joint", "hierarchical"),
                     # Legacy edge prior params (accepted for backward compat)
                     inclusion_probability = 0.5,
                     beta_bernoulli_alpha_between = 1,
@@ -285,6 +371,7 @@ bgm_spec = function(x,
                       "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
                     ),
                     difference_scale = 1,
+                    difference_prior_type = "cauchy",
                     difference_probability = 0.5,
                     # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,
@@ -296,7 +383,8 @@ bgm_spec = function(x,
                     # Sampler
                     update_method = c(
                       "nuts",
-                      "adaptive-metropolis"
+                      "adaptive-metropolis",
+                      "gibbs"
                     ),
                     target_accept = NULL,
                     iter = 10000L,
@@ -356,7 +444,7 @@ bgm_spec = function(x,
     delta = if(model_type == "ggm") {
       0.5 * log(max(num_variables, 1))
     } else if(model_type == "mixed_mrf") {
-      0.5 * log(max(sum(!is_ordinal), 1))
+      0.5 * log(max(sum(variable_type == "continuous"), 1))
     } else {
       0
     }
@@ -373,6 +461,47 @@ bgm_spec = function(x,
       "current model_type is '", model_type, "', which has no precision ",
       "matrix to tilt. Pass delta = 0 or use continuous data."
     )
+  }
+
+  # --- Hierarchical graph-prior spec eligibility --------------------------------
+  # The two specifications differ only in how p(K | Gamma) is normalized across
+  # graphs, so they differ only where a between-model move exists. Where none
+  # does -- a fixed graph, or no continuous precision block -- the argument is
+  # vacuous rather than wrong and is accepted; the fit follows the joint path,
+  # which applies no correction on exactly those configurations either
+  # (ggm_edge_prior_correction() returns NULL for both), so the two coincide.
+  #
+  # zratio_active is resolved here and nowhere else: run_sampler_*() and
+  # build_output_*() read this flag rather than re-deriving eligibility, so the
+  # engine, the surface build and the trust gauge cannot disagree about whether
+  # the hierarchical machinery is in force.
+  #
+  # Vacuity is settled before the slab, and the order is load-bearing. The
+  # Z-ratio constants are derived for a Normal or Cauchy slab, so a beta-prime
+  # slab is rejected -- but only where the argument refers to something. With
+  # no precision block there is no slab of the precision prior for that error
+  # to be about, and reporting one would name the wrong cause.
+  precision_graph_prior = match.arg(precision_graph_prior)
+  num_continuous = sum(variable_type == "continuous")
+  has_precision_block = model_type %in% c("ggm", "mixed_mrf") &&
+    num_continuous >= 2
+  zratio_active = precision_graph_prior == "hierarchical" &&
+    has_precision_block && isTRUE(edge_selection)
+  if(precision_graph_prior == "hierarchical") {
+    # Rejected exactly when the request is meaningful and unsupported; zratio_
+    # active is what "meaningful" means, so a vacuous cell never reaches this.
+    if(zratio_active && !interaction_prior_type %in% c("normal", "cauchy")) {
+      stop(sprintf(
+        paste0(
+          "precision_graph_prior = \"hierarchical\" supports a normal or Cauchy ",
+          "interaction (slab) prior. Got %s_prior(). Use interaction_prior = ",
+          "normal_prior() or cauchy_prior(), or keep precision_graph_prior = ",
+          "\"joint\"."
+        ),
+        interaction_prior_type
+      ))
+    }
+    zratio_vacuous_spec_notice(has_precision_block)
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------
@@ -430,6 +559,14 @@ bgm_spec = function(x,
     ep_flat$inclusion_probability = matrix(0.5, nrow = 1, ncol = 1)
   }
 
+  zratio_joint_realized_prior_notice(
+    precision_graph_prior = precision_graph_prior,
+    model_type = model_type,
+    edge_selection = edge_selection,
+    edge_prior = ep_flat$edge_prior,
+    num_continuous = sum(variable_type == "continuous")
+  )
+
   # --- Build by model type ----------------------------------------------------
   if(model_type == "ggm") {
     spec = build_spec_ggm(
@@ -446,7 +583,10 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      scale_eta = scale_eta,
       delta = delta,
+      precision_graph_prior = precision_graph_prior,
+      zratio_active = zratio_active,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "mixed_mrf") {
@@ -470,8 +610,10 @@ bgm_spec = function(x,
       scale_prior_type = scale_prior_type,
       scale_shape = scale_shape,
       scale_rate = scale_rate,
+      scale_eta = scale_eta,
       delta = delta,
-      standardize = standardize,
+      precision_graph_prior = precision_graph_prior,
+      zratio_active = zratio_active,
       edge_prior_flat = ep_flat
     )
   } else if(model_type == "omrf") {
@@ -489,7 +631,6 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       edge_prior_flat = ep_flat
     )
   } else {
@@ -508,11 +649,11 @@ bgm_spec = function(x,
       threshold_prior_type = threshold_prior_type,
       main_alpha = main_alpha, main_beta = main_beta,
       threshold_scale = threshold_scale,
-      standardize = standardize,
       difference_selection = difference_selection,
       main_difference_selection = main_difference_selection,
       difference_prior = difference_prior,
       difference_scale = difference_scale,
+      difference_prior_type = difference_prior_type,
       difference_probability = difference_probability,
       beta_bernoulli_alpha = beta_bernoulli_alpha,
       beta_bernoulli_beta = beta_bernoulli_beta,

@@ -1,0 +1,240 @@
+---
+title: "Checking your fitted model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Checking your fitted model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 3.4
+)
+```
+
+# Introduction
+
+A fitted network raises questions of two kinds. *Which edges does the evidence
+settle?* is a question about the posterior, and `verdicts()` answers it. *Does
+the model describe the data?* is a question about fit, and it splits in two:
+whether the conditional prediction for each variable is calibrated, which
+`calibration_check()` answers, and whether the joint distribution is
+reproduced, which you check by building a display on `simulate()`.
+
+This vignette works through all of them on the Wenchuan data. The convergence
+diagnostics -- R-hat, effective sample size, the trust gauge -- are a separate
+matter and live in the diagnostics vignette.
+
+```{r, eval=FALSE}
+library(bgms)
+data = Wenchuan[, 1:9]
+fit = bgm(data, seed = 1234)
+```
+
+```{r, include=FALSE}
+library(bgms)
+data = Wenchuan[, 1:9]
+fit = bgm(data,
+  seed = 1234, chains = 2, iter = 1000, warmup = 1000,
+  display_progress = "none", verbose = FALSE
+)
+```
+
+# What the evidence settles
+
+Each edge carries an inclusion Bayes factor, and reading it at a threshold
+gives one of three verdicts: evidence of presence, evidence of absence, or
+undecided. The third is not a failure of the analysis; it is the honest answer
+when the data do not separate the two hypotheses.
+
+```{r}
+edges = verdicts(fit)
+edges
+```
+
+The `fragile` column is the part that cannot be read off the Bayes factor
+alone. A verdict is fragile when a threshold sits within two standard errors of
+the estimated evidence, which is exactly the regime in which Monte Carlo noise,
+not the data, decides the answer. In a known-truth calibration study of 37,010
+edge-fits across ordinal, binary, and Gaussian graphical models, every verdict
+error sat within 0.25 of a threshold on the log10 Bayes factor scale, and no
+edge further out was ever misclassified.
+
+A fragile verdict is not a wrong verdict; it is a verdict the run is too short
+to settle. The remedy is more iterations, not a different model.
+
+```{r}
+edges[edges$fragile, c("parameter", "log10_bf", "verdict")]
+```
+
+The default picture encodes the same three verdicts, so what a reader sees and
+what the table says cannot drift apart.
+
+```{r, fig.height = 5.5, fig.width = 6}
+plot(fit)
+```
+
+Solid edges have evidence of presence, with width scaled by the model-averaged
+weight; dotted grey edges are undecided; edges with evidence of absence are not
+drawn at all. For one edge in detail, the spike-and-slab posterior shows how
+the mass is actually divided:
+
+```{r, fig.height = 3.6, fig.width = 5}
+plot_edge_posterior(fit, "intrusion", "upset")
+```
+
+Centrality is a function of the network, so it inherits the same uncertainty.
+Evaluating it on every posterior draw gives its posterior directly, which is
+what `extract_centrality()` returns.
+
+```{r, fig.height = 3.6, fig.width = 6}
+strength = extract_centrality(fit)
+head(summary(strength))
+plot(strength)
+```
+
+# Are the conditional predictions calibrated?
+
+The model's person-level predictions are the conditional distributions
+`P(x_ij | the rest of case i's responses)`, which is the model's own regression
+unit. `calibration_check()` compares those predictions with what was observed, one
+variable at a time: an isotonic fit of observed frequency on predicted
+probability for a discrete variable, and the probability integral transform
+for a continuous one.
+
+```{r}
+calibration = calibration_check(fit, nrep = 200, seed = 1)
+calibration
+```
+
+One panel per variable is not a display preference. Pooling across variables
+lets a variable predicted too high and one predicted too low cancel, and the
+pooled curve then tracks the diagonal while neither variable does.
+
+```{r, fig.height = 5.5, fig.width = 7}
+plot(calibration)
+```
+
+The grey band is the wander of a model that is calibrated by construction. It
+is built by resampling each case's *category* from its own predicted
+distribution, rather than resampling the threshold events independently: the
+cumulative events of one case are nested, and treating them as independent
+would make the band too narrow and an ordinary wander look like
+miscalibration.
+
+A continuous variable has no category to have fallen in, so it gets the same
+question through the probability integral transform: `u = F(y | rest)`, which is
+uniform exactly when the conditional predictive distribution is right. Its
+panel is the distribution of those `u` values against the uniform diagonal,
+and `F` is the mixture over posterior draws, so the parameter uncertainty is
+inside the distribution the observation is transformed by. That band is not
+resampled from the model at all -- under the transform the null is uniform
+whatever the density was -- so it depends only on the number of cases. A mixed
+fit draws both panel kinds on one figure and records which is which in the
+`kind` column.
+
+# Checking the joint distribution with simulate()
+
+Calibrated conditional predictions do not imply that the model reproduces the
+joint distribution: predicting each variable from its neighbours is an easier
+task than reproducing how all of them covary, and a model can do the first
+while falling short on the second.
+
+bgms ships no joint-level check, and the omission is deliberate. What does have
+diagnostic value is reading a display for systematic pattern, and that is an
+analyst's judgement rather than a pass/fail statistic.
+
+Which statistic you display matters more than it looks. Pairwise dependence
+statistics -- correlations, covariances, cross-tabulations -- sit close to the
+model's sufficient set, so how they read depends on how the estimator is
+anchored rather than on whether the model fits. The **sum score** lies outside
+that set: no anchoring makes it match by construction, so a departure is about
+the model. It also has a one-sentence reading, which a pairwise statistic does
+not.
+
+`simulate()` gives you the material. One replicated dataset per posterior draw
+propagates both parameter and structure uncertainty into the replicates:
+
+```{r}
+observed = as.matrix(data[complete.cases(data), ])
+
+replicates = simulate(fit,
+  nsim = nrow(observed), method = "posterior-sample",
+  ndraws = 200, seed = 1, display_progress = "none"
+)
+
+scores = 0:(ncol(observed) * max(observed))
+distribution = function(x) {
+  as.numeric(table(factor(rowSums(x), levels = scores))) / nrow(x)
+}
+
+observed_share = distribution(observed)
+replicated_share = vapply(replicates, distribution, observed_share)
+band = apply(replicated_share, 1, quantile, probs = c(0.025, 0.975))
+```
+
+Draw the observed distribution against its pointwise band rather than counting
+how often the two agree. The count is the weak reading; the informative one is
+whether the observed curve leaves the band in a direction:
+
+```{r, fig.height = 3.8, fig.width = 6}
+plot(scores, observed_share,
+  type = "n", las = 1, xlab = "Sum score", ylab = "Share of cases",
+  ylim = range(c(band, observed_share))
+)
+polygon(c(scores, rev(scores)), c(band[1, ], rev(band[2, ])),
+  col = adjustcolor("grey55", 0.25), border = NA
+)
+lines(scores, observed_share, col = "#0072B2", lwd = 1.8)
+
+mean(observed_share < band[1, ] | observed_share > band[2, ])
+```
+
+The grey band is where a dataset generated by the fitted model puts its sum
+scores; the blue curve is where the real one puts them. Read the shape, not
+the count: a curve that wanders in and out of the band is ordinary sampling
+variation, whereas one that sits above the band across a whole stretch of the
+scale and below it across another is the model getting the spread of total
+severity wrong, which is what a network model can miss while predicting each
+symptom from its neighbours perfectly well.
+
+Here the departures are scattered -- a few isolated scores at the sparse low
+end of the scale and one at the ceiling, with no run in either direction. That
+is the ordinary-variation reading, and the printed share is what makes the
+point about counts: about a tenth of the scale sits outside a 95% pointwise
+band, which sounds alarming and is not, because the band is pointwise and the
+scale has 46 points. The shape is what carries the information.
+
+Any statistic outside the model's sufficient set works the same way -- a tail
+probability, the number of endorsed symptoms, whatever the substantive
+question turns on.
+
+# What the three checks answer
+
+They are three different questions, and answering one says nothing about the
+other two.
+
+- `verdicts()`: which edges the data settle, and which verdicts the run is too
+  short to settle.
+- `calibration_check()`: whether to trust a prediction for one variable.
+- A `simulate()`-based display: whether to trust the network as a description
+  of the joint distribution.
+
+An edge can be firmly settled in a model that reproduces the joint
+distribution poorly, and a model can predict each variable well while
+understating the dependence among them.
+
+# Next steps
+
+- The diagnostics vignette covers convergence: R-hat, effective sample size,
+  the NUTS diagnostics, and the hierarchical prior trust gauge.
+- `prior_sensitivity_check()` reports whether a verdict depends on the prior
+  rather than on the run length, which is the other way a verdict can be
+  unstable.

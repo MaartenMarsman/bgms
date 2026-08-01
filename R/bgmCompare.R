@@ -42,8 +42,12 @@
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
 #'   for Blume--Capel variables.
-#' @param difference_scale Double. Scale of the Cauchy prior for difference
+#' @param difference_scale Double. Scale of the prior for difference
 #'   parameters. Default: \code{1}.
+#' @param difference_family Character. Distributional family of the prior on
+#'   difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
+#'   Independent of \code{interaction_prior}, which governs the baseline
+#'   interactions.
 #' @param difference_prior An indicator prior specification object for
 #'   difference selection, created by one of:
 #'   \itemize{
@@ -79,15 +83,6 @@
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
 #'   Cauchy prior for baseline pairwise interactions.
 #'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
-#' @param standardize Logical. If \code{TRUE}, the Cauchy prior scale for each
-#'   pairwise interaction (both baseline and difference) is adjusted based on
-#'   the range of response scores. Without standardization, pairs with more
-#'   response categories experience less shrinkage because their naturally
-#'   smaller interaction effects make a fixed prior relatively wide.
-#'   Standardization equalizes relative shrinkage across all pairs, with the
-#'   \code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-#'   applying to the unit interval (binary) case.
-#'   See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
 #'   parameters of the beta-prime prior for baseline threshold parameters.
 #'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
@@ -129,6 +124,14 @@
 #'   Use `difference_scale`, `difference_prior`, `difference_probability`,
 #'   `beta_bernoulli_alpha`, `beta_bernoulli_beta`, `baseline_category`,
 #'   `interaction_prior`, `threshold_prior`, and `warmup` instead.
+#' @param standardize `r lifecycle::badge("deprecated")` Logical. Deprecated
+#'   as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+#'   pair's baseline and difference prior scale by the product of the two
+#'   variables' maximum scores. Pairwise interactions are now on the
+#'   association scale and share one prior scale, so the per-pair adjustment is
+#'   gone: \code{standardize = FALSE} (the old default) warns and proceeds,
+#'   while \code{standardize = TRUE} errors and points to setting the scales
+#'   directly through \code{interaction_prior} and \code{difference_scale}.
 #' @return
 #' An S7 object of class \code{bgmCompare} supporting list-style \code{$} /
 #' \code{[[} access for backward compatibility, containing posterior summaries,
@@ -188,6 +191,7 @@ bgmCompare = function(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
+  difference_family = c("Cauchy", "Normal"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -203,7 +207,6 @@ bgmCompare = function(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments
@@ -229,12 +232,17 @@ bgmCompare = function(
   threshold_alpha,
   threshold_beta,
   burnin,
-  save
+  save,
+  # Deprecated arguments (v0.2.0.0)
+  standardize
 ) {
   # Set verbose option for internal functions, restore on exit
   old_verbose = getOption("bgms.verbose")
   options(bgms.verbose = verbose)
   on.exit(options(bgms.verbose = old_verbose), add = TRUE)
+
+  # bgmCompare supports only NUTS and adaptive-Metropolis.
+  update_method = match.arg(update_method)
 
   if(hasArg(main_difference_model)) {
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(main_difference_model =)")
@@ -354,6 +362,35 @@ bgmCompare = function(
     lifecycle::deprecate_warn("0.1.6.0", "bgmCompare(save =)")
   }
 
+  # --- Legacy deprecation: v0.2.0.0 removals ----------------------------------
+  # standardize scaled each pair's baseline and difference prior by the product
+  # of the two variables' maximum scores. FALSE, its old default, is what the
+  # sampler does now, so it warns and proceeds; TRUE asks for an adjustment that
+  # no longer exists, so it stops with the manual alternative.
+  if(hasArg(standardize)) {
+    if(isFALSE(standardize)) {
+      lifecycle::deprecate_warn(
+        "0.2.0", "bgmCompare(standardize =)",
+        details = paste(
+          "FALSE is what the sampler does, so the fit is unaffected; drop the",
+          "argument."
+        )
+      )
+    } else {
+      lifecycle::deprecate_stop(
+        "0.2.0", "bgmCompare(standardize = 'no longer supports TRUE')",
+        details = paste(
+          "Pairwise interactions are on the association scale and share one",
+          "prior scale, so the per-pair adjustment by the maximum score",
+          "product (scale * m_i * m_j) has been dropped. Set the scales",
+          "directly, e.g. interaction_prior = cauchy_prior(scale =) for the",
+          "baseline and difference_scale for the differences; there is no",
+          "per-pair equivalent."
+        )
+      )
+    }
+  }
+
   # --- Handle difference_prior: accept both string (deprecated) and object ------
   if(is.character(difference_prior)) {
     lifecycle::deprecate_warn(
@@ -384,6 +421,8 @@ bgmCompare = function(
   # --- Unpack prior objects to flat parameters ---------------------------------
   ip = unpack_interaction_prior(interaction_prior)
   tp = unpack_threshold_prior(threshold_prior)
+  difference_family = match.arg(difference_family)
+  difference_prior_type = tolower(difference_family)
 
   # Unpack difference prior to flat params for bgm_spec
   num_variables = ncol(x)
@@ -394,7 +433,7 @@ bgmCompare = function(
     x = x,
     model_type = "compare",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else NULL,
     y = if(hasArg(y)) y else NULL,
     group_indicator = if(hasArg(group_indicator)) group_indicator else NULL,
     na_action = na_action,
@@ -406,11 +445,11 @@ bgmCompare = function(
     main_alpha = tp$main_alpha,
     main_beta = tp$main_beta,
     threshold_scale = tp$threshold_scale,
-    standardize = standardize,
     difference_selection = difference_selection,
     main_difference_selection = main_difference_selection,
     difference_prior = dp$edge_prior,
     difference_scale = difference_scale,
+    difference_prior_type = difference_prior_type,
     difference_probability = dp$inclusion_probability,
     beta_bernoulli_alpha = dp$beta_bernoulli_alpha,
     beta_bernoulli_beta = dp$beta_bernoulli_beta,

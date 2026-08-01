@@ -43,6 +43,13 @@ public:
       kappa(0.75),
       t(1) {}
 
+  /**
+   * Integrate one acceptance-probability observation and update the
+   * current and averaged log step sizes.
+   *
+   * @param accept_prob   Observed acceptance probability
+   * @param target_accept Target acceptance rate
+   */
   void update(double accept_prob, double target_accept) {
     double eta = 1.0 / (t + t0);
     double error = target_accept - accept_prob;
@@ -54,6 +61,7 @@ public:
     t++;
   }
 
+  /** Reset the adaptation state around a new step size. */
   void restart(double new_step_size) {
     log_step_size = MY_LOG(new_step_size);
     log_step_size_avg = MY_LOG(new_step_size);
@@ -62,7 +70,9 @@ public:
     t = 1;
   }
 
+  /** Current step size. */
   double current() const { return MY_EXP(log_step_size); }
+  /** Smoothed step size (final estimate). */
   double averaged() const { return MY_EXP(log_step_size_avg); }
 };
 
@@ -86,6 +96,7 @@ public:
   DiagMassMatrixAccumulator(int dim)
     : count(0), mean(arma::zeros(dim)), m2(arma::zeros(dim)) {}
 
+  /** Add one parameter sample to the Welford accumulator. */
   void update(const arma::vec& sample) {
     count++;
     arma::vec delta = sample - mean;
@@ -94,6 +105,10 @@ public:
     m2 += delta % delta2;
   }
 
+  /**
+   * Per-dimension variance estimate, blended with a weak prior
+   * (weight 5, variance 1e-3) to prevent degenerate values.
+   */
   arma::vec variance() const {
     static constexpr double prior_weight = 5.0;
     static constexpr double prior_variance = 1e-3;
@@ -106,6 +121,7 @@ public:
     return var;
   }
 
+  /** Clear the accumulator for the next adaptation window. */
   void reset() {
     count = 0;
     mean.zeros();
@@ -136,6 +152,15 @@ public:
       target_accept_(target_accept),
       mass_matrix_updated_(false) {}
 
+  /**
+   * Advance adaptation one iteration: dual-averaging step-size update in
+   * Stages 1/2/3a/3c, mass-matrix accumulation within Stage-2 windows,
+   * and step-size freeze at the Stage-3b boundary.
+   *
+   * @param theta       Current parameter vector
+   * @param accept_prob Acceptance probability of the last NUTS transition
+   * @param iteration   Current warmup iteration
+   */
   void update(const arma::vec& theta,
               double accept_prob,
               int iteration) {
@@ -179,9 +204,20 @@ public:
     }
   }
 
+  /** Step size in effect for the current iteration. */
   double current_step_size() const { return step_size_; }
+  /** Smoothed step size used after warmup. */
   double final_step_size() const { return step_adapter.averaged(); }
+  /** Diagonal of the inverse mass matrix (per-parameter variances). */
   const arma::vec& inv_mass_diag() const { return inv_mass_; }
+
+  /**
+   * Seed the diagonal inverse mass matrix with a carried (warm) metric. Used by
+   * refits that inject the previous fit's adapted metric and keep it fixed (the
+   * controller is constructed with learn_mass_matrix = false, so no window ever
+   * overwrites it). Keeps inv_mass_diag() coherent as the returned final metric.
+   */
+  void seed_inv_mass(const arma::vec& v) { inv_mass_ = v; }
 
   /**
    * Check if the mass matrix was just updated and needs step size re-initialization.

@@ -65,7 +65,7 @@ toBibtex(citation("bgms"))
 ```
 
 Additional citation formats are available on the
-[package website](https://bayesian-graphical-modelling-lab.github.io/bgms-docs/).
+[package website](https://bayesian-graphical-modelling-lab.github.io/bgms/).
 
 ## Contributing
 

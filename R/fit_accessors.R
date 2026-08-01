@@ -30,6 +30,24 @@ get_fit_cache = function(fit) {
 
 
 # ------------------------------------------------------------------
+# get_fit_spec
+# ------------------------------------------------------------------
+# Extracts the embedded bgm_spec from a fit object.
+#
+# @param fit  A bgms or bgmCompare object (S7 or legacy S3).
+#
+# Returns: The bgm_spec, or NULL if absent.
+# ------------------------------------------------------------------
+get_fit_spec = function(fit) {
+  if(inherits(fit, "S7_object")) {
+    S7::prop(fit, ".bgm_spec")
+  } else {
+    .subset2(fit, ".bgm_spec")
+  }
+}
+
+
+# ------------------------------------------------------------------
 # get_raw_samples
 # ------------------------------------------------------------------
 # Extracts the raw_samples list from a fit object.

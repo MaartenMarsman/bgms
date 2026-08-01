@@ -41,6 +41,20 @@ test_that("bgmCompare is reproducible with seed (x, y interface)", {
 })
 
 
+test_that("bgmCompare accepts its default update_method", {
+  data("Wenchuan", package = "bgms")
+  x = Wenchuan[1:20, 1:3]
+  y = Wenchuan[21:40, 1:3]
+  expect_error(
+    bgmCompare(
+      x = x, y = y, iter = 20, warmup = 20, chains = 1, cores = 1,
+      seed = 1, display_progress = "none", verbose = FALSE
+    ),
+    NA
+  )
+})
+
+
 # ------------------------------------------------------------------------------
 # Output Structure Tests (using saved fit)
 # ------------------------------------------------------------------------------
@@ -133,7 +147,7 @@ test_that("bgmCompare without selection produces valid estimates", {
 test_that("bgmCompare with selection produces valid indicators", {
   data = generate_grouped_test_data(n_per_group = 20, p = 3, n_groups = 2, seed = 123)
 
-  # Test with single chain (previously caused bug in summarize_mixture_effect)
+  # A single chain exercises the single-chain path of summarize_mixture_effect
   fit = bgmCompare(
     x = data$x,
     group_indicator = data$group_indicator,
@@ -314,4 +328,41 @@ test_that("bgmCompare without sbm_prior() does not produce allocation fields", {
   expect_null(fit$posterior_mode_allocations)
   expect_null(fit$posterior_mean_coclustering_matrix)
   expect_null(fit$raw_samples$allocations)
+})
+
+# ------------------------------------------------------------------------------
+# Pairwise parameterization
+# ------------------------------------------------------------------------------
+
+test_that("bgmCompare pairwise effects are on the association scale", {
+  # simulate_mrf() is the package's reference for the association scale: a
+  # rest score carries 2 * omega * x. Both groups are drawn from the same
+  # omega, so each group's estimate must recover omega, not 2 * omega.
+  p = 3
+  omega = matrix(0, p, p)
+  omega[upper.tri(omega)] = c(0.5, 0.0, 0.45)
+  omega = omega + t(omega)
+  main = matrix(c(0, -0.5), nrow = p, ncol = 2, byrow = TRUE)
+
+  draw = function(seed) {
+    simulate_mrf(
+      400, p, num_categories = 2, pairwise = omega, main = main,
+      variable_type = "ordinal", iter = 50, seed = seed
+    )
+  }
+
+  fit = bgmCompare(
+    rbind(draw(11), draw(12)), group = rep(1:2, each = 400),
+    iter = 600, warmup = 300, chains = 1, seed = 1234,
+    difference_selection = FALSE, display_progress = "none"
+  )
+
+  estimate = extract_group_params(fit)$pairwise_effects_groups[, 1]
+  target = omega[t(utils::combn(p, 2))]
+
+  # The short run is loose about the value; it is decisive about the scale,
+  # since doubling every parameter moves the fit far outside this band.
+  rmse = function(x) sqrt(mean((estimate - x)^2))
+  expect_lt(rmse(target), 0.2)
+  expect_lt(rmse(target), 0.5 * rmse(2 * target))
 })

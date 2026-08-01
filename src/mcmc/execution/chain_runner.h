@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <memory>
+#include <limits>
 #include <RcppArmadillo.h>
 #include <RcppParallel.h>
 
@@ -15,7 +16,7 @@
 
 
 /** Which concrete sampler a run uses. */
-enum class SamplerKind { NUTS, AdaptiveMetropolis };
+enum class SamplerKind { NUTS, AdaptiveMetropolis, Gibbs };
 
 /**
  * Behavioral descriptor for a sampler type. resolve_sampler_spec is the single
@@ -63,7 +64,9 @@ void run_mcmc_chain(
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
     int chain_id,
-    ProgressManager& pm
+    ProgressManager& pm,
+    double warm_step_size = std::numeric_limits<double>::quiet_NaN(),
+    const arma::vec& warm_inv_mass = arma::vec()
 );
 
 
@@ -79,19 +82,25 @@ struct MCMCChainRunner : public RcppParallel::Worker {
     std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors_;
     const SamplerConfig& config_;
     ProgressManager& pm_;
+    const std::vector<double>& warm_step_sizes_;
+    const std::vector<arma::vec>& warm_inv_masses_;
 
     MCMCChainRunner(
         std::vector<ChainResult>& results,
         std::vector<std::unique_ptr<BaseModel>>& models,
         std::vector<std::unique_ptr<BaseEdgePrior>>& edge_priors,
         const SamplerConfig& config,
-        ProgressManager& pm
+        ProgressManager& pm,
+        const std::vector<double>& warm_step_sizes,
+        const std::vector<arma::vec>& warm_inv_masses
     ) :
         results_(results),
         models_(models),
         edge_priors_(edge_priors),
         config_(config),
-        pm_(pm)
+        pm_(pm),
+        warm_step_sizes_(warm_step_sizes),
+        warm_inv_masses_(warm_inv_masses)
     {}
 
     void operator()(std::size_t begin, std::size_t end);
@@ -107,6 +116,14 @@ struct MCMCChainRunner : public RcppParallel::Worker {
  * @param no_chains   Number of chains to run
  * @param no_threads  Number of threads (1 = sequential)
  * @param pm          Progress manager for user-facing status updates
+ * @param initial_parameters  Optional per-chain warm-start storage vectors
+ *                            (empty = cold start). Applied to each chain's
+ *                            model clone via set_storage_vectorized_parameters.
+ * @param initial_step_sizes  Optional per-chain warm-start NUTS step sizes
+ *                            (empty = heuristic). Passed to set_warm_step_size.
+ * @param initial_inv_mass    Optional per-chain warm-start diagonal metric
+ *                            (empty = cold). Passed to set_warm_inv_mass; NUTS
+ *                            holds it fixed with no windowed re-adaptation.
  * @return Vector of ChainResult, one per chain
  */
 std::vector<ChainResult> run_mcmc_sampler(
@@ -115,7 +132,10 @@ std::vector<ChainResult> run_mcmc_sampler(
     const SamplerConfig& config,
     int no_chains,
     int no_threads,
-    ProgressManager& pm
+    ProgressManager& pm,
+    const std::vector<arma::vec>& initial_parameters = {},
+    const std::vector<double>& initial_step_sizes = {},
+    const std::vector<arma::vec>& initial_inv_mass = {}
 );
 
 /**

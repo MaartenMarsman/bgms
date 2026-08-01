@@ -25,4 +25,3 @@ Provides \code{$} access to S7 properties. Lazy
 access via S7 property getters. Also supports legacy S3 list-based
 fit objects.
 }
-\keyword{internal}

@@ -36,9 +36,12 @@ Rcpp::List sample_ggm(
     const double lambda = 1.0,
     const double target_acceptance = 0.8,
     const int max_tree_depth = 10,
+    const bool learn_mass_matrix = true,
     const bool na_impute = false,
     const Rcpp::Nullable<Rcpp::IntegerMatrix> missing_index_nullable = R_NilValue,
-    const double delta = 0.0
+    const double delta = 0.0,
+    const Rcpp::Nullable<Rcpp::List> edge_prior_correction = R_NilValue,
+    const Rcpp::Nullable<Rcpp::List> zratio_spec = R_NilValue
 ) {
 
     // Create parameter priors from R input
@@ -69,21 +72,55 @@ Rcpp::List sample_ggm(
         edge_selection, std::move(interaction_prior),
         std::move(diagonal_prior), na_impute);
 
-    // Forward target_accept to the model's MH proposal-SD tuner.
+    // Forward target_accept to the model's between-model MH proposal-SD tuner.
+    // Only adaptive-metropolis and nuts run the componentwise RW edge move that
+    // consumes it; the gibbs within-step and its full-conditional edge move are
+    // exact and tune nothing, so the gibbs path must not set an MH target.
     //   - Under "adaptive-metropolis": user's target_accept goes through
     //     directly (default 0.44 = componentwise RW MH optimum).
     //   - Under "nuts": user's target_accept (default 0.80) is the
     //     HMC step-size dual-averaging target and should NOT govern the
     //     between-model MH proposal SDs, which are still 1-D componentwise
-    //     RW MH. Hardcode 0.44 there to keep stage-3b RM on the right
-    //     fixed point.
-    const double mh_target = (sampler_type == "nuts") ? 0.44 : target_acceptance;
-    model.set_metropolis_target_accept(mh_target);
+    //     RW MH. Use 0.44 there to keep stage-3b RM on the right fixed point.
+    if (sampler_type != "gibbs") {
+        const double mh_target =
+            (sampler_type == "adaptive-metropolis") ? target_acceptance : 0.44;
+        model.set_metropolis_target_accept(mh_target);
+    }
 
     // Determinant-tilt prior on |K|: shifts both NUTS and MH targets by
     // delta * log|K|. delta = 0 is the default (untilted). Consumed by
     // both gradient paths and all four MH ratios in GGMModel.
     model.set_determinant_tilt(delta);
+
+    // The row-block Gibbs sampler covers a Normal or Cauchy slab on the
+    // off-diagonals and a Gamma prior on the precision diagonal. Fail fast
+    // with a clear message rather than let update_row_block_gibbs cast a
+    // mismatched prior.
+    if (sampler_type == "gibbs" && !model.row_block_gibbs_eligible()) {
+        Rcpp::stop(
+            "update_method = \"gibbs\" needs a Normal or Cauchy interaction "
+            "(slab) prior and a Gamma scale prior on the precision diagonal. "
+            "The current priors do not meet this; use another update method "
+            "or adjust the priors.");
+    }
+
+
+    // Hierarchical prior specification: attach the per-edge Z-ratio engine
+    // so the between-edge moves target p(K | Gamma) = rho_Gamma(K)/Z(Gamma).
+    // The constants are resolved at R spec-build (zratio_constants); each
+    // chain clone deep-copies the engine with its cache.
+    // The spec carries the whole deployment policy R resolved -- constants,
+    // Option-B surfaces, isolated-edge routing, gauge sweeps -- and
+    // zratio_engine_from_spec is the one place that reads it, shared with the
+    // mixed sampler and the test interface so the routes cannot diverge. The
+    // rng pointer is rebound per chain clone by GGMModel.
+    int zratio_gauge_sweeps = 0;
+    if (zratio_spec.isNotNull()) {
+        Rcpp::List zs(zratio_spec.get());
+        zratio_gauge_sweeps = zratio_gauge_sweeps_from_spec(zs);
+        model.set_zratio_engine(zratio_engine_from_spec(zs));
+    }
 
     // Set up missing data imputation (same pattern as OMRF)
     if (na_impute && missing_index_nullable.isNotNull()) {
@@ -101,7 +138,9 @@ Rcpp::List sample_ggm(
     config.seed = seed;
     config.target_acceptance = target_acceptance;
     config.max_tree_depth = max_tree_depth;
+    config.learn_mass_matrix = learn_mass_matrix;
     config.na_impute = na_impute;
+    config.zratio_gauge_sweeps = zratio_gauge_sweeps;
 
     // Set up progress manager
     ProgressManager pm(no_chains, no_iter, no_warmup, 50, progress_type, true, progress_callback);
@@ -114,6 +153,12 @@ Rcpp::List sample_ggm(
         beta_bernoulli_alpha_between, beta_bernoulli_beta_between,
         dirichlet_alpha, lambda
     );
+
+    // Attach the normalizing-constant correction (curves built from the
+    // tilted prior sampler at fit setup) so the hyperparameter updates
+    // target the corrected conditionals.
+    attach_edge_prior_correction(
+        edge_prior_obj.get(), edge_prior_correction, "sample_ggm");
 
     // Run MCMC using unified infrastructure
     std::vector<ChainResult> results = run_mcmc_sampler(

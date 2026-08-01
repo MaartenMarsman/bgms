@@ -18,14 +18,22 @@ the model (e.g., \code{main}, \code{pairwise}, \code{indicator}).
 Retrieves R-hat convergence diagnostics for all parameters from a
 model fitted with \code{\link[=bgm]{bgm()}} or \code{\link[=bgmCompare]{bgmCompare()}}.
 }
+\details{
+The \code{indicator} element is the split-R-hat of the Rao-Blackwellized
+inclusion draws, matching the default of \code{\link[=extract_ess]{extract_ess()}}; the indicator
+chain's transition-based effective sample size is available as
+\code{extract_ess(fit, estimator = "mixt")}.
+}
 \seealso{
 \code{\link[=bgm]{bgm()}}, \code{\link[=bgmCompare]{bgmCompare()}}, \code{\link[=extract_ess]{extract_ess()}}
 
 Other extractors:
 \code{\link[=extract_arguments]{extract_arguments()}},
 \code{\link[=extract_category_thresholds]{extract_category_thresholds()}},
+\code{\link[=extract_centrality]{extract_centrality()}},
 \code{\link[=extract_ess]{extract_ess()}},
 \code{\link[=extract_group_params]{extract_group_params()}},
+\code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}},
 \code{\link[=extract_indicator_priors]{extract_indicator_priors()}},
 \code{\link[=extract_indicators]{extract_indicators()}},
 \code{\link[=extract_log_odds]{extract_log_odds()}},
@@ -34,6 +42,9 @@ Other extractors:
 \code{\link[=extract_partial_correlations]{extract_partial_correlations()}},
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
 \code{\link[=extract_precision]{extract_precision()}},
-\code{\link[=extract_sbm]{extract_sbm()}}
+\code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}},
+\code{\link[=extract_sbm]{extract_sbm()}},
+\code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}},
+\code{\link[=summary.bgms_centrality]{summary.bgms_centrality()}}
 }
 \concept{extractors}

@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-# Phase 5 <U+2014> RATTLE + edge selection integration tests.
+# RATTLE + edge selection integration tests.
 #
 # Tests verify that the NUTS sampler correctly uses the RATTLE constrained
 # integrator when edge selection is enabled. The RATTLE path operates in

@@ -8,7 +8,7 @@
  *
  * Default behaviour:
  *   - **Windows:** Uses OpenLibM (`__ieee754_exp`, `custom_arma_exp`, etc.)
- *     because MSVC's `std::exp` / `std::log` are significantly slower.
+ *     because MSVC's `std::exp` / `std::log` are slower.
  *   - **macOS / Linux:** Uses `std::exp` / `arma::exp` etc.
  *
  * Override at build time:
@@ -23,8 +23,10 @@
 #ifndef _EXPLOG_MACROS_H_
 #define	_EXPLOG_MACROS_H_
 
-#if (defined(_WIN32) && (!defined(CUSTOM_EXP_LOG) || CUSTOM_EXP_LOG == 0)) \
-  || (!defined(_WIN32) && defined(CUSTOM_EXP_LOG) && CUSTOM_EXP_LOG != 0)
+// An explicit -DCUSTOM_EXP_LOG value wins on every platform (=1 OpenLibM,
+// =0 std); with no value, Windows defaults to OpenLibM and others to std.
+#if (defined(CUSTOM_EXP_LOG) && CUSTOM_EXP_LOG != 0) \
+  || (!defined(CUSTOM_EXP_LOG) && defined(_WIN32))
 
 #define USE_CUSTOM_LOG 1
 

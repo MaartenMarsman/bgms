@@ -13,6 +13,7 @@ bgmCompare(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
+  difference_family = c("Cauchy", "Normal"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
   interaction_prior = cauchy_prior(scale = 1),
@@ -28,7 +29,6 @@ bgmCompare(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   pairwise_scale,
@@ -52,7 +52,8 @@ bgmCompare(
   threshold_alpha,
   threshold_beta,
   burnin,
-  save
+  save,
+  standardize
 )
 }
 \arguments{
@@ -83,8 +84,13 @@ pairwise selection under the Beta-Bernoulli prior, the default is
 \item{baseline_category}{Integer or vector giving the baseline category
 for Blume--Capel variables.}
 
-\item{difference_scale}{Double. Scale of the Cauchy prior for difference
+\item{difference_scale}{Double. Scale of the prior for difference
 parameters. Default: \code{1}.}
+
+\item{difference_family}{Character. Distributional family of the prior on
+difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
+Independent of \code{interaction_prior}, which governs the baseline
+interactions.}
 
 \item{difference_prior}{An indicator prior specification object for
 difference selection, created by one of:
@@ -151,16 +157,6 @@ Default: \code{"per-chain"}.}
 
 \item{seed}{Optional integer. Random seed for reproducibility.}
 
-\item{standardize}{Logical. If \code{TRUE}, the Cauchy prior scale for each
-pairwise interaction (both baseline and difference) is adjusted based on
-the range of response scores. Without standardization, pairs with more
-response categories experience less shrinkage because their naturally
-smaller interaction effects make a fixed prior relatively wide.
-Standardization equalizes relative shrinkage across all pairs, with the
-\code{interaction_prior} (e.g. \code{cauchy_prior(scale)}) scale itself
-applying to the unit interval (binary) case.
-See \code{\link{bgm}} for details on the adjustment. Default: \code{FALSE}.}
-
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).
 Defaults to \code{getOption("bgms.verbose", TRUE)}. Set
@@ -191,6 +187,15 @@ Deprecated arguments as of \strong{bgms 0.1.6.0}.
 Use \code{difference_scale}, \code{difference_prior}, \code{difference_probability},
 \code{beta_bernoulli_alpha}, \code{beta_bernoulli_beta}, \code{baseline_category},
 \code{interaction_prior}, \code{threshold_prior}, and \code{warmup} instead.}
+
+\item{standardize}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Logical. Deprecated
+as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+pair's baseline and difference prior scale by the product of the two
+variables' maximum scores. Pairwise interactions are now on the
+association scale and share one prior scale, so the per-pair adjustment is
+gone: \code{standardize = FALSE} (the old default) warns and proceeds,
+while \code{standardize = TRUE} errors and points to setting the scales
+directly through \code{interaction_prior} and \code{difference_scale}.}
 }
 \value{
 An S7 object of class \code{bgmCompare} supporting list-style \code{$} /

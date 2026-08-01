@@ -170,13 +170,6 @@ test_that("OMRF spec: data sub-list has num_categories", {
   expect_equal(length(s$data$num_categories), s$data$num_variables)
 })
 
-test_that("OMRF spec: prior sub-list has scaling factors", {
-  s = spec()
-  nv = s$data$num_variables
-  expect_true(is.matrix(s$prior$pairwise_scaling_factors))
-  expect_equal(dim(s$prior$pairwise_scaling_factors), c(nv, nv))
-})
-
 test_that("OMRF spec: precomputed has num_thresholds", {
   s = spec()
   expect_true(!is.null(s$precomputed$num_thresholds))
@@ -402,8 +395,7 @@ test_that("validate: compare requires num_groups >= 2", {
         sampler = list(update_method = "nuts"),
         prior = list(
           difference_selection = TRUE,
-          difference_prior = "Bernoulli",
-          pairwise_scaling_factors = matrix(1, 3, 3)
+          difference_prior = "Bernoulli"
         )
       ), class = "bgm_spec")
     ),
@@ -421,34 +413,13 @@ test_that("validate: edge_selection + edge_prior inconsistency", {
         sampler = list(update_method = "nuts"),
         prior = list(
           edge_selection = TRUE,
-          edge_prior = "Not Applicable",
-          pairwise_scaling_factors = matrix(1, 3, 3)
+          edge_prior = "Not Applicable"
         )
       ), class = "bgm_spec")
     ),
     "Not Applicable"
   )
 })
-
-test_that("validate: scaling factors dimension mismatch", {
-  expect_error(
-    validate_bgm_spec(
-      structure(list(
-        model_type = "omrf",
-        data = list(num_variables = 3L, num_categories = c(3L, 3L, 3L)),
-        variables = list(is_continuous = FALSE),
-        sampler = list(update_method = "nuts"),
-        prior = list(
-          edge_selection = TRUE,
-          edge_prior = "Bernoulli",
-          pairwise_scaling_factors = matrix(1, 2, 2)
-        )
-      ), class = "bgm_spec")
-    ),
-    "pairwise_scaling_factors"
-  )
-})
-
 
 # ==============================================================================
 # 7.  new_bgm_spec type assertions
@@ -501,7 +472,6 @@ test_that("new_bgm_spec: rejects non-matrix x", {
       ),
       prior = list(
         pairwise_scale = 1, main_alpha = 0.5, main_beta = 0.5,
-        standardize = FALSE, pairwise_scaling_factors = matrix(1, 2, 2),
         edge_selection = TRUE, edge_prior = "Bernoulli",
         inclusion_probability = matrix(0.5, 2, 2)
       ),
@@ -599,26 +569,7 @@ test_that("OMRF spec: impute path", {
 
 
 # ==============================================================================
-# 11.  Standardize flag propagation
-# ==============================================================================
-
-test_that("OMRF spec: standardize = TRUE produces non-trivial scaling factors", {
-  x = make_ordinal_data(n = 50, p = 3, max_cat = 3)
-  s = spec(x = x, standardize = TRUE)
-  psf = s$prior$pairwise_scaling_factors
-  # At least some off-diagonal values should differ from 1
-  expect_false(all(psf == 1))
-})
-
-test_that("OMRF spec: standardize = FALSE produces ones matrix", {
-  s = spec(standardize = FALSE)
-  psf = s$prior$pairwise_scaling_factors
-  expect_true(all(psf == 1))
-})
-
-
-# ==============================================================================
-# 12.  Mixed MRF: baseline_category subsetting
+# 11.  Mixed MRF: baseline_category subsetting
 # ==============================================================================
 # Regression tests for a bug where build_spec_mixed_mrf passed a full-length
 # baseline_category vector (num_variables) to validate_baseline_category,
@@ -680,6 +631,23 @@ test_that("mixed MRF: disc-length baseline_category works", {
   )
   expect_equal(s$model_type, "mixed_mrf")
   expect_equal(s$variables$baseline_category[1:2], c(1L, 1L))
+})
+
+# ==============================================================================
+# 12.  Mixed MRF: determinant-tilt default
+# ==============================================================================
+# The delta = NULL default is 0.5 * log(p) with p the dimension of the
+# continuous precision matrix, so only continuous variables count toward it.
+
+test_that("mixed MRF: default delta counts only continuous variables", {
+  s = spec(
+    x = make_mixed_data(),
+    variable_type = c("blume-capel", "blume-capel", "continuous", "continuous"),
+    baseline_category = 1,
+    model_type = "omrf"
+  )
+  expect_equal(s$model_type, "mixed_mrf")
+  expect_equal(s$prior$delta, 0.5 * log(2))
 })
 
 # ==============================================================================

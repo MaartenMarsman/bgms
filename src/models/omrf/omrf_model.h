@@ -129,9 +129,28 @@ public:
     void set_vectorized_parameters(const arma::vec& parameters) override;
 
     /**
+     * Set parameters from a full storage vector (inverse of
+     * get_storage_vectorized_parameters); used to warm-start a chain.
+     */
+    void set_storage_vectorized_parameters(const arma::vec& parameters) override;
+
+    /**
      * Get vectorized edge indicators
      */
     arma::ivec get_vectorized_indicator_parameters() override;
+
+    /**
+     * Get per-edge Rao-Blackwellized inclusion draws from the most recent
+     * update_edge_indicators() sweep, ordered to match
+     * get_vectorized_indicator_parameters().
+     */
+    arma::vec get_vectorized_rb_inclusion() override;
+
+    /** Per-edge acceptance probability from the last sweep (raw alpha). */
+    arma::vec get_vectorized_rb_alpha() override;
+
+    /** Per-edge pre-move indicator state from the last sweep (0 or 1). */
+    arma::ivec get_vectorized_rb_pregamma() override;
 
     /**
      * Clone the model for parallel execution.
@@ -245,12 +264,6 @@ public:
     arma::mat& get_proposal_sd_pairwise() { return proposal_sd_pairwise_; }
 
     /**
-     * Set per-pair scaling factors for the Cauchy prior.
-     * @param sf  Scaling factor matrix (p x p)
-     */
-    void set_pairwise_scaling_factors(const arma::mat& sf) { pairwise_scaling_factors_ = sf; }
-
-    /**
      * Enable or disable edge-selection proposals.
      * @param active  true to enable edge add-delete moves
      */
@@ -288,6 +301,11 @@ private:
     arma::imat pairwise_stats_;         ///< X^T X
     arma::mat residual_matrix_;         ///< X * pairwise_effects (n x p)
 
+    // Per-variable log normalizer sum_i (bound + log denom) at the current
+    // state. Refreshed at the top of each MH/indicator sweep and maintained
+    // on accept, so proposals stop re-evaluating the current state.
+    arma::vec log_denominator_cache_;   ///< p
+
     // Parameters
     arma::mat main_effects_;            ///< Main effect parameters (p x max_cats)
     arma::mat pairwise_effects_;        ///< Pairwise interactions (p x p, symmetric)
@@ -297,7 +315,6 @@ private:
     arma::mat inclusion_probability_;   ///< Prior inclusion probabilities
     std::unique_ptr<BaseParameterPrior> interaction_prior_; ///< Prior on pairwise interactions
     std::unique_ptr<BaseParameterPrior> threshold_prior_;  ///< Prior on main effects / thresholds
-    arma::mat pairwise_scaling_factors_; ///< Per-pair scaling factors for interaction prior
 
     // Model configuration
     bool edge_selection_;               ///< Enable edge selection
@@ -319,7 +336,6 @@ private:
     SafeRNG rng_;                       ///< Per-chain random number generator
 
     // NUTS settings
-    double step_size_;                  ///< Current step size for gradient-based samplers
     arma::vec inv_mass_;                ///< Inverse mass diagonal
 
     // Missing data handling
@@ -341,6 +357,14 @@ private:
     // Interaction indexing (for edge updates)
     arma::imat interaction_index_;      ///< Maps edge pair to index
     arma::uvec shuffled_edge_order_;    ///< Pre-shuffled order (set in prepare_iteration)
+
+    /// Per-edge acceptance probability (raw alpha) and pre-move indicator
+    /// state from the last update_edge_indicators() sweep, indexed in canonical
+    /// (row-major upper triangle) order to match
+    /// get_vectorized_indicator_parameters(). The RB draw J and the odds
+    /// accumulators are both derived from these two.
+    arma::vec rb_alpha_;
+    arma::ivec rb_pregamma_;
 
     // =========================================================================
     // Private helper methods
@@ -386,35 +410,27 @@ private:
     // -------------------------------------------------------------------------
 
     /**
-     * Log-posterior for single main effect component
+     * Log normalizer sum_i (bound + log denom) for one variable at the
+     * current state; the expensive shared piece of every MH acceptance.
      */
-    double log_pseudoposterior_main_component(int variable, int category, int parameter) const;
+    double compute_log_denominator(int variable) const;
 
     /**
-     * Log-likelihood ratio for variable update
+     * Log normalizer for variable under a pairwise shift: the residual
+     * column moves by 2 * obs_other * delta.
      */
-    double compute_log_likelihood_ratio_for_variable(
-        int variable,
-        const arma::ivec& interacting_score,
-        double proposed_state,
-        double current_state
-    ) const;
+    double compute_log_denominator_shifted(
+        int variable, const arma::vec& obs_other, double delta) const;
+
+    /** Refill log_denominator_cache_ for all variables. */
+    void recompute_log_denominators();
 
     /**
-     * Log-pseudolikelihood ratio for interaction update
+     * One cached MH step on pairwise effect (var1, var2): shared by
+     * update_pairwise_effect and the stage-3b tuner (which runs it without
+     * the edge gate). Returns the acceptance probability.
      */
-    double log_pseudolikelihood_ratio_interaction(
-        int variable1,
-        int variable2,
-        double proposed_state,
-        double current_state
-    ) const;
-
-    /**
-     * Log-pseudoposterior of a pairwise interaction at proposed = current + delta.
-     * Used by tune_proposal_sd() for Robbins-Monro adaptation.
-     */
-    double log_pseudoposterior_pairwise_at_delta(int var1, int var2, double delta) const;
+    double mh_pairwise_step(int var1, int var2);
 
     // -------------------------------------------------------------------------
     // Parameter vectorization
@@ -474,8 +490,9 @@ private:
 
     /**
      * Update single edge indicator (spike-and-slab)
+     * @return Rao-Blackwellized inclusion draw J = gamma + (1 - 2 gamma) alpha
      */
-    void update_edge_indicator(int var1, int var2);
+    double update_edge_indicator(int var1, int var2);
 };
 
 

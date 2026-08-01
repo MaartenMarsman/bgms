@@ -79,12 +79,6 @@ test_that("bgm() SBM: build_arguments matches output$arguments", {
   assert_arguments_match(fit)
 })
 
-test_that("bgm() standardize: build_arguments matches output$arguments", {
-  fit = get_bgms_fit_standardize()
-  assert_arguments_match(fit)
-})
-
-
 # ==============================================================================
 # 3.  bgmCompare() <U+2014> spec attached
 # ==============================================================================

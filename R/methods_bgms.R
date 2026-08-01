@@ -55,9 +55,6 @@ print.bgms = function(x, ...) {
 
   # Dataset info
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
-  if(isTRUE(arguments$standardize)) {
-    cat(" Prior standardization: enabled\n")
-  }
   if(isTRUE(arguments$na_impute)) {
     cat(paste0(" Number of cases: ", arguments$num_cases, " (missings imputed)\n"))
   } else {
@@ -168,12 +165,13 @@ print.summary.bgms = function(x, digits = 3, ...) {
   if(!is.null(x$pairwise)) {
     cat("Pairwise interactions:\n")
     pair = head(x$pairwise, .summary_preview_rows)
+    pair_has_na = anyNA(pair)
     pair[] = lapply(pair, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(pair)
     if(nrow(x$pairwise) > .summary_preview_rows) cat("... (use `summary(fit)$pairwise` to see full output)\n")
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an \n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && pair_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur for edges that\n")
+      cat("were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$pairwise` still contains the NA values.\n")
     }
     cat("\n")
@@ -181,19 +179,20 @@ print.summary.bgms = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
+    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate;
+    # n0->1 / n1->0 are the raw directional flip counts, which record the
+    # indicator's exploration beside them.
     ind = head(x$indicator, .summary_preview_rows)
-    # Suppress n_eff_mixt where fewer than 5 transitions observed
-    if(all(c("n0->1", "n1->0", "n_eff_mixt") %in% names(ind))) {
-      few = ind[["n0->1"]] + ind[["n1->0"]] < 5
-      few[is.na(few)] = TRUE
-      ind[["n_eff_mixt"]][few] = NA
-    }
+    ind_has_na = anyNA(ind)
     ind[] = lapply(ind, function(col) ifelse(is.na(col), "", round(col, digits)))
     print(ind)
     if(nrow(x$indicator) > .summary_preview_rows) cat("... (use `summary(fit)$indicator` to see full output)\n")
-    cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-    cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
-    cat("`summary(fit)$indicator` still contains all computed values.\n\n")
+    if(ind_has_na) {
+      cat("Note: NA values are suppressed in the print table; they occur for indicators\n")
+      cat("that were not updated or whose draws are constant, so ESS/Rhat are undefined.\n")
+      cat("`summary(fit)$indicator` still contains all computed values.\n")
+    }
+    cat("\n")
   }
 
   if(!is.null(x$allocations)) {
@@ -301,7 +300,6 @@ coef.bgms = function(object, ...) {
 #'
 #' @method $ bgms
 #' @export
-#' @keywords internal
 `$.bgms` = function(x, name) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, name)
@@ -325,7 +323,6 @@ coef.bgms = function(object, ...) {
 #' @param ... Ignored.
 #' @method [[ bgms
 #' @export
-#' @keywords internal
 `[[.bgms` = function(x, name, ...) {
   if(inherits(x, "S7_object")) {
     if(is.character(name)) {
@@ -351,7 +348,6 @@ coef.bgms = function(object, ...) {
 
 #' @method names bgms
 #' @export
-#' @keywords internal
 names.bgms = function(x) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, ".field_names")

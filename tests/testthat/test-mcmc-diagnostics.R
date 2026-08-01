@@ -1,14 +1,41 @@
 # --------------------------------------------------------------------------- #
 # Tests for the C++ MCMC diagnostics: .compute_ess_cpp and .compute_rhat_cpp.
 #
-# These replace coda::effectiveSize and coda::gelman.diag. The tests verify
-# correctness against coda on well-behaved input and safe behavior on
-# pathological input (constant chains, NaN, Inf, very short chains, etc.).
+# ESS replaces coda::effectiveSize and is checked against it. Rhat is the
+# classic split-Rhat (Gelman et al. 2013 / Stan; var_plus = (n-1)/n * W + B/n,
+# Rhat = sqrt(var_plus / W)), NOT the df-adjusted coda::gelman.diag estimate, so
+# it is checked against a pure-R implementation of that formula. The tests also
+# verify safe behavior on pathological input (constant chains, NaN, Inf, very
+# short chains, etc.).
 # --------------------------------------------------------------------------- #
 
 # Helper: build a 3D array [niter x nchains x nparam] from a matrix or vector.
 make_array = function(x, niter, nchains, nparam = 1L) {
   array(x, dim = c(niter, nchains, nparam))
+}
+
+# Pure-R reference for classic split-Rhat, evaluated on the sub-chain array
+# exactly as .compute_rhat_cpp sees it (splitting is done upstream by
+# split_chains()). Mirrors the degenerate-case semantics: all sub-chains
+# constant and equal -> NA; constant but unequal -> +Inf.
+classic_rhat_ref = function(arr) {
+  n = dim(arr)[1]
+  m = dim(arr)[2]
+  nparam = dim(arr)[3]
+  vapply(seq_len(nparam), function(j) {
+    X = matrix(arr[, , j], nrow = n, ncol = m)
+    chain_means = colMeans(X)
+    W = mean(apply(X, 2, stats::var)) # within: var() divides by n - 1
+    B = n * stats::var(chain_means) # between: var() divides by m - 1
+    if(W > 0) {
+      var_plus = (n - 1) / n * W + B / n
+      sqrt(var_plus / W)
+    } else if(B > 0) {
+      Inf
+    } else {
+      NA_real_
+    }
+  }, numeric(1))
 }
 
 
@@ -34,24 +61,25 @@ test_that("ESS matches coda::effectiveSize to machine precision", {
   expect_equal(ess_cpp, ess_coda, tolerance = 1e-10)
 })
 
-test_that("Rhat matches coda::gelman.diag to machine precision", {
-  skip_if_not_installed("coda")
-  set.seed(42)
-  niter = 500
-  nchains = 2
-  nparam = 5
-  draws = array(rnorm(niter * nchains * nparam), dim = c(niter, nchains, nparam))
-
-  rhat_cpp = bgms:::.compute_rhat_cpp(draws)
-
-  rhat_coda = numeric(nparam)
+test_that("Rhat matches the pure-R classic split-Rhat on AR(1) chains", {
+  set.seed(99)
+  niter = 1000
+  nchains = 4
+  nparam = 6
+  # Correlated draws with per-chain mean offsets so B and W are both non-trivial.
+  draws = array(NA_real_, dim = c(niter, nchains, nparam))
   for(j in seq_len(nparam)) {
-    mcmc_list = coda::mcmc.list(
-      lapply(seq_len(nchains), function(c) coda::mcmc(draws[, c, j]))
-    )
-    rhat_coda[j] = coda::gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1]
+    for(c in seq_len(nchains)) {
+      x = numeric(niter)
+      x[1] = rnorm(1)
+      for(i in 2:niter) x[i] = 0.8 * x[i - 1] + rnorm(1)
+      draws[, c, j] = x + (c - 1) * 0.1
+    }
   }
-  expect_equal(rhat_cpp, rhat_coda, tolerance = 1e-10)
+  split = bgms:::split_chains(draws)
+  rhat_cpp = bgms:::.compute_rhat_cpp(split)
+  rhat_ref = classic_rhat_ref(split)
+  expect_equal(rhat_cpp, rhat_ref, tolerance = 1e-10)
 })
 
 test_that("ESS concordance holds for autocorrelated draws", {
@@ -326,6 +354,87 @@ test_that("Rhat detects non-convergence (shifted chains)", {
 })
 
 
+# ---- df-adjustment artifact fix (classic split-Rhat) ----------------------- #
+
+test_that("a single brief excursion does not inflate Rhat", {
+  # The typical near-saturated edge-indicator shape: 40,000 constant draws
+  # across 4 chains with one 3-draw excursion in a single chain. The old
+  # df-adjusted estimator returned ~1.2912 here regardless of the data; classic
+  # split-Rhat sees this as essentially converged.
+  niter = 10000
+  nchains = 4
+  x = array(1, dim = c(niter, nchains, 1))
+  x[2000:2002, 2, 1] = 0
+  rhat = bgms:::.compute_rhat_cpp(bgms:::split_chains(x))
+  expect_lt(rhat, 1.01)
+})
+
+test_that("all-constant-and-equal sub-chains give NA", {
+  x = array(1, dim = c(1000, 4, 1))
+  rhat = bgms:::.compute_rhat_cpp(bgms:::split_chains(x))
+  expect_true(is.na(rhat))
+})
+
+test_that("constant-but-unequal sub-chains give +Inf, not NA", {
+  # Two chains stuck at 0, two stuck at 1: W == 0 but B > 0. Silence (NA) here
+  # is the worst failure mode, so the estimator must raise a loud +Inf alarm.
+  x = array(0, dim = c(1000, 4, 1))
+  x[, 3:4, 1] = 1
+  rhat = bgms:::.compute_rhat_cpp(bgms:::split_chains(x))
+  expect_identical(rhat, Inf)
+})
+
+test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked only for constant draws", {
+  skip_on_cran()
+  data = Wenchuan[, 1:6]
+  fit = bgm(
+    data,
+    variable_type = "ordinal", chains = 2,
+    iter = 400, warmup = 400, seed = 123,
+    display_progress = "none", verbose = FALSE
+  )
+  summ = fit$posterior_summary_indicator
+  reported = summ$Rhat
+
+  # Independent classic split-Rhat from the Rao-Blackwellized (J) draws that the
+  # summary reports, not the binary indicator draws.
+  chains = fit$raw_samples$rb_inclusion
+  nchains = length(chains)
+  niter = nrow(chains[[1]])
+  nparam = ncol(chains[[1]])
+  arr = array(NA_real_, dim = c(niter, nchains, nparam))
+  for(c in seq_len(nchains)) arr[, c, ] = chains[[c]]
+  manual = classic_rhat_ref(bgms:::split_chains(arr))
+
+  # Masking keys on the J draws being constant to double precision, not on the
+  # indicator's flip count: where J varies there is an MCSE, an ESS and an Rhat
+  # to report, and near-boundary edges in short runs often have zero flips.
+  sds = apply(arr, 3, function(z) stats::sd(as.vector(z)))
+  expect_true(all(is.na(reported[sds == 0])))
+  expect_true(all(is.na(summ$n_eff[sds == 0])))
+  expect_true(all(is.na(summ$mcse[sds == 0])))
+
+  # Nothing that varies appreciably is masked; what masking remains beyond the
+  # exactly-constant columns sits at the autocovariance kernel's numerical
+  # floor, where the inclusion probability is at its bound.
+  expect_true(all(sds[is.na(reported)] < 1e-6))
+
+  # Edges whose indicator never flipped keep their numbers as long as J varies:
+  # those are the near-boundary short-run edges where the MCSE is needed.
+  zero_flip = summ[["n0->1"]] + summ[["n1->0"]] == 0
+  varying = zero_flip & sds > 1e-6
+  expect_true(any(varying))
+  expect_true(all(is.finite(reported[varying])))
+  expect_true(all(is.finite(summ$mcse[varying])))
+  expect_true(all(is.finite(summ$n_eff[varying])))
+
+  # On the unmasked edges the reported Rhat is exactly the classic split-Rhat on
+  # the J draws, with no df adjustment.
+  keep = !is.na(reported)
+  expect_equal(reported[keep], manual[keep], tolerance = 1e-8)
+})
+
+
 # ---- Indicator ESS -------------------------------------------------------- #
 
 test_that("indicator ESS matches R reference implementation", {
@@ -472,7 +581,6 @@ test_that("summarize_nuts_diagnostics honors the integer matrix contract", {
       treedepth__ = c(2, 3, 2, 4),
       divergent__ = c(0, 0, 1, 0),
       energy__ = c(1.2, 0.8, 1.5, 0.9),
-      non_reversible__ = c(0, 1, 0, 0),
       accept_prob__ = c(0.9, 0.8, 0.95, 0.7)
     )
   }
@@ -483,7 +591,6 @@ test_that("summarize_nuts_diagnostics honors the integer matrix contract", {
   # Count fields are integer matrices; real-valued fields are double.
   expect_true(is.integer(res$treedepth))
   expect_true(is.integer(res$divergent))
-  expect_true(is.integer(res$non_reversible))
   expect_true(is.double(res$energy))
   expect_true(is.double(res$accept_prob))
   # Exact integer tree-depth comparison: depth 4 hit once per chain.

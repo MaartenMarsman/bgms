@@ -25,14 +25,32 @@
 // =============================================================================
 
 double MixedMRFModel::log_marginal_omrf(int s) const {
-    int C_s = num_categories_(s);
-
     // Rest score: 2 · M · x minus self-interaction, plus cross-bias.
     // Factor 2 from x'Mx derivative.
     double precision_ss = marginal_interactions_(s, s);
     arma::vec rest = 2.0 * (discrete_observations_dbl_ * marginal_interactions_.col(s)
                           - discrete_observations_dbl_.col(s) * precision_ss)
                    + 2.0 * arma::dot(pairwise_effects_cross_.row(s), main_effects_continuous_);
+    return log_marginal_omrf_given_rest(s, rest, precision_ss);
+}
+
+double MixedMRFModel::log_marginal_omrf_from(int s, const arma::mat& matvec,
+                                             double precision_ss, double bias_s) const {
+    // Same rest score as log_marginal_omrf, with the O(np) matrix-vector
+    // product replaced by a cached X · M column.
+    arma::vec rest = 2.0 * (matvec.col(s) - discrete_observations_dbl_.col(s) * precision_ss)
+                   + bias_s;
+    return log_marginal_omrf_given_rest(s, rest, precision_ss);
+}
+
+double MixedMRFModel::log_marginal_omrf_cached(int s) const {
+    return log_marginal_omrf_from(s, marginal_matvec_,
+                                  marginal_interactions_(s, s), cross_bias_(s));
+}
+
+double MixedMRFModel::log_marginal_omrf_given_rest(
+    int s, const arma::vec& rest, double precision_ss) const {
+    int C_s = num_categories_(s);
 
     // Numerator: dot(x_s, rest) + precision_ss * dot(x_s, x_s) + main effects
     double numer = arma::dot(discrete_observations_dbl_.col(s), rest)
@@ -50,7 +68,8 @@ double MixedMRFModel::log_marginal_omrf(int s) const {
             main_param(c) = main_effects_discrete_(s, c) + static_cast<double>((c + 1) * (c + 1)) * precision_ss;
         }
 
-        arma::vec bound = static_cast<double>(C_s) * rest;
+        arma::vec bound = arma::clamp(
+            static_cast<double>(C_s) * rest, 0.0, arma::datum::inf);
         arma::vec denom = compute_denom_ordinal(rest, main_param, bound);
 
         return numer - arma::accu(bound + ARMA_MY_LOG(denom));
@@ -95,4 +114,32 @@ double MixedMRFModel::log_conditional_ggm() const {
            (-static_cast<double>(q_) * MY_LOG(2.0 * arma::datum::pi)
             + log_det_precision_)
          - quad_sum / 2.0;
+}
+
+
+// =============================================================================
+// omrf_ratio_for_covariance_change
+// =============================================================================
+// A Kyy proposal changes Σ, which moves the whole marginal interaction matrix
+// M = A_xx + 2 A_xy Σ A_xy'. The change factors through ΔΣ:
+//   ΔM = 2 A_xy ΔΣ A_xy',   X · ΔM = (X A_xy) (ΔΣ A_xy') = cross_matvec_ · E
+// so the proposed rest scores follow from the cached matvecs in O(nq(q+p))
+// instead of rebuilding M and its p rest-score products.
+// =============================================================================
+
+double MixedMRFModel::omrf_ratio_for_covariance_change(const arma::mat& cov_prop) {
+    arma::mat delta_sigma = cov_prop - covariance_continuous_;
+    // E = ΔΣ A_xy' is kept in cross_delta_scratch_ for the accept path
+    // (adopt_kyy_proposal_caches applies 2 A_xy E to M and the cross term).
+    cross_delta_scratch_ = delta_sigma * pairwise_effects_cross_.t();  // q x p
+    const arma::mat& E = cross_delta_scratch_;
+
+    marginal_matvec_prop_ = marginal_matvec_ + 2.0 * (cross_matvec_ * E);
+    for(size_t s = 0; s < p_; ++s) {
+        mdiag_prop_(s) = marginal_interactions_(s, s)
+                       + 2.0 * arma::dot(pairwise_effects_cross_.row(s), E.col(s));
+        ll_marginal_prop_(s) = log_marginal_omrf_from(
+            s, marginal_matvec_prop_, mdiag_prop_(s), cross_bias_(s));
+    }
+    return arma::accu(ll_marginal_prop_) - arma::accu(ll_marginal_cache_);
 }

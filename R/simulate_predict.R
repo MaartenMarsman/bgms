@@ -76,9 +76,11 @@ expand_variable_type = function(variable_type, num_variables) {
 #' If \code{method = "posterior-sample"}: A list of matrices, one per posterior
 #' draw, each with \code{nsim} rows and \code{p} columns.
 #'
-#' For mixed MRF models, discrete columns contain non-negative integers and
-#' continuous columns contain real-valued observations, ordered as in the
-#' original data.
+#' Discrete columns are returned on the original category scale of the training
+#' data (the values supplied to \code{bgm()}), so the output can be passed
+#' straight to \code{predict()}. For mixed MRF models, discrete columns contain
+#' non-negative integers and continuous columns contain real-valued
+#' observations, ordered as in the original data.
 #'
 #' @details
 #' This function uses the estimated interaction and threshold
@@ -210,6 +212,9 @@ simulate.bgms = function(object,
       iter = iter
     )
 
+    result = recode_simulated_to_original(
+      result, arguments$category_levels, arguments$blume_capel_shift
+    )
     colnames(result) = data_columnnames
     return(result)
   } else {
@@ -244,8 +249,11 @@ simulate.bgms = function(object,
       progress_type = progress_type
     )
 
-    # Add column names
+    # Map codes back to the original scale and add column names.
     for(i in seq_along(results)) {
+      results[[i]] = recode_simulated_to_original(
+        results[[i]], arguments$category_levels, arguments$blume_capel_shift
+      )
       colnames(results[[i]]) = data_columnnames
     }
 
@@ -392,6 +400,9 @@ simulate.bgmCompare = function(object,
       iter = iter
     )
 
+    result = recode_simulated_to_original(
+      result, arguments$category_levels, arguments$blume_capel_shift
+    )
     colnames(result) = data_columnnames
     return(result)
   }
@@ -661,7 +672,8 @@ predict.bgms = function(object,
   # data) using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
     newdata, num_categories, is_ordinal,
-    category_levels = arguments$category_levels
+    category_levels = arguments$category_levels,
+    blume_capel_shift = arguments$blume_capel_shift
   )
 
   if(method == "posterior-mean") {
@@ -936,7 +948,8 @@ predict.bgmCompare = function(object,
   # Recode data to 0-based integers using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
     newdata, num_categories, is_ordinal,
-    category_levels = arguments$category_levels
+    category_levels = arguments$category_levels,
+    blume_capel_shift = arguments$blume_capel_shift
   )
 
   if(method == "posterior-mean") {
@@ -1031,12 +1044,20 @@ reconstruct_main = function(main_vec, num_variables,
 #     the final (collapsed) categories, which may be many-to-one.
 # Fits without a map (older fits) fall back to the legacy subtract-minimum shift.
 recode_data_for_prediction = function(x, num_categories, is_ordinal,
-                                      category_levels = NULL) {
+                                      category_levels = NULL,
+                                      blume_capel_shift = NULL) {
   x = as.matrix(x)
   num_variables = ncol(x)
 
   for(v in seq_len(num_variables)) {
-    if(!is_ordinal[v]) next
+    if(!is_ordinal[v]) {
+      # Blume-Capel: shift newdata onto the 0-based scale the model was fit on.
+      # Continuous variables carry no shift (NA) and are left untouched.
+      if(!is.null(blume_capel_shift) && !is.na(blume_capel_shift[v])) {
+        x[, v] = x[, v] - blume_capel_shift[v]
+      }
+      next
+    }
 
     levels_v = if(!is.null(category_levels)) category_levels[[v]] else NULL
 
@@ -1068,4 +1089,46 @@ recode_data_for_prediction = function(x, num_categories, is_ordinal,
   }
 
   return(x)
+}
+
+
+# ------------------------------------------------------------------------------
+# recode_simulated_to_original()
+# ------------------------------------------------------------------------------
+# Inverse of recode_data_for_prediction(): map the internal 0-based category
+# codes the MRF sampler produces back to the original category values the fit
+# was trained on, so simulate() returns data on the same scale predict() expects
+# for newdata. Regular ordinal variables carry a recode map in category_levels;
+# Blume-Capel variables carry an additive shift in blume_capel_shift, which is
+# added back here. Continuous variables have neither and are returned as is.
+#
+# Two ordinal map forms, matching recode_data_for_prediction():
+#   - unnamed sorted original values (bgm/OMRF): code k is the (k + 1)-th value.
+#   - named lookup (bgmCompare): names are original values, entries the final
+#     (possibly collapsed) codes; invert to the smallest original value mapping
+#     to each code, which predict() recodes back to that same code.
+recode_simulated_to_original = function(x, category_levels,
+                                        blume_capel_shift = NULL) {
+  if(is.null(category_levels) && is.null(blume_capel_shift)) {
+    return(x)
+  }
+  for(v in seq_len(ncol(x))) {
+    if(!is.null(blume_capel_shift) && !is.na(blume_capel_shift[v])) {
+      x[, v] = x[, v] + blume_capel_shift[v]
+      next
+    }
+
+    levels_v = if(!is.null(category_levels)) category_levels[[v]] else NULL
+    if(is.null(levels_v)) next
+
+    if(!is.null(names(levels_v))) {
+      inverse = tapply(
+        as.numeric(names(levels_v)), as.integer(unname(levels_v)), min
+      )
+      x[, v] = inverse[as.character(x[, v])]
+    } else {
+      x[, v] = levels_v[x[, v] + 1L]
+    }
+  }
+  x
 }

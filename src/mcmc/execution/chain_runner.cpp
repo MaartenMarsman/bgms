@@ -1,9 +1,14 @@
 #include "mcmc/execution/chain_runner.h"
 
 #include <exception>
+#include <stdexcept>
+#include <cmath>
+#include <limits>
 #include <tbb/global_control.h>
 #include "mcmc/samplers/nuts_sampler.h"
 #include "mcmc/samplers/metropolis_sampler.h"
+#include "mcmc/samplers/gibbs_sampler.h"
+#include "models/ggm/zratio_gauge.h"  // ZRatioGauge::default_n_draws / default_cap
 
 
 namespace {
@@ -17,7 +22,7 @@ void store_nuts_diagnostics_if_present(ChainResult& chain_result, int sample_ind
     auto* diag = dynamic_cast<NUTSDiagnostics*>(result.diagnostics.get());
     if (diag) {
         chain_result.store_nuts_diagnostics(sample_index, diag->tree_depth, diag->divergent,
-                                            diag->non_reversible, diag->energy, diag->accept_prob);
+                                            diag->energy, diag->accept_prob);
     }
 }
 
@@ -29,8 +34,12 @@ SamplerSpec resolve_sampler_spec(const std::string& sampler_type) {
         return SamplerSpec{SamplerKind::NUTS, /*learn_sd=*/true, /*nuts_diag=*/true, /*am_diag=*/false};
     } else if (sampler_type == "adaptive-metropolis") {
         return SamplerSpec{SamplerKind::AdaptiveMetropolis, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/true};
+    } else if (sampler_type == "gibbs") {
+        return SamplerSpec{SamplerKind::Gibbs, /*learn_sd=*/false, /*nuts_diag=*/false, /*am_diag=*/false};
     } else {
-        Rcpp::stop("Unknown sampler_type: '%s'", sampler_type.c_str());
+        // std::runtime_error rather than Rcpp::stop: this runs on worker
+        // threads, where constructing an Rcpp exception is not safe.
+        throw std::runtime_error("Unknown sampler_type: '" + sampler_type + "'");
     }
 }
 
@@ -40,8 +49,10 @@ std::unique_ptr<SamplerBase> create_sampler(SamplerKind kind, const SamplerConfi
             return std::make_unique<NUTSSampler>(config, schedule);
         case SamplerKind::AdaptiveMetropolis:
             return std::make_unique<MetropolisSampler>(config, schedule);
+        case SamplerKind::Gibbs:
+            return std::make_unique<GibbsSampler>(config, schedule);
     }
-    Rcpp::stop("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
+    throw std::runtime_error("Unhandled SamplerKind");  // unreachable: kind comes from resolve_sampler_spec
 }
 
 
@@ -51,23 +62,44 @@ void run_mcmc_chain(
     BaseEdgePrior& edge_prior,
     const SamplerConfig& config,
     const int chain_id,
-    ProgressManager& pm
+    ProgressManager& pm,
+    const double warm_step_size,
+    const arma::vec& warm_inv_mass
 ) {
     chain_result.chain_id = chain_id + 1;
 
     // Construct warmup schedule (shared by runner and sampler)
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
-    WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd);
+    WarmupSchedule schedule(config.no_warmup, config.edge_selection, spec.learn_sd,
+                            /*select_during_warmup=*/spec.kind == SamplerKind::Gibbs);
 
     auto sampler = create_sampler(spec.kind, config, schedule);
+
+    // Warm-start the step size (NUTS refits): skip the heuristic and start
+    // dual-averaging from the previous fit's adapted value.
+    if (std::isfinite(warm_step_size)) {
+        sampler->set_warm_step_size(warm_step_size);
+    }
+    // Warm-start the diagonal metric (NUTS refits): inject the previous fit's
+    // adapted inverse mass, held fixed for the short warmup.
+    if (!warm_inv_mass.is_empty()) {
+        sampler->set_warm_inv_mass(warm_inv_mass);
+    }
 
     // Initialize sampler (step-size heuristic) before the main loop
     sampler->initialize(model);
 
-    const int total_iter = config.no_warmup + config.no_iter;
+    const int total_iter = schedule.total_warmup + config.no_iter;
 
     // ---- Main MCMC loop (warmup + sampling) ----
+    model.set_zratio_phase(ZRatioPhase::Warmup);
     for (int iter = 0; iter < total_iter; ++iter) {
+
+        // The Z-ratio engine tallies its extrapolations per phase, so the
+        // switch has to happen before this iteration's edge selection.
+        if (iter == schedule.total_warmup) {
+            model.set_zratio_phase(ZRatioPhase::Retained);
+        }
 
         // Per-iteration preparation (e.g., shuffle edge order)
         model.prepare_iteration();
@@ -104,7 +136,7 @@ void run_mcmc_chain(
 
         // Store samples (only during sampling phase)
         if (schedule.sampling(iter)) {
-            int sample_index = iter - config.no_warmup;
+            int sample_index = iter - schedule.total_warmup;
 
             store_nuts_diagnostics_if_present(chain_result, sample_index, *sampler, result);
 
@@ -118,8 +150,25 @@ void run_mcmc_chain(
                 chain_result.store_indicators(sample_index, model.get_vectorized_indicator_parameters());
             }
 
+            if (chain_result.has_rb_inclusion) {
+                chain_result.store_rb_inclusion(sample_index, model.get_vectorized_rb_inclusion());
+            }
+
+            if (chain_result.has_rb_counts) {
+                // Post-warmup only (this block is gated by schedule.sampling),
+                // so the gauge sweeps below never enter the accumulators.
+                chain_result.accumulate_rb_counts(
+                    model.get_vectorized_rb_alpha(),
+                    model.get_vectorized_rb_pregamma());
+            }
+
             if (chain_result.has_allocations && edge_prior.has_allocations()) {
                 chain_result.store_allocations(sample_index, edge_prior.get_allocations());
+            }
+
+            if (chain_result.has_inclusion_parameter) {
+                chain_result.store_inclusion_parameter(
+                    sample_index, edge_prior.get_inclusion_parameter());
             }
         }
 
@@ -130,6 +179,38 @@ void run_mcmc_chain(
         }
     }
 
+    // In-chain Z-ratio trust gauge: K assessment sweeps on the frozen kernel.
+    // Each sweep is a deployed selection pass that also references non-trivial
+    // edge moves against the exact block-local reference; the graph evolves
+    // pair-by-pair as usual. Post-sampling, so no stored samples are touched.
+    if (config.zratio_gauge_sweeps > 0 && model.gauge_available() &&
+        model.has_edge_selection()) {
+        // Gauge sweeps are extra deploy evaluations that no stored draw comes
+        // from, so they enter neither extrapolation tally.
+        model.set_zratio_phase(ZRatioPhase::Gauge);
+        model.set_gauge_active(true, ZRatioGauge::default_n_draws,
+                               ZRatioGauge::default_cap);
+        for (int k = 0; k < config.zratio_gauge_sweeps; ++k) {
+            model.gauge_begin_sweep();
+            model.update_edge_indicators();
+            model.gauge_end_sweep();
+            if (pm.shouldExit()) {
+                chain_result.userInterrupt = true;
+                break;
+            }
+        }
+        model.set_gauge_active(false, ZRatioGauge::default_n_draws,
+                               ZRatioGauge::default_cap);
+    }
+
+    // Retain the adaptation-averaged step size and diagonal metric (NUTS) so
+    // refits can warm-start them; NaN/empty for non-gradient samplers.
+    chain_result.final_step_size = sampler->get_final_step_size();
+    chain_result.final_inv_mass = sampler->get_final_inv_mass();
+
+    // Run-level diagnostic state (e.g. the Z-ratio engine's counters and
+    // frozen constants) outlives the loop only through the chain result.
+    model.collect_chain_diagnostics(chain_result);
 }
 
 
@@ -141,7 +222,13 @@ void MCMCChainRunner::operator()(std::size_t begin, std::size_t end) {
         model.set_seed(config_.seed + static_cast<int>(i));
 
         try {
-            run_mcmc_chain(chain_result, model, edge_prior, config_, static_cast<int>(i), pm_);
+            const double warm_eps = warm_step_sizes_.empty()
+                ? std::numeric_limits<double>::quiet_NaN()
+                : warm_step_sizes_[i];
+            const arma::vec warm_metric = warm_inv_masses_.empty()
+                ? arma::vec()
+                : warm_inv_masses_[i];
+            run_mcmc_chain(chain_result, model, edge_prior, config_, static_cast<int>(i), pm_, warm_eps, warm_metric);
         } catch (std::exception& e) {
             chain_result.error = true;
             chain_result.error_msg = e.what();
@@ -159,8 +246,33 @@ std::vector<ChainResult> run_mcmc_sampler(
     const SamplerConfig& config,
     const int no_chains,
     const int no_threads,
-    ProgressManager& pm
+    ProgressManager& pm,
+    const std::vector<arma::vec>& initial_parameters,
+    const std::vector<double>& initial_step_sizes,
+    const std::vector<arma::vec>& initial_inv_mass
 ) {
+    auto warm_eps = [&](int c) {
+        return initial_step_sizes.empty()
+            ? std::numeric_limits<double>::quiet_NaN()
+            : initial_step_sizes[c];
+    };
+    auto warm_metric = [&](int c) {
+        return initial_inv_mass.empty() ? arma::vec() : initial_inv_mass[c];
+    };
+    // Apply a per-chain warm start (final state of a previous fit) to a cloned
+    // model. Indicators are set before parameters so the warm graph is in place
+    // before residual matrices are rebuilt; parameters set ALL pairwise values
+    // (inactive edges included), so no derived state depends on indicator order.
+    const bool warm_params = !initial_parameters.empty();
+    // Warm start the continuous parameters on the dense all-edges-active start
+    // (all pairwise values set, inactive edges included), so no derived state
+    // depends on the graph configuration and the short warmup re-settles it.
+    auto apply_warm_start = [&](BaseModel& m, int c) {
+        if (warm_params) {
+            m.set_storage_vectorized_parameters(initial_parameters[c]);
+        }
+    };
+
     const SamplerSpec spec = resolve_sampler_spec(config.sampler_type);
     const bool has_nuts_diag = spec.nuts_diag;
     const bool has_am_diag = spec.am_diag;
@@ -174,10 +286,16 @@ std::vector<ChainResult> run_mcmc_sampler(
         if (config.edge_selection) {
             size_t n_edges = model.get_vectorized_indicator_parameters().n_elem;
             results[c].reserve_indicators(n_edges, config.no_iter);
+            results[c].reserve_rb_inclusion(n_edges, config.no_iter);
+            results[c].reserve_rb_counts(n_edges);
         }
 
         if (has_sbm_alloc) {
             results[c].reserve_allocations(model.get_num_variables(), config.no_iter);
+        }
+
+        if (config.edge_selection && edge_prior.has_inclusion_parameter()) {
+            results[c].reserve_inclusion_parameter(config.no_iter);
         }
 
         if (has_nuts_diag) {
@@ -197,10 +315,11 @@ std::vector<ChainResult> run_mcmc_sampler(
         for (int c = 0; c < no_chains; ++c) {
             models.push_back(model.clone());
             models[c]->set_seed(config.seed + c);
+            apply_warm_start(*models[c], c);
             edge_priors.push_back(edge_prior.clone());
         }
 
-        MCMCChainRunner runner(results, models, edge_priors, config, pm);
+        MCMCChainRunner runner(results, models, edge_priors, config, pm, initial_step_sizes, initial_inv_mass);
         tbb::global_control control(tbb::global_control::max_allowed_parallelism, no_threads);
         RcppParallel::parallelFor(0, static_cast<size_t>(no_chains), runner);
 
@@ -209,8 +328,9 @@ std::vector<ChainResult> run_mcmc_sampler(
         for (int c = 0; c < no_chains; ++c) {
             auto chain_model = model.clone();
             chain_model->set_seed(config.seed + c);
+            apply_warm_start(*chain_model, c);
             auto chain_edge_prior = edge_prior.clone();
-            run_mcmc_chain(results[c], *chain_model, *chain_edge_prior, config, c, pm);
+            run_mcmc_chain(results[c], *chain_model, *chain_edge_prior, config, c, pm, warm_eps(c), warm_metric(c));
         }
     }
 
@@ -234,25 +354,81 @@ Rcpp::List convert_results_to_list(const std::vector<ChainResult>& results) {
             chain_list["error"] = false;
             chain_list["samples"] = chain.samples;
             chain_list["userInterrupt"] = chain.userInterrupt;
+            chain_list["step_size"] = chain.final_step_size;
+            if (!chain.final_inv_mass.is_empty()) {
+                chain_list["inv_mass"] = chain.final_inv_mass;
+            }
 
             if (chain.has_indicators) {
                 chain_list["indicator_samples"] = chain.indicator_samples;
+            }
+
+            if (chain.has_rb_inclusion) {
+                chain_list["rb_inclusion_samples"] = chain.rb_inclusion_samples;
+            }
+
+            if (chain.has_rb_counts) {
+                // n_edges x 4: [n01, n10, n0_visits, n1_visits] on the alpha scale.
+                arma::mat rb_counts(chain.rb_n01.n_elem, 4);
+                rb_counts.col(0) = chain.rb_n01;
+                rb_counts.col(1) = chain.rb_n10;
+                rb_counts.col(2) = chain.rb_n0_visits;
+                rb_counts.col(3) = chain.rb_n1_visits;
+                chain_list["rb_counts"] = rb_counts;
             }
 
             if (chain.has_allocations) {
                 chain_list["allocation_samples"] = chain.allocation_samples;
             }
 
+            if (chain.has_inclusion_parameter) {
+                chain_list["inclusion_parameter_samples"] = chain.inclusion_parameter_samples;
+            }
+
             if (chain.has_nuts_diagnostics) {
                 chain_list["treedepth"] = chain.treedepth_samples;
                 chain_list["divergent"] = chain.divergent_samples;
-                chain_list["non_reversible"] = chain.non_reversible_samples;
                 chain_list["energy"] = chain.energy_samples;
                 chain_list["accept_prob"] = chain.accept_prob_samples;
             }
 
             if (chain.has_am_diagnostics) {
                 chain_list["am_accept_prob"] = chain.am_accept_prob_samples;
+            }
+
+            if (chain.has_zratio_diagnostics) {
+                Rcpp::NumericVector counters(chain.zratio_counters.begin(),
+                                             chain.zratio_counters.end());
+                counters.names() = Rcpp::CharacterVector::create(
+                    "n_hit", "n_miss", "n_pred", "n_add", "cache_size",
+                    "n_extrap", "max_extrap_size", "n_slope_floor",
+                    "n_pred_retained", "n_extrap_retained",
+                    "max_extrap_size_retained", "n_isolated", "n_collapsed",
+                    "max_collapse_size", "n_collapsed_retained",
+                    "max_collapse_size_retained");
+                Rcpp::List zr = Rcpp::List::create(
+                    Rcpp::_["addc"] = chain.zratio_addc,
+                    Rcpp::_["counters"] = counters);
+                if (chain.zratio_gauge_ran) {
+                    zr["gauge"] = Rcpp::List::create(
+                        Rcpp::_["flip_rate"] = chain.zratio_gauge_D,
+                        Rcpp::_["noise_floor"] = chain.zratio_gauge_noise_floor,
+                        Rcpp::_["se_mean"] = chain.zratio_gauge_se_mean,
+                        Rcpp::_["se_sd"] = chain.zratio_gauge_se_sd,
+                        Rcpp::_["se_mcse"] = chain.zratio_gauge_se_mcse,
+                        Rcpp::_["n_ent"] =
+                            static_cast<double>(chain.zratio_gauge_n_ent),
+                        Rcpp::_["n_ref"] =
+                            static_cast<double>(chain.zratio_gauge_n_ref),
+                        Rcpp::_["n_capped"] =
+                            static_cast<double>(chain.zratio_gauge_n_capped),
+                        Rcpp::_["pair_i"] = chain.zratio_gauge_pair_i,
+                        Rcpp::_["pair_j"] = chain.zratio_gauge_pair_j,
+                        Rcpp::_["pair_m"] = chain.zratio_gauge_pair_m,
+                        Rcpp::_["pair_se"] = chain.zratio_gauge_pair_se,
+                        Rcpp::_["pair_mcse"] = chain.zratio_gauge_pair_mcse);
+                }
+                chain_list["zratio"] = zr;
             }
         }
 

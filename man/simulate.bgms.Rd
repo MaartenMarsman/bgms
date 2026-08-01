@@ -56,9 +56,11 @@ If \code{method = "posterior-mean"}: A matrix with \code{nsim} rows and
 If \code{method = "posterior-sample"}: A list of matrices, one per posterior
 draw, each with \code{nsim} rows and \code{p} columns.
 
-For mixed MRF models, discrete columns contain non-negative integers and
-continuous columns contain real-valued observations, ordered as in the
-original data.
+Discrete columns are returned on the original category scale of the training
+data (the values supplied to \code{bgm()}), so the output can be passed
+straight to \code{predict()}. For mixed MRF models, discrete columns contain
+non-negative integers and continuous columns contain real-valued
+observations, ordered as in the original data.
 }
 \description{
 Generates new observations from the Markov Random Field model using the

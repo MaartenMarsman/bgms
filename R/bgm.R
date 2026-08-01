@@ -52,16 +52,20 @@
 #'
 #' @param warmup Integer. Number of warmup iterations before collecting
 #'   samples. Short warmups trigger progressive warnings (NUTS only); see
-#'   \code{validate_sampler()} for the thresholds. Default: \code{2e3}.
+#'   \code{validate_sampler()} for the thresholds. With
+#'   \code{update_method = "gibbs"} and edge selection, the first 15\% of
+#'   the warmup runs the full model (all edges included) so the precision
+#'   matrix settles, and edge selection is active for the remaining 85\%;
+#'   both windows scale with the warmup budget. Default: \code{2e3}.
 #'
 #' @param interaction_prior A prior specification object for pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'     \item \code{\link{beta_prime_prior}()}: Beta-prime prior.
 #'   }
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}.
 #'
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
@@ -87,12 +91,23 @@
 #' @param precision_scale_prior A prior specification object for the diagonal
 #'   elements of the precision matrix, created by one of:
 #'   \itemize{
-#'     \item \code{\link{gamma_prior}()}: Gamma(shape, rate) prior (default).
-#'     \item \code{\link{exponential_prior}()}: Exponential(rate) prior.
+#'     \item \code{\link{exponential_prior}()}: Exponential prior (default).
+#'     \item \code{\link{gamma_prior}()}: Gamma prior.
 #'   }
+#'   Both constructors accept the rate in one of two frames: \code{rate}
+#'   (raw) or \code{eta} (standardized). \code{eta} is the rate on the
+#'   diagonal in the standardized frame, the coordinate in which the
+#'   pairwise (slab) prior has unit scale; it fixes the scale of the
+#'   diagonal relative to the slab, and the raw rate is derived at fit time
+#'   as \code{eta / s}, where \code{s} is the scale of the
+#'   \code{interaction_prior}. At fixed \code{eta}, graph and
+#'   partial-correlation inference is invariant to the slab scale, so the
+#'   standardized frame keeps the prior geometry fixed when the slab scale
+#'   changes. It requires an \code{interaction_prior} with a scale
+#'   parameter (\code{cauchy_prior()} or \code{normal_prior()}).
 #'   Only used for models with continuous variables (GGM and mixed MRF).
 #'   Ignored for pure ordinal models.
-#'   Default: \code{gamma_prior(shape = 1, rate = 1)}.
+#'   Default: \code{exponential_prior(eta = 1)}.
 #'
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent on the continuous-block
@@ -103,10 +118,9 @@
 #'   dimension of the continuous precision matrix (the number of
 #'   variables for GGM, the number of continuous variables for mixed
 #'   MRF). The rule is the simple form of the dimension-adaptive scaling
-#'   \eqn{\delta(p) = c \log p} with \eqn{c \in (0.3, 0.6)} discussed in
-#'   the companion paper on determinant-tilted spike-and-slab priors
+#'   \eqn{\delta(p) = c \log p} with \eqn{c \in (0.3, 0.6)}
 #'   (Marsman et al., in preparation). Pass \code{delta = 0} for the
-#'   untilted prior (the companion-paper baseline) or a non-negative
+#'   untilted prior or a non-negative
 #'   numeric to override. Both NUTS and adaptive-Metropolis update paths
 #'   apply the tilt. Not allowed for pure ordinal models (no precision
 #'   matrix to tilt).
@@ -115,27 +129,6 @@
 #'   Scale of the Cauchy prior for pairwise
 #'   interaction parameters. Use \code{interaction_prior} instead.
 #'   Default: \code{1}.
-#'
-#' @param standardize Logical. If \code{TRUE}, the prior scale for each
-#'   pairwise interaction is adjusted based on the range of response scores.
-#'   Variables with more response categories have larger score products
-#'   \eqn{x_i \cdot x_j}, which typically correspond to smaller interaction
-#'   effects \eqn{\sigma_{ij}}. Without standardization, a fixed prior scale
-#'   is relatively wide for these smaller effects, resulting in less shrinkage
-#'   for high-category pairs and more shrinkage for low-category pairs.
-#'   Standardization scales the prior proportionally to the maximum score
-#'   product, ensuring equivalent relative shrinkage across all pairs.
-#'   After internal recoding, regular ordinal variables have scores
-#'   \eqn{0, 1, \ldots, m}. The adjusted scale for the interaction between
-#'   variables \eqn{i} and \eqn{j} is \code{pairwise_scale * m_i * m_j},
-#'   so that \code{pairwise_scale} itself applies to the unit interval case
-#'   (binary variables where \eqn{m_i = m_j = 1}). For Blume-Capel variables
-#'   with reference category \eqn{b}, scores are centered as
-#'   \eqn{-b, \ldots, m-b}, and the adjustment uses the maximum absolute
-#'   product of the score endpoints. For mixed pairs, ordinal variables use
-#'   raw score endpoints \eqn{(0, m)} and Blume-Capel variables use centered
-#'   score endpoints \eqn{(-b, m-b)}.
-#'   Default: \code{FALSE}.
 #'
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Double.
 #'   Shape parameters of the beta-prime prior for threshold parameters.
@@ -156,6 +149,126 @@
 #'   Legacy character strings \code{"Bernoulli"}, \code{"Beta-Bernoulli"},
 #'   \code{"Stochastic-Block"} are still accepted but deprecated.
 #'   Default: \code{bernoulli_prior(0.5)}.
+#'
+#'   For continuous (GGM) and mixed models with \code{beta_bernoulli_prior()}
+#'   or \code{sbm_prior()}, the hyperparameter updates carry a
+#'   normalizing-constant correction: under the determinant-tilted precision
+#'   prior, the plain conjugate updates target the wrong marginals for the
+#'   inclusion probability and the block structure. In mixed models the tilt
+#'   acts on the continuous precision block, so the table is built for the
+#'   continuous variables and the block-structure corrections read
+#'   continuous-continuous edges only; with fewer than two continuous
+#'   variables no edge is tilted and the plain conjugate updates apply
+#'   unchanged. The correction table is built from the prior distribution at
+#'   the first fit of a model configuration (a one-time cost of the order of
+#'   minutes, announced when \code{verbose = TRUE}) and cached on disk via
+#'   \code{tools::R_user_dir("bgms", "cache")}, so later fits of the same
+#'   configuration skip the build. With \code{beta_bernoulli_prior()} the
+#'   sampled inclusion probability is returned per chain in
+#'   \code{fit$inclusion_parameter_samples}.
+#'
+#' @param precision_graph_prior Character. How the precision prior composes with
+#'   the edge prior under edge selection for continuous (GGM) data:
+#'   \describe{
+#'     \item{"joint"}{(default) The un-normalised joint specification
+#'       \eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
+#'       \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
+#'       \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
+#'       Z(\Gamma)}; with \code{beta_bernoulli_prior()} or
+#'       \code{sbm_prior()} the hyperparameter updates carry the
+#'       normalizing-constant correction described under
+#'       \code{edge_prior}. The realized edge-inclusion prior therefore
+#'       differs from the nominal edge prior for every edge prior: at three
+#'       variables a uniform \code{beta_bernoulli_prior(1, 1)} realizes about
+#'       0.37, and a fixed \code{bernoulli_prior(0.5)} at \eqn{\delta = 0}
+#'       realizes about 0.27. The correction keeps the learned inclusion
+#'       probability coherent with the joint model; it does not restore the
+#'       nominal prior, and with a fixed inclusion probability nothing
+#'       absorbs the tilt. A message reports this when \code{verbose = TRUE};
+#'       \code{\link{extract_prior_inclusion_probabilities}} returns the
+#'       realized prior.}
+#'     \item{"hierarchical"}{The hierarchical specification
+#'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
+#'       normalized per graph, so the graph marginal is exactly the edge
+#'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
+#'       ratio with a fast local approximation: a theta-independent
+#'       absolute-moment surface built once at the start of the analysis from
+#'       block-Gibbs anchors on components of up to 80 variables. Within that
+#'       anchored range the surface tracks a block-Gibbs reference to about
+#'       0.003 nats. It is scored against that reference at five
+#'       \code{gamma_prior()} diagonal shapes -- 0.5, 1, 2, 3 and 5 -- and
+#'       deploys on the range those points span up to shape 10, with the
+#'       interior interpolated rather than measured. At shape 10 the guarantee
+#'       is of a different kind: the diagonal has concentrated far enough that
+#'       the whole mediated correction is bounded by 0.00028 nats over the
+#'       scored blocks at a standardized rate (\code{eta}) of 2 or below, so
+#'       there is little left to approximate rather than a tight approximation
+#'       of something large. That bound is set at the top of the scored rate
+#'       range, since the correction grows with the rate, and does not extend
+#'       above it. Above shape 10 that bound is what the fit deploys: the
+#'       mediating correction is switched off and every edge is served the
+#'       isolated-edge ratio, which is exact for an edge with no mediating
+#'       structure, so the whole error is the mediation it drops -- at most
+#'       0.00028 nats, measured at shapes 12, 15 and 20. The alternative there
+#'       is not a coarser correction but a broken one: the additive kernel
+#'       returns zero on a large common-neighbour block and discards the whole
+#'       ratio. A shape below 0.5 keeps that additive kernel, and shares its
+#'       limitation: on a fully connected common-neighbour block the additive
+#'       ratio collapses to zero above a size that depends on the cell and on
+#'       \code{delta}, measured between about 12 and 32 variables. Because
+#'       \code{delta} defaults to \eqn{0.5 \log p}, small models are not
+#'       exposed at all -- the largest possible block sits below the boundary --
+#'       and the collapse becomes reachable from roughly 20 to 30 variables
+#'       upward. A fit reports it (\code{n_collapsed}). A mediating block beyond
+#'       the anchored size range is predicted by continuing
+#'       the surface along its own boundary slope, measured at blocks of 90 to
+#'       150 variables at a median of 0.0006 nats and at most 0.0011 for
+#'       common-neighbour blocks, and a median of 0.0043 and at most 0.0060 for
+#'       bipartite ones: bounded and far tighter than the
+#'       alternatives, but outside the in-range figure, and reported by a note
+#'       when a fit relies on it. A fit reaches that regime only with a dense
+#'       posterior on many variables; sparse graphs never do. A trust gauge audits the approximation after
+#'       sampling on two channels: the rate at which the chain's edge
+#'       decisions would differ under the exact calculation, and the projected
+#'       distortion of the inclusion probabilities from the measured error
+#'       under the edge prior's feedback
+#'       (\code{\link{summarize_zratio_gauge}}). The summary is returned as
+#'       \code{fit$zratio_diag} and issues print like other sampler warnings.
+#'       The gauge runs by default; \code{options(bgms.zratio_gauge_sweeps =
+#'       0L)} turns it off, and \code{fit$zratio_diag} is then \code{NULL}.
+#'       Its cost is fixed per chain rather than proportional to \code{iter}:
+#'       zero on a sparse posterior, where no mediating block is non-trivial
+#'       and the ratio is exact, and about 5-10 seconds per chain on a dense
+#'       posterior at 100-200 variables. That is negligible on a
+#'       production-length fit and noticeable on a short exploratory one,
+#'       which is what the off switch is for.
+#'       Requires a \code{normal_prior()} or \code{cauchy_prior()} interaction
+#'       prior; a \code{beta_prime_prior()} slab is rejected. On mixed data the
+#'       normalizer lives on the continuous block \eqn{K_{yy}}, so the
+#'       Z-ratio enters the continuous-continuous edge moves only, with the
+#'       mediating-block counts read off the continuous subgraph; discrete
+#'       and cross edges are unchanged.}
+#'   }
+#'   Default: \code{"joint"}.
+#'
+#'   The two specifications differ only in how \eqn{p(K \mid \Gamma)} is
+#'   normalized across graphs, so they differ only where the sampler moves
+#'   between graphs. Where it does not, \code{"hierarchical"} is accepted and
+#'   the fit is the same under either value:
+#'   \itemize{
+#'     \item With \code{edge_selection = FALSE} the graph is fixed, there is
+#'       nothing to normalize across, and the two specifications coincide
+#'       exactly. The correction surface and the trust gauge are skipped, so
+#'       the fit does not pay to build them, and \code{fit$zratio_diag} is
+#'       \code{NULL}.
+#'     \item With no continuous precision block — an ordinal model, or mixed
+#'       data with fewer than two continuous variables — there is no \eqn{K}
+#'       for the argument to refer to. A message reports this when
+#'       \code{verbose = TRUE}.
+#'   }
+#'   The slab is checked only where the choice is meaningful, so a
+#'   \code{beta_prime_prior()} is rejected on a continuous block under edge
+#'   selection and tolerated where the argument has no referent.
 #'
 #' @param inclusion_probability `r lifecycle::badge("deprecated")` Numeric
 #'   scalar. Use \code{edge_prior = bernoulli_prior(inclusion_probability)}
@@ -207,10 +320,17 @@
 #'     \item{"adaptive-metropolis"}{Componentwise adaptive Metropolis--Hastings
 #'       with Robbins--Monro proposal adaptation.}
 #'     \item{"nuts"}{The No-U-Turn Sampler, a gradient-based sampler available
-#'       for all variable types, including under edge selection. The Gaussian
-#'       graphical model uses a free-element Cholesky parameterization that keeps
-#'       the precision matrix positive-definite; the mixed model uses RATTLE
-#'       constrained integration when excluded edges impose constraints.}
+#'       for all variable types, including under edge selection. Continuous
+#'       precision blocks use a free-element Cholesky parameterization that
+#'       keeps the precision matrix positive-definite and encodes excluded
+#'       edges through per-column null-space coordinates.}
+#'     \item{"gibbs"}{A Gibbs sampler for the Gaussian graphical model, with a
+#'       conjugate row-block draw of the precision matrix. Available only for
+#'       all-continuous data with a Normal or Cauchy (slab) interaction prior
+#'       and a Gamma scale prior on the precision diagonal. Edge selection is
+#'       supported for both slabs; the graph is updated by a full-conditional
+#'       birth/death between-step (a Cauchy slab uses its scale-mixture
+#'       representation).}
 #'   }
 #'   Default: \code{"nuts"}.
 #'
@@ -228,15 +348,29 @@
 #' @param chains Integer. Number of parallel chains to run. Default: \code{4}.
 #'
 #' @param cores Integer. Number of CPU cores for parallel execution.
-#'   Default: \code{parallel::detectCores()}.
+#'   Sampling uses \code{min(cores, chains)}; some computations outside of
+#'   sampling (such as building the edge-selection prior correction table)
+#'   use all \code{cores}. Default: \code{parallel::detectCores()}.
 #'
 #' @param seed Optional integer. Random seed for reproducibility. Must be a
-#'   single non-negative integer.
+#'   single non-negative integer. On Windows with \code{RcppParallel} >= 6.0.0,
+#'   a fixed seed reproduces a run only at the same \code{cores} setting: under
+#'   the oneTBB 2022 scheduler, runs at different core counts are statistically
+#'   equivalent but not bit-for-bit identical.
 #'
 #' @param interaction_scale,burnin,save,threshold_alpha,threshold_beta
 #'   `r lifecycle::badge("deprecated")`
 #'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
 #'   Use `interaction_prior`, `warmup`, and `threshold_prior` instead.
+#'
+#' @param standardize `r lifecycle::badge("deprecated")` Logical. Deprecated
+#'   as of \strong{bgms 0.2.0.0}. Through 0.1.6.3, \code{TRUE} adjusted each
+#'   pair's interaction prior scale by the product of the two variables'
+#'   maximum scores. Pairwise interactions are now on the association scale
+#'   and share one prior scale, so the per-pair adjustment is gone:
+#'   \code{standardize = FALSE} (the old default) warns and proceeds, while
+#'   \code{standardize = TRUE} errors and points to setting the scale directly
+#'   through \code{interaction_prior}.
 #'
 #' @return
 #' An S7 object of class \code{bgms} with posterior summaries, posterior mean
@@ -266,8 +400,10 @@
 #'     (q x 1 matrix of means).
 #'   \item \code{posterior_mean_pairwise}: Symmetric matrix of posterior
 #'     mean partial associations (zero diagonal). For continuous variables
-#'     these are unstandardized partial correlations; for discrete variables
-#'     these are half the log adjacent-category odds ratio. Use
+#'     these are half the negated precision off-diagonal,
+#'     \eqn{\omega_{jk} = -\Theta_{jk}/2}{omega_jk = -Theta_jk / 2}; for
+#'     discrete variables these are half the log adjacent-category odds
+#'     ratio. Use
 #'     [extract_precision()], [extract_partial_correlations()], or
 #'     [extract_log_odds()] to convert to interpretable scales.
 #'   \item \code{posterior_mean_residual_variance}: Named numeric vector of
@@ -342,15 +478,16 @@ bgm = function(
   baseline_category,
   iter = 2e3,
   warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   means_prior = normal_prior(scale = 1),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
+  precision_graph_prior = c("joint", "hierarchical"),
   na_action = c("listwise", "impute"),
-  update_method = c("nuts", "adaptive-metropolis"),
+  update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
   nuts_max_depth = 10,
   learn_mass_matrix = TRUE,
@@ -358,7 +495,6 @@ bgm = function(
   cores = parallel::detectCores(),
   display_progress = c("per-chain", "total", "none"),
   seed = NULL,
-  standardize = FALSE,
   verbose = getOption("bgms.verbose", TRUE),
   progress_callback = NULL,
   # Deprecated prior arguments (v0.1.6.0 and earlier)
@@ -377,7 +513,9 @@ bgm = function(
   burnin,
   save,
   threshold_alpha,
-  threshold_beta
+  threshold_beta,
+  # Deprecated arguments (v0.2.0.0)
+  standardize
 ) {
   # Set verbose option for internal functions, restore on exit
 
@@ -392,7 +530,7 @@ bgm = function(
       "bgm(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -425,7 +563,7 @@ bgm = function(
       "0.2.0", "bgm(pairwise_scale =)",
       "bgm(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
@@ -440,6 +578,34 @@ bgm = function(
       ma = if(hasArg(main_alpha)) main_alpha else 0.5
       mb = if(hasArg(main_beta)) main_beta else 0.5
       threshold_prior = beta_prime_prior(alpha = ma, beta = mb)
+    }
+  }
+
+  # --- Legacy deprecation: v0.2.0.0 removals ----------------------------------
+  # standardize scaled each pair's interaction prior by the product of the two
+  # variables' maximum scores. FALSE, its old default, is what the sampler does
+  # now, so it warns and proceeds; TRUE asks for an adjustment that no longer
+  # exists, so it stops with the manual alternative.
+  if(hasArg(standardize)) {
+    if(isFALSE(standardize)) {
+      lifecycle::deprecate_warn(
+        "0.2.0", "bgm(standardize =)",
+        details = paste(
+          "FALSE is what the sampler does, so the fit is unaffected; drop the",
+          "argument."
+        )
+      )
+    } else {
+      lifecycle::deprecate_stop(
+        "0.2.0", "bgm(standardize = 'no longer supports TRUE')",
+        details = paste(
+          "Pairwise interactions are on the association scale and share one",
+          "prior scale, so the per-pair adjustment by the maximum score",
+          "product (scale * m_i * m_j) has been dropped. Set the scale",
+          "directly, e.g. interaction_prior = normal_prior(scale =) or",
+          "cauchy_prior(scale =); there is no per-pair equivalent."
+        )
+      )
     }
   }
 
@@ -497,7 +663,7 @@ bgm = function(
     x = x,
     model_type = "omrf",
     variable_type = variable_type,
-    baseline_category = if(hasArg(baseline_category)) baseline_category else 0L,
+    baseline_category = if(hasArg(baseline_category)) baseline_category else NULL,
     na_action = na_action,
     interaction_prior_type = ip$interaction_prior_type,
     pairwise_scale = ip$pairwise_scale,
@@ -514,10 +680,11 @@ bgm = function(
     scale_prior_type = sp$scale_prior_type,
     scale_shape = sp$scale_shape,
     scale_rate = sp$scale_rate,
+    scale_eta = sp$scale_eta,
     delta = delta,
-    standardize = standardize,
     edge_selection = edge_selection,
     edge_prior = edge_prior,
+    precision_graph_prior = precision_graph_prior,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

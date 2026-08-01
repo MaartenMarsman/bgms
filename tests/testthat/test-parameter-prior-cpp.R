@@ -3,7 +3,6 @@
 #
 # 1. Correctness: logp and grad match R reference implementations
 # 2. Numerical gradient: analytic grad matches finite differences
-# 3. Scaled variants: logp(x, sf) matches logp at scaled parameters
 # ==============================================================================
 
 
@@ -135,54 +134,7 @@ test_that("ExponentialPrior (via create_scale_prior) matches Gamma(1, rate)", {
 
 
 # ==============================================================================
-# 2. Scaled prior variants
-# ==============================================================================
-
-test_that("CauchyPrior logp_scaled matches Cauchy with scaled width", {
-  scale = 1.0
-  sf = 2.0
-  for(x in c(-1.0, 0.0, 0.5, 2.0)) {
-    res = test_parameter_prior("cauchy", x, scale = scale, scale_factor = sf)
-    expected = dcauchy(x, 0, scale * sf, log = TRUE)
-    expect_equal(res$logp_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("NormalPrior logp_scaled matches Normal with scaled sd", {
-  scale = 1.0
-  sf = 3.0
-  for(x in c(-1.0, 0.0, 0.5, 2.0)) {
-    res = test_parameter_prior("normal", x, scale = scale, scale_factor = sf)
-    expected = dnorm(x, 0, scale * sf, log = TRUE)
-    expect_equal(res$logp_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("CauchyPrior grad_scaled matches analytic at scaled width", {
-  scale = 1.5
-  sf = 2.0
-  for(x in c(-1.0, 0.1, 0.5, 2.0)) {
-    res = test_parameter_prior("cauchy", x, scale = scale, scale_factor = sf)
-    s = scale * sf
-    expected = -2 * x / (s^2 + x^2)
-    expect_equal(res$grad_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-test_that("NormalPrior grad_scaled matches analytic at scaled sd", {
-  scale = 0.5
-  sf = 4.0
-  for(x in c(-1.0, 0.1, 0.5, 2.0)) {
-    res = test_parameter_prior("normal", x, scale = scale, scale_factor = sf)
-    s = scale * sf
-    expected = -x / s^2
-    expect_equal(res$grad_scaled, expected, tolerance = 1e-12)
-  }
-})
-
-
-# ==============================================================================
-# 3. Numerical gradient verification for GGM with non-default priors
+# 2. Numerical gradient verification for GGM with non-default priors
 # ==============================================================================
 
 make_edge_matrix = function(p, included_edges) {
@@ -573,6 +525,8 @@ test_that("GGM edge selection works with beta_prime_prior interaction", {
   fit = bgm(Y,
     variable_type = "continuous",
     interaction_prior = beta_prime_prior(1, 1),
+    # beta-prime has no scale, so the diagonal prior must give a raw rate
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1),
     edge_prior = bernoulli_prior(0.5),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
@@ -581,18 +535,39 @@ test_that("GGM edge selection works with beta_prime_prior interaction", {
   expect_false(is.null(fit$posterior_mean_indicator))
 })
 
-test_that("GGM edge selection works with non-default diagonal prior", {
+test_that("GGM beta_prime_prior interaction rejects an eta-frame diagonal prior", {
   set.seed(42)
   Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
-  fit = bgm(Y,
+  expect_error(
+    bgm(Y,
+      variable_type = "continuous",
+      interaction_prior = beta_prime_prior(1, 1),
+      iter = 50, warmup = 100, chains = 1,
+      display_progress = "none"
+    ),
+    "scale parameter"
+  )
+})
+
+test_that("GGM edge selection works with non-default diagonal prior", {
+  skip_on_cran() # builds a normalizing-constant correction table
+  old = options(
+    bgms.correction_cache_dir = file.path(tempdir(), "bgms-ctable-prior-cpp")
+  )
+  on.exit(options(old), add = TRUE)
+
+  set.seed(42)
+  Y = as.data.frame(matrix(rnorm(200), nrow = 50, ncol = 4))
+  fit = suppressMessages(bgm(Y,
     variable_type = "continuous",
     precision_scale_prior = gamma_prior(shape = 2, rate = 0.5),
     edge_prior = beta_bernoulli_prior(1, 1),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
-  )
+  ))
   expect_s3_class(fit, "bgms")
   expect_false(is.null(fit$posterior_mean_indicator))
+  expect_length(fit$inclusion_parameter_samples[[1]], 50)
 })
 
 test_that("OMRF edge selection works with normal_prior interaction", {

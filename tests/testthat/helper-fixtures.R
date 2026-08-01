@@ -49,8 +49,10 @@
 # Ensure bgms package is loaded
 library(bgms)
 
-# Suppress informational messages during tests
-options(bgms.verbose = FALSE)
+# Advisory output is quieted for the test run in setup.R, not here. Helper files
+# are sourced by devtools::load_all() (setup files are not), so setting the
+# option here would leak bgms.verbose = FALSE into interactive development
+# sessions and silence fit-time messages and progress bars.
 
 # ------------------------------------------------------------------------------
 # 1. Session-Cached Model Fixtures
@@ -316,21 +318,6 @@ get_bgms_fit_impute = function() {
   .test_cache$bgms_fit_impute
 }
 
-#' @description Get cached bgms fit with prior standardization (1 chain)
-get_bgms_fit_standardize = function() {
-  if(is.null(.test_cache$bgms_fit_std)) {
-    data("Wenchuan", package = "bgms")
-    .test_cache$bgms_fit_std = bgm(
-      Wenchuan[1:50, 1:4],
-      standardize = TRUE,
-      iter = 25, warmup = 50, chains = 1,
-      seed = 88881,
-      display_progress = "none"
-    )
-  }
-  .test_cache$bgms_fit_std
-}
-
 #' @description Get cached bgmCompare fit with Blume-Capel variables (1 chain)
 get_bgmcompare_fit_blumecapel = function() {
   if(is.null(.test_cache$bgmcompare_fit_bc)) {
@@ -420,23 +407,6 @@ get_bgmcompare_fit_blumecapel_impute = function() {
     )
   }
   .test_cache$bgmcompare_fit_bc_impute
-}
-
-#' @description Get cached bgmCompare fit with prior standardization (1 chain)
-get_bgmcompare_fit_standardize = function() {
-  if(is.null(.test_cache$bgmcompare_fit_std)) {
-    data("Wenchuan", package = "bgms")
-    x = Wenchuan[1:25, 1:4]
-    y = Wenchuan[26:50, 1:4]
-    .test_cache$bgmcompare_fit_std = bgmCompare(
-      x = x, y = y,
-      standardize = TRUE,
-      iter = 25, warmup = 50, chains = 1,
-      seed = 22221,
-      display_progress = "none"
-    )
-  }
-  .test_cache$bgmcompare_fit_std
 }
 
 #' @description Get cached bgms fit for GGM
@@ -683,7 +653,10 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       sample(0:2, n, replace = TRUE)
     )
     colnames(x) = c("d1", "c1", "d2", "c2", "d3")
-    .test_cache$bgms_fit_mixed_mrf_sbm = bgm(
+    # Two continuous variables: the block-model correction warns that its
+    # slope curve is not resolvable at a single tilted pair and keeps the
+    # plain conjugate updates (asserted in test-mixed-correction.R).
+    .test_cache$bgms_fit_mixed_mrf_sbm = suppressWarnings(bgm(
       x = x,
       variable_type = c(
         "ordinal", "continuous", "ordinal",
@@ -694,7 +667,7 @@ get_bgms_fit_mixed_mrf_sbm = function() {
       iter = 50, warmup = 100, chains = 1,
       seed = 77778,
       display_progress = "none"
-    )
+    ))
   }
   .test_cache$bgms_fit_mixed_mrf_sbm
 }
@@ -782,6 +755,54 @@ get_bgms_fit_mixed_mrf_multichain = function() {
     )
   }
   .test_cache$bgms_fit_mixed_mrf_multichain
+}
+
+# The user-facing check surface -- verdicts(), extract_centrality(),
+# calibration_check(), plot() -- reads a settled posterior rather than driving
+# the sampler, so one fit per cell serves every test that inspects it. The
+# chains are long enough for the fragility flag to see both of its states, which
+# is what these fits are sized for.
+
+#' @description Get cached bgms fit
+#' (6 ordinal Wenchuan variables, edge selection, 2 chains)
+get_bgms_fit_wenchuan6 = function() {
+  if(is.null(.test_cache$bgms_fit_wenchuan6)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_wenchuan6 = bgm(
+      Wenchuan[, 1:6],
+      chains = 2, iter = 400, warmup = 400, cores = 2, seed = 1,
+      display_progress = "none", verbose = FALSE
+    )
+  }
+  .test_cache$bgms_fit_wenchuan6
+}
+
+#' @description Get cached bgms fit
+#' (5 ordinal Wenchuan variables, edge selection, 2 chains)
+get_bgms_fit_wenchuan5 = function() {
+  if(is.null(.test_cache$bgms_fit_wenchuan5)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgms_fit_wenchuan5 = bgm(
+      Wenchuan[, 1:5],
+      chains = 2, iter = 300, warmup = 300, cores = 2, seed = 7,
+      display_progress = "none", verbose = FALSE
+    )
+  }
+  .test_cache$bgms_fit_wenchuan5
+}
+
+#' @description Get cached bgmCompare fit
+#' (5 ordinal Wenchuan variables, 2 groups, difference selection, 2 chains)
+get_bgmcompare_fit_wenchuan5 = function() {
+  if(is.null(.test_cache$bgmcompare_fit_wenchuan5)) {
+    data("Wenchuan", package = "bgms")
+    .test_cache$bgmcompare_fit_wenchuan5 = bgmCompare(
+      x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
+      iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
+      difference_selection = TRUE, display_progress = "none"
+    )
+  }
+  .test_cache$bgmcompare_fit_wenchuan5
 }
 
 # ------------------------------------------------------------------------------
@@ -1115,13 +1136,6 @@ get_bgms_fixtures = function() {
       is_continuous = FALSE
     ),
     list(
-      label = "standardize",
-      get_fit = get_bgms_fit_standardize,
-      get_prediction_data = get_prediction_data_ordinal,
-      var_type = "ordinal",
-      is_continuous = FALSE
-    ),
-    list(
       label = "beta-bernoulli",
       get_fit = get_bgms_fit_beta_bernoulli,
       get_prediction_data = get_prediction_data_binary,
@@ -1294,12 +1308,6 @@ get_bgmcompare_fixtures = function() {
     list(
       label = "beta-bernoulli",
       get_fit = get_bgmcompare_fit_beta_bernoulli,
-      get_prediction_data = get_prediction_data_bgmcompare_ordinal,
-      var_type = "ordinal"
-    ),
-    list(
-      label = "standardize",
-      get_fit = get_bgmcompare_fit_standardize,
       get_prediction_data = get_prediction_data_bgmcompare_ordinal,
       var_type = "ordinal"
     ),

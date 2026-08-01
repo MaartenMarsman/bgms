@@ -4,16 +4,17 @@
 #include <string>
 #include <cmath>
 #include <Rmath.h>
+#include "math/explog_macros.h"
 
 
-// =============================================================================
-// BaseParameterPrior — abstract base for real-valued parameter priors
-//
-// Follows the same polymorphic pattern as BaseEdgePrior. Each subclass stores
-// its own hyperparameters and provides logp/grad evaluated at a point x.
-//
-// Used for interaction parameters, threshold parameters, and continuous means.
-// =============================================================================
+/**
+ * BaseParameterPrior — abstract base for real-valued parameter priors.
+ *
+ * Follows the same polymorphic pattern as BaseEdgePrior. Each subclass stores
+ * its own hyperparameters and provides logp/grad evaluated at a point x.
+ *
+ * Used for interaction parameters, threshold parameters, and continuous means.
+ */
 class BaseParameterPrior {
 public:
     virtual ~BaseParameterPrior() = default;
@@ -21,41 +22,17 @@ public:
     /** Log-density log p(x) up to an additive constant. */
     virtual double logp(double x) const = 0;
 
-    /**
-     * Log-density with an additional multiplicative scale factor.
-     *
-     * For priors with a scale parameter, this evaluates the prior at x
-     * with the scale multiplied by scale_factor. Used by OMRF/mixed MRF
-     * where the prior scale is adjusted per variable pair based on score
-     * range (pairwise_scaling_factors).
-     *
-     * Default: ignores scale_factor (delegates to logp(x)).
-     */
-    virtual double logp(double x, double scale_factor) const {
-        (void)scale_factor;
-        return logp(x);
-    }
-
     /** Gradient d/dx log p(x). */
     virtual double grad(double x) const = 0;
-
-    /**
-     * Gradient with an additional multiplicative scale factor.
-     * Default: ignores scale_factor (delegates to grad(x)).
-     */
-    virtual double grad(double x, double scale_factor) const {
-        (void)scale_factor;
-        return grad(x);
-    }
 
     /** Deep copy for parallel chains. */
     virtual std::unique_ptr<BaseParameterPrior> clone() const = 0;
 };
 
 
-// =============================================================================
-// CauchyPrior — Cauchy(0, scale)
-// =============================================================================
+/**
+ * CauchyPrior — Cauchy(0, scale).
+ */
 class CauchyPrior final : public BaseParameterPrior {
 public:
     explicit CauchyPrior(double scale) : scale_(scale) {}
@@ -64,18 +41,8 @@ public:
         return R::dcauchy(x, 0.0, scale_, true);
     }
 
-    double logp(double x, double scale_factor) const override {
-        return R::dcauchy(x, 0.0, scale_ * scale_factor, true);
-    }
-
     double grad(double x) const override {
         double s2 = scale_ * scale_;
-        return -2.0 * x / (s2 + x * x);
-    }
-
-    double grad(double x, double scale_factor) const override {
-        double s = scale_ * scale_factor;
-        double s2 = s * s;
         return -2.0 * x / (s2 + x * x);
     }
 
@@ -83,14 +50,17 @@ public:
         return std::make_unique<CauchyPrior>(*this);
     }
 
+    /** @return the slab scale. */
+    double scale() const { return scale_; }
+
 private:
     double scale_;
 };
 
 
-// =============================================================================
-// NormalPrior — Normal(0, scale)
-// =============================================================================
+/**
+ * NormalPrior — Normal(0, scale).
+ */
 class NormalPrior final : public BaseParameterPrior {
 public:
     explicit NormalPrior(double scale) : scale_(scale) {}
@@ -99,18 +69,8 @@ public:
         return R::dnorm(x, 0.0, scale_, true);
     }
 
-    double logp(double x, double scale_factor) const override {
-        return R::dnorm(x, 0.0, scale_ * scale_factor, true);
-    }
-
     double grad(double x) const override {
         double s2 = scale_ * scale_;
-        return -x / s2;
-    }
-
-    double grad(double x, double scale_factor) const override {
-        double s = scale_ * scale_factor;
-        double s2 = s * s;
         return -x / s2;
     }
 
@@ -118,29 +78,32 @@ public:
         return std::make_unique<NormalPrior>(*this);
     }
 
+    /** @return the slab standard deviation. */
+    double scale() const { return scale_; }
+
 private:
     double scale_;
 };
 
 
-// =============================================================================
-// BetaPrimePrior — logit-Beta(alpha, beta) prior
-//
-// If sigma(x) ~ Beta(alpha, beta), then x = logit(Y) where Y ~ Beta(a, b).
-// log p(x) = alpha * x - (alpha + beta) * log(1 + exp(x)) + const
-// =============================================================================
+/**
+ * BetaPrimePrior — logit-Beta(alpha, beta) prior.
+ *
+ * If sigma(x) ~ Beta(alpha, beta), then x = logit(Y) where Y ~ Beta(a, b).
+ * log p(x) = alpha * x - (alpha + beta) * log(1 + exp(x)) + const
+ */
 class BetaPrimePrior final : public BaseParameterPrior {
 public:
     BetaPrimePrior(double alpha, double beta)
         : alpha_(alpha), beta_(beta) {}
 
     double logp(double x) const override {
-        return x * alpha_ - std::log1p(std::exp(x)) * (alpha_ + beta_);
+        return x * alpha_ - MY_LOG1P(MY_EXP(x)) * (alpha_ + beta_);
     }
 
     double grad(double x) const override {
         // alpha - (alpha + beta) * sigmoid(x)
-        double p = 1.0 / (1.0 + std::exp(-x));
+        double p = 1.0 / (1.0 + MY_EXP(-x));
         return alpha_ - (alpha_ + beta_) * p;
     }
 
@@ -154,12 +117,12 @@ private:
 };
 
 
-// =============================================================================
-// GammaScalePrior — Gamma(shape, rate) prior for positive parameters
-//
-// Used for precision matrix diagonal elements.
-// log p(x) = (shape - 1) * log(x) - rate * x + const
-// =============================================================================
+/**
+ * GammaScalePrior — Gamma(shape, rate) prior for positive parameters.
+ *
+ * Used for precision matrix diagonal elements.
+ * log p(x) = (shape - 1) * log(x) - rate * x + const
+ */
 class GammaScalePrior final : public BaseParameterPrior {
 public:
     GammaScalePrior(double shape, double rate)
@@ -177,6 +140,11 @@ public:
     std::unique_ptr<BaseParameterPrior> clone() const override {
         return std::make_unique<GammaScalePrior>(*this);
     }
+
+    /** @return the Gamma shape parameter. */
+    double shape() const { return shape_; }
+    /** @return the Gamma rate parameter. */
+    double rate() const { return rate_; }
 
 private:
     double shape_;

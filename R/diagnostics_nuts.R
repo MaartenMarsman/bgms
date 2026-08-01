@@ -45,15 +45,35 @@ check_warmup_complete = function(energy_mat) {
     ))
   }
 
-  mid = floor(n / 2)
+  # Per-chain NA result for chains with too little usable energy to assess.
+  na_result = list(
+    warmup_incomplete = FALSE,
+    energy_slope = NA_real_,
+    slope_significant = FALSE,
+    ebfmi_first_half = NA_real_,
+    ebfmi_second_half = NA_real_,
+    var_ratio = NA_real_
+  )
 
   results = lapply(seq_len(nchains), function(chain) {
+    # An interrupted or degenerate run leaves the energy trace partly or
+    # fully NA; assess the finite draws only.
     energy = energy_mat[chain, ]
+    energy = energy[is.finite(energy)]
+    n_chain = length(energy)
+
+    # Too few usable values to split and regress: return NA diagnostics
+    # rather than fitting lm/var on empty data.
+    if(n_chain < 20) {
+      return(na_result)
+    }
+
+    mid = floor(n_chain / 2)
     first_half = energy[1:mid]
-    second_half = energy[(mid + 1):n]
+    second_half = energy[(mid + 1):n_chain]
 
     # Linear trend in energy
-    time_idx = seq_len(n)
+    time_idx = seq_len(n_chain)
     trend_lm = stats::lm(energy ~ time_idx)
     slope = stats::coef(trend_lm)[2]
     slope_se = summary(trend_lm)$coefficients[2, 2]
@@ -110,15 +130,13 @@ check_warmup_complete = function(energy_mat) {
 # Returns: An invisible named list with:
 #   - treedepth:  Integer matrix (chains x iterations).
 #   - divergent:  Integer matrix (chains x iterations), 0/1.
-#   - non_reversible: Integer matrix (chains x iterations), 0/1.
 #   - energy:     Numeric matrix (chains x iterations).
 #   - accept_prob: Numeric matrix (chains x iterations) of mean
 #       per-trajectory Metropolis acceptance (Stan's accept_stat__).
 #   - ebfmi:      Numeric vector of per-chain E-BFMI values.
 #   - warmup_check: Output of check_warmup_complete().
 #   - summary:    List with total_divergences, max_tree_depth_hits,
-#       min_ebfmi, mean_accept_prob, total_non_reversible, and
-#       warmup_incomplete (logical).
+#       min_ebfmi, mean_accept_prob, and warmup_incomplete (logical).
 # ------------------------------------------------------------------------------
 summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) {
   nuts_chains = Filter(function(chain) {
@@ -141,12 +159,6 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   divergent_mat = combine_diag("divergent__", integer = TRUE)
   energy_mat = combine_diag("energy__")
 
-  non_reversible_mat = if("non_reversible__" %in% names(nuts_chains[[1]])) {
-    combine_diag("non_reversible__", integer = TRUE)
-  } else {
-    matrix(0L, nrow = nrow(divergent_mat), ncol = ncol(divergent_mat))
-  }
-
   accept_prob_mat = if("accept_prob__" %in% names(nuts_chains[[1]])) {
     combine_diag("accept_prob__")
   } else {
@@ -164,7 +176,6 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   # Summaries
   n_total = nrow(divergent_mat) * ncol(divergent_mat)
   total_divergences = sum(divergent_mat)
-  total_non_reversible = sum(non_reversible_mat)
   max_tree_depth_hits = sum(treedepth_mat == nuts_max_depth)
   min_ebfmi = min(ebfmi_per_chain)
   low_ebfmi_chains = which(ebfmi_per_chain < 0.2)
@@ -172,59 +183,61 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   divergence_rate = total_divergences / n_total
   depth_hit_rate = max_tree_depth_hits / n_total
 
-  if(verbose) {
-    issues = character(0)
+  # Build the issue list regardless of verbose so has_issues is always known
+  # (verbose only governs whether the block is printed). The vignette pointer
+  # is emitted once by the output builder as a shared footer, not per issue.
+  issues = character(0)
 
-    if(total_divergences > 0) {
-      if(divergence_rate > 0.001) {
-        issues = c(issues, sprintf(
-          "Divergences: %d (%.2f%%) - increase target acceptance or use adaptive-metropolis",
-          total_divergences, 100 * divergence_rate
-        ))
-      } else {
-        issues = c(issues, sprintf(
-          "Divergences: %d (%.3f%%) - check R-hat and ESS",
-          total_divergences, 100 * divergence_rate
-        ))
-      }
-    }
-
-    if(total_non_reversible > 0) {
-      non_rev_rate = total_non_reversible / n_total
+  if(total_divergences > 0) {
+    if(divergence_rate > 0.001) {
       issues = c(issues, sprintf(
-        "Non-reversible steps: %d (%.3f%%) - constrained integrator round-trip failed",
-        total_non_reversible, 100 * non_rev_rate
+        "Divergences: %d (%.2f%%) - increase target acceptance or use adaptive-metropolis",
+        total_divergences, 100 * divergence_rate
+      ))
+    } else {
+      issues = c(issues, sprintf(
+        "Divergences: %d (%.3f%%) - check R-hat and ESS",
+        total_divergences, 100 * divergence_rate
       ))
     }
+  }
 
-    if(max_tree_depth_hits > 0) {
-      if(depth_hit_rate > 0.01) {
-        issues = c(issues, sprintf(
-          "Tree depth: %d hits (%.1f%%) - consider max_depth > %d",
-          max_tree_depth_hits, 100 * depth_hit_rate, nuts_max_depth
-        ))
-      } else {
-        issues = c(issues, sprintf(
-          "Tree depth: %d hits (%.2f%%) - check ESS",
-          max_tree_depth_hits, 100 * depth_hit_rate
-        ))
-      }
-    }
-
-    if(length(low_ebfmi_chains) > 0) {
+  if(max_tree_depth_hits > 0) {
+    if(depth_hit_rate > 0.01) {
       issues = c(issues, sprintf(
-        "E-BFMI: %.3f in chain%s %s - see vignette('diagnostics') for guidance",
-        min_ebfmi,
-        if(length(low_ebfmi_chains) > 1) "s" else "",
-        paste(low_ebfmi_chains, collapse = ", ")
+        "Tree depth: %d hits (%.1f%%) - consider max_depth > %d",
+        max_tree_depth_hits, 100 * depth_hit_rate, nuts_max_depth
+      ))
+    } else {
+      issues = c(issues, sprintf(
+        "Tree depth: %d hits (%.2f%%) - check ESS",
+        max_tree_depth_hits, 100 * depth_hit_rate
       ))
     }
+  }
 
-    if(length(issues) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
-      cat("NUTS issues:\n")
-      for(issue in issues) {
-        cat("  -", issue, "\n")
-      }
+  if(length(low_ebfmi_chains) > 0) {
+    issues = c(issues, sprintf(
+      "E-BFMI: %.3f in chain%s %s",
+      min_ebfmi,
+      if(length(low_ebfmi_chains) > 1) "s" else "",
+      paste(low_ebfmi_chains, collapse = ", ")
+    ))
+  }
+
+  incomplete_chains = which(warmup_check$warmup_incomplete)
+  if(length(incomplete_chains) > 0) {
+    issues = c(issues, sprintf(
+      "Warmup may be incomplete: energy not stationary in chain%s %s - check R-hat and ESS",
+      if(length(incomplete_chains) > 1) "s" else "",
+      paste(incomplete_chains, collapse = ", ")
+    ))
+  }
+
+  if(verbose && length(issues) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+    cat("NUTS issues:\n")
+    for(issue in issues) {
+      cat("  -", issue, "\n")
     }
   }
 
@@ -233,14 +246,13 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
   invisible(list(
     treedepth = treedepth_mat,
     divergent = divergent_mat,
-    non_reversible = non_reversible_mat,
     energy = energy_mat,
     accept_prob = accept_prob_mat,
     ebfmi = ebfmi_per_chain,
     warmup_check = warmup_check,
+    has_issues = length(issues) > 0,
     summary = list(
       total_divergences = total_divergences,
-      total_non_reversible = total_non_reversible,
       max_tree_depth_hits = max_tree_depth_hits,
       min_ebfmi = min_ebfmi,
       mean_accept_prob = mean_accept_prob,

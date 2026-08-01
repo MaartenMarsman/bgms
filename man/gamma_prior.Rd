@@ -4,27 +4,47 @@
 \alias{gamma_prior}
 \title{Gamma Prior for Scale Parameters}
 \usage{
-gamma_prior(shape = 1, rate = 1)
+gamma_prior(shape = 1, rate = NULL, eta = NULL)
 }
 \arguments{
 \item{shape}{Positive numeric. Shape parameter of the Gamma distribution.
 Default: \code{1}.}
 
-\item{rate}{Positive numeric. Rate parameter of the Gamma distribution.
-Default: \code{1}.}
+\item{rate}{Positive numeric. Rate parameter of the Gamma distribution in
+the raw frame. Mutually exclusive with \code{eta}.}
+
+\item{eta}{Positive numeric. Rate parameter of the Gamma distribution on
+the standardized diagonal (unit slab scale). Mutually exclusive with
+\code{rate}. Default when neither is supplied: \code{1}.}
 }
 \value{
 An object of class \code{"bgms_scale_prior"} with
 \code{family = "gamma"}.
 }
 \description{
-Specifies a Gamma(shape, rate) prior for positive scale parameters such as
-the diagonal elements of the precision matrix. The default
-\code{gamma_prior(1, 1)} corresponds to an Exponential(1) distribution.
+Specifies a Gamma prior for positive scale parameters such as the
+diagonal elements of the precision matrix. The rate can be given in one
+of two frames:
+\itemize{
+\item \code{rate}: the raw frame; the Gamma(shape, rate) prior applies
+to the diagonal as-is.
+\item \code{eta}: the standardized frame; \code{eta} is the Gamma rate
+on the standardized diagonal, the coordinate in which the pairwise
+(slab) prior has unit scale. \code{eta} fixes the scale of the
+diagonal relative to the slab, and the raw rate is derived at fit
+time as \code{eta / s}, where \code{s} is the scale of the
+interaction prior. At fixed \code{eta}, graph and partial-correlation
+inference is invariant to the slab scale \code{s}.
+}
+Supply either \code{rate} or \code{eta}, not both; with neither, the
+default is the standardized frame with \code{eta = 1}. Small \code{eta}
+places the prior mass well inside the positive-definite cone; large
+\code{eta} places mass near the cone boundary.
 }
 \examples{
-gamma_prior()
-gamma_prior(shape = 2, rate = 0.5)
+gamma_prior() # standardized frame, eta = 1
+gamma_prior(shape = 2, eta = 0.5)
+gamma_prior(shape = 2, rate = 0.5) # raw frame
 
 }
 \seealso{

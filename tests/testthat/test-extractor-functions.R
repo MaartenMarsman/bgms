@@ -266,6 +266,77 @@ test_that("extract_ess returns valid diagnostics for all fit types", {
   }
 })
 
+test_that("extract_ess indicators default to the RB n_eff and honour estimator", {
+  fixtures = get_extractor_fixtures()
+  checked = 0L
+
+  for(spec in fixtures) {
+    ctx = sprintf("[%s]", spec$label)
+    fit = spec$get_fit()
+    ind = summary(fit)$indicator
+
+    if(is.null(ind) || !("n_eff" %in% names(ind))) next
+    checked = checked + 1L
+
+    rb = extract_ess(fit)$indicator
+
+    # The default is the RB n_eff column, matching summary() and the R-hat that
+    # extract_rhat() reports.
+    expect_equal(unname(rb), ind$n_eff, info = paste(ctx, "default is RB n_eff"))
+    expect_equal(unname(extract_ess(fit, estimator = "rb")$indicator), ind$n_eff,
+      info = paste(ctx, "explicit rb is RB n_eff")
+    )
+
+    # NA masking is inherited from the summary table.
+    expect_identical(is.na(unname(rb)), is.na(ind$n_eff),
+      info = paste(ctx, "RB NA positions")
+    )
+
+    # The transition ESS is deprecated and no longer a summary column; the
+    # estimator still resolves, warns, and recomputes it from the raw draws.
+    expect_false("n_eff_mixt" %in% names(ind), info = paste(ctx, "no transition column"))
+    expect_warning(
+      mixt <- extract_ess(fit, estimator = "mixt")$indicator,
+      class = "lifecycle_warning_deprecated"
+    )
+    raw = bgms:::get_fit_cache(fit)$raw
+    ref = bgms:::.compute_indicator_ess_cpp(
+      bgms:::combine_chains(raw, "indicator_samples")
+    )[, "n_eff_mixt"]
+    expect_equal(unname(mixt), unname(ref), info = paste(ctx, "mixt is the transition ESS"))
+
+    expect_error(extract_ess(fit, estimator = "nonsense"))
+  }
+
+  expect_gt(checked, 0L)
+})
+
+test_that("extract_ess indicators fall back to the transition ESS without RB draws", {
+  # Summary tables from fits predating the RB regime (bgms < 0.2.0.0) carry no
+  # n_eff column: a default call falls back, an explicit "rb" errors, and an
+  # explicit "mixt" reads the legacy column.
+  rb_table = data.frame(n_eff = c(100, NA))
+  legacy_table = data.frame(n_eff_mixt = c(80, NA))
+  default_arg = c("rb", "mixt")
+
+  expect_equal(indicator_ess_column(NULL, rb_table, default_arg, TRUE), c(100, NA))
+  expect_equal(indicator_ess_column(NULL, legacy_table, default_arg, TRUE), c(80, NA))
+  expect_equal(indicator_ess_column(NULL, legacy_table, "mixt", FALSE), c(80, NA))
+  expect_error(indicator_ess_column(NULL, legacy_table, "rb", FALSE), "Rao-Blackwellized")
+})
+
+test_that("extract_ess indicator names and other elements ignore estimator", {
+  fit = get_bgms_fit()
+  rb = extract_ess(fit)
+  expect_warning(mixt <- extract_ess(fit, estimator = "mixt"),
+    class = "lifecycle_warning_deprecated"
+  )
+
+  expect_identical(names(rb), names(mixt))
+  expect_identical(names(rb$indicator), names(mixt$indicator))
+  expect_equal(rb$pairwise, mixt$pairwise)
+})
+
 test_that("extract_rhat and extract_ess error on non-bgms objects", {
   expect_error(extract_rhat(list()), class = "error")
   expect_error(extract_rhat(data.frame()), class = "error")
@@ -401,7 +472,10 @@ test_that("bgms fit contains all fields accessed by easybgm", {
 
       if(isTRUE(args$edge_selection)) {
         expect_true("posterior_summary_indicator" %in% names(fit), info = ctx)
-        expect_true("n_eff_mixt" %in% names(fit$posterior_summary_indicator), info = ctx)
+        # Inclusion summary now reports the Rao-Blackwellized estimate with
+        # continuous ESS/Rhat (n_eff, not the binary n_eff_mixt).
+        expect_true("n_eff" %in% names(fit$posterior_summary_indicator), info = ctx)
+        expect_true("Rhat" %in% names(fit$posterior_summary_indicator), info = ctx)
       }
     } else {
       expect_true("posterior_summary_pairwise_baseline" %in% names(fit), info = ctx)
@@ -1465,4 +1539,36 @@ test_that("Mixed MRF: continuous precision = -2 * associations", {
   diag(expected_offdiag) = unname(1 / rv)
   dimnames(expected_offdiag) = dimnames(Theta)
   expect_equal(Theta, expected_offdiag)
+})
+
+
+# ---------------------------------------------------------------------------
+# SBM number-of-blocks summary: p(K | t) convention
+# ---------------------------------------------------------------------------
+
+test_that("p(K | t) matches the shifted-Poisson MFM generative prior", {
+  skip_on_cran()
+
+  q = 5L
+  lambda = 1
+  dirichlet_alpha = 1
+  log_Vn = compute_Vn_mfm_sbm(q, dirichlet_alpha, q + 10L, lambda)
+
+  # Simulate the sampler's generative prior: K - 1 ~ Poisson(lambda),
+  # symmetric Dirichlet(alpha) weights, iid allocations; t = #occupied.
+  set.seed(21)
+  n_sims = 3e5
+  K = rpois(n_sims, lambda) + 1L
+  t_obs = vapply(K, function(k) {
+    w = rgamma(k, dirichlet_alpha)
+    length(unique(sample.int(k, q, replace = TRUE, prob = w)))
+  }, integer(1))
+
+  for(t0 in 1:3) {
+    # The summary reports the conditional restricted to K <= q.
+    sel = t_obs == t0 & K <= q
+    empirical = tabulate(K[sel], nbins = q) / sum(sel)
+    analytic = compute_p_k_given_t(t0, log_Vn, dirichlet_alpha, q, lambda)
+    expect_lt(0.5 * sum(abs(empirical - analytic)), 0.02)
+  }
 })

@@ -1,0 +1,179 @@
+# --------------------------------------------------------------------------- #
+# Tests for the hierarchical-graph-prior correction tables.
+#
+# The table math has closed forms when the per-edge tilt slope is constant c:
+#   C(theta) = (1 - theta + theta * exp(c))^E,
+# so the per-pair curve is f(theta) = log(1 - theta + theta * exp(c)) up to
+# an additive constant, the implied local slope is c everywhere, and the
+# fed(theta, d) read-off equals f(theta) in every density column. c = 0 is
+# the untilted case where every curve is identically zero.
+# --------------------------------------------------------------------------- #
+
+test_that("theta grid is dense at both ends and stays inside (0, 1)", {
+  g = ggm_correction_theta_grid(120L)
+
+  expect_false(is.unsorted(g))
+  expect_true(all(g > 0 & g < 1))
+  expect_gte(sum(g < 0.1), 25)
+  expect_gte(sum(g > 0.9), 25)
+})
+
+test_that("untilted sweep gives identically zero curves", {
+  theta = ggm_correction_theta_grid(80L)
+  tab = correction_table_from_edens(theta,
+    edens_raw = theta,
+    num_pairs = 1e6
+  )
+
+  expect_equal(tab$f, rep(0, length(theta)))
+  expect_equal(tab$logC, rep(0, length(theta)))
+  expect_equal(tab$fprime, rep(0, length(tab$fprime_density)),
+    tolerance = 1e-12
+  )
+  expect_equal(max(abs(tab$fed)), 0, tolerance = 1e-12)
+  expect_equal(tab$num_repaired, 0)
+})
+
+test_that("constant-slope tilt recovers the closed form", {
+  c0 = -0.3
+  theta = ggm_correction_theta_grid(120L)
+  edens = theta * exp(c0) / (1 - theta + theta * exp(c0))
+  tab = correction_table_from_edens(theta, edens, num_pairs = 1e6)
+
+  expect_equal(tab$fprime, rep(c0, length(tab$fprime_density)),
+    tolerance = 1e-10
+  )
+  expect_lte(length(tab$fprime_density), sum(theta <= 0.90))
+
+  f_exact = log(1 - theta + theta * exp(c0))
+  expect_equal(tab$f, f_exact - f_exact[1], tolerance = 2e-4)
+
+  fed_exact = log(1 - tab$fed_theta + tab$fed_theta * exp(c0))
+  for(j in seq_along(tab$fed_density)) {
+    expect_equal(tab$fed[, j], fed_exact, tolerance = 1e-10)
+  }
+})
+
+test_that("isotonic repair lifts a crash dip and reports it", {
+  theta = ggm_correction_theta_grid(60L)
+  edens = theta * exp(-0.3) / (1 - theta + theta * exp(-0.3))
+  edens_dipped = edens
+  edens_dipped[50] = 0.01
+
+  tab = correction_table_from_edens(theta, edens_dipped, num_pairs = 1e6)
+
+  expect_gte(tab$num_repaired, 1)
+  expect_false(is.unsorted(tab$edens))
+})
+
+test_that("a single pair yields the logC curve without slope pieces", {
+  c0 = -0.3
+  theta = ggm_correction_theta_grid(80L)
+  edens = theta * exp(c0) / (1 - theta + theta * exp(c0))
+
+  # num_pairs = 1: the resolvable density window (0.5, 0.5) is empty, so
+  # the slope curve cannot be tabulated; the integrated curve still can.
+  tab = correction_table_from_edens(theta, edens, num_pairs = 1)
+
+  expect_null(tab$fprime)
+  expect_null(tab$fprime_density)
+  expect_null(tab$fed)
+  expect_true(all(is.finite(tab$logC)))
+  f_exact = log(1 - theta + theta * exp(c0))
+  expect_equal(tab$f, f_exact - f_exact[1], tolerance = 2e-4)
+})
+
+test_that("table build with cache round-trips and reuses the file", {
+  cache_dir = file.path(tempdir(), "bgms-ctable-test")
+  unlink(cache_dir, recursive = TRUE)
+  old = options(bgms.correction_cache_dir = cache_dir)
+  on.exit(options(old), add = TRUE)
+
+  tab1 = ggm_correction_table(
+    p = 4, n_grid = 12L, n_samples = 100L, n_warmup = 100L, n_seeds = 1L,
+    update_method = "gibbs"
+  )
+  files = list.files(cache_dir)
+  expect_length(files, 1)
+
+  tab2 = ggm_correction_table(
+    p = 4, n_grid = 12L, n_samples = 100L, n_warmup = 100L, n_seeds = 1L,
+    update_method = "gibbs"
+  )
+  expect_identical(tab1, tab2)
+
+  expect_identical(tab1$cell$q, 4L)
+  expect_identical(tab1$cell$slab_family, "cauchy")
+  expect_equal(tab1$cell$eta, 1)
+  expect_equal(tab1$cell$delta, 0.5 * log(4))
+})
+
+test_that("the progress bar renders the label, counts, and percentage", {
+  pb = new_correction_progress(120L, prefix = "Correction table")
+  mid = paste(capture.output(pb$update(70L)), collapse = "")
+  expect_match(mid, "Correction table:", fixed = TRUE)
+  expect_match(mid, "70/120", fixed = TRUE)
+  expect_match(mid, "58.3%", fixed = TRUE)
+  full = paste(capture.output(pb$update(120L)), collapse = "")
+  expect_match(full, "120/120 (100.0%)", fixed = TRUE)
+})
+
+test_that("the parallel sweep matches the serial sweep cell for cell", {
+  skip_on_cran()
+  skip_on_os("windows")
+
+  args = list(
+    p = 4, theta = c(0.2, 0.5, 0.8), delta = 0.5 * log(4),
+    interaction_prior = cauchy_prior(scale = 2.5),
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    n_samples = 200L, n_warmup = 100L, n_seeds = 2L, update_method = "gibbs"
+  )
+  serial = do.call(sweep_prior_edge_density, c(args, cores = 1L))
+  parallel = do.call(sweep_prior_edge_density, c(args, cores = 2L))
+
+  expect_equal(parallel$edens_raw, serial$edens_raw)
+})
+
+test_that("the build announces itself once; a cache hit is silent", {
+  cache_dir = file.path(tempdir(), "bgms-ctable-msg-test")
+  unlink(cache_dir, recursive = TRUE)
+  old = options(bgms.correction_cache_dir = cache_dir)
+  on.exit(options(old), add = TRUE)
+
+  build_args = list(
+    p = 4, n_grid = 12L, n_samples = 100L, n_warmup = 100L, n_seeds = 1L,
+    update_method = "gibbs", verbose = TRUE
+  )
+  # capture.output silences the progress bar (stdout); messages pass through.
+  capture.output(
+    expect_message(
+      do.call(ggm_correction_table, build_args),
+      "Building the edge-selection prior correction table"
+    )
+  )
+  capture.output(
+    expect_no_message(do.call(ggm_correction_table, build_args))
+  )
+})
+
+test_that("gibbs and adaptive-metropolis sweeps agree on edge density", {
+  skip_on_cran()
+
+  theta = c(0.2, 0.5, 0.8)
+  args = list(
+    p = 6, theta = theta, delta = 0.5 * log(6),
+    interaction_prior = cauchy_prior(scale = 2.5),
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1),
+    n_samples = 3000L, n_warmup = 500L, n_seeds = 2L
+  )
+  sweep_gibbs = do.call(
+    sweep_prior_edge_density,
+    c(args, update_method = "gibbs")
+  )
+  sweep_am = do.call(
+    sweep_prior_edge_density,
+    c(args, update_method = "adaptive-metropolis")
+  )
+
+  expect_lt(max(abs(sweep_gibbs$edens_raw - sweep_am$edens_raw)), 0.02)
+})

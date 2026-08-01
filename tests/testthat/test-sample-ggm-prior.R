@@ -77,16 +77,33 @@ test_that("gamma_prior(shape, rate) shifts diagonal mean toward 2*shape/rate", {
   # -K_yy_{ii} = K_{ii}/2, so gamma_prior(shape, rate) implies
   #   K_ii ~ 2 * Gamma(shape, rate),  mean = 2 * shape/rate.
   # Gamma(4, 2) -> mean(K_ii) = 4.0; Gamma(1, 1) -> mean(K_ii) = 2.0.
-  draws_default = short_run(
-    p = 3L, n_samples = 400L, n_warmup = 200L
+  draws_unit = short_run(
+    p = 3L, n_samples = 400L, n_warmup = 200L,
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1)
   )
   draws_heavy = short_run(
     p = 3L, n_samples = 400L, n_warmup = 200L,
     precision_scale_prior = gamma_prior(shape = 4, rate = 2)
   )
 
-  expect_lt(mean(draws_default$K_diag), mean(draws_heavy$K_diag))
+  expect_lt(mean(draws_unit$K_diag), mean(draws_heavy$K_diag))
   expect_equal(mean(draws_heavy$K_diag), 4.0, tolerance = 0.6)
+})
+
+
+test_that("gamma_prior(eta) resolves against the interaction-prior scale", {
+  # eta = 1 at the default normal scale 1 resolves to rate = 1; the same
+  # raw-rate spec with the same seed gives identical draws.
+  d_eta = short_run(
+    p = 3L, n_samples = 100L, n_warmup = 100L,
+    precision_scale_prior = gamma_prior(shape = 1, eta = 1)
+  )
+  d_rate = short_run(
+    p = 3L, n_samples = 100L, n_warmup = 100L,
+    precision_scale_prior = gamma_prior(shape = 1, rate = 1)
+  )
+  expect_equal(d_eta$K_diag, d_rate$K_diag)
+  expect_equal(d_eta$K_offdiag, d_rate$K_offdiag)
 })
 
 
@@ -209,3 +226,101 @@ test_that("malformed edge_indicators are rejected", {
   )
 })
 
+
+# ---- Ancestral initialization (spec = "joint") -------------------------------
+
+test_that("ancestral indicator draws are seed-keyed and restore the RNG", {
+  ep = bgms:::unpack_indicator_prior(bernoulli_prior(0.2), num_variables = 8L)
+  set.seed(123)
+  before = .Random.seed
+  g1 = bgms:::ggm_prior_ancestral_indicators(8L, ep, seed = 7L)
+  expect_identical(.Random.seed, before)
+  g2 = bgms:::ggm_prior_ancestral_indicators(8L, ep, seed = 7L)
+  expect_identical(g1, g2)
+
+  expect_true(isSymmetric(g1))
+  expect_true(all(diag(g1) == 1L))
+  expect_true(all(g1 %in% c(0L, 1L)))
+})
+
+test_that("ancestral indicator draws track the edge prior", {
+  p = 20L
+  offdiag_mean = function(g) {
+    mean(g[upper.tri(g)])
+  }
+
+  ep_dense = bgms:::unpack_indicator_prior(
+    bernoulli_prior(0.9),
+    num_variables = p
+  )
+  ep_sparse = bgms:::unpack_indicator_prior(
+    bernoulli_prior(0.1),
+    num_variables = p
+  )
+  g_dense = bgms:::ggm_prior_ancestral_indicators(p, ep_dense, seed = 11L)
+  g_sparse = bgms:::ggm_prior_ancestral_indicators(p, ep_sparse, seed = 11L)
+  expect_gt(offdiag_mean(g_dense), offdiag_mean(g_sparse))
+
+  # Beta-Bernoulli: a concentrated hyperprior pins the drawn theta.
+  ep_bb = bgms:::unpack_indicator_prior(
+    beta_bernoulli_prior(alpha = 200, beta = 1),
+    num_variables = p
+  )
+  g_bb = bgms:::ggm_prior_ancestral_indicators(p, ep_bb, seed = 11L)
+  expect_gt(offdiag_mean(g_bb), 0.8)
+
+  # SBM: valid draw with block-pair probabilities in (0, 1).
+  ep_sbm = bgms:::unpack_indicator_prior(
+    sbm_prior(),
+    num_variables = p
+  )
+  g_sbm = bgms:::ggm_prior_ancestral_indicators(p, ep_sbm, seed = 11L)
+  expect_true(isSymmetric(g_sbm))
+  expect_true(all(diag(g_sbm) == 1L))
+  expect_true(all(g_sbm %in% c(0L, 1L)))
+})
+
+test_that("joint-spec chains run from the ancestral start for each prior", {
+  skip_on_cran()
+  for(prior in list(
+    bernoulli_prior(0.3),
+    beta_bernoulli_prior(alpha = 2, beta = 4),
+    sbm_prior()
+  )) {
+    draws = sample_ggm_prior(
+      p = 6L, n_samples = 25L, n_warmup = 50L,
+      spec = "joint", edge_prior = prior, apply_correction = FALSE,
+      seed = 3L, verbose = FALSE
+    )
+    expect_equal(dim(draws$edge_indicators), c(25L, 15L))
+    expect_true(all(is.finite(draws$K_diag)))
+  }
+})
+
+test_that("joint-spec gibbs matches adaptive-metropolis at a gamma-shape diagonal", {
+  skip_on_cran()
+  # The row-block Gibbs handles shape != 1 by treating the shape-1
+  # conjugate row draw as an independence-Metropolis proposal with
+  # acceptance (K_ii_new / K_ii_old)^(shape - 1). Adaptive Metropolis
+  # evaluates the same Gamma prior through the polymorphic density, so
+  # the two chains target the identical joint-spec prior and their
+  # diagonal laws must agree.
+  run = function(um) {
+    short_run(
+      p = 4L, n_samples = 6000L, n_warmup = 1500L,
+      interaction_prior = normal_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 2, rate = 2),
+      spec = "joint", update_method = um, seed = 7L
+    )
+  }
+  dg = run("gibbs")
+  da = run("adaptive-metropolis")
+  expect_lt(abs(mean(dg$K_diag) / mean(da$K_diag) - 1), 0.05)
+  # Per-column KS on near-independent thinned draws (pooling the columns
+  # would mix within-draw dependence into the test).
+  thin = seq(1, 6000L, by = 60L)
+  ks_p = vapply(1:4, function(j) {
+    suppressWarnings(ks.test(dg$K_diag[thin, j], da$K_diag[thin, j])$p.value)
+  }, 0.0)
+  expect_gt(min(ks_p), 0.005)
+})

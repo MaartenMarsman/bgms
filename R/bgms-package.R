@@ -64,6 +64,8 @@
 #' @docType package
 #' @keywords internal
 #' @useDynLib bgms, .registration=TRUE
+#' @importFrom stats approxfun dcauchy dnorm integrate
+#' @importFrom stats rbeta rexp rgamma rnorm rpois runif
 #' @references
 #' \insertAllCited{}
 "_PACKAGE"

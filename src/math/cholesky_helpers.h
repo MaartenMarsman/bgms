@@ -24,7 +24,7 @@ namespace cholesky_helpers {
  * @return   log|Ω| = 2 Σ log(R_ii).
  */
 inline double get_log_det(const arma::mat& R) {
-    return 2.0 * arma::accu(arma::log(R.diag()));
+    return 2.0 * arma::accu(ARMA_MY_LOG(arma::vec(R.diag())));
 }
 
 /**
@@ -97,16 +97,15 @@ inline double log_det_ratio_diag_kernel(
  * and MixedMRFModel::get_precision_constants, which differ only in where the
  * current precision entries come from (K vs −½K), passed in as scalars.
  *
- * @param cholesky      Upper-triangular Cholesky factor of K.
+ * @param logdet        log|K| (cached by the caller).
  * @param covariance    Σ = K⁻¹.
  * @param i, j          Off-diagonal/diagonal indices (i < j).
  * @param precision_ij, precision_jj  Current K entries K(i,j), K(j,j).
  * @return  {Phi_q1q, Phi_q1q1, c2, Phi_q1q1, c4, c5}.
  */
 inline std::array<double, 6> precision_proposal_constants(
-        const arma::mat& cholesky, const arma::mat& covariance,
+        double logdet, const arma::mat& covariance,
         size_t i, size_t j, double precision_ij, double precision_jj) {
-    double logdet = get_log_det(cholesky);
 
     double log_adj_ii = logdet + MY_LOG(std::abs(covariance(i, i)));
     double log_adj_ij = logdet + MY_LOG(std::abs(covariance(i, j)));
@@ -128,6 +127,14 @@ inline std::array<double, 6> precision_proposal_constants(
     c[4] = precision_jj - Phi_q1q * Phi_q1q;
     c[5] = c[4] + c[2] * c[2] / (c[3] * c[3]);
     return c;
+}
+
+/** Overload computing log|K| from the Cholesky factor (callers without a cached log-determinant). */
+inline std::array<double, 6> precision_proposal_constants(
+        const arma::mat& cholesky, const arma::mat& covariance,
+        size_t i, size_t j, double precision_ij, double precision_jj) {
+    return precision_proposal_constants(get_log_det(cholesky), covariance,
+                                        i, j, precision_ij, precision_jj);
 }
 
 } // namespace cholesky_helpers

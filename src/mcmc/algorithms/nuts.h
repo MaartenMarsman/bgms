@@ -21,6 +21,7 @@ struct BuildTreeResult {
   arma::vec r_plus;        ///< Corresponding momentum at theta_plus
   arma::vec theta_prime;   ///< Current proposed sample (to possibly accept)
   arma::vec r_prime;       ///< Momentum at theta_prime (for energy diagnostics)
+  double logp_prime;       ///< Log-posterior at theta_prime (avoids a re-eval in nuts_step)
   arma::vec rho;           ///< Sum of momenta along the subtree (for U-turn criterion)
   arma::vec p_sharp_beg;   ///< Sharp momentum (M^{-1} p) at subtree beginning
   arma::vec p_sharp_end;   ///< Sharp momentum (M^{-1} p) at subtree end
@@ -31,7 +32,6 @@ struct BuildTreeResult {
   double alpha;            ///< Sum of min(1, exp(H0 - h)) across leapfrog steps
   int n_leapfrog;          ///< Number of leapfrog steps contributing to alpha
   bool divergent;          ///< Whether this subtree diverged
-  bool non_reversible;     ///< Whether a non-reversible step was detected
 };
 
 
@@ -43,19 +43,12 @@ struct BuildTreeResult {
  * The joint function computes both values together, which is more efficient
  * when they share common computations (e.g., normalization constants).
  *
- * For constrained models, pass non-null project_position and
- * project_momentum callbacks to use RATTLE integration.
- *
  * @param init_theta        Initial position (parameter vector)
  * @param step_size         Step size for leapfrog integration
  * @param joint             Function returning (log_post, gradient) pair
  * @param inv_mass_diag     Diagonal of the inverse mass matrix
  * @param rng               Thread-safe random number generator
  * @param max_depth         Maximum tree depth (default = 10)
- * @param project_position  SHAKE position projection (nullptr for unconstrained)
- * @param project_momentum  RATTLE momentum projection (nullptr for unconstrained)
- * @param reverse_check     Enable runtime reversibility check (constrained only)
- * @param reverse_check_tol Factor for eps²-scaled reversibility tolerance
  * @return StepResult with position, acceptance probability, and NUTS diagnostics
  */
 StepResult nuts_step(
@@ -64,9 +57,5 @@ StepResult nuts_step(
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    int max_depth = 10,
-    const ProjectPositionFn* project_position = nullptr,
-    const ProjectMomentumFn* project_momentum = nullptr,
-    bool reverse_check = true,
-    double reverse_check_tol = 0.5
+    int max_depth = 10
 );

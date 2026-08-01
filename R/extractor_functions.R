@@ -177,8 +177,43 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #' Computes posterior inclusion probabilities from a model fitted with
 #' [bgm()] (edge inclusion) or [bgmCompare()] (difference inclusion).
 #'
+#' Two estimators of the same posterior inclusion probability are available
+#' through `estimator`. The default `"rb"` (Rao-Blackwellized) averages the
+#' one-step draw
+#' \eqn{J_t = \gamma_t + (1 - 2 \gamma_t)\,\alpha_t}, where \eqn{\gamma_t} is
+#' the indicator state before the move and \eqn{\alpha_t} is the acceptance
+#' probability of the birth/death proposal; `"raw"` instead averages the
+#' indicator draws. Averaging \eqn{J_t} is a
+#' lower-variance estimator and in exact arithmetic lies strictly inside
+#' \eqn{(0, 1)}, so even indicators whose raw average saturates at 0 or 1
+#' receive an interior estimate. In double precision, however, the average of
+#' the stored \eqn{J_t} draws still rounds to exactly 0 or 1 for edges with
+#' overwhelming per-iteration evidence, because \eqn{1 - \alpha_t} underflows
+#' once \eqn{\alpha_t} drops below about `1e-16`. For inclusion Bayes factors,
+#' use [extract_inclusion_bf()], which accumulates the odds on the
+#' acceptance-probability scale and stays finite far beyond that ceiling; its
+#' `log = TRUE` return carries evidence beyond what the Bayes factor scale can
+#' represent in double precision. The
+#' `"rb"` estimator changes only the summary, not the sampler; it inherits the
+#' chain's mixing, does not rescue a chain that has failed to explore the model
+#' space, and requires a fit from bgms >= 0.2.0.0. Because the RB draw is
+#' continuous, the standard MCSE/ESS/split-R-hat machinery applies to it, and
+#' the fit summary's inclusion table reports `mcse`, `n_eff`, and `Rhat` on the
+#' RB draws. They quantify precision *conditional on exploration*: a stuck chain
+#' can show a beautifully converged `J` chain with a high `n_eff`, so read them
+#' beside the per-direction flip counts (`n0->1`, `n1->0`), which record the
+#' exploration itself and whose asymmetry no symmetric summary recovers. The RB
+#' draws vary on almost every edge, including edges whose indicator never
+#' flipped; the three columns are `NA` only where the RB draws are constant to
+#' double precision, which places the inclusion probability at its numerical
+#' bound and the verdict beyond any threshold. All of this is in the fit
+#' summary's inclusion table, `summary(fit)$indicator`.
+#'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
+#' @param estimator Character; which estimator of the posterior inclusion
+#'   probability to return. `"rb"` (default) returns the lower-variance
+#'   Rao-Blackwellized average; `"raw"` averages the indicator draws.
 #'
 #' @return A symmetric p x p matrix of posterior inclusion probabilities,
 #'   with variable names as row and column names.
@@ -187,20 +222,27 @@ extract_indicators.bgmCompare = function(bgms_object) {
 #'       Requires `edge_selection = TRUE`.}
 #'     \item{bgmCompare}{Diagonal entries are main-effect inclusion
 #'       probabilities; off-diagonal entries are pairwise difference
-#'       inclusion probabilities. Requires `difference_selection = TRUE`.}
+#'       inclusion probabilities. Requires `difference_selection = TRUE`.
+#'       With `estimator = "rb"`, indicators that were not selected (e.g.
+#'       main-effect differences when `main_difference_selection = FALSE`)
+#'       are returned as `NA`.}
 #'   }
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_indicators()]
+#' @seealso [extract_inclusion_bf()], [bgm()], [bgmCompare()],
+#'   [extract_indicators()]
 #' @family extractors
 #' @export
-extract_posterior_inclusion_probabilities = function(bgms_object) {
+extract_posterior_inclusion_probabilities = function(bgms_object,
+                                                     estimator = c("rb", "raw")) {
   UseMethod("extract_posterior_inclusion_probabilities")
 }
 
 #' @inheritParams extract_posterior_inclusion_probabilities
 #' @exportS3Method
 #' @noRd
-extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
+extract_posterior_inclusion_probabilities.bgms = function(bgms_object,
+                                                          estimator = c("rb", "raw")) {
+  estimator_missing = missing(estimator)
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$edge_selection)) {
@@ -211,11 +253,25 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
   num_vars = arguments$num_variables %||% arguments$no_variables
   data_columnnames = arguments$data_columnnames
 
-  # Current format (0.1.6.0+)
   raw = get_raw_samples(bgms_object)
-  if(!is.null(raw$indicator)) {
-    indicator_samples = extract_indicators(bgms_object)
-    edge_means = colMeans(indicator_samples)
+  # Default to the Rao-Blackwellized estimate, but fall back to the raw
+  # indicator average for fits without RB draws (bgms < 0.2.0.0), so reading a
+  # legacy fit with the default call still works; an explicit estimator = "rb"
+  # errors below instead.
+  estimator = if(estimator_missing && is.null(raw$rb_inclusion)) {
+    "raw"
+  } else {
+    match.arg(estimator)
+  }
+  if(estimator == "rb") {
+    # Rao-Blackwellized average of the stored one-step draws J.
+    if(is.null(raw$rb_inclusion)) {
+      stop("No Rao-Blackwellized inclusion draws found in fit object; refit with bgms >= 0.2.0.0.")
+    }
+    edge_means = colMeans(do.call(rbind, raw$rb_inclusion), na.rm = TRUE)
+  } else if(!is.null(raw$indicator)) {
+    # Current format (0.1.6.0+): raw indicator average.
+    edge_means = colMeans(extract_indicators(bgms_object))
   } else if(!is.null(bgms_object$indicator)) {
     # Deprecated format (0.1.4--0.1.5): $indicator at top level
     lifecycle::deprecate_warn(
@@ -231,6 +287,20 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
     )
   }
 
+  # Mixed-MRF fits store indicators in block order (discrete-discrete,
+  # continuous-continuous, cross) over internally reordered variables, not
+  # in global pair order: map them through the same block filler as
+  # posterior_mean_indicator.
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    return(fill_mixed_symmetric(
+      edge_means, d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices,
+      list(data_columnnames, data_columnnames)
+    ))
+  }
+
   pip_matrix = matrix(0, num_vars, num_vars)
   pip_matrix[lower.tri(pip_matrix)] = edge_means
   pip_matrix = pip_matrix + t(pip_matrix)
@@ -239,6 +309,250 @@ extract_posterior_inclusion_probabilities.bgms = function(bgms_object) {
   rownames(pip_matrix) = data_columnnames
 
   return(pip_matrix)
+}
+
+
+# ------------------------------------------------------------------
+# .rb_log_odds_from_counts (internal)
+# ------------------------------------------------------------------
+# Per-edge log posterior inclusion odds from the RB odds accumulators,
+# pooled over chains. counts is a per-chain list of (n_edges x 4) matrices
+# with columns [n01, n10, n0_visits, n1_visits] on the acceptance-probability
+# scale. Uses the exact identity
+#   mean(J) / (1 - mean(J))
+#     = (n01 + n1_visits - n10) / (n0_visits - n01 + n10),
+# which avoids forming 1 - alpha per draw and so stays finite down to
+# log-acceptances of about -745. Returns log(odds) (natural log): NA where an
+# edge was never updated, +Inf when the denominator is exactly zero, -Inf when
+# the numerator is exactly zero.
+# ------------------------------------------------------------------
+rb_log_odds_from_counts = function(counts) {
+  pooled = Reduce(`+`, counts)
+  n01 = pooled[, 1]
+  n10 = pooled[, 2]
+  n0_visits = pooled[, 3]
+  n1_visits = pooled[, 4]
+
+  num = n01 + n1_visits - n10
+  den = n0_visits - n01 + n10
+
+  out = log(num) - log(den)
+  out[num == 0] = -Inf
+  out[den == 0] = Inf
+  out[(n0_visits + n1_visits) == 0] = NA_real_
+  out
+}
+
+
+# ------------------------------------------------------------------
+# rb_bf_scale
+# ------------------------------------------------------------------
+# Puts log inclusion Bayes factors on the scale requested by
+# extract_inclusion_bf()'s log argument.
+#
+# @param log_bf  Matrix of natural-log inclusion Bayes factors.
+# @param log     Logical. TRUE keeps the log scale, FALSE exponentiates.
+#
+# Returns: log_bf unchanged, or exp(log_bf), where -Inf maps to 0, +Inf and NA
+# are preserved, and values above about 709.78 nats overflow to +Inf.
+# ------------------------------------------------------------------
+rb_bf_scale = function(log_bf, log) {
+  if(length(log) != 1L || !is.logical(log) || is.na(log)) {
+    stop("The log argument must be a single logical value, but not NA.")
+  }
+  if(log) log_bf else exp(log_bf)
+}
+
+
+#' @title Extract Rao-Blackwellized Inclusion Bayes Factors
+#'
+#' @description
+#' Computes inclusion Bayes factors from a model fitted with [bgm()] (edge
+#' inclusion) or [bgmCompare()] (difference inclusion), using the
+#' Rao-Blackwellized odds accumulators recorded during sampling. For each
+#' indicator the sampler sums the birth/death acceptance probability on the
+#' acceptance-probability scale, so the posterior inclusion odds follow from
+#' the exact identity
+#' \deqn{\frac{\bar{J}}{1 - \bar{J}}
+#'   = \frac{n_{01} + n_{1} - n_{10}}{n_{0} - n_{01} + n_{10}},}
+#' where \eqn{n_{01}} and \eqn{n_{10}} sum the acceptance probabilities of birth
+#' and death proposals and \eqn{n_0}, \eqn{n_1} count them. Because \eqn{1 -
+#' \alpha} is never formed per draw, the odds stay finite down to log
+#' acceptances of about -745, so edges that saturate the naive average of the
+#' RB draws (which rounds to 0 or 1 near the boundary) still receive a finite
+#' Bayes factor here.
+#'
+#' The prior inclusion odds are removed edge by edge, so the returned value is
+#' the inclusion Bayes factor rather than the posterior odds: the two coincide
+#' only at a prior inclusion probability of \eqn{1/2} (the default). For `bgm()`
+#' fits the prior odds come from [extract_prior_inclusion_probabilities()]; for
+#' continuous or stochastic-block models that call may run and cache a short
+#' prior-only chain. For `bgmCompare()` fits the exchangeable difference prior
+#' supplies a single prior inclusion probability (Bernoulli or Beta-Bernoulli);
+#' a stochastic-block difference prior has no single marginal, so the result is
+#' posterior odds there. The `log` argument applies to that return unchanged.
+#'
+#' The accumulators are exact on the log scale everywhere, while the Bayes
+#' factor scale saturates at double precision: an entry whose log exceeds about
+#' 709.78 nats (a Bayes factor beyond about 1.8e308) is `+Inf` under
+#' `log = FALSE` even though its log-scale value is finite. Use `log = TRUE` for
+#' workflows that must separate such extreme evidence.
+#'
+#' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
+#'   or `bgmCompare` (from [bgmCompare()]).
+#' @param log Logical. If `FALSE` (default), return inclusion Bayes factors; if
+#'   `TRUE`, return their natural logarithm.
+#'
+#' @return A symmetric p x p matrix of inclusion Bayes factors, or of their
+#'   natural logarithms when `log = TRUE`, with variable names as row and column
+#'   names. Entries are `NA` for indicators that were never updated, `+Inf` when
+#'   no exclusion evidence remains (denominator exactly zero), and `-Inf` when no
+#'   inclusion evidence remains. On the Bayes factor scale the latter is `0`, and
+#'   `+Inf` also covers entries that overflow double precision. For `bgms` the
+#'   diagonal is `NA`; for `bgmCompare` the diagonal holds main-effect difference
+#'   Bayes factors.
+#'
+#' @seealso [extract_posterior_inclusion_probabilities()],
+#'   [extract_prior_inclusion_probabilities()]
+#' @family extractors
+#' @export
+extract_inclusion_bf = function(bgms_object, log = FALSE) {
+  UseMethod("extract_inclusion_bf")
+}
+
+#' @inheritParams extract_inclusion_bf
+#' @exportS3Method
+#' @noRd
+extract_inclusion_bf.bgms = function(bgms_object, log = FALSE) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$edge_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion Bayes factors, run bgm() with edge_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_counts)) {
+    stop("No Rao-Blackwellized odds accumulators found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  num_vars = arguments$num_variables %||% arguments$no_variables
+  data_columnnames = arguments$data_columnnames
+
+  log_odds = rb_log_odds_from_counts(raw$rb_counts)
+
+  spec = get_fit_spec(bgms_object)
+  if(!is.null(spec) && identical(spec$model_type, "mixed_mrf")) {
+    d = spec$data
+    post_log_odds = fill_mixed_symmetric(
+      log_odds, d$num_discrete, d$num_continuous,
+      d$discrete_indices, d$continuous_indices,
+      list(data_columnnames, data_columnnames)
+    )
+  } else {
+    post_log_odds = matrix(NA_real_, num_vars, num_vars)
+    post_log_odds[lower.tri(post_log_odds)] = log_odds
+    post_log_odds[upper.tri(post_log_odds)] =
+      t(post_log_odds)[upper.tri(post_log_odds)]
+    colnames(post_log_odds) = data_columnnames
+    rownames(post_log_odds) = data_columnnames
+  }
+
+  # Turn posterior inclusion odds into a Bayes factor by removing the prior
+  # inclusion odds edge by edge. Under a Beta-Bernoulli, stochastic-block, or
+  # user-set edge prior the prior odds are not 1, so posterior odds and the
+  # Bayes factor differ; they coincide only at a prior inclusion probability of
+  # 1/2. extract_prior_inclusion_probabilities() returns a matrix in the same
+  # shape and orientation, so the subtraction is per-edge.
+  prior_pip = extract_prior_inclusion_probabilities(bgms_object)
+  prior_log_odds = log(prior_pip) - log1p(-prior_pip)
+  rb_bf_scale(post_log_odds - prior_log_odds, log)
+}
+
+#' @inheritParams extract_inclusion_bf
+#' @exportS3Method
+#' @noRd
+extract_inclusion_bf.bgmCompare = function(bgms_object, log = FALSE) {
+  arguments = extract_arguments(bgms_object)
+
+  if(!isTRUE(arguments$difference_selection)) {
+    stop("To estimate Rao-Blackwellized inclusion Bayes factors, run bgmCompare() with difference_selection = TRUE.")
+  }
+
+  raw = get_raw_samples(bgms_object)
+  if(is.null(raw$rb_counts)) {
+    stop("No Rao-Blackwellized odds accumulators found in fit object; refit with bgms >= 0.2.0.0.")
+  }
+
+  var_names = arguments$data_columnnames
+  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+
+  log_odds = rb_log_odds_from_counts(raw$rb_counts)
+
+  # Reconstruct the VxV matrix using the sampler's interleaved order:
+  # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V).
+  V = num_variables
+  stopifnot(length(log_odds) == V * (V + 1L) / 2L)
+
+  bf_mat = matrix(NA_real_,
+    nrow = V, ncol = V,
+    dimnames = list(var_names, var_names)
+  )
+  pos = 1L
+  for(i in seq_len(V)) {
+    bf_mat[i, i] = log_odds[pos]
+    pos = pos + 1L
+    if(i < V) {
+      for(j in (i + 1L):V) {
+        val = log_odds[pos]
+        pos = pos + 1L
+        bf_mat[i, j] = val
+        bf_mat[j, i] = val
+      }
+    }
+  }
+
+  # Remove the difference prior inclusion odds so the result is a Bayes factor
+  # rather than posterior odds. The difference prior is exchangeable across
+  # difference indicators, so one prior inclusion probability applies to every
+  # entry (main-effect differences on the diagonal, pairwise differences off
+  # it). A stochastic-block difference prior has no single marginal, so the
+  # result is left as posterior odds there.
+  prior_p = difference_prior_inclusion(bgms_object)
+  if(length(prior_p) == 1L && !is.na(prior_p)) {
+    bf_mat = bf_mat - (log(prior_p) - log1p(-prior_p))
+  }
+
+  return(rb_bf_scale(bf_mat, log))
+}
+
+
+# ------------------------------------------------------------------
+# difference_prior_inclusion
+# ------------------------------------------------------------------
+# Marginal prior inclusion probability of a bgmCompare() difference indicator.
+#
+# The difference prior is exchangeable across difference indicators, so one
+# probability applies to every entry, main-effect differences on the diagonal
+# and pairwise differences off it. A stochastic-block difference prior has no
+# single marginal and returns NA, which leaves its caller reporting posterior
+# odds rather than a Bayes factor.
+#
+# @param bgms_object  A fitted bgmCompare object.
+#
+# Returns: a single probability, or NA_real_.
+# ------------------------------------------------------------------
+difference_prior_inclusion = function(bgms_object) {
+  arguments = extract_arguments(bgms_object)
+  switch(as.character(arguments$difference_prior),
+    "Bernoulli" = {
+      dp = arguments$inclusion_probability
+      if(is.matrix(dp)) dp[upper.tri(dp)][1L] else dp[1L]
+    },
+    "Beta-Bernoulli" = arguments$difference_selection_alpha /
+      (arguments$difference_selection_alpha +
+        arguments$difference_selection_beta),
+    NA_real_
+  )
 }
 
 
@@ -320,7 +634,9 @@ extract_sbm.bgmCompare = function(bgms_object) {
 #' @inheritParams extract_posterior_inclusion_probabilities
 #' @exportS3Method
 #' @noRd
-extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
+extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object,
+                                                                estimator = c("rb", "raw")) {
+  estimator_missing = missing(estimator)
   arguments = extract_arguments(bgms_object)
 
   if(!isTRUE(arguments$difference_selection)) {
@@ -331,43 +647,28 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
   # Handle legacy field name (no_variables -> num_variables in 0.1.6.0)
   num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
 
-  # Current format (0.1.6.0+)
   raw = get_raw_samples(bgms_object)
-  if(!is.null(raw$indicator)) {
-    array3d_ind = samples_to_array3d(raw$indicator)
-    mean_ind = apply(array3d_ind, 3, mean)
-
-    # reconstruct VxV matrix using the sampler's interleaved order:
-    # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V)
-    V = num_variables
-    stopifnot(length(mean_ind) == V * (V + 1L) / 2L)
-
-    ind_mat = matrix(0,
-      nrow = V, ncol = V,
-      dimnames = list(var_names, var_names)
-    )
-    pos = 1L
-    for(i in seq_len(V)) {
-      # diagonal (main indicator)
-      ind_mat[i, i] = mean_ind[pos]
-      pos = pos + 1L
-      if(i < V) {
-        for(j in (i + 1L):V) {
-          val = mean_ind[pos]
-          pos = pos + 1L
-          ind_mat[i, j] = val
-          ind_mat[j, i] = val
-        }
-      }
-    }
-
-    rownames(ind_mat) = arguments$data_columnnames
-    colnames(ind_mat) = arguments$data_columnnames
-    return(ind_mat)
+  # Default to the Rao-Blackwellized estimate, but fall back to the raw
+  # indicator average for fits without RB draws (bgms < 0.2.0.0), so reading a
+  # legacy fit with the default call still works; an explicit estimator = "rb"
+  # errors below instead.
+  estimator = if(estimator_missing && is.null(raw$rb_inclusion)) {
+    "raw"
+  } else {
+    match.arg(estimator)
   }
-
-  # Deprecated format (0.1.4--0.1.5): $pairwise_difference_indicator at top level
-  if(!is.null(bgms_object$pairwise_difference_indicator)) {
+  if(estimator == "rb") {
+    # Rao-Blackwellized average of the stored one-step draws J. Unselected
+    # difference indicators have no draws and average to NA.
+    if(is.null(raw$rb_inclusion)) {
+      stop("No Rao-Blackwellized inclusion draws found in fit object; refit with bgms >= 0.2.0.0.")
+    }
+    mean_vals = apply(samples_to_array3d(raw$rb_inclusion), 3, mean, na.rm = TRUE)
+  } else if(!is.null(raw$indicator)) {
+    # Current format (0.1.6.0+): raw indicator average.
+    mean_vals = apply(samples_to_array3d(raw$indicator), 3, mean)
+  } else if(!is.null(bgms_object$pairwise_difference_indicator)) {
+    # Deprecated format (0.1.4--0.1.5): $pairwise_difference_indicator at top level
     lifecycle::deprecate_warn(
       "0.1.6.0",
       I("The '$pairwise_difference_indicator' field is deprecated; please refit with bgms >= 0.1.6.0")
@@ -379,9 +680,35 @@ extract_posterior_inclusion_probabilities.bgmCompare = function(bgms_object) {
     ind_mat = ind_mat + t(ind_mat)
     dimnames(ind_mat) = list(var_names, var_names)
     return(ind_mat)
+  } else {
+    stop("No indicator samples found in fit object.")
   }
 
-  stop("No indicator samples found in fit object.")
+  # Reconstruct the VxV matrix using the sampler's interleaved order:
+  # (1,1),(1,2),...,(1,V),(2,2),...,(2,V),...,(V,V). Every cell is assigned,
+  # so the NA init only survives where a mean is NA (unselected, rb estimator).
+  V = num_variables
+  stopifnot(length(mean_vals) == V * (V + 1L) / 2L)
+
+  ind_mat = matrix(NA_real_,
+    nrow = V, ncol = V,
+    dimnames = list(var_names, var_names)
+  )
+  pos = 1L
+  for(i in seq_len(V)) {
+    ind_mat[i, i] = mean_vals[pos]
+    pos = pos + 1L
+    if(i < V) {
+      for(j in (i + 1L):V) {
+        val = mean_vals[pos]
+        pos = pos + 1L
+        ind_mat[i, j] = val
+        ind_mat[j, i] = val
+      }
+    }
+  }
+
+  return(ind_mat)
 }
 
 #' @title Extract Indicator Prior Structure
@@ -988,6 +1315,12 @@ extract_pairwise_thresholds = function(bgms_object) {
 #' @return A named list with R-hat values for each parameter type present in
 #'   the model (e.g., `main`, `pairwise`, `indicator`).
 #'
+#' @details
+#' The `indicator` element is the split-R-hat of the Rao-Blackwellized
+#' inclusion draws, matching the default of [extract_ess()]; the indicator
+#' chain's transition-based effective sample size is available as
+#' `extract_ess(fit, estimator = "mixt")`.
+#'
 #' @seealso [bgm()], [bgmCompare()], [extract_ess()]
 #' @family extractors
 #' @export
@@ -1082,6 +1415,82 @@ extract_rhat.bgmCompare = function(bgms_object) {
 # extract_ess() - Effective Sample Size
 # ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
+# indicator_ess_column
+# ------------------------------------------------------------------------------
+# Resolve the indicator ESS that extract_ess() returns. The default "rb" is the
+# continuous ESS of the Rao-Blackwellized inclusion draws, read from the summary
+# table, so the NA masking summarize_rb_inclusion() applies carries over
+# unchanged. The deprecated "mixt" is the indicator chain's transition-based
+# ESS, no longer a summary column; it is recomputed from the raw indicator draws
+# for as long as it is accepted. The deprecation warning is raised in the
+# generic, where the caller is the user rather than bgms itself.
+#
+# Fits without Rao-Blackwellized draws (bgms < 0.2.0.0) carry no n_eff column,
+# so a default call falls back to the transition ESS while an explicit
+# estimator = "rb" errors, as in
+# extract_posterior_inclusion_probabilities().
+#
+# @param fit                The fit object (for the raw indicator draws).
+# @param summary_indicator  The fit's posterior_summary_indicator table.
+# @param estimator          Character: "rb" or "mixt" (or the unevaluated
+#   default vector).
+# @param estimator_missing  Logical: TRUE if the caller did not supply one.
+#
+# Returns: numeric vector of ESS values, one per indicator.
+# ------------------------------------------------------------------------------
+indicator_ess_column = function(fit, summary_indicator, estimator, estimator_missing) {
+  # names(), not $, because $ partial-matches n_eff to a legacy table's
+  # n_eff_mixt.
+  has_rb = "n_eff" %in% names(summary_indicator)
+  estimator = if(estimator_missing && !has_rb) {
+    "mixt"
+  } else {
+    match.arg(estimator, choices = c("rb", "mixt"))
+  }
+  if(estimator == "rb") {
+    if(!has_rb) {
+      stop(
+        "This fit carries no Rao-Blackwellized inclusion draws, so the ",
+        "Rao-Blackwellized effective sample size is unavailable. Refit with ",
+        "bgms >= 0.2.0.0."
+      )
+    }
+    return(summary_indicator$n_eff)
+  }
+
+  if("n_eff_mixt" %in% names(summary_indicator)) {
+    return(summary_indicator$n_eff_mixt)
+  }
+  indicator_transition_ess(fit)
+}
+
+
+# ------------------------------------------------------------------------------
+# indicator_transition_ess
+# ------------------------------------------------------------------------------
+# Transition-based ESS of the binary indicator chains, recomputed from the raw
+# draws. Retained only to keep the deprecated extract_ess(estimator = "mixt")
+# working; the quantity is no longer a summary column.
+#
+# @param fit  A bgms or bgmCompare object.
+#
+# Returns: numeric vector of transition ESS values, one per indicator.
+# ------------------------------------------------------------------------------
+indicator_transition_ess = function(fit) {
+  cache = get_fit_cache(fit)
+  raw = if(is.null(cache)) NULL else cache$raw
+  if(is.null(raw) || is.null(raw[[1]][["indicator_samples"]])) {
+    stop(
+      "This fit carries no raw indicator draws, so the transition-based ",
+      "effective sample size cannot be recomputed."
+    )
+  }
+  ind_stats = .compute_indicator_ess_cpp(combine_chains(raw, "indicator_samples"))
+  unname(ind_stats[, "n_eff_mixt"])
+}
+
+
 #' @title Extract Effective Sample Size
 #'
 #' @description
@@ -1090,21 +1499,66 @@ extract_rhat.bgmCompare = function(bgms_object) {
 #'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()])
 #'   or `bgmCompare` (from [bgmCompare()]).
+#' @param estimator Character; which effective sample size to return for the
+#'   edge (or difference) indicators. `"rb"` (default) returns the ESS of the
+#'   Rao-Blackwellized inclusion draws. `"mixt"`
+#'   `r lifecycle::badge("deprecated")` returns the indicator chain's
+#'   transition-based ESS. Ignored for all other parameter types.
 #'
 #' @return A named list with ESS values for each parameter type present in
 #'   the model (e.g., `main`, `pairwise`, `indicator`).
 #'
-#' @seealso [bgm()], [bgmCompare()], [extract_rhat()]
+#' @details
+#' The `indicator` element is the effective sample size of the inclusion
+#' inference, and also the `n_eff` column of the fit summary's inclusion table
+#' (`summary(fit)$indicator`): the continuous ESS of the Rao-Blackwellized
+#' inclusion draws, and therefore the ESS of the inclusion probability the fit
+#' reports (see [extract_posterior_inclusion_probabilities()], which is
+#' Rao-Blackwellized by default). It is `NA` for indicators whose
+#' Rao-Blackwellized draws are constant to double precision, where the
+#' inclusion probability is at its numerical bound.
+#'
+#' `estimator = "mixt"`, the transition-based ESS of the binary indicator chain,
+#' is deprecated and no longer a summary column; a call recomputes it from the
+#' raw indicator draws and warns. It converts flip counts to an effective sample
+#' size through a two-state first-order Markov model that a substantial share of
+#' edge chains violate, and the precision of the inclusion probability and its
+#' Bayes factor is carried by the Rao-Blackwellized ESS and Monte Carlo standard
+#' error. The directional flip counts themselves (`n0->1`, `n1->0`) remain in
+#' the inclusion table.
+#'
+#' Fits made with bgms < 0.2.0.0 carry no Rao-Blackwellized draws; a default
+#' call falls back to the transition ESS without warning, while an explicit
+#' `estimator = "rb"` errors.
+#'
+#' @seealso [bgm()], [bgmCompare()], [extract_rhat()] for the
+#'   Rao-Blackwellized indicator R-hat,
+#'   [extract_posterior_inclusion_probabilities()]
 #' @family extractors
 #' @export
-extract_ess = function(bgms_object) {
+extract_ess = function(bgms_object, estimator = c("rb", "mixt")) {
+  if(!missing(estimator) && identical(estimator, "mixt")) {
+    lifecycle::deprecate_warn(
+      "0.2.0.0", "extract_ess(estimator = 'no longer supports \"mixt\"')",
+      details = paste(
+        "The transition-based effective sample size no longer bears on any",
+        "inclusion verdict: the two-state model behind it is rejected on a",
+        "substantial share of edge chains, and the precision of the inclusion",
+        "probability and its Bayes factor is carried by the Rao-Blackwellized",
+        "effective sample size and Monte Carlo standard error. Use the default",
+        "estimator = \"rb\"; the directional flip counts remain in",
+        "summary(fit)$indicator."
+      )
+    )
+  }
   UseMethod("extract_ess")
 }
 
 #' @inheritParams extract_ess
 #' @exportS3Method
 #' @noRd
-extract_ess.bgms = function(bgms_object) {
+extract_ess.bgms = function(bgms_object, estimator = c("rb", "mixt")) {
+  estimator_missing = missing(estimator)
   ensure_summaries(bgms_object)
   result = list()
 
@@ -1128,7 +1582,10 @@ extract_ess.bgms = function(bgms_object) {
 
   # Indicator ESS (if edge selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt
+    result$indicator = indicator_ess_column(
+      bgms_object, bgms_object$posterior_summary_indicator,
+      estimator, estimator_missing
+    )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 
@@ -1142,7 +1599,8 @@ extract_ess.bgms = function(bgms_object) {
 #' @inheritParams extract_ess
 #' @exportS3Method
 #' @noRd
-extract_ess.bgmCompare = function(bgms_object) {
+extract_ess.bgmCompare = function(bgms_object, estimator = c("rb", "mixt")) {
+  estimator_missing = missing(estimator)
   ensure_summaries(bgms_object)
   result = list()
 
@@ -1172,7 +1630,10 @@ extract_ess.bgmCompare = function(bgms_object) {
 
   # Indicator ESS (if difference selection was used)
   if(!is.null(bgms_object$posterior_summary_indicator)) {
-    result$indicator = bgms_object$posterior_summary_indicator$n_eff_mixt
+    result$indicator = indicator_ess_column(
+      bgms_object, bgms_object$posterior_summary_indicator,
+      estimator, estimator_missing
+    )
     names(result$indicator) = rownames(bgms_object$posterior_summary_indicator)
   }
 

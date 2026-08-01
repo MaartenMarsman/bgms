@@ -70,6 +70,40 @@ run_sampler_ggm = function(spec) {
   bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
 
+  # Graph-prior specification: the joint path corrects the hyperparameter
+  # updates for the untracked normalizer Z(Gamma); the hierarchical path
+  # tracks Z(Gamma) itself in the between-edge moves (per-edge Z-ratio
+  # engine) and keeps the hyperparameter updates clean conjugate. The two
+  # are mutually exclusive.
+  #
+  # Gated on zratio_active, resolved by bgm_spec(): a hierarchical request with
+  # no between-model move takes the joint branch, which applies no correction
+  # there either, so the fit pays for neither.
+  correction = NULL
+  zratio = NULL
+  if(isTRUE(p$zratio_active)) {
+    zc = zratio_cell_constants(
+      p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
+      scale_shape = p$scale_shape,
+      slab = p$interaction_prior_type
+    )
+    zratio = zratio_spec_list(zc, gauge_sweeps = zratio_gauge_sweeps())
+    # Option-B absolute-moment surface: build once at the analysis's own
+    # (eta, delta) and let the engine deploy it per component. eta is a build
+    # parameter, not a switch. Built for the Normal and Cauchy slabs across the
+    # validated Gamma diagonal shape range; a shape outside it returns NULL and
+    # keeps the additive path. This call is the sole owner of that decision --
+    # the engine deploys whatever it is attached and does not re-test the
+    # shape.
+    zratio = zratio_attach_surface(
+      zratio, zc, d$num_variables,
+      cores = zratio_surface_build_cores(s$cores),
+      verbose = isTRUE(s$verbose)
+    )
+  } else {
+    correction = ggm_edge_prior_correction(p, s, d$num_variables)
+  }
+
   out_raw = sample_ggm(
     inputFromR = list(
       X = d$x,
@@ -94,6 +128,7 @@ run_sampler_ggm = function(spec) {
     seed = s$seed,
     no_threads = s$cores,
     progress_type = s$progress_type,
+    progress_callback = s$progress_callback,
     edge_prior = p$edge_prior,
     beta_bernoulli_alpha = p$beta_bernoulli_alpha,
     beta_bernoulli_beta = p$beta_bernoulli_beta,
@@ -103,9 +138,12 @@ run_sampler_ggm = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
+    learn_mass_matrix = s$learn_mass_matrix,
     na_impute = m$na_impute,
     missing_index_nullable = m$missing_index,
-    delta = p$delta
+    delta = p$delta,
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
 
   out_raw
@@ -167,7 +205,10 @@ run_sampler_omrf = function(spec) {
     lambda = p$lambda,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
-    pairwise_scaling_factors_nullable = p$pairwise_scaling_factors
+    learn_mass_matrix = s$learn_mass_matrix,
+    initial_parameters = spec$initial_state$parameters,
+    initial_step_sizes = spec$initial_state$step_sizes,
+    initial_inv_mass = spec$initial_state$inv_mass
   )
 
   out_raw
@@ -186,6 +227,31 @@ run_sampler_mixed_mrf = function(spec) {
 
   bb_alpha_between = bb_between_or_sentinel(p$beta_bernoulli_alpha_between)
   bb_beta_between = bb_between_or_sentinel(p$beta_bernoulli_beta_between)
+
+  # Graph-prior specification on the continuous block: same dichotomy as the
+  # GGM path (see run_sampler_ggm). The Z-ratio constants and the Stage-3d
+  # window are sized on the continuous subgraph.
+  correction = NULL
+  zratio = NULL
+  if(isTRUE(p$zratio_active)) {
+    zc = zratio_cell_constants(
+      p$delta, p$pairwise_scale, p$scale_rate, p$scale_eta,
+      scale_shape = p$scale_shape,
+      slab = p$interaction_prior_type
+    )
+    zratio = zratio_spec_list(zc, gauge_sweeps = zratio_gauge_sweeps())
+    # Option-B surface on the continuous subgraph (same as the GGM path); sized
+    # on the number of continuous variables.
+    zratio = zratio_attach_surface(
+      zratio, zc, d$num_continuous,
+      cores = zratio_surface_build_cores(s$cores),
+      verbose = isTRUE(s$verbose)
+    )
+  } else {
+    correction = ggm_edge_prior_correction(
+      p, s, d$num_variables, d$num_continuous
+    )
+  }
 
   input_list = list(
     discrete_observations   = d$x_discrete,
@@ -235,10 +301,13 @@ run_sampler_mixed_mrf = function(spec) {
     sampler_type = s$update_method,
     target_acceptance = s$target_accept,
     max_tree_depth = s$nuts_max_depth,
+    learn_mass_matrix = s$learn_mass_matrix,
     na_impute = m$na_impute,
     missing_index_discrete_nullable = m$missing_index_discrete,
     missing_index_continuous_nullable = m$missing_index_continuous,
-    delta = p$delta
+    delta = p$delta,
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
 
   out_raw
@@ -266,7 +335,6 @@ run_sampler_compare = function(spec) {
     main_alpha = p$main_alpha,
     main_beta = p$main_beta,
     pairwise_scale = p$pairwise_scale,
-    pairwise_scaling_factors = p$pairwise_scaling_factors,
     difference_scale = p$difference_scale,
     difference_selection_alpha = p$beta_bernoulli_alpha,
     difference_selection_beta = p$beta_bernoulli_beta,
@@ -299,6 +367,7 @@ run_sampler_compare = function(spec) {
     update_method = s$update_method,
     progress_type = s$progress_type,
     interaction_prior_type_str = p$interaction_prior_type,
+    difference_prior_type_str = p$difference_prior_type,
     threshold_prior_type_str = p$threshold_prior_type,
     threshold_scale = if(is.na(p$threshold_scale)) 1.0 else p$threshold_scale,
     progress_callback = s$progress_callback

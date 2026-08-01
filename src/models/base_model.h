@@ -9,6 +9,16 @@
 struct StepResult;
 struct SafeRNG;
 struct WarmupSchedule;
+class ChainResult;
+
+/**
+ * Sampling phase for the Z-ratio engine's extrapolation accounting.
+ */
+enum class ZRatioPhase {
+    Warmup,    ///< warmup sweeps, including the full-graph initial transient
+    Retained,  ///< post-warmup sweeps, the draws the user keeps
+    Gauge      ///< post-sampling trust-gauge sweeps; counted in neither tally
+};
 
 /**
  * BaseModel — Abstract interface for all graphical models.
@@ -26,7 +36,7 @@ struct WarmupSchedule;
  *   - MixedMRFModel — Mixed discrete + continuous MRF (Metropolis + NUTS)
  *
  * Methods fall into several groups:
- *   - **Capability queries** (has_edge_selection, has_constraints, has_missing_data)
+ *   - **Capability queries** (has_edge_selection, has_missing_data)
  *     — run/data-dependent toggles the runner and samplers branch on. (Sampler
  *     choice itself is config-driven, not capability-driven.)
  *   - **Sampling steps** (do_one_metropolis_step, logp_and_gradient)
@@ -78,6 +88,27 @@ public:
      * @param iteration  Current iteration index (for Robbins-Monro adaptation)
      */
     virtual void do_one_metropolis_step(int iteration = -1) = 0;
+
+    /**
+     * Perform one full Gibbs sweep over all parameters.
+     *
+     * Default throws: only models with an exact conjugate full-conditional
+     * sweep (currently GGM row-block Gibbs) override this. The GibbsSampler
+     * wrapper is only constructed for models that support it.
+     *
+     * @param iteration  Current iteration index (unused by exact samplers;
+     *                   kept for interface symmetry with the Metropolis step).
+     */
+    virtual void do_one_gibbs_step(int /*iteration*/ = -1) {
+        throw std::runtime_error("do_one_gibbs_step not implemented for this model");
+    }
+
+    /**
+     * Enable the full-conditional edge birth/death proposal for the between-model
+     * step, used by the Gibbs sampler in place of the random-walk Roverato
+     * proposal (which needs tuning). Default no-op; only the GGM overrides it.
+     */
+    virtual void set_conjugate_edge_proposal(bool /*enable*/) {}
 
     /**
      * Mean Metropolis acceptance probability across all components updated
@@ -134,6 +165,49 @@ public:
      */
     virtual void prepare_iteration() {}
 
+    /**
+     * Called once at the end of the chain run. Default no-op; models with
+     * run-level diagnostic state (e.g. the GGM Z-ratio engine's counters,
+     * frozen constants, and calibration anchors) copy it into the chain
+     * result here.
+     *
+     * @param chain_result  Output storage for the finished chain
+     */
+    virtual void collect_chain_diagnostics(ChainResult& /*chain_result*/) const {}
+
+    // =========================================================================
+    // In-chain Z-ratio trust gauge
+    // =========================================================================
+
+    /**
+     * Whether this model can run the trust gauge (hierarchical spec: a
+     * Z-ratio engine is attached). Default false.
+     */
+    virtual bool gauge_available() const { return false; }
+
+    /**
+     * Enable/disable the trust gauge and reset its accumulator on enable.
+     * While active, update_edge_indicators() also references non-trivial edge
+     * moves against the block-local exact reference. Default no-op.
+     */
+    virtual void set_gauge_active(bool /*on*/, int /*n_draws*/, int /*cap*/) {}
+
+    /** Start a new gauge assessment sweep (reset the per-sweep cap). */
+    virtual void gauge_begin_sweep() {}
+
+    /** Close the current gauge assessment sweep (pool its D). */
+    virtual void gauge_end_sweep() {}
+
+    /**
+     * Tell the Z-ratio engine which sampling phase it is evaluating in, so its
+     * extrapolation accounting can separate warmup from retained sweeps. The
+     * sampler initializes from a complete graph, which puts every mediating
+     * block at ~q for the first sweeps, so a warmup-only extrapolation share
+     * says nothing about the posterior the user keeps. Gauge sweeps run after
+     * sampling and are excluded from both tallies.
+     */
+    virtual void set_zratio_phase(ZRatioPhase /*phase*/) {}
+
     // =========================================================================
     // Edge selection
     // =========================================================================
@@ -161,8 +235,57 @@ public:
         throw std::runtime_error("set_vectorized_parameters method must be implemented in derived class");
     }
 
+    /**
+     * Set parameters from a full (fixed-size) storage vector, the inverse of
+     * get_storage_vectorized_parameters(). Used to warm-start a chain from a
+     * finished fit's final stored draw. Default throws; models that support
+     * warm starts override it.
+     * @param parameters  Storage-vectorized parameter values
+     */
+    virtual void set_storage_vectorized_parameters(const arma::vec& parameters) {
+        (void) parameters;
+        throw std::runtime_error("set_storage_vectorized_parameters not implemented for this model");
+    }
+
     /** @return Edge indicators as a flat integer vector. */
     virtual arma::ivec get_vectorized_indicator_parameters() = 0;
+
+    /**
+     * @return Per-edge Rao-Blackwellized inclusion draws from the most recent
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters().
+     *
+     * Each entry is J_e = gamma_e + (1 - 2 gamma_e) alpha_e, with gamma_e the
+     * pre-move indicator state and alpha_e = exp(min(0, log_accept_e)) the
+     * acceptance probability of the joint birth-death proposal. Averaging J_e
+     * over post-warmup iterations yields a boundary-stable inclusion
+     * probability. The default returns an empty vector (models without edge
+     * selection, or that have not yet run an edge-indicator sweep).
+     */
+    virtual arma::vec get_vectorized_rb_inclusion() {
+        return arma::vec();
+    }
+
+    /**
+     * @return Per-edge acceptance probability alpha_e = exp(min(0, log_accept_e))
+     *         of the birth/death proposal from the most recent
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters(). The raw alpha (not
+     *         1 - alpha) so the RB odds can be accumulated without cancellation.
+     *         Default: empty vector.
+     */
+    virtual arma::vec get_vectorized_rb_alpha() {
+        return arma::vec();
+    }
+
+    /**
+     * @return Per-edge pre-move indicator state (0 or 1) from the most recent
+     *         update_edge_indicators() sweep, ordered to match
+     *         get_vectorized_indicator_parameters(). Default: empty vector.
+     */
+    virtual arma::ivec get_vectorized_rb_pregamma() {
+        return arma::ivec();
+    }
 
     /**
      * @return Full parameter dimension (fixed size, includes inactive parameters).
@@ -245,110 +368,6 @@ public:
      * corresponding to included edges. Default: returns the full diagonal.
      */
     virtual arma::vec get_active_inv_mass() const { return inv_mass_; }
-
-    // =========================================================================
-    // RATTLE constrained integration
-    // =========================================================================
-
-    /** @return true if the model has constraints requiring RATTLE projection. */
-    virtual bool has_constraints() const { return false; }
-
-    /**
-     * Full-dimension position for RATTLE integration.
-     *
-     * Returns the current parameters in the full (fixed-dimension)
-     * coordinate system used by RATTLE. Default: delegates to
-     * get_vectorized_parameters().
-     */
-    virtual arma::vec get_full_position() const {
-        return get_vectorized_parameters();
-    }
-
-    /**
-     * Set model state from a full-dimension RATTLE position vector.
-     *
-     * Updates all derived matrices (precision, covariance, etc.) from
-     * the full position vector. Default: delegates to
-     * set_vectorized_parameters().
-     *
-     * @param x  Full-dimension position vector
-     */
-    virtual void set_full_position(const arma::vec& x) {
-        set_vectorized_parameters(x);
-    }
-
-    /**
-     * Full-space log-posterior and gradient for RATTLE integration.
-     *
-     * Evaluates the log-posterior and its gradient in the full
-     * (fixed-dimension) parameter space. Default: delegates to
-     * logp_and_gradient().
-     *
-     * @param x  Full-dimension position vector
-     * @return (log-posterior value, gradient vector)
-     */
-    virtual std::pair<double, arma::vec> logp_and_gradient_full(
-        const arma::vec& x) {
-        return logp_and_gradient(x);
-    }
-
-    /**
-     * Project position onto the constraint manifold (in-place).
-     *
-     * For models with linear constraints on the parameter space (e.g., zero
-     * entries in the precision matrix), this modifies x so that all
-     * constraints are satisfied. Default: no-op.
-     *
-     * @param x  Full-dimension position vector (modified in-place)
-     */
-    virtual void project_position(arma::vec& x) const { (void)x; }
-
-    /**
-     * Project position onto the constraint manifold (mass-weighted SHAKE).
-     *
-     * Uses the correction direction M^{-1} J^T for RATTLE-correct
-     * symplecticity. Default: delegates to identity-mass overload.
-     *
-     * @param x              Full-dimension position vector (modified)
-     * @param inv_mass_diag  Diagonal of the inverse mass matrix
-     */
-    virtual void project_position(arma::vec& x,
-                                  const arma::vec& inv_mass_diag) const {
-        (void)inv_mass_diag;
-        project_position(x);
-    }
-
-    /**
-     * Project momentum onto the cotangent space of the constraint manifold.
-     *
-     * Ensures the momentum vector lies in the tangent space of the
-     * constraint surface at the current position. Default: no-op.
-     *
-     * @param r  Momentum vector (modified in-place)
-     * @param x  Current position (after projection)
-     */
-    virtual void project_momentum(arma::vec& r, const arma::vec& x) const {
-        (void)r; (void)x;
-    }
-
-    /**
-     * Project momentum onto the cotangent space (mass-weighted RATTLE).
-     *
-     * Enforces J M^{-1} r = 0 for RATTLE-correct symplecticity.
-     * Default: delegates to identity-mass overload.
-     *
-     * @param r              Momentum vector (modified in-place)
-     * @param x              Current position (after projection)
-     * @param inv_mass_diag  Diagonal of the inverse mass matrix
-     */
-    virtual void project_momentum(arma::vec& r, const arma::vec& x,
-                                  const arma::vec& inv_mass_diag) const {
-        (void)inv_mass_diag;
-        project_momentum(r, x);
-    }
-
-    /** Reset any cached state used by projection solvers. */
-    virtual void reset_projection_cache() {}
 
     // =========================================================================
     // Edge selection control

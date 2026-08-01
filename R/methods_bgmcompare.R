@@ -33,9 +33,6 @@ print.bgmCompare = function(x, ...) {
 
   # Dataset info
   cat(paste0(" Number of variables: ", arguments$num_variables, "\n"))
-  if(isTRUE(arguments$standardize)) {
-    cat(" Prior standardization: enabled\n")
-  }
   if(!is.null(arguments$num_groups)) {
     cat(paste0(" Number of groups: ", arguments$num_groups, "\n"))
   }
@@ -151,14 +148,12 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
   if(!is.null(x$indicator)) {
     cat("Inclusion probabilities:\n")
+    # mean/mcse/sd/n_eff/Rhat are the Rao-Blackwellized inclusion estimate;
+    # n0->1 / n1->0 are the raw directional flip counts, which record the
+    # indicator's exploration beside them.
     ind = head(x$indicator, 6)
 
-    # Suppress n_eff_mixt where fewer than 5 transitions observed
-    if(all(c("n0->1", "n1->0", "n_eff_mixt") %in% names(ind))) {
-      few = ind[["n0->1"]] + ind[["n1->0"]] < 5
-      few[is.na(few)] = TRUE
-      ind[["n_eff_mixt"]][few] = NA
-    }
+    ind_has_na = anyNA(ind)
 
     # round only numeric columns
     ind[] = lapply(ind, function(col) {
@@ -178,15 +173,19 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     if(nrow(x$indicator) > 6) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
     }
-    cat("Note: NA values are suppressed in the print table. They occur when an indicator\n")
-    cat("was constant or had fewer than 5 transitions, so n_eff_mixt is unreliable;\n")
-    cat("`summary(fit)$indicator` still contains all computed values.\n\n")
+    if(ind_has_na) {
+      cat("Note: NA values are suppressed in the print table; they occur for indicators\n")
+      cat("that were not updated or whose draws are constant, so ESS/Rhat are undefined.\n")
+      cat("`summary(fit)$indicator` still contains all computed values.\n")
+    }
+    cat("\n")
   }
 
   if(!is.null(x$main_diff)) {
     cat("Group differences (main effects):\n")
 
     maind = head(x$main_diff, 6)
+    maind_has_na = anyNA(maind)
 
     # Only round numeric columns
     is_num = vapply(maind, is.numeric, logical(1))
@@ -201,9 +200,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$main_diff` to see full output)\n")
     }
 
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && maind_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
+      cat("that were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$main_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -213,6 +212,7 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     cat("Group differences (pairwise effects):\n")
 
     pairwised = head(x$pairwise_diff, 6)
+    pairwised_has_na = anyNA(pairwised)
 
     # Only round numeric columns
     is_num = vapply(pairwised, is.numeric, logical(1))
@@ -227,9 +227,9 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$pairwise_diff` to see full output)\n")
     }
 
-    if(!is.null(x$indicator)) {
-      cat("Note: NA values are suppressed in the print table. They occur here when an\n")
-      cat("indicator was zero across all iterations, so mcse/n_eff/n_eff_mixt/Rhat are undefined;\n")
+    if(!is.null(x$indicator) && pairwised_has_na) {
+      cat("Note: NA values are suppressed in the print table. They occur for differences\n")
+      cat("that were never selected, so the composite ESS and share are undefined;\n")
       cat("`summary(fit)$pairwise_diff` still contains the NA values.\n")
     }
     cat("\n")
@@ -344,7 +344,6 @@ coef.bgmCompare = function(object, ...) {
 #'
 #' @method $ bgmCompare
 #' @export
-#' @keywords internal
 `$.bgmCompare` = function(x, name) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, name)
@@ -368,7 +367,6 @@ coef.bgmCompare = function(object, ...) {
 #' @param ... Ignored.
 #' @method [[ bgmCompare
 #' @export
-#' @keywords internal
 `[[.bgmCompare` = function(x, name, ...) {
   if(inherits(x, "S7_object")) {
     if(is.character(name)) {
@@ -394,7 +392,6 @@ coef.bgmCompare = function(object, ...) {
 
 #' @method names bgmCompare
 #' @export
-#' @keywords internal
 names.bgmCompare = function(x) {
   if(inherits(x, "S7_object")) {
     S7::prop(x, ".field_names")

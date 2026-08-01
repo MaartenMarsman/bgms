@@ -8,16 +8,20 @@ sample_ggm_prior(
   p,
   n_samples,
   n_warmup = 2000,
-  interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  interaction_prior = normal_prior(scale = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  spec = c("conditional", "joint", "hierarchical"),
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs"),
+  edge_prior = NULL,
+  apply_correction = TRUE,
+  zratio_diagnostics = TRUE
 )
 }
 \arguments{
@@ -31,14 +35,16 @@ sample_ggm_prior(
 partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 \code{\link{cauchy_prior}()} or \code{\link{normal_prior}()};
 \code{\link{beta_prime_prior}()} is not supported here. Default:
-\code{cauchy_prior(scale = 2.5)} (i.e. \eqn{K_{ij}} has an implied
-\eqn{\textrm{Cauchy}(0, 5)} prior).}
+\code{normal_prior(scale = 1)}, matching \code{\link{bgm}()}.}
 
 \item{precision_scale_prior}{A \code{bgms_scale_prior} for
 \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
-\code{\link{exponential_prior}()}. Default: \code{gamma_prior(1, 1)},
-which implies \eqn{K_{ii}/2 \sim \textrm{Exp}(1)} and therefore
-\eqn{K_{ii} \sim \textrm{Exp}(1/2)} (mean \eqn{2}).}
+\code{\link{exponential_prior}()}. Both accept the rate in the raw
+frame (\code{rate}) or the standardized frame (\code{eta}; the raw
+rate is derived as \code{eta / s} for interaction-prior scale
+\code{s}). Default: \code{exponential_prior(eta = 1)}; with the
+default \code{normal_prior(scale = 1)} interaction prior this
+resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.}
 
 \item{step_size}{Positive numeric. Initial NUTS step size used to seed
 dual-averaging adaptation. Default \code{0.1}. Used only for
@@ -64,18 +70,50 @@ by \eqn{|K|^{\delta}}, softly repelling the chain from the
 positive-definite cone boundary. \code{delta = NULL} (default)
 auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
 dimension-adaptive rule \eqn{\delta(p) = c \log p} with
-\eqn{c \in (0.3, 0.6)} discussed in the companion paper on
-determinant-tilted spike-and-slab priors (Marsman et al., in
-preparation). Pass \code{delta = 0} for the untilted prior (the
-companion-paper baseline) or a non-negative numeric to override.}
+\eqn{c \in (0.3, 0.6)} (Marsman et al., in preparation). Pass
+\code{delta = 0} for the untilted prior or a non-negative numeric to
+override.}
 
 \item{spec}{One of \code{"conditional"} (default, sample
-\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-\eqn{(K, \Gamma)} jointly from the un-normalised joint prior).}
+\eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+\eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+\code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+normalized specification via the Z-ratio approximation).}
 
 \item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
 Bernoulli edge prior used when \code{spec = "joint"}. Default
 \code{0.5}. Ignored when \code{spec = "conditional"}.}
+
+\item{update_method}{One of \code{"adaptive-metropolis"} (default) or
+\code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+Gibbs chain uses the conjugate row and edge updates and needs no
+proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).}
+
+\item{edge_prior}{An edge prior specification object from
+\code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+prior with probability \code{edge_inclusion_prob}. Only for
+\code{spec = "joint"}.}
+
+\item{apply_correction}{Logical. For the hierarchical edge priors
+(\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+normalizing-constant correction to the hyperparameter updates (default
+\code{TRUE}; the correction table is built from the tilted prior
+sampler and cached across calls). With \code{FALSE} the plain conjugate
+updates are used, whose hyperparameter marginals do not match the
+hyperpriors under the determinant tilt.}
+
+\item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
+\code{spec = "hierarchical"}: run the trust gauge
+(\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
+the result; detected issues are printed when \code{verbose}. The gauge
+redoes a subset of the chain's edge decisions with the exact
+calculation and reports two alarms: how often the decision outcome
+differs (\code{flip_rate}), and the projected distortion of the mean
+inclusion probability from the measured error under the edge prior's
+feedback (\code{harm_pred}). Evidence-free sampling is the regime where
+the second alarm matters: a small consistent error can shift the graph
+marginal without flipping individual decisions.}
 }
 \value{
 A list with components
@@ -102,15 +140,25 @@ the columns of \code{K_diag}.}
 \code{n_samples x p(p-1)/2} integer matrix of sampled
 \eqn{\Gamma_{ij}} indicators (column order matches
 \code{K_offdiag}).}
+\item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+vector of length \code{n_samples} with the sampled inclusion
+probability.}
+\item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+matrix (\code{n_samples x p}) of sampled cluster allocations
+(1-based).}
+\item{\code{zratio_diagnostics}}{Only with
+\code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
+the trust-gauge summary from
+\code{\link{summarize_zratio_gauge}}.}
 }
 }
 \description{
 Draws from the prior of a Gaussian graphical model. The likelihood is
 omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-Two specifications are supported via the \code{spec} argument:
+Three specifications are supported via the \code{spec} argument:
 \itemize{
 \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
-sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
+sample \eqn{K \mid \Gamma} via the same theta-space NUTS sampler
 that drives \code{\link{bgm}} for continuous data. The chain
 targets \eqn{p(K \mid \Gamma) \propto \mathrm{slab}(K) \cdot
     \mathrm{diag}(K) \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in
@@ -124,6 +172,13 @@ edge selection on and the likelihood off, so the marginal on
 \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 specification, not hierarchical). Useful for simulation-based
 calibration of \code{\link{bgm}}'s default sampler.
+\item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+\eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+\eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+per-graph normalizer ratio in each between-edge move is evaluated
+by the deterministic local Z-ratio approximation. Requires
+\code{normal_prior()} or \code{cauchy_prior()} interactions.
 }
 }
 \details{
@@ -140,10 +195,17 @@ When \code{spec = "conditional"} and \code{edge_indicators} is supplied,
 off-diagonals at excluded positions are constrained to zero throughout
 the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 (the chain samples \eqn{\Gamma}).
+
+When \code{spec = "joint"}, the chain is initialized from an ancestral
+draw of the edge prior (hyperparameters from their prior, then
+indicators given the hyperparameters), keyed to \code{seed}. Under a
+hierarchical edge prior the inclusion parameter and the graph density
+are coupled, and a full-graph start can pin both near 1 for a large
+number of sweeps in zero-evidence chains.
 }
 \examples{
 \donttest{
-# Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
+# Default Normal(0, 1) off-diagonal, Exponential(1) diagonal, p = 4.
 draws = sample_ggm_prior(
   p = 4, n_samples = 200, n_warmup = 200,
   verbose = FALSE

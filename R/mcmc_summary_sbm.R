@@ -39,7 +39,7 @@ summarize_alloc_pairs = function(allocations, node_names = NULL) {
     array3d[, , p] = get_draws_pair(Pairs[p, 1], Pairs[p, 2])
   }
   ind_stats = .compute_indicator_ess_cpp(array3d)
-  batch_rhat = .compute_rhat_cpp(array3d)
+  batch_rhat = .compute_rhat_cpp(split_chains(array3d))
 
   result = cbind(
     ind_stats[, c("mean", "mcse", "sd", "n00", "n01", "n10", "n11", "n_eff_mixt"), drop = FALSE],
@@ -87,34 +87,45 @@ find_representative_clustering = function(cluster_matrix) {
   n_iter = nrow(cluster_matrix)
   p = ncol(cluster_matrix)
 
-  # Build co-clustering (membership) matrices for all iterations
-
-  Ms = lapply(seq_len(n_iter), function(t) {
+  # Posterior similarity (co-clustering) matrix, streamed one iteration at a
+  # time; the per-iteration membership matrices are never stored.
+  psm = matrix(0, p, p)
+  for(t in seq_len(n_iter)) {
     z = cluster_matrix[t, ]
-    (outer(z, z, FUN = "==")) * 1L
-  })
+    psm = psm + (outer(z, z, FUN = "==") * 1L)
+  }
+  psm = psm / n_iter
 
-  # Average (posterior similarity / co-clustering) matrix
-  psm = Reduce(`+`, Ms) / n_iter
-
-  # MEAN representative (Dahl's method)
-  sqerr = vapply(Ms, function(M) sum((M - psm)^2), numeric(1))
+  # MEAN representative (Dahl's method): ||M_t - psm||^2 expands to
+  # n_pairs_t - 2 * sum(psm over co-clustered pairs) + sum(psm^2), where the
+  # co-clustered pairs decompose block-by-block, so M_t is never materialized.
+  sum_psm2 = sum(psm^2)
+  sqerr = vapply(seq_len(n_iter), function(t) {
+    z = cluster_matrix[t, ]
+    s = 0
+    n_pairs = 0
+    for(lab in unique(z)) {
+      idx = which(z == lab)
+      s = s + sum(psm[idx, idx])
+      n_pairs = n_pairs + length(idx)^2
+    }
+    n_pairs - 2 * s + sum_psm2
+  }, numeric(1))
   idx_dahl = which.min(sqerr)
   alloc_dahl = cluster_matrix[idx_dahl, , drop = TRUE]
 
-  #  MODE representative
-  hash_mat = function(M) paste(as.integer(t(M)), collapse = ",")
-  keys = vapply(Ms, hash_mat, character(1))
+  # MODE representative: two allocation vectors induce the same partition
+  # exactly when their first-occurrence canonical relabelings match, so an
+  # O(p) canonical label vector replaces the p x p membership matrix as the
+  # hash key.
+  keys = vapply(seq_len(n_iter), function(t) {
+    z = cluster_matrix[t, ]
+    paste(match(z, unique(z)), collapse = ",")
+  }, character(1))
   tab = table(keys)
   key_mode = names(tab)[which.max(tab)]
   idx_mode = match(key_mode, keys)
   alloc_mode = cluster_matrix[idx_mode, , drop = TRUE]
-  indicator_mode = matrix(
-    as.integer(strsplit(key_mode, ",", fixed = TRUE)[[1]]),
-    nrow = p, byrow = TRUE
-  )
-  p_dist = as.numeric(tab) / sum(tab)
-  posterior_variance = (1 - sum(p_dist^2)) / (1 - 1 / length(p_dist))
 
   list(
     mean = alloc_dahl,
@@ -127,6 +138,10 @@ find_representative_clustering = function(cluster_matrix) {
 # Miller & Harrison (2018). Mixture Models With a Prior on the Number of
 # blocks, Journal of the American Statistical Association, 113:521, 340-356,
 # DOI:10.1080/01621459.2016.1255636
+#
+# The prior on the number of components is the shifted Poisson
+# K - 1 ~ Poisson(lambda), matching the partition coefficients from
+# compute_Vn_mfm_sbm() that drive the sampler.
 #' @importFrom stats dpois
 compute_p_k_given_t = function(
   t,
@@ -141,30 +156,21 @@ compute_p_k_given_t = function(
   # Initialize vector for probabilities
   p_k_given_t = numeric(length(K_values))
 
-  # Normalization constant for t
-  log_vn_t = log_Vn[t]
+  # Shifted Poisson prior on the number of components (log scale)
+  log_poisson_pmf = dpois(K_values - 1, lambda, log = TRUE)
 
-  # Normalizing factor for the truncated Poisson distribution
-  norm_factor = 1 - dpois(0, lambda)
-  truncated_poisson_pmf = dpois(K_values, lambda) / norm_factor
+  # Falling factorial K!/(K-t)! and rising factorial
+  # prod(alpha*K + 0:(n-1)) = gamma(alpha*K + n)/gamma(alpha*K), both on the
+  # log scale so large K/t cannot overflow to Inf.
+  valid = K_values >= t
+  K = K_values[valid]
+  log_falling_factorial = lgamma(K + 1) - lgamma(K - t + 1)
+  log_rising_factorial = lgamma(dirichlet_alpha * K + num_variables) -
+    lgamma(dirichlet_alpha * K)
+  log_p_k = log_falling_factorial - log_rising_factorial +
+    log_poisson_pmf[valid] - log_Vn[t]
+  p_k_given_t[valid] = exp(log_p_k)
 
-  # Loop through each value of K
-  for(i in seq_along(K_values)) {
-    K = K_values[i]
-    if(K >= t) {
-      # Falling factorial
-      falling_factorial = prod(K:(K - t + 1))
-      # Rising factorial
-      rising_factorial = prod((dirichlet_alpha * K) + 0:(num_variables - 1))
-      # Compute log probability
-      log_p_k = log(falling_factorial) - log(rising_factorial) +
-        log(truncated_poisson_pmf[i]) - log_vn_t
-      # Convert log probability to probability
-      p_k_given_t[i] = exp(log_p_k)
-    } else {
-      p_k_given_t[i] = 0
-    }
-  }
   # Normalize probabilities
   p_k_given_t = p_k_given_t / sum(p_k_given_t)
 
@@ -192,18 +198,15 @@ posterior_summary_SBM = function(
   # cardinality  of the partition z
   clusters = apply(cluster_allocations, 1, function(row) length(unique(row)))
 
-  # Compute the conditional probabilities of the number of clusters for each
-  # row in clusters
-  p_k_given_t = matrix(NA, nrow = length(clusters), ncol = num_variables)
-
-  for(i in seq_along(clusters)) {
-    p_k_given_t[i, ] = compute_p_k_given_t(
-      clusters[i], log_Vn, dirichlet_alpha, num_variables, lambda
-    )
-  }
-
-  # Average across all iterations
-  p_k_given_t = colMeans(p_k_given_t)
+  # Compute the conditional probabilities of the number of clusters once per
+  # unique cardinality, then average with the observed frequencies (the
+  # per-iteration values only depend on the cardinality t).
+  unique_t = sort(unique(clusters))
+  p_k_by_t = vapply(unique_t, function(t) {
+    compute_p_k_given_t(t, log_Vn, dirichlet_alpha, num_variables, lambda)
+  }, numeric(num_variables))
+  t_freq = tabulate(match(clusters, unique_t), nbins = length(unique_t))
+  p_k_given_t = as.numeric(p_k_by_t %*% (t_freq / length(clusters)))
 
   # Format the output
   # num_blocks = 1:num_variables

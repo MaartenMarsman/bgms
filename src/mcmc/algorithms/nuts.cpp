@@ -8,7 +8,7 @@
 #include "math/log_sum_exp.h"
 #include "mcmc/algorithms/leapfrog.h"
 #include "mcmc/algorithms/nuts.h"
-#include "mcmc/algorithms/hmc.h"
+#include "mcmc/algorithms/hamiltonian_utils.h"
 #include "rng/rng_utils.h"
 
 
@@ -26,12 +26,11 @@
 //     https://github.com/stan-dev/stan/blob/develop/src/stan/mcmc/hmc/nuts/base_nuts.hpp
 
 
-// Computes the generalized U-turn criterion for the NUTS algorithm
-//
-// @param p_sharp_minus  Sharp momentum (M^{-1} p) at backward end
-// @param p_sharp_plus   Sharp momentum (M^{-1} p) at forward end
-// @param rho            Sum of momenta along the trajectory
-// @return true if criterion satisfied (continue), false if U-turn detected (stop)
+// Computes the generalized U-turn criterion for the NUTS algorithm from the
+// sharp momenta (M^{-1} p) at the backward and forward trajectory ends and
+// rho, the sum of momenta along the trajectory. Returns true if the
+// criterion is satisfied (continue expanding), false if a U-turn is detected
+// (stop).
 bool compute_criterion(const arma::vec& p_sharp_minus,
                        const arma::vec& p_sharp_plus,
                        const arma::vec& rho) {
@@ -46,21 +45,13 @@ bool compute_criterion(const arma::vec& p_sharp_minus,
 // log_sum_weight. Sibling subtrees combine by symmetric multinomial
 // sampling in log-space (Stan's base_nuts.hpp).
 //
-// @param theta              Current position at the base of the tree
-// @param r                  Current momentum at the base of the tree
-// @param v                  Direction of expansion (-1 backward, +1 forward)
-// @param j                  Current tree depth
-// @param step_size          Step size used in leapfrog integration
-// @param H0                 Hamiltonian at the start of the trajectory
-// @param memo               Memoizer object for caching evaluations
-// @param inv_mass_diag      Diagonal of the inverse mass matrix
-// @param rng                RNG for the log-sum-exp progressive draws
-// @param project_position   RATTLE position projection (nullptr = unconstrained)
-// @param project_momentum   RATTLE momentum projection (nullptr = unconstrained)
-// @param reverse_check      Enable runtime reversibility check (constrained only)
-// @param reverse_check_tol  Factor for eps^2-scaled reversibility tolerance
-// @return BuildTreeResult with updated endpoints, candidate sample, log weight,
-//         and diagnostics.
+// Takes the position theta and momentum r at the base of the tree, the
+// expansion direction v (-1 backward, +1 forward), the tree depth j, the
+// leapfrog step size, the Hamiltonian H0 at the start of the trajectory, a
+// memoizer for caching evaluations, the diagonal of the inverse mass matrix,
+// and the RNG for the log-sum-exp progressive draws. Returns a
+// BuildTreeResult with updated endpoints, candidate sample, log weight, and
+// diagnostics.
 BuildTreeResult build_tree(
     const arma::vec& theta,
     const arma::vec& r,
@@ -70,11 +61,7 @@ BuildTreeResult build_tree(
     double H0,
     Memoizer& memo,
     const arma::vec& inv_mass_diag,
-    SafeRNG& rng,
-    const ProjectPositionFn* project_position,
-    const ProjectMomentumFn* project_momentum,
-    bool reverse_check,
-    double reverse_check_tol
+    SafeRNG& rng
 ) {
   constexpr double Delta_max = 1000.0;
   constexpr double neg_inf = -std::numeric_limits<double>::infinity();
@@ -82,53 +69,11 @@ BuildTreeResult build_tree(
   if (j == 0) {
     // ---- Base case: a single leapfrog step --------------------------------
     arma::vec theta_new, r_new;
-    bool non_reversible = false;
-    if (project_position && project_momentum) {
-      // Always run the checked variant so we can observe reversibility even
-      // when reverse_check is off. reverse_check controls whether we ACT
-      // on the result (terminate the tree); observation is always on.
-      auto checked = leapfrog_constrained_checked(
-        theta, r, v * step_size, memo, inv_mass_diag,
-        *project_position, *project_momentum,
-        reverse_check_tol
-      );
-      theta_new = std::move(checked.theta);
-      r_new = std::move(checked.r);
-      non_reversible = !checked.reversible;
-    } else {
-      std::tie(theta_new, r_new) = leapfrog_memo(
-        theta, r, v * step_size, memo, inv_mass_diag
-      );
-    }
+    std::tie(theta_new, r_new) = leapfrog_memo(
+      theta, r, v * step_size, memo, inv_mass_diag
+    );
 
-    // Branch 1: non-reversible early return, BEFORE logp evaluation.
-    // Skips the potentially expensive/unstable posterior eval on a state
-    // that failed the reversibility round-trip. n_leapfrog and alpha are
-    // still 1 / 0 so trajectory-level bookkeeping stays consistent.
-    if (reverse_check && non_reversible) {
-      arma::vec p_sharp = inv_mass_diag % r_new;
-      BuildTreeResult result;
-      result.theta_min = theta_new;
-      result.theta_plus = theta_new;
-      result.r_min = r_new;
-      result.r_plus = r_new;
-      result.rho = r_new;
-      result.p_beg = r_new;
-      result.p_end = r_new;
-      result.r_prime = std::move(r_new);
-      result.theta_prime = std::move(theta_new);
-      result.p_sharp_beg = p_sharp;
-      result.p_sharp_end = std::move(p_sharp);
-      result.log_sum_weight = neg_inf;
-      result.s_prime = 0;
-      result.alpha = 0.0;
-      result.n_leapfrog = 1;
-      result.divergent = false;
-      result.non_reversible = true;
-      return result;
-    }
-
-    // Branch 2: evaluate posterior, kinetic energy, Hamiltonian.
+    // Evaluate posterior, kinetic energy, Hamiltonian.
     double logp = memo.cached_log_post(theta_new);
     double kin = kinetic_energy(r_new, inv_mass_diag);
     double h = -logp + kin;
@@ -151,11 +96,11 @@ BuildTreeResult build_tree(
     result.p_end = r_new;
     result.r_prime = std::move(r_new);
     result.theta_prime = std::move(theta_new);
+    result.logp_prime = logp;
     result.p_sharp_beg = p_sharp;
     result.p_sharp_end = std::move(p_sharp);
     result.alpha = alpha;
     result.n_leapfrog = 1;
-    result.non_reversible = non_reversible;  // recorded even when not acting
 
     // Branch 3: divergence check. A divergent leaf contributes no weight to
     // candidate selection (log_sum_weight = -inf) but its alpha is still
@@ -174,8 +119,7 @@ BuildTreeResult build_tree(
 
   // ---- Recursive case: build first subtree, then second -------------------
   BuildTreeResult init_result = build_tree(
-    theta, r, v, j - 1, step_size, H0, memo, inv_mass_diag, rng,
-    project_position, project_momentum, reverse_check, reverse_check_tol
+    theta, r, v, j - 1, step_size, H0, memo, inv_mass_diag, rng
   );
 
   if (init_result.s_prime == 0) {
@@ -184,7 +128,6 @@ BuildTreeResult build_tree(
   }
 
   bool divergent = init_result.divergent;
-  bool non_reversible = init_result.non_reversible;
 
   arma::vec theta_min = std::move(init_result.theta_min);
   arma::vec r_min = std::move(init_result.r_min);
@@ -192,6 +135,7 @@ BuildTreeResult build_tree(
   arma::vec r_plus = std::move(init_result.r_plus);
   arma::vec theta_prime = std::move(init_result.theta_prime);
   arma::vec r_prime = std::move(init_result.r_prime);
+  double logp_prime = init_result.logp_prime;
   arma::vec rho_init = std::move(init_result.rho);
   arma::vec p_sharp_init_beg = std::move(init_result.p_sharp_beg);
   arma::vec p_sharp_init_end = std::move(init_result.p_sharp_end);
@@ -205,15 +149,13 @@ BuildTreeResult build_tree(
   BuildTreeResult final_result;
   if (v == -1) {
     final_result = build_tree(
-      theta_min, r_min, v, j - 1, step_size, H0, memo, inv_mass_diag, rng,
-      project_position, project_momentum, reverse_check, reverse_check_tol
+      theta_min, r_min, v, j - 1, step_size, H0, memo, inv_mass_diag, rng
     );
     theta_min = std::move(final_result.theta_min);
     r_min = std::move(final_result.r_min);
   } else {
     final_result = build_tree(
-      theta_plus, r_plus, v, j - 1, step_size, H0, memo, inv_mass_diag, rng,
-      project_position, project_momentum, reverse_check, reverse_check_tol
+      theta_plus, r_plus, v, j - 1, step_size, H0, memo, inv_mass_diag, rng
     );
     theta_plus = std::move(final_result.theta_plus);
     r_plus = std::move(final_result.r_plus);
@@ -224,7 +166,6 @@ BuildTreeResult build_tree(
   alpha_prime += final_result.alpha;
   n_leapfrog_prime += final_result.n_leapfrog;
   divergent = divergent || final_result.divergent;
-  non_reversible = non_reversible || final_result.non_reversible;
 
   if (final_result.s_prime == 0) {
     // Second subtree invalid — return early with s_prime=0. The returned
@@ -240,6 +181,7 @@ BuildTreeResult build_tree(
     result.r_plus = std::move(r_plus);
     result.theta_prime = std::move(theta_prime);
     result.r_prime = std::move(r_prime);
+    result.logp_prime = logp_prime;
     rho_init += final_result.rho;
     result.rho = std::move(rho_init);
     result.p_sharp_beg = std::move(p_sharp_init_beg);
@@ -252,7 +194,6 @@ BuildTreeResult build_tree(
     result.alpha = alpha_prime;
     result.n_leapfrog = n_leapfrog_prime;
     result.divergent = divergent;
-    result.non_reversible = non_reversible;
     return result;
   }
 
@@ -273,10 +214,12 @@ BuildTreeResult build_tree(
   if (log_sum_weight_final > log_sum_weight_subtree) {
     theta_prime = std::move(final_result.theta_prime);
     r_prime = std::move(final_result.r_prime);
+    logp_prime = final_result.logp_prime;
   } else if (MY_LOG(runif(rng)) <
              log_sum_weight_final - log_sum_weight_subtree) {
     theta_prime = std::move(final_result.theta_prime);
     r_prime = std::move(final_result.r_prime);
+    logp_prime = final_result.logp_prime;
   }
 
   arma::vec rho_subtree = rho_init + rho_final;
@@ -298,6 +241,7 @@ BuildTreeResult build_tree(
   result.r_plus = std::move(r_plus);
   result.theta_prime = std::move(theta_prime);
   result.r_prime = std::move(r_prime);
+  result.logp_prime = logp_prime;
   result.rho = std::move(rho_subtree);
   result.p_sharp_beg = std::move(p_sharp_init_beg);
   result.p_sharp_end = std::move(p_sharp_final_end);
@@ -308,7 +252,6 @@ BuildTreeResult build_tree(
   result.alpha = alpha_prime;
   result.n_leapfrog = n_leapfrog_prime;
   result.divergent = divergent;
-  result.non_reversible = non_reversible;
   return result;
 }
 
@@ -319,27 +262,19 @@ StepResult nuts_step(
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
-    int max_depth,
-    const ProjectPositionFn* project_position,
-    const ProjectMomentumFn* project_momentum,
-    bool reverse_check,
-    double reverse_check_tol
+    int max_depth
 ) {
   // Create Memoizer with joint function
   Memoizer memo(joint);
   bool any_divergence = false;
-  bool any_non_reversible = false;
 
   arma::vec r0 = arma::sqrt(1.0 / inv_mass_diag) % arma_rnorm_vec(rng, init_theta.n_elem);
-
-  // Project initial momentum onto cotangent space (momentum-only)
-  if (project_momentum) {
-    (*project_momentum)(r0, init_theta);
-  }
 
   double logp0 = memo.cached_log_post(init_theta);
   double kin0 = kinetic_energy(r0, inv_mass_diag);
   double H0 = -logp0 + kin0;
+  // Log-posterior of the currently selected sample, kept in sync with theta.
+  double logp_selected = logp0;
 
   arma::vec theta_min = init_theta, r_min = r0;
   arma::vec theta_plus = init_theta, r_plus = r0;
@@ -383,8 +318,7 @@ StepResult nuts_step(
       p_fwd_bck = p_bck_bck;
       p_sharp_fwd_bck = p_sharp_bck_bck;
       result = build_tree(
-        theta_min, r_min, v, j, step_size, H0, memo, inv_mass_diag, rng,
-        project_position, project_momentum, reverse_check, reverse_check_tol
+        theta_min, r_min, v, j, step_size, H0, memo, inv_mass_diag, rng
       );
       theta_min = std::move(result.theta_min);
       r_min = std::move(result.r_min);
@@ -402,8 +336,7 @@ StepResult nuts_step(
       p_bck_fwd = p_fwd_fwd;
       p_sharp_bck_fwd = p_sharp_fwd_fwd;
       result = build_tree(
-        theta_plus, r_plus, v, j, step_size, H0, memo, inv_mass_diag, rng,
-        project_position, project_momentum, reverse_check, reverse_check_tol
+        theta_plus, r_plus, v, j, step_size, H0, memo, inv_mass_diag, rng
       );
       theta_plus = std::move(result.theta_plus);
       r_plus = std::move(result.r_plus);
@@ -417,7 +350,6 @@ StepResult nuts_step(
     // Trajectory-level bookkeeping: always accumulate (subtrees that
     // terminated still consumed leapfrog steps).
     any_divergence = any_divergence || result.divergent;
-    any_non_reversible = any_non_reversible || result.non_reversible;
     sum_metro_prob += result.alpha;
     n_leapfrog_total += result.n_leapfrog;
 
@@ -431,6 +363,7 @@ StepResult nuts_step(
             result.log_sum_weight - log_sum_weight_traj) {
         theta = std::move(result.theta_prime);
         r = std::move(result.r_prime);
+        logp_selected = result.logp_prime;
       }
     }
     log_sum_weight_traj =
@@ -453,14 +386,12 @@ StepResult nuts_step(
   }
 
   double accept_prob = sum_metro_prob / static_cast<double>(n_leapfrog_total);
-  auto logp_final = memo.cached_log_post(theta);
   double kin_final = kinetic_energy(r, inv_mass_diag);
-  double energy = -logp_final + kin_final;
+  double energy = -logp_selected + kin_final;
 
   auto diag = std::make_shared<NUTSDiagnostics>();
   diag->tree_depth = j;
   diag->divergent = any_divergence;
-  diag->non_reversible = any_non_reversible;
   diag->energy = energy;
   diag->accept_prob = accept_prob;
 

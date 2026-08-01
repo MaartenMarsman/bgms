@@ -3,7 +3,6 @@
 # Split out of simulate_predict.R (cleanup S4).
 
 
-
 # ==============================================================================
 #   GGM Prediction Helpers
 # ==============================================================================
@@ -25,7 +24,6 @@ reconstruct_precision = function(associations, residual_variance) {
 }
 
 
-
 # Reconstruct precision matrix from a single posterior draw.
 # GGM raw samples are already on precision scale.
 #
@@ -42,7 +40,6 @@ build_precision_from_draw = function(pairwise_vec, main_vec, p) {
   diag(omega) = main_vec
   return(omega)
 }
-
 
 
 # ==============================================================================
@@ -65,6 +62,14 @@ build_precision_from_draw = function(pairwise_vec, main_vec, p) {
 simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
                              num_variables, data_columnnames,
                              cores, progress_type) {
+  # The model is fit on training-mean-centered data; simulate on the original
+  # scale by using the stored means. Older fits without stored means fall
+  # back to the centered (zero-mean) scale.
+  train_means = extract_arguments(object)$column_means
+  if(is.null(train_means)) {
+    train_means = rep(0, num_variables)
+  }
+
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
@@ -77,7 +82,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
       num_states = nsim,
       num_variables = num_variables,
       pairwise = precision,
-      main = rep(0, num_variables),
+      main = train_means,
       variable_type = "continuous",
       seed = seed
     )
@@ -107,7 +112,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
       draw_indices = as.integer(draw_indices),
       num_states = as.integer(nsim),
       num_variables = as.integer(num_variables),
-      means = rep(0, num_variables),
+      means = train_means,
       nThreads = cores,
       seed = seed,
       progress_type = progress_type
@@ -123,7 +128,6 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
 }
 
 
-
 # GGM prediction implementation (called from predict.bgms).
 #
 # @param object Fitted bgms object (GGM).
@@ -134,14 +138,23 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
 # @param type "probabilities" or "response".
 # @param method "posterior-mean" or "posterior-sample".
 # @param ndraws Number of posterior draws (NULL = all).
+# @param return_draws Internal. With method = "posterior-sample", return the
+#   per-draw conditional parameters instead of their average, for callers that
+#   need the predictive mixture rather than a plug-in Gaussian.
 #
 # @return See predict.bgms() documentation for GGM return format.
 predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
                             num_variables,
-                            type, method, ndraws) {
-  # Center newdata by its own column means
-  newdata_means = colMeans(newdata)
-  newdata_centered = sweep(newdata, 2, newdata_means)
+                            type, method, ndraws,
+                            return_draws = FALSE) {
+  # Center newdata on the training column means so predictions match the
+  # scale the model was fit on. Older fits without stored means fall back to
+  # centering newdata by its own means.
+  train_means = extract_arguments(object)$column_means
+  if(is.null(train_means)) {
+    train_means = colMeans(newdata)
+  }
+  newdata_centered = sweep(newdata, 2, train_means)
 
   if(method == "posterior-mean") {
     # Reconstruct precision matrix from posterior means
@@ -162,7 +175,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
       colnames(result[[v]]) = c("mean", "sd")
       result[[v]][, "mean"] =
         result[[v]][, "mean"] +
-        newdata_means[predict_vars[v]]
+        train_means[predict_vars[v]]
     }
   } else {
     # Use posterior samples
@@ -198,10 +211,20 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
 
       # Shift conditional means back to original scale
       for(v in seq_along(predict_vars)) {
-        preds[[v]][, 1] = preds[[v]][, 1] + newdata_means[predict_vars[v]]
+        preds[[v]][, 1] = preds[[v]][, 1] + train_means[predict_vars[v]]
       }
 
       all_preds[[i]] = preds
+    }
+
+    if(isTRUE(return_draws)) {
+      for(i in seq_len(ndraws)) {
+        names(all_preds[[i]]) = data_columnnames[predict_vars]
+        for(v in seq_along(predict_vars)) {
+          colnames(all_preds[[i]][[v]]) = c("mean", "sd")
+        }
+      }
+      return(all_preds)
     }
 
     # Average over draws
@@ -234,4 +257,3 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
 
   return(result)
 }
-

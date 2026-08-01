@@ -4,7 +4,6 @@
 # dispatcher remain in build_output.R.
 
 
-
 # build_output_bgm()  --- unified GGM + OMRF
 # ==============================================================================
 #
@@ -23,6 +22,15 @@ build_output_bgm = function(spec, raw) {
   data_columnnames = d$data_columnnames
   edge_selection = p$edge_selection
   edge_prior = p$edge_prior
+
+  # Keep the raw chains for the Z-ratio trust gauge: it needs the untouched
+  # indicator layout and the per-chain zratio block, both dropped by the
+  # normalization below.
+  zratio_chains = if(isTRUE(p$zratio_active)) {
+    raw
+  } else {
+    NULL
+  }
 
   # --- Normalize raw C++ output -----------------------------------------------
   # The C++ GGM/OMRF backends return a flat `samples` matrix (params x iters)
@@ -60,9 +68,22 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$indicator_samples)) {
         res$indicator_samples = t(chain$indicator_samples)[, offdiag_idx, drop = FALSE]
       }
+      if(!is.null(chain$rb_inclusion_samples)) {
+        res$rb_inclusion_samples = t(chain$rb_inclusion_samples)[, offdiag_idx, drop = FALSE]
+      }
+      if(!is.null(chain$rb_counts)) {
+        res$rb_counts = chain$rb_counts[offdiag_idx, , drop = FALSE]
+      }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
+      if(!is.null(chain$inclusion_parameter_samples)) {
+        res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
+      }
+      # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
+      res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
+      # Final adapted diagonal metric (NULL otherwise), for warm-starting refits.
+      res$inv_mass = if(is.null(chain$inv_mass)) NULL else as.numeric(chain$inv_mass)
       attach_diagnostic_traces(res, chain)
     })
   } else {
@@ -82,9 +103,22 @@ build_output_bgm = function(spec, raw) {
       if(!is.null(chain$indicator_samples)) {
         res$indicator_samples = t(chain$indicator_samples)
       }
+      if(!is.null(chain$rb_inclusion_samples)) {
+        res$rb_inclusion_samples = t(chain$rb_inclusion_samples)
+      }
+      if(!is.null(chain$rb_counts)) {
+        res$rb_counts = chain$rb_counts
+      }
       if(!is.null(chain$allocation_samples)) {
         res$allocations = t(chain$allocation_samples)
       }
+      if(!is.null(chain$inclusion_parameter_samples)) {
+        res$inclusion_parameter = as.numeric(chain$inclusion_parameter_samples)
+      }
+      # Final adaptation-averaged NUTS step size (NaN otherwise), for warm starts.
+      res$step_size = if(is.null(chain$step_size)) NA_real_ else as.numeric(chain$step_size)
+      # Final adapted diagonal metric (NULL otherwise), for warm-starting refits.
+      res$inv_mass = if(is.null(chain$inv_mass)) NULL else as.numeric(chain$inv_mass)
       attach_diagnostic_traces(res, chain)
     })
   }
@@ -165,6 +199,24 @@ build_output_bgm = function(spec, raw) {
       results$posterior_summary_pairwise_allocations = sbm_convergence$sbm_summary
       co_occur_matrix = sbm_convergence$co_occur_matrix
     }
+
+    if("inclusion_parameter" %in% names(raw[[1]])) {
+      results$inclusion_parameter_samples =
+        lapply(raw, `[[`, "inclusion_parameter")
+    }
+  }
+
+  # Per-chain final NUTS step size, retained on the fit so a refit can
+  # warm-start it (NA for non-NUTS runs). Not user-facing.
+  results$refit_step_sizes = vapply(
+    raw, function(ch) if(is.null(ch$step_size)) NA_real_ else ch$step_size,
+    numeric(1)
+  )
+
+  # Per-chain final NUTS diagonal metric (inverse mass), retained so a refit can
+  # warm-start it (NULL for non-NUTS runs). Not user-facing.
+  if(!is.null(raw[[1]]$inv_mass)) {
+    results$refit_inv_mass = lapply(raw, `[[`, "inv_mass")
   }
 
   # --- Posterior mean: main ---------------------------------------------------
@@ -219,8 +271,16 @@ build_output_bgm = function(spec, raw) {
 
   # --- Posterior mean: indicator + SBM ----------------------------------------
   if(edge_selection) {
-    pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
-    indicator_means = colMeans(pooled_ind)
+    # Report the Rao-Blackwellized inclusion probability as the canonical
+    # estimate, matching posterior_summary_indicator and the default of
+    # extract_posterior_inclusion_probabilities(); fall back to the raw
+    # indicator average for fits without RB draws.
+    if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$rb_inclusion_samples))
+    } else {
+      pooled_ind = do.call(rbind, lapply(raw, function(ch) ch$indicator_samples))
+    }
+    indicator_means = colMeans(pooled_ind, na.rm = TRUE)
     results$posterior_mean_indicator = matrix(0,
       nrow = num_variables, ncol = num_variables,
       dimnames = list(data_columnnames, data_columnnames)
@@ -238,11 +298,16 @@ build_output_bgm = function(spec, raw) {
 
   # --- arguments + class ------------------------------------------------------
   results$arguments = build_arguments(spec)
+  # Report the number of chains actually kept; failed chains are dropped
+  # upstream, so raw holds only the survivors.
+  results$arguments$num_chains = length(raw)
   class(results) = "bgms"
 
   # --- raw_samples ------------------------------------------------------------
+  # Allocation samples are per node (one column per variable), so they carry
+  # node names, not edge names.
   alloc_names = if(identical(edge_prior, "Stochastic-Block")) {
-    if(is_continuous) data_columnnames else edge_names
+    data_columnnames
   } else {
     NULL
   }
@@ -268,6 +333,52 @@ build_output_bgm = function(spec, raw) {
     target_accept = s$target_accept
   )
 
+  # --- Z-ratio trust gauge (hierarchical graph-prior spec) ----------------------
+  # Only when the in-chain gauge actually ran; it is on by default but can be
+  # switched off (options(bgms.zratio_gauge_sweeps = 0)), so guard against
+  # empty output.
+  if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
+    # Harm channel inputs: per-chain edge-inclusion probabilities from the
+    # normalized chains (indicator_samples is iters x off-diagonal edges) and
+    # the edge-prior identity from the spec.
+    harm_inputs = if(edge_selection) {
+      pip = lapply(raw, function(ch) {
+        if(is.null(ch$indicator_samples)) NULL else colMeans(ch$indicator_samples)
+      })
+      zratio_harm_inputs(
+        pip, p$edge_prior,
+        a = p$beta_bernoulli_alpha, b = p$beta_bernoulli_beta
+      )
+    } else {
+      NULL
+    }
+    results$zratio_diag = summarize_zratio_gauge(
+      zratio_chains,
+      verbose = TRUE, harm_inputs = harm_inputs
+    )
+  }
+
+  # Routing and extrapolation notices: independent of the gauge (which can be
+  # switched off), so a fit that left the surface's validated range -- in shape
+  # or in block size -- is never silent. Both read the per-chain counters, so
+  # they report what the chains did rather than what the spec intended.
+  if(!is.null(zratio_chains) && isTRUE(getOption("bgms.verbose", TRUE))) {
+    zratio_isolated_route_notice(
+      zratio_chains,
+      eta = zratio_eta(p$pairwise_scale, p$scale_rate, p$scale_eta)
+    )
+    zratio_collapse_notice(zratio_chains)
+    zratio_extrapolation_notice(zratio_chains)
+  }
+
+  # Single vignette pointer covering both diagnostic blocks: print once if
+  # either the NUTS diagnostics or the trust gauge reported issues.
+  if(isTRUE(getOption("bgms.verbose", TRUE)) &&
+    (isTRUE(results$nuts_diag$has_issues) ||
+      isTRUE(results$zratio_diag$flagged))) {
+    cat("See vignette('diagnostics') for guidance.\n")
+  }
+
   results$.bgm_spec = spec
   if(needs_easybgm_s3_compat()) {
     results
@@ -275,4 +386,3 @@ build_output_bgm = function(spec, raw) {
     s3_list_to_bgms(results)
   }
 }
-

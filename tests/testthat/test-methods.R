@@ -33,7 +33,7 @@ test_that("get_bgms_fixtures covers all required labels", {
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }
-  expect_equal(length(specs), 23L,
+  expect_equal(length(specs), 22L,
     info = "bgms fixture count changed — update this guard if intentional"
   )
 })
@@ -45,7 +45,7 @@ test_that("get_bgmcompare_fixtures covers all required labels", {
   for(r in required) {
     expect_true(r %in% labels, info = sprintf("missing required label '%s'", r))
   }
-  expect_equal(length(specs), 11L,
+  expect_equal(length(specs), 10L,
     info = "bgmcompare fixture count changed — update this guard if intentional"
   )
 })
@@ -230,16 +230,30 @@ test_that("simulate.bgms returns matrix of correct size for ordinal fixtures", {
     expect_equal(ncol(simulated), args$num_variables, info = paste(ctx, "wrong ncol"))
     expect_equal(colnames(simulated), args$data_columnnames, info = ctx)
 
-    # Values should be integers within valid range
+    # Values should be integers on the original category scale.
     expect_true(all(simulated == round(simulated)), info = paste(ctx, "not integers"))
     expect_true(all(simulated >= 0), info = paste(ctx, "negative values"))
 
     for(j in seq_len(args$num_variables)) {
-      max_cat = args$num_categories[j]
-      expect_true(
-        all(simulated[, j] <= max_cat),
-        info = sprintf("%s variable %d exceeds max category %d", ctx, j, max_cat)
-      )
+      levels_j = args$category_levels[[j]]
+      if(is.null(levels_j)) {
+        # Blume-Capel (no recode map): original-scale scores, i.e. the 0-based
+        # internal range shifted by the stored per-variable offset.
+        shift_j = args$blume_capel_shift[j]
+        expect_true(
+          all(simulated[, j] >= shift_j &
+            simulated[, j] <= shift_j + args$num_categories[j]),
+          info = sprintf("%s variable %d exceeds the category range", ctx, j)
+        )
+      } else {
+        # Ordinal: simulate() returns the original category values. bgm stores
+        # them as sorted values; bgmCompare as a named original -> code lookup.
+        valid = if(!is.null(names(levels_j))) as.numeric(names(levels_j)) else levels_j
+        expect_true(
+          all(simulated[, j] %in% valid),
+          info = sprintf("%s variable %d off the original category scale", ctx, j)
+        )
+      }
     }
   }
 })
@@ -626,16 +640,16 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
   omega_hat = extract_precision(fit)
   p = args$num_variables
 
-  # Center newdata by its own means (predict does the same internally)
-  newdata_means = colMeans(newdata)
-  newdata_centered = sweep(newdata, 2, newdata_means)
+  # Center newdata on the training means (predict does the same internally)
+  train_means = args$column_means
+  newdata_centered = sweep(newdata, 2, train_means)
 
   for(j in seq_len(p)) {
     omega_jj = omega_hat[j, j]
     rest_cols = setdiff(seq_len(p), j)
     # Conditional mean in centered space, then shift back
     expected_means = as.numeric(
-      newdata_means[j] - newdata_centered[, rest_cols, drop = FALSE] %*%
+      train_means[j] - newdata_centered[, rest_cols, drop = FALSE] %*%
         omega_hat[rest_cols, j] / omega_jj
     )
     expected_sd = sqrt(1 / omega_jj)
@@ -672,11 +686,25 @@ test_that("simulate.bgmCompare returns matrix of correct size for all fixture ty
       expect_true(all(simulated >= 0), info = paste(ctx, "group", g, "negative values"))
 
       for(j in seq_len(args$num_variables)) {
-        max_cat = args$num_categories[j]
-        expect_true(
-          all(simulated[, j] <= max_cat),
-          info = sprintf("%s group %d variable %d exceeds max category %d", ctx, g, j, max_cat)
-        )
+        levels_j = args$category_levels[[j]]
+        if(is.null(levels_j)) {
+          # Blume-Capel (no recode map): original-scale scores, i.e. the
+          # 0-based internal range shifted by the stored per-variable offset.
+          shift_j = args$blume_capel_shift[j]
+          expect_true(
+            all(simulated[, j] >= shift_j &
+              simulated[, j] <= shift_j + args$num_categories[j]),
+            info = sprintf("%s group %d variable %d exceeds the category range", ctx, g, j)
+          )
+        } else {
+          # Ordinal: simulate() returns the original category values (bgmCompare
+          # stores a named original -> code lookup).
+          valid = if(!is.null(names(levels_j))) as.numeric(names(levels_j)) else levels_j
+          expect_true(
+            all(simulated[, j] %in% valid),
+            info = sprintf("%s group %d variable %d off the original scale", ctx, g, j)
+          )
+        }
       }
     }
   }

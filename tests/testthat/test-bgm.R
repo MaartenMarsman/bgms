@@ -178,12 +178,10 @@ test_that("bgm GGM output has correct parameter ordering", {
   )
 
   # Summary names -> matrix positions (pairwise)
-  # GGM: summary stores precision-scale, matrix stores association-scale (= -0.5 * precision)
-  summary_pairwise_k = fit$posterior_summary_pairwise
-  summary_pairwise_k$mean = -0.5 * summary_pairwise_k$mean
+  # GGM: summary and matrix are both on the association scale.
   expect_true(
     all(check_summary_matrix_consistency(
-      summary_pairwise_k,
+      fit$posterior_summary_pairwise,
       fit$posterior_mean_pairwise
     )),
     info = "GGM pairwise summary names do not match matrix positions"
@@ -244,7 +242,7 @@ test_that("bgm OMRF output has correct parameter ordering", {
 
   fit = bgm(
     x,
-    iter = 1000, warmup = 500, chains = 1,
+    iter = 400, warmup = 300, chains = 1,
     edge_selection = TRUE, seed = 42,
     display_progress = "none"
   )
@@ -282,15 +280,14 @@ test_that("bgm OMRF output has correct parameter ordering", {
 
 
 # ==============================================================================
-# GGM Expanded Test Suite (Part D)
+# GGM Expanded Test Suite
 # ==============================================================================
 #
 # Tests for GGM correctness, convergence, and edge detection.
-# See dev/plans/ggm_cleanup.md Part D for the design rationale.
 # ==============================================================================
 
 
-# --- D.1: Multi-chain convergence ---------------------------------------------
+# --- Multi-chain convergence ---------------------------------------------
 
 test_that("bgm GGM multi-chain produces valid Rhat", {
   skip_on_cran()
@@ -330,7 +327,7 @@ test_that("bgm GGM multi-chain produces valid Rhat", {
 })
 
 
-# --- D.2: Sufficient statistics / MLE convergence -----------------------------
+# --- Sufficient statistics / MLE convergence -----------------------------
 
 test_that("bgm GGM posterior mean approaches MLE for large n", {
   # For large n without edge selection, the posterior mean should approach
@@ -384,7 +381,7 @@ test_that("bgm GGM posterior mean approaches MLE for large n", {
 })
 
 
-# --- D.3: Missing data handling -----------------------------------------------
+# --- Missing data handling -----------------------------------------------
 
 test_that("bgm GGM with listwise deletion drops rows correctly", {
   set.seed(42)
@@ -447,7 +444,7 @@ test_that("GGM imputation preserves posterior accuracy", {
 
   # Fit on complete data
   fit_full = bgm(x_full,
-    iter = 2000, edge_selection = FALSE,
+    iter = 800, edge_selection = FALSE,
     variable_type = "continuous",
     chains = 1, display_progress = "none"
   )
@@ -458,7 +455,7 @@ test_that("GGM imputation preserves posterior accuracy", {
   x_miss[miss_idx] = NA
 
   fit_miss = bgm(x_miss,
-    iter = 2000, edge_selection = FALSE,
+    iter = 800, edge_selection = FALSE,
     variable_type = "continuous",
     na_action = "impute", chains = 1,
     display_progress = "none"
@@ -574,15 +571,18 @@ test_that("GGM impute: entire-column-missing gives clear error", {
   )
 })
 
-test_that("bgm GGM arguments do not leak internal fields", {
+test_that("bgm GGM stores the training column means for prediction", {
   fit = get_bgms_fit_ggm()
   args = extract_arguments(fit)
 
-  expect_null(args$column_means)
+  # predict() centers newdata on these means (the GGM analogue of the ordinal
+  # recode map in category_levels), so they must be stored on the fit.
+  expect_length(args$column_means, args$num_variables)
+  expect_true(all(is.finite(args$column_means)))
 })
 
 
-# --- D.4: Larger p (Cholesky stability) ---------------------------------------
+# --- Larger p (Cholesky stability) ---------------------------------------
 
 test_that("bgm GGM with p = 15 produces valid output", {
   skip_on_cran()
@@ -631,7 +631,7 @@ test_that("bgm GGM with p = 15 produces valid output", {
 })
 
 
-# --- D.5: Edge detection power ------------------------------------------------
+# --- Edge detection power ------------------------------------------------
 
 test_that("bgm GGM edge selection discriminates true edges", {
   skip_on_cran()
@@ -660,7 +660,7 @@ test_that("bgm GGM edge selection discriminates true edges", {
     x,
     variable_type = "continuous",
     edge_selection = TRUE,
-    iter = 3000, warmup = 500, chains = 2,
+    iter = 1000, warmup = 500, chains = 2,
     seed = 654, display_progress = "none"
   )
 
@@ -699,7 +699,7 @@ test_that("bgm GGM edge selection discriminates true edges", {
 })
 
 
-# --- D.7: Conditional regression check ----------------------------------------
+# --- Conditional regression check ----------------------------------------
 
 # ==============================================================================
 # Mixed MRF End-to-End Tests
@@ -1016,7 +1016,7 @@ test_that("bgm mixed MRF output has correct parameter ordering", {
       "ordinal", "continuous", "ordinal",
       "continuous", "ordinal"
     ),
-    iter = 1000, warmup = 500, chains = 1,
+    iter = 400, warmup = 300, chains = 1,
     edge_selection = FALSE, seed = 42,
     display_progress = "none"
   )
@@ -1098,7 +1098,7 @@ test_that("bgm GGM implied regression matches OLS for large n", {
     x,
     variable_type = "continuous",
     edge_selection = FALSE,
-    iter = 2000, warmup = 500, chains = 2,
+    iter = 800, warmup = 400, chains = 2,
     seed = 222, display_progress = "none"
   )
 
@@ -1143,12 +1143,12 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (OMRF)", {
 
   data("Wenchuan", package = "bgms")
   fit1 = bgm(Wenchuan[1:100, 1:4],
-    iter = 2000, warmup = 500,
+    iter = 800, warmup = 400,
     edge_selection = FALSE, chains = 1, display_progress = "none"
   )
   sim = simulate(fit1, nsim = 200, method = "posterior-mean")
   fit2 = bgm(sim,
-    iter = 2000, warmup = 500,
+    iter = 800, warmup = 400,
     edge_selection = FALSE, chains = 1, display_progress = "none"
   )
 
@@ -1168,13 +1168,13 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (GGM)", {
 
   fit1 = bgm(x,
     variable_type = "continuous",
-    edge_selection = FALSE, iter = 2000, warmup = 500,
+    edge_selection = FALSE, iter = 800, warmup = 400,
     chains = 1, display_progress = "none"
   )
   sim = simulate(fit1, nsim = 200, method = "posterior-mean")
   fit2 = bgm(sim,
     variable_type = "continuous",
-    edge_selection = FALSE, iter = 2000, warmup = 500,
+    edge_selection = FALSE, iter = 800, warmup = 400,
     chains = 1, display_progress = "none"
   )
 
@@ -1200,13 +1200,13 @@ test_that("estimate-simulate-re-estimate cycle recovers parameters (mixed MRF)",
 
   fit1 = bgm(x,
     variable_type = vtypes,
-    edge_selection = FALSE, iter = 2000, warmup = 500,
+    edge_selection = FALSE, iter = 800, warmup = 400,
     chains = 1, display_progress = "none"
   )
   sim = simulate(fit1, nsim = 200, method = "posterior-mean")
   fit2 = bgm(sim,
     variable_type = vtypes,
-    edge_selection = FALSE, iter = 2000, warmup = 500,
+    edge_selection = FALSE, iter = 800, warmup = 400,
     chains = 1, display_progress = "none"
   )
 

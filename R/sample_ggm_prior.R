@@ -3,10 +3,10 @@
 #' @description
 #' Draws from the prior of a Gaussian graphical model. The likelihood is
 #' omitted (\eqn{n = 0}, \eqn{S = 0}), so the chain targets the prior alone.
-#' Two specifications are supported via the \code{spec} argument:
+#' Three specifications are supported via the \code{spec} argument:
 #' \itemize{
 #'   \item \code{"conditional"} (default): fix a graph \eqn{\Gamma} and
-#'     sample \eqn{K \mid \Gamma} via the same constrained NUTS sampler
+#'     sample \eqn{K \mid \Gamma} via the same theta-space NUTS sampler
 #'     that drives \code{\link{bgm}} for continuous data. The chain
 #'     targets \eqn{p(K \mid \Gamma) \propto \mathrm{slab}(K) \cdot
 #'     \mathrm{diag}(K) \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in
@@ -20,6 +20,13 @@
 #'     \eqn{\Gamma} is \eqn{\pi(\Gamma) \cdot Z(\Gamma)} (joint
 #'     specification, not hierarchical). Useful for simulation-based
 #'     calibration of \code{\link{bgm}}'s default sampler.
+#'   \item \code{"hierarchical"}: sample \eqn{(K, \Gamma)} from the
+#'     hierarchical specification \eqn{p(\Gamma) \, p(K \mid \Gamma)} with
+#'     \eqn{p(K \mid \Gamma)} normalized per graph, so the marginal on
+#'     \eqn{\Gamma} is exactly the edge prior \eqn{\pi(\Gamma)}. The
+#'     per-graph normalizer ratio in each between-edge move is evaluated
+#'     by the deterministic local Z-ratio approximation. Requires
+#'     \code{normal_prior()} or \code{cauchy_prior()} interactions.
 #' }
 #'
 #' @details
@@ -37,6 +44,13 @@
 #' the chain. \code{edge_indicators} is ignored when \code{spec = "joint"}
 #' (the chain samples \eqn{\Gamma}).
 #'
+#' When \code{spec = "joint"}, the chain is initialized from an ancestral
+#' draw of the edge prior (hyperparameters from their prior, then
+#' indicators given the hyperparameters), keyed to \code{seed}. Under a
+#' hierarchical edge prior the inclusion parameter and the graph density
+#' are coupled, and a full-graph start can pin both near 1 for a large
+#' number of sweeps in zero-evidence chains.
+#'
 #' @param p Integer. Dimension of the precision matrix (\eqn{p \ge 2}).
 #' @param n_samples Integer. Number of post-warmup draws to keep.
 #' @param n_warmup Integer. NUTS warmup iterations. Default \code{2000}.
@@ -44,13 +58,15 @@
 #'   partial-association off-diagonals \eqn{K_{yy,ij} = -K_{ij}/2}. Use
 #'   \code{\link{cauchy_prior}()} or \code{\link{normal_prior}()};
 #'   \code{\link{beta_prime_prior}()} is not supported here. Default:
-#'   \code{cauchy_prior(scale = 2.5)} (i.e. \eqn{K_{ij}} has an implied
-#'   \eqn{\textrm{Cauchy}(0, 5)} prior).
+#'   \code{normal_prior(scale = 1)}, matching \code{\link{bgm}()}.
 #' @param precision_scale_prior A \code{bgms_scale_prior} for
 #'   \eqn{K_{ii}/2}. Use \code{\link{gamma_prior}()} or
-#'   \code{\link{exponential_prior}()}. Default: \code{gamma_prior(1, 1)},
-#'   which implies \eqn{K_{ii}/2 \sim \textrm{Exp}(1)} and therefore
-#'   \eqn{K_{ii} \sim \textrm{Exp}(1/2)} (mean \eqn{2}).
+#'   \code{\link{exponential_prior}()}. Both accept the rate in the raw
+#'   frame (\code{rate}) or the standardized frame (\code{eta}; the raw
+#'   rate is derived as \code{eta / s} for interaction-prior scale
+#'   \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
+#'   default \code{normal_prior(scale = 1)} interaction prior this
+#'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.
 #' @param step_size Positive numeric. Initial NUTS step size used to seed
 #'   dual-averaging adaptation. Default \code{0.1}. Used only for
 #'   \code{spec = "conditional"} (NUTS path); ignored for the
@@ -65,21 +81,49 @@
 #'   Used only for \code{spec = "conditional"} (the chain samples
 #'   \eqn{K \mid \Gamma}); ignored for \code{spec = "joint"}.
 #' @param spec One of \code{"conditional"} (default, sample
-#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}) or \code{"joint"} (sample
-#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior).
+#'   \eqn{K \mid \Gamma} at fixed \eqn{\Gamma}), \code{"joint"} (sample
+#'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
+#'   \code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
+#'   normalized specification via the Z-ratio approximation).
 #' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
 #'   Bernoulli edge prior used when \code{spec = "joint"}. Default
 #'   \code{0.5}. Ignored when \code{spec = "conditional"}.
+#' @param update_method One of \code{"adaptive-metropolis"} (default) or
+#'   \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
+#'   Gibbs chain uses the conjugate row and edge updates and needs no
+#'   proposal tuning. Ignored when \code{spec = "conditional"} (NUTS).
+#' @param edge_prior An edge prior specification object from
+#'   \code{\link{bernoulli_prior}()}, \code{\link{beta_bernoulli_prior}()},
+#'   or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
+#'   prior with probability \code{edge_inclusion_prob}. Only for
+#'   \code{spec = "joint"}.
+#' @param apply_correction Logical. For the hierarchical edge priors
+#'   (\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
+#'   normalizing-constant correction to the hyperparameter updates (default
+#'   \code{TRUE}; the correction table is built from the tilted prior
+#'   sampler and cached across calls). With \code{FALSE} the plain conjugate
+#'   updates are used, whose hyperparameter marginals do not match the
+#'   hyperpriors under the determinant tilt.
+#' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
+#'   \code{spec = "hierarchical"}: run the trust gauge
+#'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
+#'   the result; detected issues are printed when \code{verbose}. The gauge
+#'   redoes a subset of the chain's edge decisions with the exact
+#'   calculation and reports two alarms: how often the decision outcome
+#'   differs (\code{flip_rate}), and the projected distortion of the mean
+#'   inclusion probability from the measured error under the edge prior's
+#'   feedback (\code{harm_pred}). Evidence-free sampling is the regime where
+#'   the second alarm matters: a small consistent error can shift the graph
+#'   marginal without flipping individual decisions.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
 #'   positive-definite cone boundary. \code{delta = NULL} (default)
 #'   auto-resolves to \eqn{0.5 \log(p)}, the simple form of the
 #'   dimension-adaptive rule \eqn{\delta(p) = c \log p} with
-#'   \eqn{c \in (0.3, 0.6)} discussed in the companion paper on
-#'   determinant-tilted spike-and-slab priors (Marsman et al., in
-#'   preparation). Pass \code{delta = 0} for the untilted prior (the
-#'   companion-paper baseline) or a non-negative numeric to override.
+#'   \eqn{c \in (0.3, 0.6)} (Marsman et al., in preparation). Pass
+#'   \code{delta = 0} for the untilted prior or a non-negative numeric to
+#'   override.
 #'
 #' @return A list with components
 #'   \describe{
@@ -105,6 +149,16 @@
 #'       \code{n_samples x p(p-1)/2} integer matrix of sampled
 #'       \eqn{\Gamma_{ij}} indicators (column order matches
 #'       \code{K_offdiag}).}
+#'     \item{\code{theta}}{Only with \code{beta_bernoulli_prior()}: numeric
+#'       vector of length \code{n_samples} with the sampled inclusion
+#'       probability.}
+#'     \item{\code{allocations}}{Only with \code{sbm_prior()}: integer
+#'       matrix (\code{n_samples x p}) of sampled cluster allocations
+#'       (1-based).}
+#'     \item{\code{zratio_diagnostics}}{Only with
+#'       \code{spec = "hierarchical"} and \code{zratio_diagnostics = TRUE}:
+#'       the trust-gauge summary from
+#'       \code{\link{summarize_zratio_gauge}}.}
 #'   }
 #'
 #' @seealso \code{\link{cauchy_prior}}, \code{\link{normal_prior}},
@@ -113,7 +167,7 @@
 #'
 #' @examples
 #' \donttest{
-#' # Default Cauchy(0, 2.5) off-diagonal, Gamma(1, 1) diagonal, p = 4.
+#' # Default Normal(0, 1) off-diagonal, Exponential(1) diagonal, p = 4.
 #' draws = sample_ggm_prior(
 #'   p = 4, n_samples = 200, n_warmup = 200,
 #'   verbose = FALSE
@@ -137,18 +191,43 @@ sample_ggm_prior = function(
   p,
   n_samples,
   n_warmup = 2e3,
-  interaction_prior = cauchy_prior(scale = 2.5),
-  precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+  interaction_prior = normal_prior(scale = 1),
+  precision_scale_prior = exponential_prior(eta = 1),
   step_size = 0.1,
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
   edge_indicators = NULL,
   delta = NULL,
-  spec = c("conditional", "joint"),
-  edge_inclusion_prob = 0.5
+  spec = c("conditional", "joint", "hierarchical"),
+  edge_inclusion_prob = 0.5,
+  update_method = c("adaptive-metropolis", "gibbs"),
+  edge_prior = NULL,
+  apply_correction = TRUE,
+  zratio_diagnostics = TRUE
 ) {
   spec = match.arg(spec)
+  update_method = match.arg(update_method)
+  ep = if(is.null(edge_prior)) {
+    NULL
+  } else {
+    unpack_indicator_prior(edge_prior, num_variables = as.integer(p))
+  }
+  if(spec == "conditional" && !is.null(ep) &&
+    !identical(ep$edge_prior, "Bernoulli")) {
+    stop(
+      "Hierarchical edge priors require spec = \"joint\" or ",
+      "\"hierarchical\" (the conditional spec fixes the graph)."
+    )
+  }
+  if(!is.logical(apply_correction) || length(apply_correction) != 1L ||
+    is.na(apply_correction)) {
+    stop("'apply_correction' must be TRUE or FALSE.")
+  }
+  if(!is.logical(zratio_diagnostics) || length(zratio_diagnostics) != 1L ||
+    is.na(zratio_diagnostics)) {
+    stop("'zratio_diagnostics' must be TRUE or FALSE.")
+  }
   validate_integer(p, "p", min_value = 2L)
   validate_integer(n_samples, "n_samples", min_value = 1L)
   validate_integer(n_warmup, "n_warmup", min_value = 0L)
@@ -179,6 +258,9 @@ sample_ggm_prior = function(
     )
   }
   sp = unpack_scale_prior(precision_scale_prior)
+  sp$scale_rate = resolve_scale_rate(
+    sp$scale_rate, sp$scale_eta, ip$pairwise_scale
+  )
 
   edge_indicators = validate_ggm_prior_edge_indicators(edge_indicators, p)
 
@@ -201,9 +283,10 @@ sample_ggm_prior = function(
     ))
   }
 
-  # spec == "joint": drive the bgm() MH chain with edge selection on and
-  # zero data (n = 0, S = 0). The chain targets the un-normalised joint
-  # prior p(K, Gamma) and produces (K, Gamma) draws.
+  # spec == "joint" / "hierarchical": drive the bgm() MH chain with edge
+  # selection on and zero data (n = 0, S = 0). The joint chain targets the
+  # un-normalised joint prior; the hierarchical chain adds the per-edge
+  # Z-ratio to the between-edge moves so the graph marginal is pi(Gamma).
   inputFromR = list(
     n                      = 0L,
     suf_stat               = matrix(0, p, p),
@@ -214,20 +297,78 @@ sample_ggm_prior = function(
     scale_rate             = sp$scale_rate
   )
 
+  if(is.null(ep)) {
+    ep = unpack_indicator_prior(
+      bernoulli_prior(edge_inclusion_prob),
+      num_variables = as.integer(p)
+    )
+  }
+  correction = NULL
+  zratio = NULL
+  if(spec == "hierarchical") {
+    # Hierarchical spec p(K | Gamma) = rho_Gamma(K)/Z(Gamma): the per-edge
+    # Z-ratio engine carries the normalizer into the between-edge moves,
+    # and the hyperparameter updates are the clean conjugate draws (no
+    # C-correction on this path).
+    if(!ip$interaction_prior_type %in% c("normal", "cauchy")) {
+      stop(sprintf(
+        paste0(
+          "spec = \"hierarchical\" supports a normal or Cauchy interaction ",
+          "(slab) prior. Got %s_prior(). Use interaction_prior = ",
+          "normal_prior() or cauchy_prior()."
+        ),
+        ip$interaction_prior_type
+      ))
+    }
+    zc = zratio_cell_constants(
+      delta, ip$pairwise_scale, sp$scale_rate, sp$scale_eta,
+      scale_shape = sp$scale_shape,
+      slab = ip$interaction_prior_type
+    )
+    zratio = zratio_spec_list(
+      zc,
+      gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
+    )
+    # Deploy the same Option-B surface the posterior chain uses, so the prior
+    # chain (SBC reference) carries an identical per-edge correction. Silent on
+    # a fallback: the SBC reference must not add console noise to the loop.
+    zratio = zratio_attach_surface(
+      zratio, zc, p,
+      cores = zratio_surface_build_cores()
+    )
+  } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
+    table = ggm_correction_table(
+      p = p, delta = delta,
+      interaction_prior = interaction_prior,
+      precision_scale_prior = precision_scale_prior,
+      update_method = "gibbs",
+      verbose = isTRUE(verbose)
+    )
+    correction = correction_list_from_table(table, ep$edge_prior)
+  }
+
   results = sample_ggm(
-    inputFromR              = inputFromR,
-    prior_inclusion_prob    = matrix(edge_inclusion_prob, p, p),
-    initial_edge_indicators = matrix(1L, p, p),
-    no_iter                 = as.integer(n_samples),
-    no_warmup               = as.integer(n_warmup),
-    no_chains               = 1L,
-    edge_selection          = TRUE,
-    sampler_type            = "adaptive-metropolis",
-    seed                    = as.integer(seed),
-    no_threads              = 1L,
-    progress_type           = if(verbose) 2L else 0L,
-    edge_prior              = "Bernoulli",
-    delta                   = as.numeric(delta)
+    inputFromR = inputFromR,
+    prior_inclusion_prob = ep$inclusion_probability,
+    initial_edge_indicators = ggm_prior_ancestral_indicators(p, ep, seed),
+    no_iter = as.integer(n_samples),
+    no_warmup = as.integer(n_warmup),
+    no_chains = 1L,
+    edge_selection = TRUE,
+    sampler_type = update_method,
+    seed = as.integer(seed),
+    no_threads = 1L,
+    progress_type = if(verbose) 2L else 0L,
+    edge_prior = ep$edge_prior,
+    beta_bernoulli_alpha = ep$beta_bernoulli_alpha,
+    beta_bernoulli_beta = ep$beta_bernoulli_beta,
+    beta_bernoulli_alpha_between = ep$beta_bernoulli_alpha_between,
+    beta_bernoulli_beta_between = ep$beta_bernoulli_beta_between,
+    dirichlet_alpha = ep$dirichlet_alpha,
+    lambda = ep$lambda,
+    delta = as.numeric(delta),
+    edge_prior_correction = correction,
+    zratio_spec = zratio
   )
   if(length(results) == 0L || isTRUE(results[[1L]]$error)) {
     msg = if(length(results) > 0L) results[[1L]]$error_msg else "empty result"
@@ -270,17 +411,115 @@ sample_ggm_prior = function(
   }
   diag_names = paste0("K_", seq_len(p), "_", seq_len(p))
 
-  list(
+  out = list(
     K_offdiag       = K_offdiag,
     K_diag          = K_diag,
     offdiag_names   = offdiag_names,
     diag_names      = diag_names,
     edge_indicators = gamma_offdiag
   )
+  if(!is.null(results[[1L]]$inclusion_parameter_samples)) {
+    out$theta = as.numeric(results[[1L]]$inclusion_parameter_samples)
+  }
+  if(!is.null(results[[1L]]$allocation_samples)) {
+    out$allocations = t(results[[1L]]$allocation_samples)
+  }
+  if(spec == "hierarchical" && isTRUE(zratio_diagnostics)) {
+    harm_inputs = zratio_harm_inputs(
+      list(colMeans(gamma_offdiag)), ep$edge_prior,
+      a = ep$beta_bernoulli_alpha, b = ep$beta_bernoulli_beta
+    )
+    out$zratio_diagnostics = summarize_zratio_gauge(
+      results,
+      verbose = verbose, harm_inputs = harm_inputs
+    )
+    if(isTRUE(verbose) && isTRUE(out$zratio_diagnostics$flagged)) {
+      cat("See vignette('diagnostics') for guidance.\n")
+    }
+  }
+  out
 }
 
+# Ancestral draw of the initial edge-indicator matrix for the joint-spec
+# chain: hyperparameters from their prior, then indicators given the
+# hyperparameters. Runs in an RNG scope keyed to `seed` and restores the
+# caller's RNG state on exit.
+ggm_prior_ancestral_indicators = function(p, ep, seed) {
+  has_seed = exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  if(has_seed) {
+    old_seed = get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
+  } else {
+    on.exit(
+      if(exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        rm(list = ".Random.seed", envir = globalenv())
+      },
+      add = TRUE
+    )
+  }
+  set.seed(seed)
 
-# Internal helpers -------------------------------------------------------------
+  prob = switch(ep$edge_prior,
+    "Bernoulli" = ep$inclusion_probability,
+    "Beta-Bernoulli" = matrix(
+      rbeta(1, ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta), p, p
+    ),
+    "Stochastic-Block" = {
+      z = ancestral_mfm_sbm_partition(p, ep$lambda, ep$dirichlet_alpha)
+      ancestral_sbm_pair_probabilities(
+        z,
+        ep$beta_bernoulli_alpha, ep$beta_bernoulli_beta,
+        ep$beta_bernoulli_alpha_between, ep$beta_bernoulli_beta_between
+      )
+    }
+  )
+
+  g = matrix(0L, p, p)
+  upper = upper.tri(g)
+  g[upper] = as.integer(runif(sum(upper)) < prob[upper])
+  g = g + t(g)
+  diag(g) = 1L
+  g
+}
+
+# Ancestral draw from the MFM-SBM hyperprior: shifted-Poisson component
+# count, Dirichlet weights, and allocations.
+ancestral_mfm_sbm_partition = function(p, lambda, dirichlet_alpha) {
+  num_components = rpois(1, lambda) + 1L
+  w = rgamma(num_components, dirichlet_alpha)
+  sample.int(num_components, p, replace = TRUE, prob = w)
+}
+
+# Per-pair inclusion probabilities implied by an allocation vector, with
+# within-block and between-block Beta draws for each block pair.
+ancestral_sbm_pair_probabilities = function(
+  z, a_within, b_within, a_between, b_between
+) {
+  labs = sort(unique(z))
+  nl = length(labs)
+  th_rs = matrix(0, nl, nl)
+  for(r in seq_len(nl)) {
+    for(s in r:nl) {
+      v = if(r == s) {
+        rbeta(1, a_within, b_within)
+      } else {
+        rbeta(1, a_between, b_between)
+      }
+      th_rs[r, s] = v
+      th_rs[s, r] = v
+    }
+  }
+  zi = match(z, labs)
+  p = length(z)
+  prob = matrix(0.5, p, p)
+  for(i in seq_len(p - 1)) {
+    for(j in (i + 1):p) {
+      prob[i, j] = th_rs[zi[i], zi[j]]
+      prob[j, i] = prob[i, j]
+    }
+  }
+  prob
+}
 
 validate_integer = function(x, name, min_value = 1L) {
   if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {

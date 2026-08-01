@@ -183,6 +183,16 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
     } else {
       NULL
     },
+    rb_inclusion = if(edge_selection) {
+      lapply(raw, function(chain) chain$rb_inclusion_samples)
+    } else {
+      NULL
+    },
+    rb_counts = if(edge_selection) {
+      lapply(raw, function(chain) chain$rb_counts)
+    } else {
+      NULL
+    },
     allocations = if(edge_selection &&
       identical(edge_prior, "Stochastic-Block") &&
       "allocations" %in% names(raw[[1]])) {
@@ -219,7 +229,6 @@ build_raw_samples_list = function(raw, edge_selection, edge_prior,
 attach_diagnostic_traces = function(res, chain) {
   if(!is.null(chain$treedepth)) res[["treedepth__"]] = chain$treedepth
   if(!is.null(chain$divergent)) res[["divergent__"]] = chain$divergent
-  if(!is.null(chain$non_reversible)) res[["non_reversible__"]] = chain$non_reversible
   if(!is.null(chain$energy)) res[["energy__"]] = chain$energy
   if(!is.null(chain$accept_prob)) res[["accept_prob__"]] = chain$accept_prob
   if(!is.null(chain$am_accept_prob)) res[["am_accept_prob__"]] = chain$am_accept_prob
@@ -355,7 +364,7 @@ build_output = function(spec, raw) {
 #     "/" (e.g. "4/5" when originals 4 and 5 merged into one category).
 #
 # Without a usable map (NULL, or an unnamed vector whose length != K+1) the
-# rescored indices 1..K are returned, matching older fits.
+# rescored indices 1..K are returned.
 ordinal_threshold_labels = function(num_categories_v, category_levels_v = NULL) {
   if(is.null(category_levels_v)) {
     return(seq_len(num_categories_v))

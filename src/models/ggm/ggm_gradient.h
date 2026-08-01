@@ -83,6 +83,16 @@ public:
                  double determinant_tilt = 0.0);
 
     /**
+     * Structure-only initialization for callers that use forward_map() and
+     * theta_gradient_from_phi_bar() but supply their own log-posterior
+     * (e.g. the mixed model's Kyy block). logp_and_gradient() must not be
+     * called on an engine initialized this way.
+     *
+     * @param structure   Precomputed graph constraint structure
+     */
+    void rebuild(const GraphConstraintStructure& structure);
+
+    /**
      * Forward map: theta -> (Phi, K, log|det J|).
      *
      * Processes columns left-to-right, building Phi column by column.
@@ -90,10 +100,17 @@ public:
      * computes Givens QR of A_q^T for the null-space basis N_q, sets
      * x_q = N_q f_q, and accumulates the Jacobian.
      *
+     * Returns a reference to the engine-owned workspace, valid until the
+     * next forward_map() call on this engine. Callers bind it by const
+     * reference; each chain clone owns its engine copy and the sampler is
+     * single-threaded within a chain, so reuse across leapfrog steps is
+     * safe and avoids reallocating the per-column QR matrices
+     * (O(p^3) doubles per call on sparse graphs).
+     *
      * @param theta  Parameter vector of length p + |E|
      * @return ForwardMapResult with Phi, K, log|det J|, and cached Givens data
      */
-    ForwardMapResult forward_map(const arma::vec& theta) const;
+    const ForwardMapResult& forward_map(const arma::vec& theta) const;
 
     /**
      * Combined log-posterior and gradient evaluation.
@@ -106,6 +123,32 @@ public:
      * @return (log-posterior value, gradient vector)
      */
     std::pair<double, arma::vec> logp_and_gradient(const arma::vec& theta) const;
+
+    /**
+     * Map a Phi-space adjoint to the theta gradient (reverse-mode).
+     *
+     * Given Phi_bar = dL/dPhi seeded by the caller (data, priors, and any
+     * couplings differentiated with respect to Phi), extracts the gradient
+     * for every (f_q, psi_q) block: the psi chain rule through exp, the
+     * parameterization-Jacobian terms 2 + (p-1-q), the f_q gradient via
+     * N_q, and the cross-column adjoint through the stored Givens
+     * rotations. Phi_bar is consumed as workspace (mutated in place).
+     *
+     * @param theta         Parameter vector the forward map was run on
+     * @param theta_offset  Offset of this block inside theta/gradient
+     * @param fm            Forward-map result for theta
+     * @param Phi_bar       Seed adjoint dL/dPhi (p x p, upper); mutated
+     * @param psi_extra     Extra constant added to every psi gradient
+     *                      (e.g. n from the log-likelihood determinant,
+     *                      2*delta from a determinant tilt)
+     * @param gradient      Output vector; block written at theta_offset
+     */
+    void theta_gradient_from_phi_bar(const arma::vec& theta,
+                                     size_t theta_offset,
+                                     const ForwardMapResult& fm,
+                                     arma::mat& Phi_bar,
+                                     double psi_extra,
+                                     arma::vec& gradient) const;
 
     /**
      * Givens QR of an n x m matrix M (n >= m).
@@ -126,12 +169,34 @@ public:
         arma::vec& R_diag,
         std::vector<GivensRotation>& rots);
 
+    /**
+     * In-place variant of givens_qr: R holds M on entry and is factored in
+     * place; Q, R_diag, and rots are reset and filled. Existing allocations
+     * in Q/R_diag are reused when the dimensions match, so per-leapfrog
+     * callers do not reallocate the per-column QR matrices.
+     */
+    static void givens_qr_inplace(
+        arma::mat& Q,
+        arma::mat& R,
+        arma::vec& R_diag,
+        std::vector<GivensRotation>& rots);
+
     static void build_Aq(const arma::mat& Phi,
                          const ColumnConstraints& col,
                          size_t q,
                          arma::mat& Aq);
 
 private:
+    /**
+     * Fill Aqt with A_q^T (q x m_q) directly — the entries build_Aq produces,
+     * without materialising A_q and its .t() temporary. Aqt doubles as the
+     * in-place QR working matrix.
+     */
+    static void fill_Aq_t_(const arma::mat& Phi,
+                           const ColumnConstraints& col,
+                           size_t q,
+                           arma::mat& Aqt);
+
     const GraphConstraintStructure* structure_ = nullptr;
     size_t n_ = 0;
     size_t p_ = 0;
@@ -141,4 +206,20 @@ private:
     // Determinant-tilt exponent: adds delta_ * log|K| to the (unnormalised)
     // log-prior. delta_ = 0 recovers the untilted target.
     double delta_ = 0.0;
+
+    // Per-call workspace. Mutable because forward_map/logp_and_gradient are
+    // logically const; each chain clone owns its own engine copy and the
+    // sampler is single-threaded within a chain, so reuse across calls is
+    // safe. fm_ws_ is the object forward_map() returns a reference to; the
+    // vectors hold the backward pass's per-column scratch (two zero-filled
+    // and two copied q x q / q x m_q matrices per constrained column), all
+    // reused via zeros()/copy-assignment, which keep the existing
+    // allocation when the dimensions match.
+    mutable ForwardMapResult fm_ws_;
+    mutable arma::mat P_ws_;
+    mutable arma::mat Phi_bar_ws_;
+    mutable std::vector<arma::mat> Wbar_ws_;
+    mutable std::vector<arma::mat> Qbar_ws_;
+    mutable std::vector<arma::mat> Qwork_ws_;
+    mutable std::vector<arma::mat> Wwork_ws_;
 };

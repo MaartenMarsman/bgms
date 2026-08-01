@@ -26,16 +26,20 @@ Description: Bayesian estimation and edge selection for graphical models of
     imputation.
 Copyright: Includes datasets 'ADHD' and 'Boredom', which are licensed under CC-BY 4. See individual data documentation for license and citation.
 License: GPL (>= 2)
-URL: https://Bayesian-Graphical-Modelling-Lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
+URL: https://bayesian-graphical-modelling-lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
 BugReports: https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues
-Imports: 
-    Rcpp (>= 1.0.7), 
-    RcppParallel, 
-    Rdpack, 
+Imports:
+    Rcpp (>= 1.0.7),
+    RcppParallel,
+    Rdpack,
     S7,
-    methods, 
+    methods,
     lifecycle,
-    stats
+    graphics,
+    grDevices,
+    parallel,
+    stats,
+    utils
 RdMacros: Rdpack
 LinkingTo: 
     Rcpp, 
@@ -53,11 +57,10 @@ Suggests:
     covr,
     knitr,
     MASS,
-    parallel,
     qgraph,
     rmarkdown,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    withr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-Config/Needs/website: tidyverse/tidytemplate
 Config/roxygen2/version: 8.0.0
