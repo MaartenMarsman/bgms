@@ -1047,7 +1047,10 @@ draw_edge_panel = function(panel) {
     stats::approx(panel$posterior$x, panel$posterior$y, xout = grid,
       yleft = 0, yright = 0)$y
   }
-  peak = max(c(posterior_y, prior_y, panel$dots$y), na.rm = TRUE)
+  # A fit old enough to carry no spec and an edge no draw included leave both
+  # curves empty; max() of nothing warns, so the empty case is named instead.
+  heights = c(posterior_y, prior_y, panel$dots$y)
+  peak = if(length(heights)) max(heights, na.rm = TRUE) else NA_real_
   if(!is.finite(peak) || peak <= 0) peak = 1
   # The tick range starts at zero and the data region drops just below it, so
   # the density baseline sits above the x axis rather than on it.
