@@ -624,9 +624,14 @@ prior_sensitivity_engine = function(bgms_object,
   # --- Run-to-run noise from the replicate anchor pair ------------------------
   # Same estimator as the curve (reweighting at the anchor's own scale is the
   # identity, so this is the plain indicator average through the prior odds).
+  # The average runs over the INDICATOR draws, the unit the whole check reports
+  # on: a bgmCompare fit's gamma draws are per gated parameter (one indicator
+  # column repeated for every threshold difference it gates), which would both
+  # misalign with prior_odds and overweight the main-effect differences in the
+  # noise quantile.
   own_lbf = function(fit) {
     d = anchor_draws(fit)
-    p = colMeans(do.call(rbind, d$gamma))
+    p = colMeans(do.call(rbind, d$indicator))
     log10((p / (1 - p)) / prior_odds)
   }
   if(usable[rep_anchor] && rep_gate$usable) {

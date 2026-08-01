@@ -352,6 +352,34 @@ test_that("compare_anchor_draws aligns every gated difference with its indicator
 })
 
 
+test_that("the compare noise yardstick runs per indicator, not per gated parameter", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[1:100, 1:4], group_indicator = rep(1:2, each = 50),
+    iter = 200, warmup = 200, chains = 2, seed = 13,
+    difference_selection = TRUE, display_progress = "none"
+  )
+  # 22 gated difference parameters against 10 indicators: averaging the gamma
+  # draws instead of the indicator draws recycles the per-indicator prior odds
+  # across the parameter columns (with a length warning) and hands the wobble
+  # rule a 22-long yardstick for a 10-row edge table.
+  warns = character(0)
+  ps = withCallingHandlers(
+    suppressMessages(prior_sensitivity_check(
+      fit, anchors = c(0.5, 1, 2), iter = 200, warmup = 200,
+      ess_floor = 50, seed = 13
+    )),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_false(any(grepl("longer object length", warns)))
+  expect_equal(length(ps$wobble$per_edge), nrow(ps$edges))
+})
+
+
 test_that("prior_sensitivity_check traces bgmCompare difference verdicts", {
   skip_on_cran()
   skip_unless_slow()
