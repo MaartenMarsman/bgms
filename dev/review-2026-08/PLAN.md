@@ -55,7 +55,7 @@ Provisional subsystem ranking (refined when 00a–00c land):
 | # | Subsystem | Why this depth | Planned work |
 |---|---|---|---|
 | 1 | Hierarchical precision-graph prior / zratio path (`src/models/ggm/zratio_*`, `R/zratio_*.R`, `R/sample_graph_prior.R`) | Newest, most intricate (surface approximation of normalizing-constant ratios, anchor hulls, trust gauge, isolated-edge routing); late defects found here; ~2.5k C++ + ~2.3k R lines | Opus: rerun `dev/validation/` gold bank + route certificates against rc1; targeted SBC. MM: math read of `zratio_law.h` + gauge. Lead: cross-check vs PR #172/#193/#194 review docs |
-| 2 | bgmCompare path (`src/models/bgmCompare/`, sampler rewritten, +749 lines) | Site of the scale bug; breaking semantic change ships this release | Opus: bgm-vs-bgmCompare cross-path consistency on identical single-group data; recovery study; verify the ~7s convention guard tier |
+| 2 | bgmCompare path (`src/models/bgmCompare/`, sampler rewritten, +749 lines) | Site of the scale bug; breaking semantic change ships this release | Opus: bgm-vs-bgmCompare cross-path consistency on identical single-group data; recovery study; verify the ~7s convention guard tier. **Report 09 (2026-08-01): convention question CLOSED — no ×2/×½ anywhere (contrast slope 1.014, predict to 3e-16 with real power). Open residue: F-074 level offset, F-075 magnitude anomaly (control running), F-073 guard holes → brief 13** |
 | 3 | GGM + mixed samplers (`src/models/ggm`, `src/models/mixed`, `src/mcmc/`) | New model classes (headline feature); NUTS/Gibbs restructuring; HMC removed, hamiltonian_utils new | Opus: SBC + parameter recovery; comparison vs BGGM (GGM) and mgm (mixed) where estimands overlap |
 | 4 | RB inclusion machinery (PR #182; extractors, `src/mcmc_diagnostics.cpp`) | Changes every reported PIP/BF number; semantic break in `extract_ess()` | Opus: RB vs raw-indicator agreement on long reference runs. MM: estimator math read |
 | 5 | Sensitivity check internals (`R/refit_engine.R`, `R/anchor_curve.R`) | Flagship adoption asset; pooling/reweighting math; NEWS already misdescribes it (F-001) | MM: pooling math read (after 02). Opus: small numerical check — curve vs brute-force refits at off-anchor scales |
@@ -102,6 +102,23 @@ orientation, cumulatively covering the architecture.
 5. Spec→sampler flow: one `bgm()` call traced end-to-end (R spec build →
    `.Call` → chain runner → model), closing the architecture loop.
 
+## Brief conventions (standing; every future brief carries these)
+
+- **Machine budget (MM directive, 2026-08-01).** The execution machine has 15
+  cores and is SHARED — MM's interactive work plus up to three agents at once
+  have produced 20 concurrent processes and full contention. Every brief's
+  setup section must state: cap your total footprint at ~6 hardware threads;
+  one fit at a time (`cores = 4` max); no concurrent sweeps, background R
+  sessions, or parallel builds beyond that; SEQUENCE heavy steps. Runtime is
+  not a grading criterion — contended runs waste more wall-clock than
+  parallelism saves. Compute beyond what a check's power requires is waste:
+  prefer design over brute force, and flag (don't run) any step estimated
+  over ~30 min of busy cores.
+- Reports to `dev/review-2026-08/reports/NN-<topic>.md` (What was done /
+  Findings severity-tagged / Evidence / Open questions); seeds, runtimes, and
+  derived tolerances stated. No pushing (unless the brief grants a scoped
+  exception), no attribution trailers, never build in the Dropbox tree.
+
 ## Brief ledger
 
 | Brief | Assignee | Status | Report |
@@ -114,8 +131,8 @@ orientation, cumulatively covering the architecture.
 | 06 bgmCompare defect + units batch (F-061 sensitivity misalignment FIRST, F-056/F-057 input handling, F-060 verdicts print, F-021 method (adapt the parked patch), F-063 centrality removal, F-062a–d plots, nats-everywhere conversion, F-065 startup silence) | Opus | done — **merged to develop `4969f843`** (11 commits; full calibration method shipped, not the stub; nats invariance exact; F-049 layout hypothesis refuted + 20-seed diagnostic delivered — disposition with MM; new F-068 predict-BC fix in-batch, F-069/F-070 opened) | `reports/06-bgmcompare-defect-batch.md` |
 | 07 MM: bgmCompare user pass (difference verdicts, group/difference plots, difference-scale sensitivity trace; ~1 h) | MM | done — report in 2026-08-01. Yields F-060..F-065, confirms F-057; decisions: natural log EVERYWHERE (closes the F-039 residue), defer F-021 with a 0.2.0 stub, drop difference centrality (F-063) | `reports/07-bgmcompare-user-pass.md` |
 | 08 MM curriculum step 2: zratio law + gauge math read (now also carries the F-059 hook-or-accept decision) | MM | draft next | — |
-| 09 bgmCompare cross-path consistency validation (original 06 scope: split-halves identity, planted-difference recovery, per-group vs separate-bgm agreement, convention-guard audit, BC end-to-end) | Opus | **issued 2026-08-01** — runnable now (06 merged); analysis-only, parallel-safe with 10 | pending |
+| 09 bgmCompare cross-path consistency validation (original 06 scope: split-halves identity, planted-difference recovery, per-group vs separate-bgm agreement, convention-guard audit, BC end-to-end) | Opus | report in 2026-08-01, near-final (two 09-3 control runs still folding in). **HEADLINE: the resident defect class is ABSENT on the compare path** — contrast slope 1.014 [0.994, 1.034]; predict vs hand-written 2·omega·x to 3e-16 both groups mixed BC+ordinal, with 0.66–0.79 perturbation power; null-split budget PASS; BC end-to-end clean (no F-068 regression). Lead spot-verified the three checkable claims (guard construction, soft-test comment, `bgm_spec.R:418` continuous block) — all exact. Yields F-073 (guard holes → 13), F-074 (level +6–9%, MM call), F-075 (magnitude anomaly, open pending the control), F-076 (FP-tail note), F-077 (baseline_category trap), F-002 amendment (compare default-prior asymmetry). Report itself NOT yet committed — sits untracked in the Dropbox tree until the agent's final fold-in | `reports/09-crosspath-validation.md` (+ `assets/crosspath_09.pdf`) |
 | 10 edge-posterior panel redesign to the JASP/compendium standard (F-066; PIP wheel, prior overlay, conditional density; Savage-Dickey dots exactly when `edge_selection = FALSE`; extracts the `R/plot_style.R` house-style module) | Opus | **relayable now** (06 merged) — MM reviews before/after renders pre-merge | — |
 | 12 nightly respec + release polish (F-071 T1/T2 split, workflows scheduled on develop; F-049 gate re-found + Rd bound; F-072 group labels; F-057 Rd numbering line; F-004 README line; D1-conditional PR fast gate) | Opus | **issued 2026-08-01** — parallel-safe with 09; if 10 is also in flight, merge order resolves the test-dir overlap | pending |
-| 13 remaining Phase-1 verifications (0.1.6.3-vs-rc1 ordinal posterior agreement — the existing-user regression check, Phase-1 row 6; F-019 PD-guard settle; F-042 dead-fixture decision) | Opus | draft after 12 | — |
+| 13 remaining Phase-1 verifications + 09 follow-ups (0.1.6.3-vs-rc1 ordinal posterior agreement — the existing-user regression check, Phase-1 row 6; F-019 PD-guard settle; F-042 dead-fixture decision; F-073 guard closures — all four holes, incl. the planted-δ every-run pin design; F-074 `difference_scale` discriminator; F-075 follow-through per the apples-control verdict; F-077 optional) | Opus | draft after 12 | — |
 | 11 package-wide plot restyle onto the brief-10 style module (F-067; every remaining plot, incl. dropping the sensitivity plot's big title; before/after renders per figure for MM's judgment) | Opus | after 10 merges and MM approves its renders | — |
