@@ -1,13 +1,49 @@
+# ---------------------------------------------------------------------------
+# T1 -- the nightly heartbeat.
+#
+# The suite runs at three cadences. Which tier a block belongs to is decided by
+# the CLASS OF BUG it catches, not by how long it takes
+# (dev/plans/backlog/2026-07-29_test-suite-tiering-audit_AUDIT.md;
+# dev/review-2026-08/MAINTAINERS.md section 6).
+#
+#   T0  every run   local devtools::test() + .github/workflows/fast-checks.yaml
+#       Contracts, validation, wiring, the product surface, the tight numerical
+#       unit guards. No gate. Budget ~90 s.
+#
+#   T1  nightly     THIS FILE. Daily 03:00 UTC on develop.
+#       BGMS_RUN_SLOW_TESTS=true.
+#       "Does the settled math still hold tonight": graph-law and prior-chain
+#       identities, the gauge detector, single surface-vs-gold cells, the RB
+#       saturation boundary, concordance smokes.
+#       Budget: <= 60 min wall on the 2-core runner; timeout-minutes: 90.
+#
+#   T2  weekly      .github/workflows/weekly-certification.yaml. Sunday 03:00.
+#       BGMS_RUN_CERTIFICATION=true (and BGMS_RUN_SLOW_TESTS=true).
+#       The heavy Monte-Carlo machinery: SBC suites, full parameter-recovery
+#       sweeps, full NUTS-vs-MH condition grids, n = 2e6 MC channels, the refit
+#       cross-validations. timeout-minutes: 360.
+#
+# This file sets BGMS_RUN_SLOW_TESTS only, so T2 blocks skip here and say so in
+# their skip message (tests/testthat/helper-tiers.R).
+#
+# Ref mechanics: GitHub fires cron schedules from the DEFAULT branch's copy of
+# this file, so a scheduled run would otherwise check out main. The explicit
+# checkout ref is what points the nightly at develop, the branch where change
+# happens; main is verified by hand at the release re-merge. A manual dispatch
+# checks out the ref it was dispatched on, so a branch can prove its own budget
+# before it merges.
+# ---------------------------------------------------------------------------
 name: nightly-validation
 on:
   schedule:
-    - cron: '0 3 * * 1,4'  # Monday and Thursday at 3 AM UTC
+    - cron: '0 3 * * *'  # every day at 03:00 UTC
   workflow_dispatch: {}
 
 jobs:
   validate:
+    name: T1 nightly heartbeat (calibration, <= 60 min)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -15,6 +51,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'develop' || github.ref }}
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -24,6 +62,5 @@ jobs:
         with:
           extra-packages: any::devtools
 
-      - name: Run full test suite (including slow tests)
+      - name: Run the T1 nightly tier (slow tests, certification tier excluded)
         run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'
-
