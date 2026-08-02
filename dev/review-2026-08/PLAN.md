@@ -162,4 +162,4 @@ orientation, cumulatively covering the architecture.
 | 19 F-075 fix batch (release gate: F-075/110/111/112/113) | Opus | DONE — merged `02c609c3`; GATE CLEARED, OCs at bgm parity 10/10 seeds; F-074 settled; F-117/F-118 opened; record in F-075 | reports/19-category-collapse-fix.md |
 | 20 standalone batch (F-100/F-109/F-114) | Opus | DONE — merged `a1c0e768`, NEWS `121890e5`; F-116 opened (fixture provenance); records in FINDINGS | reports/20-standalone-batch.md |
 | 21 mark prior-only compare summary rows (F-117) | Opus | **issued 2026-08-03, LIVE** — `briefs/21-summary-zero-marking.md` stands as written (MM re-ratified after the F-120 detour); runs alongside 13 | handed to MM 2026-08-03 |
-| 22 compare slab default Cauchy → Normal (F-119) | Opus | QUEUED — draft after 13 merges (test-surface collision); F-120 REVERSED, no sampler change; MM-directed NEWS one-liner at integration | — |
+| 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | QUEUED — draft after 13 merges (test-surface collision); F-120 REVERSED, no sampler change; NEWS one-liner at integration | — |
