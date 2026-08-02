@@ -432,38 +432,58 @@ logarithm.
 
 **Plots and centrality.**
 
-* `plot()` on a `bgm()` fit draws the model-averaged network with edges encoded
-  by what the data settle about them: solid with weight-scaled width and a
-  sign-carrying colour for evidence of presence, thin dotted grey for undecided,
-  and omitted for evidence of absence. The threshold is the one `verdicts()`
-  uses, so the default picture and the reporting table state the same thing.
-  `type = "centrality"` draws the centrality display instead. Layout comes from
-  qgraph, which stays a suggested package; without it the method errors and
-  points to `verdicts()`. The three-panel evidence display, the structure plots,
-  and the other network displays remain easybgm's and are deliberately not
-  duplicated.
+* `plot()` on a `bgm()` fit draws the **edge evidence plot**: three panels on
+  one shared layout, holding the pairs the data support, the pairs the data
+  rule out, and the pairs the data cannot decide. A single network drawing has
+  to make every pair either an edge or a blank, and a blank cannot say which of
+  those two a missing edge is; because `bgm()` returns an inclusion Bayes
+  factor for every pair, that choice does not have to be made. Each panel is
+  titled with what it holds and how many pairs are in it, and with the rule
+  that put them there, stated as a Bayes factor rather than its logarithm. Only
+  the first panel is weighted: line width is the posterior mean pairwise
+  association and colour carries its sign, because that is where the effect
+  sizes are; the colour convention is documented in `?plot.bgms`. The other two
+  are drawn at uniform width, dashed and dotted, because for those pairs the
+  classification is the result. The layout is computed once from every pair, so
+  a node sits in the same place in all three panels, and an all-absence fit is
+  a result rather than an error: the absence panel fills and the presence panel
+  is empty. The threshold is the one `verdicts()` uses, so the picture and the
+  reporting table state the same thing. A fit run without edge selection has no
+  inclusion Bayes factor and nothing to split its pairs by, so `plot()` draws
+  one weighted panel titled `Edge weights` — the title says which channel the
+  figure is drawn in, so a wide line is never ambiguous between a large
+  association and strong evidence for one. `type = "centrality"` draws the
+  centrality display instead. Layout comes from qgraph, which stays a suggested
+  package; without it the method errors and points to `verdicts()`.
 
-* `plot()` on a `bgmCompare()` fit draws the group differences the data settle.
-  The default `type = "difference"` is one network of the difference indicators,
-  encoded exactly as `plot()` on a `bgm()` fit encodes edges. So the default
-  picture and `verdicts(fit)` state the same thing at the same threshold, which
-  matters here because the difference indicators are what `bgmCompare()`
-  parameterizes. A network with no edges left is a result rather than an error —
-  "the groups do not differ anywhere" is a common and correct finding — so the
-  nodes are drawn on their own and the subtitle says so. Main-effect differences
-  are not edges, and when `main_difference_selection = TRUE` gives them their
-  own indicators their evidence rides on the nodes: each node wears a ring
-  filled to that difference indicator's posterior inclusion probability — a full
-  ring is 1, half a ring 0.5 — and coloured by its verdict. The fill fraction
-  carries the number, so the encoding does not rest on colour alone. Under the
-  default `main_difference_selection = FALSE` those indicators are never
-  updated and have no verdict, no ring is drawn, and the subtitle names the
-  setting. `type = "groups"` draws each group's own network beside the
-  difference panel on one shared layout, so a node sits in the same place
-  throughout and a reader compares by position; those panels use the same
-  colour-vision-safe sign pair as the rest of the package rather than qgraph's
-  green/red default. `type = "centrality"` draws the centrality display, with
-  `group` passed through.
+* `plot()` on a `bgmCompare()` fit draws the same three panels for difference
+  evidence, with the supported panel weighted by the posterior mean difference.
+  The display draws for any number of groups: a pair has a single inclusion
+  indicator shared across all `K - 1` contrasts, so the three-way split is as
+  well defined for three groups as for two; what a pair does not have beyond
+  two groups is one magnitude, so the supported panel is weighted only for two
+  groups and drawn at uniform width otherwise, where the classification is the
+  whole of what it reports. A fit with no differences left is a result rather
+  than an error — "the groups do not differ anywhere" is a common and correct
+  finding. Main-effect differences are not edges, and when
+  `main_difference_selection = TRUE` gives them their own indicators their
+  evidence rides on the nodes: each node wears a ring filled to that difference
+  indicator's posterior inclusion probability — a full ring is 1, half a ring
+  0.5. Under the default `main_difference_selection = FALSE` those indicators
+  are never updated and no ring is drawn. `type = "groups"` draws each group's
+  own posterior mean network on the same layout and pages them, so a fit with
+  more groups than `max_panels` is drawn a page at a time rather than squeezed
+  into one row; those panels use the same colour-vision-safe sign pair as the
+  rest of the package rather than qgraph's green/red default. With
+  `difference_selection = FALSE`, weights are the display: two groups get one
+  network of every pair, width the posterior mean difference and colour its
+  sign, titled `Difference weights`; beyond two groups the weights of a pair
+  are `K - 1` numbers whose honest weighted picture is the groups themselves,
+  so `plot()` draws the `type = "groups"` panels without being asked for it.
+  Read the magnitudes per group with `plot(fit, type = "groups")` or
+  `extract_group_params()`.
+  `type = "centrality"` draws the centrality display, with `group` passed
+  through.
 
 * `plot_edge_posterior()` draws one edge the way JASP draws a parameter: the
   posterior of the edge weight against the prior it was updated from, on a
@@ -485,16 +505,17 @@ logarithm.
   selection there is no indicator, the posterior of the weight is continuous,
   and Savage-Dickey *is* the licensed estimator: the panel then draws the JASP
   figure exactly, with both grey ordinate dots at zero, the ratio printed as a
-  log Bayes factor, and the wheel filled to `BF/(1 + BF)` under JASP's
-  `data|H1` / `data|H0` labels. The posterior ordinate is estimated by
+  log Bayes factor, and the wheel filled to `BF/(1 + BF)`; what the two shares
+  are is documented in `?plot_edge_posterior` rather than tagged on the figure.
+  The posterior ordinate is estimated by
   `stats::density(bw = "SJ")` at zero; JASP's own implementations use a
   logspline fit, which is not adopted here because it would add a dependency for
   one number. On a continuous block the drawn prior is the slab the sampler
   evaluates, which is the marginal prior of a precision entry only up to the
   positive-definite restriction; `?plot_edge_posterior` says so. An edge that
   the data rule out gets a figure rather than an error: the prior, the wheel
-  (nearly all pale) and the evidence are drawn, and the caption says that no
-  draw included the edge. `plot_edge_posterior()` refuses a `bgmCompare()` fit
+  (nearly all pale) and the evidence are drawn.
+  `plot_edge_posterior()` refuses a `bgmCompare()` fit
   rather than drawing its baseline pairwise effect as though it were one
   network's edge; use `plot(fit)` and `verdicts(fit)` there.
 
