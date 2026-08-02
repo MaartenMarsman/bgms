@@ -4,6 +4,7 @@
 if(!exists("bgm_spec", mode = "function")) {
   internals = c(
     "bgm_spec",
+    "bgmCompare_test_logp_and_gradient",
     "build_arguments",
     "collapse_categories_across_groups",
     "compute_conditional_ggm",
