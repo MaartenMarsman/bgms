@@ -269,6 +269,20 @@ test_that("the socket-cluster build path matches the serial build", {
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
+  # The workers load the INSTALLED bgms namespace, so this block needs bgms on
+  # a library path -- which is the R CMD check situation the comment above
+  # describes, and R-CMD-check.yaml runs that on five platforms on every push
+  # and PR. Under a bare devtools::test() on a machine that has never installed
+  # bgms the workers cannot load it and the block has nothing to compare, so it
+  # skips rather than erroring. Asking a worker is the exact question; anything
+  # read in this session is confounded by pkgload's shims.
+  probe = parallel::makePSOCKcluster(1L)
+  on.exit(parallel::stopCluster(probe), add = TRUE)
+  installed = isTRUE(unlist(parallel::clusterEvalQ(
+    probe, requireNamespace("bgms", quietly = TRUE)
+  )))
+  skip_if(!installed, "bgms is not installed; PSOCK workers cannot load it")
+
   zc = bgms:::zratio_constants(0.5 * log(12), 3)
   s1 = normal_surface(8L)
   withr::local_options(bgms.zratio_surface_psock = TRUE)

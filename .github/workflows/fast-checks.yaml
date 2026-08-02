@@ -50,11 +50,12 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          # local::. installs bgms itself. test-zratio-surface-build.R's
-          # socket-cluster block starts PSOCK workers that load the INSTALLED
-          # namespace; without this they cannot find the package's internals
-          # and the block errors under devtools::test().
-          extra-packages: any::devtools, local::.
+          # Deliberately NOT local::. -- installing bgms here costs ~10 min of
+          # the runner's budget and would serve exactly one test block, whose
+          # PSOCK workers need an installed namespace. That block skips itself
+          # when bgms is absent; R-CMD-check.yaml covers the path on five
+          # platforms with the package installed.
+          extra-packages: any::devtools
 
       - name: Run the T0 every-run tier
         run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'
