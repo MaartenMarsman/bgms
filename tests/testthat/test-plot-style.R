@@ -113,18 +113,63 @@ test_that("an annotation block stacks downward from its anchor", {
 })
 
 test_that("a probability prints with its relation, as a log Bayes factor does", {
-  expect_equal(format_probability(0.786), "= .79")
-  expect_equal(format_probability(0.5), "= .50")
+  expect_equal(format_probability(0.786), "= .786")
+  expect_equal(format_probability(0.5), "= .500")
   # The ends get an inequality: a run that never saw the edge absent has not
   # established that the probability is exactly one.
-  expect_equal(format_probability(1), "> .99")
-  expect_equal(format_probability(0.999), "> .99")
-  expect_equal(format_probability(0), "< .01")
-  expect_equal(format_probability(0.001), "< .01")
+  expect_equal(format_probability(1), "> .999")
+  expect_equal(format_probability(0.9999), "> .999")
+  expect_equal(format_probability(0), "< .001")
+  expect_equal(format_probability(0.0001), "< .001")
   expect_equal(format_probability(NaN), "= NA")
 
-  # The caller composes "PIP" + this, exactly as it composes "log BF" +
-  # format_log_bf(), so the two evidence lines of a panel read alike.
-  expect_equal(paste("PIP", format_probability(0.786)), "PIP = .79")
-  expect_equal(paste("PIP", format_probability(1)), "PIP > .99")
+  # Three decimals is the style's, not the call site's: the cut-offs and the
+  # strings printed past them follow the constant rather than being written
+  # out beside it.
+  expect_equal(format_probability(0.786, digits = 2), "= .79")
+  expect_equal(format_probability(1, digits = 2), "> .99")
+  expect_equal(format_probability(0, digits = 2), "< .01")
+  expect_equal(bgms_style()$prob_digits, 3L)
+
+  # The caller composes the inclusion label + this, exactly as it composes
+  # "log BF" + format_log_bf(), so the two evidence lines of a panel read
+  # alike -- and the label itself comes from the style, so no two figures can
+  # name the quantity differently.
+  expect_equal(format_inclusion(0.786), "P(included) = .786")
+  expect_equal(format_inclusion(1), "P(included) > .999")
+  expect_equal(bgms_style()$label_inclusion, "P(included)")
+})
+
+test_that("a margin is measured for the text it has to hold", {
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path, width = 7, height = 7)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  graphics::plot(NA, NA, xlim = c(0, 1), ylim = c(0, 1), axes = FALSE)
+
+  narrow = margin_lines_for("ab", cex = 0.75)
+  wide = margin_lines_for(c("ab", strrep("m", 40)), cex = 0.75)
+  # A longer label needs a wider margin; nothing to hold needs only the pad.
+  expect_gt(wide, narrow)
+  expect_equal(margin_lines_for(character(0), pad = 0.5), 0.5)
+  expect_equal(margin_lines_for(NA_character_, pad = 0.5), 0.5)
+
+  # The answer is in lines of the device's own text height, so the reserved
+  # margin holds the string at any device size.
+  expect_equal(
+    wide,
+    max(graphics::strwidth(c("ab", strrep("m", 40)),
+      units = "inches", cex = 0.75
+    )) / graphics::par("csi") + 0.5
+  )
+})
+
+test_that("the style scales as one, so a small multiple is not a second style", {
+  base = bgms_style()
+  small = bgms_style(scale = 0.6)
+  expect_equal(small$cex_axis, 0.6 * base$cex_axis)
+  expect_equal(small$cex_caption, 0.6 * base$cex_caption)
+  expect_equal(small$wheel_radius, 0.6 * base$wheel_radius)
+  # Colours and geometry fractions are not sizes and do not scale.
+  expect_equal(small$accent, base$accent)
+  expect_equal(small$eps, base$eps)
 })
