@@ -851,3 +851,21 @@ error, so nothing needed correcting. The new behaviour is user-visible and gets
 its own proposed clause, appended to the `bgmCompare` block above.
 
 **Finding O is closed** — the narrow refusal it recorded no longer exists.
+
+### Gate (addendum)
+
+Full local default tier re-run after the change, on the settled tree:
+
+```
+78 context files, no failure, warning or error mark in the stream
+exit=0
+```
+
+**8264 passing expectations, 105 skips, 0 failures, 0 warnings, 0 errors.**
+That is six more passing than round 3 — the flipped test now asserts the
+dispatch, its paging and its two validation errors, plus the two-group
+selection-off fit that pins the unchanged branch — against an unchanged skip
+set. **No snapshot re-records**: the change reaches no panel the snapshots
+cover. `devtools::document()` clean, drift `man/plot.bgmCompare.Rd` alone,
+`NAMESPACE` unchanged. 26 render pairs, 52 files; every render but the new
+pair byte-identical on both sides.
