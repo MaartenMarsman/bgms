@@ -475,3 +475,120 @@ test_that("bgmCompare() records the per-group support and warns once", {
   expect_equal(unname(sup[1, 2]), 0L) # group 2 never uses category 0
   expect_equal(sum(sup), 2L * n)
 })
+
+
+# ==============================================================================
+# 10. Estimate survival (T1) --- the assertion this file never had
+#
+# The mechanics cases above check what the recode does; none of them checks
+# that the resulting fit is any good, which is why a function that turned a
+# five-level variable into a binary one passed its own test suite (report 16,
+# finding 16-3).
+#
+# Two groups drawn from the SAME network, then given deliberately different
+# response supports: group 1 never uses the top option, group 2 never the
+# bottom one. The union is all four options; the intersection is two, so
+# before the F-075 fix each variable was reduced to a BINARY one. The
+# assertion is that bgmCompare()'s group-specific pairwise estimates agree
+# with a matched pair of bgm() fits on the same rows.
+#
+# Tolerance is derived, not chosen: the two estimates are posterior means of
+# the same quantity from the same data, so their difference is compared
+# against sqrt(sd_compare^2 + sd_bgm^2), the scale of one posterior standard
+# deviation of the difference under independence. Three of those is a loose
+# bound for two fits that should agree closely; it is far inside what the
+# pre-fix collapse produced.
+# ==============================================================================
+
+test_that("group-differing support: pairwise estimates match matched bgm() fits", {
+  skip_if(
+    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    "Set BGMS_RUN_SLOW_TESTS=true to run the estimate-survival check (T1)"
+  )
+
+  p = 5
+  K = 3
+  n = 400
+  set.seed(75)
+  omega = matrix(0, p, p)
+  omega[lower.tri(omega)] = c(
+    0.3258, 0.1583, 0.1089, 0.0631, 0.2457,
+    0.0605, 0.0554, 0.0497, 0.0970, 0.3859
+  )
+  omega = omega + t(omega)
+  main = rbind(
+    c(0.4919, -1.8439, -4.7586),
+    c(-0.7551, -4.1471, -7.7251),
+    c(-0.4009, -3.2720, -6.6058),
+    c(0.0876, -2.1691, -5.1081),
+    c(-0.7857, -3.7272, -7.2905)
+  )
+
+  x1 = simulate_mrf(n, p,
+    num_categories = K, pairwise = omega, main = main,
+    variable_type = "ordinal", iter = 200, seed = 41
+  )
+  x2 = simulate_mrf(n, p,
+    num_categories = K, pairwise = omega, main = main,
+    variable_type = "ordinal", iter = 200, seed = 42
+  )
+  x1[x1 == 3] = 2 # group 1 never uses the top option
+  x2[x2 == 0] = 1 # group 2 never uses the bottom option
+  expect_setequal(unique(as.vector(x1)), 0:2)
+  expect_setequal(unique(as.vector(x2)), 1:3)
+
+  expect_warning(
+    fit <- bgmCompare(
+      rbind(x1, x2),
+      group_indicator = rep(1:2, each = n),
+      interaction_prior = cauchy_prior(1),
+      iter = 800, warmup = 800, chains = 2, cores = 2, seed = 91,
+      display_progress = "none", verbose = FALSE
+    ),
+    "not used by every group"
+  )
+
+  args = extract_arguments(fit)
+  # All four response options survive: 3 free thresholds, not 1.
+  expect_equal(args$num_categories, rep(3L, p))
+  expect_equal(unname(args$category_support[[1]][4, 1]), 0L)
+  expect_equal(unname(args$category_support[[1]][1, 2]), 0L)
+
+  fit1 = bgm(x1,
+    edge_selection = FALSE, interaction_prior = cauchy_prior(1),
+    iter = 800, warmup = 800, chains = 2, cores = 2, seed = 92,
+    display_progress = "none", verbose = FALSE
+  )
+  fit2 = bgm(x2,
+    edge_selection = FALSE, interaction_prior = cauchy_prior(1),
+    iter = 800, warmup = 800, chains = 2, cores = 2, seed = 93,
+    display_progress = "none", verbose = FALSE
+  )
+
+  draws1 = extract_pairwise_interactions(fit1)
+  draws2 = extract_pairwise_interactions(fit2)
+
+  # Group-specific compare draws: baseline + projection weight * difference.
+  raw = bgms:::get_raw_samples(fit)$pairwise
+  np = ncol(raw[[1]]) / args$num_groups
+  base = do.call(rbind, lapply(raw, function(m) m[, seq_len(np), drop = FALSE]))
+  diff = do.call(rbind, lapply(raw, function(m) m[, np + seq_len(np), drop = FALSE]))
+  proj = args$projection
+  cmp1 = base + proj[1, 1] * diff
+  cmp2 = base + proj[2, 1] * diff
+
+  z = function(cmp, bgm_draws) {
+    (colMeans(cmp) - colMeans(bgm_draws)) /
+      sqrt(apply(cmp, 2, var) + apply(bgm_draws, 2, var))
+  }
+  expect_lt(max(abs(z(cmp1, draws1))), 3)
+  expect_lt(max(abs(z(cmp2, draws2))), 3)
+  # Not one lucky edge: the typical disagreement is well inside one posterior
+  # standard deviation too.
+  expect_lt(mean(abs(z(cmp1, draws1))), 1)
+  expect_lt(mean(abs(z(cmp2, draws2))), 1)
+
+  # And they track each other edge by edge, not merely on average.
+  expect_gt(cor(colMeans(cmp1), colMeans(draws1)), 0.9)
+  expect_gt(cor(colMeans(cmp2), colMeans(draws2)), 0.9)
+})
