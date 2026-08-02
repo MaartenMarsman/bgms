@@ -175,27 +175,48 @@ not a grading criterion.
        table with tag citations. Re-run the markdown-NEWS parse gate from
        report 14 after all edits.
 
-### Self-contained zratio comments (F-097)
+### Archive-and-remove the dormant analytic law (F-099) + self-contained comments (F-097)
 
-15. Four zratio source comments delegate their ground truth to "the
-    companion" — a private codebase (`sv/ggm_paper`'s
-    analytic-correction companion) that a repo reader cannot open:
-    `src/models/ggm/zratio_law.h:24` ("port of the companion's build-time
-    CN anchor engine"), `:47` ("matching the companion's
-    c(diff(x), 0)/2 + c(0, diff(x))/2"), `:61` ("the engine's eta is the
-    companion's beta directly"), and `src/models/ggm/zratio_engine.h:229`
-    ("matching the companion's gold"). Rewrite each to state the fact
-    itself with no external referent: `:47` states the trapezoid rule it
-    implements (the code already shows it — the comment can just say
-    "composite trapezoid weights on a non-uniform grid"); `:61` states the
-    notation map as a fact ("eta here is the tilt rate often written beta;
-    t2 = 2*eta*sigma^2"); `:24` describes what the engine IS (a
-    deterministic tableless CN anchor engine: one self-consistent spectral
-    solve per (size, density) cell yielding S1, S2) without the port
-    framing; `:229` states what the reference IS (the per-component
-    Monte-Carlo oracle evaluation of the same decomposition). Comments
-    only — zero code changes; keep the DORMANT banner in `zratio_law.h`
-    exactly as is (it is correct and load-bearing).
+15. The maintainer has decided (2026-08-02): the DORMANT analytic law
+    leaves the package and lives on its own documented branch. Verified
+    seams: the only include in the tree is `src/zratio_test_interface.cpp:14`;
+    nothing deployed touches it. Execute in this order:
+    a. **Archive first.** From your fix branch BEFORE any removal, create
+       `archive/zratio-analytic-law`. On it, one commit: rewrite the three
+       companion-referencing comments in `src/models/ggm/zratio_law.h`
+       self-contained (`:24` — describe what the engine IS: a
+       deterministic, tableless CN anchor engine, one self-consistent
+       spectral solve per (size, density) cell yielding S1, S2 — without
+       the port framing; `:47` — "composite trapezoid weights on a
+       non-uniform grid"; `:61` — state the notation map as a fact: "eta
+       here is the tilt rate often written beta; t2 = 2*eta*sigma^2"), and
+       add a short archival note at the top of the header: why archived
+       (maintainer decision, 2026-08-02, review F-099), the re-wiring
+       condition (the large-q crossover the banner already describes), and
+       that regenerating `fixtures/zratio_law_reference.rds` requires the
+       companion R implementation (private). Keep the DORMANT banner. Do
+       NOT push the branch — the lead pushes it at integration.
+    b. **Remove from the package** (on the fix branch): delete
+       `src/models/ggm/zratio_law.h`, the `zratio_law_moments` block in
+       `src/zratio_test_interface.cpp` (include line + comment + function),
+       `tests/testthat/test-zratio-law.R`,
+       `tests/testthat/fixtures/zratio_law_reference.rds`, and
+       `tests/testthat/fixtures/make_zratio_law_reference.R`. Regenerate
+       RcppExports (Rcpp::compileAttributes). Verify with a tree-wide grep
+       that no reference to `zratio_law` survives in `src/`, `R/`, or
+       `tests/` (dev/ record files are fine).
+    c. **Fix the fourth F-097 site in-package**: `src/models/ggm/
+       zratio_engine.h:229` — state what the reference IS (the
+       per-component Monte-Carlo oracle evaluation of the same
+       decomposition) with no companion referent.
+    d. **One MAINTAINERS line** (architecture section): the analytic law
+       is archived on `archive/zratio-analytic-law`, with the re-wiring
+       condition.
+    e. **No NEWS entry** — never deployed, never user-visible (the
+       never-shipped rule applies to code too).
+    f. In your report: the tarball-size and test-time deltas, and note
+       that `test-zratio-law.R` vanishing from the tier classification is
+       AUTHORIZED by F-099 (not a silent drop).
 
 ### Explicitly OUT of scope
 
