@@ -87,6 +87,12 @@ classification is the whole of what the panel reports. Read the magnitudes
 where they are per group: \code{plot(fit, type = "groups")} for the picture,
 \code{\link[=extract_group_params]{extract_group_params()}} for the numbers.
 
+The panels therefore need the split to exist. More than two groups
+\emph{without} \code{difference_selection} is the one case they cannot cover:
+there is no inclusion Bayes factor to split by and no single magnitude to
+draw instead, so \code{plot()} says so rather than choosing one of the \code{K - 1}
+differences. Both replacements are the ones named above.
+
 \strong{Main-effect differences are not edges.} When
 \code{main_difference_selection = TRUE} gave them their own indicators, their
 evidence is carried on the nodes: each node wears a ring filled to its

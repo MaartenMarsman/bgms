@@ -207,7 +207,8 @@ contrast_magnitude = function(differences, pairs) {
 # `mar` while drawing nodes at a physical size, so the two cannot be brought
 # into agreement from here: widening the margin pulls the layout in without
 # shrinking a node. Three panels in one row of a 7x7 device therefore still
-# crowd, and the display wants a wide one. See the review report.
+# crowd, and the display wants a wide one. Review finding F-115, routed to a
+# later batch.
 #
 # Returns: list(mar = par margin, qgraph_mar = qgraph's margin).
 # ------------------------------------------------------------------
@@ -682,6 +683,12 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' classification is the whole of what the panel reports. Read the magnitudes
 #' where they are per group: `plot(fit, type = "groups")` for the picture,
 #' [extract_group_params()] for the numbers.
+#'
+#' The panels therefore need the split to exist. More than two groups
+#' \emph{without} `difference_selection` is the one case they cannot cover:
+#' there is no inclusion Bayes factor to split by and no single magnitude to
+#' draw instead, so `plot()` says so rather than choosing one of the `K - 1`
+#' differences. Both replacements are the ones named above.
 #'
 #' \strong{Main-effect differences are not edges.} When
 #' `main_difference_selection = TRUE` gave them their own indicators, their

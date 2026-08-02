@@ -700,8 +700,10 @@ Under **Other changes**:
 
 ## Findings from round 3
 
-* **M. The three-panel display needs a wide device.** As above. Pre-existing,
-  reported rather than half-fixed. Recommend a follow-up item.
+* **M / F-115. The three-panel display needs a wide device.** As above.
+  Pre-existing, reported rather than half-fixed. The lead has recorded it as
+  review finding **F-115** and routed it to a later batch; the documentation on
+  this branch is the whole of what it carries.
 * **N. `legend` is removed from both network methods.** Flagged as my judgment
   call rather than a verdict item; trivially reversible.
 * **O. The `K > 2` + `difference_selection = FALSE` refusal is mine.** The
@@ -758,3 +760,27 @@ Test changes in this round, all in `tests/testthat/test-plot-methods.R`:
 * `plot(fit, legend = FALSE)` dropped with the argument.
 * The three caption assertions become `expect_null(panel$caption)`, and the
   two `describe_panel()` helpers stop printing a caption line.
+
+## Lead rulings on the round-3 flags
+
+All four settled; nothing reverted.
+
+1. **`legend` removal ratified.** The argument never shipped — the CRAN tag
+   exports no plot methods at all, which the lead verified — so this is not an
+   API break on anything a user could have called. The NEWS clause drafted
+   above still mentions the removal; the lead may want to drop that half
+   sentence at integration for the same reason.
+2. **The `Posterior` / `Prior` curve labels are ratified as the sole key
+   exemption**, on the style-rule-8 wording as written. No further keys exist
+   anywhere in the package.
+3. **The `K > 2` without `difference_selection` error stands** as the honest
+   narrow gap, and is now stated in the Rd where the panels are described
+   rather than only in the without-selection paragraph: the panels need the
+   split to exist, this is the one case where neither the split nor a single
+   magnitude does, and both replacements are named in the same place.
+4. **The 7x7 squeeze is review finding F-115**, routed to a later batch. The
+   code comment above `network_panel_par()`, `INDEX.md` and finding M above now
+   all carry that number, so the later batch can find them.
+
+Finding M is therefore closed on this branch as F-115; findings N and O are
+closed by rulings 1 and 3.

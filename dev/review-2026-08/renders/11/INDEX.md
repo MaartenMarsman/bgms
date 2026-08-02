@@ -45,7 +45,8 @@ wide device. On R's default 7x7, each panel is about 1:3 and qgraph -- which
 writes its coordinate range straight from `mar` while drawing nodes at a
 physical size -- puts the outer nodes of one panel across its neighbour's
 boundary. This predates round 3 and is not the legend overlap, which is fixed.
-The figures here are rendered at 13.5 x 5.2, where it does not arise.
+Recorded as review finding F-115 and routed to a later batch. The figures here
+are rendered at 13.5 x 5.2, where it does not arise.
 
 Earlier items that survive: no top-right evidence block, no in-figure captions,
 no answer-sentence titles, no jargon in figure text, the `group_tag`
