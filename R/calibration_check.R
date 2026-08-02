@@ -805,56 +805,61 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
     )
   }
 
-  ink = "grey25"
-  muted = "grey55"
-  accent = mover_palette()[1]
-
   n = nrow(rows)
   ncol_panels = min(n, ceiling(sqrt(n)))
   nrow_panels = ceiling(n / ncol_panels)
+
+  # A grid of small multiples is the package style seen smaller, not a second
+  # style: one scale factor takes the type and the line weights down together,
+  # and it follows how many panels share the device.
+  scale = max(0.45, 0.95 / sqrt(max(ncol_panels, nrow_panels)))
+  style = bgms_style(scale = scale)
 
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(
     mfrow = c(nrow_panels, ncol_panels),
-    mar = c(2.6, 2.6, 2.0, 0.8), mgp = c(1.5, 0.5, 0), oma = c(2.2, 2.2, 0, 0),
-    col.axis = ink, col.lab = ink, col.main = ink
+    mar = c(2.6, 2.8, 2.6, 0.9), mgp = c(1.5, 0.5, 0), oma = c(3.4, 3.0, 0, 0),
+    las = 1, bty = "n",
+    col.axis = style$ink, col.lab = style$ink, col.main = style$ink
   )
+
+  # The unit square with the style's own overshoot, so the two axes stop short
+  # of the corner instead of closing a frame around the panel.
+  eps = style$eps
+  square = c(0 - eps, 1 + eps)
+  at = c(0, 0.5, 1)
 
   for(k in seq_len(n)) {
     v = rows$variable[k]
     df = x$curves[x$curves$variable == v, , drop = FALSE]
     if(by_group) df = df[df$group == rows$group[k], , drop = FALSE]
     graphics::plot(NA, NA,
-      xlim = c(0, 1), ylim = c(0, 1), axes = FALSE, asp = 1,
-      xlab = "", ylab = "",
-      main = if(by_group) {
+      xlim = square, ylim = square, axes = FALSE, asp = 1,
+      xlab = "", ylab = "", main = ""
+    )
+    # The panel names itself as a small multiple does, and the two panel kinds
+    # share the unit square and the diagonal but not their construction, so
+    # each says which it is.
+    bgms_panel_label(
+      if(by_group) {
         sprintf("%s (%s)", v, group_tag(x$group_labels, rows$group[k]))
       } else {
         v
       },
-      cex.main = 0.9
+      subtitle = if(identical(df$kind[1], "pit")) "PIT" else "isotonic",
+      line = 1.1, style = style
     )
-    # The two panel kinds share the unit square and the diagonal but not their
-    # construction, so each names its own.
-    graphics::mtext(
-      if(identical(df$kind[1], "pit")) "PIT" else "isotonic",
-      side = 3, line = 0.05, cex = 0.6, col = muted
-    )
-    graphics::axis(1,
-      at = c(0, 0.5, 1), labels = c("0", ".5", "1"),
-      col = muted, col.ticks = muted, cex.axis = 0.75
-    )
-    graphics::axis(2,
-      at = c(0, 0.5, 1), labels = c("0", ".5", "1"),
-      col = muted, col.ticks = muted, las = 1, cex.axis = 0.75
-    )
+    bgms_axis(1, at, labels = c("0", ".5", "1"), style = style)
+    bgms_axis(2, at, labels = c("0", ".5", "1"), style = style)
     graphics::polygon(
       c(df$grid, rev(df$grid)), c(df$lower, rev(df$upper)),
-      col = grDevices::adjustcolor(muted, 0.22), border = NA
+      col = grDevices::adjustcolor(style$muted, style$fill_alpha), border = NA
     )
-    graphics::abline(0, 1, col = muted, lwd = 0.7)
-    graphics::lines(df$grid, df$curve, col = accent, lwd = 1.8)
+    graphics::abline(0, 1, col = style$muted, lwd = style$lwd_axis * 0.8)
+    graphics::lines(df$grid, df$curve,
+      col = style$accent, lwd = style$lwd_curve
+    )
   }
 
   kinds = unique(x$curves$kind[x$curves$variable %in% rows$variable])
@@ -872,7 +877,17 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   } else {
     "Observed frequency / observed share"
   }
-  graphics::mtext(xlab, side = 1, outer = TRUE, line = 0.8, col = ink, cex = 0.85)
-  graphics::mtext(ylab, side = 2, outer = TRUE, line = 0.8, col = ink, cex = 0.85)
+  graphics::mtext(xlab,
+    side = 1, outer = TRUE, line = 1.5, col = style$ink, cex = style$cex_lab
+  )
+  graphics::mtext(ylab,
+    side = 2, outer = TRUE, line = 1.2, las = 0, col = style$ink,
+    cex = style$cex_lab
+  )
+  graphics::mtext(
+    "Band: consistency interval. Diagonal: a calibrated model.",
+    side = 1, outer = TRUE, line = 2.5, col = style$muted,
+    cex = style$cex_caption
+  )
   invisible(x)
 }
