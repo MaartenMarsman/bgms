@@ -4,8 +4,8 @@
       describe_panel(panel)
     Output
       label     : intrusion-dreams
-      subtitle  : evidence of presence
-      evidence  : PIP > .99 | log BF = 12.4
+      subtitle  : (none)
+      evidence  : P(included) = .995 | log BF = 12.4
       estimate  : median = 0.32 | 95% CI [0.24, 0.40]
       wheel     : 0.995
       wheel tags: (none)
@@ -21,8 +21,8 @@
       describe_panel(panel)
     Output
       label     : intrusion-upset
-      subtitle  : undecided
-      evidence  : PIP = .60 | log BF = 0.4
+      subtitle  : (none)
+      evidence  : P(included) = .600 | log BF = 0.4
       estimate  : median = 0.09 | 95% CI [0.04, 0.15]
       wheel     : 0.600
       wheel tags: (none)
@@ -38,8 +38,8 @@
       describe_panel(panel)
     Output
       label     : upset-physior
-      subtitle  : evidence of presence
-      evidence  : PIP > .99 | log BF > 10,000
+      subtitle  : (none)
+      evidence  : P(included) > .999 | log BF > 10,000
       estimate  : median = 0.41 | 95% CI [0.35, 0.47]
       wheel     : 1.000
       wheel tags: (none)
@@ -55,8 +55,8 @@
       describe_panel(panel)
     Output
       label     : a-b
-      subtitle  : evidence of absence
-      evidence  : PIP < .01 | log BF = -7.2
+      subtitle  : (none)
+      evidence  : P(included) < .001 | log BF = -7.2
       estimate  : (none)
       wheel     : 0.000
       wheel tags: (none)
@@ -103,9 +103,9 @@
 # the panel reads a Blume-Capel fit like any other
 
     Code
-      cat("subtitle  : ", panel$subtitle, "\n", sep = "")
+      cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
     Output
-      subtitle  : evidence of presence
+      subtitle  : (none)
     Code
       cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
     Output

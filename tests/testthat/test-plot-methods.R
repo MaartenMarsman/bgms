@@ -337,7 +337,7 @@ test_that("the panel of a decisive edge carries the wheel, not a stem", {
   draws = c(rnorm(1990, 0.32, 0.04), rep(0, 10))
   panel = edge_panel_selection(
     "intrusion-dreams", draws, test_slab_prior(),
-    pip = 0.995, log_bf = 12.4, verdict = "presence"
+    pip = 0.995, log_bf = 12.4
   )
   # The evidence is the Rao-Blackwellized indicator Bayes factor, so there are
   # no Savage-Dickey ordinates to mark.
@@ -352,10 +352,12 @@ test_that("the panel of an undecided edge splits its wheel", {
   draws = c(rnorm(1200, 0.09, 0.03), rep(0, 800))
   panel = edge_panel_selection(
     "intrusion-upset", draws, test_slab_prior(),
-    pip = 0.6, log_bf = 0.41, verdict = "undecided"
+    pip = 0.6, log_bf = 0.41
   )
-  # "undecided" is not evidence of anything, so the panel does not say it is.
-  expect_equal(panel$subtitle, "undecided")
+  # No verdict word is printed, here least of all: the split wheel and the log
+  # Bayes factor near zero are the statement, and "undecided" would have added
+  # a threshold the reader did not choose.
+  expect_null(panel$subtitle)
   expect_snapshot(describe_panel(panel))
 })
 
@@ -364,9 +366,9 @@ test_that("a saturated edge prints the capped Bayes factor and a full wheel", {
   draws = rnorm(2000, 0.41, 0.03)
   panel = edge_panel_selection(
     "upset-physior", draws, test_slab_prior(),
-    pip = 1, log_bf = Inf, verdict = "presence"
+    pip = 1, log_bf = Inf
   )
-  expect_equal(panel$evidence[1], "PIP > .99")
+  expect_equal(panel$evidence[1], "P(included) > .999")
   expect_equal(panel$evidence[2], "log BF > 10,000")
   # The estimate is of the conditional posterior and is unaffected by the cap.
   expect_snapshot(describe_panel(panel))
@@ -375,7 +377,7 @@ test_that("a saturated edge prints the capped Bayes factor and a full wheel", {
 test_that("a decisive absence with no included draw is a figure, not an error", {
   panel = edge_panel_selection(
     "a-b", rep(0, 2000), test_slab_prior(),
-    pip = 0.0004, log_bf = -7.2, verdict = "absence"
+    pip = 0.0004, log_bf = -7.2
   )
   # No conditional posterior exists, so the prior and the wheel carry the
   # panel; nothing is claimed about a weight that was never sampled.
@@ -422,7 +424,7 @@ test_that("the panel reads a Blume-Capel fit like any other", {
   evidence = edge_selection_evidence(fit, label, 10)
   panel = edge_panel_selection(
     label, extract_pairwise_interactions(fit)[, label],
-    edge_slab_prior(fit), evidence$pip, evidence$log_bf, evidence$verdict
+    edge_slab_prior(fit), evidence$pip, evidence$log_bf
   )
   # Weights are continuous whatever the variable type, so the panel is the
   # ordinary one; what is asserted here is that nothing about the parameter
@@ -431,7 +433,7 @@ test_that("the panel reads a Blume-Capel fit like any other", {
   expect_null(panel$dots)
   expect_equal(panel$prior$family, "normal")
   expect_snapshot({
-    cat("subtitle  : ", panel$subtitle, "\n", sep = "")
+    cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
     cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
     cat("caption   : ", panel$caption, "\n", sep = "")
   })

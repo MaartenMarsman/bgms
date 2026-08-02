@@ -19,9 +19,11 @@ plot_edge_posterior(
 \item{variable1, variable2}{The two variables naming the edge. Either names
 or column positions.}
 
-\item{evidence_threshold}{Numeric > 1; the threshold used for the verdict
-printed on the panel, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}. Ignored for a fit
-without edge selection, which has no inclusion verdict to read.}
+\item{evidence_threshold}{Numeric > 1; the threshold \code{\link[=verdicts]{verdicts()}} is called
+at to read this edge's row. Default \code{10}. The panel prints no verdict, and
+neither the inclusion probability nor the Bayes factor depends on the
+threshold, so this does not change what is drawn. Ignored for a fit
+without edge selection, which has no inclusion row to read.}
 
 \item{binwidth}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} The panel no longer
 expresses the weight as probability per bin, so this has nothing to set;
@@ -101,8 +103,13 @@ decisive absence is a result, not a failure.
 
 The panel follows the package's plotting conventions (see the internal
 \code{R/plot_style.R}): offset axes, no box, large type, no headline title. The
-edge and its verdict are printed as annotations, where the rest of the
-numbers are.
+edge is named as an annotation, where the rest of the numbers are.
+
+No verdict word is printed. What the panel shows is the evidence -- the
+wheel, the inclusion probability and the log Bayes factor -- and the reading
+those license is the reader's to make at a threshold they choose;
+\code{\link[=verdicts]{verdicts()}} is where the package states verdicts, and it names the
+threshold it used.
 }
 \examples{
 \donttest{

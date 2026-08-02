@@ -976,7 +976,7 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   if(isTRUE(arguments$edge_selection)) {
     evidence = edge_selection_evidence(bgms_object, label, evidence_threshold)
     panel = edge_panel_selection(label, draws, prior,
-      evidence$pip, evidence$log_bf, evidence$verdict)
+      evidence$pip, evidence$log_bf)
   } else {
     panel = edge_panel_savage_dickey(label, draws, prior)
   }
@@ -1112,15 +1112,19 @@ conditional_density = function(draws, n = 512L) {
 # ------------------------------------------------------------------
 # edge_selection_evidence
 # ------------------------------------------------------------------
-# The verdicts() row of one edge: its inclusion probability, its evidence, and
-# its verdict. A mixed fit names its indicators in block order, which need not
-# be variable order, so the other orientation is tried before giving up.
+# The verdicts() row of one edge: its inclusion probability and its evidence.
+# A mixed fit names its indicators in block order, which need not be variable
+# order, so the other orientation is tried before giving up.
+#
+# Neither number depends on the threshold -- the threshold only decides which
+# verdict word verdicts() attaches to them, and the panel prints no verdict --
+# so it is passed on to verdicts() and has no further say here.
 #
 # @param bgms_object        The fit.
 # @param label              The edge label, as the pairwise draws name it.
-# @param evidence_threshold The verdict threshold.
+# @param evidence_threshold The threshold verdicts() is called at.
 #
-# Returns: list(pip, log_bf, verdict); all NA when the edge has no row.
+# Returns: list(pip, log_bf); both NA when the edge has no row.
 # ------------------------------------------------------------------
 edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
   edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
@@ -1133,12 +1137,9 @@ edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
     }
   }
   if(!nrow(row)) {
-    return(list(pip = NA_real_, log_bf = NA_real_, verdict = NA_character_))
+    return(list(pip = NA_real_, log_bf = NA_real_))
   }
-  list(
-    pip = row$pip[1], log_bf = row$log_bf[1],
-    verdict = as.character(row$verdict[1])
-  )
+  list(pip = row$pip[1], log_bf = row$log_bf[1])
 }
 
 
@@ -1151,16 +1152,21 @@ edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
 # Bayes factor, not a ratio of densities at zero, and marking the ordinates
 # would claim otherwise.
 #
+# The verdict is deliberately not shown. The panel's business is the evidence:
+# the wheel, the inclusion probability and the log Bayes factor say where the
+# edge stands, and a reader draws the conclusion those numbers license.
+# verdicts() is where the package speaks in verdicts, at a threshold the reader
+# chose; a word printed here would have asserted one silently.
+#
 # @param label    The edge label.
 # @param draws    The edge's pairwise draws.
 # @param prior    From edge_slab_prior(), or NULL.
 # @param pip      Posterior inclusion probability.
 # @param log_bf   Natural log inclusion Bayes factor.
-# @param verdict  The verdict, as a character string, or NA.
 #
 # Returns: a panel description for draw_edge_panel().
 # ------------------------------------------------------------------
-edge_panel_selection = function(label, draws, prior, pip, log_bf, verdict) {
+edge_panel_selection = function(label, draws, prior, pip, log_bf) {
   slab = draws[draws != 0]
   if(!is.finite(pip)) {
     pip = mean(draws != 0)
@@ -1170,15 +1176,15 @@ edge_panel_selection = function(label, draws, prior, pip, log_bf, verdict) {
   style = bgms_style()
   list(
     label = label,
-    subtitle = verdict_phrase(verdict),
+    subtitle = NULL,
     posterior = posterior,
     prior = prior,
     dots = NULL,
     wheel_prob = pip,
     wheel_labels = NULL,
     evidence = c(
-      paste("PIP", format_probability(pip)),
-      paste("log BF", format_log_bf(log_bf))
+      format_inclusion(pip),
+      paste("log BF", display_log_bf(log_bf))
     ),
     estimate = if(is.null(posterior)) NULL else estimate_lines(slab),
     interval = if(is.null(posterior)) NULL else stats::quantile(
@@ -1241,7 +1247,7 @@ edge_panel_savage_dickey = function(label, draws, prior) {
     dots = dots,
     wheel_prob = wheel,
     wheel_labels = c("data|H1", "data|H0"),
-    evidence = paste("log BF", format_log_bf(log_bf)),
+    evidence = paste("log BF", display_log_bf(log_bf)),
     estimate = estimate_lines(draws),
     interval = stats::quantile(draws, c(0.025, 0.975), names = FALSE),
     caption = paste(
@@ -1249,30 +1255,6 @@ edge_panel_savage_dickey = function(label, draws, prior) {
       "Accented share: P(edge | data), equal prior odds."
     ),
     style = bgms_style()
-  )
-}
-
-
-# ------------------------------------------------------------------
-# verdict_phrase
-# ------------------------------------------------------------------
-# The verdict as a panel says it. "presence" and "absence" are readings of the
-# evidence and are named as such; "undecided" is not evidence of anything, so
-# it stands alone rather than being wrapped in "evidence of".
-#
-# @param verdict  The verdict, as a character string, or NA.
-#
-# Returns: a length-one character string, or NULL for an unread verdict.
-# ------------------------------------------------------------------
-verdict_phrase = function(verdict) {
-  if(is.null(verdict) || is.na(verdict)) {
-    return(NULL)
-  }
-  switch(verdict,
-    presence = "evidence of presence",
-    absence = "evidence of absence",
-    undecided = "undecided",
-    verdict
   )
 }
 
