@@ -843,6 +843,11 @@ logarithm.
   results are statistically equivalent, only not bitwise reproducible across
   core counts. Other platforms and earlier `RcppParallel` are unaffected.
 
+* `extract_arguments()` now reports `main_effect_indices` for `bgmCompare()`
+  fits: the per-variable column blocks of the baseline main-effect parameters.
+  The layout was computed during fitting but kept internal, so there was no
+  supported way to map main-effect parameters back to variables.
+
 ## Bug fixes
 
 * Fixed the number-of-blocks summary for stochastic-block edge priors, a
@@ -871,6 +876,17 @@ logarithm.
   subtree's value instead of summing across the full trajectory, so the signal
   driving dual-averaging step-size adaptation was biased and the adapted step
   size with it.
+
+* `predict()` now recodes `newdata` through the category map stored with the
+  fit rather than by subtracting each column's minimum. Under the old rule a
+  sparse category coding — one with gaps, such as values 1, 2, 4, 5 — was
+  miscoded silently: the fit collapses those values to categories 0, 1, 2, 3,
+  but the minimum shift mapped them to 0, 1, 3, 4, so every value above a gap
+  was attributed to the wrong category and the largest value fell outside the
+  fitted category range entirely, with no error and no warning. `simulate()`
+  correspondingly returns ordinal data on the original category scale, so the
+  `simulate()` to `predict()` round trip stays on the scale the model was
+  fitted on.
 
 ## Deprecated
 
