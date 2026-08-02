@@ -19,9 +19,11 @@ plot_edge_posterior(
 \item{variable1, variable2}{The two variables naming the edge. Either names
 or column positions.}
 
-\item{evidence_threshold}{Numeric > 1; the threshold used for the verdict
-printed on the panel, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}. Ignored for a fit
-without edge selection, which has no inclusion verdict to read.}
+\item{evidence_threshold}{Numeric > 1; the threshold \code{\link[=verdicts]{verdicts()}} is called
+at to read this edge's row. Default \code{10}. The panel prints no verdict, and
+neither the inclusion probability nor the Bayes factor depends on the
+threshold, so this does not change what is drawn. Ignored for a fit
+without edge selection, which has no inclusion row to read.}
 
 \item{binwidth}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} The panel no longer
 expresses the weight as probability per bin, so this has nothing to set;
@@ -63,12 +65,14 @@ estimator the package does not use.
 \strong{Without edge selection} there is no indicator and no point mass; the
 posterior of the weight is continuous and the Savage-Dickey density ratio is
 the licensed estimator of the inclusion Bayes factor. The panel then draws
-the JASP figure exactly: both ordinates at zero are marked with grey dots,
-and their ratio -- prior over posterior -- is the Bayes factor for the edge,
-printed on the same natural-log scale. The wheel is filled by
-\eqn{BF/(1 + BF)}, which is the posterior probability of the edge at equal
-prior odds, so the wheel still shows a probability, and it is labelled with
-JASP's \code{data|H1} / \code{data|H0} pair.
+the JASP figure: both ordinates at zero are marked with grey dots, and their
+ratio -- prior over posterior -- is the Bayes factor for the edge, printed on
+the same natural-log scale. The wheel is filled by \eqn{BF/(1 + BF)}, which
+is the posterior probability that the edge is there when the two hypotheses
+are equally likely before seeing the data; the filled share is that
+probability and the pale share its complement. JASP labels those two shares
+\code{data|H1} and \code{data|H0}; this panel does not, because the notation cannot be
+read without knowing the convention, and says it here instead.
 
 The prior ordinate at zero is exact. The posterior ordinate is estimated
 from the draws by a Gaussian kernel density with the Sheather-Jones
@@ -96,13 +100,20 @@ above the curve.
 
 An edge the data rule out is still drawn. When no retained draw included it
 there is no conditional posterior to show, so the panel draws the prior, the
-wheel (nearly all pale), and the evidence, and says so in its caption:
-decisive absence is a result, not a failure.
+wheel (nearly all pale) and the evidence, and the missing accented curve is
+itself the statement: decisive absence is a result, not a failure.
 
 The panel follows the package's plotting conventions (see the internal
-\code{R/plot_style.R}): offset axes, no box, large type, no headline title. The
-edge and its verdict are printed as annotations, where the rest of the
-numbers are.
+\code{R/plot_style.R}): offset axes, no box, large type, no headline title. It
+carries no caption; what each mark means is stated above rather than
+reprinted under every figure the panel draws. The edge is named as an
+annotation, where the rest of the numbers are.
+
+No verdict word is printed. What the panel shows is the evidence -- the
+wheel, the inclusion probability and the log Bayes factor -- and the reading
+those license is the reader's to make at a threshold they choose;
+\code{\link[=verdicts]{verdicts()}} is where the package states verdicts, and it names the
+threshold it used.
 }
 \examples{
 \donttest{

@@ -1212,8 +1212,9 @@ spread_labels = function(y, gap) {
 #' @title Plot a Prior Sensitivity Check
 #'
 #' @description
-#' One panel, answer first: the title states how many edge verdicts depend on
-#' the slab scale. Each edge's natural log inclusion-Bayes-factor curve
+#' One panel, answer first: the label above the panel states how many edge
+#' verdicts depend on the slab scale. Each edge's natural log
+#' inclusion-Bayes-factor curve
 #' (the evidence for the edge) is drawn across the anchored scale range, with
 #' dots at the anchor scales; curve points masked for low importance ESS
 #' leave visible gaps, and an edge that saturates at some scale is capped at a
@@ -1247,9 +1248,6 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   thr = log(x$evidence_threshold)
   edges = x$edges
   n_edges = nrow(edges)
-  ink = "grey25"
-  muted = "grey55"
-  faint = grDevices::adjustcolor("grey55", 0.35)
 
   # Same partition as print(): an edge the refits cannot certify is not
   # reported as scale-dependent.
@@ -1265,12 +1263,20 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   movers = movers[order(swing[movers], decreasing = TRUE)]
   named = utils::head(movers, max_labels)
 
-  old_par = graphics::par(no.readonly = TRUE)
-  on.exit(graphics::par(old_par), add = TRUE)
-  graphics::par(
-    mar = c(5.1, 4.4, 3.6, 7.5), mgp = c(2.6, 0.7, 0),
-    col.axis = ink, col.lab = ink, col.main = ink
-  )
+  style = bgms_style()
+  faint = grDevices::adjustcolor(style$muted, 0.35)
+  name_cex = style$cex_caption
+  # The leader from the end of a curve to its name, in inches, so the same gap
+  # opens on any device.
+  leader = 0.16
+
+  # The right margin holds the edge names, so it is measured for the names
+  # this check produced rather than set to a width that happened to fit an
+  # earlier example. Anything shorter clipped them at the device edge.
+  right = leader / graphics::par("csi") +
+    margin_lines_for(edges$edge[named], cex = name_cex, pad = 0.8)
+  style = bgms_panel_par(mar = c(5.6, 5.0, 3.4, right), scale = 1)
+  on.exit(graphics::par(style$old_par), add = TRUE)
 
   # The y-range covers the decision band and every named line; edges that
   # live entirely outside it never change verdict and clip silently.
@@ -1278,53 +1284,72 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   named_bf = named_bf[is.finite(named_bf)]
   ylim = range(c(-1.5 * thr, 1.5 * thr, named_bf))
   ylim = ylim + c(-0.4, 0.4)
+  y_axis = bgms_axis_range(ylim)
+  # The scale axis is logarithmic and its ticks are the anchors, so the data
+  # range is opened on the log scale to hold the axis off the corner.
+  log_rel = log10(range(rel))
+  xlim = 10^(log_rel + c(-1, 1) * style$eps * diff(log_rel))
 
   unit = x$unit %||% list(noun = "edge", nouns = "edges")
   scale_label = if(identical(unit$noun, "difference")) {
-    "difference scale (relative to the chosen scale)"
+    "Difference scale, relative to your fit"
   } else {
-    "slab scale (relative to the chosen scale)"
+    "Slab scale, relative to your fit"
   }
 
   n_dep = length(movers)
-  title = if(n_dep == 0L) {
-    sprintf("No %s verdict depends on the scale", unit$noun)
-  } else if(n_dep == 1L) {
-    sprintf("1 %s verdict depends on the scale", unit$noun)
-  } else {
-    sprintf("%d %s verdicts depend on the scale", n_dep, unit$noun)
-  }
 
   graphics::plot(NA, NA,
-    xlim = range(rel), ylim = ylim, log = "x", axes = FALSE,
-    xlab = scale_label,
-    ylab = sprintf("evidence for the %s (natural log Bayes factor)", unit$noun),
-    main = title
+    xlim = xlim, ylim = y_axis$lim, log = "x", axes = FALSE,
+    xlab = "", ylab = "", main = ""
   )
-  graphics::axis(1,
-    at = x$anchors, labels = sprintf("%.2gx", x$anchors),
-    col = muted, col.ticks = muted
+  bgms_axis(1, x$anchors, labels = sprintf("%.2gx", x$anchors), style = style)
+  bgms_axis(2, y_axis$at,
+    labels = formatC(y_axis$at, format = "g"), style = style
   )
-  graphics::axis(2, col = muted, col.ticks = muted, las = 1)
-
+  graphics::mtext(scale_label,
+    side = 1, line = 2.9, cex = style$cex_lab, col = style$ink
+  )
+  graphics::mtext(
+    sprintf("Evidence for the %s (log BF)", unit$noun),
+    side = 2, line = 3.3, las = 0, cex = style$cex_lab, col = style$ink
+  )
   # Verdict zones: shaded undecided band, dashed thresholds, margin labels.
   usr = graphics::par("usr")
+  pin = graphics::par("pin")
+  # Inches per unit on each axis, so every offset below is a device length
+  # rather than a fraction of a range that changes with the data.
+  per_log_unit = pin[1] / diff(usr[1:2])
+  per_y_unit = pin[2] / diff(usr[3:4])
+
   graphics::rect(10^usr[1], -thr, 10^usr[2], thr,
     col = grDevices::adjustcolor("grey60", 0.12), border = NA
   )
-  graphics::abline(h = c(-thr, thr), col = muted, lty = 2)
-  graphics::abline(v = 1, col = muted, lty = 3)
-  graphics::mtext("chosen", side = 3, at = 1, line = 0.1, cex = 0.75, col = muted)
-  zone_x = 10^(usr[1] + 0.015 * diff(usr[1:2]))
-  pad = 0.05 * diff(ylim)
-  graphics::text(zone_x, thr + pad, "presence", adj = c(0, 0), cex = 0.8, col = muted)
-  graphics::text(zone_x, thr - pad, "undecided", adj = c(0, 1), cex = 0.8, col = muted)
-  graphics::text(zone_x, -thr - pad, "absence", adj = c(0, 1), cex = 0.8, col = muted)
+  graphics::abline(h = c(-thr, thr), col = style$muted, lty = 2,
+    lwd = style$lwd_axis
+  )
+  graphics::abline(v = 1, col = style$muted, lty = 3, lwd = style$lwd_axis)
+  # "chosen" named a decision the reader had to reconstruct; the line is the
+  # scale their own fit was run at, and that is what it now says.
+  graphics::mtext("your fit",
+    side = 3, at = 1, line = 0.3, cex = style$cex_annotation, col = style$muted
+  )
+  zone_x = 10^(usr[1] + 0.06 / per_log_unit)
+  pad = 0.05 / per_y_unit
+  graphics::text(zone_x, thr + pad, "presence",
+    adj = c(0, 0), cex = style$cex_caption, col = style$muted
+  )
+  graphics::text(zone_x, thr - pad, "undecided",
+    adj = c(0, 1), cex = style$cex_caption, col = style$muted
+  )
+  graphics::text(zone_x, -thr - pad, "absence",
+    adj = c(0, 1), cex = style$cex_caption, col = style$muted
+  )
 
   # Background: every other edge in one muted color.
   for(e in setdiff(seq_len(n_edges), named)) {
     if(isTRUE(edges$saturated[e])) next
-    graphics::lines(rel, x$log_bf[, e], col = faint, lwd = 1)
+    trajectory(rel, x$log_bf[, e], col = faint, lwd = 1)
   }
 
   # Foreground: the named movers, colored in fixed order and name-labeled.
@@ -1336,45 +1361,50 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
       v = v[is.finite(v)]
       if(length(v)) v[length(v)] else 0
     }, numeric(1))
-    end_y = spread_labels(anchor, gap = 0.05 * diff(ylim))
+    end_y = spread_labels(anchor, gap = 0.05 * diff(y_axis$lim))
+    stub_x = 10^(usr[2] + 0.35 * leader / per_log_unit)
+    text_x = 10^(usr[2] + leader / per_log_unit)
     for(k in seq_along(named)) {
       e = named[k]
-      graphics::lines(rel, x$log_bf[, e], col = pal[k], lwd = 2.5)
+      trajectory(rel, x$log_bf[, e], col = pal[k], lwd = style$lwd_curve)
       graphics::points(rel[x$anchor_index], x$log_bf[x$anchor_index, e],
         col = pal[k], pch = 16, cex = 0.9
       )
       graphics::segments(
-        max(rel), anchor[k],
-        10^(usr[2] + 0.005 * diff(usr[1:2])), end_y[k],
+        max(rel), anchor[k], stub_x, end_y[k],
         col = grDevices::adjustcolor(pal[k], 0.5), lwd = 0.8, xpd = NA
       )
-      graphics::text(
-        10^(usr[2] + 0.015 * diff(usr[1:2])), end_y[k], edges$edge[e],
-        xpd = NA, adj = 0, cex = 0.75, col = ink
+      graphics::text(text_x, end_y[k], edges$edge[e],
+        xpd = NA, adj = 0, cex = name_cex, col = style$ink
       )
     }
   }
 
-  # Corner notes: unnamed movers and off-scale edges, counted not drawn.
-  notes = character(0)
-  if(n_dep > length(named)) {
-    notes = c(notes, sprintf("and %d more; see $edges", n_dep - length(named)))
-  }
-  n_off = sum(vapply(seq_len(n_edges), function(e) {
-    v = x$log_bf[, e]
-    v = v[is.finite(v)]
-    length(v) == 0L || all(v > ylim[2]) || all(v < ylim[1])
-  }, logical(1)))
-  if(n_off > 0) {
-    notes = c(notes, sprintf(
-      "%d %s beyond the plot range keep their verdict at every scale",
-      n_off, unit$nouns
-    ))
-  }
-  if(length(notes)) {
-    graphics::mtext(paste(notes, collapse = "; "),
-      side = 1, line = 3.9, adj = 0, cex = 0.75, col = muted
-    )
-  }
   invisible(x)
+}
+
+
+# ------------------------------------------------------------------
+# trajectory
+# ------------------------------------------------------------------
+# One edge's evidence, as one line.
+#
+# The reweighted curve is masked wherever the importance ESS falls under the
+# floor, so the raw series has holes in it, and drawing it directly leaves
+# stubs of curve with the anchor estimates floating unattached between them --
+# which reads as a broken plot rather than as a masked one. The finite points,
+# anchors included, are joined in order instead: one continuous trajectory per
+# edge, straight between the certified stretches it passes through.
+#
+# @param at      The scale grid.
+# @param values  The log Bayes factor on that grid, with holes.
+# @param ...     Passed to graphics::lines().
+# ------------------------------------------------------------------
+trajectory = function(at, values, ...) {
+  keep = is.finite(values)
+  if(sum(keep) < 2L) {
+    return(invisible(NULL))
+  }
+  graphics::lines(at[keep], values[keep], ...)
+  invisible(NULL)
 }

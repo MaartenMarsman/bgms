@@ -25,11 +25,22 @@
 #      fills at low alpha, one accent colour per panel taken from
 #      `mover_palette()`.
 #   6. PROBABILITIES ARE WHEELS. Any probability a panel reports is also shown
-#      as a filled wheel (`probability_wheel()`), whose filled share is the
-#      number. This is the same encoding the compare plots put on their node
-#      rings, so one visual language carries probability everywhere; printed
-#      text carries log Bayes factors, which are not probabilities and get no
-#      wheel.
+#      as a filled wheel, whose filled share is the number. On a standalone
+#      panel that is `probability_wheel()`; on a network it is qgraph's own ring
+#      around the node circle, which is where a reader of a qgraph figure looks
+#      for a node's own quantity. Printed text carries log Bayes factors, which
+#      are not probabilities and get no wheel.
+#   7. ONE NAME PER QUANTITY. A probability of inclusion is written
+#      `bgms_style()$label_inclusion` and printed to `prob_digits` decimals,
+#      wherever it appears. Neither the word nor the precision is chosen at a
+#      call site, so no two figures can disagree about them.
+#   8. NO KEYS AND NO CAPTIONS. A figure carries no legend explaining its own
+#      encoding and no caption under it. What a key would say is either already
+#      on the figure -- a network panel's title names its evidence class and the
+#      rule that defines it -- or belongs in the Rd, where the explanation can be
+#      as long as it needs to be and costs the drawing nothing. The one
+#      exception is a key that distinguishes two curves drawn on one pair of
+#      axes, which nothing else on the panel can say.
 #
 # These helpers are the reference implementation of that style. A new panel
 # should reach for them rather than re-deriving margins and colours.
@@ -50,9 +61,16 @@
 # `muted` for structure (axes, captions), `pale` for the unfilled share of a
 # wheel, and `accent` for the single quantity the panel is about.
 #
+# The type sizes are those of a figure that fills its device. A small multiple
+# holds the same proportions at a smaller size, which is what `scale` is for:
+# it multiplies every type size and line weight at once, so a grid of nine
+# panels is the same style seen smaller rather than a second style.
+#
+# @param scale  Multiplier on the type sizes and line weights. Default 1.
+#
 # Returns: a named list of style constants.
 # ------------------------------------------------------------------
-bgms_style = function() {
+bgms_style = function(scale = 1) {
   list(
     # Colours
     ink = "grey25",
@@ -62,17 +80,21 @@ bgms_style = function() {
     fill_alpha = 0.22,
 
     # Typography (base-graphics cex multipliers)
-    cex_axis = 1.2,
-    cex_lab = 1.4,
-    cex_label = 1.2,
-    cex_annotation = 1.1,
-    cex_legend = 1.15,
-    cex_caption = 0.8,
+    cex_axis = 1.2 * scale,
+    cex_lab = 1.4 * scale,
+    cex_label = 1.2 * scale,
+    cex_annotation = 1.1 * scale,
+    cex_legend = 1.15 * scale,
+    cex_caption = 0.8 * scale,
+    # A network panel's title is the only text on it that says what the panel
+    # is, and it is read across a three-panel figure rather than up close, so
+    # it sits above the general label size.
+    cex_panel_title = 1.7 * scale,
 
     # Line weights
-    lwd_curve = 2,
-    lwd_axis = 1.2,
-    lwd_wheel = 1.4,
+    lwd_curve = 2 * scale,
+    lwd_axis = 1.2 * scale,
+    lwd_wheel = 1.4 * scale,
 
     # Geometry
     mar = c(5.8, 5.0, 8.4, 2.2),
@@ -84,7 +106,15 @@ bgms_style = function() {
     stretch = 1.25,
     # Radius of a probability wheel, in inches, so it is the same size on any
     # device.
-    wheel_radius = 0.26
+    wheel_radius = 0.26 * scale,
+
+    # Wording and precision, fixed here so no two figures disagree. A posterior
+    # inclusion probability is named in full wherever it is printed -- the
+    # abbreviation was not self-explanatory to a reader meeting the figure
+    # first -- and every probability the package prints carries three decimals,
+    # which is the resolution the runs behind these figures actually support.
+    label_inclusion = "P(included)",
+    prob_digits = 3L
   )
 }
 
@@ -107,12 +137,14 @@ bgms_style = function() {
 # y axis carries numbers and a label.
 #
 # @param mar    Margin override, in lines. Default from bgms_style().
+# @param scale  Type-size multiplier, for a panel drawn smaller than the
+#               device; passed to bgms_style().
 # @param ...    Further arguments passed to graphics::par().
 #
 # Returns: the bgms_style() list with `old_par` added.
 # ------------------------------------------------------------------
-bgms_panel_par = function(mar = NULL, ...) {
-  style = bgms_style()
+bgms_panel_par = function(mar = NULL, scale = 1, ...) {
+  style = bgms_style(scale = scale)
   if(!is.null(mar)) {
     style$mar = mar
   }
@@ -327,27 +359,165 @@ panel_x = function(frac) {
 # ------------------------------------------------------------------
 # format_probability
 # ------------------------------------------------------------------
-# A probability in the form a JASP panel prints it: two decimals, no leading
-# zero, and an inequality at the ends rather than a rounded ".00" or "1.00"
-# that would claim the run resolved a probability it did not.
+# A probability in the form a JASP panel prints it: `prob_digits` decimals, no
+# leading zero, and an inequality at the ends rather than a rounded ".000" or
+# "1.000" that would claim the run resolved a probability it did not.
+#
+# The precision is the style's, not the call site's, so every printed
+# probability in the package moves together when it changes. The cut-offs and
+# the strings printed past them are derived from it rather than written out:
+# at three decimals the ends are "> .999" and "< .001".
 #
 # The relation is part of the returned string, as it is in format_log_bf(), so
-# that a caller writes paste("PIP", format_probability(p)) and gets either
-# "PIP = .79" or "PIP > .99" without composing the operator itself.
+# that a caller writes paste(style$label_inclusion, format_probability(p)) and
+# gets either "P(included) = .786" or "P(included) > .999" without composing
+# the operator itself.
 #
-# @param p  A probability.
+# @param p       A probability.
+# @param digits  Decimals to print. Default from bgms_style().
 #
 # Returns: a length-one character string.
 # ------------------------------------------------------------------
-format_probability = function(p) {
+format_probability = function(p, digits = bgms_style()$prob_digits) {
   if(!is.finite(p)) {
     return("= NA")
   }
-  if(p >= 0.995) {
-    return("> .99")
+  digits = as.integer(digits)
+  # The last value that still rounds inside the printable range, and the
+  # strings that stand in past it.
+  smallest = 10^(-digits)
+  no_zero = function(value) sub("^0", "", sprintf("%.*f", digits, value))
+  if(p >= 1 - smallest / 2) {
+    return(sprintf("> %s", no_zero(1 - smallest)))
   }
-  if(p <= 0.005) {
-    return("< .01")
+  if(p <= smallest / 2) {
+    return(sprintf("< %s", no_zero(smallest)))
   }
-  sprintf("= %s", sub("^0", "", sprintf("%.2f", p)))
+  sprintf("= %s", no_zero(p))
+}
+
+
+# ------------------------------------------------------------------
+# format_inclusion
+# ------------------------------------------------------------------
+# An inclusion probability as a panel prints it: the style's name for the
+# quantity, then format_probability()'s relation and value. Every figure that
+# prints one calls this, so the wording and the precision are settled in one
+# place.
+#
+# @param p      A posterior inclusion probability.
+# @param label  The name to print. Default from bgms_style().
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+format_inclusion = function(p, label = bgms_style()$label_inclusion) {
+  paste(label, format_probability(p))
+}
+
+
+# ------------------------------------------------------------------
+# display_log_bf
+# ------------------------------------------------------------------
+# A log Bayes factor as a figure prints it. format_log_bf() rounds to one
+# decimal, so a Bayes factor that rounds to nothing comes out as "-0.0" -- a
+# sign the run did not establish, and the same thing estimate_lines() already
+# rounds away for a weight. The figures round it out before formatting.
+#
+# @param log_bf  Natural log Bayes factor (scalar).
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+display_log_bf = function(log_bf) {
+  if(is.finite(log_bf) && abs(log_bf) < 0.05) {
+    log_bf = 0
+  }
+  format_log_bf(log_bf)
+}
+
+
+# ------------------------------------------------------------------
+# format_bayes_factor
+# ------------------------------------------------------------------
+# A Bayes factor as a threshold key prints it: the number itself, not its log.
+# Every per-edge number the package prints is a natural log, because that is
+# the scale the estimator and its standard errors live on -- but a reader does
+# not think in logs, and a classification rule stated as "BF > 10" is one a
+# reader can check against a threshold they set themselves, where "log BF >
+# 2.3" is not.
+#
+# Trailing zeros go, so 10 prints as "10" rather than "10.00", and a
+# reciprocal threshold prints at whatever precision it needs.
+#
+# @param bf  A Bayes factor.
+#
+# Returns: a length-one character string.
+# ------------------------------------------------------------------
+format_bayes_factor = function(bf) {
+  if(!is.finite(bf)) {
+    return("NA")
+  }
+  if(bf >= 1) {
+    return(format(round(bf, 2), trim = TRUE, scientific = FALSE,
+      big.mark = ",", drop0trailing = TRUE))
+  }
+  # Below one, keep enough places that 1/10 and 1/100 do not both print as "0".
+  places = max(2L, ceiling(-log10(bf)) + 1L)
+  sub("0+$", "", sprintf("%.*f", places, bf))
+}
+
+
+# ------------------------------------------------------------------
+# bgms_panel_label
+# ------------------------------------------------------------------
+# The compact identifying label a panel is allowed: which variable, which
+# group, which of a set of small multiples this one is. It sits at the top
+# left in ink, at the label size, and it is not a `main =` banner -- it names
+# the panel rather than announcing the figure.
+#
+# @param text      The label.
+# @param subtitle  Optional second line, in muted ink at the annotation size.
+# @param line      Margin line for the label.
+# @param style     The style list.
+# ------------------------------------------------------------------
+bgms_panel_label = function(text, subtitle = NULL, line = 0.9,
+                            style = bgms_style()) {
+  graphics::mtext(text,
+    side = 3, line = line, adj = 0, cex = style$cex_label,
+    col = style$ink, xpd = NA
+  )
+  if(!is.null(subtitle) && length(subtitle)) {
+    graphics::mtext(paste(subtitle, collapse = "; "),
+      side = 3, line = line - 1.1, adj = 0, cex = style$cex_annotation,
+      col = style$muted, xpd = NA
+    )
+  }
+  invisible(NULL)
+}
+
+
+# ------------------------------------------------------------------
+# margin_lines_for
+# ------------------------------------------------------------------
+# How many margin lines a block of text needs, measured rather than guessed.
+# A label placed in a margin clips when the margin was sized by a constant
+# that happened to fit the labels the author had in front of them; measuring
+# the widest string and converting through the device's own line height
+# (`par("csi")`, inches per line) sizes the margin for the strings actually
+# being drawn, at any device size.
+#
+# Requires an open device, so that string widths can be measured.
+#
+# @param text  The strings that have to fit.
+# @param cex   The size they will be drawn at.
+# @param pad   Extra lines beyond the widest string.
+#
+# Returns: a number of margin lines.
+# ------------------------------------------------------------------
+margin_lines_for = function(text, cex = 1, pad = 0.5) {
+  text = text[!is.na(text)]
+  if(!length(text)) {
+    return(pad)
+  }
+  widest = max(graphics::strwidth(text, units = "inches", cex = cex))
+  widest / graphics::par("csi") + pad
 }
