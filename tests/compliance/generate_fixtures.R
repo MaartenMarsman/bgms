@@ -30,13 +30,34 @@ dir.create(fixture_dir, recursive = TRUE, showWarnings = FALSE)
 cran_lib = tempfile("bgms_cran_")
 dir.create(cran_lib)
 
-cat("Installing bgms 0.1.6.3 from CRAN...\n")
-install.packages(
-  "bgms",
-  repos = "https://cloud.r-project.org",
-  lib = cran_lib,
-  quiet = TRUE
+baseline_version = "0.1.6.3"
+
+# The baseline must be 0.1.6.3 exactly. Take it from the current CRAN release
+# while that still is 0.1.6.3; once a newer bgms is on CRAN, fall back to the
+# pinned tarball in the CRAN Archive. Silently baselining against a newer
+# release would make every comparison below vacuous.
+cran_version = tryCatch(
+  as.character(available.packages(repos = "https://cloud.r-project.org")["bgms", "Version"]),
+  error = function(e) NA_character_
 )
+
+if(identical(cran_version, baseline_version)) {
+  cat("Installing bgms", baseline_version, "from CRAN...\n")
+  install.packages(
+    "bgms",
+    repos = "https://cloud.r-project.org",
+    lib = cran_lib,
+    quiet = TRUE
+  )
+} else {
+  archive_url = sprintf(
+    "https://cran.r-project.org/src/contrib/Archive/bgms/bgms_%s.tar.gz",
+    baseline_version
+  )
+  cat("CRAN currently serves", cran_version, "- installing pinned",
+    baseline_version, "from the CRAN Archive...\n")
+  install.packages(archive_url, repos = NULL, type = "source", lib = cran_lib, quiet = TRUE)
+}
 
 installed_version = callr::r(
   function(lib_path) {
@@ -46,9 +67,11 @@ installed_version = callr::r(
 )
 cat("Installed version:", installed_version, "\n")
 
-if(installed_version != "0.1.6.3") {
-  cat("WARNING: Expected 0.1.6.3, got", installed_version, "\n")
-  cat("Fixtures will be tagged with the actual version.\n")
+if(installed_version != baseline_version) {
+  stop(sprintf(
+    "Compliance baseline must be bgms %s, but %s was installed. Fixtures not generated.",
+    baseline_version, installed_version
+  ))
 }
 
 # ==============================================================================
@@ -504,7 +527,7 @@ extract_bgm_fixture = function(fit, config) {
       NULL
     },
     nuts_diag = fit$nuts_diag,
-    posterior_coclustering_matrix = fit$posterior_coclustering_matrix,
+    posterior_mean_coclustering_matrix = fit$posterior_mean_coclustering_matrix,
     posterior_mean_allocations = fit$posterior_mean_allocations,
     bgms_version = as.character(packageVersion("bgms"))
   )
@@ -523,7 +546,9 @@ extract_compare_fixture = function(fit, config) {
     posterior_mean_pairwise_baseline = fit$posterior_mean_pairwise_baseline,
     posterior_mean_main_differences = fit$posterior_mean_main_differences,
     posterior_mean_pairwise_differences = fit$posterior_mean_pairwise_differences,
-    posterior_mean_indicator = fit$posterior_mean_indicator,
+    # bgmCompare never produced a posterior_mean_indicator field (0.1.6.3 sets
+    # it only on the bgm path); difference inclusion probabilities are in
+    # posterior_summary_indicator.
     raw_samples = fit$raw_samples,
     nuts_diag = fit$nuts_diag,
     bgms_version = as.character(packageVersion("bgms"))

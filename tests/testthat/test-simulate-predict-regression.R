@@ -877,3 +877,84 @@ test_that("mixed predict recodes discrete newdata to the original scale", {
   expect_true(all(sim[, "d"] %in% c(1, 2, 3)))
   expect_no_warning(predict(fit_shift, newdata = sim, type = "probabilities"))
 })
+
+
+# ==============================================================================
+# 8. Sparse category codings (min > 0 AND gaps)
+# ==============================================================================
+# Regression for the recode path that CRAN 0.1.6.3 got wrong. There,
+# recode_data_for_prediction() shifted ordinal newdata by its per-column
+# minimum, so a sparse original coding such as {1,2,4,5} was mapped to
+# {0,1,3,4} while the fit itself had collapsed those same values to {0,1,2,3}.
+# Every value above a gap was silently attributed to the wrong category, and
+# the top value landed outside the fitted category range altogether -- with no
+# error and no warning. The stored recode map (arguments$category_levels, used
+# by recode_data_for_prediction) makes the mapping absolute, so predict() on
+# original-scale newdata and the simulate() -> predict() round trip both land
+# on the categories the model was fitted on.
+# ==============================================================================
+
+test_that("sparse category codings recode to the fitted categories", {
+  skip_on_cran()
+
+  set.seed(20260802)
+  n = 400
+  p = 3
+  latent = matrix(sample(0:3, n * p, replace = TRUE), n, p)
+  sparse = c(1, 2, 4, 5) # gap at 3, and min > 0
+  x_sparse = matrix(sparse[latent + 1L], n, p, dimnames = list(NULL, c("a", "b", "c")))
+  x_dense = matrix(latent, n, p, dimnames = list(NULL, c("a", "b", "c")))
+
+  fit_it = function(x) {
+    bgm(
+      x = x, variable_type = "ordinal",
+      iter = 300, warmup = 300, chains = 1, cores = 1,
+      update_method = "adaptive-metropolis",
+      display_progress = "none", seed = 11
+    )
+  }
+  fit_sparse = fit_it(x_sparse)
+  fit_dense = fit_it(x_dense)
+
+  args = extract_arguments(fit_sparse)
+
+  # The fit stores the observed values, not a range: 4 categories, not 5.
+  expect_equal(args$num_categories, rep(3L, p))
+  for(v in seq_len(p)) expect_equal(as.numeric(args$category_levels[[v]]), sparse)
+
+  # --- original-scale newdata is recoded through the map, not by min-shift ---
+  newdata = matrix(rep(sparse, times = p), nrow = 4, ncol = p,
+    dimnames = list(NULL, colnames(x_sparse)))
+  recoded = bgms:::recode_data_for_prediction(
+    newdata, args$num_categories, rep(TRUE, p),
+    category_levels = args$category_levels,
+    blume_capel_shift = args$blume_capel_shift
+  )
+  expect_equal(as.numeric(recoded), rep(0:3, times = p))
+  # ... and specifically NOT the legacy answer, which mapped 4 -> 3 and 5 -> 4.
+  expect_false(identical(as.numeric(recoded), as.numeric(newdata - 1)))
+
+  # End-to-end: relabeling {1,2,4,5} -> {0,1,2,3} leaves the internal model
+  # identical, so predictions on corresponding newdata must agree.
+  probs_sparse = predict(fit_sparse, newdata = x_sparse[1:20, ], type = "probabilities")
+  probs_dense = predict(fit_dense, newdata = x_dense[1:20, ], type = "probabilities")
+  for(nm in names(probs_sparse)) {
+    expect_equal(probs_sparse[[nm]], probs_dense[[nm]],
+      info = sprintf("sparse/dense relabel invariance %s", nm)
+    )
+  }
+
+  # --- simulate() -> predict() round trip stays on the sparse original scale ---
+  sim = simulate(fit_sparse, nsim = 50, method = "posterior-mean", seed = 12)
+  expect_true(all(sim %in% sparse))
+  sim_recoded = bgms:::recode_data_for_prediction(
+    sim, args$num_categories, rep(TRUE, p),
+    category_levels = args$category_levels,
+    blume_capel_shift = args$blume_capel_shift
+  )
+  expect_true(all(sim_recoded %in% 0:3))
+  expect_no_warning(
+    probs <- predict(fit_sparse, newdata = sim, type = "probabilities")
+  )
+  expect_false(any(vapply(probs, anyNA, logical(1))))
+})
