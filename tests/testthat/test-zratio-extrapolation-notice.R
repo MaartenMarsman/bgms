@@ -2,6 +2,11 @@
 # sampler initializes from a complete graph, so during warmup every mediating
 # block is ~q and lands past the hull; quoting that share would report an
 # initial transient as if it described the posterior.
+#
+# The size-cap block fits past the surface's trained hull and costs ~7.5 min on
+# the 2-core CI runner -- most of this file. That is a heavy surface case, not
+# a nightly heartbeat, so it runs in the weekly certification tier (T2,
+# BGMS_RUN_CERTIFICATION); the counter arithmetic around it stays local (T0).
 
 chain_with = function(...) {
   counters = c(
@@ -72,10 +77,7 @@ test_that("counters missing the retained split claim no phase", {
 
 test_that("the retained split reaches R from a fit past the size cap", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to fit past the surface size cap"
-  )
+  skip_unless_certification()
   # Only a fit on more variables than the cap can extrapolate at all: at or
   # below it the cap tier anchors the hull past every reachable block.
   set.seed(6)

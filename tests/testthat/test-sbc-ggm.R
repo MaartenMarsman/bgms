@@ -17,19 +17,11 @@
 # Uniformity tested by KS test at alpha = 0.01 per parameter.
 # Global chi-squared test as a fallback.
 #
-# Gated behind BGMS_RUN_SLOW_TESTS.
+# Weekly certification tier (T2, BGMS_RUN_CERTIFICATION): SBC replicate suites.
 # --------------------------------------------------------------------------- #
 
 
 # ---- Skip gate ---------------------------------------------------------------
-
-skip_unless_slow_sbc = function() {
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run SBC tests"
-  )
-}
-
 
 # ---- Prior sampler -----------------------------------------------------------
 
@@ -113,7 +105,7 @@ compute_sbc_ranks = function(K_true, p, fit, thin_idx = NULL) {
 # ---- SBC test ----------------------------------------------------------------
 
 test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -188,7 +180,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
 # ---- SBC test: Adaptive Metropolis ------------------------------------------
 
 test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -321,7 +313,7 @@ compute_sbc_ranks_diag = function(K_true, p, fit, thin_idx = NULL) {
 # ---- SBC test: Edge selection (MH, diagonal elements) ------------------------
 
 test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -439,7 +431,7 @@ draw_prior_K_tilted = function(p, scale = 2.5, delta = 1,
 # ---- SBC test: NUTS under determinant tilt ----------------------------------
 
 test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -527,7 +519,7 @@ reconstruct_K = function(off_row, diag_row, p) {
 }
 
 test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   # Joint-specification SBC: draw (K_true, Gamma_true) from the un-normalised
   # joint prior via sample_ggm_prior(spec = "joint"), simulate Y | K_true, and
@@ -627,7 +619,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
 # ---- SBC test: gamma-shape diagonal (Gibbs, no edge selection) ----------------
 
 test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   # The row-block Gibbs corrects its shape-1 conjugate row proposal by an
   # independence-Metropolis accept at shape != 1; uniform ranks under a

@@ -473,6 +473,7 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
                                 layout, legend, ...) {
   num_variables = length(variables)
   nodes = main_difference_nodes(found$main, found$main_pip, found$main_selected)
+  labels = compare_group_labels(extract_arguments(x), num_groups)
 
   # Posterior-mean group networks, in the same row-major upper-triangle order
   # as the pairs.
@@ -506,7 +507,7 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
       # deficiency most often collapses; the difference panel's Okabe-Ito pair
       # carries the sign here too, so all three panels read alike.
       posCol = mover_palette()[1], negCol = mover_palette()[2],
-      title = sprintf("group %d", g)
+      title = group_tag(labels, g)
     )
     if(!is.null(nodes$pie)) {
       panel$pie = nodes$pie

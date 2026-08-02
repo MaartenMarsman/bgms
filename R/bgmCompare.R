@@ -15,6 +15,20 @@
 #' sampled with NUTS (default) or adaptive Metropolis--Hastings, using the
 #' same multi-stage warmup schedule as \code{\link{bgm}}.
 #'
+#' Groups are numbered \code{1, 2, ...} in the order they first appear in
+#' \code{group_indicator}, whatever that vector's storage type: the first row's
+#' group is group 1, the first row belonging to some other group is group 2, and
+#' so on. (Note that this is first appearance, not sorted order -- an indicator
+#' reading \code{c("fr", "fr", "en", ...)} makes \code{"fr"} group 1.) With
+#' \code{x} and \code{y} instead, \code{x} is group 1 and \code{y} is group 2.
+#' Every output keys on these numbers, and the extractor column names
+#' (\code{group1}, \code{group2}) stay numeric. The original labels are carried
+#' into the fit and shown on the displays a person reads -- the \code{print} and
+#' \code{summary} headers, plot panel titles, calibration panel titles, and
+#' centrality labels -- so that, for example, group 2 prints as
+#' \code{"group 2 (en)"}. Fits made with earlier versions of \pkg{bgms} carry no
+#' labels and display the bare numbers.
+#'
 #' For full details on model specification, prior choices, and output
 #' interpretation, see the package website at
 #' \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.

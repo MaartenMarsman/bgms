@@ -656,6 +656,9 @@ calibration_check.bgmCompare = function(bgms_object,
   # the isotonic curve conditions on anyway; ndraws has no role here.
   result = calibration_result(panels, nrep, probs, grid, ndraws = NA_integer_)
   result$groups = group
+  # Carried so the panel titles can name the groups the fit was given, not only
+  # number them; NULL for a fit made before the field existed.
+  result$group_labels = compare_group_labels(arguments, num_groups)
   result
 }
 
@@ -825,7 +828,11 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
     graphics::plot(NA, NA,
       xlim = c(0, 1), ylim = c(0, 1), axes = FALSE, asp = 1,
       xlab = "", ylab = "",
-      main = if(by_group) sprintf("%s (group %d)", v, rows$group[k]) else v,
+      main = if(by_group) {
+        sprintf("%s (%s)", v, group_tag(x$group_labels, rows$group[k]))
+      } else {
+        v
+      },
       cex.main = 0.9
     )
     # The two panel kinds share the unit square and the diagonal but not their

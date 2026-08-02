@@ -8,9 +8,12 @@
 # identity itself is gated in test-hier-zratio-identity.R.
 #
 # The Cauchy slab is a non-default, settled channel and every test here builds
-# its marginal-Cauchy cell constants, so the whole file runs in the
-# BGMS_RUN_SLOW_TESTS tier; the default (Normal) channel keeps its local
-# numerical guards in test-zratio-engine.R and test-zratio-gamma-shape.R.
+# its marginal-Cauchy cell constants. The four direct-Monte-Carlo channel
+# comparisons are weekly certification (T2, BGMS_RUN_CERTIFICATION); the cache-
+# cell identity stays nightly (T1, BGMS_RUN_SLOW_TESTS), where the same cell is
+# already built by test-hier-zratio-identity.R, so it costs nothing extra. The
+# default (Normal) channel keeps its local numerical guards in
+# test-zratio-engine.R and test-zratio-gamma-shape.R.
 
 skip_unless_slow = function() {
   skip_if_not(
@@ -21,7 +24,7 @@ skip_unless_slow = function() {
 
 test_that("Cauchy node channel matches direct Monte Carlo", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -43,7 +46,7 @@ test_that("Cauchy node channel matches direct Monte Carlo", {
 
 test_that("Cauchy bridge channel matches direct Monte Carlo", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -73,7 +76,7 @@ test_that("Cauchy bridge channel matches direct Monte Carlo", {
 
 test_that("Cauchy isolated-edge ratio psi0 matches direct Monte Carlo", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   delta = 0.5 * log(6)
   pair = bgms:::zratio_pair_integrals(delta,
     sigma = 1, beta = 1,
@@ -107,7 +110,7 @@ test_that("Cauchy constants live in their own cache cell", {
 
 test_that("Cauchy exact Monte-Carlo evaluation tracks the additive prediction", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   # Two common neighbours, no CN-CN edge: the additive form is the exact
   # no-edge baseline (kappa_2 = m * w1), so the oracle correction
   # log(saddle on oracle moments) - log(additive) must sit at MC noise.

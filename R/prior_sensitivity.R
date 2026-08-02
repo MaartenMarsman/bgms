@@ -71,7 +71,11 @@ verdict_from_bf = function(bf, threshold) {
 #' curve and on the anchor fits themselves: the per-anchor verdict columns
 #' and every chosen-scale quantity are read straight from each fit's own
 #' Rao-Blackwellized statistics, so the \code{1x} column is exactly the
-#' original fit's reported analysis.
+#' original fit's reported analysis. Between the anchors the curve is therefore
+#' importance-reweighted rather than refit, and can deviate from a refit at that
+#' scale by up to roughly \code{0.01} in inclusion probability at the
+#' extrapolation ends; the anchors themselves -- including the \code{1x} anchor,
+#' which is the user's own fit -- are exact.
 #'
 #' \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
 #' original fit's per-chain final state, and a NUTS refit additionally carries

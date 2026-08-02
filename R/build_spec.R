@@ -444,9 +444,13 @@ build_spec_compare = function(x, y, group_indicator,
     if(any(tab < 2L)) {
       stop("One or more groups only had one member in the input group_indicator.")
     }
+    # The indicator's own values, in the order the numbering assigned them, so
+    # human-facing output can say which group number is which group.
+    group_labels = as.character(unique_g)
   } else {
     group = c(rep.int(1L, nrow(x)), rep.int(2L, nrow(y)))
     x = rbind(x, y)
+    group_labels = c("x", "y")
   }
 
   num_variables = ncol(x)
@@ -500,6 +504,9 @@ build_spec_compare = function(x, y, group_indicator,
         "there was only one value in the input g left."
       ))
     }
+    # Renumbering drops the groups listwise deletion emptied; the labels follow
+    # the surviving codes so label i still names group i.
+    group_labels = group_labels[unique_g]
     group = match(group, unique_g)
     tab = tabulate(group)
     if(any(tab < 2)) {
@@ -647,6 +654,7 @@ build_spec_compare = function(x, y, group_indicator,
       # cross-group collapse leaves Blume-Capel columns unchanged).
       blume_capel_shift = ord$blume_capel_shift,
       group = as.integer(group),
+      group_labels = group_labels,
       num_groups = as.integer(num_groups),
       group_indices = group_indices,
       projection = projection

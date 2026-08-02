@@ -6,6 +6,11 @@
 # size cap keeps the build well under a second. Caches are disabled so the build
 # is fresh and never touches the user cache directory.
 #
+# The three gated blocks -- surface-vs-gold, the shape fence, and the Cauchy
+# build-and-deploy -- are the heavy end-to-end build machinery and run in the
+# weekly certification tier (T2, BGMS_RUN_CERTIFICATION). The tier contract
+# keeps surface-vs-gold SINGLE CELLS nightly; these are builds, not cells.
+#
 # The serial Normal builds are session-cached across tests: the core-count
 # invariance test proves serial and parallel builds bit-identical, so a single
 # serial build per max_size serves every comparison.
@@ -31,10 +36,7 @@ normal_surface = function(max_size) {
 
 test_that("the built surface tracks the gold oracle far tighter than additive", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the surface-vs-gold accuracy cert"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -146,10 +148,7 @@ test_that("anchors are drawn at the cell's own Gamma shape", {
 
 test_that("the build fences shapes outside the validated range", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to build the gamma-shape constants cells"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -270,6 +269,20 @@ test_that("the socket-cluster build path matches the serial build", {
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
+  # The workers load the INSTALLED bgms namespace, so this block needs bgms on
+  # a library path -- which is the R CMD check situation the comment above
+  # describes, and R-CMD-check.yaml runs that on five platforms on every push
+  # and PR. Under a bare devtools::test() on a machine that has never installed
+  # bgms the workers cannot load it and the block has nothing to compare, so it
+  # skips rather than erroring. Asking a worker is the exact question; anything
+  # read in this session is confounded by pkgload's shims.
+  probe = parallel::makePSOCKcluster(1L)
+  on.exit(parallel::stopCluster(probe), add = TRUE)
+  installed = isTRUE(unlist(parallel::clusterEvalQ(
+    probe, requireNamespace("bgms", quietly = TRUE)
+  )))
+  skip_if(!installed, "bgms is not installed; PSOCK workers cannot load it")
+
   zc = bgms:::zratio_constants(0.5 * log(12), 3)
   s1 = normal_surface(8L)
   withr::local_options(bgms.zratio_surface_psock = TRUE)
@@ -279,10 +292,7 @@ test_that("the socket-cluster build path matches the serial build", {
 
 test_that("the Cauchy slab builds and deploys its own surface cell", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Cauchy surface deploy cert"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# T1 -- the nightly heartbeat.
+# T2 -- the weekly certification.
 #
 # The suite runs at three cadences. Which tier a block belongs to is decided by
 # the CLASS OF BUG it catches, not by how long it takes
@@ -10,44 +10,45 @@
 #       Contracts, validation, wiring, the product surface, the tight numerical
 #       unit guards. No gate. Budget ~90 s.
 #
-#   T1  nightly     THIS FILE. Daily 03:00 UTC on develop.
+#   T1  nightly     .github/workflows/nightly-validation.yaml. Daily 03:00 UTC.
 #       BGMS_RUN_SLOW_TESTS=true.
-#       "Does the settled math still hold tonight": graph-law and prior-chain
-#       identities, the gauge detector, single surface-vs-gold cells, the RB
-#       saturation boundary, concordance smokes.
-#       Budget: <= 60 min wall on the 2-core runner; timeout-minutes: 90.
+#       Graph-law and prior-chain identities, the gauge detector, single
+#       surface-vs-gold cells, the RB saturation boundary, concordance smokes.
+#       Budget <= 60 min on the 2-core runner; timeout-minutes: 90.
 #
-#   T2  weekly      .github/workflows/weekly-certification.yaml. Sunday 03:00.
-#       BGMS_RUN_CERTIFICATION=true (and BGMS_RUN_SLOW_TESTS=true).
-#       The heavy Monte-Carlo machinery: SBC suites, full parameter-recovery
-#       sweeps, full NUTS-vs-MH condition grids, n = 2e6 MC channels, the refit
-#       cross-validations. timeout-minutes: 360.
+#   T2  weekly      THIS FILE. Sunday 03:00 UTC on develop.
+#       BGMS_RUN_CERTIFICATION=true AND BGMS_RUN_SLOW_TESTS=true, so a weekly
+#       run carries the nightly tier as well and certifies the whole suite.
+#       The heavy Monte-Carlo machinery: SBC suites (1000-fit), full
+#       parameter-recovery sweeps, full NUTS-vs-MH condition grids, n = 2e6 MC
+#       channels, and the refit cross-validations (including the F-049 gate).
+#       timeout-minutes: 360.
 #
-# This file sets BGMS_RUN_SLOW_TESTS only, so T2 blocks skip here and say so in
-# their skip message (tests/testthat/helper-tiers.R).
+# Not to be confused with weekly-compliance.yaml (Sunday 05:00), the bitwise
+# vs-CRAN-0.1.6.3 harness. That workflow is unrelated and untouched.
 #
 # Ref mechanics: GitHub fires cron schedules from the DEFAULT branch's copy of
-# this file, so a scheduled run would otherwise check out main. The explicit
-# checkout ref is what points the nightly at develop, the branch where change
-# happens; main is verified by hand at the release re-merge. A manual dispatch
-# checks out the ref it was dispatched on, so a branch can prove its own budget
-# before it merges.
+# this file, so this workflow only starts firing once it reaches main at the
+# release re-merge; the explicit checkout ref is what then points it at develop,
+# the branch where change happens. A manual dispatch checks out the ref it was
+# dispatched on.
 # ---------------------------------------------------------------------------
-name: nightly-validation
+name: weekly-certification
 on:
   schedule:
-    - cron: '0 3 * * *'  # every day at 03:00 UTC
+    - cron: '0 3 * * 0'  # Sunday at 03:00 UTC
   workflow_dispatch: {}
 
 jobs:
-  validate:
-    name: T1 nightly heartbeat (calibration, <= 60 min)
+  certify:
+    name: T2 weekly certification (Monte-Carlo machinery, <= 6 h)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       BGMS_RUN_SLOW_TESTS: true
+      BGMS_RUN_CERTIFICATION: true
 
     steps:
       - uses: actions/checkout@v5
@@ -67,5 +68,5 @@ jobs:
           # platforms with the package installed.
           extra-packages: any::devtools
 
-      - name: Run the T1 nightly tier (slow tests, certification tier excluded)
+      - name: Run the full suite (T0 + T1 + T2)
         run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'

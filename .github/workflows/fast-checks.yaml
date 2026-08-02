@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------------------
+# T0 -- the every-run tier, on CI.
+#
+# The suite runs at three cadences. Which tier a block belongs to is decided by
+# the CLASS OF BUG it catches, not by how long it takes
+# (dev/plans/backlog/2026-07-29_test-suite-tiering-audit_AUDIT.md;
+# dev/review-2026-08/MAINTAINERS.md section 6).
+#
+#   T0  every run   THIS FILE, plus local devtools::test().
+#       Every push to develop and every pull request. No gate, so the run is
+#       exactly what a maintainer sees locally: contracts, validation, wiring,
+#       the product surface, and the tight numerical unit guards that catch a
+#       shifted constant in one run. Budget ~90 s of tests (~4-6 min a job with
+#       dependency restore and compilation).
+#
+#   T1  nightly     .github/workflows/nightly-validation.yaml. Daily 03:00 UTC
+#       on develop, BGMS_RUN_SLOW_TESTS=true, <= 60 min, timeout 90.
+#
+#   T2  weekly      .github/workflows/weekly-certification.yaml. Sunday 03:00
+#       UTC on develop, BGMS_RUN_CERTIFICATION=true, timeout 360.
+#
+# This job deliberately does NOT run R CMD check: R-CMD-check.yaml already runs
+# it on the same push/PR triggers across five platforms, so a second copy here
+# would add cost and no signal. What is missing without this file is a *fast*
+# pass/fail on the tests alone, ahead of that five-platform matrix.
+#
+# No env gate is set, so T1 and T2 blocks skip -- which is the point.
+# ---------------------------------------------------------------------------
+name: fast-checks
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+jobs:
+  fast-tests:
+    name: T0 every-run tier (~90 s of tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # Deliberately NOT local::. -- installing bgms here costs ~10 min of
+          # the runner's budget and would serve exactly one test block, whose
+          # PSOCK workers need an installed namespace. That block skips itself
+          # when bgms is absent; R-CMD-check.yaml covers the path on five
+          # platforms with the package installed.
+          extra-packages: any::devtools
+
+      - name: Run the T0 every-run tier
+        run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'

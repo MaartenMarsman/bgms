@@ -2,7 +2,9 @@
 # deterministic anchor engine kept as large-q insurance and NOT wired into the
 # default build (the Monte-Carlo block oracle is the anchor source; see
 # zratio_law.h). Because the engine is dormant, the whole file runs in the
-# BGMS_RUN_SLOW_TESTS tier. Two acceptance channels:
+# nightly tier (T1, BGMS_RUN_SLOW_TESTS), except the all-MC oracle cell
+# comparison, which is weekly certification (T2, BGMS_RUN_CERTIFICATION).
+# Two acceptance channels:
 #   (a) porting fidelity  -- reproduces the companion R eval_mu_law on a fixture
 #       of certified cells to machine precision (both port identical numerics);
 #   (a') physical accuracy -- certified law cells match the all-MC block oracle
@@ -45,10 +47,7 @@ test_that("law reproduces the companion eval_mu_law reference (fidelity)", {
 })
 
 test_that("certified law cells match the all-MC oracle within noise", {
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to exercise the dormant CN law engine"
-  )
+  skip_unless_certification()
   eta = 2
   delta = 0.5 * log(50)
   zc = zratio_constants(delta, eta, alpha = 1, slab = "normal")
