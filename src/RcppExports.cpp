@@ -954,21 +954,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// zratio_law_moments
-Rcpp::List zratio_law_moments(double eta, double delta, double D, double n, int budget);
-RcppExport SEXP _bgms_zratio_law_moments(SEXP etaSEXP, SEXP deltaSEXP, SEXP DSEXP, SEXP nSEXP, SEXP budgetSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    Rcpp::traits::input_parameter< double >::type D(DSEXP);
-    Rcpp::traits::input_parameter< double >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type budget(budgetSEXP);
-    rcpp_result_gen = Rcpp::wrap(zratio_law_moments(eta, delta, D, n, budget));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
@@ -1019,7 +1004,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_zratio_test_surface_batch", (DL_FUNC) &_bgms_zratio_test_surface_batch, 13},
     {"_bgms_zratio_test_gold_moments", (DL_FUNC) &_bgms_zratio_test_gold_moments, 16},
     {"_bgms_zratio_test_precompute", (DL_FUNC) &_bgms_zratio_test_precompute, 10},
-    {"_bgms_zratio_law_moments", (DL_FUNC) &_bgms_zratio_law_moments, 5},
     {NULL, NULL, 0}
 };
 

@@ -65,6 +65,13 @@ Unchanged since CRAN (deprioritize in any audit): `custom_explog.cpp` (byte-
 identical rename), uncorrected MFM-SBM path (`sbm_edge_prior.cpp:17-407`),
 rng engine, `sbm_edge_prior_interface.*`.
 
+Archived out of the package (F-099, MM 2026-08-02): the dormant analytic CN law
+(`zratio_law.h`, its `zratio_law_moments` test export, `test-zratio-law.R` and
+its fixture) lives on branch `archive/zratio-analytic-law`. Re-wiring condition:
+the large-q crossover — the law's cost is ~flat in giant component size while
+the Monte-Carlo block oracle grows ~cubically, so above some q the law becomes
+the cheaper CN anchor source. Nothing deployed ever included it.
+
 ### R layer inventory
 
 Fit construction: `bgm.R`, `bgmCompare.R`, `bgm_spec.R`, `build_spec.R`,

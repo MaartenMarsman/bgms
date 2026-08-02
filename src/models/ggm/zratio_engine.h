@@ -225,9 +225,10 @@ public:
      * scores: each non-trivial component's moments come from the block-Gibbs
      * oracle (block_oracle_moments, at the set_oracle_params sweep count),
      * trivial components (CN size <= 2, single bridge) from the exact additive
-     * kernel; the sum feeds saddle_ratio. Isolates the surface's moment
-     * prediction from the closure, matching the companion's gold. Returns false
-     * for an invalid (isolated-edge) block.
+     * kernel; the sum feeds saddle_ratio. The reference IS the per-component
+     * Monte-Carlo oracle evaluation of the same decomposition the surface
+     * scores, so differencing the two isolates the surface's moment prediction
+     * from the closure. Returns false for an invalid (isolated-edge) block.
      */
     bool gold_moments(const arma::imat& G, int i, int j, double& s1_out,
                       double& s2_out, double& logr_out);
