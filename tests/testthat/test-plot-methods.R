@@ -206,6 +206,58 @@ test_that("both network methods split their pairs with the same wording rule", {
   expect_equal(difference$weights_label, "Difference weights")
 })
 
+test_that("a pair that differs in several contrasts is laid out by its largest", {
+  pairs = cbind(row = c(1L, 1L, 2L), col = c(2L, 3L, 3L))
+  first = matrix(0, 3, 3)
+  first[1, 2] = 0.4; first[1, 3] = -0.9; first[2, 3] = 0.1
+  first = first + t(first)
+  second = matrix(0, 3, 3)
+  second[1, 2] = -0.7; second[1, 3] = 0.2; second[2, 3] = 0.05
+  second = second + t(second)
+
+  # The layout summary is the largest absolute difference over the contrasts,
+  # so a pair that differs sharply in one of them is not averaged away.
+  expect_equal(contrast_magnitude(list(first, second), pairs), c(0.7, 0.9, 0.1))
+
+  # One contrast is the two-group case, and there it is just the magnitude.
+  expect_equal(contrast_magnitude(list(first), pairs), c(0.4, 0.9, 0.1))
+})
+
+test_that("more than two groups keeps the panels and drops the width channel", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  data("ADHD", package = "bgms")
+  fit = bgmCompare(
+    x = ADHD[, 2:5],
+    group_indicator = rep(1:3, length.out = nrow(ADHD)),
+    iter = 50, warmup = 100, chains = 2, seed = 903,
+    display_progress = "none"
+  )
+  # The premise of the display: one indicator per pair, several magnitudes.
+  expect_true(is.list(fit@posterior_mean_pairwise_differences))
+  expect_equal(length(fit@posterior_mean_pairwise_differences), 2L)
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # The three-way split is defined for any K, so the figure draws.
+  expect_invisible(plot(fit))
+  expect_invisible(plot(fit, type = "groups"))
+
+  # Without selection there is no split and no single magnitude to draw
+  # instead, and the method says so rather than choosing one.
+  nosel = bgmCompare(
+    x = ADHD[, 2:5],
+    group_indicator = rep(1:3, length.out = nrow(ADHD)),
+    difference_selection = FALSE,
+    iter = 50, warmup = 100, chains = 2, seed = 904,
+    display_progress = "none"
+  )
+  expect_error(plot(nosel), "not one network")
+  expect_error(plot(nosel), "extract_group_params")
+})
+
 test_that("a sparse network draws rather than failing on the node set", {
   skip_on_cran()
   skip_if_not_installed("qgraph")

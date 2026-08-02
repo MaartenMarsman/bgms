@@ -72,6 +72,17 @@ those pairs the classification is the result.
 "The groups do not differ anywhere" is a common and correct finding, and it
 is what a filled second panel and an empty first panel say.
 
+\strong{More than two groups.} \code{\link[=bgmCompare]{bgmCompare()}} gives each pair a single
+inclusion indicator shared across all \code{K - 1} contrasts, so the three-way
+split is exactly as well defined for \code{K > 2} as it is for two groups and the
+panels are the same. What changes is the width channel: a pair then has
+\code{K - 1} posterior mean differences rather than one, and no single number is
+"the" difference. The first panel is therefore drawn unweighted for \code{K > 2}
+-- uniform width, plain ink, no sign colour -- because there the
+classification is the whole of what the panel reports. Read the magnitudes
+where they are per group: \code{plot(fit, type = "groups")} for the picture,
+\code{\link[=extract_group_params]{extract_group_params()}} for the numbers.
+
 \strong{Main-effect differences are not edges.} When
 \code{main_difference_selection = TRUE} gave them their own indicators, their
 evidence is carried on the nodes: each node wears a ring filled to its
@@ -87,7 +98,10 @@ precisely; the rings are a summary of it.
 inclusion Bayes factor to split the pairs by. \code{plot()} then draws one panel
 with every pair on it, width the posterior mean difference and colour its
 sign, titled \code{"Difference weights"} so that the channel the figure is drawn
-in is never in doubt.
+in is never in doubt. On more than two groups that display has nothing to
+fall back on -- no split to draw and no single magnitude to draw instead --
+and \code{plot()} says so rather than picking one; use \code{type = "groups"} or
+\code{\link[=extract_group_params]{extract_group_params()}}.
 
 \strong{\code{type = "groups"}} draws each group's own posterior mean network on
 the layout the difference display uses, so a node sits in the same place

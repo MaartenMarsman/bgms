@@ -164,6 +164,31 @@ shared_network_layout = function(weight, pairs, num_variables, layout, labels) {
 
 
 # ------------------------------------------------------------------
+# contrast_magnitude
+# ------------------------------------------------------------------
+# How much a pair differs anywhere, when it differs in more than one place.
+# On more than two groups bgmCompare holds a posterior mean difference matrix
+# per contrast, and a pair has K - 1 of them under the single indicator they
+# share. The largest of them in absolute value is the summary used to lay the
+# network out -- and only to lay it out. It is never drawn: the panels it feeds
+# are unweighted, precisely because no one of these numbers is the pair's
+# difference. Taking the largest rather than a mean keeps a pair that differs
+# sharply in one contrast from being averaged into the middle of the picture.
+#
+# @param differences  List of per-contrast posterior mean difference matrices.
+# @param pairs        The row-major upper-triangle index.
+#
+# Returns: one non-negative number per pair, in the order of `pairs`.
+# ------------------------------------------------------------------
+contrast_magnitude = function(differences, pairs) {
+  index = cbind(pairs[, 1], pairs[, 2])
+  per_contrast = vapply(differences, function(d) abs(d[index]),
+    numeric(nrow(pairs)))
+  apply(matrix(per_contrast, nrow = nrow(pairs)), 1L, max)
+}
+
+
+# ------------------------------------------------------------------
 # network_panel_par
 # ------------------------------------------------------------------
 # The graphical parameters a network panel is drawn under, and the qgraph
@@ -301,22 +326,31 @@ network_sign_key = function(nodes, unit, style, signs = TRUE) {
 # The other two are drawn at uniform width, dashed and dotted, because for those
 # pairs the classification is the result and a weight would suggest otherwise.
 #
+# The supported panel goes unweighted too when a pair has no single magnitude to
+# draw -- a bgmCompare fit on more than two groups, where one indicator per pair
+# is shared across K - 1 contrasts. The split is as well defined there as it
+# ever is; only the width channel has nothing to carry, so it is dropped rather
+# than filled with a summary the model never formed.
+#
 # Both plot methods call this; a bgms edge and a bgmCompare difference are
 # split, laid out, encoded and titled by the same code.
 #
 # @param weight              Posterior mean per pair, row-major upper triangle.
+#                            With weighted = FALSE it only orders the layout.
 # @param verdict             Verdict per pair, in the same order.
 # @param pairs               The row-major upper-triangle index.
 # @param variables           Node labels.
 # @param evidence_threshold  The threshold the verdicts were read at.
 # @param unit                From network_unit().
 # @param nodes               Node ring channel, or NULL.
+# @param weighted            Whether the supported panel carries width and sign.
 # @param layout, legend, ... As the plot methods take them.
 #
 # Returns: invisibly, the shared layout.
 # ------------------------------------------------------------------
 draw_evidence_panels = function(weight, verdict, pairs, variables,
                                 evidence_threshold, unit, nodes = NULL,
+                                weighted = TRUE,
                                 layout = "spring", legend = TRUE, ...) {
   style = bgms_style()
   num_variables = length(variables)
@@ -330,9 +364,9 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
   classes = c("presence", "absence", "undecided")
   for(class in classes) {
     keep = !is.na(verdict) & verdict == class
-    weighted = class == "presence"
+    carries_weight = weighted && class == "presence"
     m = panel_edge_matrix(
-      if(weighted) weight else rep(1, length(weight)), keep, pairs,
+      if(carries_weight) weight else rep(1, length(weight)), keep, pairs,
       num_variables
     )
     panel = draw_network_panel(
@@ -341,21 +375,23 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
       rule = rules[[class]],
       nodes = nodes, style = style,
       edge.color = switch(class,
-        presence = matrix_edge_colors(m),
+        # Unweighted, the supported panel has no sign to colour by and takes
+        # the plain ink; the classification is the whole of what it says.
+        presence = if(carries_weight) matrix_edge_colors(m) else style$ink,
         # A ruled-out pair is a finding and takes the darker ink; an undecided
         # one is not, and recedes.
         absence = grDevices::adjustcolor(style$ink, 0.8),
         undecided = style$muted
       ),
       lty = switch(class, presence = 1L, absence = 2L, undecided = 3L),
-      edge.width = if(weighted) NULL else 1.6,
+      edge.width = if(carries_weight) NULL else 1.6,
       ...
     )
     # The key belongs to the first panel: it is the only one whose colours
     # carry a sign, and an empty first panel has no sign to explain -- though
     # the node rings, which every panel wears, still do.
-    if(weighted && isTRUE(legend)) {
-      network_sign_key(nodes, unit, style, signs = any(keep))
+    if(class == "presence" && isTRUE(legend)) {
+      network_sign_key(nodes, unit, style, signs = carries_weight && any(keep))
     }
   }
   invisible(shared)
@@ -657,6 +693,17 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' "The groups do not differ anywhere" is a common and correct finding, and it
 #' is what a filled second panel and an empty first panel say.
 #'
+#' \strong{More than two groups.} [bgmCompare()] gives each pair a single
+#' inclusion indicator shared across all `K - 1` contrasts, so the three-way
+#' split is exactly as well defined for `K > 2` as it is for two groups and the
+#' panels are the same. What changes is the width channel: a pair then has
+#' `K - 1` posterior mean differences rather than one, and no single number is
+#' "the" difference. The first panel is therefore drawn unweighted for `K > 2`
+#' -- uniform width, plain ink, no sign colour -- because there the
+#' classification is the whole of what the panel reports. Read the magnitudes
+#' where they are per group: `plot(fit, type = "groups")` for the picture,
+#' [extract_group_params()] for the numbers.
+#'
 #' \strong{Main-effect differences are not edges.} When
 #' `main_difference_selection = TRUE` gave them their own indicators, their
 #' evidence is carried on the nodes: each node wears a ring filled to its
@@ -672,7 +719,10 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' inclusion Bayes factor to split the pairs by. `plot()` then draws one panel
 #' with every pair on it, width the posterior mean difference and colour its
 #' sign, titled `"Difference weights"` so that the channel the figure is drawn
-#' in is never in doubt.
+#' in is never in doubt. On more than two groups that display has nothing to
+#' fall back on -- no split to draw and no single magnitude to draw instead --
+#' and `plot()` says so rather than picking one; use `type = "groups"` or
+#' [extract_group_params()].
 #'
 #' \strong{`type = "groups"`} draws each group's own posterior mean network on
 #' the layout the difference display uses, so a node sits in the same place
@@ -741,19 +791,29 @@ plot.bgmCompare = function(x,
     return(invisible(x))
   }
 
-  # Two groups make one contrast and so one network; more make several, which
-  # is not one picture. See the report's K > 2 proposal.
-  if(is.list(differences)) {
-    stop(
-      "Drawing group differences is implemented for two groups; this fit has ",
-      num_groups, " groups and so ", num_groups - 1L, " contrasts, which are ",
-      "not one network. Use verdicts() for the evidence and ",
-      "extract_group_params() for each group's parameters."
-    )
+  # Two groups make one contrast, so a pair has one difference and the
+  # supported panel can carry it as width. More groups make K - 1 contrasts
+  # under the one indicator the pair shares, so the split is unchanged and only
+  # the width channel is dropped. Magnitudes are then read from type = "groups"
+  # and extract_group_params().
+  weighted = !is.list(differences)
+  weight = if(weighted) {
+    differences[cbind(pairs[, 1], pairs[, 2])]
+  } else {
+    contrast_magnitude(differences, pairs)
   }
-  weight = differences[cbind(pairs[, 1], pairs[, 2])]
 
   if(!isTRUE(arguments$difference_selection)) {
+    if(!weighted) {
+      stop(
+        "Without difference selection there is no evidence to split the pairs ",
+        "by, so the figure would have to be the magnitudes -- and with ",
+        num_groups, " groups a pair has ", num_groups - 1L, " of them, which ",
+        "is not one network. Plot the groups themselves with ",
+        "plot(fit, type = \"groups\"), or read the differences as numbers ",
+        "with extract_group_params()."
+      )
+    }
     draw_weight_network(weight, pairs, variables, unit, layout, legend, ...)
     return(invisible(x))
   }
@@ -768,6 +828,7 @@ plot.bgmCompare = function(x,
     evidence_threshold = evidence_threshold,
     unit = unit,
     nodes = nodes,
+    weighted = weighted,
     layout = layout,
     legend = legend,
     ...
