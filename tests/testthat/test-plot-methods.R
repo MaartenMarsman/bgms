@@ -1,16 +1,3 @@
-test_that("verdict_edge_colors carries sign for present edges and greys the rest", {
-  palette = mover_palette()
-  colors = verdict_edge_colors(
-    weight = c(0.2, -0.2, 0.2, -0.2, 0),
-    verdict = c("presence", "presence", "undecided", "undecided", "presence")
-  )
-  expect_equal(colors[1], palette[1])
-  expect_equal(colors[2], palette[2])
-  expect_equal(colors[3:4], rep("grey65", 2))
-  # A zero weight on a present edge is not negative.
-  expect_equal(colors[5], palette[1])
-})
-
 test_that("resolve_variable accepts names and positions and rejects the rest", {
   variables = c("a", "b", "c")
   expect_equal(resolve_variable("b", variables, "variable1"), 2L)
@@ -62,84 +49,48 @@ test_that("plot_edge_posterior draws one edge and validates its arguments", {
   )
 })
 
-test_that("the network needs at least one edge that is not ruled out", {
+test_that("a network with nothing left to support is still a figure", {
   skip_on_cran()
   skip_if_not_installed("qgraph")
   fit = get_bgms_fit_wenchuan6()
-  edges = verdicts(fit, evidence_threshold = 10)
-  skip_if(all(edges$verdict == "absence"))
 
   path = withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(path)
   on.exit(grDevices::dev.off(), add = TRUE)
 
-  # Every edge the picture draws is one verdicts() does not call absent, and
-  # every edge it omits is one verdicts() does.
-  drawn = edges$parameter[edges$verdict != "absence"]
-  expect_gt(length(drawn), 0L)
-  expect_invisible(plot(fit))
+  # At an unreachable threshold every edge lands in the absence panel. That is
+  # the honest picture of such a fit, not an error: the second panel fills and
+  # the first is empty.
+  expect_invisible(plot(fit, evidence_threshold = 1e6))
+  # And at a threshold nothing is ruled out at, the absence panel is the empty
+  # one instead.
+  expect_invisible(plot(fit, evidence_threshold = 1000))
 })
 
-test_that("main_difference_nodes fills each node's wheel to its inclusion probability", {
+test_that("main_difference_nodes fills each node's ring to its inclusion probability", {
+  style = bgms_style()
   verdict = c("presence", "undecided", "absence")
   pip = c(0.97, 0.5, 0.02)
   nodes = main_difference_nodes(verdict, pip, main_selected = TRUE)
 
-  # The filled fraction carries the number, so the encoding does not fail for
-  # a reader who cannot tell the wheel colours apart.
-  expect_equal(nodes$prob, pip)
-  expect_equal(nodes$color, c(mover_palette()[1], "grey55", "grey80"))
+  # The ring is qgraph's pie channel, drawn around the node circle where a
+  # reader of a network looks for a node's own quantity. The filled fraction
+  # carries the number, so the encoding does not fail for a reader who cannot
+  # tell the ring colours apart.
+  expect_equal(nodes$pie, pip)
+  expect_equal(nodes$pie_color,
+    c(mover_palette()[1], style$muted, style$pale)
+  )
 
-  # A never-updated indicator has a NaN probability; its wheel stays empty
-  # rather than poisoning the wedge arithmetic.
+  # A never-updated indicator has a NaN probability; its ring stays empty
+  # rather than poisoning qgraph's arc arithmetic.
   partial = main_difference_nodes(c("presence", NA), c(0.9, NaN), main_selected = TRUE)
-  expect_equal(partial$prob, c(0.9, 0))
+  expect_equal(partial$pie, c(0.9, 0))
 
-  # Without main selection there is no indicator and no wheel at all.
+  # Without main selection there is no indicator and no ring at all.
   empty = main_difference_nodes(rep(NA_character_, 3), rep(NaN, 3), main_selected = FALSE)
-  expect_null(empty$prob)
-  expect_null(empty$color)
-})
-
-test_that("both network methods report evidence through the same band", {
-  verdict = c("presence", "presence", "undecided", "absence", "absence")
-  log_bf = c(4.2, Inf, 0.3, -3.1, -9.4)
-
-  edges = evidence_band(verdict, log_bf, 10, network_unit("edge"))
-  differences = evidence_band(verdict, log_bf, 10, network_unit("difference"))
-
-  # The tally counts the same three classes on both sides; only the noun for
-  # the thing being counted differs.
-  expect_equal(edges$left, "2 present  |  1 undecided  |  2 ruled out")
-  expect_equal(differences$left, "2 differing  |  1 undecided  |  2 ruled out")
-
-  # The numbers are identical, in the same wording, on the same natural-log
-  # scale, through the same formatters: this is what parity between the two
-  # displays means in code.
-  expect_equal(edges$right, differences$right)
-  expect_equal(edges$right[1], paste("threshold: log BF", format_log_bf(log(10))))
-  # A saturated Bayes factor prints as the reporting cap, exactly as it does
-  # on an edge panel.
-  expect_equal(edges$right[2], "strongest for: log BF > 10,000")
-  expect_equal(edges$right[3], "strongest against: log BF = -9.4")
-
-  # An all-NA column of Bayes factors has no extremes to print, and says so by
-  # printing only the threshold rather than an invented range.
-  quiet = evidence_band(verdict, rep(NA_real_, 5), 10, network_unit("edge"))
-  expect_length(quiet$right, 1L)
-})
-
-test_that("the legend can key its lines to verdicts or to the Bayes factors", {
-  unit = network_unit("difference")
-  expect_equal(network_legend_keys(unit, 10), unit$keys)
-
-  withr::local_options(bgms.network_legend = "evidence")
-  keys = network_legend_keys(unit, 10)
-  # The variant says nothing a threshold has not already been given for: the
-  # same three lines, named by the evidence that produces them.
-  expect_length(keys, 3L)
-  expect_true(all(grepl("log BF", keys, fixed = TRUE)))
-  expect_false(any(grepl("undecided", keys, fixed = TRUE)))
+  expect_null(empty$pie)
+  expect_null(empty$pie_color)
 })
 
 test_that("compare_difference_verdicts splits the two indicator families", {
@@ -185,46 +136,74 @@ test_that("plot.bgmCompare draws the difference network and the group panels", {
   expect_invisible(plot(fit, evidence_threshold = 1e6))
 })
 
-test_that("verdict_network_input aligns the encoding with qgraph's read order", {
+test_that("a panel matrix states its node set and reads its colours in order", {
   V = 5L
   pairs = which(upper.tri(matrix(0, V, V)), arr.ind = TRUE)
   pairs = pairs[order(pairs[, "row"], pairs[, "col"]), ]
 
-  verdict = rep("absence", 10L)
-  verdict[c(1L, 4L, 7L)] = c("presence", "presence", "undecided")
+  keep = rep(FALSE, 10L)
+  keep[c(1L, 4L, 7L)] = TRUE
   weight = numeric(10L)
   weight[c(1L, 4L, 7L)] = c(0.4, -0.3, 0.05)
 
-  network = verdict_network_input(weight, verdict, pairs, V)
+  m = panel_edge_matrix(weight, keep, pairs, V)
 
-  # A square matrix states the node set in its dimensions, so a network that
+  # A square matrix states the node set in its dimensions, so a panel that
   # leaves a node out still draws that node.
-  expect_equal(dim(network$weights), c(V, V))
-  expect_true(isSymmetric(network$weights))
-  expect_equal(network$weights[1, 2], 0.4)
-  expect_equal(network$weights[1, 5], -0.3)
-  expect_equal(sum(network$weights != 0), 6L)
+  expect_equal(dim(m), c(V, V))
+  expect_true(isSymmetric(m))
+  expect_equal(m[1, 2], 0.4)
+  expect_equal(m[1, 5], -0.3)
+  expect_equal(sum(m != 0), 6L)
 
   # qgraph reads the non-zero upper triangle in column-major order, which for
   # these three edges is (1,2), (1,5), (2,5) -- not the row-major order the
-  # verdict table is in. The colour and line type must follow that read order,
-  # or the encoding lands on the wrong edges.
+  # verdict table is in. Reading the signs off the matrix is what makes the
+  # colours land on the right edges whatever order the table was in.
   palette = mover_palette()
-  expect_equal(unname(network$edge.color), c(palette[1], palette[2], "grey65"))
-  expect_equal(network$lty, c(1L, 1L, 3L))
+  expect_equal(matrix_edge_colors(m), c(palette[1], palette[2], palette[1]))
 
-  # Nothing drawable is a matrix of zeros, and the caller draws the nodes.
-  empty = verdict_network_input(weight, rep("absence", 10L), pairs, V)
-  expect_true(all(empty$weights == 0))
-  expect_length(empty$edge.color, 0L)
+  # An empty panel is a matrix of zeros, and qgraph draws the nodes alone --
+  # which is what an all-decided fit's undecided panel has to look like.
+  empty = panel_edge_matrix(weight, rep(FALSE, 10L), pairs, V)
+  expect_true(all(empty == 0))
+  expect_length(matrix_edge_colors(empty), 0L)
 
   # An exactly zero weight on a drawn edge would be read as a non-edge and
   # shift every later colour onto the wrong one.
-  zero = verdict_network_input(
-    c(0, rep(0, 9)), c("presence", rep("absence", 9L)), pairs, V
-  )
-  expect_equal(sum(zero$weights != 0), 2L)
-  expect_length(zero$edge.color, 1L)
+  zero = panel_edge_matrix(numeric(10L), c(TRUE, rep(FALSE, 9L)), pairs, V)
+  expect_equal(sum(zero != 0), 2L)
+  expect_length(matrix_edge_colors(zero), 1L)
+
+  # A panel drawn at uniform width is the same construction with every value
+  # set to one.
+  uniform = panel_edge_matrix(rep(1, 10L), keep, pairs, V)
+  expect_equal(sort(unique(uniform[uniform != 0])), 1)
+})
+
+test_that("the threshold rules read in Bayes factors, not their logarithms", {
+  rules = threshold_rules(10)
+  expect_equal(unname(rules[["presence"]]), "BF > 10")
+  expect_equal(unname(rules[["absence"]]), "BF < 0.1")
+  expect_equal(unname(rules[["undecided"]]), "0.1 < BF < 10")
+
+  # A threshold a user chose is printed as they chose it.
+  expect_equal(unname(threshold_rules(100)[["presence"]]), "BF > 100")
+  expect_equal(unname(threshold_rules(100)[["absence"]]), "BF < 0.01")
+  expect_equal(unname(threshold_rules(3)[["absence"]]), "BF < 0.33")
+})
+
+test_that("both network methods split their pairs with the same wording rule", {
+  edge = network_unit("edge")
+  difference = network_unit("difference")
+  # The two displays are one routine; only the nouns differ, and both name the
+  # same three classes in the same order.
+  expect_equal(names(edge$panels), names(difference$panels))
+  expect_equal(names(edge$panels), c("presence", "absence", "undecided"))
+  expect_equal(unname(edge$panels[["presence"]]), "evidence of presence")
+  expect_equal(unname(difference$panels[["presence"]]), "difference supported")
+  expect_equal(edge$weights_label, "Edge weights")
+  expect_equal(difference$weights_label, "Difference weights")
 })
 
 test_that("a sparse network draws rather than failing on the node set", {
@@ -319,7 +298,7 @@ describe_panel = function(panel) {
   }, "\n", sep = "")
   cat("window    : ", paste(sprintf("%.2f", edge_panel_window(panel)),
     collapse = " to "), "\n", sep = "")
-  cat("caption   : ", panel$caption, "\n", sep = "")
+  cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
   invisible(NULL)
 }
 
@@ -396,7 +375,9 @@ test_that("without edge selection the panel is the Savage-Dickey figure", {
   decisive = edge_panel_savage_dickey(
     "intrusion-dreams", rnorm(4000, 0.32, 0.04), test_slab_prior()
   )
-  expect_equal(decisive$wheel_labels, c("data|H1", "data|H0"))
+  # The wheel carries no notation: what its two shares are is said in words.
+  expect_null(decisive$wheel_labels)
+  expect_true(any(grepl("probability the edge is there", decisive$caption)))
   expect_false(is.null(decisive$dots))
   # The prior ordinate is exact; the first dot is dnorm(0, 0, 1).
   expect_equal(decisive$dots$y[1], stats::dnorm(0), tolerance = 1e-12)
@@ -435,7 +416,7 @@ test_that("the panel reads a Blume-Capel fit like any other", {
   expect_snapshot({
     cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
     cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
-    cat("caption   : ", panel$caption, "\n", sep = "")
+    cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
   })
 
   path = withr::local_tempfile(fileext = ".pdf")
@@ -507,7 +488,7 @@ test_that("a fit without edge selection takes the Savage-Dickey branch", {
     extract_pairwise_interactions(fit)[, "intrusion-dreams"],
     edge_slab_prior(fit)
   )
-  expect_equal(panel$wheel_labels, c("data|H1", "data|H0"))
+  expect_null(panel$wheel_labels)
   expect_length(panel$dots$y, 2L)
 })
 

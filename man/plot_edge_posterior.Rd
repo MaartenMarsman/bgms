@@ -65,12 +65,14 @@ estimator the package does not use.
 \strong{Without edge selection} there is no indicator and no point mass; the
 posterior of the weight is continuous and the Savage-Dickey density ratio is
 the licensed estimator of the inclusion Bayes factor. The panel then draws
-the JASP figure exactly: both ordinates at zero are marked with grey dots,
-and their ratio -- prior over posterior -- is the Bayes factor for the edge,
-printed on the same natural-log scale. The wheel is filled by
-\eqn{BF/(1 + BF)}, which is the posterior probability of the edge at equal
-prior odds, so the wheel still shows a probability, and it is labelled with
-JASP's \code{data|H1} / \code{data|H0} pair.
+the JASP figure: both ordinates at zero are marked with grey dots, and their
+ratio -- prior over posterior -- is the Bayes factor for the edge, printed on
+the same natural-log scale. The wheel is filled by \eqn{BF/(1 + BF)}, which
+is the posterior probability that the edge is there when the two hypotheses
+are equally likely before seeing the data; the filled share is that
+probability and the pale share its complement. JASP labels those two shares
+\code{data|H1} and \code{data|H0}; this panel does not, because the notation cannot be
+read without knowing the convention, and says it in the caption instead.
 
 The prior ordinate at zero is exact. The posterior ordinate is estimated
 from the draws by a Gaussian kernel density with the Sheather-Jones

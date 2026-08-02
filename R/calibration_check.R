@@ -823,10 +823,18 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(
     mfrow = c(nrow_panels, ncol_panels),
-    mar = c(2.6, 2.8, 2.6, 0.9), mgp = c(1.5, 0.5, 0), oma = c(4.4, 3.4, 0, 0),
+    mar = c(2.6, 2.8, 2.6, 0.9), mgp = c(1.5, 0.5, 0), oma = c(3.4, 3.4, 0, 0),
     las = 1, bty = "n",
     col.axis = style$ink, col.lab = style$ink, col.main = style$ink
   )
+
+  # The two panel kinds are built differently, but "isotonic" and "PIT" are the
+  # names of the constructions, not of anything a reader of the figure needs.
+  # What distinguishes the panels to a reader is the variable, so that is what
+  # is named -- and only when a page actually holds both kinds, since on a page
+  # of one kind the mark would say the same thing under every panel.
+  page_kinds = unique(x$curves$kind[x$curves$variable %in% rows$variable])
+  name_kind = length(page_kinds) > 1L
 
   # The unit square with the style's own overshoot, so the two axes stop short
   # of the corner instead of closing a frame around the panel.
@@ -851,7 +859,13 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
       } else {
         v
       },
-      subtitle = if(identical(df$kind[1], "pit")) "PIT" else "isotonic",
+      subtitle = if(!name_kind) {
+        NULL
+      } else if(identical(df$kind[1], "pit")) {
+        "continuous"
+      } else {
+        "discrete"
+      },
       line = 1.1, style = style
     )
     bgms_axis(1, at, labels = c("0", ".5", "1"), style = style)
@@ -867,17 +881,18 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   }
 
   kinds = unique(x$curves$kind[x$curves$variable %in% rows$variable])
+  # The axes name what is on them, not the estimators that put it there:
+  # "isotonic" and "probability integral transform" are the names of the two
+  # constructions, and ?calibration_check is where they belong.
   xlab = if(setequal(kinds, "pit")) {
-    "Probability integral transform"
-  } else if(setequal(kinds, "pav")) {
-    "Predicted probability"
+    "Predicted cumulative probability"
   } else {
-    "Predicted probability (isotonic) / probability integral transform (PIT)"
+    "Predicted probability"
   }
   ylab = if(setequal(kinds, "pit")) {
     "Observed share at or below"
   } else if(setequal(kinds, "pav")) {
-    "Observed frequency (isotonic fit)"
+    "Observed frequency"
   } else {
     "Observed frequency / observed share"
   }
@@ -888,11 +903,6 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   graphics::mtext(ylab,
     side = 2, outer = TRUE, line = 1.4, las = 0, col = outer_style$ink,
     cex = outer_style$cex_lab
-  )
-  graphics::mtext(
-    "Band: consistency interval. Diagonal: a calibrated model.",
-    side = 1, outer = TRUE, line = 3.2, col = outer_style$muted,
-    cex = outer_style$cex_caption
   )
   invisible(x)
 }

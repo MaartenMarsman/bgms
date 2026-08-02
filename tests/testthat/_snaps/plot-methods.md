@@ -76,12 +76,12 @@
       evidence  : log BF = 7.3
       estimate  : median = 0.32 | 95% CI [0.24, 0.40]
       wheel     : 0.999
-      wheel tags: data|H1 / data|H0
+      wheel tags: (none)
       posterior : yes
       prior     : yes
       dots      : 0.399, 0.000
       window    : 0.00 to 0.49
-      caption   : Savage-Dickey ratio at zero (grey dots). Accented share: P(edge | data), equal prior odds.
+      caption   : Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor. | Filled share of the wheel: the probability the edge is there, at equal prior odds.
 
 ---
 
@@ -93,12 +93,12 @@
       evidence  : log BF = -3.5
       estimate  : median = 0.00 | 95% CI [-0.06, 0.06]
       wheel     : 0.030
-      wheel tags: data|H1 / data|H0
+      wheel tags: (none)
       posterior : yes
       prior     : yes
       dots      : 0.399, 13.074
       window    : -0.14 to 0.14
-      caption   : Savage-Dickey ratio at zero (grey dots). Accented share: P(edge | data), equal prior odds.
+      caption   : Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor. | Filled share of the wheel: the probability the edge is there, at equal prior odds.
 
 # the panel reads a Blume-Capel fit like any other
 
@@ -111,7 +111,7 @@
     Output
       wheel tags: (none)
     Code
-      cat("caption   : ", panel$caption, "\n", sep = "")
+      cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
     Output
       caption   : Density: the weight given inclusion. Pale share of the wheel: P(absent).
 

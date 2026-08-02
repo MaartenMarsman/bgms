@@ -1292,19 +1292,12 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
 
   unit = x$unit %||% list(noun = "edge", nouns = "edges")
   scale_label = if(identical(unit$noun, "difference")) {
-    "Difference scale, relative to the chosen scale"
+    "Difference scale, relative to your fit"
   } else {
-    "Slab scale, relative to the chosen scale"
+    "Slab scale, relative to your fit"
   }
 
   n_dep = length(movers)
-  answer = if(n_dep == 0L) {
-    sprintf("No %s verdict depends on the scale", unit$noun)
-  } else if(n_dep == 1L) {
-    sprintf("1 %s verdict depends on the scale", unit$noun)
-  } else {
-    sprintf("%d %s verdicts depend on the scale", n_dep, unit$noun)
-  }
 
   graphics::plot(NA, NA,
     xlim = xlim, ylim = y_axis$lim, log = "x", axes = FALSE,
@@ -1321,10 +1314,6 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     sprintf("Evidence for the %s (log BF)", unit$noun),
     side = 2, line = 3.3, las = 0, cex = style$cex_lab, col = style$ink
   )
-  # The answer goes where the rest of the package puts its annotations: a
-  # compact label above the panel, not a headline across the top of it.
-  bgms_panel_label(answer, line = 1.3, style = style)
-
   # Verdict zones: shaded undecided band, dashed thresholds, margin labels.
   usr = graphics::par("usr")
   pin = graphics::par("pin")
@@ -1340,8 +1329,10 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     lwd = style$lwd_axis
   )
   graphics::abline(v = 1, col = style$muted, lty = 3, lwd = style$lwd_axis)
-  graphics::mtext("chosen",
-    side = 3, at = 1, line = 0.1, cex = style$cex_caption, col = style$muted
+  # "chosen" named a decision the reader had to reconstruct; the line is the
+  # scale their own fit was run at, and that is what it now says.
+  graphics::mtext("your fit",
+    side = 3, at = 1, line = 0.3, cex = style$cex_annotation, col = style$muted
   )
   zone_x = 10^(usr[1] + 0.06 / per_log_unit)
   pad = 0.05 / per_y_unit
@@ -1358,7 +1349,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   # Background: every other edge in one muted color.
   for(e in setdiff(seq_len(n_edges), named)) {
     if(isTRUE(edges$saturated[e])) next
-    graphics::lines(rel, x$log_bf[, e], col = faint, lwd = 1)
+    trajectory(rel, x$log_bf[, e], col = faint, lwd = 1)
   }
 
   # Foreground: the named movers, colored in fixed order and name-labeled.
@@ -1375,7 +1366,7 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     text_x = 10^(usr[2] + leader / per_log_unit)
     for(k in seq_along(named)) {
       e = named[k]
-      graphics::lines(rel, x$log_bf[, e], col = pal[k], lwd = style$lwd_curve)
+      trajectory(rel, x$log_bf[, e], col = pal[k], lwd = style$lwd_curve)
       graphics::points(rel[x$anchor_index], x$log_bf[x$anchor_index, e],
         col = pal[k], pch = 16, cex = 0.9
       )
@@ -1389,24 +1380,31 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
     }
   }
 
-  # Corner notes: unnamed movers and off-scale edges, counted not drawn.
-  notes = character(0)
-  if(n_dep > length(named)) {
-    notes = c(notes, sprintf("and %d more; see $edges", n_dep - length(named)))
-  }
-  n_off = sum(vapply(seq_len(n_edges), function(e) {
-    v = x$log_bf[, e]
-    v = v[is.finite(v)]
-    length(v) == 0L || all(v > y_axis$lim[2]) || all(v < y_axis$lim[1])
-  }, logical(1)))
-  if(n_off > 0) {
-    notes = c(notes, sprintf(
-      "%d %s beyond the plot range keep their verdict at every scale",
-      n_off, unit$nouns
-    ))
-  }
-  bgms_caption(paste(notes, collapse = "; "),
-    line = 4.2, adj = 0, style = style
-  )
   invisible(x)
+}
+
+
+# ------------------------------------------------------------------
+# trajectory
+# ------------------------------------------------------------------
+# One edge's evidence, as one line.
+#
+# The reweighted curve is masked wherever the importance ESS falls under the
+# floor, so the raw series has holes in it, and drawing it directly leaves
+# stubs of curve with the anchor estimates floating unattached between them --
+# which reads as a broken plot rather than as a masked one. The finite points,
+# anchors included, are joined in order instead: one continuous trajectory per
+# edge, straight between the certified stretches it passes through.
+#
+# @param at      The scale grid.
+# @param values  The log Bayes factor on that grid, with holes.
+# @param ...     Passed to graphics::lines().
+# ------------------------------------------------------------------
+trajectory = function(at, values, ...) {
+  keep = is.finite(values)
+  if(sum(keep) < 2L) {
+    return(invisible(NULL))
+  }
+  graphics::lines(at[keep], values[keep], ...)
+  invisible(NULL)
 }

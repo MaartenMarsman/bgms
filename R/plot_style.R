@@ -425,27 +425,33 @@ display_log_bf = function(log_bf) {
 
 
 # ------------------------------------------------------------------
-# bgms_caption
+# format_bayes_factor
 # ------------------------------------------------------------------
-# The single muted line under a panel that says what the picture is showing.
-# This is where context goes now that panels carry no headline title: it is
-# the last thing a reader looks at rather than the first, which is the point.
+# A Bayes factor as a threshold key prints it: the number itself, not its log.
+# Every per-edge number the package prints is a natural log, because that is
+# the scale the estimator and its standard errors live on -- but a reader does
+# not think in logs, and a classification rule stated as "BF > 10" is one a
+# reader can check against a threshold they set themselves, where "log BF >
+# 2.3" is not.
 #
-# @param text   The caption, already composed. Length zero draws nothing.
-# @param line   Margin line to draw on.
-# @param adj    Horizontal alignment within the margin.
-# @param style  The style list.
+# Trailing zeros go, so 10 prints as "10" rather than "10.00", and a
+# reciprocal threshold prints at whatever precision it needs.
+#
+# @param bf  A Bayes factor.
+#
+# Returns: a length-one character string.
 # ------------------------------------------------------------------
-bgms_caption = function(text, line = 4.4, adj = 0.5, style = bgms_style()) {
-  text = text[!is.na(text)]
-  if(!length(text)) {
-    return(invisible(NULL))
+format_bayes_factor = function(bf) {
+  if(!is.finite(bf)) {
+    return("NA")
   }
-  graphics::mtext(paste(text, collapse = " "),
-    side = 1, line = line, adj = adj, outer = FALSE,
-    cex = style$cex_caption, col = style$muted, xpd = NA
-  )
-  invisible(NULL)
+  if(bf >= 1) {
+    return(format(round(bf, 2), trim = TRUE, scientific = FALSE,
+      big.mark = ",", drop0trailing = TRUE))
+  }
+  # Below one, keep enough places that 1/10 and 1/100 do not both print as "0".
+  places = max(2L, ceiling(-log10(bf)) + 1L)
+  sub("0+$", "", sprintf("%.*f", places, bf))
 }
 
 

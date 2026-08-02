@@ -18,9 +18,13 @@ compare_group_labels = function(arguments, num_groups = NULL) {
   labels
 }
 
-# "group 3" or "group 3 (fr)", for a title or a label.
+# "group 3" or "group 3 (fr)", for a title or a label. A numeric group
+# indicator gives labels that are the numbers themselves, and "group 1 (1)"
+# tells a reader nothing they did not already have; the parenthetical is for
+# the case where the original value carries information the number does not.
 group_tag = function(labels, g) {
   if(is.null(labels) || g > length(labels)) return(sprintf("group %d", g))
+  if(identical(labels[g], as.character(g))) return(sprintf("group %d", g))
   sprintf("group %d (%s)", g, labels[g])
 }
 

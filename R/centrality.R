@@ -323,7 +323,7 @@ plot.bgms_centrality = function(x, probs = c(0.025, 0.975), ...) {
   # names this fit actually has rather than for a width that happened to fit
   # the author's example.
   left = margin_lines_for(summ$node, cex = style$cex_axis, pad = 1.4)
-  style = bgms_panel_par(mar = c(5.2, left, 4.0, 2.2))
+  style = bgms_panel_par(mar = c(4.6, left, 4.0, 2.2))
   on.exit(graphics::par(style$old_par), add = TRUE)
 
   difference = is_centrality_difference(x)
@@ -350,15 +350,11 @@ plot.bgms_centrality = function(x, probs = c(0.025, 0.975), ...) {
     pch = 16, col = style$accent, cex = 1.3
   )
 
-  # The axis carries the quantity; the caption carries what the marks are, so
-  # neither has to be a title.
+  # The axis carries the quantity. What the dot and the bar are is in the Rd:
+  # a figure does not need a sentence under it to be read.
   graphics::mtext(centrality_label(x),
     side = 1, line = 3.0, cex = style$cex_lab, col = style$ink
   )
-  bgms_caption(sprintf(
-    "Dot: posterior mean. Bar: %g%% credible interval. Nodes ordered by mean.",
-    100 * diff(probs)
-  ), line = 4.3, style = style)
 
   invisible(x)
 }
