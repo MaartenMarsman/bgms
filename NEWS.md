@@ -28,33 +28,18 @@ logarithm.
   0.1.6.3 run, needs the factor of two applied; there is no automatic
   conversion.
 
-* `bgmCompare()` now stores pairwise interaction parameters on the association
-  scale as well, which fixes a real inconsistency rather than only relabelling
-  one. Its sampler put `omega * x` in the pseudolikelihood's linear predictor
-  where every other path in the package puts `2 * omega * x` — `bgm()`'s
-  sampler, `simulate_mrf()`, both `predict()` methods, and the mixed-model
-  cross terms — so a `bgmCompare()` fit's pairwise effects came out about
-  twice a `bgm()` fit's for the same coupling and the two could not be read on
-  one scale. Pairwise effects reported by `coef()`, `summary()`,
+* `bgmCompare()` moves to the association scale with `bgm()`, in the same
+  release and by the same factor: the two entry points were mutually consistent
+  in 0.1.6.3 and remain so. Pairwise effects reported by `coef()`, `summary()`,
   `extract_pairwise_interactions()`, `extract_group_params()`, and the raw
-  posterior samples are now about half their previous values. **A stored
-  `bgmCompare()` fit from any earlier version should be refit rather than
-  rescaled**, because the prior acted on the old, doubled coordinate: the same
-  `difference_scale` or `interaction_prior` number is now a tighter prior than
-  it was, and difference inclusion Bayes factors move accordingly. The
-  calibration of the `difference_scale` default under the association-scale
-  parameterization is still under study, so difference verdicts near a
-  decision threshold should be read as scale-contingent.
-
-* `predict()` and `simulate()` on a `bgmCompare()` fit were wrong as a
-  consequence of that mismatch and are now correct. Both hand the fit's
-  pairwise effects to code that applies the factor two itself, so both had
-  been applying each interaction twice over: on Wenchuan, `predict()`'s
-  category probabilities for a five-variable fit came out
-  `0.037 0.164 0.134 0.216 0.448` against observed marginals of
-  `0.079 0.383 0.223 0.208 0.107`, where the same data through `bgm()` gave
-  `0.075 0.384 0.224 0.210 0.108`. They now reproduce the marginals as the
-  `bgm()` methods do.
+  posterior samples are therefore about half their 0.1.6.3 values, exactly as
+  for `bgm()`. **A stored `bgmCompare()` fit from an earlier version should be
+  refit rather than rescaled**, because the prior acted on the old, doubled
+  coordinate: the same `difference_scale` or `interaction_prior` number is now a
+  tighter prior than it was, and difference inclusion Bayes factors move
+  accordingly. The calibration of the `difference_scale` default under the
+  association-scale parameterization is still under study, so difference
+  verdicts near a decision threshold should be read as scale-contingent.
 
 * `simulate_mrf()` reads its `pairwise` argument on the association scale too:
   the discrete Gibbs conditional now accumulates `2 * (score - baseline) *
@@ -108,7 +93,8 @@ logarithm.
   `update_method = "nuts"`. NUTS adapts trajectory length dynamically and is
   more reliable, especially with edge selection on GGM models. The
   `hmc_num_leapfrogs` argument has been removed with it. A call passing either
-  now fails.
+  now fails. On continuous data the new conjugate `update_method = "gibbs"`
+  (see New features) is a second option that needs no step-size tuning at all.
 
 * The `standardize` argument of `bgm()` and `bgmCompare()` no longer does
   anything: pairwise interactions are on the association scale and share one
@@ -118,7 +104,11 @@ logarithm.
   `standardize = FALSE`, the old default, warns and proceeds, because it is
   what the sampler already does; `standardize = TRUE` errors and points to
   setting the scale directly through `interaction_prior` (and
-  `difference_scale` for `bgmCompare()`). There is no per-pair equivalent.
+  `difference_scale` for `bgmCompare()`). There is no per-pair equivalent, and
+  none is planned: standardization belongs in the model rather than in an
+  argument, and a forthcoming g-prior formulation of the interaction prior
+  addresses it there. The per-pair maximum-score adjustment is retired in
+  favour of that direction.
 
 * Priors are now objects. The scalar arguments `pairwise_scale`, `main_alpha`,
   `main_beta`, `inclusion_probability`, `beta_bernoulli_alpha`,
@@ -170,9 +160,14 @@ logarithm.
   `NA` for indicators the sampler never updated — the main-effect differences,
   unless `main_difference_selection = TRUE`. **A previously all-numeric matrix
   can now contain `NA`**, which breaks downstream code that assumes otherwise.
-  The `NA` is honest: an indicator that was never updated carries no evidence
-  at any threshold. Use `estimator = "raw"` for the old all-numeric behaviour,
-  or filter on `is.na()`.
+  The `NA` is honest, and the contrast with `bgm()` is the point: an
+  always-included edge indicator in `bgm()` is still *proposed* at every
+  iteration, so the Rao-Blackwellized accumulators see its conditional
+  inclusion odds and report a finite Bayes factor. An unselected main-difference
+  indicator is never proposed at all, so there is no Rao-Blackwellized quantity
+  to report — the entry is `NA` exactly when the indicator was never visited,
+  not because a number was lost. Use `estimator = "raw"` for the old
+  all-numeric behaviour, or filter on `is.na()`.
 
 * R-hat is the classic split-R-hat (Gelman et al. 2013 / Stan;
   `Rhat = sqrt(var_plus / W)` with `var_plus = (n-1)/n * W + B/n`). 0.1.6.3
@@ -828,72 +823,32 @@ logarithm.
 
 ## Bug fixes
 
-* Fixed a category-scale mismatch between `simulate()` and `predict()` for
-  discrete variables whose observed values were not already coded `0, 1, 2, ...`.
-  `bgm()` recodes each ordinal variable's values to internal 0-based categories;
-  `simulate()` returned data on the internal scale while the ordinal (OMRF) and
-  group-comparison `predict()` paths expect new data on the original scale, so
-  `simulate()` followed by `predict()` mismatched, giving a "category values not
-  observed in the training data" warning and a miscoded prediction context.
-  Separately, the mixed-model `predict()` path did not recode discrete new data
-  at all, so passing original-scale data to it was silently miscoded with no
-  warning (and could index category parameters out of range). `simulate()` now
-  returns discrete data on the original category scale for all model types, and
-  the mixed `predict()` path recodes discrete new data the same way the ordinal
-  path does; category relabeling leaves predictions unchanged. Blume-Capel
-  scores carry no recode map and are unchanged.
+* Fixed the number-of-blocks summary for stochastic-block edge priors, a
+  mismatch a 0.1.6.3 user would have seen. The conditional p(K | t) behind
+  `posterior_num_blocks` placed a zero-truncated Poisson prior on the number of
+  components, while the sampler's own partition coefficients use the shifted
+  Poisson (K - 1 ~ Poisson(lambda)). The mismatch reweighted the reported
+  distribution by a factor lambda/K across K, so the reported number of blocks
+  was systematically off from the one the sampler drew under. The summary now
+  uses the sampler's convention and is unit-tested against the generative
+  partition prior.
 
-* Fixed `extract_posterior_inclusion_probabilities()` on mixed MRF fits: the
-  indicator samples are stored in block order (discrete-discrete,
-  continuous-continuous, cross) over internally reordered variables, but the
-  extractor filled the matrix in global pair order, misplacing the entries. It
-  now maps them through the same block filler as `fit$posterior_mean_indicator`.
+* Fixed a compilation failure on Alpine/musl that also affected 0.1.6.3:
+  `mrf_simulation.cpp` used `tbb::global_control` while relying on a transitive
+  include for `<tbb/global_control.h>`, which is not available on all platforms.
+  The header is now included directly.
 
-* Fixed the number-of-blocks summary for `sbm_prior()` fits: the conditional
-  p(K | t) behind `posterior_num_blocks` placed a zero-truncated Poisson prior
-  on the number of components, while the sampler's partition coefficients use
-  the shifted Poisson (K - 1 ~ Poisson(lambda)). The mismatch reweighted the
-  reported distribution by a factor lambda/K across K. The summary now uses the
-  sampler's convention and is unit-tested against the generative partition
-  prior.
+* Fixed a `target_accept` that was partly ignored, in 0.1.6.3 as well. The value
+  reached dual averaging, but the step-size heuristic that reruns after a mass
+  matrix update used a hard-coded `0.625` instead, so a fit set to a different
+  `target_accept` was restarted at the wrong target every time the metric was
+  re-estimated. The heuristic now uses the requested target.
 
-* Fixed an indicator bookkeeping asymmetry in mixed MRF models: cross
-  (discrete-continuous) edge moves updated only the upper triangle of the
-  internal edge-indicator matrix, while the stochastic block edge prior reads
-  full columns. Under `edge_prior = sbm_prior()`, the block-allocation update
-  for a discrete variable therefore saw its cross edges as always included.
-  Discrete-discrete and continuous-continuous moves, other edge priors, and the
-  reported indicator samples were not affected.
-
-* Fixed the `delta = NULL` default for mixed MRF models: the determinant-tilt
-  exponent applies to the continuous precision block, but the default counted
-  blume-capel variables in its dimension. A mixed model with blume-capel
-  variables now gets `0.5 * log(#continuous)` instead of
-  `0.5 * log(#continuous + #blume-capel)`; models whose discrete variables are
-  all ordinal are unchanged.
-
-* A rank-1 Cholesky downdate that would leave the precision factor
-  non-positive-definite is now detected and triggers a rebuild of the factor
-  from the precision matrix. Previously the failure signal was never checked and
-  a partially updated factor could silently corrupt the carried covariance in
-  long GGM or mixed MRF edge-selection runs.
-
-* Fixed compilation failure on Alpine/musl: `mrf_simulation.cpp` relied on a
-  transitive include for `<tbb/global_control.h>` that is not available on all
-  platforms.
-
-* Fixed a stale gradient cache after missing-data imputation that caused NUTS to
-  use outdated cached values for leapfrog integration, and a stale observation
-  transpose after imputation that caused the pairwise gradient to use stale
-  data.
-
-* Fixed NUTS acceptance probability: `target_accept` is now correctly passed to
-  the lower-level NUTS functions.
-
-* Fixed NUTS acceptance probability accumulation: the top-level trajectory loop
-  overwrote the Metropolis contribution with the last subtree's value instead of
-  summing across the full trajectory, biasing the signal used by dual-averaging
-  step-size adaptation.
+* Fixed NUTS acceptance-probability accumulation, present in 0.1.6.3 too: the
+  top-level trajectory loop overwrote the Metropolis contribution with the last
+  subtree's value instead of summing across the full trajectory, so the signal
+  driving dual-averaging step-size adaptation was biased and the adapted step
+  size with it.
 
 ## Deprecated
 
