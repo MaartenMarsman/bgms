@@ -87,11 +87,14 @@ classification is the whole of what the panel reports. Read the magnitudes
 where they are per group: \code{plot(fit, type = "groups")} for the picture,
 \code{\link[=extract_group_params]{extract_group_params()}} for the numbers.
 
-The panels therefore need the split to exist. More than two groups
-\emph{without} \code{difference_selection} is the one case they cannot cover:
-there is no inclusion Bayes factor to split by and no single magnitude to
-draw instead, so \code{plot()} says so rather than choosing one of the \code{K - 1}
-differences. Both replacements are the ones named above.
+The panels need the split to exist, and more than two groups \emph{without}
+\code{difference_selection} is the one case where it does not. Selection off
+means weights are the display -- as it does for a \code{\link[=bgm]{bgm()}} fit -- and beyond
+two groups the weights of a pair are \code{K - 1} numbers rather than one, whose
+honest weighted picture is the groups themselves. \code{plot()} therefore draws
+the \code{type = "groups"} panels in that case, with the same layout, the same
+\code{max_panels} paging and the same passthrough to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}.
+\code{\link[=extract_group_params]{extract_group_params()}} remains the way to read the differences as numbers.
 
 \strong{Main-effect differences are not edges.} When
 \code{main_difference_selection = TRUE} gave them their own indicators, their
@@ -108,10 +111,11 @@ precisely; the rings are a summary of it.
 inclusion Bayes factor to split the pairs by. \code{plot()} then draws one panel
 with every pair on it, width the posterior mean difference and colour its
 sign, titled \code{"Difference weights"} so that the channel the figure is drawn
-in is never in doubt. On more than two groups that display has nothing to
-fall back on -- no split to draw and no single magnitude to draw instead --
-and \code{plot()} says so rather than picking one; use \code{type = "groups"} or
-\code{\link[=extract_group_params]{extract_group_params()}}.
+in is never in doubt. On more than two groups a pair has \code{K - 1} differences
+and no one of them is the weight to draw, so \code{plot()} draws the groups'
+own networks instead -- the \code{type = "groups"} display, reached without
+asking for it, because with selection off that is what the weighted picture
+of such a fit is.
 
 \strong{\code{type = "groups"}} draws each group's own posterior mean network on
 the layout the difference display uses, so a node sits in the same place

@@ -685,6 +685,13 @@ clause:
 >   Read the magnitudes per group with `plot(fit, type = "groups")` or
 >   `extract_group_params()`.
 
+> * With `difference_selection = FALSE` and more than two groups, `plot()`
+>   draws the groups' own networks — the `type = "groups"` display — without
+>   being asked for it. Selection off means weights are the display, and beyond
+>   two groups the weights of a pair are `K - 1` numbers whose honest weighted
+>   picture is the groups themselves. Two groups are unchanged: there a pair
+>   has one difference and the `Difference weights` network is that display.
+
 Under **Other changes**:
 
 > * Network figures no longer carry a sign key. Each panel is titled with the
@@ -708,7 +715,9 @@ Under **Other changes**:
   call rather than a verdict item; trivially reversible.
 * **O. The `K > 2` + `difference_selection = FALSE` refusal is mine.** The
   ruling removed the `K > 2` error; this narrower one is what remains when both
-  the split and the single magnitude are absent.
+  the split and the single magnitude are absent. **Closed by the maintainer's
+  design ruling** — see the addendum at the end of this report; the refusal no
+  longer exists and that case draws the group panels.
 
 Findings A–L from the earlier rounds stand. Finding A (`format_log_bf()`
 printing `-0.0`) still wants a fix in `R/verdicts.R`, which this brief may not
@@ -778,9 +787,67 @@ All four settled; nothing reverted.
    rather than only in the without-selection paragraph: the panels need the
    split to exist, this is the one case where neither the split nor a single
    magnitude does, and both replacements are named in the same place.
+   *Superseded by the maintainer's later design ruling — see the addendum; the
+   error is gone and that case draws the group panels.*
 4. **The 7x7 squeeze is review finding F-115**, routed to a later batch. The
    code comment above `network_panel_par()`, `INDEX.md` and finding M above now
    all carry that number, so the later batch can find them.
 
-Finding M is therefore closed on this branch as F-115; findings N and O are
-closed by rulings 1 and 3.
+Finding M is therefore closed on this branch as F-115; finding N is closed by
+ruling 1. Finding O was closed by ruling 3 and then reopened and closed the
+other way by the maintainer's design ruling in the addendum below.
+
+---
+
+## Addendum — K > 2 without difference selection now draws the group panels
+
+Maintainer design ruling, superseding round 3's accepted error and closing
+finding O the other way. Commit `cf530806`.
+
+The reasoning that produced the error was that a `K > 2` selection-off fit has
+neither a split to draw nor a single magnitude to draw instead. That is true
+and it was the wrong conclusion, because it treated "the display must be a
+difference network" as given. It is not. Selection off means **weights are the
+display**, exactly as it does for a `bgm()` fit — and beyond two groups the
+weights of a pair are `K - 1` numbers, whose honest weighted picture is not a
+summary of the differences but the groups themselves. That display already
+exists, on the same layout with the same paging, so the selection-off
+`!weighted` branch now dispatches to `compare_group_panels()` with the caller's
+`max_panels`, `page` and `...` and returns `invisible(x)` — the same three lines
+`type = "groups"` takes.
+
+`K = 2` selection-off is untouched: a pair has one difference there, and the
+`Difference weights` network is still that display. Every selection-on display
+is untouched.
+
+**Rd.** Both paragraphs that said `plot()` "says so rather than picking one"
+are rewritten. The `More than two groups` paragraph now states the rule
+positively — the panels need the split, this is the case where it does not
+exist, and `plot()` draws the groups' networks with the same layout, paging and
+passthrough — and keeps the `extract_group_params()` pointer for reading the
+differences as numbers. The `Without difference selection` paragraph says the
+same in one sentence. `NAMESPACE` unchanged; drift is `man/plot.bgmCompare.Rd`
+alone.
+
+**Tests.** The two `expect_error()` assertions on the removed `stop()` become
+an `expect_invisible()` on the dispatch plus four assertions that it really is
+the `type = "groups"` display and not a lookalike: both routes emit the same
+paging message under `max_panels = 2`, `page = 2` reaches page two, an
+out-of-range page raises the pager's own error, and `max_panels = 0` raises the
+pager's own validation. A two-group selection-off fit is asserted alongside it,
+so the unchanged branch is pinned rather than assumed. The new two-group
+fixture runs at `warmup = 150`; at 100 it warned about proportional allocation,
+and the gate is a zero-warning gate.
+
+**Render.** `compare-difference-k3-no-selection-{before,after}.png`, on a
+selection-off fit of the same seeded K = 3 data, one new `INDEX.md` row. The
+three panels show the construction directly: groups 1 and 2 carry the shared
+chain, group 3 carries `v1-v5` in place of `v2-v3`. Every other render is
+byte-identical, both sides, which is the check that this change reaches only
+the branch it was meant to.
+
+**NEWS.** No clause this branch drafted described the `K > 2` selection-off
+error, so nothing needed correcting. The new behaviour is user-visible and gets
+its own proposed clause, appended to the `bgmCompare` block above.
+
+**Finding O is closed** — the narrow refusal it recorded no longer exists.

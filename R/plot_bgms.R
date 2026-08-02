@@ -684,11 +684,14 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' where they are per group: `plot(fit, type = "groups")` for the picture,
 #' [extract_group_params()] for the numbers.
 #'
-#' The panels therefore need the split to exist. More than two groups
-#' \emph{without} `difference_selection` is the one case they cannot cover:
-#' there is no inclusion Bayes factor to split by and no single magnitude to
-#' draw instead, so `plot()` says so rather than choosing one of the `K - 1`
-#' differences. Both replacements are the ones named above.
+#' The panels need the split to exist, and more than two groups \emph{without}
+#' `difference_selection` is the one case where it does not. Selection off
+#' means weights are the display -- as it does for a [bgm()] fit -- and beyond
+#' two groups the weights of a pair are `K - 1` numbers rather than one, whose
+#' honest weighted picture is the groups themselves. `plot()` therefore draws
+#' the `type = "groups"` panels in that case, with the same layout, the same
+#' `max_panels` paging and the same passthrough to [qgraph::qgraph()].
+#' [extract_group_params()] remains the way to read the differences as numbers.
 #'
 #' \strong{Main-effect differences are not edges.} When
 #' `main_difference_selection = TRUE` gave them their own indicators, their
@@ -705,10 +708,11 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' inclusion Bayes factor to split the pairs by. `plot()` then draws one panel
 #' with every pair on it, width the posterior mean difference and colour its
 #' sign, titled `"Difference weights"` so that the channel the figure is drawn
-#' in is never in doubt. On more than two groups that display has nothing to
-#' fall back on -- no split to draw and no single magnitude to draw instead --
-#' and `plot()` says so rather than picking one; use `type = "groups"` or
-#' [extract_group_params()].
+#' in is never in doubt. On more than two groups a pair has `K - 1` differences
+#' and no one of them is the weight to draw, so `plot()` draws the groups'
+#' own networks instead -- the `type = "groups"` display, reached without
+#' asking for it, because with selection off that is what the weighted picture
+#' of such a fit is.
 #'
 #' \strong{`type = "groups"`} draws each group's own posterior mean network on
 #' the layout the difference display uses, so a node sits in the same place
@@ -789,15 +793,17 @@ plot.bgmCompare = function(x,
   }
 
   if(!isTRUE(arguments$difference_selection)) {
+    # Selection off means weights are the display, exactly as it does for a
+    # bgm() fit. On two groups the weights of a pair are one number and the
+    # difference network is that display. On more than two they are K - 1
+    # numbers, and the honest weighted picture of them is not a summary of the
+    # differences but the groups themselves -- which is the display
+    # `type = "groups"` already draws, on the same layout and with the same
+    # paging. So this dispatches there rather than refusing.
     if(!weighted) {
-      stop(
-        "Without difference selection there is no evidence to split the pairs ",
-        "by, so the figure would have to be the magnitudes -- and with ",
-        num_groups, " groups a pair has ", num_groups - 1L, " of them, which ",
-        "is not one network. Plot the groups themselves with ",
-        "plot(fit, type = \"groups\"), or read the differences as numbers ",
-        "with extract_group_params()."
-      )
+      compare_group_panels(x, pairs, variables, num_groups, layout,
+        max_panels, page, ...)
+      return(invisible(x))
     }
     draw_weight_network(weight, pairs, variables, unit, layout, ...)
     return(invisible(x))

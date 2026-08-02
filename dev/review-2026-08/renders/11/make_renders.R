@@ -164,6 +164,16 @@ compare_k3 = cached("compare_k3", bgmCompare(
   difference_selection = TRUE, display_progress = "none"
 ))
 
+# The same three groups without difference selection. There is no split, and a
+# pair's weights are two numbers rather than one, so the weighted display of
+# this fit is the groups themselves -- which is what plot() now draws.
+compare_k3_nosel = cached("compare_k3_nosel", bgmCompare(
+  x = k3_data,
+  group_indicator = rep(c("first", "second", "third"), each = 500),
+  iter = 300, warmup = 300, chains = 2, cores = 2, seed = 72,
+  difference_selection = FALSE, display_progress = "none"
+))
+
 # Four groups, so the group display has something to page.
 compare_four = cached("compare_four", bgmCompare(
   x = Wenchuan[1:160, 1:4],
@@ -261,6 +271,10 @@ render("compare-difference-empty", width = WIDE$width, height = WIDE$height,
 render("compare-difference-no-selection", expr = plot(compare_nosel))
 render("compare-difference-k3", width = WIDE$width, height = WIDE$height,
   expr = plot(compare_k3)
+)
+render("compare-difference-k3-no-selection",
+  width = WIDE$width, height = WIDE$height,
+  expr = plot(compare_k3_nosel)
 )
 render("compare-groups", width = 11, height = 5.6,
   expr = plot(compare_main, type = "groups")

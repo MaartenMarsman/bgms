@@ -244,8 +244,9 @@ test_that("more than two groups keeps the panels and drops the width channel", {
   expect_invisible(plot(fit))
   expect_invisible(plot(fit, type = "groups"))
 
-  # Without selection there is no split and no single magnitude to draw
-  # instead, and the method says so rather than choosing one.
+  # Without selection there is no split, and beyond two groups no single
+  # magnitude either -- so the weighted display of such a fit is the groups
+  # themselves, and plot() draws them rather than refusing.
   nosel = bgmCompare(
     x = ADHD[, 2:5],
     group_indicator = rep(1:3, length.out = nrow(ADHD)),
@@ -253,8 +254,30 @@ test_that("more than two groups keeps the panels and drops the width channel", {
     iter = 50, warmup = 100, chains = 2, seed = 904,
     display_progress = "none"
   )
-  expect_error(plot(nosel), "not one network")
-  expect_error(plot(nosel), "extract_group_params")
+  expect_invisible(plot(nosel))
+
+  # It is the type = "groups" display, reached without asking for it: the two
+  # routes behave alike, including the paging arguments, which is what makes
+  # the default an alias for that display rather than a lookalike of it.
+  withr::local_options(bgms.verbose = TRUE)
+  expect_message(plot(nosel, max_panels = 2L), "Showing page 1 of 2")
+  expect_message(plot(nosel, type = "groups", max_panels = 2L),
+    "Showing page 1 of 2")
+  expect_message(plot(nosel, max_panels = 2L, page = 2L), "Showing page 2 of 2")
+  expect_error(plot(nosel, max_panels = 2L, page = 3L), "make 2 pages")
+  expect_error(plot(nosel, max_panels = 0L), "max_panels")
+
+  # Two groups keep the difference-weights network: there the pair has one
+  # magnitude, so there is a weighted network to draw.
+  two = bgmCompare(
+    x = ADHD[, 2:5],
+    group_indicator = rep(1:2, length.out = nrow(ADHD)),
+    difference_selection = FALSE,
+    iter = 50, warmup = 150, chains = 2, seed = 905,
+    display_progress = "none"
+  )
+  expect_false(is.list(two@posterior_mean_pairwise_differences))
+  expect_invisible(plot(two))
 })
 
 test_that("a sparse network draws rather than failing on the node set", {
