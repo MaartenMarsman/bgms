@@ -122,6 +122,11 @@ orientation, cumulatively covering the architecture.
   Findings severity-tagged / Evidence / Open questions); seeds, runtimes, and
   derived tolerances stated. No pushing (unless the brief grants a scoped
   exception), no attribution trailers, never build in the Dropbox tree.
+- **Steering as relay blocks (MM directive, 2026-08-02).** MM relays
+  verbatim: ALL agent-directed content — briefs, mid-flight steering,
+  follow-up questions, scope changes — is delivered to MM as a
+  self-contained fenced block addressed to the agent, ready to paste.
+  Never prose addressed to MM that he must excerpt.
 
 ## Brief ledger
 
