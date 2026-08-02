@@ -9,6 +9,28 @@
 // -----------------------------------------------------------------------------
 // zratio_law.h
 //
+// ARCHIVED. This file, its test (test-zratio-law.R), its reference fixture
+// (fixtures/zratio_law_reference.rds) and that fixture's generator, and the
+// zratio_law_moments test export in src/zratio_test_interface.cpp were removed
+// from the bgms package and live on this branch only. Maintainer's decision,
+// 2026-08-02, pre-CRAN review finding F-099: nothing deployed touched it, so it
+// was carrying review, build and test cost for a route the package does not
+// take.
+//
+// RE-WIRING CONDITION: the large-q crossover the banner below describes. The
+// law's cost is ~flat in giant component size while the Monte-Carlo block
+// oracle grows ~cubically, so above some q the law becomes the cheaper CN
+// anchor source. If bgms starts reaching those sizes, lift this file and its
+// test back into src/models/ggm/ and re-add the zratio_law_moments export.
+//
+// REGENERATING THE FIXTURE: fixtures/zratio_law_reference.rds cannot be
+// regenerated from this branch alone. Its generator
+// (fixtures/make_zratio_law_reference.R) reads the reference values from the
+// companion R implementation of the same law, which is private and not
+// distributed with bgms. Treat the checked-in .rds as the reference of record;
+// obtain the companion implementation before attempting to rebuild it.
+// -----------------------------------------------------------------------------
+//
 // DORMANT large-q insurance -- NOT wired into the default surface build. The
 // deployed CN anchor source is the Monte-Carlo block oracle
 // (zratio_block_oracle_moments): it is cheaper at the sizes bgms reaches
@@ -21,20 +43,20 @@
 // ever make it load-bearing. It is not used in the paper.
 //
 // The mu-first CPA analytic common-neighbour (CN) law: a deterministic,
-// tableless C++ port of the companion's build-time CN anchor engine
-// (mu-law-solve.cpp + eval_mu_law + re_param2). One self-consistent spectral
-// solve per (size, density) cell yields the absolute per-component moments
-// (S1, S2).
+// tableless CN anchor engine. One self-consistent spectral solve per
+// (size, density) cell yields the absolute per-component moments (S1, S2).
+// No tables, no RNG, no Monte Carlo: given the cell it returns the same two
+// numbers every time.
 //
 // Three pieces, all deterministic (no RNG), pure STL + R::dgamma:
-//   * build_law_grids  -- the (eta, delta) grid setup (port of re_param2): the
-//     coarse gamma quadrature and spectral grid for the solve, plus the fine
-//     gamma grid and node law nu0 for the dressing.
+//   * build_law_grids  -- the (eta, delta) grid setup: the coarse gamma
+//     quadrature and spectral grid for the solve, plus the fine gamma grid and
+//     node law nu0 for the dressing.
 //   * mu_law_solve     -- the complex-plane damped-Picard / theta-bisection /
-//     psi-secant self-consistent solve (port of mu_law_solve_full), bounded by
-//     a total inner-iteration budget; reports the residual psi_gap.
-//   * eval_mu_law_dress-- the plain-Gamma dressing (port of eval_mu_law, tilt
-//     branch): a 7-point stencil of the dressed Stieltjes profile at z = -t2
+//     psi-secant self-consistent solve, bounded by a total inner-iteration
+//     budget; reports the residual psi_gap.
+//   * eval_mu_law_dress-- the plain-Gamma dressing: a 7-point stencil of the
+//     dressed Stieltjes profile at z = -t2
 //     whose finite differences give S1 = s^4 n g'(-t2), S2 = s^8 n g'''(-t2)/6.
 //
 // Certification gate: dress only when abs(psi_gap) <= 1e-4; otherwise the cell
@@ -43,8 +65,9 @@
 
 namespace zratio_law {
 
-// Trapezoid weights on a non-uniform grid: w[i] = (dx_left + dx_right) / 2,
-// matching the companion's c(diff(x), 0) / 2 + c(0, diff(x)) / 2.
+// Composite trapezoid weights on a non-uniform grid:
+// w[i] = (dx_left + dx_right) / 2, with the missing side taken as zero at
+// either end.
 inline void trapezoid_weights(const std::vector<double>& x,
                               std::vector<double>& w) {
     const int n = static_cast<int>(x.size());
@@ -57,8 +80,9 @@ inline void trapezoid_weights(const std::vector<double>& x,
 }
 
 /**
- * Grids for one (eta, delta) cell. sigma = 1 in the standardized frame; the
- * engine's eta is the companion's beta directly, and t2 = 2 beta sigma^2.
+ * Grids for one (eta, delta) cell. sigma = 1 in the standardized frame. Note
+ * the notation: eta here is the tilt rate often written beta, and
+ * t2 = 2 * eta * sigma^2. The member below is named `beta` for that reason.
  */
 struct LawGrids {
     std::vector<double> gamc, gamw;  ///< coarse gamma quadrature (800) for solve
@@ -332,7 +356,7 @@ inline void psi_pass(const LawGrids& G, double D, double n, double dmp,
 }  // namespace detail
 
 /**
- * Full self-consistent solve (port of mu_law_solve_full): cold start, staged
+ * Full self-consistent solve: cold start, staged
  * psi secant + hard-corner retry + final polish. Fills sol; sol.psi_gap is the
  * convergence residual the caller gates on.
  */
@@ -367,7 +391,7 @@ inline void mu_law_solve(const LawGrids& G, double D, double n, double tol_psi,
 }
 
 /**
- * Plain-Gamma dressing (port of eval_mu_law, tilt = TRUE branch): a 7-point
+ * Plain-Gamma dressing, tilted branch: a 7-point
  * stencil of the dressed profile at z = -t2 whose finite differences give
  *   S1 = s^4 n g'(-t2),  S2 = s^8 n g'''(-t2) / 6.
  * Returns true and fills s1/s2 on success; false if the dressing produces a
