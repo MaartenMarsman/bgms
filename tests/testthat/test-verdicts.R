@@ -98,6 +98,13 @@ test_that("format_log_bf caps the magnitude it prints", {
   expect_equal(format_log_bf(Inf), "> 10,000")
   expect_equal(format_log_bf(-Inf), "< -10,000")
   expect_equal(format_log_bf(NA_real_), "NA")
+
+  # A value that rounds away carries no sign the run established, so it must
+  # not print as "-0.0" (F-105). print.bgms_verdicts reaches this directly.
+  expect_equal(format_log_bf(-0.004), "= 0.0")
+  expect_equal(format_log_bf(-0.04), "= 0.0")
+  expect_equal(format_log_bf(0.004), "= 0.0")
+  expect_equal(format_log_bf(-0.06), "= -0.1")   # still rounds to a real value
 })
 
 test_that("compare_indicator_index lays out main then pairwise per variable", {

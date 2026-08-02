@@ -452,12 +452,13 @@ logarithm.
   "the groups do not differ anywhere" is a common and correct finding — so the
   nodes are drawn on their own and the subtitle says so. Main-effect differences
   are not edges, and when `main_difference_selection = TRUE` gives them their
-  own indicators their verdicts ride on the nodes: a square node with an
-  accented border where the data settle a main-effect difference, a circle where
-  they do not, so the encoding does not rest on colour alone. Under the default
-  `main_difference_selection = FALSE` those indicators are never updated and
-  have no verdict, every node is drawn alike, and the subtitle says the channel
-  is empty. `type = "groups"` draws each group's own network beside the
+  own indicators their evidence rides on the nodes: each node wears a ring
+  filled to that difference indicator's posterior inclusion probability — a full
+  ring is 1, half a ring 0.5 — and coloured by its verdict. The fill fraction
+  carries the number, so the encoding does not rest on colour alone. Under the
+  default `main_difference_selection = FALSE` those indicators are never
+  updated and have no verdict, no ring is drawn, and the subtitle names the
+  setting. `type = "groups"` draws each group's own network beside the
   difference panel on one shared layout, so a node sits in the same place
   throughout and a reader compares by position; those panels use the same
   colour-vision-safe sign pair as the rest of the package rather than qgraph's

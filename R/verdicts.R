@@ -111,7 +111,12 @@ format_log_bf = function(log_bf, cap = 1e4) {
   if(log_bf < -cap) {
     return(sprintf("< -%s", format(cap, big.mark = ",", scientific = FALSE)))
   }
-  sprintf("= %.1f", log_bf)
+  # A Bayes factor that rounds to nothing is nothing, not "-0.0": the sign of a
+  # rounded-away quantity is not information the run established. Same rule
+  # estimate_lines() already applies to a weight (R/plot_bgms.R).
+  shown = round(log_bf, 1)
+  if(shown == 0) shown = 0
+  sprintf("= %.1f", shown)
 }
 
 
