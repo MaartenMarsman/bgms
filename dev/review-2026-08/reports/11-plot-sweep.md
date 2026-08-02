@@ -343,3 +343,195 @@ top of `R/prior_sensitivity.R` — confirmed by `git diff --stat origin/develop`
 
 5. **Finding C** — retire, soft-deprecate, or keep
    `plot_edge_posterior(evidence_threshold =)`?
+
+---
+
+# Revision round (maintainer's render judgment)
+
+Three instruction blocks arrived after round 1. The corrective addendum
+supersedes the revision brief's item 2 (width by evidence), so that encoding is
+**not implemented**; the network is the documentation's own three-panel edge
+evidence plot instead. Everything else in the revision brief and addendum A is
+in. Addendum B's hold is lifted by the corrective addendum.
+
+All of it is in one commit, `5a208101`, because the network redesign, the
+caption cuts and the sensitivity fixes touch the same drawing code and no
+subset of them leaves a coherent tree.
+
+## Per item
+
+| item | what changed |
+| --- | --- |
+| **Locked trio** | `edge-panel-{presence,undecided,absence}-after.png` re-render **byte-identical** (verified by `git status` after two full re-render passes). The only edge-panel code that moved is the caption loop, and it is a no-op for a one-line caption. |
+| **1 — legend** | Dissolved by the three-panel structure, as the corrective addendum directs: the panel titles carry the categories. `getOption("bgms.network_legend")` and `network_legend_keys()` are **deleted**. What remains is a two-line sign key on the weighted panel, and it is not drawn when that panel is empty. Threshold language is raw Bayes factors everywhere it appears (`BF > 10`, `BF < 0.1`, `0.1 < BF < 10`), via the new `format_bayes_factor()`; per-edge numbers stay natural-log. |
+| **2 — width by evidence** | **Not implemented**, per the corrective addendum. Width on the supported panel is the posterior mean association, as the reference figure has it. |
+| **3 — top-right block** | Gone. `evidence_band()` and `draw_network_annotations()` are deleted. The label-and-tally survives as the three panel titles, which is what the tally became. |
+| **4 — captions** | Every in-figure caption line is gone from the network, centrality, calibration and sensitivity figures. Encoding descriptions moved into each method's `@details`. The sensitivity off-range note is not re-added to `print()` because the information is already there: `print()` reports "N of M verdicts hold across the whole range" and a "robust (same verdict at every scale)" count, which is the same fact stated without reference to a plot window. |
+| **5 — answer-sentence titles** | The sensitivity headline is gone and no label replaces it; the two axes name the object. Calibration's compact labels stay. |
+| **6 — jargon** | The calibration kind-mark no longer says "isotonic"/"PIT". On a page holding both kinds it says **`discrete` / `continuous`** — the reader's distinction rather than the estimator's; on a page of one kind it says nothing, because the mark would then be identical under every panel. The outer axis labels also lose "(isotonic)" and "probability integral transform". `?calibration_check` documents both constructions. |
+| **7 — node marks** | Reversed. `main_difference_nodes()` returns `pie`/`pie_color` again and the ring is drawn by qgraph around the node circle, in module colours (accent for presence, `muted` for undecided, `pale` for absence). `probability_wheel()` remains the mark for a probability a *panel prints* — the locked edge panel — and is no longer used on a network. |
+| **8 — Savage-Dickey panel** | `data|H1` / `data|H0` removed. **Proposal implemented: the explanation moved to words**, which de-crowds the corner more than re-wording the tags would: the wheel now sits exactly where it sits on the other three panels, and a two-line caption says "Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor." / "Filled share of the wheel: the probability the edge is there, at equal prior odds." The Rd carries the full account. `"no edge selection"` stays. The plain-language tags (`with the edge` / `without the edge`) are a one-line change if he prefers them on the wheel. |
+| **9 — group labels** | `group_tag()` suppresses the parenthetical when `labels[g] == as.character(g)`, so a numeric indicator gives `group 1`, not `group 1 (1)`. `compare-groups` is re-rendered from a character-labelled fit, and both sides of that pair use it, so the informative form (`group 1 (fr)` / `group 2 (en)`) is what is judged. |
+| **10 — compare-groups** | Panel titles and node labels are larger; the display is the group networks alone on the difference display's layout, paged at `max_panels = 3` with `page =`. Every page uses the same panel width, so page 2 of a four-group fit draws its one network at page 1's scale rather than stretched across the device. K > 2 proposal below. |
+| **11 — trajectories** | One connected line per edge through its anchor points, via the new `trajectory()`: the finite points are joined in order, so a masked stretch is bridged rather than left as a gap with a floating dot beside it. The construction is stated in the Rd. |
+| **12 — "chosen"** | The 1x marker says **`your fit`**, and the axis reads "Slab scale, relative to your fit" / "Difference scale, relative to your fit". |
+| **A — selection-off** | `plot()` on an `edge_selection = FALSE` fit, and on a `difference_selection = FALSE` compare fit, draws one weighted panel of every pair titled **`Edge weights`** / **`Difference weights`**, with `posterior mean, every pair drawn` under it. Same routine for both methods. Rendered as `bgms-network-no-selection` and `compare-difference-no-selection`; the BEFORE tree cannot draw either fit at all. |
+| **B — empty network** | Hold lifted by the corrective addendum. `plot.bgms()`'s "nothing to draw" `stop()` is **removed**; an all-absence fit fills the second panel. Rendered as `bgms-network-all-absence` (independent data, `evidence of presence: 0`). |
+| **Corrective 1-3, 6** | The three-panel display, on one layout computed from every pair, for both methods; only the supported panel weighted; absence dashed and uniform, undecided dotted and uniform. |
+
+## The K > 2 proposal (his call)
+
+`plot(fit)` on a fit with more than two groups still errors, unchanged. Here is
+what I think it should do, and why the obvious answer is wrong.
+
+The structure to design against: `bgmCompare()` puts **one indicator per pair**,
+not one per pair per contrast. That indicator governs whether the groups differ
+on that pair *at all*, so `verdicts()` returns exactly one Bayes factor per pair
+whatever K is. The **magnitudes**, by contrast, are a vector: `K - 1` contrasts,
+which is why `x@posterior_mean_pairwise_differences` is a list.
+
+So the classification the three panels encode is already well defined for any
+K. The only thing that breaks is the width on the supported panel: there is no
+single "the difference" to scale it by, and no sign either.
+
+**Proposal (recommended).** For K > 2, draw the same three panels, with the
+supported panel **unweighted** — uniform width, one neutral ink, like the other
+two. The panels then say exactly what the fit's indicators say ("the groups
+differ here / do not / cannot be told"), and the effect sizes, which are a
+vector per pair, are read from `extract_group_params()` and seen in
+`type = "groups"`, which pages and already works for any K. The supported
+panel's rule line would name the change ("classification only; K - 1 contrasts
+per pair"). Nothing is invented and no display becomes wrong as K grows.
+
+**Alternative,** if a weighted panel is wanted: width = the largest absolute
+contrast for that pair, drawn in one neutral colour with no sign channel, and
+named in the rule line. It is a real number and it is monotone in "how much the
+groups differ", but it is a summary the model does not itself report, and a
+reader could take it for "the" difference.
+
+**Rejected: pairwise pages.** K(K-1)/2 comparisons would give one page per pair
+of groups, each with its own three panels — but the evidence is per pair of
+*variables*, not per pair of *groups*, so every page would carry the identical
+classification and differ only in the widths. That would multiply the figure
+without adding a single new statement of evidence.
+
+**Rejected: a stated K = 2 limit.** The classification is defined for any K, so
+refusing to draw it would withhold something the fit has.
+
+## Updated NEWS clauses (these supersede the round-1 drafts)
+
+The round-1 evidence-encoding clause is withdrawn in full. In its place, under
+**New features → Plots and centrality**:
+
+> * `plot()` on a `bgm()` fit draws the **edge evidence plot**: three panels on
+>   one shared layout, holding the pairs the data support, the pairs the data
+>   rule out, and the pairs the data cannot decide. A single network drawing has
+>   to make every pair either an edge or a blank, and a blank cannot say which
+>   of those two a missing edge is; because `bgm()` returns an inclusion Bayes
+>   factor for every pair, that choice does not have to be made. Each panel is
+>   titled with what it holds and how many pairs are in it, and with the rule
+>   that put them there, stated as a Bayes factor rather than its logarithm.
+>   Only the first panel is weighted: line width is the posterior mean pairwise
+>   association and colour carries its sign, because that is where the effect
+>   sizes are. The other two are drawn at uniform width, dashed and dotted,
+>   because for those pairs the classification is the result. The layout is
+>   computed once from every pair, so a node sits in the same place in all three
+>   panels.
+
+> * `plot()` on a `bgmCompare()` fit draws the same three panels for difference
+>   evidence, with the supported panel weighted by the posterior mean
+>   difference. `type = "groups"` draws each group's own posterior mean network
+>   on that same layout and pages them, so a fit with more groups than
+>   `max_panels` is drawn a page at a time rather than squeezed into one row.
+>   Main-effect difference evidence, when `main_difference_selection = TRUE`
+>   gave those indicators a verdict, rides on the nodes as a ring filled to the
+>   posterior inclusion probability.
+
+> * A fit run without selection has no inclusion Bayes factor and nothing to
+>   split its pairs by, so `plot()` draws one panel with every pair on it, width
+>   the posterior mean and colour its sign, titled `Edge weights` or
+>   `Difference weights`. The title says which channel the figure is drawn in,
+>   so a wide line is never ambiguous between a large association and strong
+>   evidence for one.
+
+Under **Bug fixes**, in addition to the F-070 clause from round 1:
+
+> * `plot()` on a `bgm()` fit no longer errors when no edge reaches evidence of
+>   presence. An all-absence fit is a result, and it is drawn: the second panel
+>   fills and the first is empty.
+
+> * A group is no longer labelled `group 1 (1)`. The parenthetical names the
+>   original value of the group indicator, and it is printed only when that
+>   value says something the number does not.
+
+Under **Other changes**, replacing the round-1 `PIP` clause's second half and
+adding:
+
+> * The prior-sensitivity plot draws one connected trajectory per edge through
+>   its anchor points, rather than leaving the stretches masked for low
+>   importance ESS as gaps with the anchor estimates floating between them. The
+>   line is straight across a masked stretch; `?plot.bgms_prior_sensitivity`
+>   says so.
+
+> * Figures carry no captions, no headline titles and no estimator names. What
+>   the marks are is documented in each method's help page. The vertical marker
+>   on the prior-sensitivity plot says `your fit` rather than `chosen`.
+
+> * `plot_edge_posterior()` on a fit without edge selection no longer labels the
+>   probability wheel `data|H1` / `data|H0`. The caption says what the two
+>   shares are in words.
+
+## Findings from the revision round
+
+| id | severity | finding |
+| --- | --- | --- |
+| I | note | `bgmCompare()` puts one inclusion indicator on each *pair*, shared across all `K - 1` contrasts, while the magnitudes are per contrast. Nothing in the Rd for `bgmCompare()` or `verdicts()` says this outright, and it is the fact that decides what a K > 2 difference figure can and cannot show (see the proposal). Worth a sentence in `?bgmCompare` whatever he decides about the figure. |
+| J | note | `probability_wheel()`'s `labels` argument now has no caller inside the package: the only figure that used it was the Savage-Dickey panel. It stays, tested, as a helper feature. If it is still unused after his round-2 verdict, it should go. |
+| K | note | `plot.bgmCompare(max_panels =, page =)` are new arguments and follow `plot.bgms_calibration()`'s pattern, including its `bgms.verbose` message naming the other pages. They apply only to `type = "groups"`; the Rd says so, but a user passing them to `type = "difference"` gets no warning that they did nothing. |
+| L | minor | Findings A-H from round 1 stand unchanged, except **D**, which is closed: `plot.bgms()` no longer errors on an undrawable network, so the two methods now agree. **C** also softens but does not close: `plot_edge_posterior(evidence_threshold =)` is still inert on what the panel draws. |
+
+## Evidence (revision round)
+
+* **Renders**: 24 pairs, 48 files. Both sides regenerated by the one committed
+  script; the two legend-variant pairs are deleted with the option they
+  demonstrated. Locked trio byte-identical across two independent re-render
+  passes.
+* **`devtools::document()`**: clean. Rd drift confined to
+  `man/plot.bgms.Rd`, `man/plot.bgmCompare.Rd`, `man/plot_edge_posterior.Rd`.
+  `NAMESPACE` unchanged.
+* **Suite**: see below.
+* **Snapshot re-records**: `tests/testthat/_snaps/plot-methods.md`, **2 cases**,
+  both Savage-Dickey, both for the same two changes — the wheel tags becoming
+  `(none)` and the caption becoming the two plain-language lines. The four
+  selection-on cases are untouched in this round.
+
+### Suite (revision round)
+
+`devtools::test()`, local default tier, no slow environment variables set,
+sequential at `Ncpus = 2`:
+
+```
+78 context files, no failure, warning or error mark in the stream
+exit=0
+```
+
+Counted from the reporter's own marks: **8251 passing expectations, 105 skips,
+0 failures, 0 warnings, 0 errors**. The skip set is unchanged from round 1 and
+is entirely tier gates and `skip_on_cran()`.
+
+Test changes in this round, all in `tests/testthat/test-plot-methods.R`:
+
+* `verdict_network_input()` and `verdict_edge_colors()` are gone with the
+  single-network renderer; their subject — that qgraph reads the non-zero upper
+  triangle in column-major order and a colour vector built in row-major order
+  lands on the wrong edges — is now tested on `panel_edge_matrix()` and
+  `matrix_edge_colors()`, together with the empty-panel and zero-weight cases.
+* `evidence_band()` and `network_legend_keys()` tests deleted with the
+  functions.
+* New: `threshold_rules()` prints raw Bayes factors at three thresholds;
+  `network_unit()` names the same three classes in the same order for both
+  methods, which is what the shared display rests on.
+* The "network needs at least one edge that is not ruled out" test becomes "a
+  network with nothing left to support is still a figure", asserting the two
+  cases the removed `stop()` used to refuse.
+* `main_difference_nodes()` back to asserting `pie`/`pie_color`.

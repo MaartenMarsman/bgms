@@ -86,6 +86,21 @@ fit_mixed = cached("fit_mixed", bgm(
   display_progress = "none", verbose = FALSE
 ))
 
+# Independent data: every pair is actively ruled out, so the absence panel of
+# the evidence display is the one that fills. An all-absence fit is a result,
+# and the figure has to be able to show it.
+independent_data = local({
+  set.seed(77)
+  x = matrix(stats::rbinom(1200 * 5, 1, 0.5), nrow = 1200)
+  colnames(x) = paste0("v", seq_len(5))
+  x
+})
+fit_independent = cached("fit_independent", bgm(
+  independent_data,
+  chains = 2, iter = 400, warmup = 400, cores = 2, seed = 3,
+  display_progress = "none", verbose = FALSE
+))
+
 compare = cached("compare", bgmCompare(
   x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
   iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
@@ -103,6 +118,22 @@ compare_main = cached("compare_main", local({
     display_progress = "none"
   )
 }))
+
+# Difference selection off: the analysis is an estimation one and the display
+# is the weighted network, titled as weights.
+compare_nosel = cached("compare_nosel", bgmCompare(
+  x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
+  iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
+  difference_selection = FALSE, display_progress = "none"
+))
+
+# Four groups, so the group display has something to page.
+compare_four = cached("compare_four", bgmCompare(
+  x = Wenchuan[1:160, 1:4],
+  group_indicator = rep(c("north", "south", "east", "west"), each = 40),
+  iter = 200, warmup = 200, chains = 2, cores = 2, seed = 21,
+  display_progress = "none"
+))
 
 calibration = cached("calibration", calibration_check(fit, nrep = 60, seed = 5))
 calibration_mixed = cached("calibration_mixed",
@@ -163,28 +194,42 @@ render = function(name, width = 7.5, height = 7, opts = NULL, expr) {
 
 cat(sprintf("rendering %s from %s\n", side, pkg))
 
+# The evidence display is three panels wide; the single-panel displays keep the
+# square device they had.
+WIDE = list(width = 13.5, height = 5.2)
+
 # --- plot.bgms ---------------------------------------------------------------
-render("bgms-network", expr = plot(fit))
-# The variant legend keys the three lines to the Bayes factors that produce
-# them instead of naming the verdicts. On the BEFORE tree the option does not
-# exist and the figure is the ordinary one, which is the comparison.
-render("bgms-network-legend-evidence",
-  opts = list(bgms.network_legend = "evidence"), expr = plot(fit)
+render("bgms-network", width = WIDE$width, height = WIDE$height,
+  expr = plot(fit)
 )
-render("compare-difference-legend-evidence",
-  opts = list(bgms.network_legend = "evidence"), expr = plot(compare)
+render("bgms-network-all-absence", width = WIDE$width, height = WIDE$height,
+  expr = plot(fit_independent)
 )
-render("bgms-network-sparse", expr = plot(fit, evidence_threshold = 1000))
+render("bgms-network-sparse", width = WIDE$width, height = WIDE$height,
+  expr = plot(fit, evidence_threshold = 1000)
+)
+render("bgms-network-no-selection", expr = plot(fit_nosel))
 render("bgms-centrality", expr = plot(fit, type = "centrality"))
 
 # --- plot.bgmCompare ---------------------------------------------------------
-render("compare-difference", expr = plot(compare))
-render("compare-difference-main-selection", expr = plot(compare_main))
-render("compare-difference-empty",
+render("compare-difference", width = WIDE$width, height = WIDE$height,
+  expr = plot(compare)
+)
+render("compare-difference-main-selection",
+  width = WIDE$width, height = WIDE$height, expr = plot(compare_main)
+)
+render("compare-difference-empty", width = WIDE$width, height = WIDE$height,
   expr = plot(compare, evidence_threshold = 1e6)
 )
-render("compare-groups", width = 15, height = 6.5,
-  expr = plot(compare, type = "groups")
+render("compare-difference-no-selection", expr = plot(compare_nosel))
+render("compare-groups", width = 11, height = 5.6,
+  expr = plot(compare_main, type = "groups")
+)
+render("compare-groups-paged-1", width = 15, height = 5.6,
+  expr = plot(compare_four, type = "groups", page = 1)
+)
+render("compare-groups-paged-2", width = 15, height = 5.6,
+  expr = plot(compare_four, type = "groups", page = 2)
 )
 render("compare-centrality", expr = plot(compare, type = "centrality"))
 
