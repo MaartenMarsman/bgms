@@ -131,6 +131,9 @@ orientation, cumulatively covering the architecture.
   checkout's LOCAL `develop` ref lags (two agents hit it, 23 commits stale
   at brief 11); briefs must say `origin/develop` in the worktree command
   and any base-verification check.
+- **Ledger rows stay ONE line** (MM trimmed the overgrown rows,
+  2026-08-02). Running state, verdicts, and evidence live in FINDINGS.md
+  rows and reports; the ledger answers only who/what/status/report.
 
 ## Brief ledger
 
@@ -138,6 +141,9 @@ orientation, cumulatively covering the architecture.
 |---|---|---|---|
 | 01 baseline check | Opus | done | `reports/01-baseline-check.md` |
 | 02 user-facing checks | MM | done | `reports/02-user-facing-checks.md` |
+| 09–17 (validation, plots, tiering, NEWS, docs sweeps, F-075 program) | Opus/MM | done and merged — full state in FINDINGS rows + reports | `reports/09..17-*.md` |
+| 11 plot restyle + evidence displays | Opus | round 3 in flight — state in F-067/F-079/F-115; merge gated on MM's delta look | branch `fix/plot-sweep` |
+| 13 post-11 batch (CI reds, regression check, plot follow-ups, bake) | Opus | to draft after 11 merges — scope carried by FINDINGS "brief 13" routing tags | — |
 | 03 checking-layer defect batch | Opus | done — **merged to develop `adf87013`** (MM confirmed the F-036 math, 2026-08-01) | `reports/03-checking-layer-defects.md` |
 | 04 statistical certification | Opus | done — all 5 zratio certificates PASS vs the gold bank; 4 deterministic slow-tier failures, all test-side (F-048/F-049); drifter resolved (quick-fit artifact) | `reports/04-statistical-certification.md` |
 | 05 test-repair + release-hygiene batch (F-048 stale fences, F-050 deprecation sweep, F-054 cache-key version, F-055 q≤3 guard, F-017 .Rbuildignore, F-051 docs line, `^\.git$` hardening) | Opus | done — **merged to develop `b04dbd06`** (all gates green; slow tier 4→1 failures, 1152→0 warnings; the remaining red is F-049 by design). New: F-058 (.Rbuildignore live regex), F-059 (additive band = uncertified band). Correction from the report: the scheduled nightly runs MAIN, so Monday is red regardless — see FINDINGS details | `reports/05-test-repair-batch.md` |
