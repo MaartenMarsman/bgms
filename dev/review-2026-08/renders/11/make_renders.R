@@ -127,6 +127,43 @@ compare_nosel = cached("compare_nosel", bgmCompare(
   difference_selection = FALSE, display_progress = "none"
 ))
 
+# Three groups: one indicator per pair, two contrasts. The evidence split is
+# defined, so the three panels draw; no pair has a single magnitude, so the
+# supported panel is drawn unweighted. On the BEFORE tree this fit cannot be
+# plotted at all, which is the difference.
+#
+# The structure is built rather than sliced out of a dataset, because the
+# figure has to show a supported difference and an arbitrary three-way split of
+# real respondents does not reliably contain one. Groups 1 and 2 share a chain
+# v1-v2-v3-v4-v5; group 3 replaces the v2-v3 link with a v1-v5 one. So two
+# pairs differ across groups and the rest do not, which is what the three
+# panels should report.
+k3_data = local({
+  set.seed(91)
+  n = 500
+  chain = function(edges) {
+    x = matrix(stats::rbinom(n * 5, 1, 0.5), nrow = 5)
+    for(e in edges) {
+      # Copy one variable onto its partner most of the time: a strong, plainly
+      # visible dependency, and nothing subtler than the figure needs.
+      flip = stats::rbinom(n, 1, 0.12)
+      x[e[2], ] = ifelse(flip == 1, 1 - x[e[1], ], x[e[1], ])
+    }
+    t(x)
+  }
+  shared = list(c(1, 2), c(2, 3), c(3, 4), c(4, 5))
+  moved = list(c(1, 2), c(3, 4), c(4, 5), c(1, 5))
+  x = rbind(chain(shared), chain(shared), chain(moved))
+  colnames(x) = paste0("v", seq_len(5))
+  x
+})
+compare_k3 = cached("compare_k3", bgmCompare(
+  x = k3_data,
+  group_indicator = rep(c("first", "second", "third"), each = 500),
+  iter = 300, warmup = 300, chains = 2, cores = 2, seed = 71,
+  difference_selection = TRUE, display_progress = "none"
+))
+
 # Four groups, so the group display has something to page.
 compare_four = cached("compare_four", bgmCompare(
   x = Wenchuan[1:160, 1:4],
@@ -222,6 +259,9 @@ render("compare-difference-empty", width = WIDE$width, height = WIDE$height,
   expr = plot(compare, evidence_threshold = 1e6)
 )
 render("compare-difference-no-selection", expr = plot(compare_nosel))
+render("compare-difference-k3", width = WIDE$width, height = WIDE$height,
+  expr = plot(compare_k3)
+)
 render("compare-groups", width = 11, height = 5.6,
   expr = plot(compare_main, type = "groups")
 )

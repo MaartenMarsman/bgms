@@ -542,3 +542,189 @@ Test changes in this round, all in `tests/testthat/test-plot-methods.R`:
   network with nothing left to support is still a figure", asserting the two
   cases the removed `stop()` used to refuse.
 * `main_difference_nodes()` back to asserting `pie`/`pie_color`.
+
+---
+
+# Round 3 — the maintainer's round-2 verdict, and the lead's K > 2 ruling
+
+Six verdict items plus the K > 2 addendum, all in this round. Commits
+`0e0…` onward on `fix/plot-sweep`; the branch is still based on `a930b5a5`
+and still unpushed.
+
+## K > 2 (the lead's ruling, accepted as written)
+
+`bgmCompare()` gives each pair a **single inclusion indicator shared across all
+`K - 1` contrasts**, so the three-way split is exactly as well defined for
+three groups as for two, and `verdicts()` has always reported it. What a pair
+does not have for `K > 2` is one magnitude: `posterior_mean_pairwise_differences`
+is a list of `K - 1` matrices. The old `stop()` refused the whole figure over
+that, which withheld a classification the fit had already made. It is gone. The
+three panels now draw for any `K`, and the supported panel is drawn **weighted
+only when `K = 2`** — for `K > 2` it is uniform width, plain ink, no sign
+colour, because there the classification is the whole of what the panel
+reports. `draw_evidence_panels()` gained one `weighted` argument to carry that;
+nothing else about the display is conditional on `K`. Magnitudes are the
+business of `type = "groups"` and `extract_group_params()`, and the Rd says so
+where the panels are described.
+
+One consequence needed a decision the ruling did not cover: **`K > 2` with
+`difference_selection = FALSE`**. There is no split to draw and no single
+magnitude to draw instead, so that combination alone still errors, with a
+message that names `type = "groups"` and `extract_group_params()`. It is a much
+narrower refusal than the one removed — it fires only when both the evidence
+and the single magnitude are absent — but it is mine, not the ruling's, and I
+flag it as such.
+
+The layout for a `K > 2` figure comes from `contrast_magnitude()`: the largest
+absolute difference over the contrasts, per pair. It is used **only** to lay the
+network out and is never drawn; taking the largest rather than a mean keeps a
+pair that differs sharply in one contrast from being averaged into the middle
+of the picture. Two tests cover this — one on `contrast_magnitude()` directly,
+one on a seeded three-group fit asserting the list structure, that all three
+displays draw, and that the selection-off case refuses with the message above.
+
+**Render pair**: `compare-difference-k3-{before,after}.png`, one new row in
+`INDEX.md`. The fixture is built rather than sliced out of `Wenchuan`, because
+an arbitrary three-way split of real respondents does not reliably contain a
+supported difference and a figure whose first panel is empty demonstrates
+nothing about how a supported panel is drawn. Groups 1 and 2 share a chain
+`v1-v2-v3-v4-v5`; group 3 trades the `v2-v3` link for a `v1-v5` one. The figure
+reports 3 supported, 6 ruled out, 1 undecided — and the three supported pairs
+are exactly the three the construction moved. BEFORE is the cannot-draw pane,
+which is itself the difference.
+
+## Per verdict item
+
+**1 — sign legends go, everywhere.** `network_sign_key()` is deleted, with both
+its call sites: the supported panel of the three-panel displays and the
+selection-off weights panel. Colour still carries the sign; both Rds now state
+the convention (blue positive, vermillion negative, the Okabe-Ito pair, chosen
+so the sign survives common colour-vision deficiency). On the compare side the
+Rd stops short of saying which group a positive difference favours, because
+that follows the contrast coding rather than the plot, and points at
+`extract_group_params()` instead. **The flagged defect is fixed**: with the key
+gone, nothing sits on the `physior` node of `compare-difference-no-selection`.
+
+With the key gone, the `legend` argument of `plot.bgms()` and
+`plot.bgmCompare()` controlled nothing, and a documented argument that does
+nothing is worse than no argument. **I removed it.** That is an API change on a
+pre-CRAN package and it is my call, not the verdict's — say the word and it
+comes back as an ignored-with-a-note argument instead. The edge panel's own
+`legend =` behaviour is untouched; it never had one.
+
+**2 — no in-figure keys remain**, with one exception I judged the rule exempts:
+the edge panel's `Posterior` / `Prior` curve labels. Two curves on one pair of
+axes cannot be told apart by anything else on the panel — they are not evidence
+classes and not signs, they are which curve is which. Style rule 8 in
+`R/plot_style.R` now states the no-keys rule and that single exemption. If you
+want it gone too, it is a four-line deletion.
+
+**3 — panel titles bigger.** New style constant `cex_panel_title = 1.7`, up from
+the `cex_label = 1.2` they were drawn at, and the muted BF rule line under each
+stays at `cex_annotation`. The title is **sized by measurement**, not by the
+constant alone: it is drawn at `cex_panel_title` or at whatever fits 94% of the
+panel width, whichever is smaller, so a narrow device shrinks a title rather
+than clipping it. The spacing between title and rule line derives from the
+title's own measured height, so the pair holds its shape at any size.
+
+**4 — the `node ring:` explainer is gone**, with `network_sign_key()`. The Rd
+already described the ring in full — fill fraction is the posterior inclusion
+probability, colour is the verdict, no ring without
+`main_difference_selection` — so nothing had to move.
+
+**5 — edge panel captions removed, all four variants, lock lifted by
+instruction.** Both constructors stop setting `caption`, and the `mtext` loop
+that drew it is deleted. The trio moved by exactly that one delta and nothing
+else: no margin was reclaimed, no element repositioned. Their content is in the
+Rd, most of it already: the conditional-on-inclusion reading of the density and
+the pale share of the wheel were both there; the sentence that named the
+caption as the place the JASP `data|H1`/`data|H0` notation was explained now
+says "here". The decisive-absence panel's caption is replaced by a statement
+that the missing accented curve is itself the finding.
+
+**6 — re-renders, INDEX, gate.** Below.
+
+## One thing I did not fix, and would not fix quietly
+
+Verifying item 1's "nothing else overlaps a drawing at default device size"
+turned up a **separate, pre-existing overlap**: at R's default 7x7 device, three
+panels in one row give each panel roughly a 1:3 shape, and the outer nodes of
+one panel cross into its neighbour. It is not the legend overlap and it does not
+come from this round — the same margins were in place in round 2.
+
+I tried to fix it and could not do so honestly. qgraph writes its coordinate
+range straight from its `mar` while drawing nodes at a **physical** size, so the
+two cannot be brought into agreement from the caller: widening the margin pulls
+the layout in without shrinking a node, and an aspect-matched coordinate box
+(which I built and tested) leaves the overlap exactly where it was. The
+remaining levers are guesses at qgraph's internal node sizing, which is the kind
+of magic constant F-070 was about. So the margin stays a constant, the
+limitation is written into the comment above `network_panel_par()` and into
+`INDEX.md`, and the recommendation is a separate item: either pass an explicit
+measured `vsize`, or have the three-panel displays state that they want a wide
+device. All renders here are at 13.5 x 5.2, where it does not arise.
+
+I also reclaimed the bottom strip the deleted key had been holding
+(`qgraph_mar` bottom 6.5 → 3), so the networks fill more of each panel instead
+of sitting above a reserved blank. That is a consequence of item 1 rather than
+an item of its own, but it moves pixels, so it is stated.
+
+## Additional NEWS clause (round 3; the earlier drafts stand)
+
+Under **New features → Plots and centrality**, appended to the `bgmCompare`
+clause:
+
+> * The difference evidence plot now draws for any number of groups. A pair has
+>   a single inclusion indicator shared across all `K - 1` contrasts, so the
+>   three-way split is as well defined for three groups as for two; what a pair
+>   does not have beyond two groups is one magnitude. The supported panel is
+>   therefore weighted only when there are two groups, and drawn at uniform
+>   width otherwise, where the classification is the whole of what it reports.
+>   Read the magnitudes per group with `plot(fit, type = "groups")` or
+>   `extract_group_params()`.
+
+Under **Other changes**:
+
+> * Network figures no longer carry a sign key. Each panel is titled with the
+>   evidence class it holds and the rule that defines it, which is what the key
+>   repeated; the colour convention for edge sign is documented in `?plot.bgms`
+>   and `?plot.bgmCompare`. The `legend` argument of both methods is removed
+>   with it.
+
+> * `plot_edge_posterior()` panels no longer carry a caption. What each mark on
+>   the panel means is described in `?plot_edge_posterior`, where the
+>   explanation can be as long as it needs to be without costing the figure
+>   space.
+
+## Findings from round 3
+
+* **M. The three-panel display needs a wide device.** As above. Pre-existing,
+  reported rather than half-fixed. Recommend a follow-up item.
+* **N. `legend` is removed from both network methods.** Flagged as my judgment
+  call rather than a verdict item; trivially reversible.
+* **O. The `K > 2` + `difference_selection = FALSE` refusal is mine.** The
+  ruling removed the `K > 2` error; this narrower one is what remains when both
+  the split and the single magnitude are absent.
+
+Findings A–L from the earlier rounds stand. Finding A (`format_log_bf()`
+printing `-0.0`) still wants a fix in `R/verdicts.R`, which this brief may not
+touch and which the newer `origin/develop` commits do touch.
+
+## Evidence (round 3)
+
+* **Renders**: 25 pairs, 50 files. BEFORE regenerated and **byte-identical
+  except for the one new file** — confirmation that the base tree and the
+  script are both stable. AFTER moved on exactly the expected set: every network
+  figure (titles, keys, reclaimed strip), all four edge panels (captions), and
+  the new `compare-difference-k3` pair. Centrality, calibration and sensitivity
+  renders are untouched, which is correct — none of them carries any of the six
+  elements.
+* **`devtools::document()`**: clean. Rd drift confined to `man/plot.bgms.Rd`,
+  `man/plot.bgmCompare.Rd`, `man/plot_edge_posterior.Rd`. `NAMESPACE`
+  unchanged.
+* **Snapshot re-records**: `tests/testthat/_snaps/plot-methods.md`, **7 cases**
+  — all four selection-on edge panels, both Savage-Dickey cases, and the
+  Blume-Capel case. Every one of the seven is a removed `caption` line and
+  nothing else; the diff is deletions only.
+* **Base drift**: unchanged from round 2. Still based on `a930b5a5`;
+  `origin/develop` is at `d7c2fe39`.
