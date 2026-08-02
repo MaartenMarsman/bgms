@@ -928,11 +928,6 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #' @param bgms_object A fitted model object of class `bgms`, from [bgm()].
 #' @param variable1,variable2 The two variables naming the edge. Either names
 #'   or column positions.
-#' @param evidence_threshold Numeric > 1; the threshold [verdicts()] is called
-#'   at to read this edge's row. Default `10`. The panel prints no verdict, and
-#'   neither the inclusion probability nor the Bayes factor depends on the
-#'   threshold, so this does not change what is drawn. Ignored for a fit
-#'   without edge selection, which has no inclusion row to read.
 #' @param binwidth `r lifecycle::badge("deprecated")` The panel no longer
 #'   expresses the weight as probability per bin, so this has nothing to set;
 #'   it is warned about and ignored.
@@ -1027,7 +1022,6 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #' @family posterior-methods
 #' @export
 plot_edge_posterior = function(bgms_object, variable1, variable2,
-                               evidence_threshold = 10,
                                binwidth = lifecycle::deprecated(), ...) {
   if(lifecycle::is_present(binwidth)) {
     lifecycle::deprecate_warn(
@@ -1040,7 +1034,6 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
       )
     )
   }
-  check_evidence_threshold(evidence_threshold)
   if(inherits(bgms_object, "bgmCompare")) {
     stop(
       "plot_edge_posterior() draws an edge of a single network, and a ",
@@ -1075,7 +1068,7 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   prior = edge_slab_prior(bgms_object)
 
   if(isTRUE(arguments$edge_selection)) {
-    evidence = edge_selection_evidence(bgms_object, label, evidence_threshold)
+    evidence = edge_selection_evidence(bgms_object, label)
     panel = edge_panel_selection(label, draws, prior,
       evidence$pip, evidence$log_bf)
   } else {
@@ -1219,16 +1212,15 @@ conditional_density = function(draws, n = 512L) {
 #
 # Neither number depends on the threshold -- the threshold only decides which
 # verdict word verdicts() attaches to them, and the panel prints no verdict --
-# so it is passed on to verdicts() and has no further say here.
+# so verdicts() is called at its default and the row is read threshold-free.
 #
-# @param bgms_object        The fit.
-# @param label              The edge label, as the pairwise draws name it.
-# @param evidence_threshold The threshold verdicts() is called at.
+# @param bgms_object  The fit.
+# @param label        The edge label, as the pairwise draws name it.
 #
 # Returns: list(pip, log_bf); both NA when the edge has no row.
 # ------------------------------------------------------------------
-edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
-  edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
+edge_selection_evidence = function(bgms_object, label) {
+  edges = verdicts(bgms_object)
   row = edges[edges$parameter == label, , drop = FALSE]
   if(!nrow(row)) {
     ends = strsplit(label, "-", fixed = TRUE)[[1]]

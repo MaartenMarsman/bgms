@@ -42,10 +42,6 @@ test_that("plot_edge_posterior draws one edge and validates its arguments", {
 
   expect_error(plot_edge_posterior(fit, "intrusion", "intrusion"), "two different variables")
   expect_error(plot_edge_posterior(fit, "intrusion", "nope"), "not one of the model's variables")
-  expect_error(
-    plot_edge_posterior(fit, "intrusion", "upset", evidence_threshold = 0.5),
-    "greater than 1"
-  )
 })
 
 test_that("a network with nothing left to support is still a figure", {
@@ -478,7 +474,7 @@ test_that("the panel reads a Blume-Capel fit like any other", {
     display_progress = "none", verbose = FALSE
   )
   label = "intrusion-dreams"
-  evidence = edge_selection_evidence(fit, label, 10)
+  evidence = edge_selection_evidence(fit, label)
   panel = edge_panel_selection(
     label, extract_pairwise_interactions(fit)[, label],
     edge_slab_prior(fit), evidence$pip, evidence$log_bf
