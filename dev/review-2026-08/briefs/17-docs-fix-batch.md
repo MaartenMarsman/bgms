@@ -218,6 +218,14 @@ not a grading criterion.
        that `test-zratio-law.R` vanishing from the tier classification is
        AUTHORIZED by F-099 (not a silent drop).
 
+### CI hygiene (F-102)
+
+16. Add `paths-ignore: ['dev/**']` to the `on: push` triggers of the three
+    r-lib workflows (`.github/workflows/` lint / R-CMD-check /
+    test-coverage — the exact filenames as found). Review-record commits
+    must stop launching ~2 CPU-hours of package CI each. Do not touch the
+    nightly/certification/fast-checks workflows (another brief owns them).
+
 ### Explicitly OUT of scope
 
 - The "NUTS issues: Warmup may be incomplete" notices in three flagship
