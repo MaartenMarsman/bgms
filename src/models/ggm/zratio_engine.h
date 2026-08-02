@@ -196,7 +196,7 @@ public:
      * precision diagonal until mediation dies. MEASURED against block-Gibbs
      * gold, the entire mediated correction is at most 2.84e-04 nats over the
      * scored band (shapes 12, 15 and 20 at k = 42, plus k = 100 at the shape-12
-     * maximum), two orders below the 0.003-nat envelope the surface's own
+     * maximum), roughly a tenth of the 0.003-nat envelope the surface's own
      * accuracy claims live in. The alternative -- the additive saddle -- is not
      * bounded that way: it returns essentially zero on common-neighbour
      * mediating blocks and discards the whole ratio.

@@ -391,8 +391,8 @@ zratio_isolated_route_notice = function(chains, eta) {
     if(covered) {
       paste0(
         "At this diagonal rate that correction was measured against a ",
-        "block-Gibbs reference at no more than 0.00028 nats, two orders below ",
-        "the 0.003 nats the correction is held to inside its range."
+        "block-Gibbs reference at no more than 0.00028 nats, roughly a tenth ",
+        "of the 0.003 nats the correction is held to inside its range."
       )
     } else {
       sprintf(

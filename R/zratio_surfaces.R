@@ -254,7 +254,7 @@ zratio_anchor_sweeps = function(n) {
 #     shape 15   1.37e-04   (k = 42)
 #     shape 20   6.22e-05   (k = 42)
 #
-# so the whole error of this route is at most 2.84e-04 nats, two orders below
+# so the whole error of this route is at most 2.84e-04 nats, roughly a tenth of
 # the 0.003-nat envelope every accuracy claim in this program lives in. The
 # decay is NOT pointwise monotone in shape (shape 12 sits above shape 10), so
 # the claim rests on the measured band maximum and not on a monotonicity
@@ -542,9 +542,9 @@ zratio_surface_fence_message = function(zc, size = NA_integer_) {
       "isolated-edge ratio. At these shapes the Gamma diagonal concentrates ",
       "the precision diagonal and the whole mediated correction is at most ",
       "0.00028 nats, measured against a block-Gibbs reference at shapes 12, ",
-      "15 and 20; that is the entire error of this route, and it is two ",
-      "orders below the 0.003 nats the surface is claimed to within inside ",
-      "its range."
+      "15 and 20; that is the entire error of this route, and it is roughly a ",
+      "tenth of the 0.003 nats the surface is claimed to within inside its ",
+      "range."
     )
     if(zc$eta > .zratio_mediation_off_eta_hi) {
       message(
