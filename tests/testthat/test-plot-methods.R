@@ -521,6 +521,36 @@ test_that("the slab prior is the fit's own, not the package default", {
   )
 })
 
+test_that("the extractor frame is the slab frame on a GGM and a mixed fit", {
+  skip_on_cran()
+  # The overlay drawn by edge_slab_prior() needs no change of variable, on any
+  # family: extract_pairwise_interactions() already reports in the frame the
+  # slab prior applies to. On a continuous block that frame is -K_ij/2 rather
+  # than the precision entry, so the claim has real content there -- and the
+  # way to get it wrong is to apply the -0.5 twice, once in the extractor and
+  # once again on the way to the prior. The ordinal pin above cannot see that;
+  # these two can.
+  ggm = get_bgms_fit_ggm()
+  extracted = unname(extract_pairwise_interactions(ggm))
+  slab = unname(do.call(rbind, anchor_draws(ggm)$theta))
+  expect_equal(extracted, slab)
+
+  # ... and the frame is not the raw one, which is what makes the equality
+  # above an assertion rather than a tautology: a doubled -0.5 would show up
+  # here as a factor of -0.5 between the two, not as agreement.
+  raw = unname(do.call(rbind, get_raw_samples(ggm)$pairwise))
+  expect_equal(extracted, -0.5 * raw)
+  expect_false(isTRUE(all.equal(extracted, raw)))
+
+  # A mixed fit lays its pairwise draws out by block, so the two frames have
+  # to agree column for column in that layout too, not merely in aggregate.
+  mixed = get_bgms_fit_mixed_mrf()
+  expect_equal(
+    unname(extract_pairwise_interactions(mixed)),
+    unname(do.call(rbind, anchor_draws(mixed)$theta))
+  )
+})
+
 test_that("a beta-prime slab is drawn through its logistic Jacobian", {
   skip_on_cran()
   data("Wenchuan", package = "bgms")
