@@ -815,11 +815,15 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
   scale = max(0.45, 0.95 / sqrt(max(ncol_panels, nrow_panels)))
   style = bgms_style(scale = scale)
 
+  # The outer labels and caption describe the whole figure rather than one of
+  # its panels, so they stay at full size while the panels shrink.
+  outer_style = bgms_style()
+
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(
     mfrow = c(nrow_panels, ncol_panels),
-    mar = c(2.6, 2.8, 2.6, 0.9), mgp = c(1.5, 0.5, 0), oma = c(3.4, 3.0, 0, 0),
+    mar = c(2.6, 2.8, 2.6, 0.9), mgp = c(1.5, 0.5, 0), oma = c(4.4, 3.4, 0, 0),
     las = 1, bty = "n",
     col.axis = style$ink, col.lab = style$ink, col.main = style$ink
   )
@@ -878,16 +882,17 @@ plot.bgms_calibration = function(x, variables = NULL, max_panels = 9L,
     "Observed frequency / observed share"
   }
   graphics::mtext(xlab,
-    side = 1, outer = TRUE, line = 1.5, col = style$ink, cex = style$cex_lab
+    side = 1, outer = TRUE, line = 1.9, col = outer_style$ink,
+    cex = outer_style$cex_lab
   )
   graphics::mtext(ylab,
-    side = 2, outer = TRUE, line = 1.2, las = 0, col = style$ink,
-    cex = style$cex_lab
+    side = 2, outer = TRUE, line = 1.4, las = 0, col = outer_style$ink,
+    cex = outer_style$cex_lab
   )
   graphics::mtext(
     "Band: consistency interval. Diagonal: a calibrated model.",
-    side = 1, outer = TRUE, line = 2.5, col = style$muted,
-    cex = style$cex_caption
+    side = 1, outer = TRUE, line = 3.2, col = outer_style$muted,
+    cex = outer_style$cex_caption
   )
   invisible(x)
 }
