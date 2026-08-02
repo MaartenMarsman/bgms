@@ -18,8 +18,9 @@ label by name; the rest are counted in a corner note. Default: \code{10}.}
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-One panel, answer first: the title states how many edge verdicts depend on
-the slab scale. Each edge's natural log inclusion-Bayes-factor curve
+One panel, answer first: the label above the panel states how many edge
+verdicts depend on the slab scale. Each edge's natural log
+inclusion-Bayes-factor curve
 (the evidence for the edge) is drawn across the anchored scale range, with
 dots at the anchor scales; curve points masked for low importance ESS
 leave visible gaps, and an edge that saturates at some scale is capped at a
