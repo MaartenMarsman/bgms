@@ -482,12 +482,14 @@ collapse_categories_across_groups = function(x,
   # empty cell in a retained category changes what the group difference means.
   if(length(renumbered) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
     message(
-      "Category values that no group used were dropped and the remaining ",
-      "categories renumbered for ",
-      paste(vapply(renumbered, variable_label, character(1)), collapse = ", "),
-      " (", paste(gaps_dropped, collapse = ", "), " unused value",
-      if(length(gaps_dropped) > 1 || gaps_dropped[1] > 1) "s" else "",
-      " dropped). No observed category was merged."
+      "Some category values were not used by any group. They were dropped ",
+      "and the remaining categories renumbered, for ",
+      paste0(
+        vapply(renumbered, variable_label, character(1)),
+        " (", gaps_dropped, " dropped)",
+        collapse = ", "
+      ),
+      ". No observed category was merged."
     )
   }
 

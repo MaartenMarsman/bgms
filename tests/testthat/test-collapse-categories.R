@@ -273,7 +273,7 @@ test_that("a value observed in no group is dropped and the rest renumbered", {
         num_categories = c(4, 1), baseline_category = c(0, 0)
       )
     ),
-    "no group used were dropped"
+    "not used by any group"
   )
   expect_equal(sort(unique(result$x[, 1])), 0:3)
   expect_equal(result$num_categories[1], 3)
@@ -445,6 +445,42 @@ test_that("full pipeline preserves BC variables", {
 # ==============================================================================
 # 9. bgmCompare() surfaces the support table on the fitted object
 # ==============================================================================
+
+test_that("bgmCompare() reports a value no group used", {
+  # reformat_ordinal_data() runs before the cross-group pass and has already
+  # closed the gap by then, so this message has to come from the compare spec
+  # builder, which still has the supplied values. Value 2 is never used here.
+  withr::local_options(bgms.verbose = TRUE)
+  x = cbind(
+    a = c(rep(0, 20), rep(1, 20), rep(3, 20)),
+    b = rep(0:2, 20), c = rep(0:1, 30)
+  )
+  group = rep(1:2, each = 30)
+
+  expect_message(
+    suppressWarnings(
+      spec <- bgm_spec(x = x, group_indicator = group, model = "compare")
+    ),
+    "not used by any group"
+  )
+  expect_equal(spec$data$num_categories, c(2L, 2L, 1L))
+  # 0 -> 0, 1 -> 1, 3 -> 2: nothing merged, the gap simply closed.
+  expect_equal(unname(spec$data$category_levels[[1]]), c(0, 1, 2))
+  expect_equal(names(spec$data$category_levels[[1]]), c("0", "1", "3"))
+})
+
+test_that("a scale that merely starts above zero is not called a gap", {
+  # Values 1..5 are contiguous; recoding them to 0..4 is an offset, not a
+  # dropped category, and is not worth telling anyone about.
+  withr::local_options(bgms.verbose = TRUE)
+  x = cbind(a = rep(1:5, 24), b = rep(1:3, 40), c = rep(1:2, 60))
+  group = rep(1:2, each = 60)
+
+  expect_no_message(
+    spec <- bgm_spec(x = x, group_indicator = group, model = "compare")
+  )
+  expect_equal(spec$data$num_categories, c(4L, 2L, 1L))
+})
 
 test_that("bgmCompare() records the per-group support and warns once", {
   set.seed(19)
