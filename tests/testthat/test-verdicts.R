@@ -249,6 +249,41 @@ test_that("print.bgms_verdicts tallies verdicts and warns once when fragile", {
     paste(utils::capture.output(print(subset_rows)), collapse = "\n"),
     "Edge verdicts at"
   )
+
+  # subset() supplies `j`, so it keeps every display column but drops the
+  # evidence_threshold attribute -- the one combination a column-only guard
+  # misses, and it used to fail in log(threshold) (F-091).
+  expect_silent(dropped <- utils::capture.output(print(subset(v, fragile))))
+  expect_false(any(grepl("Edge verdicts at", dropped)))
+})
+
+test_that("the print's tally pluralizes and states the absence threshold cleanly", {
+  # Hand-built so the counts and the threshold are exact on every platform.
+  one = structure(
+    data.frame(
+      parameter = "a-b",
+      pip = 0.99,
+      log_bf = 4.6,
+      verdict = factor("presence", levels = c("presence", "undecided", "absence")),
+      fragile = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    class = c("bgms_verdicts", "data.frame"),
+    evidence_threshold = 30
+  )
+
+  out = paste(utils::capture.output(print(one)), collapse = "\n")
+  # One row is one indicator, and 1/30 is stated at a readable precision
+  # rather than as %g's 0.0333333.
+  expect_match(out, "\\(1 indicator\\)")
+  expect_false(grepl("1 indicators", out, fixed = TRUE))
+  expect_match(out, "Bayes factor of 30 \\(and 0\\.0333 for absence\\)")
+
+  two = one[c(1, 1), ]
+  attr(two, "evidence_threshold") = 10
+  out_two = paste(utils::capture.output(print(two)), collapse = "\n")
+  expect_match(out_two, "\\(2 indicators\\)")
+  expect_match(out_two, "\\(and 0\\.1 for absence\\)")
 })
 
 test_that("indicator_pair_index follows the fit's own indicator layout", {
