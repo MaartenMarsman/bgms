@@ -76,6 +76,18 @@ rule that defines it, and the sign convention is documented here.
 "The groups do not differ anywhere" is a common and correct finding, and it
 is what a filled second panel and an empty first panel say.
 
+\strong{Device size.} Three networks side by side need a wide device. R's
+default 7 by 7 inches gives each panel a little over two inches of width, and
+at that size the node labels and the panel titles crowd. Open a wide device
+before plotting -- \verb{width = 13, height = 5} is a good starting point --
+or pass the same to whichever device the output is going to:
+\preformatted{
+dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+plot(fit)
+}
+The single-panel and \code{type = "groups"} displays are content with the default
+device.
+
 \strong{More than two groups.} \code{\link[=bgmCompare]{bgmCompare()}} gives each pair a single
 inclusion indicator shared across all \code{K - 1} contrasts, so the three-way
 split is exactly as well defined for \code{K > 2} as it is for two groups and the

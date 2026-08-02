@@ -630,3 +630,61 @@ test_that("a mixed fit's cross edge is drawn rather than reported missing", {
   expect_invisible(plot_edge_posterior(fit, "c1", "d2"))
   expect_invisible(plot_edge_posterior(fit, "c1", "c2"))
 })
+
+
+# ==============================================================================
+# The narrow-device advisory (F-115)
+# ==============================================================================
+
+test_that("the three-panel display advises a wider device, once, on the flag", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  # setup.R silences bgms.verbose for the suite; the advisory follows that flag
+  # like every other bgms message, so it has to be raised to see it at all.
+  withr::local_options(bgms.verbose = TRUE)
+  fit = get_bgms_fit_wenchuan6()
+
+  # R's default device is 7 inches wide; split three ways that is the crowding
+  # the advice is about. The remedy is documentation only -- the geometry is
+  # qgraph's -- so what is tested is that the reader is told, and pointed at
+  # the Rd section that says what to do.
+  narrow = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(narrow, width = 7, height = 7)
+  expect_message(plot(fit), "Open a wider device")
+  expect_message(plot(fit), "\\?plot\\.bgms")
+  grDevices::dev.off()
+
+  # A device that already has the room says nothing.
+  wide = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(wide, width = 13, height = 5)
+  expect_no_message(plot(fit))
+  grDevices::dev.off()
+})
+
+test_that("the narrow-device advisory follows bgms.verbose", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  withr::local_options(bgms.verbose = FALSE)
+  fit = get_bgms_fit_wenchuan6()
+
+  quiet = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(quiet, width = 7, height = 7)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_message(plot(fit))
+})
+
+test_that("the single-panel and groups displays do not advise a wider device", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  withr::local_options(bgms.verbose = TRUE)
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path, width = 7, height = 7)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # No edge selection: one panel, which fits the default device.
+  expect_no_message(plot(get_bgms_fit_wenchuan6_noselection()))
+  # The groups display pages rather than squeezing, so it has its own answer to
+  # a narrow device and does not want this one.
+  expect_no_message(plot(get_bgmcompare_fit_wenchuan5(), type = "groups"))
+})
