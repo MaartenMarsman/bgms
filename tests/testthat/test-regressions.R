@@ -13,11 +13,11 @@ test_that("imputation targets the right rows when groups are interleaved", {
   )
   group_indicator = c(1, 2, 1, 2, 1, 2)
 
-  spec = bgm_spec(
+  spec = without_support_warning(bgm_spec(
     x = x, model_type = "compare",
     group_indicator = group_indicator, na_action = "impute",
     edge_selection = FALSE, difference_selection = FALSE, seed = 1
-  )
+  ))
 
   mi = spec$missing$missing_index
 
@@ -44,12 +44,12 @@ test_that("pairwise difference summaries carry the right labels for 3 groups", {
   colnames(x) = paste0("V", seq_len(p))
   group_indicator = rep(seq_len(n_groups), each = n_per_group)
 
-  fit = bgmCompare(
-    x = x, group_indicator = group_indicator,
-    difference_selection = TRUE,
-    iter = 50, warmup = 50, chains = 1, seed = 3,
-    display_progress = "none"
-  )
+  fit = without_support_warning(bgmCompare(
+      x = x, group_indicator = group_indicator,
+      difference_selection = TRUE,
+      iter = 50, warmup = 50, chains = 1, seed = 3,
+      display_progress = "none"
+  ))
 
   actual = fit$posterior_summary_pairwise_differences$parameter
 

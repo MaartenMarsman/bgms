@@ -496,19 +496,23 @@ collapse_categories_across_groups = function(x,
   if(length(zero_cells) > 0) {
     shown = utils::head(zero_cells, 10L)
     extra = length(zero_cells) - length(shown)
-    warning(
-      "Some categories were not used by every group:\n",
-      paste0("  ", shown, collapse = "\n"),
-      if(extra > 0) paste0("\n  ... and ", extra, " more") else "",
-      "\nThese categories are kept, because the other groups do use them. ",
-      "But a group with no observations in a category has nothing to say ",
-      "about where its threshold for that category lies, so the reported ",
-      "difference for that group and that category is set by the prior, not ",
-      "by the data. Expect a large and very uncertain number there, and do ",
-      "not read it as evidence of a group difference. Only the category ",
-      "thresholds are affected; the pairwise (edge) differences are not.",
-      call. = FALSE
-    )
+    # Classed, so a caller can catch this one condition without muffling every
+    # warning the fit might raise. The class is part of the user-facing API.
+    warning(warningCondition(
+      paste0(
+        "Some categories were not used by every group:\n",
+        paste0("  ", shown, collapse = "\n"),
+        if(extra > 0) paste0("\n  ... and ", extra, " more") else "",
+        "\nThese categories are kept, because the other groups do use them. ",
+        "But a group with no observations in a category has nothing to say ",
+        "about where its threshold for that category lies, so the reported ",
+        "difference for that group and that category is set by the prior, not ",
+        "by the data. Expect a large and very uncertain number there, and do ",
+        "not read it as evidence of a group difference. Only the category ",
+        "thresholds are affected; the pairwise (edge) differences are not."
+      ),
+      class = "bgms_group_support_warning"
+    ))
   }
 
   list(
