@@ -1285,7 +1285,7 @@ edge_panel_selection = function(label, draws, prior, pip, log_bf) {
     wheel_labels = NULL,
     evidence = c(
       format_inclusion(pip),
-      paste("log BF", display_log_bf(log_bf))
+      paste("log BF", format_log_bf(log_bf))
     ),
     estimate = if(is.null(posterior)) NULL else estimate_lines(slab),
     interval = if(is.null(posterior)) NULL else stats::quantile(
@@ -1349,7 +1349,7 @@ edge_panel_savage_dickey = function(label, draws, prior) {
     # explanation can be as long as it needs to be without costing a figure
     # anything.
     wheel_labels = NULL,
-    evidence = paste("log BF", display_log_bf(log_bf)),
+    evidence = paste("log BF", format_log_bf(log_bf)),
     estimate = estimate_lines(draws),
     interval = stats::quantile(draws, c(0.025, 0.975), names = FALSE),
     style = bgms_style()
