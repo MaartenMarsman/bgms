@@ -824,6 +824,30 @@ logarithm.
 
 ## Bug fixes
 
+* Fixed the handling of ordinal categories in `bgmCompare()`, a defect present
+  in 0.1.6.3. The comparison kept only the categories a variable was observed
+  in *every* group, and silently merged the rest into their neighbours: with
+  two groups observing categories 0-2 and 1-3 of a four-category item, both
+  groups' data were folded onto two categories, however many observations each
+  category carried. Because groups being compared routinely differ in the
+  categories they use, this destroyed well-observed categories rather than
+  unused ones — a five-level variable could be reduced to a binary one — and
+  the affected variable's pairwise parameters were then badly overestimated,
+  which also inflated the parameters of the variables it connects to.
+  `bgmCompare()` now keeps every category that any group observes and merges
+  none of them; only a category value that no group observes at all is
+  dropped, with the remaining categories renumbered contiguously and a
+  `message()` saying so. When a kept category is empty in some group, that
+  group's threshold for it rests on the prior rather than on data, so
+  `bgmCompare()` warns and names each variable, category, and group affected,
+  and records the per-group category counts in the fit
+  (`extract_arguments(fit)$category_support`). Blume-Capel variables were
+  never affected and are still exempt, because their parameters are functions
+  of the numeric category score. **Any earlier group comparison in which the
+  groups did not observe exactly the same categories should be refit**; the
+  pairwise estimates it produced may be substantially too large. Comparisons
+  whose groups shared the same observed categories are unchanged.
+
 * Fixed the number-of-blocks summary for stochastic-block edge priors, a
   mismatch a 0.1.6.3 user would have seen. The conditional p(K | t) behind
   `posterior_num_blocks` placed a zero-truncated Poisson prior on the number of

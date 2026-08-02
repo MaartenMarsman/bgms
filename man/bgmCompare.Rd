@@ -59,8 +59,9 @@ bgmCompare(
 \arguments{
 \item{x}{A data frame or matrix of binary and ordinal responses for
 Group 1. Variables should be coded as nonnegative integers starting at
-0. For ordinal variables, unused categories are collapsed; for
-Blume--Capel variables, all categories are retained.}
+0. See the \emph{Categories across groups} section for how the category
+codes of an ordinal variable are treated when the groups do not observe
+the same ones.}
 
 \item{y}{Optional data frame or matrix for Group 2 (two-group designs).
 Must have the same variables (columns) as \code{x}.}
@@ -258,6 +259,38 @@ For full details on model specification, prior choices, and output
 interpretation, see the package website at
 \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
 }
+\section{Categories across groups}{
+
+
+Groups being compared often differ in which categories of an ordinal
+variable they actually use --- a clinical group may never give the lowest
+answer, a control group never the highest. \code{bgmCompare()} models the
+\strong{union} of the categories observed across the groups: a category that
+any group uses is kept for all of them. Only a category value that
+\emph{no} group uses is dropped, after which the remaining categories are
+renumbered contiguously from 0. That renumbering is reported with a
+\code{message()}; no category anyone observed is ever merged into another.
+
+Keeping a category that some group never uses has a consequence worth
+knowing. That group contributes no observations to the category, so its
+data say nothing about where its threshold for that category lies, and the
+estimated difference for that group-by-category combination is determined
+by the prior rather than by the data: it will be large and very uncertain,
+and it is not evidence of a group difference. \code{bgmCompare()} raises a
+\code{warning()} naming every variable, category, and group this affects,
+and records the per-group category counts in the fitted object
+(\code{extract_arguments(fit)$category_support}) so they can be checked
+afterwards. Only the category thresholds are affected this way; the
+pairwise (edge) parameters and their differences are estimated from all the
+data and are not.
+
+Blume--Capel variables are exempt from all of this. Their two parameters
+are functions of the numeric category \emph{score}, so renumbering the
+categories would change the model rather than relabel it, and a score no
+one happened to observe is still a meaningful point on the scale. Their
+categories are therefore always retained exactly as supplied.
+}
+
 \examples{
 \dontrun{
 # Run bgmCompare on subset of the Boredom dataset

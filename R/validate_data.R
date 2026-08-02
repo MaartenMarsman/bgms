@@ -499,11 +499,12 @@ collapse_categories_across_groups = function(x,
       paste0("  ", shown, collapse = "\n"),
       if(extra > 0) paste0("\n  ... and ", extra, " more") else "",
       "\nThese categories are kept, because the other groups do use them. ",
-      "But a group that never uses a category supplies no information about ",
-      "it, so the difference reported for that group and that category comes ",
-      "from the prior rather than from the data: expect it to be large and ",
-      "very uncertain, and do not read it as evidence of a group difference. ",
-      "Pairwise (edge) differences are unaffected.",
+      "But a group with no observations in a category has nothing to say ",
+      "about where its threshold for that category lies, so the reported ",
+      "difference for that group and that category is set by the prior, not ",
+      "by the data. Expect a large and very uncertain number there, and do ",
+      "not read it as evidence of a group difference. Only the category ",
+      "thresholds are affected; the pairwise (edge) differences are not.",
       call. = FALSE
     )
   }
