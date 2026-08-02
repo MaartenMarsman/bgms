@@ -55,6 +55,16 @@ factor scale saturates at double precision: an entry whose log exceeds about
 \code{log = FALSE} even though its log-scale value is finite. Use \code{log = TRUE} for
 workflows that must separate such extreme evidence.
 }
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+extract_inclusion_bf(fit)
+
+# log = TRUE keeps evidence that saturates the Bayes factor scale readable.
+extract_inclusion_bf(fit, log = TRUE)
+}
+
+}
 \seealso{
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},
 \code{\link[=extract_prior_inclusion_probabilities]{extract_prior_inclusion_probabilities()}}

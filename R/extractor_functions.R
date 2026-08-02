@@ -412,6 +412,15 @@ rb_bf_scale = function(log_bf, log) {
 #'   diagonal is `NA`; for `bgmCompare` the diagonal holds main-effect difference
 #'   Bayes factors.
 #'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_inclusion_bf(fit)
+#'
+#' # log = TRUE keeps evidence that saturates the Bayes factor scale readable.
+#' extract_inclusion_bf(fit, log = TRUE)
+#' }
+#'
 #' @seealso [extract_posterior_inclusion_probabilities()],
 #'   [extract_prior_inclusion_probabilities()]
 #' @family extractors
