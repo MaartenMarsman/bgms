@@ -802,7 +802,7 @@ other way by the maintainer's design ruling in the addendum below.
 ## Addendum — K > 2 without difference selection now draws the group panels
 
 Maintainer design ruling, superseding round 3's accepted error and closing
-finding O the other way. Commit `cf530806`.
+finding O the other way. Commit `b2616f48`.
 
 The reasoning that produced the error was that a `K > 2` selection-off fit has
 neither a split to draw nor a single magnitude to draw instead. That is true
