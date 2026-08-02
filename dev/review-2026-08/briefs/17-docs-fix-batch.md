@@ -18,10 +18,9 @@ not a grading criterion.
 
 - Repo (Dropbox; do NOT switch its checked-out branch or build in it):
   `/Users/maartenmarsman/Library/CloudStorage/Dropbox/Projecten/R/bgms`
-- **Base on `develop` AT OR AFTER the brief-12 merge** (the maintainer
-  launches you only once it has landed; verify with
-  `git log --oneline -5 develop` that a nightly-respec merge is present —
-  if it is not, STOP and say so in your report rather than proceeding):
+- **Base on `develop` AT OR AFTER the brief-12 merge `f24ad3c8`** (verify
+  with `git log --oneline -5 develop` that it is present — if it is not,
+  STOP and say so in your report rather than proceeding):
   ```sh
   git -C /Users/maartenmarsman/Library/CloudStorage/Dropbox/Projecten/R/bgms \
       worktree add ~/bgms-review/wt-fix7 -b fix/docs-batch develop
@@ -115,15 +114,14 @@ not a grading criterion.
 
 ### Harmonization check (from the report-14 integration note)
 
-13. **F-049 Rd sentence** — brief 12 landed a sentence in
-    `?prior_sensitivity_check` Details about extrapolation error and anchor
-    exactness. Verify it states exactness the way the code does: exactness
-    lives on the anchor fits' own RB statistics (per-anchor verdict
-    columns, chosen-scale quantities), NOT on the curve row at the anchor's
-    scale — the pooled curve is pooled everywhere
-    (`R/anchor_curve.R:207-211`). If the sentence says "the anchors are
-    exact" without that distinction, sharpen it to match the NEWS wording
-    brief 14 merged. One sentence; cite both files in your report.
+13. **F-049 Rd sentence — verify only.** The lead checked the merged
+    sentence at 12's integration: it correctly places exactness on the
+    anchor fits' own RB statistics with the between-anchor curve
+    importance-reweighted (`R/prior_sensitivity.R:71-78` /
+    `man/prior_sensitivity_check.Rd:144-151`), matching
+    `R/anchor_curve.R:207-211`. Your job: cross-check that wording against
+    the NEWS sentence brief 14 merged and edit ONLY if the two disagree on
+    where exactness lives. One line in your report either way.
 
 ### NEWS amendments from the maintainer's ratification read (F-096)
 
@@ -220,11 +218,14 @@ not a grading criterion.
 
 ### CI hygiene (F-102)
 
-16. Add `paths-ignore: ['dev/**']` to the `on: push` triggers of the three
-    r-lib workflows (`.github/workflows/` lint / R-CMD-check /
-    test-coverage — the exact filenames as found). Review-record commits
-    must stop launching ~2 CPU-hours of package CI each. Do not touch the
-    nightly/certification/fast-checks workflows (another brief owns them).
+16. Add `paths-ignore: ['dev/**']` to the `on: push` triggers of FOUR
+    workflows: the three r-lib ones (`.github/workflows/` lint /
+    R-CMD-check / test-coverage — the exact filenames as found) AND the
+    new `fast-checks.yaml` (its `push:` trigger only — leave its
+    `pull_request:` trigger exactly as is). Review-record commits must
+    stop launching package CI: dev/ files cannot change any test outcome.
+    Do not touch `nightly-validation.yaml` or `weekly-certification.yaml`
+    (schedule-triggered; no push trigger to filter).
 
 ### Explicitly OUT of scope
 
