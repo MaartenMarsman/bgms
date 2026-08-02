@@ -112,6 +112,33 @@
 #    Fix: comparisons strip sd and mcse columns (along with other derived
 #    columns in diag_cols), so the historical swap is ignored.
 #
+# 11. Output fields with no 0.1.6.3 counterpart:
+#    bgmCompare in 0.1.6.3 stored posterior means for the BASELINE parameters
+#    only (output_utils.R builds posterior_mean_main_baseline and
+#    posterior_mean_pairwise_baseline and nothing else). The current code also
+#    stores posterior_mean_main_differences and
+#    posterior_mean_pairwise_differences. There is nothing to compare them
+#    against, so they are skipped whenever the fixture side is absent; see
+#    new_since_baseline below. They become live comparisons automatically once
+#    fixtures are regenerated against a baseline that has them.
+#    Likewise, bgmCompare has never had a posterior_mean_indicator field in
+#    either version, so it is not extracted at all.
+#
+# 12. Fixtures are machine-dependent (MEASURED, not fixed):
+#    Re-running generate_fixtures.R reproduces the committed fixtures exactly
+#    on the machine that produced them, but not across machines: the same
+#    0.1.6.3 source and the same seed give different NUTS trajectories under a
+#    different toolchain/BLAS, because floating-point differences in the
+#    gradient cascade through the leapfrog integrator. (Verified: a source
+#    build of the cran-0.1.6.3 tag and the CRAN binary agree bit-for-bit on
+#    one machine, and both differ from fixtures generated elsewhere. The
+#    `cores` argument is NOT the cause -- the RNG stream is independent of it.)
+#    Consequence: bitwise comparison is only meaningful when fixtures and the
+#    build under test come from the same machine. Structure-only comparison is
+#    machine-independent and is what this harness currently runs. Before
+#    re-enabling bitwise comparison (note 8), regenerate the fixtures on the
+#    runner that will execute the check.
+#
 # ==============================================================================
 
 library(bgms)
@@ -393,22 +420,6 @@ resolve_args = function(args) {
   resolved
 }
 
-# Migrate fixtures generated with pre-0.1.6.4 field names.
-# PR #84 renamed posterior_mean_pairwise -> posterior_mean_pairwise.
-migrate_fixture = function(fixture) {
-  renames = c(
-    posterior_mean_pairwise              = "posterior_mean_pairwise",
-    posterior_mean_pairwise_baseline     = "posterior_mean_pairwise_baseline",
-    posterior_mean_pairwise_differences  = "posterior_mean_pairwise_differences"
-  )
-  for(old_name in names(renames)) {
-    if(old_name %in% names(fixture) && !renames[[old_name]] %in% names(fixture)) {
-      names(fixture)[names(fixture) == old_name] = renames[[old_name]]
-    }
-  }
-  fixture
-}
-
 extract_bgm_actual = function(fit) {
   list(
     posterior_summary_main = fit$posterior_summary_main,
@@ -425,7 +436,7 @@ extract_bgm_actual = function(fit) {
       NULL
     },
     nuts_diag = fit$nuts_diag,
-    posterior_coclustering_matrix = fit$posterior_coclustering_matrix,
+    posterior_mean_coclustering_matrix = fit$posterior_mean_coclustering_matrix,
     posterior_mean_allocations = fit$posterior_mean_allocations
   )
 }
@@ -441,7 +452,11 @@ extract_compare_actual = function(fit) {
     posterior_mean_pairwise_baseline = fit$posterior_mean_pairwise_baseline,
     posterior_mean_main_differences = fit$posterior_mean_main_differences,
     posterior_mean_pairwise_differences = fit$posterior_mean_pairwise_differences,
-    posterior_mean_indicator = fit$posterior_mean_indicator,
+    # NOTE: bgmCompare has never produced a posterior_mean_indicator field --
+    # not in CRAN 0.1.6.3 (output_utils.R sets it only on the bgm path) and not
+    # in the current bgmCompare S7 class. It used to be extracted here, which
+    # silently yielded NULL against the S3 fixtures and errors against S7.
+    # Inclusion probabilities for differences live in posterior_summary_indicator.
     raw_samples = fit$raw_samples,
     nuts_diag = fit$nuts_diag
   )
@@ -472,6 +487,14 @@ structure_only_ids = c(
 # the edge-selected pairwise summaries (note 9).
 diag_cols = c("n_eff", "n_eff_mixt", "Rhat", "mcse", "sd", "parameter")
 
+# Fields the current build produces that CRAN 0.1.6.3 did not (note 11).
+# When the fixture side is NULL for one of these, the field is skipped rather
+# than reported as a NULL/non-NULL mismatch.
+new_since_baseline = c(
+  "posterior_mean_main_differences",
+  "posterior_mean_pairwise_differences"
+)
+
 # Strip diagnostic / derived columns from a data.frame/matrix, keeping only
 # shared non-diagnostic columns between expected and actual.
 strip_diag_cols = function(exp_df, act_df) {
@@ -492,7 +515,7 @@ compare_fields = function(expected, actual, type, id) {
       "posterior_summary_indicator",
       "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
       "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1",
-      "posterior_coclustering_matrix", "posterior_mean_allocations"
+      "posterior_mean_coclustering_matrix", "posterior_mean_allocations"
     )
   } else {
     fields = c(
@@ -501,7 +524,6 @@ compare_fields = function(expected, actual, type, id) {
       "posterior_summary_indicator",
       "posterior_mean_main_baseline", "posterior_mean_pairwise_baseline",
       "posterior_mean_main_differences", "posterior_mean_pairwise_differences",
-      "posterior_mean_indicator",
       "raw_samples"
     )
   }
@@ -514,6 +536,7 @@ compare_fields = function(expected, actual, type, id) {
     act_val = actual[[field]]
 
     if(is.null(exp_val) && is.null(act_val)) next
+    if(is.null(exp_val) && field %in% new_since_baseline) next  # note 11
     if(is.null(exp_val) != is.null(act_val)) {
       mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
@@ -631,7 +654,8 @@ check_structure = function(expected, actual, type) {
       "posterior_summary_main", "posterior_summary_pairwise",
       "posterior_summary_indicator",
       "posterior_mean_main", "posterior_mean_pairwise", "posterior_mean_indicator",
-      "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1"
+      "raw_main_chain1", "raw_pairwise_chain1", "raw_indicator_chain1",
+      "posterior_mean_coclustering_matrix", "posterior_mean_allocations"
     )
   } else {
     fields = c(
@@ -640,7 +664,6 @@ check_structure = function(expected, actual, type) {
       "posterior_summary_indicator",
       "posterior_mean_main_baseline", "posterior_mean_pairwise_baseline",
       "posterior_mean_main_differences", "posterior_mean_pairwise_differences",
-      "posterior_mean_indicator",
       "raw_samples"
     )
   }
@@ -650,6 +673,7 @@ check_structure = function(expected, actual, type) {
     exp_val = expected[[field]]
     act_val = actual[[field]]
     if(is.null(exp_val) && is.null(act_val)) next
+    if(is.null(exp_val) && field %in% new_since_baseline) next  # note 11
     if(is.null(exp_val) != is.null(act_val)) {
       mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
@@ -705,7 +729,7 @@ for(entry in manifest) {
     skip_count = skip_count + 1
     next
   }
-  expected = migrate_fixture(readRDS(fixture_path))
+  expected = readRDS(fixture_path)
 
   # Get config
   if(!id %in% names(all_configs)) {
