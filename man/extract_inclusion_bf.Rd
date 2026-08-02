@@ -22,6 +22,15 @@ inclusion evidence remains. On the Bayes factor scale the latter is \code{0}, an
 \code{+Inf} also covers entries that overflow double precision. For \code{bgms} the
 diagonal is \code{NA}; for \code{bgmCompare} the diagonal holds main-effect difference
 Bayes factors.
+
+"Never updated" means never \emph{proposed}, which is narrower than it sounds.
+An edge indicator in \code{\link[=bgm]{bgm()}} that stays included for the whole run is still
+proposed at every iteration, so the accumulators see its conditional
+inclusion odds and it gets a finite (possibly very large) Bayes factor. An
+unselected main-effect difference in \code{\link[=bgmCompare]{bgmCompare()}}
+(\code{main_difference_selection = FALSE}) is never proposed at all, so no
+Rao-Blackwellized quantity exists for it and \code{NA} is the honest entry
+rather than a lost number.
 }
 \description{
 Computes inclusion Bayes factors from a model fitted with \code{\link[=bgm]{bgm()}} (edge
@@ -54,6 +63,16 @@ factor scale saturates at double precision: an entry whose log exceeds about
 709.78 nats (a Bayes factor beyond about 1.8e308) is \code{+Inf} under
 \code{log = FALSE} even though its log-scale value is finite. Use \code{log = TRUE} for
 workflows that must separate such extreme evidence.
+}
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+extract_inclusion_bf(fit)
+
+# log = TRUE keeps evidence that saturates the Bayes factor scale readable.
+extract_inclusion_bf(fit, log = TRUE)
+}
+
 }
 \seealso{
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}},

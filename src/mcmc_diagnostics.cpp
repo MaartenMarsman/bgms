@@ -295,8 +295,9 @@ Rcpp::NumericVector compute_rhat_cpp(Rcpp::NumericVector array3d) {
 // ============================================================================
 //
 // For binary (0/1) MCMC draws, ESS is computed from transition counts
-// rather than AR spectral density. For each parameter, pool draws across
-// chains into a single vector and count consecutive-pair transitions:
+// rather than AR spectral density. For each parameter, the mean pools the
+// draws across chains, but the consecutive-pair transitions are counted
+// WITHIN each chain and summed -- a chain boundary is not a transition:
 //   n00, n01, n10, n11
 // Then:
 //   a = n01 / (n00 + n01)
@@ -337,38 +338,40 @@ struct IndicatorESSWorker : public RcppParallel::Worker {
       int c00 = 0, c01 = 0, c10 = 0, c11 = 0;
       bool has_nonfinite = false;
 
-      // First element (no transition from previous)
       const double* base = data + j * niter * nchains;
 
-      // Guard: if the first value is non-finite, skip computation
-      if(!std::isfinite(base[0])) {
-        has_nonfinite = true;
-      }
-
-      int prev = 0;
-      if(!has_nonfinite) {
-        prev = (int)base[0];
+      // The draws are pooled for the mean, but transitions are NOT: a chain's
+      // first draw has no predecessor, and the previous chain's last draw is an
+      // independent state, not the one that preceded it. Scanning straight
+      // through the pooled buffer fabricates one transition per chain boundary
+      // -- nchains - 1 per parameter -- which is exactly the corner where the
+      // counts matter, turning an honest n0->1 == n1->0 == 0 on a decisive edge
+      // into a 1 and its NA transition ESS into a finite, meaningless number.
+      // So each chain restarts the scan from its own first draw.
+      for(int c = 0; c < nchains && !has_nonfinite; c++) {
+        const double* col = base + c * niter;
+        if(niter < 1) continue;
+        if(!std::isfinite(col[0])) {
+          has_nonfinite = true;
+          break;
+        }
+        int prev = (int)col[0];
         sum_x += prev;
-
-        for(int c = 0; c < nchains && !has_nonfinite; c++) {
-          const double* col = base + c * niter;
-          int start = (c == 0) ? 1 : 0;
-          for(int i = start; i < niter; i++) {
-            double raw = col[i];
-            if(!std::isfinite(raw)) {
-              has_nonfinite = true;
-              break;
-            }
-            int curr = (int)raw;
-            sum_x += curr;
-            // Transition from prev to curr
-            if(prev == 0) {
-              if(curr == 0) c00++; else c01++;
-            } else {
-              if(curr == 0) c10++; else c11++;
-            }
-            prev = curr;
+        for(int i = 1; i < niter; i++) {
+          double raw = col[i];
+          if(!std::isfinite(raw)) {
+            has_nonfinite = true;
+            break;
           }
+          int curr = (int)raw;
+          sum_x += curr;
+          // Transition from prev to curr, within this chain only
+          if(prev == 0) {
+            if(curr == 0) c00++; else c01++;
+          } else {
+            if(curr == 0) c10++; else c11++;
+          }
+          prev = curr;
         }
       }
 

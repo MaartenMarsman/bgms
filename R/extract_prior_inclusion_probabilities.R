@@ -474,6 +474,18 @@ prior_pip_matrix_from_classes = function(spec, class_values) {
 #'   variable names as row and column names and a zero diagonal, matching
 #'   [extract_posterior_inclusion_probabilities()].
 #'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#'
+#' # An ordinal MRF has no continuous block, so every edge carries the edge
+#' # prior's own marginal -- 0.5 under the default bernoulli_prior(0.5).
+#' extract_prior_inclusion_probabilities(fit)
+#'
+#' # These are the odds extract_inclusion_bf() divides out.
+#' extract_posterior_inclusion_probabilities(fit)
+#' }
+#'
 #' @seealso [extract_posterior_inclusion_probabilities()], [bgm()]
 #' @family extractors
 #' @export

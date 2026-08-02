@@ -25,6 +25,10 @@ models. It supports three variable types:
 - **Blume–Capel** — ordinal MRF with a reference category,
 - **continuous** — Gaussian graphical models (GGM).
 
+`variable_type` also takes a vector with one entry per variable. A vector that
+mixes discrete (`"ordinal"` or `"blume-capel"`) with `"continuous"` entries
+fits a **mixed** MRF, with discrete and continuous variables in one network.
+
 The package estimates main effects and pairwise interactions, with optional
 Bayesian edge selection via spike-and-slab priors. It provides two main
 entry points:
@@ -104,6 +108,14 @@ For continuous variables, `bgm()` fits a Gaussian graphical model when
 `variable_type = "continuous"`. The workflow is the same:
 
 ```{r, eval=FALSE}
+# 200 draws from a five-variable Gaussian graphical model whose precision
+# matrix is a chain, 1-2-3-4-5.
+set.seed(1234)
+K = diag(5)
+K[cbind(1:4, 2:5)] = -0.4
+K[cbind(2:5, 1:4)] = -0.4
+continuous_data = matrix(rnorm(200 * 5), 200, 5) %*% chol(solve(K))
+
 fit_ggm = bgm(continuous_data, variable_type = "continuous", seed = 1234)
 summary(fit_ggm)
 ```
@@ -114,6 +126,28 @@ They are not standardized partial correlations. Use
 `extract_partial_correlations()` to convert them to actual partial
 correlations, or `extract_precision()` to obtain the precision matrix.
 Missing values can be imputed during sampling with `na_action = "impute"`.
+
+# What's new in 0.2.0
+
+This vignette covers the basic workflow, which has not changed. Several things
+around it have, and they have their own documentation:
+
+- `verdicts()` turns the inclusion probabilities above into per-edge
+  presence / undecided / absence calls at an evidence threshold, and flags the
+  ones that are Monte-Carlo fragile. See the *Checking your fitted model* vignette.
+- Priors are now set with **constructor objects** rather than bare numbers:
+  `normal_prior()`, `cauchy_prior()`, `beta_prime_prior()`,
+  `exponential_prior()`, `gamma_prior()` for the parameter priors, and
+  `bernoulli_prior()`, `beta_bernoulli_prior()`, `sbm_prior()` for the edge
+  prior. The old scalar arguments still work but are deprecated. See `?bgm`.
+- **Gaussian graphical models** (`variable_type = "continuous"`) and **mixed**
+  discrete–continuous MRFs are supported, as described above.
+- Two checking vignettes are new: *Checking your fitted model* for posterior
+  predictive and calibration checks, and *Checking Prior Sensitivity* for how
+  far the edge verdicts depend on the slab scale.
+
+See `NEWS.md` for the full list, including the change of scale for pairwise
+effects.
 
 # Next steps
 

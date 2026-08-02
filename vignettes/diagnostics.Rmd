@@ -55,15 +55,20 @@ summary(fit)$pairwise
 - The effective sample size (ESS) reflects the number of independent samples that would provide equivalent precision. Larger ESS values indicate more reliable estimates.
 - The Monte Carlo standard error (MCSE) measures the additional variability introduced by using a finite number of MCMC draws. A small MCSE relative to the posterior standard deviation indicates stable estimates, whereas a large MCSE suggests that more samples are needed.
 
-The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the transition counts (`n0->0`, `n0->1`, `n1->0`, `n1->1`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
+The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the directional transition counts (`n0->1` and `n1->0`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
 
 ## Diagnostics for edge-selected parameters
 
 With edge or difference selection active, the effect parameters are governed by
 spike-and-slab priors. The corresponding parameter is set to exactly zero when
 the effect is excluded, rather than being removed from the model. Because the
-parameter has a well-defined value at every iteration, the full chain —
-including zeros — is a valid sequence for computing ESS.
+parameter has a well-defined value at every iteration, `mean`, `sd` and `Rhat`
+are computed from the full chain, zeros included. The reported `n_eff` is
+deliberately *not* a full-chain ESS: run through the standard autocorrelation
+machinery, the spike-and-slab chain inflates the ESS in cells where the
+inclusion indicator, rather than the weight itself, drives the variability. The
+package therefore reports a composite estimator built from the two Monte Carlo
+errors that actually limit the model-averaged weight.
 
 - **n_eff** in the pairwise table is the composite ESS of the model-averaged
   weight: it combines the Monte Carlo error of the conditional (included-only)
@@ -81,9 +86,17 @@ summary(fit)$indicator
 - **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
   Rao-Blackwellized inclusion probability. The sampler records a one-step
   inclusion draw at every indicator update, and that draw is continuous, so the
-  standard Monte Carlo machinery applies to it. They are `NA` only for an
-  indicator whose Rao-Blackwellized draws are constant to double precision,
-  where the inclusion probability sits at its numerical bound.
+  standard Monte Carlo machinery applies to it. They are `NA` when that draw
+  carries too little variability for the machinery to work on, which happens by
+  two routes. The first is an indicator whose Rao-Blackwellized draws are
+  constant to double precision, where the inclusion probability sits at its
+  numerical bound; `sd` is then exactly `0`. The second is a draw whose
+  variance is non-zero but falls below the numerical floor of the
+  autocovariance kernel: `mcse` and `n_eff` come back `NA` while `sd` and
+  `Rhat` are still reported. In the table above, `intrusion-flash` takes the
+  second route — an `sd` of about `2e-11` with `NA` `mcse` and `n_eff` and a
+  finite `Rhat`. Either way the reading is the same: the inclusion probability
+  is pinned, not poorly estimated.
 - **n0->1** and **n1->0** are the directional flip counts of the binary
   indicator chain. They record how much the chain explored the two states, which
   the Rao-Blackwellized columns cannot see: those measure precision conditional
@@ -143,14 +156,27 @@ BF_10 = p / (1 - p)
 BF_10
 ```
 
-Here the Bayes factor in favor of inclusion (H1) is small, meaning that there is little evidence for inclusion. Since the Bayes factor is transitive, we can 
-use it to express the evidence in favor of exclusion (H0) as
+Here the Bayes factor in favor of inclusion (H1) is `r round(BF_10, 2)`: the
+data are about `r round(BF_10)` times more likely under a model that includes
+the `intrusion`-`physior` edge than under one that excludes it, which is
+substantial evidence *for* inclusion. On the natural log scale that the package
+uses elsewhere this is a log Bayes factor of `r round(log(BF_10), 2)`, and
+`verdicts()` — see the model-checking vignette — labels this edge a
+`presence`.
+
+Since the Bayes factor is transitive, the same number expressed the other way
+around gives the evidence in favor of exclusion (H0):
 
 ```{r}
 1 / BF_10
 ```
-This Bayes factor shows that there is strong evidence for the absence of a 
-network relation between the variables `intrusion` and `physior`.
+
+This is the Bayes factor for absence, `BF_01`, and at `r signif(1 / BF_10, 2)`
+it sits well below 1: it is evidence *against* absence rather than for it — the
+mirror image of the reading above.
+Absence is what a **large** `BF_01` would show: a value of, say, 10 or more,
+which is the same as a `BF_10` of 0.1 or less, would be strong evidence that
+there is no network relation between two variables.
 
 # NUTS diagnostics
 

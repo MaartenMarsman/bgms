@@ -412,6 +412,24 @@ rb_bf_scale = function(log_bf, log) {
 #'   diagonal is `NA`; for `bgmCompare` the diagonal holds main-effect difference
 #'   Bayes factors.
 #'
+#'   "Never updated" means never *proposed*, which is narrower than it sounds.
+#'   An edge indicator in [bgm()] that stays included for the whole run is still
+#'   proposed at every iteration, so the accumulators see its conditional
+#'   inclusion odds and it gets a finite (possibly very large) Bayes factor. An
+#'   unselected main-effect difference in [bgmCompare()]
+#'   (`main_difference_selection = FALSE`) is never proposed at all, so no
+#'   Rao-Blackwellized quantity exists for it and `NA` is the honest entry
+#'   rather than a lost number.
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_inclusion_bf(fit)
+#'
+#' # log = TRUE keeps evidence that saturates the Bayes factor scale readable.
+#' extract_inclusion_bf(fit, log = TRUE)
+#' }
+#'
 #' @seealso [extract_posterior_inclusion_probabilities()],
 #'   [extract_prior_inclusion_probabilities()]
 #' @family extractors

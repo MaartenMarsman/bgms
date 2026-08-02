@@ -53,6 +53,14 @@ fit = bgmCompare(
 )
 ```
 
+One default differs between the two entry points: the baseline pairwise prior
+is `interaction_prior = normal_prior(1)` in `bgm()` but
+`interaction_prior = cauchy_prior(1)` in `bgmCompare()`. Setting a
+`bgmCompare()` fit beside two separate `bgm()` fits at their stated defaults
+therefore compares two different models, not just two groups. Pass the same
+`interaction_prior` to both functions whenever the comparison is meant to be
+like-for-like.
+
 # Posterior summaries
 
 The summary shows both baseline effects and group differences:

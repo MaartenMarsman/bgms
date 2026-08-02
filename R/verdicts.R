@@ -111,7 +111,12 @@ format_log_bf = function(log_bf, cap = 1e4) {
   if(log_bf < -cap) {
     return(sprintf("< -%s", format(cap, big.mark = ",", scientific = FALSE)))
   }
-  sprintf("= %.1f", log_bf)
+  # A Bayes factor that rounds to nothing is nothing, not "-0.0": the sign of a
+  # rounded-away quantity is not information the run established. Same rule
+  # estimate_lines() already applies to a weight (R/plot_bgms.R).
+  shown = round(log_bf, 1)
+  if(shown == 0) shown = 0
+  sprintf("= %.1f", shown)
 }
 
 
@@ -449,18 +454,22 @@ check_evidence_threshold = function(evidence_threshold) {
 #' @family posterior-methods
 #' @export
 print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
-  # Subsetting columns keeps the class but not the table: print what is left as
-  # the plain data frame it has become, rather than failing on a missing column.
+  # Subsetting keeps the class but not the table: print what is left as the
+  # plain data frame it has become, rather than failing on what is missing.
+  # Two things can go: `[.data.frame` drops a column when `j` is supplied, and
+  # it drops the evidence_threshold attribute whenever `j` is supplied at all --
+  # so subset(x, ...), which always supplies `j`, keeps every display column and
+  # still leaves nothing to state the boundaries with. Both are checked.
   required = c("parameter", "pip", "log_bf", "verdict", "fragile")
-  if(!all(required %in% names(x))) {
+  threshold = attr(x, "evidence_threshold")
+  if(!all(required %in% names(x)) || is.null(threshold)) {
     print(as.data.frame(x), ...)
     return(invisible(x))
   }
 
-  threshold = attr(x, "evidence_threshold")
   cat(sprintf(
     "Edge verdicts at an inclusion Bayes factor of %g (and %g for absence):\n",
-    threshold, 1 / threshold
+    threshold, signif(1 / threshold, 3)
   ))
   # The table reports the evidence as a natural log Bayes factor, so the
   # boundaries are stated in that unit rather than left to be converted.
@@ -477,8 +486,9 @@ print.bgms_verdicts = function(x, digits = 3, max_rows = 10L, ...) {
 
   tally = table(rows$verdict)
   cat(sprintf(
-    "  presence %d | undecided %d | absence %d   (%d indicators)\n",
-    tally[["presence"]], tally[["undecided"]], tally[["absence"]], nrow(rows)
+    "  presence %d | undecided %d | absence %d   (%d %s)\n",
+    tally[["presence"]], tally[["undecided"]], tally[["absence"]], nrow(rows),
+    if(nrow(rows) == 1L) "indicator" else "indicators"
   ))
   if(!is.null(hidden) && any(hidden)) {
     cat(
