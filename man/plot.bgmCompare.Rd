@@ -57,16 +57,24 @@ A network with no edges left is a result, not an error: "the groups do not
 differ anywhere" is a common and correct finding, so the nodes are drawn on
 their own and the subtitle says so.
 
-Main-effect differences are not edges. When \code{main_difference_selection = TRUE} gave them their own indicators, their evidence is carried on the
-nodes: each node wears a ring filled to its difference indicator's
-posterior inclusion probability -- a full ring is probability 1, half a
-ring 0.5 -- coloured by the verdict (accented for presence, grey for
-undecided, faint for absence). The fill fraction carries the number, so
+Main-effect differences are not edges. When \code{main_difference_selection = TRUE} gave them their own indicators, their evidence is carried beside the
+nodes: each node wears a probability wheel filled to its difference
+indicator's posterior inclusion probability -- a full wheel is probability
+1, half a wheel 0.5 -- coloured by the verdict (accented for presence, grey
+for undecided, faint for absence). It is the same wheel
+\code{\link[=plot_edge_posterior]{plot_edge_posterior()}} draws, so a probability looks the same on every
+figure the package produces, and the filled fraction carries the number, so
 the encoding does not rest on colour alone. Under the default
 \code{main_difference_selection = FALSE} those indicators do not exist, so no
-ring is drawn and the subtitle names the setting. \code{verdicts()} remains the
-place to read main-effect differences precisely; the rings are a summary
-of it.
+wheel is drawn and a note names the setting. \code{verdicts()} remains the place
+to read main-effect differences precisely; the wheels are a summary of it.
+
+The evidence is displayed exactly as \code{\link[=plot.bgms]{plot.bgms()}} displays an edge's: the
+band above the network tallies the differences by verdict, names the
+threshold on the natural-log Bayes factor scale, and prints the strongest
+Bayes factor for and against a difference that the fit contains. Both
+methods compose that band with the same code, so the two pictures cannot
+come to report a Bayes factor differently.
 
 Drawing needs the suggested package qgraph.
 }

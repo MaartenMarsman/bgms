@@ -80,25 +80,66 @@ test_that("the network needs at least one edge that is not ruled out", {
   expect_invisible(plot(fit))
 })
 
-test_that("main_difference_nodes fills each node's ring to its inclusion probability", {
+test_that("main_difference_nodes fills each node's wheel to its inclusion probability", {
   verdict = c("presence", "undecided", "absence")
   pip = c(0.97, 0.5, 0.02)
   nodes = main_difference_nodes(verdict, pip, main_selected = TRUE)
 
-  # The ring fraction carries the number, so the encoding does not fail for a
-  # reader who cannot tell the ring colours apart.
-  expect_equal(nodes$pie, pip)
-  expect_equal(nodes$pie_color, c(mover_palette()[1], "grey55", "grey80"))
+  # The filled fraction carries the number, so the encoding does not fail for
+  # a reader who cannot tell the wheel colours apart.
+  expect_equal(nodes$prob, pip)
+  expect_equal(nodes$color, c(mover_palette()[1], "grey55", "grey80"))
 
-  # A never-updated indicator has a NaN probability; its ring stays empty
-  # rather than poisoning qgraph's arc arithmetic.
+  # A never-updated indicator has a NaN probability; its wheel stays empty
+  # rather than poisoning the wedge arithmetic.
   partial = main_difference_nodes(c("presence", NA), c(0.9, NaN), main_selected = TRUE)
-  expect_equal(partial$pie, c(0.9, 0))
+  expect_equal(partial$prob, c(0.9, 0))
 
-  # Without main selection there is no indicator and no ring channel at all.
+  # Without main selection there is no indicator and no wheel at all.
   empty = main_difference_nodes(rep(NA_character_, 3), rep(NaN, 3), main_selected = FALSE)
-  expect_null(empty$pie)
-  expect_null(empty$pie_color)
+  expect_null(empty$prob)
+  expect_null(empty$color)
+})
+
+test_that("both network methods report evidence through the same band", {
+  verdict = c("presence", "presence", "undecided", "absence", "absence")
+  log_bf = c(4.2, Inf, 0.3, -3.1, -9.4)
+
+  edges = evidence_band(verdict, log_bf, 10, network_unit("edge"))
+  differences = evidence_band(verdict, log_bf, 10, network_unit("difference"))
+
+  # The tally counts the same three classes on both sides; only the noun for
+  # the thing being counted differs.
+  expect_equal(edges$left, "2 present  |  1 undecided  |  2 ruled out")
+  expect_equal(differences$left, "2 differing  |  1 undecided  |  2 ruled out")
+
+  # The numbers are identical, in the same wording, on the same natural-log
+  # scale, through the same formatters: this is what parity between the two
+  # displays means in code.
+  expect_equal(edges$right, differences$right)
+  expect_equal(edges$right[1], paste("threshold: log BF", format_log_bf(log(10))))
+  # A saturated Bayes factor prints as the reporting cap, exactly as it does
+  # on an edge panel.
+  expect_equal(edges$right[2], "strongest for: log BF > 10,000")
+  expect_equal(edges$right[3], "strongest against: log BF = -9.4")
+
+  # An all-NA column of Bayes factors has no extremes to print, and says so by
+  # printing only the threshold rather than an invented range.
+  quiet = evidence_band(verdict, rep(NA_real_, 5), 10, network_unit("edge"))
+  expect_length(quiet$right, 1L)
+})
+
+test_that("the legend can key its lines to verdicts or to the Bayes factors", {
+  unit = network_unit("difference")
+  expect_equal(network_legend_keys(unit, 10), unit$keys)
+
+  withr::local_options(bgms.network_legend = "evidence")
+  keys = network_legend_keys(unit, 10)
+  # The variant says nothing a threshold has not already been given for: the
+  # same three lines, named by the evidence that produces them.
+  expect_length(keys, 3L)
+  expect_true(all(grepl("log BF", keys, fixed = TRUE)))
+  expect_false(any(grepl("undecided", keys, fixed = TRUE)))
 })
 
 test_that("compare_difference_verdicts splits the two indicator families", {

@@ -82,6 +82,319 @@ verdict_network_input = function(weight, verdict, pairs, num_variables) {
 }
 
 
+# ------------------------------------------------------------------
+# network_unit
+# ------------------------------------------------------------------
+# The wording one network display uses for the thing it draws. A bgms fit
+# draws edges; a bgmCompare fit draws differences between two groups' edges.
+# Everything else about the two pictures -- the encoding, the evidence band,
+# the thresholds, the helpers that format the numbers -- is shared, so the
+# wording is the only thing that has to be told apart, and it is told apart
+# here rather than in two parallel drawing routines that can drift.
+#
+# @param kind  "edge" or "difference".
+#
+# Returns: a list of strings.
+# ------------------------------------------------------------------
+network_unit = function(kind = c("edge", "difference")) {
+  kind = match.arg(kind)
+  if(kind == "edge") {
+    return(list(
+      kind = kind,
+      label = "Edge evidence",
+      nouns = "edges",
+      counted = c(presence = "present", undecided = "undecided",
+        absence = "ruled out"),
+      keys = c("present, positive", "present, negative", "undecided"),
+      caption = paste(
+        "Width: model-averaged weight. Colour: sign.",
+        "Edges the data rule out are not drawn."
+      )
+    ))
+  }
+  list(
+    kind = kind,
+    label = "Difference evidence",
+    nouns = "differences",
+    counted = c(presence = "differing", undecided = "undecided",
+      absence = "ruled out"),
+    keys = c("difference, positive", "difference, negative", "undecided"),
+    caption = paste(
+      "Width: size of the difference. Colour: sign.",
+      "Differences the data rule out are not drawn."
+    )
+  )
+}
+
+
+# ------------------------------------------------------------------
+# evidence_band
+# ------------------------------------------------------------------
+# What a network panel says about its evidence, as text. Both network methods
+# call this, so a bgms edge and a bgmCompare difference are described in the
+# same words, on the same natural-log scale, through the same formatters:
+# whatever the two pictures disagree about, it cannot be how they report a
+# Bayes factor.
+#
+# The left block names the display and tallies the verdicts behind it. The
+# right block prints the threshold that produced the tally and the two most
+# extreme Bayes factors the fit actually has, so the numbers in the picture
+# are the fit's own and not only a rule applied to them.
+#
+# @param verdict             Verdict per unit.
+# @param log_bf              Natural log inclusion Bayes factor per unit.
+# @param evidence_threshold  The threshold the verdicts were read at.
+# @param unit                From network_unit().
+#
+# Returns: list(left = character, right = character).
+# ------------------------------------------------------------------
+evidence_band = function(verdict, log_bf, evidence_threshold, unit) {
+  counted = vapply(names(unit$counted), function(name) sum(verdict %in% name),
+    integer(1))
+  left = paste(
+    sprintf("%d %s", counted, unit$counted[names(unit$counted)]),
+    collapse = "  |  "
+  )
+
+  right = paste("threshold: log BF", display_log_bf(log(evidence_threshold)))
+  finite = log_bf[is.finite(log_bf)]
+  # An all-NA column of Bayes factors has no extremes to print; saying nothing
+  # is the honest display, and the tally above still stands.
+  if(length(finite)) {
+    right = c(right,
+      paste("strongest for: log BF", display_log_bf(max(log_bf, na.rm = TRUE))),
+      paste("strongest against: log BF",
+        display_log_bf(min(log_bf, na.rm = TRUE)))
+    )
+  }
+  list(left = left, right = right)
+}
+
+
+# ------------------------------------------------------------------
+# network_legend_keys
+# ------------------------------------------------------------------
+# The legend's wording. The default names the verdicts, as the legend always
+# has. The "evidence" variant names the same three lines by the Bayes factors
+# that produce them instead, which is the wording the panels moved to when the
+# verdict word came off them; it exists so the two can be compared side by
+# side on the same figure. `getOption("bgms.network_legend")` selects it.
+#
+# @param unit                From network_unit().
+# @param evidence_threshold  The threshold, for the evidence wording.
+#
+# Returns: a length-three character vector.
+# ------------------------------------------------------------------
+network_legend_keys = function(unit, evidence_threshold) {
+  style = match.arg(
+    getOption("bgms.network_legend", "verdict"), c("verdict", "evidence")
+  )
+  if(style == "verdict") {
+    return(unit$keys)
+  }
+  bound = display_log_bf(log(evidence_threshold))
+  bound = sub("^= ", "", bound)
+  positive = if(identical(unit$kind, "edge")) "positive" else "positive difference"
+  negative = if(identical(unit$kind, "edge")) "negative" else "negative difference"
+  c(
+    sprintf("log BF > %s, %s", bound, positive),
+    sprintf("log BF > %s, %s", bound, negative),
+    sprintf("|log BF| < %s", bound)
+  )
+}
+
+
+# ------------------------------------------------------------------
+# node_probability_wheels
+# ------------------------------------------------------------------
+# The probability marks on a compare network's nodes, drawn with the package's
+# own wheel rather than qgraph's pie channel. qgraph's pie is a ring inside the
+# node and reads nothing like the wheels the panels use, so the same quantity
+# had two pictures depending on which figure a reader was looking at; this is
+# the one picture.
+#
+# A wheel sits beside its node, pushed outward from the centre of the layout so
+# that it lands in open space rather than on the edges converging on the node.
+# Its radius follows the node's, so it stays legible in a dense network and
+# does not swamp a sparse one.
+#
+# @param layout  The node coordinates qgraph used, in its own [-1, 1] frame.
+# @param nodes   From main_difference_nodes(): prob and color per node.
+# @param width   qgraph's node width attribute, in its percent-of-frame units.
+# @param style   The style list.
+# ------------------------------------------------------------------
+node_probability_wheels = function(layout, nodes, width, style) {
+  if(is.null(nodes$prob) || !nrow(layout)) {
+    return(invisible(NULL))
+  }
+  usr = graphics::par("usr")
+  pin = graphics::par("pin")
+  # qgraph's `width` is the node size parameter it was given, not the radius it
+  # drew, and it exposes no accessor for the latter; measured against qgraph's
+  # own output the drawn radius runs a little under twice `width / 100` of its
+  # [-1, 1] frame. The factor here is deliberately on the generous side of
+  # that, because a wheel placed too far out is merely further out, while one
+  # placed too close is drawn over the node's border and label.
+  node_dx = 1.9 * width / 100
+  node_dy = node_dx * (diff(usr[3:4]) / diff(usr[1:2]))
+  # The wheel is a fraction of the node it belongs to, so it stays legible in
+  # a dense network and does not swamp a sparse one, and it is pushed out far
+  # enough to clear the node entirely.
+  wheel_share = 0.36
+  gap_share = 0.14
+  offset = 1 + wheel_share + gap_share
+  radius = wheel_share * node_dx * pin[1] / diff(usr[1:2])
+
+  centre = c(mean(range(layout[, 1])), mean(range(layout[, 2])))
+  for(k in seq_len(nrow(layout))) {
+    step = layout[k, ] - centre
+    norm = sqrt(sum(step^2))
+    # A node at the exact centre has no outward direction; put its wheel above.
+    direction = if(norm < 1e-8) c(0, 1) else step / norm
+    at_x = layout[k, 1] + direction[1] * offset * node_dx
+    at_y = layout[k, 2] + direction[2] * offset * node_dy
+    probability_wheel(at_x, at_y, nodes$prob[k],
+      radius = radius, col = nodes$color[k], style = style
+    )
+  }
+  invisible(NULL)
+}
+
+
+# ------------------------------------------------------------------
+# draw_network_annotations
+# ------------------------------------------------------------------
+# The evidence band and the caption of a network panel, in the top and bottom
+# margins where the style module puts them. Shared by both network methods.
+#
+# @param band     From evidence_band().
+# @param caption  The caption line.
+# @param notes    Extra muted lines under the tally.
+# @param style    The style list.
+# ------------------------------------------------------------------
+draw_network_annotations = function(band, caption, notes, style) {
+  old_xpd = graphics::par("xpd")
+  graphics::par(xpd = NA)
+  on.exit(graphics::par(xpd = old_xpd), add = TRUE)
+
+  annotation_block(panel_x(0.02), panel_y(0.985), band$label,
+    adj = 0, cex = style$cex_label, col = style$ink, style = style
+  )
+  annotation_block(panel_x(0.02), panel_y(0.945), c(band$left, notes),
+    adj = 0, cex = style$cex_annotation, col = style$muted, style = style
+  )
+  annotation_block(panel_x(0.98), panel_y(0.985), band$right,
+    adj = 1, cex = style$cex_annotation, col = style$ink, style = style
+  )
+  bgms_caption(caption, line = 1.0, adj = 0.5, style = style)
+  invisible(NULL)
+}
+
+
+# ------------------------------------------------------------------
+# draw_verdict_network
+# ------------------------------------------------------------------
+# One verdict-encoded network, with its evidence band, its legend and its
+# caption. This is the whole of what plot.bgms() and plot.bgmCompare() draw at
+# the network level: they differ in the wording network_unit() hands over and
+# in whether the nodes carry a probability, and in nothing else. That is what
+# keeps a difference Bayes factor displayed exactly as an edge Bayes factor is.
+#
+# @param weight              Weight per unit, row-major upper triangle.
+# @param verdict             Verdict per unit, same order.
+# @param log_bf              Natural log Bayes factor per unit, same order.
+# @param pairs               The row-major upper-triangle index.
+# @param variables           Node labels.
+# @param evidence_threshold  The threshold the verdicts were read at.
+# @param unit                From network_unit().
+# @param nodes               From main_difference_nodes(), or NULL.
+# @param node_key            Legend line for the node wheels, or NULL.
+# @param notes               Extra muted lines under the tally.
+# @param panel_name          Compact identifying label, for a small multiple.
+# @param scale               Type-size multiplier, for a panel drawn smaller
+#                            than the device.
+# @param layout, legend, ... As the plot methods take them.
+#
+# Returns: invisibly, the layout qgraph used.
+# ------------------------------------------------------------------
+draw_verdict_network = function(weight, verdict, log_bf, pairs, variables,
+                                evidence_threshold, unit, layout, legend,
+                                nodes = NULL, notes = character(0),
+                                panel_name = NULL, scale = 1, ...) {
+  style = bgms_style(scale = scale)
+  num_variables = length(variables)
+  network = verdict_network_input(weight, verdict, pairs, num_variables)
+
+  old_par = graphics::par(no.readonly = TRUE)
+  on.exit(graphics::par(old_par), add = TRUE)
+  # The band lives in the top margin and the caption in the bottom one, as on
+  # every other panel in the package; qgraph's own `mar` then opens a strip
+  # inside the coordinate range for the legend, clear of the nodes.
+  graphics::par(mar = c(2.8, 1.6, 5.4, 1.6), col.main = style$ink)
+
+  arguments = list(
+    input = network$weights,
+    labels = variables,
+    directed = FALSE,
+    layout = layout,
+    edge.color = network$edge.color,
+    lty = network$lty,
+    # qgraph fades an edge toward the background in proportion to its weight,
+    # which would wash the verdict encoding out: a settled but weak edge would
+    # come out as faint as an undecided one. Width already carries the weight.
+    fade = FALSE,
+    minimum = 0,
+    label.color = style$ink,
+    border.color = style$muted,
+    color = "white",
+    # The nodes are pulled further in when they carry a wheel, so the wheels
+    # have somewhere to sit that is not the annotation band.
+    mar = if(is.null(nodes$prob)) c(7, 3, 5, 3) else c(8, 5, 7, 5)
+  )
+  result = do.call(qgraph::qgraph, utils::modifyList(arguments, list(...)))
+
+  width = result$graphAttributes$Nodes$width
+  if(length(width)) {
+    node_probability_wheels(result$layout, nodes, width[1], style)
+  }
+
+  band = evidence_band(verdict, log_bf, evidence_threshold, unit)
+  band$label = if(is.null(panel_name)) unit$label else panel_name
+  draw_network_annotations(band, unit$caption, notes, style)
+
+  if(isTRUE(legend)) {
+    keys = network_legend_keys(unit, evidence_threshold)
+    colors = c(mover_palette()[1:2], "grey65")
+    line = c(1L, 1L, 3L)
+    point = c(NA, NA, NA)
+    if(!is.null(nodes$prob)) {
+      keys = c(keys, sprintf("node wheel: %s, full wheel = 1",
+        paste0("P(", if(identical(unit$kind, "edge")) {
+          "included"
+        } else {
+          "main-effect difference"
+        }, ")")))
+      colors = c(colors, style$accent)
+      line = c(line, NA)
+      point = c(point, 21L)
+    }
+    # The strip qgraph's own `mar` opened under the network, addressed
+    # directly: "bottomleft" would anchor on the plot region's corner, which
+    # the caption in the outer margin is already using.
+    usr = graphics::par("usr")
+    graphics::legend(
+      x = usr[1] + 0.02 * diff(usr[1:2]), y = -1.06, xjust = 0, yjust = 1,
+      legend = keys, col = colors, lty = line, pch = point,
+      lwd = c(2.4, 2.4, 1.2, rep(NA, length(keys) - 3L)),
+      pt.cex = 1.1, pt.lwd = style$lwd_wheel, bty = "n",
+      cex = style$cex_caption, text.col = style$ink, xpd = NA,
+      y.intersp = 1.15, seg.len = 1.4
+    )
+  }
+  invisible(result$layout)
+}
+
+
 #' @title Plot a Fitted bgms Model
 #'
 #' @description
@@ -109,6 +422,12 @@ verdict_network_input = function(weight, verdict, pairs, num_variables) {
 #' it out; an edge with evidence of absence is not drawn. The default picture
 #' therefore says the same thing as [verdicts()] at the same threshold, instead
 #' of showing one unqualified network of point estimates.
+#'
+#' The band above the network is the evidence display: it tallies the edges by
+#' verdict, names the threshold on the natural-log Bayes factor scale, and
+#' prints the strongest Bayes factor for and against an edge in this fit.
+#' [plot.bgmCompare()] shows difference evidence through the same code, so the
+#' two read alike.
 #'
 #' Drawing the network requires the suggested package qgraph. The three-panel
 #' evidence display, the structure plots, and the other network displays live
@@ -163,33 +482,18 @@ plot.bgms = function(x,
     )
   }
 
-  network = verdict_network_input(
-    weight, as.character(edges$verdict), pairs, num_variables
-  )
-  arguments = list(
-    input = network$weights,
-    labels = variables,
-    directed = FALSE,
+  draw_verdict_network(
+    weight = weight,
+    verdict = as.character(edges$verdict),
+    log_bf = edges$log_bf,
+    pairs = pairs,
+    variables = variables,
+    evidence_threshold = evidence_threshold,
+    unit = network_unit("edge"),
     layout = layout,
-    edge.color = network$edge.color,
-    lty = network$lty,
-    # qgraph fades an edge toward the background in proportion to its weight,
-    # which would wash the verdict encoding out: a settled but weak edge would
-    # come out as faint as an undecided one. Width already carries the weight.
-    fade = FALSE,
-    minimum = 0
+    legend = legend,
+    ...
   )
-  user = list(...)
-  do.call(qgraph::qgraph, utils::modifyList(arguments, user))
-
-  if(isTRUE(legend)) {
-    graphics::legend("bottomleft",
-      legend = c("present, positive", "present, negative", "undecided"),
-      col = c(mover_palette()[1:2], "grey65"),
-      lty = c(1L, 1L, 3L), lwd = c(2.4, 2.4, 1.2),
-      bty = "n", cex = 0.75, text.col = "grey25", xpd = NA
-    )
-  }
   invisible(x)
 }
 
@@ -220,8 +524,10 @@ compare_difference_verdicts = function(x, evidence_threshold) {
   main = as.character(table$verdict[is_main])
   list(
     pairwise = as.character(table$verdict[!is_main]),
+    pairwise_log_bf = table$log_bf[!is_main],
     main = main,
     main_pip = table$pip[is_main],
+    main_log_bf = table$log_bf[is_main],
     pairs = pairs,
     # Without main_difference_selection those indicators are never updated and
     # carry no verdict, so the node channel has nothing to say.
@@ -233,29 +539,32 @@ compare_difference_verdicts = function(x, evidence_threshold) {
 # ------------------------------------------------------------------
 # main_difference_nodes
 # ------------------------------------------------------------------
-# Node-ring encoding of the main-effect difference evidence: each node wears a
-# ring (qgraph's pie channel) filled to its difference indicator's posterior
-# inclusion probability -- a full ring is 1, half a ring 0.5 -- coloured by the
+# Node encoding of the main-effect difference evidence: each node wears a
+# probability wheel filled to its difference indicator's posterior inclusion
+# probability -- a full wheel is 1, half a wheel 0.5 -- coloured by the
 # verdict. The fill fraction carries the number, so the encoding does not ride
 # on colour alone. Without main_difference_selection there is no indicator and
-# no ring.
+# no wheel.
+#
+# The mark is the package's own probability_wheel(), not qgraph's pie ring, so
+# that a probability looks the same here as it does on an edge panel.
 #
 # @param verdict        Verdict per variable, or all NA when never updated.
 # @param pip            Posterior inclusion probability per variable.
 # @param main_selected  Whether the indicators were updated at all.
 #
-# Returns: list(pie, pie_color), both NULL when no ring is drawn.
+# Returns: list(prob, color), both NULL when no wheel is drawn.
 # ------------------------------------------------------------------
 main_difference_nodes = function(verdict, pip, main_selected) {
   if(!main_selected) {
-    return(list(pie = NULL, pie_color = NULL))
+    return(list(prob = NULL, color = NULL))
   }
-  pie = pip
-  pie[!is.finite(pie)] = 0
+  prob = pip
+  prob[!is.finite(prob)] = 0
   color = rep("grey55", length(verdict))
   color[verdict %in% "presence"] = mover_palette()[1]
   color[verdict %in% "absence"] = "grey80"
-  list(pie = pie, pie_color = color)
+  list(prob = prob, color = color)
 }
 
 
@@ -297,16 +606,24 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' their own and the subtitle says so.
 #'
 #' Main-effect differences are not edges. When `main_difference_selection =
-#' TRUE` gave them their own indicators, their evidence is carried on the
-#' nodes: each node wears a ring filled to its difference indicator's
-#' posterior inclusion probability -- a full ring is probability 1, half a
-#' ring 0.5 -- coloured by the verdict (accented for presence, grey for
-#' undecided, faint for absence). The fill fraction carries the number, so
+#' TRUE` gave them their own indicators, their evidence is carried beside the
+#' nodes: each node wears a probability wheel filled to its difference
+#' indicator's posterior inclusion probability -- a full wheel is probability
+#' 1, half a wheel 0.5 -- coloured by the verdict (accented for presence, grey
+#' for undecided, faint for absence). It is the same wheel
+#' [plot_edge_posterior()] draws, so a probability looks the same on every
+#' figure the package produces, and the filled fraction carries the number, so
 #' the encoding does not rest on colour alone. Under the default
 #' `main_difference_selection = FALSE` those indicators do not exist, so no
-#' ring is drawn and the subtitle names the setting. `verdicts()` remains the
-#' place to read main-effect differences precisely; the rings are a summary
-#' of it.
+#' wheel is drawn and a note names the setting. `verdicts()` remains the place
+#' to read main-effect differences precisely; the wheels are a summary of it.
+#'
+#' The evidence is displayed exactly as [plot.bgms()] displays an edge's: the
+#' band above the network tallies the differences by verdict, names the
+#' threshold on the natural-log Bayes factor scale, and prints the strongest
+#' Bayes factor for and against a difference that the fit contains. Both
+#' methods compose that band with the same code, so the two pictures cannot
+#' come to report a Bayes factor differently.
 #'
 #' Drawing needs the suggested package qgraph.
 #'
@@ -374,14 +691,16 @@ plot.bgmCompare = function(x,
   weight = differences[cbind(found$pairs[, 1], found$pairs[, 2])]
 
   if(type == "groups") {
-    compare_group_panels(x, found, weight, variables, num_groups, layout, legend, ...)
+    compare_group_panels(x, found, weight, variables, num_groups, layout,
+      legend, evidence_threshold, ...)
     return(invisible(x))
   }
 
   nodes = main_difference_nodes(found$main, found$main_pip, found$main_selected)
   draw_difference_network(
-    weight, found$pairwise, found$pairs, variables, num_variables,
-    nodes, layout, legend, found$main_selected, ...
+    weight, found$pairwise, found$pairwise_log_bf, found$pairs, variables,
+    num_variables, nodes, layout, legend, evidence_threshold,
+    found$main_selected, ...
   )
   invisible(x)
 }
@@ -390,75 +709,43 @@ plot.bgmCompare = function(x,
 # ------------------------------------------------------------------
 # draw_difference_network
 # ------------------------------------------------------------------
-# The difference panel: edges by difference verdict, nodes by main-effect
-# difference verdict. Returns the layout qgraph used, so the group panels can
-# share it.
+# The difference panel: pairs by difference verdict, nodes by main-effect
+# difference verdict. It is draw_verdict_network() with the difference
+# wording and the node wheels, plus the two notes only a comparison can need.
+# Returns the layout qgraph used, so the group panels can share it.
 # ------------------------------------------------------------------
-draw_difference_network = function(weight, verdict, pairs, variables,
+draw_difference_network = function(weight, verdict, log_bf, pairs, variables,
                                    num_variables, nodes, layout, legend,
-                                   main_selected, ..., title = NULL) {
+                                   evidence_threshold, main_selected, ...,
+                                   panel_name = NULL, scale = 1) {
   drawn = !is.na(verdict) & verdict != "absence"
+
+  notes = character(0)
   # An empty difference network is the finding "the groups do not differ
   # anywhere", and a matrix of zeros draws the nodes alone.
-  network = verdict_network_input(weight, verdict, pairs, num_variables)
-
-  arguments = list(
-    input = network$weights,
-    labels = variables,
-    directed = FALSE,
-    layout = layout,
-    edge.color = network$edge.color,
-    lty = network$lty,
-    fade = FALSE,
-    minimum = 0,
-    title = title,
-    DoNotPlot = FALSE
-  )
-  if(!is.null(nodes$pie)) {
-    arguments$pie = nodes$pie
-    arguments$pieColor = nodes$pie_color
-  }
-  # qgraph folds its mar argument into the coordinate range (the nodes live in
-  # [-1, 1]), so a wide bottom margin opens a strip under the network that the
-  # subtitle and the legend draw into without touching a node.
-  arguments$mar = c(8, 3, 3, 3)
-  result = do.call(qgraph::qgraph, utils::modifyList(arguments, list(...)))
-  usr = graphics::par("usr")
-
-  subtitle = character(0)
   if(!any(drawn)) {
-    subtitle = c(subtitle, "no difference reaches presence or undecided")
+    notes = c(notes, "no difference reaches presence or undecided")
   }
   if(!main_selected) {
-    subtitle = c(subtitle,
-      "main-effect differences not under selection (main_difference_selection = FALSE)"
-    )
+    notes = c(notes, "main-effect differences not under selection")
   }
-  if(length(subtitle)) {
-    graphics::text(
-      usr[1] + 0.01 * diff(usr[1:2]), -1.22,
-      paste(subtitle, collapse = "; "),
-      adj = c(0, 1), cex = 0.7, col = "grey55", xpd = NA
-    )
-  }
-  if(isTRUE(legend)) {
-    keys = c("difference, positive", "difference, negative", "undecided")
-    colors = c(mover_palette()[1:2], "grey65")
-    line = c(1L, 1L, 3L)
-    if(!is.null(nodes$pie)) {
-      keys = c(keys, "node ring: P(main-effect difference); full ring = 1")
-      colors = c(colors, mover_palette()[1])
-      line = c(line, NA)
-    }
-    graphics::legend("bottomleft",
-      legend = keys, col = colors,
-      lty = line, lwd = c(rep(2.4, 2), 1.2, rep(NA, length(keys) - 3L)),
-      pch = c(rep(NA, 3L), rep(21L, length(keys) - 3L)),
-      pt.cex = 1.1, pt.lwd = 2, bty = "n", cex = 0.7, text.col = "grey25",
-      xpd = NA
-    )
-  }
-  invisible(result$layout)
+
+  draw_verdict_network(
+    weight = weight,
+    verdict = verdict,
+    log_bf = log_bf,
+    pairs = pairs,
+    variables = variables,
+    evidence_threshold = evidence_threshold,
+    unit = network_unit("difference"),
+    layout = layout,
+    legend = legend,
+    nodes = nodes,
+    notes = notes,
+    panel_name = panel_name,
+    scale = scale,
+    ...
+  )
 }
 
 
@@ -470,7 +757,8 @@ draw_difference_network = function(weight, verdict, pairs, variables,
 # node set and reused, which is what makes the three comparable by eye.
 # ------------------------------------------------------------------
 compare_group_panels = function(x, found, weight, variables, num_groups,
-                                layout, legend, ...) {
+                                layout, legend, evidence_threshold, ...) {
+  style = bgms_style()
   num_variables = length(variables)
   nodes = main_difference_nodes(found$main, found$main_pip, found$main_selected)
   labels = compare_group_labels(extract_arguments(x), num_groups)
@@ -493,12 +781,16 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
 
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
+  # Three panels side by side are each a third of the device wide, so the type
+  # is scaled down with them rather than left at the full-panel size.
+  panel_style = bgms_style(scale = 0.62)
   graphics::par(mfrow = c(1L, num_groups + 1L))
 
   for(g in seq_len(num_groups)) {
     weights = matrix(0, num_variables, num_variables)
     weights[found$pairs] = group_weight[[g]]
     weights[found$pairs[, 2:1, drop = FALSE]] = group_weight[[g]]
+    graphics::par(mar = c(2.8, 1.6, 5.4, 1.6))
     panel = list(
       input = weights,
       labels = variables, directed = FALSE,
@@ -507,21 +799,23 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
       # deficiency most often collapses; the difference panel's Okabe-Ito pair
       # carries the sign here too, so all three panels read alike.
       posCol = mover_palette()[1], negCol = mover_palette()[2],
-      title = group_tag(labels, g)
+      label.color = panel_style$ink, border.color = panel_style$muted,
+      color = "white",
+      # The difference panel opens a bottom strip for its legend; the group
+      # panels match it so the three networks share their extent.
+      mar = c(7, 3, 5, 3)
     )
-    if(!is.null(nodes$pie)) {
-      panel$pie = nodes$pie
-      panel$pieColor = nodes$pie_color
-    }
-    # The difference panel opens a bottom strip for its subtitle and legend;
-    # the group panels match it so the three networks share their extent.
-    panel$mar = c(8, 3, 3, 3)
     do.call(qgraph::qgraph, utils::modifyList(panel, list(...)))
+    # A group panel names itself as a small multiple does, not with a banner.
+    bgms_panel_label(group_tag(labels, g),
+      subtitle = "posterior mean network", style = panel_style
+    )
   }
   draw_difference_network(
-    weight, found$pairwise, found$pairs, variables, num_variables,
-    nodes, shared, legend, found$main_selected, ...,
-    title = "difference"
+    weight, found$pairwise, found$pairwise_log_bf, found$pairs, variables,
+    num_variables, nodes, shared, legend, evidence_threshold,
+    found$main_selected, ...,
+    panel_name = "Difference evidence", scale = 0.62
   )
   invisible(NULL)
 }
@@ -537,9 +831,11 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
 #' @param bgms_object A fitted model object of class `bgms`, from [bgm()].
 #' @param variable1,variable2 The two variables naming the edge. Either names
 #'   or column positions.
-#' @param evidence_threshold Numeric > 1; the threshold used for the verdict
-#'   printed on the panel, as in [verdicts()]. Default `10`. Ignored for a fit
-#'   without edge selection, which has no inclusion verdict to read.
+#' @param evidence_threshold Numeric > 1; the threshold [verdicts()] is called
+#'   at to read this edge's row. Default `10`. The panel prints no verdict, and
+#'   neither the inclusion probability nor the Bayes factor depends on the
+#'   threshold, so this does not change what is drawn. Ignored for a fit
+#'   without edge selection, which has no inclusion row to read.
 #' @param binwidth `r lifecycle::badge("deprecated")` The panel no longer
 #'   expresses the weight as probability per bin, so this has nothing to set;
 #'   it is warned about and ignored.
@@ -611,8 +907,13 @@ compare_group_panels = function(x, found, weight, variables, num_groups,
 #'
 #' The panel follows the package's plotting conventions (see the internal
 #' `R/plot_style.R`): offset axes, no box, large type, no headline title. The
-#' edge and its verdict are printed as annotations, where the rest of the
-#' numbers are.
+#' edge is named as an annotation, where the rest of the numbers are.
+#'
+#' No verdict word is printed. What the panel shows is the evidence -- the
+#' wheel, the inclusion probability and the log Bayes factor -- and the reading
+#' those license is the reader's to make at a threshold they choose;
+#' [verdicts()] is where the package states verdicts, and it names the
+#' threshold it used.
 #'
 #' @examples
 #' \donttest{

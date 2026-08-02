@@ -46,6 +46,12 @@ it out; an edge with evidence of absence is not drawn. The default picture
 therefore says the same thing as \code{\link[=verdicts]{verdicts()}} at the same threshold, instead
 of showing one unqualified network of point estimates.
 
+The band above the network is the evidence display: it tallies the edges by
+verdict, names the threshold on the natural-log Bayes factor scale, and
+prints the strongest Bayes factor for and against an edge in this fit.
+\code{\link[=plot.bgmCompare]{plot.bgmCompare()}} shows difference evidence through the same code, so the
+two read alike.
+
 Drawing the network requires the suggested package qgraph. The three-panel
 evidence display, the structure plots, and the other network displays live
 in the easybgm package, which builds on these fits.
