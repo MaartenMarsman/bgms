@@ -540,6 +540,10 @@ build_spec_compare = function(x, y, group_indicator,
   x_recoded = col$x
   num_categories = col$num_categories
   bc_final = col$baseline_category
+  # Per-group observation counts on the final category codes, one matrix per
+  # ordinal variable (NULL for Blume-Capel). Carried into the fitted object so
+  # a user can see which group-by-category cells are empty.
+  category_support = col$category_support
   ordinal_variable = is_ordinal
 
   # Recode map per ordinal variable: a named vector mapping each original
@@ -554,6 +558,33 @@ build_spec_compare = function(x, y, group_indicator,
       names(lookup) = pairs[, 1]
       category_levels[[vi]] = lookup[order(as.numeric(names(lookup)))]
     }
+  }
+
+  # True gaps have to be reported from here, not from
+  # collapse_categories_across_groups(): reformat_ordinal_data() runs first and
+  # has already closed them, so by the time the cross-group pass sees the data
+  # the values are contiguous. Read them off the supplied values instead. A
+  # scale that merely starts above 0 (1..7, say) is an offset, not a gap, and
+  # is not worth telling anyone about.
+  gap_vars = integer(0)
+  gap_counts = integer(0)
+  for(vi in seq_len(ncol(x_recoded))) {
+    if(!ordinal_variable[vi]) next
+    observed = as.numeric(names(category_levels[[vi]]))
+    missing_values = as.integer(diff(range(observed)) + 1 - length(observed))
+    if(missing_values > 0) {
+      gap_vars = c(gap_vars, vi)
+      gap_counts = c(gap_counts, missing_values)
+    }
+  }
+  if(length(gap_vars) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+    labels = data_columnnames[gap_vars]
+    message(
+      "Some category values were not used by any group. They were dropped ",
+      "and the remaining categories renumbered, for ",
+      paste0("'", labels, "' (", gap_counts, " dropped)", collapse = ", "),
+      ". No observed category was merged."
+    )
   }
 
   num_variables = ncol(x_recoded)
@@ -650,6 +681,7 @@ build_spec_compare = function(x, y, group_indicator,
       num_cases = as.integer(nrow(observations)),
       num_categories = as.integer(num_categories),
       category_levels = category_levels,
+      category_support = category_support,
       # Additive shift to the 0-based scale per Blume-Capel variable (the
       # cross-group collapse leaves Blume-Capel columns unchanged).
       blume_capel_shift = ord$blume_capel_shift,

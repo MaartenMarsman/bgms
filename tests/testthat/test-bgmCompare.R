@@ -29,7 +29,7 @@ test_that("bgmCompare is reproducible with seed (x, y interface)", {
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
 
-  fit2 = bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none")
+  fit2 = without_support_warning(bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none"))
 
   combine_chains = function(fit) {
     pairs = do.call(rbind, fit$raw_samples$pairwise)
@@ -46,10 +46,10 @@ test_that("bgmCompare accepts its default update_method", {
   x = Wenchuan[1:20, 1:3]
   y = Wenchuan[21:40, 1:3]
   expect_error(
-    bgmCompare(
+    without_support_warning(bgmCompare(
       x = x, y = y, iter = 20, warmup = 20, chains = 1, cores = 1,
       seed = 1, display_progress = "none", verbose = FALSE
-    ),
+    )),
     NA
   )
 })
@@ -181,7 +181,7 @@ test_that("bgmCompare works with different update methods", {
 
   for(method in methods_to_test) {
     fit = tryCatch(
-      bgmCompare(
+      without_support_warning(bgmCompare(
         x = data$x,
         group_indicator = data$group_indicator,
         update_method = method,
@@ -189,7 +189,7 @@ test_that("bgmCompare works with different update methods", {
         warmup = 50,
         chains = 1,
         display_progress = "none"
-      ),
+      )),
       error = function(e) e
     )
 
