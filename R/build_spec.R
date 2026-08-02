@@ -540,6 +540,10 @@ build_spec_compare = function(x, y, group_indicator,
   x_recoded = col$x
   num_categories = col$num_categories
   bc_final = col$baseline_category
+  # Per-group observation counts on the final category codes, one matrix per
+  # ordinal variable (NULL for Blume-Capel). Carried into the fitted object so
+  # a user can see which group-by-category cells are empty.
+  category_support = col$category_support
   ordinal_variable = is_ordinal
 
   # Recode map per ordinal variable: a named vector mapping each original
@@ -650,6 +654,7 @@ build_spec_compare = function(x, y, group_indicator,
       num_cases = as.integer(nrow(observations)),
       num_categories = as.integer(num_categories),
       category_levels = category_levels,
+      category_support = category_support,
       # Additive shift to the 0-based scale per Blume-Capel variable (the
       # cross-group collapse leaves Blume-Capel columns unchanged).
       blume_capel_shift = ord$blume_capel_shift,
