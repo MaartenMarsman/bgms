@@ -51,55 +51,20 @@ data = Wenchuan
 `prior_sensitivity_check()` is that comparison, automated. It recovers each
 edge's continuous inclusion-Bayes-factor curve across a range of slab scales
 and classifies how each verdict behaves along it. No special fit is required:
-it works on any `bgm()` fit made with edge selection.
+it works on any `bgm()` fit made with edge selection --- in the simplest case
+`prior_sensitivity_check(bgm(data))`.
 
-```{r, eval = FALSE}
-fit = bgm(data)
-ps = prior_sensitivity_check(fit)
+The run below is deliberately small, so that this vignette builds in about a
+minute: the first six Wenchuan variables, two chains, and refits long enough
+for the per-anchor convergence gate to clear on so short a fit. Everything
+about how to read the report carries over to a full analysis.
+
+```{r}
+fit = bgm(data[, 1:6], seed = 1234, chains = 2, cores = 2,
+          display_progress = "none", verbose = FALSE)
+ps = prior_sensitivity_check(fit, seed = 1234, iter = 3000, warmup = 1000,
+                             cores = 2)
 ps
-```
-
-```
-#> Prior sensitivity check: are the edge verdicts robust to the slab scale?
-#> Bayes-factor curve from 0.4x to 2.5x the chosen scale (anchors at 0.4x, 0.63x, 1x, 1.6x, 2.5x;
-#> the 1x anchor is the original fit); 136 edges.
-#>
-#> 87 of 136 verdicts hold across the whole 0.4x-2.5x range; the exceptions
-#> are named below.
-#>
-#>   robust (same verdict at every scale)     86
-#>   changed, within run-to-run noise          3
-#>   changed, beyond run-to-run noise         35
-#>   not certifiable (chains disagree)        12
-#>
-#> 35 edges' verdicts genuinely depend on the scale:
-#>   edge               0.4x       0.63x      1x         1.6x       2.5x
-#>   intrusion-amnesia  undecided  absence    absence    absence    absence
-#>   intrusion-sleep    undecided  undecided  undecided  absence    absence
-#>   dreams-concen      undecided  undecided  undecided  undecided  absence
-#>   flash-upset        undecided  undecided  absence    absence    absence
-#>   ...and 31 more; see $edges.
-#>
-#> 12 edges cannot be certified from this run: intrusion-startle, dreams-numb,
-#> dreams-startle, flash-anger, flash-startle, and 7 more (see $edges).
-#>
-#> Verdict counts by scale (at the anchors):
-#>             0.4x 0.63x 1x 1.6x 2.5x
-#>   presence    37    37 34   35   32
-#>   undecided   63    45 41   28   28
-#>   absence     36    54 61   73   76
-#> More absence at wider scales is expected: a wider slab strengthens
-#> evidence against borderline edges.
-#>
-#> Note: the chosen scale (1) is much wider than the estimated
-#> interactions (about 0.18 [0.148, 0.218]); absence verdicts in
-#> particular depend on this choice.
-#>
-#> Details: curve over 43 scales from 5 anchors, stitched by importance
-#> reweighting; points with importance ESS under 400 mask NA. 5 nuts refits
-#> (warm-started from the fit; the 1x anchor is the original fit) in 345 s;
-#> run-to-run noise band 0.71 log BF (95th pct of the repeated 1.6x
-#> refit). ?prior_sensitivity_check for how to read this.
 ```
 
 The headline is the stability statement and the category counts: most
@@ -140,9 +105,9 @@ Verdict-identity comparisons are flaky by construction: an inclusion Bayes
 factor that sits within Monte Carlo error of a threshold can change category
 between reruns of the *same* prior, with no real sensitivity present. To
 calibrate that, the check repeats one anchor refit and takes the spread of
-$|\Delta \log_{10} \mathrm{BF}|$ between the two as the empirical noise band
-(its 95th percentile is the "run-to-run noise band" in the report's Details
-line, computed over edges whose evidence is near the decision thresholds).
+$|\Delta \log \mathrm{BF}|$ between the two as the empirical noise band (its
+95th percentile is the figure the report's `Noise:` line quotes, computed over
+edges whose evidence is near the decision thresholds).
 
 An edge is reported as "changed, beyond run-to-run noise" only if its verdict
 changes along the curve *and* its natural log Bayes-factor swing exceeds that
@@ -167,7 +132,8 @@ The per-edge table carries the chosen-scale verdict and natural log Bayes
 factor with its Monte Carlo standard error, the per-anchor verdict columns, the
 stability range, the mover category, and an `insufficient` flag for edges the
 fit cannot certify (its chains disagree, or the Bayes-factor band straddles a
-threshold); the report prints these as "not certifiable". The full display
+threshold); the report counts these as "not certifiable (too noisy to assess)"
+and names them, when there are any. The full display
 grid, the per-point importance ESS, and which anchor each point was read from
 are in `ps$multipliers`, `ps$curve$ess`, and `ps$curve$anchor_used`.
 
