@@ -10,7 +10,6 @@
   evidence_threshold = 10,
   group = 1,
   layout = "spring",
-  legend = TRUE,
   max_panels = 3L,
   page = 1L,
   ...
@@ -33,8 +32,6 @@ centrality (two indices) can be extracted and summarized but has no plot;
 see \code{\link[=extract_centrality]{extract_centrality()}} for the interpretation caveat. Default \code{1}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
-
-\item{legend}{Logical; draw the sign key. Default \code{TRUE}.}
 
 \item{max_panels}{For \code{type = "groups"}: how many group networks are drawn
 at once. A fit with more groups than this is drawn a page at a time.
@@ -65,9 +62,16 @@ logarithm. The classification is the one \code{verdicts(fit)} reports at the sam
 \code{evidence_threshold}.
 
 Only the first panel is weighted: line width is the posterior mean difference
-and colour carries its sign. The other two are drawn at uniform width, dashed
-for a difference the data rule out and dotted for undecided, because for
-those pairs the classification is the result.
+and colour carries its sign -- blue for a positive difference, vermillion
+for a negative one, the Okabe-Ito pair, so the sign survives common forms of
+colour-vision deficiency. Which group a positive difference favours follows
+the contrast coding, which \code{\link[=extract_group_params]{extract_group_params()}} reports per group. The
+other two are drawn at uniform width, dashed for a difference the data rule
+out and dotted for undecided, because for those pairs the classification is
+the result.
+
+The figure carries no key: the panel titles name the evidence class and the
+rule that defines it, and the sign convention is documented here.
 
 "The groups do not differ anywhere" is a common and correct finding, and it
 is what a filled second panel and an empty first panel say.

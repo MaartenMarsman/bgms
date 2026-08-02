@@ -18,7 +18,6 @@ test_that("plot.bgms draws the verdict-encoded network and the centrality panel"
   on.exit(grDevices::dev.off(), add = TRUE)
 
   expect_invisible(plot(fit))
-  expect_invisible(plot(fit, legend = FALSE))
   expect_invisible(plot(fit, type = "centrality"))
 
   # The threshold is the one verdicts() uses, so the picture and the table move
@@ -350,7 +349,6 @@ describe_panel = function(panel) {
   }, "\n", sep = "")
   cat("window    : ", paste(sprintf("%.2f", edge_panel_window(panel)),
     collapse = " to "), "\n", sep = "")
-  cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
   invisible(NULL)
 }
 
@@ -416,7 +414,9 @@ test_that("a decisive absence with no included draw is a figure, not an error", 
   expect_null(panel$estimate)
   expect_null(panel$interval)
   expect_false(is.null(panel$prior))
-  expect_match(panel$caption, "No retained draw included this edge")
+  # No panel carries a caption: what each mark means is stated in the Rd, not
+  # reprinted under every figure.
+  expect_null(panel$caption)
   expect_snapshot(describe_panel(panel))
 })
 
@@ -427,9 +427,10 @@ test_that("without edge selection the panel is the Savage-Dickey figure", {
   decisive = edge_panel_savage_dickey(
     "intrusion-dreams", rnorm(4000, 0.32, 0.04), test_slab_prior()
   )
-  # The wheel carries no notation: what its two shares are is said in words.
+  # The wheel carries no notation and the panel carries no caption: what its
+  # two shares are is said in the Rd.
   expect_null(decisive$wheel_labels)
-  expect_true(any(grepl("probability the edge is there", decisive$caption)))
+  expect_null(decisive$caption)
   expect_false(is.null(decisive$dots))
   # The prior ordinate is exact; the first dot is dnorm(0, 0, 1).
   expect_equal(decisive$dots$y[1], stats::dnorm(0), tolerance = 1e-12)
@@ -468,7 +469,6 @@ test_that("the panel reads a Blume-Capel fit like any other", {
   expect_snapshot({
     cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
     cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
-    cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
   })
 
   path = withr::local_tempfile(fileext = ".pdf")

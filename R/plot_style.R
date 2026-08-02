@@ -25,15 +25,22 @@
 #      fills at low alpha, one accent colour per panel taken from
 #      `mover_palette()`.
 #   6. PROBABILITIES ARE WHEELS. Any probability a panel reports is also shown
-#      as a filled wheel (`probability_wheel()`), whose filled share is the
-#      number. The compare network's node marks are that same wheel rather than
-#      qgraph's own pie ring, so one visual language carries probability on
-#      every figure the package draws; printed text carries log Bayes factors,
-#      which are not probabilities and get no wheel.
+#      as a filled wheel, whose filled share is the number. On a standalone
+#      panel that is `probability_wheel()`; on a network it is qgraph's own ring
+#      around the node circle, which is where a reader of a qgraph figure looks
+#      for a node's own quantity. Printed text carries log Bayes factors, which
+#      are not probabilities and get no wheel.
 #   7. ONE NAME PER QUANTITY. A probability of inclusion is written
 #      `bgms_style()$label_inclusion` and printed to `prob_digits` decimals,
 #      wherever it appears. Neither the word nor the precision is chosen at a
 #      call site, so no two figures can disagree about them.
+#   8. NO KEYS AND NO CAPTIONS. A figure carries no legend explaining its own
+#      encoding and no caption under it. What a key would say is either already
+#      on the figure -- a network panel's title names its evidence class and the
+#      rule that defines it -- or belongs in the Rd, where the explanation can be
+#      as long as it needs to be and costs the drawing nothing. The one
+#      exception is a key that distinguishes two curves drawn on one pair of
+#      axes, which nothing else on the panel can say.
 #
 # These helpers are the reference implementation of that style. A new panel
 # should reach for them rather than re-deriving margins and colours.
@@ -79,6 +86,10 @@ bgms_style = function(scale = 1) {
     cex_annotation = 1.1 * scale,
     cex_legend = 1.15 * scale,
     cex_caption = 0.8 * scale,
+    # A network panel's title is the only text on it that says what the panel
+    # is, and it is read across a three-panel figure rather than up close, so
+    # it sits above the general label size.
+    cex_panel_title = 1.7 * scale,
 
     # Line weights
     lwd_curve = 2 * scale,

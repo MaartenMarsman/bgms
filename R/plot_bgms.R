@@ -192,17 +192,27 @@ contrast_magnitude = function(differences, pairs) {
 # network_panel_par
 # ------------------------------------------------------------------
 # The graphical parameters a network panel is drawn under, and the qgraph
-# margin that goes with them. The outer margin holds the panel title; qgraph's
-# own `mar` folds into its coordinate range and opens the strip inside the
-# panel that the key is drawn into.
+# margin that goes with them. qgraph sets par("mar") itself, so a margin
+# reserved before the call does not survive it; its own `mar` folds into the
+# coordinate range instead, and the top strip that opens there is where the
+# panel title is drawn. The bottom strip is narrow: it once held the sign key,
+# and when the key went the space it was holding went with it, so the network
+# fills the panel rather than sitting above a reserved blank.
 #
 # Every panel of a figure uses the same two, whatever it draws, because panels
 # that differ in margin differ in scale and stop being comparable.
 #
+# These are constants and not measurements, which is a real limitation on a
+# panel far from square. qgraph writes its coordinate range straight from
+# `mar` while drawing nodes at a physical size, so the two cannot be brought
+# into agreement from here: widening the margin pulls the layout in without
+# shrinking a node. Three panels in one row of a 7x7 device therefore still
+# crowd, and the display wants a wide one. See the review report.
+#
 # Returns: list(mar = par margin, qgraph_mar = qgraph's margin).
 # ------------------------------------------------------------------
 network_panel_par = function() {
-  list(mar = c(0.4, 0.4, 0.4, 0.4), qgraph_mar = c(6.5, 3, 6.5, 3))
+  list(mar = c(0.4, 0.4, 0.4, 0.4), qgraph_mar = c(3, 3, 6.5, 3))
 }
 
 
@@ -252,60 +262,29 @@ draw_network_panel = function(m, variables, shared, title, rule = NULL,
 
   # The title sits in the strip qgraph's own margin opened above the nodes,
   # inset and spaced by its own type height so it holds its place on any
-  # device.
+  # device. It is the largest type on the figure: it is what a reader looks at
+  # first and reads across three panels rather than up close.
   usr = graphics::par("usr")
   left = usr[1] + 0.03 * diff(usr[1:2])
-  height = graphics::strheight("Mg", cex = style$cex_label)
-  graphics::text(left, usr[4] - 0.5 * height, title,
-    adj = c(0, 1), cex = style$cex_label, font = 2, col = style$ink, xpd = NA
+  # Sized by measurement rather than by a constant that happens to fit one
+  # device: the title is drawn as large as the style asks for, or as large as
+  # the panel has room for, whichever is smaller. A narrow device shrinks it
+  # instead of clipping it.
+  available = 0.94 * diff(usr[1:2])
+  cex_title = style$cex_panel_title
+  wide = graphics::strwidth(title, cex = cex_title)
+  if(wide > available) cex_title = cex_title * available / wide
+  height = graphics::strheight("Mg", cex = cex_title)
+
+  graphics::text(left, usr[4] - 0.55 * height, title,
+    adj = c(0, 1), cex = cex_title, font = 2, col = style$ink, xpd = NA
   )
   if(!is.null(rule)) {
-    graphics::text(left, usr[4] - 2.0 * height, rule,
+    graphics::text(left, usr[4] - 1.62 * height, rule,
       adj = c(0, 1), cex = style$cex_annotation, col = style$muted, xpd = NA
     )
   }
   invisible(result)
-}
-
-
-# ------------------------------------------------------------------
-# network_sign_key
-# ------------------------------------------------------------------
-# The one key a network figure carries: which accent is a positive value and
-# which a negative one. Nothing else on the figure says it, and it is not
-# inferable; the panel titles carry everything else.
-#
-# @param nodes  Node ring channel, or NULL; adds one line when rings are drawn.
-# @param unit   From network_unit().
-# @param style  The style list.
-# @param signs  Whether the panel has any signed edge to explain.
-# ------------------------------------------------------------------
-network_sign_key = function(nodes, unit, style, signs = TRUE) {
-  keys = if(signs) c("positive", "negative") else character(0)
-  colors = if(signs) mover_palette()[1:2] else character(0)
-  line = if(signs) c(1L, 1L) else integer(0)
-  point = if(signs) c(NA, NA) else logical(0)
-  if(!is.null(nodes$pie)) {
-    keys = c(keys, sprintf("node ring: P(%s)",
-      if(identical(unit$kind, "edge")) "included" else "main-effect difference"
-    ))
-    colors = c(colors, style$accent)
-    line = c(line, NA)
-    point = c(point, 21L)
-  }
-  if(!length(keys)) {
-    return(invisible(NULL))
-  }
-  usr = graphics::par("usr")
-  graphics::legend(
-    x = usr[1] + 0.03 * diff(usr[1:2]), y = -1.10, xjust = 0, yjust = 1,
-    legend = keys, col = colors, lty = line, pch = point,
-    lwd = ifelse(is.na(line), NA, 2.6),
-    pt.cex = 1.2, pt.lwd = style$lwd_wheel, bty = "n",
-    cex = style$cex_annotation, text.col = style$ink, xpd = NA,
-    y.intersp = 1.2, seg.len = 1.4
-  )
-  invisible(NULL)
 }
 
 
@@ -344,14 +323,13 @@ network_sign_key = function(nodes, unit, style, signs = TRUE) {
 # @param unit                From network_unit().
 # @param nodes               Node ring channel, or NULL.
 # @param weighted            Whether the supported panel carries width and sign.
-# @param layout, legend, ... As the plot methods take them.
+# @param layout, ...         As the plot methods take them.
 #
 # Returns: invisibly, the shared layout.
 # ------------------------------------------------------------------
 draw_evidence_panels = function(weight, verdict, pairs, variables,
                                 evidence_threshold, unit, nodes = NULL,
-                                weighted = TRUE,
-                                layout = "spring", legend = TRUE, ...) {
+                                weighted = TRUE, layout = "spring", ...) {
   style = bgms_style()
   num_variables = length(variables)
   shared = shared_network_layout(weight, pairs, num_variables, layout, variables)
@@ -369,7 +347,7 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
       if(carries_weight) weight else rep(1, length(weight)), keep, pairs,
       num_variables
     )
-    panel = draw_network_panel(
+    draw_network_panel(
       m, variables, shared,
       title = sprintf("%s: %d", unit$panels[[class]], sum(keep)),
       rule = rules[[class]],
@@ -387,12 +365,6 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
       edge.width = if(carries_weight) NULL else 1.6,
       ...
     )
-    # The key belongs to the first panel: it is the only one whose colours
-    # carry a sign, and an empty first panel has no sign to explain -- though
-    # the node rings, which every panel wears, still do.
-    if(class == "presence" && isTRUE(legend)) {
-      network_sign_key(nodes, unit, style, signs = carries_weight && any(keep))
-    }
   }
   invisible(shared)
 }
@@ -414,12 +386,12 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
 # @param pairs      The row-major upper-triangle index.
 # @param variables  Node labels.
 # @param unit       From network_unit().
-# @param layout, legend, ... As the plot methods take them.
+# @param layout, ... As the plot methods take them.
 #
 # Returns: invisibly, the layout qgraph used.
 # ------------------------------------------------------------------
 draw_weight_network = function(weight, pairs, variables, unit,
-                               layout = "spring", legend = TRUE, ...) {
+                               layout = "spring", ...) {
   style = bgms_style()
   num_variables = length(variables)
   m = panel_edge_matrix(weight, rep(TRUE, length(weight)), pairs, num_variables)
@@ -436,9 +408,6 @@ draw_weight_network = function(weight, pairs, variables, unit,
     lty = 1L,
     ...
   )
-  if(isTRUE(legend)) {
-    network_sign_key(NULL, unit, style)
-  }
   invisible(result$layout)
 }
 
@@ -456,7 +425,6 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' @param evidence_threshold Numeric > 1; the inclusion Bayes factor separating
 #'   evidence of presence from undecided, as in [verdicts()]. Default `10`.
 #' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
-#' @param legend Logical; draw the sign key. Default `TRUE`.
 #' @param ... Passed to [qgraph::qgraph()] for `type = "network"`, and to
 #'   [plot.bgms_centrality()] otherwise.
 #'
@@ -475,11 +443,18 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' `evidence_threshold`.
 #'
 #' Only the first panel is weighted. There, line width is the posterior mean
-#' pairwise association and colour carries its sign, because that is where the
-#' effect sizes are. The other two panels are drawn at uniform width, dashed for
-#' evidence of absence and dotted for undecided: for those pairs the
+#' pairwise association and colour carries its sign -- blue for a positive
+#' association, vermillion for a negative one, the Okabe-Ito pair, so the sign
+#' survives common forms of colour-vision deficiency -- because that is where
+#' the effect sizes are. The other two panels are drawn at uniform width, dashed
+#' for evidence of absence and dotted for undecided: for those pairs the
 #' classification is the result, and a width would suggest an effect size that
 #' the data have either ruled out or not established.
+#'
+#' The figure carries no key. Each panel is titled with the evidence class it
+#' holds and the rule that defines it, which is what a key would otherwise
+#' repeat; the sign convention is documented here rather than reprinted on
+#' every figure.
 #'
 #' The layout is computed once from every pair and reused, so a node sits in the
 #' same place in all three panels and a reader compares them by position.
@@ -514,7 +489,6 @@ plot.bgms = function(x,
                      type = c("network", "centrality"),
                      evidence_threshold = 10,
                      layout = "spring",
-                     legend = TRUE,
                      ...) {
   type = match.arg(type)
   if(type == "centrality") {
@@ -534,7 +508,7 @@ plot.bgms = function(x,
   unit = network_unit("edge")
 
   if(!isTRUE(arguments$edge_selection)) {
-    draw_weight_network(weight, pairs, variables, unit, layout, legend, ...)
+    draw_weight_network(weight, pairs, variables, unit, layout, ...)
     return(invisible(x))
   }
 
@@ -547,7 +521,6 @@ plot.bgms = function(x,
     evidence_threshold = evidence_threshold,
     unit = unit,
     layout = layout,
-    legend = legend,
     ...
   )
   invisible(x)
@@ -663,7 +636,6 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #'   centrality (two indices) can be extracted and summarized but has no plot;
 #'   see [extract_centrality()] for the interpretation caveat. Default `1`.
 #' @param layout Layout passed to [qgraph::qgraph()]. Default `"spring"`.
-#' @param legend Logical; draw the sign key. Default `TRUE`.
 #' @param max_panels For `type = "groups"`: how many group networks are drawn
 #'   at once. A fit with more groups than this is drawn a page at a time.
 #'   Default `3`.
@@ -686,9 +658,16 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' `evidence_threshold`.
 #'
 #' Only the first panel is weighted: line width is the posterior mean difference
-#' and colour carries its sign. The other two are drawn at uniform width, dashed
-#' for a difference the data rule out and dotted for undecided, because for
-#' those pairs the classification is the result.
+#' and colour carries its sign -- blue for a positive difference, vermillion
+#' for a negative one, the Okabe-Ito pair, so the sign survives common forms of
+#' colour-vision deficiency. Which group a positive difference favours follows
+#' the contrast coding, which [extract_group_params()] reports per group. The
+#' other two are drawn at uniform width, dashed for a difference the data rule
+#' out and dotted for undecided, because for those pairs the classification is
+#' the result.
+#'
+#' The figure carries no key: the panel titles name the evidence class and the
+#' rule that defines it, and the sign convention is documented here.
 #'
 #' "The groups do not differ anywhere" is a common and correct finding, and it
 #' is what a filled second panel and an empty first panel say.
@@ -753,7 +732,6 @@ plot.bgmCompare = function(x,
                            evidence_threshold = 10,
                            group = 1,
                            layout = "spring",
-                           legend = TRUE,
                            max_panels = 3L,
                            page = 1L,
                            ...) {
@@ -814,7 +792,7 @@ plot.bgmCompare = function(x,
         "with extract_group_params()."
       )
     }
-    draw_weight_network(weight, pairs, variables, unit, layout, legend, ...)
+    draw_weight_network(weight, pairs, variables, unit, layout, ...)
     return(invisible(x))
   }
 
@@ -830,7 +808,6 @@ plot.bgmCompare = function(x,
     nodes = nodes,
     weighted = weighted,
     layout = layout,
-    legend = legend,
     ...
   )
   invisible(x)
@@ -983,7 +960,7 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #' are equally likely before seeing the data; the filled share is that
 #' probability and the pale share its complement. JASP labels those two shares
 #' `data|H1` and `data|H0`; this panel does not, because the notation cannot be
-#' read without knowing the convention, and says it in the caption instead.
+#' read without knowing the convention, and says it here instead.
 #'
 #' The prior ordinate at zero is exact. The posterior ordinate is estimated
 #' from the draws by a Gaussian kernel density with the Sheather-Jones
@@ -1011,12 +988,14 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #'
 #' An edge the data rule out is still drawn. When no retained draw included it
 #' there is no conditional posterior to show, so the panel draws the prior, the
-#' wheel (nearly all pale), and the evidence, and says so in its caption:
-#' decisive absence is a result, not a failure.
+#' wheel (nearly all pale) and the evidence, and the missing accented curve is
+#' itself the statement: decisive absence is a result, not a failure.
 #'
 #' The panel follows the package's plotting conventions (see the internal
-#' `R/plot_style.R`): offset axes, no box, large type, no headline title. The
-#' edge is named as an annotation, where the rest of the numbers are.
+#' `R/plot_style.R`): offset axes, no box, large type, no headline title. It
+#' carries no caption; what each mark means is stated above rather than
+#' reprinted under every figure the panel draws. The edge is named as an
+#' annotation, where the rest of the numbers are.
 #'
 #' No verdict word is printed. What the panel shows is the evidence -- the
 #' wheel, the inclusion probability and the log Bayes factor -- and the reading
@@ -1299,11 +1278,6 @@ edge_panel_selection = function(label, draws, prior, pip, log_bf) {
     interval = if(is.null(posterior)) NULL else stats::quantile(
       slab, c(0.025, 0.975), names = FALSE
     ),
-    caption = if(is.null(posterior)) {
-      "No retained draw included this edge. Pale share of the wheel: P(absent)."
-    } else {
-      "Density: the weight given inclusion. Pale share of the wheel: P(absent)."
-    },
     style = style
   )
 }
@@ -1358,16 +1332,13 @@ edge_panel_savage_dickey = function(label, draws, prior) {
     # The wheel carried JASP's data|H1 / data|H0 tags above and below it. They
     # are notation, not language: a reader who has not met the convention
     # cannot decode them, and they crowded the corner the panel's identity and
-    # evidence already share. What they said is said by the caption, in words,
-    # and at length in the Rd.
+    # evidence already share. What they said is said in the Rd, where an
+    # explanation can be as long as it needs to be without costing a figure
+    # anything.
     wheel_labels = NULL,
     evidence = paste("log BF", display_log_bf(log_bf)),
     estimate = estimate_lines(draws),
     interval = stats::quantile(draws, c(0.025, 0.975), names = FALSE),
-    caption = c(
-      "Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor.",
-      "Filled share of the wheel: the probability the edge is there, at equal prior odds."
-    ),
     style = bgms_style()
   )
 }
@@ -1521,17 +1492,6 @@ draw_edge_panel = function(panel) {
   }
 
   draw_edge_annotations(panel, x_axis, style)
-
-  # A caption of one line draws exactly where it always has. A panel with more
-  # to say stacks its lines instead of running off both edges of the device,
-  # starting higher so the stack still clears the bottom margin.
-  first = if(length(panel$caption) > 1L) 3.8 else 4.4
-  for(k in seq_along(panel$caption)) {
-    graphics::mtext(panel$caption[k],
-      side = 1, line = first + 1.0 * (k - 1),
-      cex = style$cex_caption, col = style$muted
-    )
-  }
   invisible(NULL)
 }
 

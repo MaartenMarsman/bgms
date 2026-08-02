@@ -9,7 +9,6 @@
   type = c("network", "centrality"),
   evidence_threshold = 10,
   layout = "spring",
-  legend = TRUE,
   ...
 )
 }
@@ -24,8 +23,6 @@ edge evidence plot; \code{"centrality"} is the posterior strength centrality of
 evidence of presence from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
-
-\item{legend}{Logical; draw the sign key. Default \code{TRUE}.}
 
 \item{...}{Passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}} for \code{type = "network"}, and to
 \code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}} otherwise.}
@@ -50,11 +47,18 @@ its logarithm. The classification is the one \code{\link[=verdicts]{verdicts()}}
 \code{evidence_threshold}.
 
 Only the first panel is weighted. There, line width is the posterior mean
-pairwise association and colour carries its sign, because that is where the
-effect sizes are. The other two panels are drawn at uniform width, dashed for
-evidence of absence and dotted for undecided: for those pairs the
+pairwise association and colour carries its sign -- blue for a positive
+association, vermillion for a negative one, the Okabe-Ito pair, so the sign
+survives common forms of colour-vision deficiency -- because that is where
+the effect sizes are. The other two panels are drawn at uniform width, dashed
+for evidence of absence and dotted for undecided: for those pairs the
 classification is the result, and a width would suggest an effect size that
 the data have either ruled out or not established.
+
+The figure carries no key. Each panel is titled with the evidence class it
+holds and the rule that defines it, which is what a key would otherwise
+repeat; the sign convention is documented here rather than reprinted on
+every figure.
 
 The layout is computed once from every pair and reused, so a node sits in the
 same place in all three panels and a reader compares them by position.

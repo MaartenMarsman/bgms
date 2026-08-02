@@ -13,7 +13,6 @@
       prior     : yes
       dots      : none
       window    : 0.00 to 0.48
-      caption   : Density: the weight given inclusion. Pale share of the wheel: P(absent).
 
 # the panel of an undecided edge splits its wheel
 
@@ -30,7 +29,6 @@
       prior     : yes
       dots      : none
       window    : -0.03 to 0.21
-      caption   : Density: the weight given inclusion. Pale share of the wheel: P(absent).
 
 # a saturated edge prints the capped Bayes factor and a full wheel
 
@@ -47,7 +45,6 @@
       prior     : yes
       dots      : none
       window    : 0.00 to 0.55
-      caption   : Density: the weight given inclusion. Pale share of the wheel: P(absent).
 
 # a decisive absence with no included draw is a figure, not an error
 
@@ -64,7 +61,6 @@
       prior     : yes
       dots      : none
       window    : -1.64 to 1.64
-      caption   : No retained draw included this edge. Pale share of the wheel: P(absent).
 
 # without edge selection the panel is the Savage-Dickey figure
 
@@ -81,7 +77,6 @@
       prior     : yes
       dots      : 0.399, 0.000
       window    : 0.00 to 0.49
-      caption   : Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor. | Filled share of the wheel: the probability the edge is there, at equal prior odds.
 
 ---
 
@@ -98,7 +93,6 @@
       prior     : yes
       dots      : 0.399, 13.074
       window    : -0.14 to 0.14
-      caption   : Grey dots: the prior and the posterior density at zero; their ratio is the Bayes factor. | Filled share of the wheel: the probability the edge is there, at equal prior odds.
 
 # the panel reads a Blume-Capel fit like any other
 
@@ -110,8 +104,4 @@
       cat("wheel tags: ", panel$wheel_labels %||% "(none)", "\n", sep = "")
     Output
       wheel tags: (none)
-    Code
-      cat("caption   : ", paste(panel$caption, collapse = " | "), "\n", sep = "")
-    Output
-      caption   : Density: the weight given inclusion. Pale share of the wheel: P(absent).
 

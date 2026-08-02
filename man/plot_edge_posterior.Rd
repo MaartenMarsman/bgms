@@ -72,7 +72,7 @@ is the posterior probability that the edge is there when the two hypotheses
 are equally likely before seeing the data; the filled share is that
 probability and the pale share its complement. JASP labels those two shares
 \code{data|H1} and \code{data|H0}; this panel does not, because the notation cannot be
-read without knowing the convention, and says it in the caption instead.
+read without knowing the convention, and says it here instead.
 
 The prior ordinate at zero is exact. The posterior ordinate is estimated
 from the draws by a Gaussian kernel density with the Sheather-Jones
@@ -100,12 +100,14 @@ above the curve.
 
 An edge the data rule out is still drawn. When no retained draw included it
 there is no conditional posterior to show, so the panel draws the prior, the
-wheel (nearly all pale), and the evidence, and says so in its caption:
-decisive absence is a result, not a failure.
+wheel (nearly all pale) and the evidence, and the missing accented curve is
+itself the statement: decisive absence is a result, not a failure.
 
 The panel follows the package's plotting conventions (see the internal
-\code{R/plot_style.R}): offset axes, no box, large type, no headline title. The
-edge is named as an annotation, where the rest of the numbers are.
+\code{R/plot_style.R}): offset axes, no box, large type, no headline title. It
+carries no caption; what each mark means is stated above rather than
+reprinted under every figure the panel draws. The edge is named as an
+annotation, where the rest of the numbers are.
 
 No verdict word is printed. What the panel shows is the evidence -- the
 wheel, the inclusion probability and the log Bayes factor -- and the reading
