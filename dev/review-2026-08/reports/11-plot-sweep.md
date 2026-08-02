@@ -504,6 +504,13 @@ adding:
   both Savage-Dickey, both for the same two changes — the wheel tags becoming
   `(none)` and the caption becoming the two plain-language lines. The four
   selection-on cases are untouched in this round.
+* **Base drift**: `origin/develop` has moved from `a930b5a5` to `d7c2fe39`
+  while this branch was in flight. The branch is still based on `a930b5a5`; its
+  diff against that base touches only the six `R/` files, their four Rd files,
+  the two plot test files, one snapshot, and `dev/review-2026-08/`. None of the
+  paths this brief was told to leave alone is in it. The lead will need a merge
+  at integration, and `R/verdicts.R` is one of the files the newer commits
+  touch, which is worth checking against finding A.
 
 ### Suite (revision round)
 
