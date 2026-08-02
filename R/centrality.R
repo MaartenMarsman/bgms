@@ -318,41 +318,47 @@ plot.bgms_centrality = function(x, probs = c(0.025, 0.975), ...) {
   summ = summ[order(summ$mean), , drop = FALSE]
   n = nrow(summ)
 
-  ink = "grey25"
-  muted = "grey55"
-  accent = mover_palette()[1]
-
-  old_par = graphics::par(no.readonly = TRUE)
-  on.exit(graphics::par(old_par), add = TRUE)
-  label_width = max(graphics::strwidth(summ$node, units = "inches", cex = 0.85))
-  graphics::par(
-    mar = c(4.1, 1.2 + 6 * label_width, 2.6, 1.6), mgp = c(2.4, 0.6, 0),
-    col.axis = ink, col.lab = ink, col.main = ink
-  )
+  style = bgms_style()
+  # The node names live in the left margin, so the margin is sized for the
+  # names this fit actually has rather than for a width that happened to fit
+  # the author's example.
+  left = margin_lines_for(summ$node, cex = style$cex_axis, pad = 1.4)
+  style = bgms_panel_par(mar = c(5.2, left, 4.0, 2.2))
+  on.exit(graphics::par(style$old_par), add = TRUE)
 
   difference = is_centrality_difference(x)
-  xlim = range(c(summ$lower, summ$upper, if(difference) 0))
+  x_axis = bgms_axis_range(c(summ$lower, summ$upper, if(difference) 0))
 
   graphics::plot(NA, NA,
-    xlim = xlim, ylim = c(0.5, n + 0.5),
-    axes = FALSE, xlab = sprintf(
-      "%s (posterior mean and %g%% credible interval)",
-      centrality_label(x), 100 * diff(probs)
-    ),
-    ylab = "", main = ""
+    xlim = x_axis$lim, ylim = c(0.5, n + 0.5),
+    axes = FALSE, xlab = "", ylab = "", main = ""
   )
-  graphics::axis(1, col = muted, col.ticks = muted)
+  bgms_axis(1, x_axis$at, style = style)
   # Zero is where the groups agree, so an interval covering it is the picture
   # of a node whose centrality the data do not separate.
-  if(difference) graphics::abline(v = 0, col = muted, lty = 2)
+  if(difference) {
+    graphics::abline(v = 0, col = style$muted, lty = 2, lwd = style$lwd_axis)
+  }
   graphics::axis(2,
     at = seq_len(n), labels = summ$node, las = 1, tick = FALSE,
-    line = -0.5, cex.axis = 0.85
+    line = -0.5, cex.axis = style$cex_axis, col.axis = style$ink
   )
   graphics::segments(summ$lower, seq_len(n), summ$upper, seq_len(n),
-    col = grDevices::adjustcolor(accent, 0.45), lwd = 4, lend = 1
+    col = grDevices::adjustcolor(style$accent, 0.45), lwd = 4.5, lend = 1
   )
-  graphics::points(summ$mean, seq_len(n), pch = 16, col = accent, cex = 1.1)
+  graphics::points(summ$mean, seq_len(n),
+    pch = 16, col = style$accent, cex = 1.3
+  )
+
+  # The axis carries the quantity; the caption carries what the marks are, so
+  # neither has to be a title.
+  graphics::mtext(centrality_label(x),
+    side = 1, line = 3.0, cex = style$cex_lab, col = style$ink
+  )
+  bgms_caption(sprintf(
+    "Dot: posterior mean. Bar: %g%% credible interval. Nodes ordered by mean.",
+    100 * diff(probs)
+  ), line = 4.3, style = style)
 
   invisible(x)
 }
