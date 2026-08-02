@@ -175,6 +175,28 @@ not a grading criterion.
        table with tag citations. Re-run the markdown-NEWS parse gate from
        report 14 after all edits.
 
+### Self-contained zratio comments (F-097)
+
+15. Four zratio source comments delegate their ground truth to "the
+    companion" — a private codebase (`sv/ggm_paper`'s
+    analytic-correction companion) that a repo reader cannot open:
+    `src/models/ggm/zratio_law.h:24` ("port of the companion's build-time
+    CN anchor engine"), `:47` ("matching the companion's
+    c(diff(x), 0)/2 + c(0, diff(x))/2"), `:61` ("the engine's eta is the
+    companion's beta directly"), and `src/models/ggm/zratio_engine.h:229`
+    ("matching the companion's gold"). Rewrite each to state the fact
+    itself with no external referent: `:47` states the trapezoid rule it
+    implements (the code already shows it — the comment can just say
+    "composite trapezoid weights on a non-uniform grid"); `:61` states the
+    notation map as a fact ("eta here is the tilt rate often written beta;
+    t2 = 2*eta*sigma^2"); `:24` describes what the engine IS (a
+    deterministic tableless CN anchor engine: one self-consistent spectral
+    solve per (size, density) cell yielding S1, S2) without the port
+    framing; `:229` states what the reference IS (the per-component
+    Monte-Carlo oracle evaluation of the same decomposition). Comments
+    only — zero code changes; keep the DORMANT banner in `zratio_law.h`
+    exactly as is (it is correct and load-bearing).
+
 ### Explicitly OUT of scope
 
 - The "NUTS issues: Warmup may be incomplete" notices in three flagship
