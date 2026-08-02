@@ -588,10 +588,12 @@ displays draw, and that the selection-off case refuses with the message above.
 an arbitrary three-way split of real respondents does not reliably contain a
 supported difference and a figure whose first panel is empty demonstrates
 nothing about how a supported panel is drawn. Groups 1 and 2 share a chain
-`v1-v2-v3-v4-v5`; group 3 trades the `v2-v3` link for a `v1-v5` one. The figure
-reports 3 supported, 6 ruled out, 1 undecided — and the three supported pairs
-are exactly the three the construction moved. BEFORE is the cannot-draw pane,
-which is itself the difference.
+`v1-v2-v3-v4-v5`; group 3 trades the `v2-v3` link for a `v1-v5` one, which also
+breaks `v4-v5` because the copy that builds the chain is overwritten there. The
+figure reports 3 supported, 6 ruled out, 1 undecided, and the supported pairs
+are `v1-v5`, `v2-v3` and `v4-v5` — exactly the three the construction moved,
+checked against `verdicts()` rather than read off the picture. BEFORE is the
+cannot-draw pane, which is itself the difference.
 
 ## Per verdict item
 
@@ -728,3 +730,31 @@ touch and which the newer `origin/develop` commits do touch.
   nothing else; the diff is deletions only.
 * **Base drift**: unchanged from round 2. Still based on `a930b5a5`;
   `origin/develop` is at `d7c2fe39`.
+
+### Suite (round 3)
+
+`devtools::test()`, local default tier, no slow environment variables set,
+sequential at `Ncpus = 2`, run once on the settled tree after every commit was
+in place:
+
+```
+78 context files, no failure, warning or error mark in the stream
+exit=0
+```
+
+Counted from the reporter's own marks: **8258 passing expectations, 105 skips,
+0 failures, 0 warnings, 0 errors**. That is seven more passing expectations
+than round 2 — the two new `K > 2` tests — against an unchanged skip set, which
+remains entirely tier gates, `skip_on_cran()` and five missing golden fixtures.
+
+Test changes in this round, all in `tests/testthat/test-plot-methods.R`:
+
+* New: `contrast_magnitude()` returns the largest absolute difference per pair
+  over the contrasts, and reduces to the plain magnitude on one contrast.
+* New: a seeded three-group fit asserts the premise the display rests on — a
+  list of `K - 1` difference matrices under one indicator per pair — then that
+  both `plot()` and `type = "groups"` draw, and that the selection-off case
+  refuses with a message naming `extract_group_params()`.
+* `plot(fit, legend = FALSE)` dropped with the argument.
+* The three caption assertions become `expect_null(panel$caption)`, and the
+  two `describe_panel()` helpers stop printing a caption line.
