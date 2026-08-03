@@ -333,3 +333,13 @@ release blockers (F-003, F-017, F-018). Remaining + new, ranked:
   `plans/flagged-issues.md` (cross-repo tracker, outside this repo).
 - Downstream consumers to notify on surface changes: easybgm, JASP, the
   bgms-docs site, the tutorial repo (defaults memo = F-002).
+
+## 10. Build environment (F-045)
+
+- `R CMD build` FAILS without pandoc on PATH: all five vignettes knit live,
+  none is cached. On a bare shell, point PATH at RStudio's bundled pandoc.
+- Vignettes run live MCMC at build time using the show-uncapped / run-capped
+  chunk pattern (~78 s CPU total across the set) -- preserve that pattern
+  when editing vignettes, and keep the intro knit under ~30 s.
+- Compilation is pristine: zero warnings across 43 translation units at
+  `-Wall` (report 01 f9). Treat any new compiler warning as a regression.

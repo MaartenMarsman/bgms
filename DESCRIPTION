@@ -2,7 +2,7 @@ Package: bgms
 Type: Package
 Title: Bayesian Analysis of Graphical Models
 Version: 0.2.0.0
-Date: 2026-03-26
+Date: 2026-08-03
 Authors@R: c(
     person("Maarten", "Marsman", , "m.marsman@uva.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-5309-7502")),
@@ -63,4 +63,4 @@ Suggests:
     withr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-Config/roxygen2/version: 8.0.0
+RoxygenNote: 8.0.0
