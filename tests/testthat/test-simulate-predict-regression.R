@@ -788,3 +788,97 @@ test_that("sparse category codings recode to the fitted categories", {
   )
   expect_false(any(vapply(probs, anyNA, logical(1))))
 })
+
+
+# ==============================================================================
+# 9. simulate.bgmCompare() draws from the group it was asked for (F-073)
+# ==============================================================================
+# The only group-difference test simulate.bgmCompare() had described itself as
+# soft. This one is numeric: data simulated from a group, scored back through
+# predict() with the SAME group's parameters, must reproduce its own category
+# margins -- E[1{X_v = c}] = E[P(X_v = c | X_-v)] holds for any fit that puts
+# the same parameters into both paths, and fails if one of them scales,
+# shifts, or selects the group differently from the other.
+# ==============================================================================
+
+test_that("simulated margins match predicted margins for the same group", {
+  skip_on_cran()
+  # Groups that differ a lot, so a group mix-up is not a rounding question.
+  p = 4
+  symmetric = function(values) {
+    m = matrix(0, p, p)
+    m[upper.tri(m)] = values
+    m + t(m)
+  }
+  omega_1 = symmetric(c(0.6, 0.0, 0.1, 0.0, 0.5, 0.1))
+  omega_2 = symmetric(c(0.0, 0.0, 0.6, 0.0, 0.0, 0.5))
+  main = matrix(c(0, 0), nrow = p, ncol = 2, byrow = TRUE)
+
+  draw = function(omega, seed) {
+    simulate_mrf(
+      500, p, num_categories = 2, pairwise = omega, main = main,
+      variable_type = "ordinal", iter = 50, seed = seed
+    )
+  }
+  x = rbind(draw(omega_1, 5), draw(omega_2, 6))
+
+  fit = bgmCompare(
+    x, group = rep(1:2, each = 500),
+    iter = 300, warmup = 200, chains = 1, seed = 42,
+    difference_selection = FALSE, display_progress = "none"
+  )
+
+  # simulate() returns the original scale and predict() returns one column per
+  # INTERNAL category, and a sparsely observed category is collapsed into its
+  # neighbour, so the two are not index-for-index the same set. The fit's own
+  # level map says which original values a predicted column stands for; using
+  # it keeps this a test of the numeric convention rather than of the coding.
+  levels_of = extract_arguments(fit)$category_levels
+  originals_for = function(v, k) {
+    map = levels_of[[v]]
+    as.numeric(names(map)[map == (k - 1L)])
+  }
+
+  nsim = 2000L
+  for(g in 1:2) {
+    ctx = sprintf("group %d", g)
+    sim = simulate(fit, nsim = nsim, seed = 100L + g, group = g, iter = 500)
+    probabilities = predict(fit, newdata = sim, group = g,
+      type = "probabilities")
+
+    residual = function(scored) {
+      max(vapply(seq_len(p), function(v) {
+        max(vapply(seq_len(ncol(scored[[v]])), function(k) {
+          abs(mean(sim[, v] %in% originals_for(v, k)) - mean(scored[[v]][, k]))
+        }, 0.0))
+      }, 0.0))
+    }
+
+    for(v in seq_len(p)) {
+      predicted = probabilities[[v]]
+      for(k in seq_len(ncol(predicted))) {
+        observed_rate = mean(sim[, v] %in% originals_for(v, k))
+        predicted_rate = mean(predicted[, k])
+        # The two estimate the same probability. The simulated margin is the
+        # noisy one -- nsim near-independent draws -- so the band is its
+        # binomial Monte-Carlo error, sqrt(pi (1 - pi) / nsim), at 4 standard
+        # errors, with a floor of 0.01 so a category near 0 or 1 does not get
+        # a vanishing band from its own vanishing variance. The predicted
+        # margin averages conditional probabilities over the same rows and is
+        # far tighter, so it contributes little to the spread.
+        mc_error = sqrt(predicted_rate * (1 - predicted_rate) / nsim)
+        expect_lt(
+          abs(observed_rate - predicted_rate), max(4 * mc_error, 0.01),
+          label = sprintf("%s, variable %d, category %d", ctx, v, k)
+        )
+      }
+    }
+
+    # And the agreement is a statement about THIS group: scoring the same
+    # simulated data with the other group's parameters has to miss, or the
+    # test above would pass for a fit that ignored `group` entirely.
+    other = if(g == 1L) 2L else 1L
+    cross = predict(fit, newdata = sim, group = other, type = "probabilities")
+    expect_gt(residual(cross), 10 * residual(probabilities), label = ctx)
+  }
+})

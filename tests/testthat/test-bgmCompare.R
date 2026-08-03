@@ -357,14 +357,101 @@ test_that("bgmCompare pairwise effects are on the association scale", {
     difference_selection = FALSE, display_progress = "none"
   )
 
-  estimate = extract_group_params(fit)$pairwise_effects_groups[, 1]
+  groups = extract_group_params(fit)$pairwise_effects_groups
   target = omega[t(utils::combn(p, 2))]
 
-  # The short run is loose about the value; it is decisive about the scale,
-  # since doubling every parameter moves the fit far outside this band.
-  rmse = function(x) sqrt(mean((estimate - x)^2))
-  expect_lt(rmse(target), 0.2)
-  expect_lt(rmse(target), 0.5 * rmse(2 * target))
+  # The scale is read as the slope of the estimate on the target, which is
+  # bounded from BOTH sides: a doubled parameterization gives slope 2 and a
+  # halved one slope 0.5, and neither is inside the band. An rmse bound
+  # against 2 * target alone tests only the doubling direction, and at this
+  # data size it cannot see the halving one at all -- target and 0.5 * target
+  # are 0.194 apart in rmse while the run's own error reaches 0.19.
+  #
+  # The band comes from the estimator's spread, not from taste: over 12
+  # alternative data/fit seeds at this construction the slope stayed within
+  # [0.851, 1.369] on both groups, so [0.6, 1.6] holds it with room while
+  # still refusing 0.5 and 2.
+  #
+  # Both groups are drawn from the same omega, so both must recover it. Only
+  # group 1 was ever checked, which left a difference parameterization that
+  # mis-signs or mis-scales the second group's reconstruction unexamined.
+  slope = function(estimate) sum(estimate * target) / sum(target^2)
+  rmse = function(estimate, x) sqrt(mean((estimate - x)^2))
+
+  for(g in 1:2) {
+    estimate = groups[, g]
+    ctx = paste("group", g)
+    expect_lt(rmse(estimate, target), 0.2)
+    expect_gt(slope(estimate), 0.6)
+    expect_lt(slope(estimate), 1.6)
+    # And the correct scale has to fit better than the doubled one, which is
+    # the direction this data size does resolve.
+    expect_lt(rmse(estimate, target), 0.8 * rmse(estimate, 2 * target),
+      label = ctx)
+  }
+})
+
+test_that("bgmCompare recovers a planted group difference at its planted size", {
+  skip_on_cran()
+  # The guard above fits two groups drawn from the SAME omega, so every
+  # difference in it is zero and a difference parameterization off by a factor
+  # would still pass. Nothing else in the every-run tier looks at the size of
+  # a nonzero difference. This plants one and reads it back.
+  #
+  # The two group matrices swap their two nonzero pairs, so the planted
+  # difference is large (+-0.5) while both groups stay in a well-identified
+  # coupling range -- planting a large difference by inflating one group
+  # instead pushes that group toward deterministic data, where the posterior
+  # is wide and the read-back is noisier than the difference being measured.
+  p = 3
+  pairs = t(utils::combn(p, 2))
+  symmetric = function(values) {
+    m = matrix(0, p, p)
+    m[upper.tri(m)] = values
+    m + t(m)
+  }
+  omega_1 = symmetric(c(0.60, 0.00, 0.10))
+  omega_2 = symmetric(c(0.10, 0.00, 0.60))
+  main = matrix(c(0, -0.5), nrow = p, ncol = 2, byrow = TRUE)
+
+  draw = function(omega, seed) {
+    simulate_mrf(
+      1200, p, num_categories = 2, pairwise = omega, main = main,
+      variable_type = "ordinal", iter = 50, seed = seed
+    )
+  }
+
+  fit = bgmCompare(
+    rbind(draw(omega_1, 101), draw(omega_2, 201)),
+    group = rep(1:2, each = 1200),
+    iter = 400, warmup = 250, chains = 1, seed = 1,
+    difference_selection = FALSE, display_progress = "none"
+  )
+
+  groups = extract_group_params(fit)$pairwise_effects_groups
+  recovered = groups[, 2] - groups[, 1]
+  planted = omega_2[pairs] - omega_1[pairs]
+
+  # Tolerances from the estimator's own spread: over 12 alternative
+  # data/fit seeds at this construction the rmse of the recovered difference
+  # reached 0.089 and no single pair was off by more than 0.125, while the
+  # slope stayed within [0.813, 1.167]. The bounds below sit above those and
+  # below what a mis-scaled parameterization produces: at half or double the
+  # difference the slope is 0.5 or 2, and the rmse against the planted
+  # difference is 0.204 or 0.408.
+  expect_lt(sqrt(mean((recovered - planted)^2)), 0.15)
+  expect_lt(max(abs(recovered - planted)), 0.20)
+
+  slope = sum(recovered * planted) / sum(planted^2)
+  expect_gt(slope, 0.7)
+  expect_lt(slope, 1.4)
+
+  # The signs are the qualitative half of the same claim: the pair the second
+  # group loses and the pair it gains must come back with opposite signs, and
+  # the pair with no planted difference must not acquire one.
+  expect_lt(recovered[1], 0)
+  expect_gt(recovered[3], 0)
+  expect_lt(abs(recovered[2]), 0.20)
 })
 
 
