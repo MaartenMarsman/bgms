@@ -101,6 +101,21 @@ compute_sbc_ranks = function(K_true, p, fit, thin_idx = NULL) {
   ranks
 }
 
+# Draw n rows of N(0, Sigma) through the Cholesky factor rather than
+# MASS::mvrnorm().
+#
+# mvrnorm() decomposes Sigma with eigen(), and an eigendecomposition is not
+# unique: eigenvector signs, and the ordering of near-equal eigenvalues, are
+# whatever the platform's LAPACK returns. The same seed therefore gives
+# DIFFERENT data on a different LAPACK, so an SBC realization here is not the
+# fixed thing the seed makes it look like -- it is re-randomized per platform,
+# and any rank statistic computed from it is a fresh draw from its own null
+# rather than a reproducible number. The Cholesky factor of a positive-definite
+# matrix is unique, so this route gives the same data everywhere up to rounding.
+rmvnorm_chol = function(n, Sigma) {
+  matrix(rnorm(n * ncol(Sigma)), n, ncol(Sigma)) %*% chol(Sigma)
+}
+
 
 # ---- SBC test ----------------------------------------------------------------
 
@@ -129,7 +144,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -204,7 +219,7 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -337,7 +352,7 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
     draw = prior_draws[[r]]
     K_true = draw$K
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -454,7 +469,7 @@ test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -557,7 +572,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
   for(r in seq_len(R)) {
     K_true = reconstruct_K(K_off_true[r, ], K_diag_true[r, ], p)
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -648,7 +663,7 @@ test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
