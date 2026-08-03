@@ -1,0 +1,214 @@
+# Report 22 — the Normal slab default (F-119), the ridge picture, and the zero-support test evaluation
+
+Branch `fix/normal-slab`, based on `origin/develop` at `f60101b6` (at or after
+`c2fb48e1`). Worktree `~/bgms-review/wt-fix14`. Nothing pushed. Off-limits files
+(`R/methods_bgmcompare.R`, `tests/testthat/test-summary-marking.R`,
+`man/summary.bgmCompare.Rd`, `R/validate_data.R`, `NEWS.md`, plot files,
+`dev/review-2026-08/` beyond this report and its assets) were not touched;
+`~/bgms-review/val16/` and `~/bgms-review/val19/` were read only.
+
+---
+
+## 1. The slab-coverage map (task 1, before any change)
+
+`bgmCompare()` prices four families of real-valued parameters. Three prior
+objects govern them, and `interaction_prior` — the argument the decision names —
+governs only one.
+
+| parameter family | governed by | where the prior is applied |
+|---|---|---|
+| baseline pairwise interactions | `interaction_prior` | `bgmCompare_logp_and_grad.cpp:746` (`interaction_prior.logp`), gradient at `:482`, `:749`; single-parameter Metropolis at `:1082` |
+| **pairwise-interaction differences** | `difference_family` + `difference_scale` | `bgmCompare_logp_and_grad.cpp:754`, gradient `:489`, `:757`; Metropolis `:1084` |
+| **main-effect (threshold) differences** | `difference_family` + `difference_scale` | `bgmCompare_logp_and_grad.cpp:714` (ordinal) and `:731` (Blume–Capel), gradient `:448`, `:466`, `:470`; per-parameter Metropolis `:917`, `:920` |
+| baseline thresholds | `threshold_prior` | `bgmCompare_logp_and_grad.cpp:706`, `:723`, `:908`, `:911` |
+
+Column 0 of `main_effects` / `pairwise_effects` is the overall (baseline) value;
+columns 1..K−1 are the group-contrast differences. That is the whole of the
+split: `interaction_prior` touches column 0 of the pairwise block and nothing
+else.
+
+**So main differences were indeed governed by a different object.** The
+difference slab is not a prior *object* at all but a pair of loose arguments,
+`difference_family = c("Cauchy", "Normal")` (`R/bgmCompare.R:239` before the
+change) and `difference_scale = 1`, unpacked at `R/bgmCompare.R:469-470` into
+`difference_prior_type = tolower(difference_family)` and handed to
+`create_parameter_prior()` at `src/bgmCompare_interface.cpp:407`. One object
+serves both difference families — pairwise and threshold — because
+`bgmCompare()` gives them one scale and one family.
+
+Under `difference_selection = TRUE` (the default) this difference prior **is the
+slab of the spike-and-slab**. Reading F-119 as covering "the slab default", it
+therefore covers `difference_family` as squarely as `interaction_prior`, and per
+the brief both were flipped.
+
+Two further sites carry the same default and were flipped with it, both internal
+formal defaults that `bgmCompare()` always overrides but that would otherwise
+hand a caller who omits the argument the old family:
+`R/build_spec.R:401` and `R/bgm_spec.R:374` (`difference_prior_type = "cauchy"`
+→ `"normal"`). They are inert for `bgm()`, whose spec path never reads the field.
+
+One site was deliberately **not** flipped: `R/anchor_curve.R:103`,
+`spec$prior$difference_prior_type %||% "cauchy"`. `build_spec_compare()` always
+populates that field, so the fallback fires only for a spec that predates it —
+i.e. a fit from the Cauchy era. Flipping it would misreport those fits.
+
+### What the switch actually is
+
+| | before | after |
+|---|---|---|
+| `bgmCompare(interaction_prior =)` | `cauchy_prior(scale = 1)` | `normal_prior(scale = 1)` |
+| `bgmCompare(difference_family =)` | `c("Cauchy", "Normal")` | `c("Normal", "Cauchy")` |
+| `bgm(interaction_prior =)` | `normal_prior(scale = 1)` | unchanged |
+
+`cauchy_prior()` and `difference_family = "Cauchy"` remain fully available and
+are unchanged in behaviour.
+
+### A defect the switch would have introduced, caught and fixed
+
+`bgmCompare()`'s deprecation shims for `interaction_scale=` and
+`pairwise_scale=` guard on `identical(interaction_prior, cauchy_prior(scale = 1))`
+(`R/bgmCompare.R:361`, `:371` before the change) — that is, "the user did not
+override the default". Moving the default without moving the guard would have
+left both guards permanently false, silently ignoring the deprecated arguments
+instead of honouring them. Both now guard on `normal_prior(scale = 1)`, exactly
+as `bgm()` does at `R/bgm.R:533`, `:566`. The legacy arguments still construct a
+*Cauchy* at the requested scale, preserving 0.1.6.3 behaviour, which mirrors
+`bgm()` and is what `NEWS.md:123` documents for that path.
+
+### Documentation swept
+
+* `R/bgmCompare.R` roxygen: `interaction_prior` (now names the Normal as the
+  default and states it governs the baseline pairwise interactions **only**),
+  `difference_family` (now names the Normal as the default and states it governs
+  both difference families and is the spike-and-slab's slab), `pairwise_scale`
+  (reworded so the deprecated argument's Cauchy is not read as the default),
+  and the `standardize` deprecation message.
+* `man/bgmCompare.Rd` regenerated by `devtools::document()`. NAMESPACE unchanged.
+* `vignettes/comparison.Rmd`: the paragraph that told readers the two entry
+  points ship different baseline priors was true and is now false. Rewritten to
+  say they agree, and to say where the difference parameters get their prior
+  instead.
+
+Commit: `71c508fb` `fix(compare): default slab Cauchy -> Normal, mirroring bgm() (F-119)`.
+
+---
+
+## 2. Tests under the new default (task 2)
+
+Commit: `44dc9c2f` `test: re-tune the two compare expectations the Normal slab default moves (F-119)`.
+
+### Every touched expectation, with its derivation
+
+**(1) `tests/testthat/test-prior-sensitivity.R:329`** — the suite's only failure
+under the new default.
+
+```
+- expect_equal(d$family, "cauchy")
++ expect_equal(d$family, "normal")
+```
+
+Derivation: `anchor_draws()` on a compare fit returns
+`tolower(spec$prior$difference_prior_type)` (`R/anchor_curve.R:103`), and that
+field is `tolower(difference_family)` (`R/bgmCompare.R:470`). The fit in this
+test is at defaults, so the value is now `"normal"`. Exact string equality — no
+tolerance is involved and none was widened.
+
+**(2) `tests/testthat/test-regressions-2.R`, "difference_family selects the
+difference prior independently"** — did **not** fail, and that is the finding.
+
+The block claimed to check the default:
+
+```r
+# The default is Cauchy.
+default = run("Cauchy")
+expect_equal(default$raw_samples$pairwise[[1]], cauchy$raw_samples$pairwise[[1]])
+```
+
+`run()` took the family as an argument, so `default` was an explicit `"Cauchy"`
+run compared against another explicit `"Cauchy"` run. The assertion was a
+tautology and would have passed whatever the default was. It has been rewritten
+so `run()` forwards `...`, the default fit omits `difference_family`, and the
+claim is two-sided:
+
+```r
+default = run()
+expect_equal(default$raw_samples$pairwise[[1]], normal$raw_samples$pairwise[[1]])
+expect_false(isTRUE(all.equal(default$raw_samples$pairwise[[1]],
+                              cauchy$raw_samples$pairwise[[1]])))
+```
+
+Same seed, same sampler path, so the equality is exact and needs no tolerance.
+The same two-sided idiom was added for `interaction_prior`, because
+`extract_arguments()` does not surface the slab family for compare fits and the
+draws are therefore the only public evidence. The file's header comment was
+updated from "defaulting to Cauchy" to "defaulting to Normal (F-119)".
+
+### Not re-tuned, and why — the planted-δ guard
+
+`tests/testthat/test-bgmCompare.R:394` ("bgmCompare recovers a planted group
+difference at its planted size") passed unchanged. Its bounds were derived, not
+guessed — from a 12-seed spread that reached rmse 0.089, max absolute error
+0.125 and slope in [0.813, 1.167] — so the question is whether the switch moves
+the realised statistics enough to eat that margin. Re-measured at the test's own
+data and fit seeds across all four slab combinations:
+
+| difference slab | interaction slab | rmse | max abs err | slope |
+|---|---|---|---|---|
+| Cauchy | cauchy | 0.0274 | 0.0378 | 0.9764 |
+| Cauchy | normal | 0.0266 | 0.0366 | 0.9762 |
+| Normal | cauchy | 0.0300 | 0.0403 | 0.9822 |
+| **Normal** | **normal** (new default) | **0.0290** | **0.0377** | **0.9827** |
+
+The switch moves rmse by 0.0016 — about 2% of the spread the bounds were built
+from — and moves the slope *towards* 1. The bounds (rmse < 0.15, max < 0.20,
+slope in [0.7, 1.4]) keep their full separation from what a mis-scaled
+parameterization would produce (slope 0.5 or 2, rmse 0.204 or 0.408). Widening
+them would have been unjustified.
+
+**No snapshots were re-recorded.**
+
+### Suite results
+
+_(filled in at §7)_
+
+---
+
+## 3. Operating-characteristics transfer (task 3)
+
+_(pending)_
+
+---
+
+## 4. The ridge visualization (task 4)
+
+_(pending)_
+
+---
+
+## 5. Difference-test evaluation on zero-support cells (task 5)
+
+_(pending)_
+
+---
+
+## 6. Proposed NEWS entry (task 6, report-only — `NEWS.md` not edited)
+
+_(pending)_
+
+---
+
+## 7. Verification gate
+
+_(pending)_
+
+---
+
+## 8. Findings
+
+_(pending)_
+
+---
+
+## 9. Open questions
+
+_(pending)_
