@@ -9,6 +9,16 @@
 #       numerical unit guards that catch a shifted constant in one run.
 #       No gate. Budget ~90 s.
 #
+#       CRAN runs a SUBSET of T0: the heavy internal numerical guard files
+#       are excluded there via skip_heavy_guard_on_cran() below (maintainer
+#       ruling, 2026-08-04). CRAN's Windows incoming pretest measured T0 at
+#       506 s (~6x this machine) and the whole check at 13 min against
+#       CRAN's 10-min ceiling. The guards catch regressions WE introduce,
+#       not platform breakage, and run on every push anyway; what CRAN
+#       checking is for -- "does the package work on this platform" -- stays:
+#       the product-surface smokes (test-bgm.R, test-bgmCompare.R, methods,
+#       extractors, validation) still run on CRAN in full.
+#
 #   T1  nightly heartbeat (daily, develop)   BGMS_RUN_SLOW_TESTS=true
 #       "Does the settled math still hold tonight": graph-law and prior-chain
 #       identities, single surface-vs-gold cells, the RB saturation boundary,
@@ -27,6 +37,14 @@
 # The weekly workflow sets BOTH variables, so a T2 run also carries T1. The
 # nightly workflow sets BGMS_RUN_SLOW_TESTS only, so T2 blocks skip there and
 # say so.
+
+# File-level gate for the heavy internal numerical guard files (see the T0
+# charter note above for the ruling and the rationale). Called at the top
+# level of: test-rb-inclusion-probabilities.R, test-prior-interface.R,
+# test-zratio-isolated-edge-routing.R, test-zratio-engine.R.
+skip_heavy_guard_on_cran = function() {
+  skip_on_cran()
+}
 
 skip_unless_certification = function() {
   skip_if_not(

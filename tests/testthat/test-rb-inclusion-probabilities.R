@@ -14,6 +14,8 @@
 # realise machine 0/1 edges, so those two tests run in the BGMS_RUN_SLOW_TESTS
 # tier; the plumbing, alignment, and well-mixed agreement stay local.
 
+skip_heavy_guard_on_cran() # CI-only on CRAN's clock; see helper-tiers.R
+
 skip_unless_slow = function() {
   skip_if_not(
     identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),

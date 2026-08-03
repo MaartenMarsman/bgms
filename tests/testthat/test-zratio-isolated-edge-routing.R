@@ -7,12 +7,16 @@
 # improvement, bounded by the measured mediation (2.84e-04 nats; see
 # zratio_mediation_off).
 #
+# CI-only on CRAN's clock (skip_heavy_guard_on_cran below; see helper-tiers.R).
+#
 # The flag crosses four layers: the R spec, the C++ spec reader, the engine's
 # hot path, and the chain runner's counter export. A flag set in one and ignored
 # in another is exactly how the earlier deploy gate failed, so the probes here
 # go through the DEPLOYED entry points -- zratio_test_spec_eval takes the same
 # spec list the samplers take and builds the engine through the same reader, and
 # the fit probe takes a real chain -- rather than through a component API.
+
+skip_heavy_guard_on_cran()
 
 DELTA = 0.5 * log(12)
 

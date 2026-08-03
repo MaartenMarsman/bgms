@@ -2,6 +2,8 @@
 # pre-generated exact-reference fixture (zratio_reference.rds), the fit-time
 # constant builders, and engine invariants.
 
+skip_heavy_guard_on_cran() # CI-only on CRAN's clock; see helper-tiers.R
+
 fixture_path = testthat::test_path("fixtures", "zratio_reference.rds")
 
 test_that("engine reproduces the reference log Z-ratios (all cells/variants)", {

@@ -15,6 +15,11 @@ version; incoming-feasibility remarks for a version bump).
   CODE_OF_CONDUCT.md linked from README.md) is fixed: README.md now links to
   the files on GitHub with absolute URLs, since both files are excluded from
   the tarball via .Rbuildignore.
+- The "Overall checktime 13 min > 10 min" NOTE on r-devel-windows-x86_64:
+  the four heaviest test files (internal numerical regression guards, ~5 of
+  the 8.4 test minutes on that machine) are now skipped on CRAN and run on
+  the package's own CI instead (every push, plus nightly and weekly tiers).
+  The product-surface tests still run on CRAN in full.
 - The "new files in some other directories" NOTE on the
   r-devel-linux-x86_64-debian-gcc check of the published version (0.1.6.3)
   lists Rtmp/xvfb-run/pocl/shm files from concurrent checks on the shared

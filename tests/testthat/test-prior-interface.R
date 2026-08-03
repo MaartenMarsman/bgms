@@ -13,6 +13,8 @@
 #   4. Backward compatibility of deprecated scalar parameters
 # ==============================================================================
 
+skip_heavy_guard_on_cran() # CI-only on CRAN's clock; see helper-tiers.R
+
 
 # ==============================================================================
 # 1. Prior Constructor Tests
