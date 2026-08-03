@@ -15,7 +15,7 @@ bibentry(
   title = "Bayesian analysis of the ordinal Markov random field",
   author = c(person("Maarten", "Marsman"),
              person("Don", "van den Bergh"),
-             person("Jolanda M. B.", "Haslbeck")),
+             person("Jonas M. B.", "Haslbeck")),
   journal = "Psychometrika",
   year = "2025",
   volume = "90",
@@ -31,7 +31,7 @@ bibentry(
   author = c(person("Maarten", "Marsman"),
              person("Lourens J.", "Waldorp"),
              person("Nikola", "Sekulovski"),
-             person("Jolanda M. B.", "Haslbeck")),
+             person("Jonas M. B.", "Haslbeck")),
   journal = "Psychometrika",
   year = "2025",
   volume = "90",
@@ -42,19 +42,16 @@ bibentry(
 )
 
 bibentry(
-  bibtype = "Misc",
+  bibtype = "Article",
   title = "A stochastic block prior for clustering in graphical models",
   author = c(person("Nikola", "Sekulovski"),
              person("Giuseppe", "Arena"),
-             person("Jolanda M. B.", "Haslbeck"),
+             person("Jonas M. B.", "Haslbeck"),
              person("Karoline B. S.", "Huth"),
              person("Nial", "Friel"),
              person("Maarten", "Marsman")),
-  year = "2025",
-  note = "PsyArXiv Preprints",
-  url = "https://osf.io/preprints/psyarxiv/29p3m_v1",
+  year = "2026",
+  journal = "Psychological Methods",
+  doi = "10.1037/met0000847",
   key = "Sekulovski2025-stochastic"
 )
-
-
-
