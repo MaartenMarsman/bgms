@@ -42,17 +42,11 @@
 # correction.R) carry further uncorrected controls that show what a missing
 # correction does to these statistics.
 #
-# Gated behind BGMS_RUN_SLOW_TESTS. BGMS_SBC_R overrides the replicate
+# Weekly certification tier (T2, BGMS_RUN_CERTIFICATION): SBC replicate
+# suites. BGMS_SBC_R overrides the replicate
 # counts (all cells) for quick wiring runs; BGMS_SBC_CORES caps the fork
 # pool (default 5).
 # --------------------------------------------------------------------------- #
-
-skip_unless_slow_sbc = function() {
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run SBC tests"
-  )
-}
 
 sbc_replicates = function(default) {
   v = Sys.getenv("BGMS_SBC_R", "")
@@ -224,6 +218,9 @@ run_ggm_bb_theta_sbc = function(eta, R, seed_base) {
         iter = iter, warmup = warmup, chains = 1, cores = 1,
         edge_selection = TRUE, update_method = "gibbs",
         edge_prior = beta_bernoulli_prior(1, 1),
+        # joint pinned: the correction under test exists only on the joint
+        # path; the hierarchical default (F-010) would bypass it entirely
+        precision_graph_prior = "joint",
         interaction_prior = cauchy_prior(scale = 2.5),
         precision_scale_prior = gamma_prior(shape = 1, eta = eta),
         delta = delta,
@@ -253,7 +250,7 @@ run_ggm_bb_theta_sbc = function(eta, R, seed_base) {
 }
 
 test_that("SBC: corrected GGM beta-bernoulli ranks are uniform (eta = 1)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
   old = sbc_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -263,7 +260,7 @@ test_that("SBC: corrected GGM beta-bernoulli ranks are uniform (eta = 1)", {
 })
 
 test_that("SBC: corrected GGM beta-bernoulli ranks are uniform (eta = 2)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
   old = sbc_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -273,7 +270,7 @@ test_that("SBC: corrected GGM beta-bernoulli ranks are uniform (eta = 2)", {
 })
 
 test_that("SBC: corrected GGM beta-bernoulli ranks are uniform (eta = 3)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
   old = sbc_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -352,7 +349,7 @@ run_mixed_bb_prior_chain = function(apply_correction, n_samples, seed) {
 }
 
 test_that("SBC: corrected mixed prior chain returns Beta(1, 1) at the normal slab", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
   old = sbc_correction_cache()
   on.exit(options(old), add = TRUE)
 
@@ -369,7 +366,7 @@ test_that("SBC: corrected mixed prior chain returns Beta(1, 1) at the normal sla
 })
 
 test_that("SBC: uncorrected mixed prior chain misses the hyperprior at the normal slab", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   th = run_mixed_bb_prior_chain(
     apply_correction = FALSE, n_samples = 20000, seed = 42
@@ -477,6 +474,7 @@ run_sbm_nc_sbc = function(R, seed_base) {
         iter = iter, warmup = warmup, chains = 1, cores = 1,
         edge_selection = TRUE, update_method = "gibbs",
         edge_prior = sbm_prior(),
+        precision_graph_prior = "joint",
         interaction_prior = cauchy_prior(scale = 2.5),
         precision_scale_prior = gamma_prior(shape = 1, eta = 1),
         delta = delta,
@@ -507,7 +505,7 @@ run_sbm_nc_sbc = function(R, seed_base) {
 }
 
 test_that("SBC: corrected GGM SBM ranks are uniform", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
   old = sbc_correction_cache()
   on.exit(options(old), add = TRUE)
 

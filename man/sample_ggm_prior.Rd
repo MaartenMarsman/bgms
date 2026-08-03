@@ -113,7 +113,10 @@ differs (\code{flip_rate}), and the projected distortion of the mean
 inclusion probability from the measured error under the edge prior's
 feedback (\code{harm_pred}). Evidence-free sampling is the regime where
 the second alarm matters: a small consistent error can shift the graph
-marginal without flipping individual decisions.}
+marginal without flipping individual decisions. This argument switches
+the gauge on and off; how precisely it audits is set by
+\code{options(bgms.zratio_gauge_sweeps)}, the same option the deployed
+path reads.}
 }
 \value{
 A list with components

@@ -23,9 +23,10 @@ order of the fit's raw indicator draws, with columns:
 \describe{
 \item{parameter}{Indicator name, as in \code{summary(fit)$indicator}.}
 \item{pip}{Rao-Blackwellized posterior inclusion probability.}
-\item{bf, log10_bf}{Inclusion Bayes factor and its base-10 logarithm,
-from \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}. \code{log10_bf} stays finite where \code{bf}
-saturates at \code{0} or \code{Inf}.}
+\item{bf, log_bf}{Inclusion Bayes factor and its natural logarithm,
+from \code{\link[=extract_inclusion_bf]{extract_inclusion_bf()}}, which returns the same natural-log
+scale under \code{log = TRUE}. \code{log_bf} stays finite where \code{bf} saturates
+at \code{0} or \code{Inf}.}
 \item{verdict}{Factor with levels \code{presence}, \code{undecided}, \code{absence},
 and \code{NA} for indicators that were never updated (main-effect
 differences under \code{main_difference_selection = FALSE}).}
@@ -33,13 +34,16 @@ differences under \code{main_difference_selection = FALSE}).}
 probability, from the Jeffreys-smoothed two-state model of the
 indicator chain and from the Rao-Blackwellized draws. \code{se_rb} is \code{NA}
 where the Rao-Blackwellized draws are constant to double precision.}
-\item{distance_two_state, distance_rb}{Distance from \code{log10_bf} to the
+\item{distance_two_state, distance_rb}{Distance from \code{log_bf} to the
 nearer verdict boundary, in units of each standard error.}
 \item{fragile}{\code{TRUE} when either distance is below 2.}
 }
 The evidence threshold is attached as the \code{evidence_threshold} attribute,
 and whether the fragility flag's operating point covers this kind of
-indicator as \code{flag_validated}.
+indicator as \code{flag_validated}. A \code{bgmCompare} fit additionally carries
+\code{difference_fit}, and, under \code{main_difference_selection = FALSE},
+\code{unselected_main}, marking the main-effect rows the print leaves out of
+its counts because no indicator exists for them.
 }
 \description{
 Reads each edge (or difference) indicator's inclusion Bayes factor as a
@@ -50,7 +54,7 @@ and flags the verdicts that a rerun of the sampler could change.
 Monte Carlo verdict errors are a boundary phenomenon. In a known-truth
 calibration study of 37,010 graded edge-fits across ordinal, binary, and
 Gaussian graphical models, every one of the 66 verdict errors sat within
-0.25 of a threshold on the log10 Bayes factor scale, and no edge further out
+0.58 of a threshold on the log Bayes factor scale, and no edge further out
 was ever misclassified. The fragility flag turns that into a per-edge
 statement: an edge is fragile when a verdict boundary lies within two
 standard errors of the estimated evidence, which is the regime where the

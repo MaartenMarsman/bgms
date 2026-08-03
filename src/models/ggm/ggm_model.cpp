@@ -270,6 +270,20 @@ bool GGMModel::proposal_is_positive_definite_() const {
     return arma::chol(R_chk, precision_proposal_);
 }
 
+bool GGMModel::edge_proposal_is_positive_definite_(size_t i, size_t j,
+                                                   double kij, double kjj) {
+    // Same check as proposal_is_positive_definite_, for callers that hold the
+    // three changed entries rather than a filled precision_proposal_. The full
+    // copy is what makes the check possible at all -- only (i,j), (j,i), (j,j)
+    // are read on the data path -- and it is paid only on the prior-only path
+    // this guards.
+    precision_proposal_ = precision_matrix_;
+    precision_proposal_(i, j) = kij;
+    precision_proposal_(j, i) = kij;
+    precision_proposal_(j, j) = kjj;
+    return proposal_is_positive_definite_();
+}
+
 double GGMModel::ggm_edge_move(size_t i, size_t j) {
     get_constants(i, j);
     double Phi_q1q  = constants_[0];
@@ -1060,6 +1074,18 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
         const double phi_star = rnorm(rng_, mu, 1.0 / std::sqrt(Q));
         const double kij = c1 + c2 * phi_star;
         const double kjj = constrained_diagonal(kij);
+        // Prior-only chains have no likelihood anchor holding the state off the
+        // cone boundary, and the cofactor constants are read from the
+        // SMW-maintained Sigma and log-det, which drift within a sweep. The
+        // move is positive-definite by construction only while those constants
+        // are exact; near the boundary the drifted ones can put the proposal
+        // outside the cone, and nothing else in this ratio vetoes it (the
+        // determinant terms cancel by design). Reject explicitly, as
+        // ggm_edge_move and ggm_diag_move do (see
+        // proposal_is_positive_definite_).
+        if (n_ == 0 && !edge_proposal_is_positive_definite_(i, j, kij, kjj)) {
+            return 0.0;   // birth refused: the proposed state has no prior mass
+        }
         double log_A = log_A_add;
         if (alpha_ne_1) {
             log_A += (alpha - 1.0) * (MY_LOG(kjj) - MY_LOG(constants_[5]));
@@ -1087,6 +1113,12 @@ double GGMModel::update_edge_indicator_conjugate(size_t i, size_t j) {
         // Delete: deterministic to the spike; accept with 1 / A_add evaluated
         // at the current slab state, so the alpha correction uses the current
         // diagonal against the spike diagonal.
+        // Same prior-only guard as the birth branch: the spike sits on the same
+        // cofactor curve and is safe on exact constants, drifted ones aside.
+        if (n_ == 0 &&
+            !edge_proposal_is_positive_definite_(i, j, 0.0, constants_[5])) {
+            return 0.0;   // death refused: the spike state has no prior mass
+        }
         double log_A = -log_A_add;
         if (alpha_ne_1) {
             log_A -= (alpha - 1.0)

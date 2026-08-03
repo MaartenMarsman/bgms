@@ -4,7 +4,9 @@
 # classifies every edge; it works on any bgm() fit with edge selection.
 # Structural tests use small fits and reduced anchor grids: every refit is a
 # full MCMC run, so the anchor set is the dominant cost. The warm-vs-cold
-# agreement certification runs in the BGMS_RUN_SLOW_TESTS tier.
+# agreement certification and the other refit cross-validations run in the
+# weekly certification tier (T2, BGMS_RUN_CERTIFICATION); the verdict and
+# compare-trace checks run nightly (T1, BGMS_RUN_SLOW_TESTS).
 
 skip_unless_slow = function() {
   skip_if_not(
@@ -16,11 +18,11 @@ skip_unless_slow = function() {
 # ---- refit-based prior_sensitivity_check() ----------------------------------
 
 test_that("the wobble q95 pools threshold-relevant edges only", {
-  # Two near-saturated edges (|log10 BF| > 3 at s0) with huge replicate
+  # Two near-saturated edges (|log BF| > 3 log(10) at s0) with huge replicate
   # spread must not inflate the yardstick; the median and per-edge spread
   # keep covering every edge.
-  lbf_s0 = c(0.2, -1.5, 2.9, 8.0, -12.0)
-  lbf_rep = c(0.3, -1.3, 2.7, 9.3, -10.7)
+  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, 8.0, -12.0)
+  lbf_rep = log(10) * c(0.3, -1.3, 2.7, 9.3, -10.7)
   d = abs(lbf_s0 - lbf_rep)
   w = wobble_yardstick(lbf_s0, lbf_rep)
   expect_equal(w$per_edge, d)
@@ -28,7 +30,7 @@ test_that("the wobble q95 pools threshold-relevant edges only", {
   expect_equal(w$q95, stats::quantile(d[1:3], 0.95, names = FALSE))
   expect_lt(w$q95, min(d[4:5]))
   # with every edge saturated the yardstick is undefined
-  expect_true(is.na(wobble_yardstick(c(5, -7), c(6, -8))$q95))
+  expect_true(is.na(wobble_yardstick(log(10) * c(5, -7), log(10) * c(6, -8))$q95))
   expect_equal(w$censored, 0L)
 })
 
@@ -37,8 +39,8 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
   # A threshold-relevant edge whose replicate saturates has a censored spread.
   # Pooling the Inf would make the yardstick infinite, and every verdict move
   # would then read as run-to-run noise.
-  lbf_s0 = c(0.2, -1.5, 2.9, -1.0)
-  lbf_rep = c(0.3, -1.3, 2.7, -Inf)
+  lbf_s0 = log(10) * c(0.2, -1.5, 2.9, -1.0)
+  lbf_rep = log(10) * c(0.3, -1.3, 2.7, -Inf)
   w = wobble_yardstick(lbf_s0, lbf_rep)
 
   expect_true(is.finite(w$q95))
@@ -51,7 +53,7 @@ test_that("an edge saturating in one refit does not carry the yardstick to Inf",
 
   # Both refits saturating leaves nothing measurable, and the yardstick drops
   # out rather than becoming Inf.
-  none = wobble_yardstick(c(-1.0, 0.5), c(-Inf, Inf))
+  none = wobble_yardstick(log(10) * c(-1.0, 0.5), c(-Inf, Inf))
   expect_true(is.na(none$q95))
   expect_equal(none$censored, 2L)
 })
@@ -136,11 +138,11 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_gte(length(ps$multipliers), 41L)
   expect_equal(ps$multipliers[ps$anchor_index], ps$anchors)
   expect_equal(ps$multipliers[ps$chosen_index], 1)
-  expect_equal(dim(ps$log10_bf), c(length(ps$multipliers), 15L))
+  expect_equal(dim(ps$log_bf), c(length(ps$multipliers), 15L))
   # Exactness lives on the anchor fits, not the pooled curve: the 1x verdict
   # column and every chosen-scale quantity are the original fit's own RB
-  # analysis. The reported PIP is the fit's RB inclusion, and the log10 BF is
-  # its exact prior-odds transform (checked on the pip scale, since the log10
+  # analysis. The reported PIP is the fit's RB inclusion, and the log BF is
+  # its exact prior-odds transform (checked on the pip scale, since the log
   # BF derivative amplifies a 1e-10 pip agreement near saturation).
   rb = extract_posterior_inclusion_probabilities(fit)
   rbv = unname(rb[upper.tri(rb)][order_upper_tri_rowmajor(6)])
@@ -149,27 +151,27 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_equal(ps$edges$chosen_scale_pip, rbv, tolerance = 1e-10)
   pc = ps$edges$chosen_scale_pip
   expect_equal(
-    ps$edges$chosen_scale_log10_bf,
-    log10((pc / (1 - pc)) / po),
+    ps$edges$chosen_scale_log_bf,
+    log((pc / (1 - pc)) / po),
     tolerance = 1e-12
   )
   expect_equal(
     ps$edges$verdict_x1,
-    verdict_from_lbf(ps$edges$chosen_scale_log10_bf, log10(ps$evidence_threshold)),
+    verdict_from_lbf(ps$edges$chosen_scale_log_bf, log(ps$evidence_threshold)),
     tolerance = 1e-10
   )
   # the pooled curve at 1x tracks the fit's own raw 1x inclusion proportions:
   # dominated by the 1x anchor (an identity reweight) but pooled with the
-  # neighbours, so on the log10 BF scale it agrees on median within a modest
+  # neighbours, so on the log BF scale it agrees on median within a modest
   # margin. The exact 1x analysis lives in the chosen-scale columns above; this
-  # is a tracking check on absolute log10 BF, robust to the tiny per-point MCSE
+  # is a tracking check on absolute log BF, robust to the tiny per-point MCSE
   # of near-saturated edges that makes a normalised ratio platform-unstable.
   g = do.call(rbind, fit$raw_samples$indicator)
-  raw_lbf = unname(log10((colMeans(g) / (1 - colMeans(g))) / po))
-  fin = is.finite(ps$log10_bf[ps$chosen_index, ]) & is.finite(raw_lbf)
+  raw_lbf = unname(log((colMeans(g) / (1 - colMeans(g))) / po))
+  fin = is.finite(ps$log_bf[ps$chosen_index, ]) & is.finite(raw_lbf)
   expect_lt(
-    stats::median(abs(ps$log10_bf[ps$chosen_index, ] - raw_lbf)[fin]),
-    0.5
+    stats::median(abs(ps$log_bf[ps$chosen_index, ] - raw_lbf)[fin]),
+    0.5 * log(10)
   )
   # verdicts and movers take only the documented levels
   expect_true(all(unlist(ps$verdict) %in%
@@ -177,7 +179,7 @@ test_that("prior_sensitivity_check builds the anchored curve object", {
   expect_true(all(ps$edges$mover %in%
     c("stable", "indistinguishable-from-wobble", "moved-beyond-wobble")))
   # pooling keeps the curve finite even where an edge saturates at some scale
-  expect_false(any(is.infinite(ps$log10_bf)))
+  expect_false(any(is.infinite(ps$log_bf)))
   # the data-preferred scale is reported without a refit
   expect_true(is.finite(ps$preferred_scale$s_hat))
   # print and plot run
@@ -204,16 +206,16 @@ test_that("the chosen-scale verdict uses the per-edge prior odds, not 1/2", {
     anchors = c(1, 2), iter = 300, warmup = 300, seed = 5
   )))
   expect_true(all(abs(ps$edges$prior_inclusion_probability - 0.2) < 1e-8))
-  # log10 BF divides posterior odds by the 0.2/0.8 prior odds
+  # the log BF divides posterior odds by the 0.2/0.8 prior odds
   p = ps$edges$chosen_scale_pip
-  expected = log10((p / (1 - p)) / (0.2 / 0.8))
-  expect_equal(ps$edges$chosen_scale_log10_bf, expected, tolerance = 1e-8)
+  expected = log((p / (1 - p)) / (0.2 / 0.8))
+  expect_equal(ps$edges$chosen_scale_log_bf, expected, tolerance = 1e-8)
 })
 
 
 test_that("warm-started short refits agree with cold full refits within wobble", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:8],
     chains = 4, iter = 2000, warmup = 1000, seed = 11,
@@ -252,12 +254,15 @@ test_that("anchors must include a multiplier other than 1", {
 
 test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   set.seed(32)
   xg = matrix(rnorm(180 * 5), 180, 5)
   fg = bgm(xg,
     variable_type = "continuous",
     iter = 300, warmup = 250, chains = 2, seed = 8,
+    # joint pinned: this smoke's anchors were recorded under the joint spec,
+    # before the hierarchical default (F-010)
+    precision_graph_prior = "joint",
     update_method = "adaptive-metropolis", display_progress = "none"
   )
   psg = suppressWarnings(suppressMessages(prior_sensitivity_check(fg,
@@ -286,8 +291,8 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   # curve points that clear the ESS floor carry a finite BF; masked ones are NA
   finite_pts = !is.na(psg$curve$anchor_used)
   expect_true(any(finite_pts))
-  expect_true(all(is.finite(psg$log10_bf[finite_pts, 1])))
-  expect_true(all(is.na(psg$log10_bf[!finite_pts, ])))
+  expect_true(all(is.finite(psg$log_bf[finite_pts, 1])))
+  expect_true(all(is.na(psg$log_bf[!finite_pts, ])))
 
   n = 180
   xm = data.frame(
@@ -324,7 +329,10 @@ test_that("compare_anchor_draws aligns every gated difference with its indicator
   expect_equal(ncol(d$theta[[1]]), 6L + 16L)
   expect_equal(ncol(d$indicator[[1]]), 10L)
   expect_equal(dim(d$gamma[[1]]), dim(d$theta[[1]]))
-  expect_equal(d$family, "cauchy")
+  # anchor_draws() reports tolower(spec$prior$difference_prior_type), which is
+  # tolower(difference_family). The fit is at defaults, and that default is
+  # "Normal" as of F-119, so the family is "normal". Exact, not a tolerance.
+  expect_equal(d$family, "normal")
 
   # Each parameter carries its own indicator's draws, not a neighbour's. The
   # pairwise differences come first, in the order the indicators name them.
@@ -349,6 +357,34 @@ test_that("compare_anchor_draws aligns every gated difference with its indicator
     d$theta[[1]][, seq_len(6L)], raw$pairwise[[1]][, 7:12],
     ignore_attr = TRUE
   )
+})
+
+
+test_that("the compare noise yardstick runs per indicator, not per gated parameter", {
+  skip_on_cran()
+  data("Wenchuan", package = "bgms")
+  fit = bgmCompare(
+    x = Wenchuan[1:100, 1:4], group_indicator = rep(1:2, each = 50),
+    iter = 200, warmup = 200, chains = 2, seed = 13,
+    difference_selection = TRUE, display_progress = "none"
+  )
+  # 22 gated difference parameters against 10 indicators: averaging the gamma
+  # draws instead of the indicator draws recycles the per-indicator prior odds
+  # across the parameter columns (with a length warning) and hands the wobble
+  # rule a 22-long yardstick for a 10-row edge table.
+  warns = character(0)
+  ps = withCallingHandlers(
+    suppressMessages(prior_sensitivity_check(
+      fit, anchors = c(0.5, 1, 2), iter = 200, warmup = 200,
+      ess_floor = 50, seed = 13
+    )),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_false(any(grepl("longer object length", warns)))
+  expect_equal(length(ps$wobble$per_edge), nrow(ps$edges))
 })
 
 
@@ -398,9 +434,46 @@ test_that("prior_sensitivity_check needs difference selection", {
 })
 
 
+# Weekly certification (T2): eleven independent 4-chain fits.
+#
+# The gate asks whether the reweighted curve at a doubled difference scale
+# reproduces a refit at that scale, in units of refit-to-refit spread. Every
+# term in that ratio used to rest on a SINGLE fit, so the test flipped between
+# seeds and went red on the 2026-08-01 nightly. Report 06's 20-seed study
+# separated the two effects: a real systematic reweighting bias of about 0.01
+# in inclusion probability at the extrapolation end, under a pass/fail decided
+# by seed luck (4/20 tripped the x4 gate).
+#
+# All three terms are now pooled:
+#
+#   prediction   the mean over THREE anchor fits at the chosen scale. This is
+#                the term that mattered: the reweighting prediction inherits
+#                its anchor's Monte Carlo error whole, and pooling the other
+#                two sides without this one leaves the gate seed-fragile.
+#   reference    the mean of EIGHT refits at the target scale, so the
+#                numerator is the reweighting bias rather than the bias plus
+#                one refit's noise.
+#   yardstick    four independent refit pairs, each contributing its
+#                max-over-edges deviation, averaged.
+#
+# The gate itself is the maintainer's, unchanged: gap < 4 x pooled_noise.
+#
+# Measured over 8 seed bases (s0 in 11, 31, 51, 71, 91, 111, 131, 151), ratio
+# = gap / pooled_noise:
+#
+#   1 anchor,  1 refit   (the original)   0.61 1.45 1.48 2.70 3.31 3.33 4.58 4.94
+#                                         median 3.00, 2/8 over the gate
+#   1 anchor,  8 refits                   0.78 1.00 1.53 2.01 2.89 3.52 3.87 5.44
+#                                         median 2.45, 1/8 over the gate
+#   3 anchors, 8 refits  (this block)     0.41 0.47 0.92 1.41 1.69 1.81 2.12 2.83
+#                                         median 1.55, 0/8 over the gate
+#
+# The pooled gap over those bases is 0.0018-0.0088 in inclusion probability,
+# inside the ~0.01 bound ?prior_sensitivity_check documents. Report 12 carries
+# the table.
 test_that("the difference-scale reweighting reproduces a refit at that scale", {
   skip_on_cran()
-  skip_unless_slow()
+  skip_unless_certification()
   data("Wenchuan", package = "bgms")
   x = Wenchuan[, 1:6]
   g = rep(1:2, length.out = nrow(x))
@@ -413,23 +486,44 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
   }
   pip_of = function(f) rowMeans(sapply(get_raw_samples(f)$rb_inclusion, colMeans))
 
-  f1 = compare_at(1, 11)
-  f2 = compare_at(2, 12)
-  f2b = compare_at(2, 13)
+  # Three anchor fits at the chosen scale and four independent refit pairs at
+  # the doubled scale, all on deterministic seeds.
+  anchors = lapply(c(11, 1011, 2011), function(s) compare_at(1, s))
+  pair_seeds = list(c(12, 13), c(14, 15), c(16, 17), c(18, 19))
+  pips = lapply(pair_seeds, function(s) list(pip_of(compare_at(2, s[1])),
+                                             pip_of(compare_at(2, s[2]))))
 
-  rw = anchor_reweight(anchor_draws(f1), s_a = 1, s_grid = c(1, 2))
-  nm = get_raw_samples(f1)$parameter_names$indicator
+  nm = get_raw_samples(anchors[[1]])$parameter_names$indicator
   pairwise = !grepl("(main)", nm, fixed = TRUE)
+  npw = sum(pairwise)
+  rws = lapply(anchors, function(f) {
+    anchor_reweight(anchor_draws(f), s_a = 1, s_grid = c(1, 2))
+  })
 
-  # Reweighting to the anchor's own scale is the identity up to Monte Carlo.
-  expect_lt(max(abs(rw$pip[1, pairwise] - pip_of(f1)[pairwise])), 0.02)
+  # Reweighting to an anchor's own scale is the identity up to Monte Carlo, and
+  # that has to hold for every anchor the prediction pools.
+  for(i in seq_along(anchors)) {
+    expect_lt(
+      max(abs(rws[[i]]$pip[1, pairwise] - pip_of(anchors[[i]])[pairwise])), 0.02
+    )
+    expect_gt(rws[[i]]$ess[2], 400)
+  }
+
+  # Yardstick: four independent two-refit deviations, pooled.
+  pooled_noise = mean(vapply(
+    pips, function(p) max(abs(p[[1]][pairwise] - p[[2]][pairwise])), numeric(1)
+  ))
+  # Prediction and reference, each pooled over its own fits.
+  prediction = rowMeans(vapply(rws, function(r) r$pip[2, pairwise], numeric(npw)))
+  reference = rowMeans(vapply(
+    unlist(pips, recursive = FALSE), function(p) p[pairwise], numeric(npw)
+  ))
 
   # A doubling is a real extrapolation; it stays usable and lands on the refit
   # to within a small multiple of the refit's own run-to-run spread. Without
   # this the whole curve would be reweighting an untested density.
-  expect_gt(rw$ess[2], 400)
-  noise = max(abs(pip_of(f2)[pairwise] - pip_of(f2b)[pairwise]))
-  expect_lt(max(abs(rw$pip[2, pairwise] - pip_of(f2)[pairwise])), 4 * noise)
+  gap = max(abs(prediction - reference))
+  expect_lt(gap, 4 * pooled_noise)
 })
 
 
@@ -450,4 +544,20 @@ test_that("a warm-start list with the wrong length errors", {
   # three parameter vectors but only two chains
   spec$initial_state = list(parameters = c(ws$parameters, ws$parameters[1]))
   expect_error(run_sampler(spec), "one entry per chain")
+})
+
+test_that("the refit gate abstains on an all-NA warmup check without warning", {
+  # A degenerate source fit leaves every energy diagnostic NA. min()/max() over
+  # nothing warns and returns an infinity, which reads as a criterion rather
+  # than as an absent one.
+  expect_equal(finite_reduce(c(NA_real_, NA_real_), min, Inf), Inf)
+  expect_equal(finite_reduce(numeric(0), max, 0), 0)
+  expect_equal(finite_reduce(c(NA_real_, 2, 5), max, 0), 5)
+  expect_identical(finite_reduce(c(NA_real_, NaN), stats::median, NA_real_), NA_real_)
+  expect_silent(finite_reduce(rep(NA_real_, 3L), min, Inf))
+  expect_silent(finite_reduce(rep(NA_real_, 3L), max, 0))
+
+  # Infinities are not finite values to reduce either: an unusable diagnostic
+  # abstains whichever way it is unusable.
+  expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
 })

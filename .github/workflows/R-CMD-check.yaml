@@ -3,6 +3,9 @@
 on:
   push:
     branches: [main, develop]
+    # Review-record commits touch dev/ only and cannot change any test
+    # outcome, so they do not launch package CI (F-102).
+    paths-ignore: ['dev/**']
   pull_request:
     branches: [main, develop]
 

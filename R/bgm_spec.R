@@ -300,13 +300,21 @@ zratio_joint_realized_prior_notice = function(precision_graph_prior, model_type,
 # model move there is no normalizer to compare across graphs -- and a message
 # would report a difference that does not exist.
 #
+# The default case is silent for the same reason. Since F-010 the specification
+# defaults to "hierarchical", so an ordinal fit carries the value without ever
+# having asked for it; the notice reports on a request, and telling a user that
+# an argument they never named has no effect is noise, not information.
+#
 # @param has_precision_block  Whether the model carries a continuous precision
 #   block of at least two variables.
+# @param explicit             Whether the caller named precision_graph_prior,
+#   as opposed to inheriting the default.
 #
 # Returns: invisible TRUE when the notice fired, FALSE otherwise.
 # ==============================================================================
-zratio_vacuous_spec_notice = function(has_precision_block) {
-  if(has_precision_block || !isTRUE(getOption("bgms.verbose", TRUE))) {
+zratio_vacuous_spec_notice = function(has_precision_block, explicit = TRUE) {
+  if(has_precision_block || !isTRUE(explicit) ||
+    !isTRUE(getOption("bgms.verbose", TRUE))) {
     return(invisible(FALSE))
   }
   message(
@@ -357,7 +365,14 @@ bgm_spec = function(x,
                     delta = NULL,
                     edge_selection = TRUE,
                     edge_prior = bernoulli_prior(0.5),
+                    # bgm() defaults to "hierarchical" since F-010 and resolves
+                    # that default itself, passing a scalar. The default here
+                    # serves the only other caller, bgmCompare(), which has no
+                    # continuous precision block for the argument to refer to.
                     precision_graph_prior = c("joint", "hierarchical"),
+                    # FALSE when the value was inherited from a default rather
+                    # than named by the user; gates the vacuous-spec advisory.
+                    precision_graph_prior_explicit = TRUE,
                     # Legacy edge prior params (accepted for backward compat)
                     inclusion_probability = 0.5,
                     beta_bernoulli_alpha_between = 1,
@@ -371,7 +386,7 @@ bgm_spec = function(x,
                       "Bernoulli", "Beta-Bernoulli", "Stochastic-Block"
                     ),
                     difference_scale = 1,
-                    difference_prior_type = "cauchy",
+                    difference_prior_type = "normal",
                     difference_probability = 0.5,
                     # Compare difference prior hyperparameters
                     beta_bernoulli_alpha = 1,
@@ -501,7 +516,7 @@ bgm_spec = function(x,
         interaction_prior_type
       ))
     }
-    zratio_vacuous_spec_notice(has_precision_block)
+    zratio_vacuous_spec_notice(has_precision_block, precision_graph_prior_explicit)
   }
 
   # --- Sampler (needs is_continuous and edge_selection early) ------------------

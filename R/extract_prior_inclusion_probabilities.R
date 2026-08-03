@@ -7,12 +7,16 @@
 # extract_posterior_inclusion_probabilities(), for use in prior/posterior
 # inclusion-odds computations.
 #
-# Under the joint spike-and-slab prior on a continuous block the graph
+# Under the JOINT spike-and-slab prior on a continuous block the graph
 # marginal is reweighted by the per-graph normalizer Z(Gamma) — the
 # positive-definite-cone mass of the slab under the pattern, further shaped
 # by the determinant tilt — so the prior inclusion probability of a
 # continuous-continuous edge is NOT the edge-prior marginal at ANY delta,
 # including delta = 0: it is the prior edge density of the joint block.
+# Under the HIERARCHICAL specification p(K | Gamma) is normalized per graph,
+# so integrating K out returns pi(Gamma) exactly and every class — the
+# continuous block included — keeps the edge-prior marginal. There is nothing
+# to read off a table or estimate by a chain there.
 # Discrete-discrete and cross interactions are unconstrained with normalized
 # slabs, so their edges keep the edge-prior marginal given the
 # hyperparameters. The nodes are exchangeable a priori (within variable
@@ -57,12 +61,38 @@ prior_pip_table = function(prior, num_continuous) {
   if(is.null(interaction_prior)) {
     return(NULL)
   }
+  # The sweep behind an uncached cell runs for minutes. It is announced on the
+  # advisory verbose flag and draws the sampler's progress bar, so the wait is
+  # accounted for rather than silent.
   ggm_correction_table(
     p = num_continuous, delta = prior$delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = correction_scale_prior(prior),
-    update_method = "gibbs"
+    update_method = "gibbs",
+    cores = normalize_parallel_cores(parallel::detectCores()),
+    verbose = isTRUE(getOption("bgms.verbose", TRUE)),
+    show_progress = TRUE
   )
+}
+
+
+# ------------------------------------------------------------------
+# prior_graph_is_tilted (internal)
+# ------------------------------------------------------------------
+# Whether the fit's precision prior reweights the graph law.
+#
+# The joint specification's p(K, Gamma) is un-normalized, so its graph
+# marginal is pi(Gamma) Z(Gamma) and a continuous-continuous edge carries
+# the tilted density. The hierarchical specification normalizes p(K | Gamma)
+# per graph, so integrating K out returns pi(Gamma) exactly and the nominal
+# edge prior is the prior inclusion probability of every class.
+#
+# @param spec  A bgms fit specification.
+#
+# Returns: TRUE when the graph law carries the determinant tilt.
+# ------------------------------------------------------------------
+prior_graph_is_tilted = function(spec) {
+  !identical(spec$prior$precision_graph_prior, "hierarchical")
 }
 
 
@@ -289,7 +319,7 @@ prior_pip_class_values = function(spec, iter, warmup) {
   } else {
     0L
   }
-  has_joint_block = num_cont >= 2L
+  has_joint_block = num_cont >= 2L && prior_graph_is_tilted(spec)
 
   if(identical(p$edge_prior, "Stochastic-Block")) {
     if(!has_joint_block) {
@@ -403,7 +433,8 @@ prior_pip_matrix_from_classes = function(spec, class_values) {
 #' `beta_bernoulli_prior()`, and the exchangeable partition mixture of
 #' the within- and between-block means for `sbm_prior()`.
 #'
-#' Under the joint spike-and-slab prior on a continuous block, the graph
+#' Under `precision_graph_prior = "joint"` the spike-and-slab prior on a
+#' continuous block leaves \eqn{p(K, \Gamma)} un-normalized, so the graph
 #' marginal is reweighted by the per-graph normalizer — the
 #' positive-definite-cone mass of the slab under the edge pattern,
 #' further shaped by the determinant tilt — so the prior inclusion
@@ -417,6 +448,12 @@ prior_pip_matrix_from_classes = function(spec, class_values) {
 #' probabilities are estimated by a prior-only chain run with the fit's
 #' own prior and correction settings; the estimate is cached on the fit,
 #' and `recompute = TRUE` re-runs it.
+#'
+#' Under `precision_graph_prior = "hierarchical"` the conditional
+#' \eqn{p(K \mid \Gamma)} is normalized per graph, so integrating \eqn{K}
+#' out returns \eqn{\pi(\Gamma)} exactly and the continuous block carries
+#' the same edge-prior marginal as every other class. The tilted table and
+#' the prior-only chain do not apply, and neither is built.
 #'
 #' In mixed models only continuous-continuous edges live in the joint
 #' block, so the matrix carries up to three distinct values:
@@ -436,6 +473,18 @@ prior_pip_matrix_from_classes = function(spec, class_values) {
 #' @return A symmetric matrix of prior inclusion probabilities with the
 #'   variable names as row and column names and a zero diagonal, matching
 #'   [extract_posterior_inclusion_probabilities()].
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#'
+#' # An ordinal MRF has no continuous block, so every edge carries the edge
+#' # prior's own marginal -- 0.5 under the default bernoulli_prior(0.5).
+#' extract_prior_inclusion_probabilities(fit)
+#'
+#' # These are the odds extract_inclusion_bf() divides out.
+#' extract_posterior_inclusion_probabilities(fit)
+#' }
 #'
 #' @seealso [extract_posterior_inclusion_probabilities()], [bgm()]
 #' @family extractors
@@ -485,7 +534,8 @@ extract_prior_inclusion_probabilities.bgms = function(bgms_object,
   } else {
     0L
   }
-  if(identical(p$edge_prior, "Bernoulli") && num_cont < 2L) {
+  if(identical(p$edge_prior, "Bernoulli") &&
+    (num_cont < 2L || !prior_graph_is_tilted(spec))) {
     offdiag = p$inclusion_probability[upper.tri(p$inclusion_probability)]
     if(length(unique(offdiag)) > 1L) {
       pip_matrix = p$inclusion_probability

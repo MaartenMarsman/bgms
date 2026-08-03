@@ -196,7 +196,7 @@ public:
      * precision diagonal until mediation dies. MEASURED against block-Gibbs
      * gold, the entire mediated correction is at most 2.84e-04 nats over the
      * scored band (shapes 12, 15 and 20 at k = 42, plus k = 100 at the shape-12
-     * maximum), two orders below the 0.003-nat envelope the surface's own
+     * maximum), roughly a tenth of the 0.003-nat envelope the surface's own
      * accuracy claims live in. The alternative -- the additive saddle -- is not
      * bounded that way: it returns essentially zero on common-neighbour
      * mediating blocks and discards the whole ratio.
@@ -225,9 +225,10 @@ public:
      * scores: each non-trivial component's moments come from the block-Gibbs
      * oracle (block_oracle_moments, at the set_oracle_params sweep count),
      * trivial components (CN size <= 2, single bridge) from the exact additive
-     * kernel; the sum feeds saddle_ratio. Isolates the surface's moment
-     * prediction from the closure, matching the companion's gold. Returns false
-     * for an invalid (isolated-edge) block.
+     * kernel; the sum feeds saddle_ratio. The reference IS the per-component
+     * Monte-Carlo oracle evaluation of the same decomposition the surface
+     * scores, so differencing the two isolates the surface's moment prediction
+     * from the closure. Returns false for an invalid (isolated-edge) block.
      */
     bool gold_moments(const arma::imat& G, int i, int j, double& s1_out,
                       double& s2_out, double& logr_out);

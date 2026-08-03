@@ -4,13 +4,18 @@
 \alias{plot.bgms_calibration}
 \title{Plot a Calibration Check}
 \usage{
-\method{plot}{bgms_calibration}(x, variables = NULL, ...)
+\method{plot}{bgms_calibration}(x, variables = NULL, max_panels = 9L, page = 1L, ...)
 }
 \arguments{
 \item{x}{An object of class \code{bgms_calibration}, from \code{\link[=calibration_check]{calibration_check()}}.}
 
 \item{variables}{Optional character vector selecting which variables to
 draw. Defaults to all, worst departure first.}
+
+\item{max_panels}{Number of panels drawn at once. A fit with more variables
+than this is drawn one page at a time, worst departure first. Default \code{9}.}
+
+\item{page}{Which page of \code{max_panels} panels to draw. Default \code{1}.}
 
 \item{...}{Ignored.}
 }
@@ -22,10 +27,19 @@ Reliability diagrams as small multiples, one panel per variable: the
 isotonic fit of observed frequency on predicted probability, its consistency
 band, and the diagonal a calibrated model tracks.
 }
+\details{
+Seventeen variables at once leave each panel too small to read, so the
+default draws the nine worst and reports how to reach the rest. \code{variables}
+selects panels by name; \code{page} walks through them a screen at a time.
+}
 \examples{
 \donttest{
 fit = bgm(Wenchuan[, 1:5], display_progress = "none")
-plot(calibration_check(fit, nrep = 50))
+check = calibration_check(fit, nrep = 50)
+plot(check)
+
+# One variable at a time.
+plot(check, variables = "intrusion")
 }
 
 }

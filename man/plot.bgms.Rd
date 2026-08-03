@@ -9,7 +9,6 @@
   type = c("network", "centrality"),
   evidence_threshold = 10,
   layout = "spring",
-  legend = TRUE,
   ...
 )
 }
@@ -17,15 +16,13 @@
 \item{x}{A fitted model object of class \code{bgms}, from \code{\link[=bgm]{bgm()}}.}
 
 \item{type}{Character; which display to draw. \code{"network"} (default) is the
-verdict-encoded model-averaged network; \code{"centrality"} is the posterior
-strength centrality of \code{\link[=extract_centrality]{extract_centrality()}}.}
+edge evidence plot; \code{"centrality"} is the posterior strength centrality of
+\code{\link[=extract_centrality]{extract_centrality()}}.}
 
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
 evidence of presence from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
-
-\item{legend}{Logical; draw the edge legend. Default \code{TRUE}.}
 
 \item{...}{Passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}} for \code{type = "network"}, and to
 \code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}} otherwise.}
@@ -34,21 +31,64 @@ evidence of presence from undecided, as in \code{\link[=verdicts]{verdicts()}}. 
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-Draws the model-averaged network with edges encoded by what the data settle
-about them, or one of the other standard displays.
+Draws the network as three panels split by what the data settle about each
+pair, or one of the other standard displays.
 }
 \details{
-Edges are drawn by verdict rather than by estimate. An edge with evidence of
-presence is drawn solid, with its width scaled by the model-averaged weight
-and its colour carrying the sign; an undecided edge is drawn as a thin
-dotted grey line, because the data neither place it in the network nor rule
-it out; an edge with evidence of absence is not drawn. The default picture
-therefore says the same thing as \code{\link[=verdicts]{verdicts()}} at the same threshold, instead
-of showing one unqualified network of point estimates.
+\strong{The edge evidence plot.} A single network drawing has to make every
+pair either an edge or a blank, and a blank cannot say whether the data ruled
+the pair out or simply had too little to say about it. \code{bgm()} returns an
+inclusion Bayes factor for every pair, so that choice does not have to be
+made: the network is drawn as three panels on one shared layout -- the pairs
+the data support, the pairs the data rule out, and the pairs the data cannot
+decide. Each panel is titled with what it holds and how many pairs are in it,
+and with the rule that put them there, stated as a Bayes factor rather than
+its logarithm. The classification is the one \code{\link[=verdicts]{verdicts()}} reports at the same
+\code{evidence_threshold}.
 
-Drawing the network requires the suggested package qgraph. The three-panel
-evidence display, the structure plots, and the other network displays live
-in the easybgm package, which builds on these fits.
+Only the first panel is weighted. There, line width is the posterior mean
+pairwise association and colour carries its sign -- blue for a positive
+association, vermillion for a negative one, the Okabe-Ito pair, so the sign
+survives common forms of colour-vision deficiency -- because that is where
+the effect sizes are. The other two panels are drawn at uniform width, dashed
+for evidence of absence and dotted for undecided: for those pairs the
+classification is the result, and a width would suggest an effect size that
+the data have either ruled out or not established.
+
+The figure carries no key. Each panel is titled with the evidence class it
+holds and the rule that defines it, which is what a key would otherwise
+repeat; the sign convention is documented here rather than reprinted on
+every figure.
+
+The layout is computed once from every pair and reused, so a node sits in the
+same place in all three panels and a reader compares them by position.
+
+\strong{Device size.} Three networks side by side need a wide device. R's
+default 7 by 7 inches gives each panel a little over two inches of width, and
+at that size the node labels and the panel titles crowd. Open a wide device
+before plotting -- \verb{width = 13, height = 5} is a good starting point --
+or pass the same to whichever device the output is going to:
+\preformatted{
+dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+plot(fit)
+}
+The single-panel display (no edge selection) is content with the default
+device.
+
+A fit with no edge left in a panel is a result, not a failure. An all-absence
+fit fills the second panel and leaves the first empty, which is the honest
+picture of it.
+
+\strong{Without edge selection} there is no indicator and so no inclusion
+Bayes factor, and nothing to split the pairs by: the analysis is an
+estimation one. \code{plot()} then draws one panel with every pair on it, width
+the posterior mean association and colour its sign, and titles it
+\code{"Edge weights"} so that the channel the figure is drawn in is never in
+doubt.
+
+Drawing the network requires the suggested package qgraph. The structure
+plots and the other network displays live in the easybgm package, which
+builds on these fits.
 }
 \examples{
 \donttest{
@@ -59,7 +99,8 @@ plot(fit, type = "centrality")
 
 }
 \seealso{
-\code{\link[=verdicts]{verdicts()}} for the table the picture encodes,
+The \pkg{easybgm} package for more extensive plotting and summary
+options around bgms fits; \code{\link[=verdicts]{verdicts()}} for the table the panels encode,
 \code{\link[=extract_centrality]{extract_centrality()}}, \code{\link[=plot_edge_posterior]{plot_edge_posterior()}} for one edge in detail
 
 Other posterior-methods:

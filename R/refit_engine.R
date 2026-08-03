@@ -107,7 +107,8 @@ refit_at_scale = function(fit, scale, warm_state, warmup, iter, seed,
   spec$sampler$warmup = as.integer(warmup)
   spec$sampler$iter = as.integer(iter)
   spec$sampler$seed = as.integer(seed)
-  spec$sampler$cores = as.integer(cores)
+  # The refit bypasses validate_sampler(), so it applies the core guard itself.
+  spec$sampler$cores = normalize_parallel_cores(cores)
   # Render the sampler's own native display (a bar per chain, with the
   # warmup/sampling stage and ETA) for this refit when asked; otherwise stay
   # silent. The manager redraws its block in place, so a refit's chains do not
@@ -288,7 +289,8 @@ data_preferred_scale = function(fit) {
 # ------------------------------------------------------------------
 # verdict_from_lbf
 # ------------------------------------------------------------------
-# Map a log10 inclusion Bayes factor to a verdict at threshold lthr = log10(t).
+# Map a natural log inclusion Bayes factor to a verdict at threshold
+# lthr = log(t).
 # ------------------------------------------------------------------
 verdict_from_lbf = function(lbf, lthr) {
   out = rep("undecided", length(lbf))
@@ -303,9 +305,9 @@ verdict_from_lbf = function(lbf, lthr) {
 # refit_edge_stats
 # ------------------------------------------------------------------
 # Per-edge quantities from one refit: the Rao-Blackwellized inclusion
-# probability (canonical), its log10 inclusion Bayes factor and verdict, the
-# within-chain MCSE of the log10 BF (RB machinery, PR #182), the between-chain
-# half-band (2 * SEM of the grand mean from chain spread, propagated to the log10
+# probability (canonical), its natural log inclusion Bayes factor and verdict,
+# the within-chain MCSE of the log BF (RB machinery, PR #182), the between-chain
+# half-band (2 * SEM of the grand mean from chain spread, propagated to the log
 # BF), per-chain verdict unanimity, and the zero-flip mask. Edge order is the
 # native row-major upper triangle.
 # ------------------------------------------------------------------
@@ -330,10 +332,10 @@ refit_edge_stats = function(fit, evidence_threshold) {
 
   ind = fit@posterior_summary_indicator
   mcse_pip = ind[, "mcse"]
-  lthr = log10(evidence_threshold)
+  lthr = log(evidence_threshold)
 
-  lbf = function(p) log10((p / (1 - p)) / prior_odds)
-  dfac = 1 / (log(10) * pmax(pbar * (1 - pbar), 1e-6)) # d log10 BF / d p
+  lbf = function(p) log((p / (1 - p)) / prior_odds)
+  dfac = 1 / pmax(pbar * (1 - pbar), 1e-6) # d log BF / d p
   lbf_bar = lbf(pbar)
   mcse_lbf = mcse_pip * dfac
   se_between = apply(pc, 1, stats::sd) / sqrt(M)
@@ -374,6 +376,27 @@ refit_edge_stats = function(fit, evidence_threshold) {
 # cold fits; see the diagnostics doctrine). The max continuous Rhat and the
 # smallest Rao-Blackwellized inclusion ESS are reported for transparency.
 # ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# finite_reduce
+# ------------------------------------------------------------------
+# Reduce the finite entries of a diagnostic vector, with a stated value for
+# the case where there are none. min() and max() answer that case with a
+# warning and an infinity, which reads as a passing or failing criterion
+# rather than as an absent one.
+#
+# @param values  Numeric vector, possibly empty or all NA.
+# @param fn      The reduction.
+# @param empty   Value to return when nothing is finite.
+#
+# Returns: the reduction, or `empty`.
+# ------------------------------------------------------------------
+finite_reduce = function(values, fn, empty) {
+  values = values[is.finite(values)]
+  if(length(values) == 0L) empty else fn(values)
+}
+
+
 refit_convergence_gate = function(fit) {
   rhats = numeric(0)
   esss = numeric(0)
@@ -397,19 +420,22 @@ refit_convergence_gate = function(fit) {
   }
   ind = fit@posterior_summary_indicator
 
-  rhat_cont = stats::median(rhats, na.rm = TRUE)
-  rhat_cont_max = max(rhats, na.rm = TRUE)
-  ess_cont = min(esss, na.rm = TRUE)
-  ess_incl = min(ind[, "n_eff"], na.rm = TRUE)
-  rb_med_rhat = stats::median(ind[, "Rhat"], na.rm = TRUE)
+  rhat_cont = finite_reduce(rhats, stats::median, NA_real_)
+  rhat_cont_max = finite_reduce(rhats, max, NA_real_)
+  ess_cont = finite_reduce(esss, min, NA_real_)
+  ess_incl = finite_reduce(ind[, "n_eff"], min, NA_real_)
+  rb_med_rhat = finite_reduce(ind[, "Rhat"], stats::median, NA_real_)
 
   wc = tryCatch(fit@nuts_diag$warmup_check, error = function(e) NULL)
+  # A degenerate source fit can leave every energy diagnostic NA. An
+  # unassessable criterion abstains, exactly as an absent warmup check does;
+  # the R-hat criteria still decide the gate.
   ebfmi = if(is.null(wc)) {
     Inf
   } else {
-    min(c(wc$ebfmi_first_half, wc$ebfmi_second_half), na.rm = TRUE)
+    finite_reduce(c(wc$ebfmi_first_half, wc$ebfmi_second_half), min, Inf)
   }
-  var_ratio = if(is.null(wc)) 0 else max(wc$var_ratio, na.rm = TRUE)
+  var_ratio = if(is.null(wc)) 0 else finite_reduce(wc$var_ratio, max, 0)
 
   usable = is.finite(rhat_cont) && rhat_cont < 1.01 &&
     rb_med_rhat < 1.01 && ebfmi > 0.3 && var_ratio < 2

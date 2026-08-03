@@ -17,6 +17,29 @@ An object of class \code{summary.bgmCompare} with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted \code{bgmCompare} model.
 }
+\details{
+In the printed "Group differences (main effects)" block, a
+threshold difference that rests on the prior rather than on the data is
+marked with a leading \code{*}, and the block gains the footnote \emph{a group lacks
+observations in this category or in the reference category; the estimate
+reflects the prior, not the data}.
+
+\code{bgmCompare()} keeps the union of the categories the groups observe, so a
+group can contribute no observations at all to a retained category. Two
+things follow. If the empty category is the row's own, that group's
+threshold for it has nothing behind it. If the empty category is the
+reference category, the group has no data fixing the level of its
+threshold vector at all, and \emph{every} threshold of that variable is
+affected, not just one --- so the whole variable is marked. Either way the
+reported difference is large and very uncertain without being evidence of
+a group difference.
+
+The per-group counts behind the mark are in
+\code{extract_arguments(fit)$category_support}, one matrix of category-by-group
+observation counts per variable (\code{NULL} for Blume-Capel variables, which
+are exempt from the union recode and are never marked). Fits made before
+that field existed print unmarked.
+}
 \examples{
 \donttest{
 # See ?bgmCompare for a full example

@@ -149,15 +149,10 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
 # core limit, never fork on Windows, and never exceed the machine.
 # ------------------------------------------------------------------
 normalize_builder_cores = function(cores) {
-  cores = max(1L, as.integer(cores))
   if(identical(.Platform$OS.type, "windows")) {
     return(1L)
   }
-  check_limit = Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-  if(nzchar(check_limit) && !identical(tolower(check_limit), "false")) {
-    cores = min(cores, 2L)
-  }
-  min(cores, parallel::detectCores())
+  normalize_parallel_cores(cores)
 }
 
 
@@ -547,6 +542,33 @@ correction_cache_dir = function() {
 }
 
 # ------------------------------------------------------------------
+# ggm_correction_table_key (internal)
+# ------------------------------------------------------------------
+# Disk-cache file name for one correction table: the model cell, the
+# builder settings, and the package version.
+#
+# The version is part of the key on the same convention as the Z-ratio
+# surface cache (zratio_surface_cache_key): the sweep that builds the
+# table is code, so a release that changes it must not be served an
+# earlier version's table out of the shared cache directory. Files
+# under an older key are simply never read again.
+#
+# @param cell           Cell identity from ggm_correction_cell().
+# @param n_grid,n_samples,n_warmup,n_seeds,update_method  Builder settings.
+#
+# Returns: the file name, including the .rds extension.
+# ------------------------------------------------------------------
+ggm_correction_table_key = function(cell, n_grid, n_samples, n_warmup,
+                                    n_seeds, update_method) {
+  sprintf(
+    "ggm_ctable_v1_%s_q%d_delta%.8g_eta%.8g_%s_shape%.8g_g%d_ns%d_nw%d_sd%d_%s.rds",
+    as.character(utils::packageVersion("bgms")),
+    cell$q, cell$delta, cell$eta, cell$slab_family, cell$scale_shape,
+    n_grid, n_samples, n_warmup, n_seeds, update_method
+  )
+}
+
+# ------------------------------------------------------------------
 # ggm_correction_table (internal)
 # ------------------------------------------------------------------
 # Cache wrapper: get-or-build the table for a model cell. Tables are
@@ -575,10 +597,8 @@ ggm_correction_table = function(
     cell = ggm_correction_cell(
       p, delta, interaction_prior, precision_scale_prior
     )
-    key = sprintf(
-      "ggm_ctable_v1_q%d_delta%.8g_eta%.8g_%s_shape%.8g_g%d_ns%d_nw%d_sd%d_%s.rds",
-      cell$q, cell$delta, cell$eta, cell$slab_family, cell$scale_shape,
-      n_grid, n_samples, n_warmup, n_seeds, update_method
+    key = ggm_correction_table_key(
+      cell, n_grid, n_samples, n_warmup, n_seeds, update_method
     )
     cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, key)

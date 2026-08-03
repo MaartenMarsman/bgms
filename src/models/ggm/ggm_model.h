@@ -724,12 +724,31 @@ private:
      * maintained covariance, whose floating-point drift can place a proposal
      * outside the cone with finite acceptance probability. An accepted
      * non-PD state invalidates the Cholesky machinery and the next
-     * refresh_cholesky() throws. ggm_edge_move and ggm_diag_move reject such
-     * proposals explicitly when n == 0.
+     * refresh_cholesky() throws. ggm_edge_move, ggm_diag_move and
+     * update_edge_indicator_conjugate reject such proposals explicitly when
+     * n == 0.
      *
      * @return true if precision_proposal_ admits a Cholesky factorization
      */
     bool proposal_is_positive_definite_() const;
+
+    /**
+     * Positive-definiteness of an edge proposal given its three changed
+     * entries, for callers that have not filled precision_proposal_.
+     *
+     * The conjugate birth/death move (update_edge_indicator_conjugate) forms
+     * its proposal as scalars and never writes the full matrix on the data
+     * path, so it fills precision_proposal_ here before deferring to
+     * proposal_is_positive_definite_. Only the prior-only path calls this, so
+     * the O(p^2) copy and O(p^3) factorization are off the data path.
+     *
+     * @param i, j       Edge indices (i < j).
+     * @param kij, kjj   Proposed K(i,j) and K(j,j).
+     * @return true if the proposed precision matrix admits a Cholesky
+     *         factorization
+     */
+    bool edge_proposal_is_positive_definite_(size_t i, size_t j, double kij,
+                                             double kjj);
 
     /**
      * Metropolis-Hastings add-delete move for an edge indicator.

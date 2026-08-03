@@ -24,24 +24,24 @@ helpers_available = file.exists(helpers_path)
 
 
 # ==============================================================================
-# Gate: skip unless BGMS_RUN_SLOW_TESTS=true
+# Gate: weekly certification tier (T2)
 # ==============================================================================
+#
+# Parameter recovery, MH-vs-NUTS agreement and the estimate-simulate-re-estimate
+# cycle are the heavy Monte-Carlo machinery, not a nightly heartbeat, so this
+# file runs under BGMS_RUN_CERTIFICATION rather than BGMS_RUN_SLOW_TESTS.
 
-skip_slow = function() {
-  skip_if_not(
-    isTRUE(as.logical(Sys.getenv("BGMS_RUN_SLOW_TESTS", "false"))),
-    "Set BGMS_RUN_SLOW_TESTS=true to run slow validation tests"
-  )
+skip_unless_certification_validation = function() {
+  skip_unless_certification()
   skip_if(!helpers_available, "Validation helpers not found")
 }
-
 
 # ==============================================================================
 # 1. Parameter recovery (adapted from group1)
 # ==============================================================================
 
 test_that("mixed MRF parameter recovery: cor > 0.8 (small network)", {
-  skip_slow()
+  skip_unless_certification_validation()
   source(helpers_path, local = TRUE)
 
   net = make_network(p = 2, q = 2, n_cat = c(1L, 2L), density = 1.0, seed = 101)
@@ -76,7 +76,7 @@ test_that("mixed MRF parameter recovery: cor > 0.8 (small network)", {
 # ==============================================================================
 
 test_that("MH vs NUTS posterior agreement: cor > 0.95", {
-  skip_slow()
+  skip_unless_certification_validation()
   source(helpers_path, local = TRUE)
 
   net = make_network(p = 2, q = 2, n_cat = c(1L, 2L), density = 1.0, seed = 101)
@@ -114,7 +114,7 @@ test_that("MH vs NUTS posterior agreement: cor > 0.95", {
 # ==============================================================================
 
 test_that("estimate-simulate-re-estimate cycle: cor > 0.7 (mixed MRF)", {
-  skip_slow()
+  skip_unless_certification_validation()
   source(helpers_path, local = TRUE)
 
   net = make_network(p = 2, q = 2, n_cat = c(1L, 2L), density = 1.0, seed = 101)

@@ -176,9 +176,15 @@ build_arguments_compare = function(spec) {
     projection                         = spec$data$projection,
     num_categories                     = spec$data$num_categories,
     category_levels                    = spec$data$category_levels,
+    # Per-group counts on the final category codes: which group-by-category
+    # cells are empty, and therefore which main-effect differences rest on the
+    # prior rather than on data. See collapse_categories_across_groups().
+    category_support                   = spec$data$category_support,
     blume_capel_shift                  = spec$data$blume_capel_shift,
     is_ordinal_variable                = spec$variables$is_ordinal,
+    baseline_category                  = spec$variables$baseline_category,
     group                              = sort(spec$data$group),
+    group_labels                       = spec$data$group_labels,
     model_type                         = "compare"
   )
 }

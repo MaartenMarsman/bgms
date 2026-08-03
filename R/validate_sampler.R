@@ -15,6 +15,35 @@
 # Small reusable helpers used by validate_sampler() and other validators.
 # ------------------------------------------------------------------------------
 
+# R CMD check sets _R_CHECK_LIMIT_CORES_ and rejects a package whose examples,
+# tests or vignettes use more than two cores, so every worker count the package
+# resolves passes through normalize_parallel_cores(): cap at two under the
+# check, and never exceed the machine. The sweep builders add a no-forking rule
+# on Windows on top of it (normalize_builder_cores()); the sampler's chain
+# workers are threads and need no such rule.
+check_limit_cores = function() {
+  check_limit = Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+  nzchar(check_limit) && !identical(tolower(check_limit), "false")
+}
+
+normalize_parallel_cores = function(cores) {
+  cores = suppressWarnings(as.integer(cores))
+  # A worker count that is not one usable number is a bug upstream, not a
+  # number to carry: NA, empty and vectors all reach parallel:: as something
+  # it will either misread or refuse, so they collapse to 1 here.
+  if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
+  if(check_limit_cores()) {
+    cores = min(cores, 2L)
+  }
+  # detectCores() is documented to return NA when it cannot tell, and
+  # min(k, NA) is NA -- which would then be handed to a cluster constructor.
+  detected = suppressWarnings(as.integer(parallel::detectCores()))
+  if(length(detected) != 1L || is.na(detected) || detected < 1L) {
+    return(cores)
+  }
+  min(cores, detected)
+}
+
 check_positive_integer = function(value, name) {
   if(!is.numeric(value) || abs(value - round(value)) > .Machine$double.eps || value <= 0) {
     stop(sprintf("Parameter `%s` must be a positive integer. Got: %s", name, value))
@@ -183,6 +212,7 @@ validate_sampler = function(update_method,
   # --- chains / cores ---------------------------------------------------------
   check_positive_integer(chains, "chains")
   check_positive_integer(cores, "cores")
+  cores = normalize_parallel_cores(cores)
 
   # --- seed -------------------------------------------------------------------
   seed = check_seed(seed)

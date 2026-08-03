@@ -205,6 +205,46 @@ test_that("the hierarchical spec accepts a gamma-shape diagonal", {
   expect_false(is.null(fit@zratio_diag))
 })
 
+test_that("the hierarchical spec runs at the smallest analyses", {
+  skip_on_cran()
+  # A bipartite bridge needs 2 + 2 nodes, so at 2 or 3 variables the bipartite
+  # anchor grid is empty and no surface is built. That used to abort the fit
+  # ("replacement has 1 row, data has 0"); it now routes to the additive path,
+  # which is exact at these block sizes. From 4 variables up both families
+  # anchor and the surface is built as usual.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  for(q in 2:5) {
+    outcome = tryCatch(
+      {
+        fit = bgm(
+          x = hier_test_data(q = q, n = 60), variable_type = "continuous",
+          iter = 100, warmup = 150,
+          interaction_prior = normal_prior(scale = 0.5),
+          precision_scale_prior = gamma_prior(shape = 1, rate = 2),
+          precision_graph_prior = "hierarchical",
+          update_method = "gibbs", chains = 1, cores = 1, seed = 7,
+          display_progress = "none", verbose = FALSE
+        )
+        if(all(is.finite(summary(fit)$pairwise$mean))) "fitted" else "non-finite"
+      },
+      error = function(e) conditionMessage(e)
+    )
+    expect_equal(outcome, "fitted", info = sprintf("q = %d", q))
+  }
+  expect_true(bgms:::zratio_anchor_grids_empty(2L))
+  expect_true(bgms:::zratio_anchor_grids_empty(3L))
+  for(q in c(4L, 5L)) {
+    surf = bgms:::zratio_build_surfaces(
+      bgms:::zratio_constants(0.5 * log(q), 2),
+      max_size = q, cores = 1L
+    )
+    expect_false(is.null(surf$bip), label = sprintf("bip surface at q = %d", q))
+  }
+})
+
 test_that("the hierarchical spec accepts a Cauchy slab on every update method", {
   skip_on_cran()
   skip_unless_slow()
@@ -281,17 +321,68 @@ test_that("the trust gauge runs by default on the hierarchical path", {
   expect_null(do.call(bgm, fit_args)@zratio_diag)
 })
 
-test_that("the joint default is unchanged", {
+test_that("a continuous fit defaults to the hierarchical spec (F-010)", {
   skip_on_cran()
+  # Re-derived from the flipped default: an unnamed precision_graph_prior on
+  # continuous data now resolves to "hierarchical", which means the fit records
+  # that value and the trust gauge runs, where the joint default recorded
+  # "joint" and left zratio_diag NULL. The joint path is still one argument
+  # away, and the second half asserts it is unchanged.
   Y = hier_test_data(q = 6)
-  fit = bgm(
+  fit_args = list(
     x = Y, variable_type = "continuous",
     iter = 100, warmup = 150,
     update_method = "gibbs", chains = 1, cores = 1, seed = 3,
     display_progress = "none", verbose = FALSE
   )
-  expect_equal(fit@arguments$precision_graph_prior, "joint")
-  expect_null(fit@zratio_diag)
+  fit = do.call(bgm, fit_args)
+  expect_equal(fit@arguments$precision_graph_prior, "hierarchical")
+  expect_false(is.null(fit@zratio_diag))
+
+  joint = do.call(bgm, c(fit_args, list(precision_graph_prior = "joint")))
+  expect_equal(joint@arguments$precision_graph_prior, "joint")
+  expect_null(joint@zratio_diag)
+})
+
+test_that("the vacuous-spec notice reports a request, not the default", {
+  # An ordinal model has no continuous precision block, so the argument has no
+  # referent. Since F-010 the value arrives on every fit, so the advisory has
+  # to distinguish a user's request from an inherited default -- otherwise the
+  # flagship ordinal fit gains a message about an argument nobody named.
+  withr::local_options(bgms.verbose = TRUE)
+  expect_message(
+    zratio_vacuous_spec_notice(has_precision_block = FALSE, explicit = TRUE),
+    "no effect for this model"
+  )
+  expect_no_message(
+    zratio_vacuous_spec_notice(has_precision_block = FALSE, explicit = FALSE)
+  )
+  expect_no_message(
+    zratio_vacuous_spec_notice(has_precision_block = TRUE, explicit = TRUE)
+  )
+})
+
+test_that("bgm keeps the ordinal default fit silent about the spec", {
+  skip_on_cran()
+  x = ordinal_test_data(q = 4)
+  msgs = function(extra = list()) {
+    out = character(0)
+    withCallingHandlers(
+      do.call(bgm, c(list(
+        x = x, iter = 50, warmup = 300, chains = 1, cores = 1,
+        display_progress = "none", verbose = TRUE
+      ), extra)),
+      message = function(m) {
+        out <<- c(out, conditionMessage(m))
+        invokeRestart("muffleMessage")
+      }
+    )
+    out
+  }
+  vacuous = function(m) any(grepl("no effect for this model", m, fixed = TRUE))
+
+  expect_false(vacuous(msgs()))
+  expect_true(vacuous(msgs(list(precision_graph_prior = "hierarchical"))))
 })
 
 test_that("mixed data supports the hierarchical spec on the continuous block", {

@@ -22,19 +22,12 @@
 #   divergence rate < 5%, E-BFMI > 0.1, tree depth hits < 25%,
 #   min ESS > 50, max Rhat < 1.1.
 #
-# All gated behind BGMS_RUN_SLOW_TESTS.
+# All in the weekly certification tier (T2, BGMS_RUN_CERTIFICATION): a full
+# NUTS-health condition grid up to p = 15.
 # --------------------------------------------------------------------------- #
 
 
 # ---- Skip gate ---------------------------------------------------------------
-
-skip_unless_slow_scaling = function() {
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run scaling diagnostics"
-  )
-}
-
 
 # ---- Diagnostic assertion helper ---------------------------------------------
 
@@ -183,7 +176,7 @@ generate_mixed_scaling_data = function(p, q, n,
 # ---- GGM scaling tests -------------------------------------------------------
 
 test_that("S.G1: GGM NUTS healthy at p=5, no edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_ggm_scaling_data(p = 5, n = 200, seed = 3001)
 
@@ -191,14 +184,15 @@ test_that("S.G1: GGM NUTS healthy at p=5, no edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3001
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3001
   )
 
   check_nuts_health(fit, "S.G1")
 })
 
 test_that("S.G2: GGM NUTS healthy at p=10, no edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_ggm_scaling_data(p = 10, n = 100, seed = 3002)
 
@@ -206,14 +200,15 @@ test_that("S.G2: GGM NUTS healthy at p=10, no edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3002
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3002
   )
 
   check_nuts_health(fit, "S.G2")
 })
 
 test_that("S.G3: GGM NUTS healthy at p=10 with edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_ggm_scaling_data(p = 10, n = 100, seed = 3003)
 
@@ -221,14 +216,18 @@ test_that("S.G3: GGM NUTS healthy at p=10 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3003
+    # joint pinned: these health baselines predate the hierarchical
+    # default (F-010)
+    precision_graph_prior = "joint",
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3003
   )
 
   check_nuts_health(fit, "S.G3")
 })
 
 test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_ggm_scaling_data(p = 15, n = 200, seed = 3004)
 
@@ -236,7 +235,9 @@ test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, display_progress = "none", seed = 3004
+    precision_graph_prior = "joint",
+    interaction_prior = cauchy_prior(scale = 2.5),
+    display_progress = "none", seed = 3004
   )
 
   check_nuts_health(fit, "S.G4")
@@ -246,7 +247,7 @@ test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
 # ---- Mixed MRF scaling tests -------------------------------------------------
 
 test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_mixed_scaling_data(p = 3, q = 2, n = 200, seed = 3011)
   vtype = c(rep("ordinal", 3), rep("continuous", 2))
@@ -255,7 +256,8 @@ test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = FALSE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3011
   )
 
@@ -263,7 +265,7 @@ test_that("S.M1: Mixed NUTS healthy at p=3, q=2, no edge selection", {
 })
 
 test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_mixed_scaling_data(p = 5, q = 3, n = 200, seed = 3012)
   vtype = c(rep("ordinal", 5), rep("continuous", 3))
@@ -272,7 +274,8 @@ test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3012
   )
 
@@ -280,7 +283,7 @@ test_that("S.M2: Mixed NUTS healthy at p=5, q=3 with edge selection", {
 })
 
 test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_mixed_scaling_data(p = 7, q = 5, n = 150, seed = 3013)
   vtype = c(rep("ordinal", 7), rep("continuous", 5))
@@ -289,7 +292,8 @@ test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3013
   )
 
@@ -302,7 +306,7 @@ test_that("S.M3: Mixed NUTS healthy at p=7, q=5 with edge selection", {
 })
 
 test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   dat = generate_mixed_scaling_data(p = 5, q = 3, n = 200, seed = 3014)
   vtype = c(rep("ordinal", 5), rep("continuous", 3))
@@ -311,7 +315,8 @@ test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3014
   )
 
@@ -322,10 +327,10 @@ test_that("S.M4: Mixed NUTS healthy at p=5, q=3, marginal PL", {
 })
 
 test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
-  skip_unless_slow_scaling()
+  skip_unless_certification()
 
   # K_yy = [[1, 0.05], [0.05, 0.012]]: condition number ~106,
-  # stresses the RATTLE projection while keeping data well-behaved.
+  # stresses the zero-edge constraint projection while keeping data well-behaved.
   pairwise_cont_m5 = matrix(c(-0.5, -0.025, -0.025, -0.006), 2, 2)
 
   dat = generate_mixed_scaling_data(
@@ -339,7 +344,8 @@ test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
     variable_type = vtype,
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
-    pairwise_scale = 2.5, main_alpha = 0.5, main_beta = 0.5,
+    interaction_prior = cauchy_prior(scale = 2.5),
+    threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
     display_progress = "none", seed = 3015
   )
 

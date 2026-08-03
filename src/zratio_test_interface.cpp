@@ -11,7 +11,6 @@
 #include <RcppArmadillo.h>
 
 #include "models/ggm/zratio_engine.h"
-#include "models/ggm/zratio_law.h"
 
 // -----------------------------------------------------------------------------
 // zratio_test_eval:
@@ -346,35 +345,5 @@ Rcpp::List zratio_test_precompute(
         Rcpp::_["log_zratio"] = out,
         Rcpp::_["preload"] = preload,
         Rcpp::_["n_miss"] = engine.n_miss()
-    );
-}
-
-// -----------------------------------------------------------------------------
-// zratio_law_moments:
-//   Test-only entry for the DORMANT mu-first CPA analytic CN law (zratio_law.h,
-//   not wired into the default build; see that header). Builds the (eta, delta)
-//   grids, runs the self-consistent solve for a component of `n` common
-//   neighbours at mean degree D, gates on the psi residual, and dresses to
-//   (S1, S2). `certified` is FALSE when the solve does not converge within
-//   `budget` or the dressing is non-positive. Deterministic (no RNG). Drives
-//   the law-engine validation in test-zratio-law.R.
-// -----------------------------------------------------------------------------
-
-// [[Rcpp::export(name = "zratio_law_moments")]]
-Rcpp::List zratio_law_moments(
-    double eta,
-    double delta,
-    double D,
-    double n,
-    int budget = 3000
-) {
-    double s1 = NA_REAL, s2 = NA_REAL, psi_gap = NA_REAL;
-    bool certified =
-        zratio_law::law_moments(eta, delta, D, n, budget, s1, s2, psi_gap);
-    return Rcpp::List::create(
-        Rcpp::_["certified"] = certified,
-        Rcpp::_["S1"] = s1,
-        Rcpp::_["S2"] = s2,
-        Rcpp::_["psi_gap"] = psi_gap
     );
 }

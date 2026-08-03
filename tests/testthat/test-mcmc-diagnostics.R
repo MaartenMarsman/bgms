@@ -430,8 +430,15 @@ test_that("bgm RB inclusion Rhat is the classic split-Rhat on J draws, masked on
 
   # On the unmasked edges the reported Rhat is exactly the classic split-Rhat on
   # the J draws, with no df adjustment.
+  #
+  # The tolerance sits above the cross-platform floating-point floor, not at the
+  # local one: the two sides sum the same autocovariances in different orders,
+  # so the last digits follow the machine's BLAS. Measured 3.1e-8 relative on
+  # the Linux CI runner against a 1e-8 pin that holds on macOS (2026-08-02, run
+  # 30719120127). What this guards against is a df adjustment or a wrong split,
+  # which move Rhat by ~1e-2 -- four orders above this pin.
   keep = !is.na(reported)
-  expect_equal(reported[keep], manual[keep], tolerance = 1e-8)
+  expect_equal(reported[keep], manual[keep], tolerance = 1e-6)
 })
 
 
@@ -449,14 +456,19 @@ test_that("indicator ESS matches R reference implementation", {
 
   cpp_result = bgms:::.compute_indicator_ess_cpp(draws)
 
-  # R reference (same logic as old summarize_indicator)
+  # R reference. The mean pools every draw, but the transitions are counted
+  # within each chain and summed: a chain boundary is not a transition (F-095).
   for(p in seq_len(nparam)) {
     vec = as.vector(draws[, , p])
     n_total = length(vec)
-    g_next = vec[-1]
-    g_curr = vec[-n_total]
     p_hat = mean(vec)
     sd_r = sqrt(p_hat * (1 - p_hat))
+    pairs = do.call(rbind, lapply(seq_len(nchains), function(cc) {
+      ch = draws[, cc, p]
+      cbind(curr = ch[-niter], nxt = ch[-1])
+    }))
+    g_curr = pairs[, "curr"]
+    g_next = pairs[, "nxt"]
     n00 = sum(g_curr == 0 & g_next == 0)
     n01 = sum(g_curr == 0 & g_next == 1)
     n10 = sum(g_curr == 1 & g_next == 0)
@@ -532,12 +544,12 @@ test_that("indicator ESS scales with multiple parameters", {
   result = bgms:::.compute_indicator_ess_cpp(draws)
   expect_equal(nrow(result), nparam)
   expect_true(all(result[, "n_eff_mixt"] > 0))
-  # transition counts should sum to n_total - 1
+  # Transition counts sum to (niter - 1) per chain: one fewer pair than draws
+  # in each chain, and no pair spanning a chain boundary (F-095).
   for(p in seq_len(nparam)) {
-    n_total = 500 * 2
     expect_equal(
       unname(result[p, "n00"] + result[p, "n01"] + result[p, "n10"] + result[p, "n11"]),
-      n_total - 1
+      (500 - 1) * 2
     )
   }
 })
@@ -604,4 +616,34 @@ test_that("summarize_manual_compare brackets fallback parameter labels", {
   arr = array(rnorm(5 * 2 * 3), dim = c(5, 2, 3))
   res = bgms:::summarize_manual_compare(arr, "main_samples", param_names = NULL)
   expect_equal(res$parameter, c("param [1]", "param [2]", "param [3]"))
+})
+
+
+# ---- Transitions do not cross chain boundaries ------------------------------ #
+
+test_that("the transition scan restarts at every chain boundary", {
+  # Chain 1 is all zeros, chain 2 all ones. Within either chain nothing ever
+  # flips, so both directional counts are zero. Scanning straight through the
+  # pooled buffer would read the 0 -> 1 step at the boundary as a transition
+  # and report n0->1 = 1 (F-095).
+  draws = make_array(c(rep(0, 50), rep(1, 50)), niter = 50, nchains = 2)
+  res = bgms:::.compute_indicator_ess_cpp(draws)
+
+  expect_equal(res[1, "n01"], 0, ignore_attr = TRUE)
+  expect_equal(res[1, "n10"], 0, ignore_attr = TRUE)
+  expect_equal(res[1, "n00"], 49, ignore_attr = TRUE)   # 49 within-chain steps in chain 1
+  expect_equal(res[1, "n11"], 49, ignore_attr = TRUE)   # 49 within-chain steps in chain 2
+  # No flip in either direction, so there is no transition ESS to report.
+  expect_true(is.na(res[1, "n_eff_mixt"]))
+  expect_true(is.na(res[1, "mcse"]))
+  # Every draw is still counted once for the pooled mean.
+  expect_equal(res[1, "mean"], 0.5, ignore_attr = TRUE)
+
+  # The counts are the within-chain totals summed, for any number of chains:
+  # three chains that each alternate 0,1,0,1 give 3 * 1 of each per pair.
+  alt = make_array(rep(c(0, 1, 0, 1), 3), niter = 4, nchains = 3)
+  alt_res = bgms:::.compute_indicator_ess_cpp(alt)
+  expect_equal(alt_res[1, "n01"], 6, ignore_attr = TRUE)   # 2 per chain, 3 chains
+  expect_equal(alt_res[1, "n10"], 3, ignore_attr = TRUE)   # 1 per chain, 3 chains
+  expect_equal(unname(alt_res[1, "n00"] + alt_res[1, "n11"]), 0)
 })

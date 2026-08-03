@@ -15,17 +15,72 @@
 #' sampled with NUTS (default) or adaptive Metropolis--Hastings, using the
 #' same multi-stage warmup schedule as \code{\link{bgm}}.
 #'
+#' Groups are numbered \code{1, 2, ...} in the order they first appear in
+#' \code{group_indicator}, whatever that vector's storage type: the first row's
+#' group is group 1, the first row belonging to some other group is group 2, and
+#' so on. (Note that this is first appearance, not sorted order -- an indicator
+#' reading \code{c("fr", "fr", "en", ...)} makes \code{"fr"} group 1.) With
+#' \code{x} and \code{y} instead, \code{x} is group 1 and \code{y} is group 2.
+#' Every output keys on these numbers, and the extractor column names
+#' (\code{group1}, \code{group2}) stay numeric. The original labels are carried
+#' into the fit and shown on the displays a person reads -- the \code{print} and
+#' \code{summary} headers, plot panel titles, calibration panel titles, and
+#' centrality labels -- so that, for example, group 2 prints as
+#' \code{"group 2 (en)"}. Fits made with earlier versions of \pkg{bgms} carry no
+#' labels and display the bare numbers.
+#'
 #' For full details on model specification, prior choices, and output
 #' interpretation, see the package website at
 #' \url{https://bayesian-graphical-modelling-lab.github.io/bgms-docs/}.
+#'
+#' @section Categories across groups:
+#'
+#' Groups being compared often differ in which categories of an ordinal
+#' variable they actually use --- a clinical group may never give the lowest
+#' answer, a control group never the highest. \code{bgmCompare()} models the
+#' \strong{union} of the categories observed across the groups: a category that
+#' any group uses is kept for all of them. Only a category value that
+#' \emph{no} group uses is dropped, after which the remaining categories are
+#' renumbered contiguously from 0. That renumbering is reported with a
+#' \code{message()}; no category anyone observed is ever merged into another.
+#'
+#' Keeping a category that some group never uses has a consequence worth
+#' knowing. That group contributes no observations to the category, so its
+#' data say nothing about where its threshold for that category lies, and the
+#' estimated difference for that group-by-category combination is determined
+#' by the prior rather than by the data: it will be large and very uncertain,
+#' and it is not evidence of a group difference. An unused \emph{reference}
+#' category goes further: every threshold is measured relative to category 0,
+#' so a group that never used it has no data fixing the level of its threshold
+#' vector at all, and every one of that variable's threshold differences for
+#' that group rests on the prior. \code{bgmCompare()} raises a
+#' \code{warning()} naming every variable, category, and group this affects,
+#' and records the per-group category counts in the fitted object
+#' (\code{extract_arguments(fit)$category_support}) so they can be checked
+#' afterwards. The affected rows are also marked with a \code{*} in the
+#' printed summary; see \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}.
+#' Under \code{main_difference_selection = TRUE} such a cell's difference is
+#' never tested alone: the inclusion indicator is per variable, so the block's
+#' Bayes factor pools the prior-driven cell with the variable's identified
+#' categories (see \code{main_difference_selection}).
+#' Only the category thresholds are affected this way; the
+#' pairwise (edge) parameters and their differences are estimated from all the
+#' data and are not.
+#'
+#' Blume--Capel variables are exempt from all of this. Their two parameters
+#' are functions of the numeric category \emph{score}, so renumbering the
+#' categories would change the model rather than relabel it, and a score no
+#' one happened to observe is still a meaningful point on the scale. Their
+#' categories are therefore always retained exactly as supplied.
 #'
 #' @seealso \code{vignette("comparison", package = "bgms")} for a worked example.
 #' @family model-fitting
 #'
 #' @param x A data frame or matrix of binary and ordinal responses for
 #'   Group 1. Variables should be coded as nonnegative integers starting at
-#'   0. For ordinal variables, unused categories are collapsed; for
-#'   Blume--Capel variables, all categories are retained.
+#'   0. See the \emph{Categories across groups} section for how the category
+#'   codes of an ordinal variable are treated when the groups do not observe
+#'   the same ones.
 #' @param y Optional data frame or matrix for Group 2 (two-group designs).
 #'   Must have the same variables (columns) as \code{x}.
 #' @param group_indicator Optional integer vector of group memberships for
@@ -33,11 +88,17 @@
 #' @param difference_selection Logical. If \code{TRUE}, spike-and-slab priors
 #'   are applied to difference parameters. Default: \code{TRUE}.
 #' @param main_difference_selection Logical. If \code{TRUE}, apply spike-and-slab
-#'   selection to main effect (threshold) differences. If \code{FALSE}, main
-#'   effect differences are always included (no selection). Since main effects
-#'   are often nuisance parameters and their selection can interfere with
-#'   pairwise selection under the Beta-Bernoulli prior, the default is
-#'   \code{FALSE}. Only used when \code{difference_selection = TRUE}.
+#'   selection to main effect (threshold) differences. Selection is per
+#'   variable, not per category: one indicator gates a variable's entire block
+#'   of category-threshold differences across all group contrasts, so the
+#'   inclusion Bayes factor for a main-effect difference is a block test of
+#'   whether that variable's thresholds differ between groups at all — a
+#'   single category's difference is never selected on its own. If
+#'   \code{FALSE}, main effect differences are always included (no selection).
+#'   Since main effects are often nuisance parameters and their selection can
+#'   interfere with pairwise selection under the Beta-Bernoulli prior, the
+#'   default is \code{FALSE}. Only used when
+#'   \code{difference_selection = TRUE}.
 #' @param variable_type Character vector specifying type of each variable:
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
@@ -45,9 +106,11 @@
 #' @param difference_scale Double. Scale of the prior for difference
 #'   parameters. Default: \code{1}.
 #' @param difference_family Character. Distributional family of the prior on
-#'   difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
-#'   Independent of \code{interaction_prior}, which governs the baseline
-#'   interactions.
+#'   difference parameters, one of \code{"Normal"} (default) or \code{"Cauchy"}.
+#'   Governs both the pairwise-interaction differences and the main-effect
+#'   (threshold) differences; under \code{difference_selection = TRUE} it is
+#'   the slab of the spike-and-slab. Independent of \code{interaction_prior},
+#'   which governs the baseline interactions.
 #' @param difference_prior An indicator prior specification object for
 #'   difference selection, created by one of:
 #'   \itemize{
@@ -64,11 +127,13 @@
 #' @param interaction_prior A prior specification object for baseline pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'   }
 #'   When supplied, overrides \code{pairwise_scale}.
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}, matching \code{\link{bgm}}.
+#'   Governs the baseline pairwise interactions only; the group differences
+#'   are governed by \code{difference_family} and \code{difference_scale}.
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
 #'   \itemize{
@@ -81,8 +146,9 @@
 #'   of the Beta prior for inclusion probabilities in the Beta--Bernoulli
 #'   model. Defaults: \code{1}.
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
-#'   Cauchy prior for baseline pairwise interactions.
-#'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
+#'   baseline pairwise interaction prior. Retained for backward compatibility,
+#'   it sets a Cauchy prior at that scale, which is not the current default.
+#'   Use \code{interaction_prior} instead.
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
 #'   parameters of the beta-prime prior for baseline threshold parameters.
 #'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
@@ -117,7 +183,12 @@
 #' @param chains Integer. Number of parallel chains. Default: \code{4}.
 #' @param cores Integer. Number of CPU cores. Default:
 #'   \code{parallel::detectCores()}.
-#' @param seed Optional integer. Random seed for reproducibility.
+#' @param seed Optional integer. Random seed for reproducibility. Results are
+#'   bit-reproducible for a given installed binary: the same seed on the same
+#'   build yields identical draws. They are not portable across compilers or
+#'   optimization settings — a rebuilt binary may produce different draws from
+#'   the same seed, with any differences concentrated where the posterior is
+#'   weakly identified.
 #' @param main_difference_model,reference_category,pairwise_difference_scale,main_difference_scale,pairwise_difference_prior,main_difference_prior,pairwise_difference_probability,main_difference_probability,pairwise_beta_bernoulli_alpha,pairwise_beta_bernoulli_beta,main_beta_bernoulli_alpha,main_beta_bernoulli_beta,interaction_scale,threshold_alpha,threshold_beta,burnin,save
 #'   `r lifecycle::badge("deprecated")`
 #'   Deprecated arguments as of \strong{bgms 0.1.6.0}.
@@ -191,10 +262,10 @@ bgmCompare = function(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
-  difference_family = c("Cauchy", "Normal"),
+  difference_family = c("Normal", "Cauchy"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   iter = 2e3,
   warmup = 2e3,
@@ -313,7 +384,7 @@ bgmCompare = function(
       "bgmCompare(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -323,7 +394,7 @@ bgmCompare = function(
       "0.2.0", "bgmCompare(pairwise_scale =)",
       "bgmCompare(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
@@ -383,7 +454,7 @@ bgmCompare = function(
           "Pairwise interactions are on the association scale and share one",
           "prior scale, so the per-pair adjustment by the maximum score",
           "product (scale * m_i * m_j) has been dropped. Set the scales",
-          "directly, e.g. interaction_prior = cauchy_prior(scale =) for the",
+          "directly, e.g. interaction_prior = normal_prior(scale =) for the",
           "baseline and difference_scale for the differences; there is no",
           "per-pair equivalent."
         )
@@ -424,7 +495,10 @@ bgmCompare = function(
   difference_family = match.arg(difference_family)
   difference_prior_type = tolower(difference_family)
 
-  # Unpack difference prior to flat params for bgm_spec
+  # Unpack difference prior to flat params for bgm_spec. The prior needs the
+  # variable count, so x is validated here rather than left to bgm_spec()
+  # (data_check() is idempotent; the spec runs it again harmlessly).
+  x = data_check(x, "x")
   num_variables = ncol(x)
   dp = unpack_indicator_prior(difference_prior, num_variables)
 

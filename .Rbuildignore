@@ -21,6 +21,9 @@
 ^\.lintr$
 ^\.editorconfig$
 ^\.claude$
+# A git worktree's .git is a file, not a directory, so R CMD build does not
+# drop it on its own.
+^\.git$
 
 # R CMD build artifacts
 ^doc$
@@ -31,8 +34,11 @@
 ^paper$
 ^LICENSE$
 
-# ---- Legacy test fixtures (GitHub CI only, not shipped to CRAN) ----
+# ---- Legacy test fixtures and the bitwise compliance tier ----
+# ---- GitHub CI only, not shipped to CRAN ----
 ^tests/testthat/fixtures$
+^tests/compliance$
+^tests/fixtures$
 
 # ---- C/C++ build artifacts (REQUIRED) ----
 ^src/.*\.o$

@@ -29,7 +29,7 @@ test_that("bgmCompare is reproducible with seed (x, y interface)", {
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
 
-  fit2 = bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none")
+  fit2 = without_support_warning(bgmCompare(x = x, y = y, iter = 50, warmup = 100, chains = 2, seed = 1234, display_progress = "none"))
 
   combine_chains = function(fit) {
     pairs = do.call(rbind, fit$raw_samples$pairwise)
@@ -46,10 +46,10 @@ test_that("bgmCompare accepts its default update_method", {
   x = Wenchuan[1:20, 1:3]
   y = Wenchuan[21:40, 1:3]
   expect_error(
-    bgmCompare(
+    without_support_warning(bgmCompare(
       x = x, y = y, iter = 20, warmup = 20, chains = 1, cores = 1,
       seed = 1, display_progress = "none", verbose = FALSE
-    ),
+    )),
     NA
   )
 })
@@ -181,7 +181,7 @@ test_that("bgmCompare works with different update methods", {
 
   for(method in methods_to_test) {
     fit = tryCatch(
-      bgmCompare(
+      without_support_warning(bgmCompare(
         x = data$x,
         group_indicator = data$group_indicator,
         update_method = method,
@@ -189,7 +189,7 @@ test_that("bgmCompare works with different update methods", {
         warmup = 50,
         chains = 1,
         display_progress = "none"
-      ),
+      )),
       error = function(e) e
     )
 
@@ -357,12 +357,232 @@ test_that("bgmCompare pairwise effects are on the association scale", {
     difference_selection = FALSE, display_progress = "none"
   )
 
-  estimate = extract_group_params(fit)$pairwise_effects_groups[, 1]
+  groups = extract_group_params(fit)$pairwise_effects_groups
   target = omega[t(utils::combn(p, 2))]
 
-  # The short run is loose about the value; it is decisive about the scale,
-  # since doubling every parameter moves the fit far outside this band.
-  rmse = function(x) sqrt(mean((estimate - x)^2))
-  expect_lt(rmse(target), 0.2)
-  expect_lt(rmse(target), 0.5 * rmse(2 * target))
+  # The scale is read as the slope of the estimate on the target, which is
+  # bounded from BOTH sides: a doubled parameterization gives slope 2 and a
+  # halved one slope 0.5, and neither is inside the band. An rmse bound
+  # against 2 * target alone tests only the doubling direction, and at this
+  # data size it cannot see the halving one at all -- target and 0.5 * target
+  # are 0.194 apart in rmse while the run's own error reaches 0.19.
+  #
+  # The band comes from the estimator's spread, not from taste: over 12
+  # alternative data/fit seeds at this construction the slope stayed within
+  # [0.851, 1.369] on both groups, so [0.6, 1.6] holds it with room while
+  # still refusing 0.5 and 2.
+  #
+  # Both groups are drawn from the same omega, so both must recover it. Only
+  # group 1 was ever checked, which left a difference parameterization that
+  # mis-signs or mis-scales the second group's reconstruction unexamined.
+  slope = function(estimate) sum(estimate * target) / sum(target^2)
+  rmse = function(estimate, x) sqrt(mean((estimate - x)^2))
+
+  for(g in 1:2) {
+    estimate = groups[, g]
+    ctx = paste("group", g)
+    expect_lt(rmse(estimate, target), 0.2)
+    expect_gt(slope(estimate), 0.6)
+    expect_lt(slope(estimate), 1.6)
+    # And the correct scale has to fit better than the doubled one, which is
+    # the direction this data size does resolve.
+    expect_lt(rmse(estimate, target), 0.8 * rmse(estimate, 2 * target),
+      label = ctx)
+  }
+})
+
+test_that("bgmCompare recovers a planted group difference at its planted size", {
+  skip_on_cran()
+  # The guard above fits two groups drawn from the SAME omega, so every
+  # difference in it is zero and a difference parameterization off by a factor
+  # would still pass. Nothing else in the every-run tier looks at the size of
+  # a nonzero difference. This plants one and reads it back.
+  #
+  # The two group matrices swap their two nonzero pairs, so the planted
+  # difference is large (+-0.5) while both groups stay in a well-identified
+  # coupling range -- planting a large difference by inflating one group
+  # instead pushes that group toward deterministic data, where the posterior
+  # is wide and the read-back is noisier than the difference being measured.
+  p = 3
+  pairs = t(utils::combn(p, 2))
+  symmetric = function(values) {
+    m = matrix(0, p, p)
+    m[upper.tri(m)] = values
+    m + t(m)
+  }
+  omega_1 = symmetric(c(0.60, 0.00, 0.10))
+  omega_2 = symmetric(c(0.10, 0.00, 0.60))
+  main = matrix(c(0, -0.5), nrow = p, ncol = 2, byrow = TRUE)
+
+  draw = function(omega, seed) {
+    simulate_mrf(
+      1200, p, num_categories = 2, pairwise = omega, main = main,
+      variable_type = "ordinal", iter = 50, seed = seed
+    )
+  }
+
+  fit = bgmCompare(
+    rbind(draw(omega_1, 101), draw(omega_2, 201)),
+    group = rep(1:2, each = 1200),
+    iter = 400, warmup = 250, chains = 1, seed = 1,
+    difference_selection = FALSE, display_progress = "none"
+  )
+
+  groups = extract_group_params(fit)$pairwise_effects_groups
+  recovered = groups[, 2] - groups[, 1]
+  planted = omega_2[pairs] - omega_1[pairs]
+
+  # Tolerances from the estimator's own spread: over 12 alternative
+  # data/fit seeds at this construction the rmse of the recovered difference
+  # reached 0.089 and no single pair was off by more than 0.125, while the
+  # slope stayed within [0.813, 1.167]. The bounds below sit above those and
+  # below what a mis-scaled parameterization produces: at half or double the
+  # difference the slope is 0.5 or 2, and the rmse against the planted
+  # difference is 0.204 or 0.408.
+  expect_lt(sqrt(mean((recovered - planted)^2)), 0.15)
+  expect_lt(max(abs(recovered - planted)), 0.20)
+
+  slope = sum(recovered * planted) / sum(planted^2)
+  expect_gt(slope, 0.7)
+  expect_lt(slope, 1.4)
+
+  # The signs are the qualitative half of the same claim: the pair the second
+  # group loses and the pair it gains must come back with opposite signs, and
+  # the pair with no planted difference must not acquire one.
+  expect_lt(recovered[1], 0)
+  expect_gt(recovered[3], 0)
+  expect_lt(abs(recovered[2]), 0.20)
+})
+
+
+# Weekly certification (T2): this is the only test in the suite that runs
+# bgmCompare() at its shipped defaults on a full shipped dataset, and it costs
+# ~14 min on the 2-core CI runner -- by itself a quarter of the nightly budget.
+# A full-defaults end-to-end fit is a product-surface check, which the tier
+# contract puts in T1, but at that size it is not a smoke. The cheap end of the
+# same surface stays local: the label-propagation test below fits the same data
+# at iter = 50.
+test_that("the shipped data's own language column works as the group indicator", {
+  skip_on_cran()
+  skip_unless_certification()
+  data("Boredom", package = "bgms")
+  fit = bgmCompare(Boredom[, -1], group_indicator = Boredom$language)
+  expect_s3_class(fit, "bgmCompare")
+  expect_equal(
+    tabulate(extract_arguments(fit)$group),
+    tabulate(match(Boredom$language, unique(Boredom$language)))
+  )
+})
+
+
+test_that("predict.bgmCompare centers Blume-Capel variables at the fit's baseline", {
+  fit = get_bgmcompare_fit_blumecapel()
+  arguments = extract_arguments(fit)
+  # The fit's own baseline (category 3, shifted to the 0-based scale) must be
+  # stored; without it predict() silently centered every Blume-Capel term at 0.
+  expect_equal(arguments$baseline_category, rep(2L, 4L))
+
+  data("Boredom", package = "bgms")
+  newdata = Boredom[c(1:4, 494:497), 2:5]
+  probs = predict(fit, newdata = newdata, group = 1)
+
+  # Manual reference, the sampler's own convention: category c contributes
+  # exp(lin*(c-ref) + quad*(c-ref)^2 + (c-ref)*rest), with the rest score
+  # summing 2 * (x_v - ref_v) * pairwise[v, j] over the other variables.
+  shift = arguments$blume_capel_shift
+  ref = arguments$baseline_category
+  x0 = sweep(data.matrix(newdata), 2, shift)
+  gp = extract_group_params(fit)
+  p = arguments$num_variables
+  pw = matrix(0, p, p)
+  pw[lower.tri(pw)] = gp$pairwise_effects_groups[, 1]
+  pw = pw + t(pw)
+  main = matrix(gp$main_effects_groups[, 1], ncol = 2, byrow = TRUE)
+  for(j in seq_len(p)) {
+    rest = as.numeric((sweep(x0[, -j, drop = FALSE], 2, ref[-j])) %*% (2 * pw[-j, j]))
+    cats = 0:arguments$num_categories[j] - ref[j]
+    expected = t(vapply(rest, function(r) {
+      e = exp(main[j, 1] * cats + main[j, 2] * cats^2 + cats * r)
+      e / sum(e)
+    }, numeric(length(cats))))
+    expect_equal(unname(probs[[j]]), unname(expected), tolerance = 1e-10)
+  }
+})
+
+
+# ---- group labels on human displays (F-072) ---------------------------------
+# Groups are numbered by first appearance in the indicator and every extractor
+# keys on that number; the original labels ride along so the displays a person
+# reads can name the group as well as number it.
+
+test_that("a compare fit stores the group indicator's own labels", {
+  data("Boredom", package = "bgms")
+  # The shipped data is fr-first, so first-appearance numbering makes fr group 1
+  # even though "en" sorts first -- exactly the confusion the labels remove.
+  expect_identical(Boredom$language[1], "fr")
+  fit = bgmCompare(
+    x = Boredom[, 2:5], group_indicator = Boredom$language,
+    iter = 50, warmup = 100, chains = 2, seed = 8, display_progress = "none"
+  )
+  arguments = extract_arguments(fit)
+  expect_identical(arguments$group_labels, c("fr", "en"))
+  expect_equal(tabulate(arguments$group), c(490L, 496L))
+
+  # print() and summary() name the groups; the numbers stay the key.
+  expect_output(print(fit), "groups: 1 = fr \\(n = 490\\), 2 = en \\(n = 496\\)")
+  expect_output(
+    print(summary(fit)),
+    "groups: 1 = fr \\(n = 490\\), 2 = en \\(n = 496\\)"
+  )
+
+  # Centrality labels carry them too.
+  expect_match(
+    attr(extract_centrality(fit, group = 2), "label"), "group 2 (en)",
+    fixed = TRUE
+  )
+  expect_match(
+    attr(extract_centrality(fit, group = c(1, 2)), "label"),
+    "(group 1 (fr) - group 2 (en))",
+    fixed = TRUE
+  )
+
+  # The extractor contract is numeric and must not move: easybgm and JASP read
+  # these column names.
+  expect_identical(
+    colnames(extract_group_params(fit)$pairwise_effects_groups),
+    c("group1", "group2")
+  )
+})
+
+test_that("the x/y path labels the groups x and y", {
+  fit = get_bgmcompare_fit_xy()
+  expect_identical(extract_arguments(fit)$group_labels, c("x", "y"))
+  # The counts are the fit's own, after listwise deletion -- which is the point
+  # of reporting them next to the labels.
+  n = tabulate(extract_arguments(fit)$group)
+  expect_output(
+    print(fit),
+    sprintf("groups: 1 = x \\(n = %d\\), 2 = y \\(n = %d\\)", n[1], n[2])
+  )
+  expect_match(
+    attr(extract_centrality(fit, group = 1), "label"), "group 1 (x)",
+    fixed = TRUE
+  )
+})
+
+test_that("a fit without the stored labels degrades to bare group numbers", {
+  # Fits made before the field existed have no group_labels; every display path
+  # goes through these two helpers, so this is the whole degradation contract.
+  legacy = extract_arguments(get_bgmcompare_fit())
+  legacy$group_labels = NULL
+
+  expect_null(compare_group_labels(legacy))
+  expect_null(group_mapping_line(legacy))
+  expect_identical(group_tag(NULL, 2L), "group 2")
+  expect_identical(group_tag(c("fr", "en"), 2L), "group 2 (en)")
+
+  # A label vector that cannot name every group is refused wholesale rather
+  # than half-applied.
+  expect_null(compare_group_labels(list(group_labels = "only-one"), 2L))
+  expect_null(compare_group_labels(list(group_labels = c("a", NA))))
 })

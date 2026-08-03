@@ -5,117 +5,314 @@ vignette: >
   %\VignetteIndexEntry{Getting Started with bgms}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
 ---
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  fig.width = 6,
+  fig.width = 7,
   fig.height = 4
 )
 ```
 
-# Introduction
+**bgms** provides Bayesian analyses of graphical models, all of which are
+Markov random fields (MRFs). In an MRF, two variables are connected by an edge
+when they remain associated after accounting for all other variables in the
+model. The `variable_type` argument selects the model family: the ordinal
+Markov random field, with binary variables as a special case; the Blume--Capel
+model; the Gaussian graphical model for continuous variables; or the mixed
+Markov random field, which joins discrete and continuous variables in one
+model.
 
-The **bgms** package implements Bayesian methods for analyzing graphical
-models. It supports three variable types:
+The graph is treated as unknown rather than fixed. The analysis returns a
+posterior distribution over graphs and, for every pair of variables, an
+inclusion Bayes factor: the factor by which the data update the odds that the
+edge is present. The reporting convention assigns each pair one of three
+verdicts: evidence of presence, evidence of absence, or undecided. The
+`verdicts()` function reports these classifications.
 
-- **ordinal** (including binary) — Markov random field (MRF) models,
-- **Blume–Capel** — ordinal MRF with a reference category,
-- **continuous** — Gaussian graphical models (GGM).
-
-The package estimates main effects and pairwise interactions, with optional
-Bayesian edge selection via spike-and-slab priors. It provides two main
-entry points:
-
-- `bgm()` for one-sample designs (single network),
-- `bgmCompare()` for independent-sample designs (group comparisons).
-
-This vignette walks through the basic workflow for ordinal data. For
-continuous data, set `variable_type = "continuous"` in `bgm()` to fit a
-Gaussian graphical model.
-
-
-# Wenchuan dataset
-
-The dataset `Wenchuan` contains responses from survivors of the 2008 Wenchuan
-earthquake on posttraumatic stress items. Here, we analyze a subset of the
-first five items as a demonstration.
+This vignette is the front door: enough to run an analysis and read what comes
+back, and no more. The inclusion Bayes factor and its three-state interpretation
+are developed in @HuthEtAl_2023 and @SekulovskiEtAl_2023. Extended teaching
+material, including model background, Markov Chain Monte Carlo (MCMC) output,
+and worked analyses, is available on the package website,
+<https://bayesian-graphical-modelling-lab.github.io/bgms-docs/>. The other
+vignettes develop the individual components in greater detail.
 
 
-```{r}
+# The models
+
+There are two entry points. `bgm()` fits one Markov random field to one sample.
+`bgmCompare()` fits several groups at once and tests where their graphs differ;
+it takes binary and ordinal data.
+
+Which member `bgm()` fits follows from `variable_type`, not from a separate
+argument.
+
+- `"ordinal"` (the default) fits the **ordinal Markov random field**: one
+  threshold per category per variable, and one pairwise interaction per pair
+  [@MarsmanHaslbeck_2023_ordinal]. Binary variables are the two-category
+  special case and are handled here.
+- `"blume-capel"` fits the **Blume--Capel** model, which replaces a variable's
+  free thresholds with a linear and a quadratic term around a
+  `baseline_category`. It is the economical choice when a variable has many
+  categories.
+- `"continuous"` fits the **Gaussian graphical model**: the pairwise parameters
+  are read off the precision matrix, and an edge is a non-zero partial
+  association.
+- A **vector** with one entry per variable mixes the members. A vector holding
+  both discrete and `"continuous"` entries fits the **mixed Markov random
+  field**, which carries discrete and continuous variables in one graph.
+
+These are members of one family rather than separate modelling frameworks, and
+everything downstream -- edge selection, the summaries, the verdicts, the
+plots -- is the same whichever member is fitted.
+
+# A worked example
+
+The `Wenchuan` dataset holds responses from survivors of the 2008 Wenchuan
+earthquake on 17 posttraumatic stress items [@McNallyEtAl_2015]. Nine items are
+enough to show the whole workflow.
+
+```{r, eval = FALSE}
 library(bgms)
-
-# Analyse a subset of the Wenchuan dataset
-?Wenchuan
-data = Wenchuan[, 1:5]
-head(data)
-```
-
-# Fitting a model
-
-The main entry point is `bgm()` for single-group models and 
-`bgmCompare()` for multiple-group comparisons.
-
-```{r, eval=FALSE}
+data = Wenchuan[, 1:9]
 fit = bgm(data, seed = 1234)
 ```
 
-```{r, include=FALSE}
-fit = bgm(data, seed = 1234, chains = 2, display_progress = "none", verbose = FALSE)
+```{r, include = FALSE}
+library(bgms)
+data = Wenchuan[, 1:9]
+fit = bgm(data,
+  seed = 1234, chains = 2, cores = 2,
+  display_progress = "none", verbose = FALSE
+)
 ```
 
-# Posterior summaries
+That call is the whole model specification: `bgm()` reads the variable types,
+applies its default priors (below), turns edge selection on, and runs four
+chains of NUTS. Setting `seed` makes the run reproducible. The fit built for
+this vignette uses two chains rather than four to keep the build short; nothing
+else about it differs.
+
+## What the fit contains
+
+`summary()` prints the posterior in three blocks, each with its own Monte Carlo
+diagnostics beside the estimates, so the numbers and the question of whether to
+trust them are never in separate places.
 
 ```{r}
 summary(fit)
 ```
 
-You can also access posterior means or inclusion probabilities directly:
+The first block holds the category thresholds, the second the pairwise
+interactions, and the third the posterior inclusion probability of each edge.
+The `mcse`, `n_eff`, and `Rhat` columns describe the sampling rather than the
+data: how precisely each quantity was estimated, and whether the chains agree.
+The diagnostics vignette explains how to read them, including why the usual
+`Rhat < 1.01` rule does not transfer to the binary edge indicators.
+
+A pairwise interaction is on the *association* scale: it is the coefficient
+`omega` that enters every conditional distribution as `2 * omega * x`, which
+for an ordinal model makes it half the log odds ratio between adjacent response
+categories. This changed in 0.2.0.0 -- earlier versions stored twice this
+number -- so a value taken from a 0.1.6.3 run is not comparable without the
+factor of two. `summary(fit)$pairwise` and its siblings return each block in
+full, and `coef(fit)` returns the posterior means on their own.
+
+## Which edges the evidence settles
+
+`verdicts()` reads each edge's inclusion Bayes factor against a threshold and
+its reciprocal, and returns one of three answers.
 
 ```{r}
-coef(fit)
+verdicts(fit)
 ```
 
-# Network plot
+The default threshold is 10, so an edge is called **presence** when the data
+multiply its inclusion odds by more than 10, **absence** when they divide them
+by more than 10, and **undecided** in between. That third category is not a
+failure of the analysis. It is the honest answer when the data separate neither
+hypothesis from the other, and being able to report it is the point of treating
+the graph as unknown.
 
-To visualize the network structure, we threshold the posterior inclusion probabilities at 0.5 and plot the resulting adjacency matrix.
+The evidence is displayed as `log_bf`, the **natural** logarithm of the Bayes
+factor: zero is even odds, positive favours presence, negative favours absence,
+and the log scale stays finite where the Bayes factor itself would overflow.
+`extract_inclusion_bf()` returns the Bayes factors themselves, or their natural
+logarithms with `log = TRUE`.
 
-```{r, fig.width= 7, fig.height= 7}
-library(qgraph)
+The `fragile` column is the part that cannot be read off the Bayes factor.
+A verdict is fragile when a threshold sits within two standard errors of the
+estimated evidence, which is the regime in which Monte Carlo noise, rather than
+the data, decides the answer. A fragile verdict is not a wrong verdict; it is
+one the run was too short to settle, and the remedy is more iterations. The
+known-truth calibration study behind the flag is described in `?verdicts`.
 
-median_probability_network = coef(fit)$pairwise
-median_probability_network[coef(fit)$indicator < 0.5] = 0.0
+## The edge evidence plot
 
-qgraph(median_probability_network,
-  theme = "TeamFortress",
-  maximum = 1,
-  fade = FALSE,
-  color = c("#f0ae0e"), vsize = 10, repulsion = .9,
-  label.cex = 1, label.scale = "FALSE",
-  labels = colnames(data)
+`plot()` draws the three verdicts as three panels on one shared layout: the
+pairs the data support, the pairs the data rule out, and the pairs the data
+cannot decide. A single drawing of the graph would have to collapse the last
+two into the same blank.
+
+```{r, fig.width = 12, fig.height = 4.5, out.width = "100%"}
+plot(fit)
+```
+
+Each panel is titled with what it holds, how many pairs are in it, and the rule
+that put them there. Only the first panel is weighted -- line width is the
+posterior mean association and colour carries its sign -- because that is where
+the effect sizes are; the other two are drawn at uniform width, since for those
+pairs the classification *is* the result. The layout is computed once from all
+pairs, so a node sits in the same place in every panel. The threshold is the
+one `verdicts()` uses, so the figure and the table cannot say different things.
+
+Three panels side by side want a wide device: open one at roughly
+`width = 13, height = 5` before plotting, or the labels crowd. Drawing needs
+the **qgraph** package, which **bgms** suggests rather than depends on; without
+it `plot()` stops and points at `verdicts()` for the same information as a
+table. `plot(fit, type = "centrality")` draws posterior strength centrality
+instead, and `plot_edge_posterior()` opens a single pair, showing how its
+posterior mass divides between the edge being absent and the edge being
+present.
+
+# Priors
+
+Edge selection rests on a spike-and-slab prior for each pairwise interaction: a
+point mass at zero for the edge being absent, and a slab for the values it can
+take when the edge is present. Priors are supplied as objects built by
+constructor functions rather than as loose numbers, so a prior always states
+its family as well as its scale.
+
+```{r, eval = FALSE}
+fit = bgm(data,
+  interaction_prior = cauchy_prior(scale = 2.5),
+  edge_prior = beta_bernoulli_prior(alpha = 1, beta = 1)
 )
 ```
 
-# Continuous data (GGM)
+The parameter priors are `normal_prior()`, `cauchy_prior()`, and
+`beta_prime_prior()`; the precision-diagonal priors are `exponential_prior()`
+and `gamma_prior()`; the edge priors are `bernoulli_prior()`,
+`beta_bernoulli_prior()`, and `sbm_prior()`. The last of these is a
+stochastic-block prior, under which the edges are free to cluster
+[@GengEtAl_2019].
 
-For continuous variables, `bgm()` fits a Gaussian graphical model when
-`variable_type = "continuous"`. The workflow is the same:
+The defaults `bgm()` runs at are:
 
-```{r, eval=FALSE}
+| Argument | Default | Governs |
+|---|---|---|
+| `interaction_prior` | `normal_prior(scale = 1)` | pairwise interactions (the slab) |
+| `threshold_prior` | `beta_prime_prior(0.5, 0.5)` | category thresholds |
+| `means_prior` | `normal_prior(scale = 1)` | continuous means (mixed models) |
+| `precision_scale_prior` | `exponential_prior(eta = 1)` | precision diagonal (continuous and mixed models) |
+| `edge_prior` | `bernoulli_prior(0.5)` | edge inclusion |
+
+`bgmCompare()` prices its baseline pairwise interactions with the same
+`normal_prior(scale = 1)`, so the two entry points no longer ship different
+priors under one name; its group differences are priced separately, by
+`difference_family` (`"Normal"` by default) and `difference_scale`.
+
+Two consequences are worth stating plainly. The default slab is Normal, where
+0.1.6.3 used a Cauchy at scale 2.5, and the two are different models;
+`interaction_prior = cauchy_prior(scale = 2.5)` restores the old one, on the
+new coordinate. And because the edge prior defaults to a fifty-fifty
+`bernoulli_prior(0.5)`, the inclusion Bayes factor is exactly the posterior
+inclusion odds, which is why the `pip` and `log_bf` columns of `verdicts()`
+track each other so closely.
+
+The old scalar arguments -- `pairwise_scale`, `inclusion_probability`,
+`beta_bernoulli_alpha` and the rest -- still work, but they warn and are
+translated into the corresponding object. Note that `pairwise_scale = s` means
+`cauchy_prior(scale = s)`, preserving the family it had in 0.1.6.3, so a
+deprecated call is not the same model as a call at the new default.
+
+The scale of the interaction prior is the assumption a reader is most likely to
+disagree with. `prior_sensitivity_check()` traces every edge's inclusion Bayes
+factor across a range of slab scales and reports which verdicts depend on the
+choice; the *Checking Prior Sensitivity* vignette walks through its report.
+
+# The Gaussian and mixed members
+
+A continuous fit is the same call with a different `variable_type`.
+
+```{r, eval = FALSE}
+# 200 draws from a five-variable Gaussian graphical model whose precision
+# matrix is a chain, 1-2-3-4-5.
+set.seed(1234)
+K = diag(5)
+K[cbind(1:4, 2:5)] = -0.4
+K[cbind(2:5, 1:4)] = -0.4
+continuous_data = matrix(rnorm(200 * 5), 200, 5) %*% chol(solve(K))
+
 fit_ggm = bgm(continuous_data, variable_type = "continuous", seed = 1234)
-summary(fit_ggm)
+verdicts(fit_ggm)
 ```
 
-The pairwise effects are unstandardized partial associations derived from
-the off-diagonal entries of the precision matrix (stored as `-0.5 * K_ij`).
-They are not standardized partial correlations. Use
-`extract_partial_correlations()` to convert them to actual partial
-correlations, or `extract_precision()` to obtain the precision matrix.
-Missing values can be imputed during sampling with `na_action = "impute"`.
+The pairwise effects of a Gaussian graphical model are unstandardized partial
+associations, on the same association scale as everywhere else -- half the
+off-diagonal precision entry, `-0.5 * K_ij`. They are not partial correlations.
+`extract_partial_correlations()` converts them, and `extract_precision()`
+returns the precision matrix itself. A mixed fit reports the same quantities
+for its continuous block.
 
-# Next steps
+One default is specific to continuous data. `precision_graph_prior` chooses how
+the prior on the precision matrix composes with the prior on the graph, and it
+defaults to `"hierarchical"`, under which the graph marginal is exactly the
+edge prior that was asked for. Obtaining that requires a normalizing constant
+at every edge move, which **bgms** approximates rather than computes exactly; a
+trust gauge then audits the approximation against the exact calculation after
+sampling, stores the audit in `fit$zratio_diag`, and warns when the shortcut is
+changing edge decisions or leaning the inclusion probabilities. `?bgm`
+documents the approximation and its measured accuracy, and the diagnostics
+vignette explains how to read the gauge and what to do about a flag.
 
-- For comparing groups, see `?bgmCompare` or the *Model Comparison* vignette.
-- For diagnostics and convergence checks, see the *Diagnostics* vignette.
+Missing values are handled by listwise deletion by default; `na_action =
+"impute"` integrates over them during sampling instead, for all members of the
+family.
+
+# Comparing groups
+
+`bgmCompare()` estimates group differences in the category thresholds and in
+the pairwise interactions, and puts those differences under selection, so each
+one carries an inclusion Bayes factor of its own.
+
+```{r, eval = FALSE}
+fit_compare = bgmCompare(
+  x = ADHD[ADHD$group == 1, 2:6],
+  y = ADHD[ADHD$group == 0, 2:6],
+  seed = 1234
+)
+verdicts(fit_compare)
+plot(fit_compare)
+```
+
+`verdicts()` and `plot()` mean the same things here as above, with presence
+reading as "the groups differ on this pair" and absence as evidence that they
+do not -- a conclusion a group comparison can otherwise rarely state. One
+caveat belongs on the front door: difference verdicts are priced by
+`difference_scale`, whose calibration under the association-scale
+parameterization is still under study, so a difference verdict close to a
+threshold should be read as scale-contingent. The *Model Comparison* vignette
+works through a full example.
+
+# Where to go next
+
+- *Checking your fitted model* -- `verdicts()` in depth, `calibration_check()`,
+  and building a posterior predictive display on `simulate()`.
+- *Diagnostics and Spike-and-Slab Summaries* -- R-hat, effective sample size,
+  the NUTS diagnostics, and the hierarchical prior trust gauge.
+- *Checking Prior Sensitivity* -- whether the verdicts depend on the slab
+  scale.
+- *Model Comparison with bgmCompare* -- group differences on real data.
+- The **easybgm** package builds on **bgms** fits and offers a wider set of
+  summary and plotting workflows around them.
+- `NEWS.md` lists what changed in 0.2.0.0, including the change of scale for
+  the pairwise effects and the arguments that were removed.
+
+# References

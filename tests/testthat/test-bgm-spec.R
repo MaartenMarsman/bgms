@@ -661,3 +661,38 @@ test_that("bgm_spec and bgmCompare share the difference_scale default", {
     eval(formals(bgmCompare)$difference_scale)
   )
 })
+
+
+# ==============================================================================
+# 13.  Mixed MRF: degenerate-block guard (F-123)
+# ==============================================================================
+# The mixed model is the two-block model: its parameter layout, its indicator
+# layout and its gradients all assume a non-empty discrete block and a
+# non-empty continuous block. bgm_spec() routes pure-type data to the OMRF or
+# the GGM, so no exported path reaches the builder with an empty block -- the
+# guard is defensive, and the test drives the internal directly.
+
+test_that("mixed MRF: the degenerate-block guard rejects a one-type block", {
+  build_spec_mixed_mrf = bgms:::build_spec_mixed_mrf
+  # R evaluates arguments lazily and the guard fires before the block
+  # machinery is touched, so only the arguments it reads have to be supplied.
+  degenerate = function(variable_type) {
+    build_spec_mixed_mrf(
+      x = matrix(0, 5L, length(variable_type)),
+      variable_type = variable_type,
+      pairwise_scale = 1, scale_rate = 1, scale_eta = NA_real_
+    )
+  }
+
+  expect_error(
+    degenerate(rep("continuous", 3L)),
+    "at least one discrete and at least one continuous"
+  )
+  expect_error(degenerate(rep("continuous", 3L)), "0 discrete and 3 continuous")
+
+  expect_error(
+    degenerate(rep("ordinal", 3L)),
+    "at least one discrete and at least one continuous"
+  )
+  expect_error(degenerate(rep("ordinal", 3L)), "3 discrete and 0 continuous")
+})

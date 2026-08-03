@@ -6,6 +6,11 @@
 # size cap keeps the build well under a second. Caches are disabled so the build
 # is fresh and never touches the user cache directory.
 #
+# The three gated blocks -- surface-vs-gold, the shape fence, and the Cauchy
+# build-and-deploy -- are the heavy end-to-end build machinery and run in the
+# weekly certification tier (T2, BGMS_RUN_CERTIFICATION). The tier contract
+# keeps surface-vs-gold SINGLE CELLS nightly; these are builds, not cells.
+#
 # The serial Normal builds are session-cached across tests: the core-count
 # invariance test proves serial and parallel builds bit-identical, so a single
 # serial build per max_size serves every comparison.
@@ -31,10 +36,7 @@ normal_surface = function(max_size) {
 
 test_that("the built surface tracks the gold oracle far tighter than additive", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the surface-vs-gold accuracy cert"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -101,9 +103,14 @@ test_that("the deployed route serves the surface at a non-unit shape", {
   for(v in 3:q) G[1, v] = G[v, 1] = G[2, v] = G[v, 2] = 1L
   for(a in 3:(q - 1)) for(b in (a + 1):q) G[a, b] = G[b, a] = 1L
 
+  # The claim is that two routes over one surface return the same value, which
+  # does not depend on how well that surface is anchored: an eight-variable hull
+  # leaves the ten-node mediating block extrapolating past its boundary, and the
+  # two routes have to agree there too. Anchoring the full block instead costs
+  # three times as long and asserts nothing further.
   for(alpha in c(0.5, 2)) {
     zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = alpha)
-    surf = bgms:::zratio_build_surfaces(zc, max_size = 12L, cores = 1L)
+    surf = bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)
     expect_false(is.null(surf), label = paste("surface built at shape", alpha))
     res = zratio_test_surface_eval(
       G, 1, 2, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
@@ -141,25 +148,67 @@ test_that("anchors are drawn at the cell's own Gamma shape", {
 
 test_that("the build fences shapes outside the validated range", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to build the gamma-shape constants cells"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
-  # Above the range the anchor oracle's independence-Metropolis step stops
-  # mixing (about 1% acceptance at shape 5), so no surface is built.
-  for(shape in c(2.5, 5)) {
+  # The deployment range is [.zratio_surface_shape_lo, .zratio_surface_shape_hi]
+  # and zratio_build_surfaces is its single owner, so the contract is read off
+  # those two constants rather than restated as literals.
+  lo = bgms:::.zratio_surface_shape_lo
+  hi = bgms:::.zratio_surface_shape_hi
+  expect_equal(c(lo, hi), c(0.5, 10))
+
+  # Inside the range the build proceeds -- at both endpoints and at interior
+  # shapes, which are interpolated rather than separately scored.
+  for(shape in c(lo, 2.5, 5, hi)) {
     zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L))
+    expect_false(
+      is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)),
+      label = sprintf("surface built at shape %g", shape)
+    )
   }
-  # Inside it the build proceeds at both validated endpoints.
-  for(shape in c(0.5, 2)) {
-    zc = bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
-    expect_false(is.null(bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L)))
+  # Outside it no surface is built and the engine keeps the route the fence
+  # assigns: the isolated-edge ratio above the range, the additive path below.
+  for(shape in c(0.25, 12)) {
+    zc = suppressWarnings(
+      bgms:::zratio_constants(0.5 * log(12), 2, alpha = shape)
+    )
+    expect_null(
+      bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 1L),
+      label = sprintf("surface at shape %g", shape)
+    )
   }
+})
+
+test_that("an analysis too small to anchor either family builds no surface", {
+  # A bipartite bridge needs 2 + 2 nodes, so the bipartite anchor grid starts at
+  # size 4 and filters to nothing at a cap of 3 or less. Assigning the family
+  # tag into that empty job table used to abort the fit ("replacement has 1 row,
+  # data has 0"), which made every hierarchical fit at 2 or 3 variables an error.
+  expect_true(bgms:::zratio_anchor_grids_empty(2L))
+  expect_true(bgms:::zratio_anchor_grids_empty(3L))
+  expect_false(bgms:::zratio_anchor_grids_empty(4L))
+  expect_equal(nrow(bgms:::zratio_anchor_grids(3L)$bip), 0L)
+
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE
+  )
+  # The guard returns before any anchor runs, and only the cell's shape is read
+  # on the way there, so it is supplied directly; building the cell's constants
+  # would cost seconds and nothing else is used.
+  zc = list(alpha = 1)
+  for(cap in c(2L, 3L)) {
+    expect_null(bgms:::zratio_build_surfaces(zc, max_size = cap, cores = 1L))
+  }
+  # The route message says the surface is unnecessary here, not that its build
+  # failed.
+  expect_message(
+    bgms:::zratio_surface_fence_message(list(alpha = 1, eta = 1), size = 3L),
+    "none is needed"
+  )
 })
 
 test_that("a non-unit shape gets a raised anchor budget", {
@@ -178,7 +227,10 @@ test_that("the fence message names the validated shapes and the reason", {
   # ABOVE the range no longer reaches the additive path at all -- it routes to
   # the isolated-edge ratio, and its wording is pinned in
   # test-zratio-isolated-edge-routing.R.
-  zc = suppressWarnings(bgms:::zratio_constants(0.5 * log(12), 2, alpha = 0.25))
+  # The wording is a function of the cell's shape and rate alone, so those two
+  # fields are supplied directly; building the cell's constants would cost
+  # seconds and none of them are read.
+  zc = list(alpha = 0.25, eta = 2)
   # The claim is the scored points, not the interval they span: the message
   # must not read as if every shape in between had been measured.
   expect_message(
@@ -217,6 +269,20 @@ test_that("the socket-cluster build path matches the serial build", {
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
   )
+  # The workers load the INSTALLED bgms namespace, so this block needs bgms on
+  # a library path -- which is the R CMD check situation the comment above
+  # describes, and R-CMD-check.yaml runs that on five platforms on every push
+  # and PR. Under a bare devtools::test() on a machine that has never installed
+  # bgms the workers cannot load it and the block has nothing to compare, so it
+  # skips rather than erroring. Asking a worker is the exact question; anything
+  # read in this session is confounded by pkgload's shims.
+  probe = parallel::makePSOCKcluster(1L)
+  on.exit(parallel::stopCluster(probe), add = TRUE)
+  installed = isTRUE(unlist(parallel::clusterEvalQ(
+    probe, requireNamespace("bgms", quietly = TRUE)
+  )))
+  skip_if(!installed, "bgms is not installed; PSOCK workers cannot load it")
+
   zc = bgms:::zratio_constants(0.5 * log(12), 3)
   s1 = normal_surface(8L)
   withr::local_options(bgms.zratio_surface_psock = TRUE)
@@ -226,10 +292,7 @@ test_that("the socket-cluster build path matches the serial build", {
 
 test_that("the Cauchy slab builds and deploys its own surface cell", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Cauchy surface deploy cert"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE
@@ -268,4 +331,51 @@ test_that("the Cauchy slab builds and deploys its own surface cell", {
     )$logR
   }, numeric(1))
   expect_lt(abs(sv$logR - mean(gold)), 0.04)
+})
+
+
+# ---- The build runs at the width it was asked for (F-104) --------------------
+
+test_that("a worker count that is not one usable number collapses to one", {
+  # parallel::detectCores() is documented to return NA when it cannot tell, and
+  # min(k, NA) is NA -- which would then be handed to a cluster constructor,
+  # where it is not a width but an error or a default. Every shape that is not
+  # a single usable number resolves to 1 rather than travelling on.
+  expect_identical(bgms:::normalize_parallel_cores(NA_integer_), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(integer(0)), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(0L), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(-3L), 1L)
+  expect_identical(bgms:::normalize_parallel_cores("nonsense"), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(1L), 1L)
+
+  local_mocked_bindings(
+    detectCores = function(...) NA_integer_, .package = "parallel"
+  )
+  expect_identical(bgms:::normalize_parallel_cores(2L), 2L)
+})
+
+test_that("the surface build refuses a cluster that is not the width asked for", {
+  skip_on_cran()
+  # The constructor's own default is getOption("mc.cores", 2L), so a worker
+  # count that failed to reach it does not announce itself: the build simply
+  # runs at a width nobody asked for. The builder reads the cluster back, and
+  # this is the read-back firing -- a cluster of the wrong length, however it
+  # got that way, stops the build with both numbers named. A stand-in cluster
+  # is enough: the check is on its length, and no job is ever dispatched.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE,
+    bgms.zratio_surface_psock = TRUE
+  )
+  stand_in = structure(list("node"), class = c("SOCKcluster", "cluster"))
+  local_mocked_bindings(
+    makePSOCKcluster = function(...) stand_in,
+    stopCluster = function(...) invisible(NULL),
+    .package = "parallel"
+  )
+  zc = bgms:::zratio_constants(0.5 * log(12), 3)
+  expect_error(
+    bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 2L),
+    "asked for 2 PSOCK worker\\(s\\) and got 1"
+  )
 })

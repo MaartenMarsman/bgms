@@ -108,6 +108,36 @@ test_that("table build with cache round-trips and reuses the file", {
   expect_equal(tab1$cell$delta, 0.5 * log(4))
 })
 
+test_that("the cache key is scoped to the package version", {
+  cache_dir = file.path(tempdir(), "bgms-ctable-version-test")
+  unlink(cache_dir, recursive = TRUE)
+  old = options(bgms.correction_cache_dir = cache_dir)
+  on.exit(options(old), add = TRUE)
+
+  version = as.character(utils::packageVersion("bgms"))
+  cell = ggm_correction_cell(
+    4, 0.5 * log(4), cauchy_prior(scale = 2.5), exponential_prior(eta = 1)
+  )
+  key = ggm_correction_table_key(cell, 12L, 100L, 100L, 1L, "gibbs")
+  expect_match(key, version, fixed = TRUE)
+
+  # The sweep that builds the table is code, so a table another release wrote
+  # into the shared cache directory must not be served to this one. Two
+  # versions' tables for the same cell were observed to differ by up to 0.042
+  # in edge density under the unversioned key.
+  stale = file.path(cache_dir, sub(version, "0.0.0.0", key, fixed = TRUE))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  saveRDS(list(sentinel = TRUE), stale)
+
+  table = ggm_correction_table(
+    p = 4, n_grid = 12L, n_samples = 100L, n_warmup = 100L, n_seeds = 1L,
+    update_method = "gibbs"
+  )
+  expect_null(table$sentinel)
+  expect_identical(table$cell$q, 4L)
+  expect_true(file.exists(file.path(cache_dir, key)))
+})
+
 test_that("the progress bar renders the label, counts, and percentage", {
   pb = new_correction_progress(120L, prefix = "Correction table")
   mid = paste(capture.output(pb$update(70L)), collapse = "")

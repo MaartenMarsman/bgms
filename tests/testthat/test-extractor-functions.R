@@ -56,6 +56,39 @@ test_that("extract_arguments errors on non-bgms objects", {
   expect_error(extract_arguments(data.frame()), class = "error")
 })
 
+test_that("extract_arguments exposes main_effect_indices for bgmCompare fits", {
+  # Regression: the main-effect row layout lived only in the internal cache,
+  # so callers that need to map main-effect parameter rows back to variables
+  # got NULL from extract_arguments() and errored downstream.
+  fit = get_bgmcompare_fit()
+  args = extract_arguments(fit)
+
+  mei = args$main_effect_indices
+  expect_false(is.null(mei), info = "bgmCompare should expose main_effect_indices")
+  expect_true(is.matrix(mei))
+  expect_equal(nrow(mei), args$num_variables)
+  expect_equal(ncol(mei), 2L)
+
+  # Zero-based, contiguous, non-overlapping blocks covering every parameter row.
+  expect_equal(mei[1, 1], 0L)
+  expect_true(all(mei[, 2] >= mei[, 1]))
+  if(nrow(mei) > 1) {
+    expect_equal(mei[-1, 1], mei[-nrow(mei), 2] + 1L)
+  }
+
+  # Each block is as wide as that variable's parameter count: one row per
+  # category for ordinal variables, two for Blume-Capel.
+  widths = mei[, 2] - mei[, 1] + 1L
+  expected = ifelse(args$is_ordinal_variable, args$num_categories, 2L)
+  expect_equal(as.integer(widths), as.integer(expected))
+
+  # Together the blocks tile the baseline block of the main-effect samples,
+  # which is followed by the difference columns.
+  num_baseline = mei[nrow(mei), 2] + 1L
+  expect_equal(num_baseline, sum(as.integer(expected)))
+  expect_lte(num_baseline, ncol(fit$raw_samples$main[[1]]))
+})
+
 
 # ------------------------------------------------------------------------------
 # extract_pairwise_interactions() Tests (parameterized)

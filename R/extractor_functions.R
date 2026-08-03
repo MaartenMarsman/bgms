@@ -48,6 +48,16 @@ samples_to_array3d = function(xlist) {
 #'   function, including data dimensions, prior settings, and MCMC
 #'   configuration.
 #'
+#'   For `bgmCompare` fits the list additionally carries
+#'   `main_effect_indices`: an integer matrix with one row per variable and
+#'   two columns giving the zero-based first and last column of that
+#'   variable's block in the baseline main-effect parameters returned by
+#'   [extract_main_effects()]. Variables do not occupy a fixed number of
+#'   columns -- an ordinal variable contributes one per category and a
+#'   Blume-Capel variable two -- so this layout is what maps parameter
+#'   columns back to variables. It is not available for `bgms` fits, whose
+#'   main effects are already returned as one row per variable.
+#'
 #' @seealso [bgm()], [bgmCompare()], [summary.bgms()], [summary.bgmCompare()]
 #' @family extractors
 #' @export
@@ -69,10 +79,25 @@ extract_arguments.bgms = function(bgms_object) {
 #' @exportS3Method
 #' @noRd
 extract_arguments.bgmCompare = function(bgms_object) {
-  if(is.null(bgms_object$arguments)) {
+  arguments = bgms_object$arguments
+  if(is.null(arguments)) {
     stop("Fit object predates bgms version 0.1.3. Upgrade the model output.")
   }
-  return(bgms_object$arguments)
+
+  # The main-effect row layout is built by the spec and kept in the internal
+  # cache, never in $arguments, so callers that need to map main-effect
+  # parameter rows back to variables had no way to get at it. Surface it here
+  # rather than in the stored object: it is derived, and $arguments is the
+  # documented place users look. Fits written before the cache carried it fall
+  # through unchanged.
+  if(is.null(arguments$main_effect_indices)) {
+    cached = tryCatch(bgms_object$cache$main_effect_indices, error = function(e) NULL)
+    if(!is.null(cached)) {
+      arguments$main_effect_indices = cached
+    }
+  }
+
+  return(arguments)
 }
 
 #' @title Extract Indicator Samples
@@ -411,6 +436,24 @@ rb_bf_scale = function(log_bf, log) {
 #'   `+Inf` also covers entries that overflow double precision. For `bgms` the
 #'   diagonal is `NA`; for `bgmCompare` the diagonal holds main-effect difference
 #'   Bayes factors.
+#'
+#'   "Never updated" means never *proposed*, which is narrower than it sounds.
+#'   An edge indicator in [bgm()] that stays included for the whole run is still
+#'   proposed at every iteration, so the accumulators see its conditional
+#'   inclusion odds and it gets a finite (possibly very large) Bayes factor. An
+#'   unselected main-effect difference in [bgmCompare()]
+#'   (`main_difference_selection = FALSE`) is never proposed at all, so no
+#'   Rao-Blackwellized quantity exists for it and `NA` is the honest entry
+#'   rather than a lost number.
+#'
+#' @examples
+#' \donttest{
+#' fit = bgm(x = Wenchuan[, 1:3])
+#' extract_inclusion_bf(fit)
+#'
+#' # log = TRUE keeps evidence that saturates the Bayes factor scale readable.
+#' extract_inclusion_bf(fit, log = TRUE)
+#' }
 #'
 #' @seealso [extract_posterior_inclusion_probabilities()],
 #'   [extract_prior_inclusion_probabilities()]
@@ -1318,8 +1361,17 @@ extract_pairwise_thresholds = function(bgms_object) {
 #' @details
 #' The `indicator` element is the split-R-hat of the Rao-Blackwellized
 #' inclusion draws, matching the default of [extract_ess()]; the indicator
-#' chain's transition-based effective sample size is available as
-#' `extract_ess(fit, estimator = "mixt")`.
+#' chain's transition-based effective sample size remains available as
+#' `extract_ess(fit, estimator = "mixt")` (deprecated).
+#'
+#' One failure mode these diagnostics may miss: chains can agree that an edge
+#' is included while disagreeing about the magnitude of its weight, for
+#' example when the weight's posterior has more than one mode and different
+#' chains settle in different ones. The indicator diagnostics cannot see this
+#' by construction, and the pooled-draw `Rhat` responds only weakly when
+#' inclusion is intermittent. When it matters, compare each edge's weight
+#' across chains using only the draws in which the edge is included; a
+#' dedicated diagnostic for this is planned for a future release.
 #'
 #' @seealso [bgm()], [bgmCompare()], [extract_ess()]
 #' @family extractors

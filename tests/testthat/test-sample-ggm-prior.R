@@ -54,7 +54,7 @@ test_that("excluded edges are exactly zero in K_offdiag", {
   draws = short_run(p = p, n_samples = 80L, edge_indicators = E)
 
   colnames(draws$K_offdiag) = draws$offdiag_names
-  # Excluded edges are zeroed out by the constraint structure / RATTLE
+  # Excluded edges are zeroed out by the constraint structure
   # projection; with the Cholesky parameterization "structural" zeros
   # (Phi[i, j] = 0 directly) are exact, while quadratic constraints are
   # held to numerical tolerance.
@@ -323,4 +323,60 @@ test_that("joint-spec gibbs matches adaptive-metropolis at a gamma-shape diagona
     suppressWarnings(ks.test(dg$K_diag[thin, j], da$K_diag[thin, j])$p.value)
   }, 0.0)
   expect_gt(min(ks_p), 0.005)
+})
+
+
+# ---- Positive-definiteness of the conjugate edge move (F-019) ----------------
+
+test_that("the conjugate edge move keeps prior-only chains inside the PD cone", {
+  skip_on_cran()
+  # The conjugate birth/death move is positive-definite by construction only
+  # while its cofactor constants are exact. They are read from the
+  # SMW-maintained covariance and log-determinant, which drift within a sweep,
+  # and the move's acceptance ratio carries no determinant term to veto a
+  # proposal that has drifted outside the cone (the tilt and the likelihood
+  # determinant cancel by design). With data the likelihood holds the state
+  # away from the boundary; with n = 0 nothing does, and an accepted non-PD
+  # state made the next refresh_cholesky() throw "chol(): decomposition
+  # failed". These four (p, seed) pairs each reproduced that throw within a
+  # second before the guard; delta = 0 is what makes them reach the boundary,
+  # since the determinant tilt is exactly the term that repels the chain
+  # from it.
+  reproducers = list(
+    list(p = 15L, seed = 31L),
+    list(p = 15L, seed = 35L),
+    list(p = 25L, seed = 2L),
+    list(p = 25L, seed = 9L)
+  )
+
+  for(case in reproducers) {
+    ctx = sprintf("p = %d, seed = %d", case$p, case$seed)
+    draws = tryCatch(
+      sample_ggm_prior(
+        p = case$p, n_samples = 400L, n_warmup = 1000L, seed = case$seed,
+        spec = "joint", update_method = "gibbs", edge_inclusion_prob = 0.5,
+        delta = 0, verbose = FALSE
+      ),
+      error = function(e) e
+    )
+    expect_false(inherits(draws, "error"),
+      info = sprintf("%s: %s", ctx,
+        if(inherits(draws, "error")) conditionMessage(draws) else "")
+    )
+    if(inherits(draws, "error")) next
+
+    # Every retained draw is a precision matrix, so every one of them has to be
+    # positive definite -- the chain never visiting the outside is the claim,
+    # not merely that the run finished.
+    upper = which(upper.tri(matrix(0, case$p, case$p)), arr.ind = TRUE)
+    upper = upper[order(upper[, "row"], upper[, "col"]), , drop = FALSE]
+    min_eigen = vapply(seq_len(nrow(draws$K_offdiag)), function(s) {
+      K = matrix(0, case$p, case$p)
+      K[upper] = draws$K_offdiag[s, ]
+      K = K + t(K)
+      diag(K) = draws$K_diag[s, ]
+      min(eigen(K, symmetric = TRUE, only.values = TRUE)$values)
+    }, 0.0)
+    expect_true(all(min_eigen > 0), info = ctx)
+  }
 })

@@ -366,11 +366,29 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
 # collapse_categories_across_groups
 # ------------------------------------------------------------------------------
 #
-# For bgmCompare: collapses ordinal categories that are not observed in
-# *all* groups, then renumbers the remaining categories contiguously
-# (0-based). Blume-Capel variables are left unchanged.
+# For bgmCompare: recodes each regular ordinal variable onto the contiguous
+# *union* of the category values observed in any group. A value that no group
+# observes -- a true gap in the scale -- carries no information anywhere, so
+# it is dropped and the remaining categories are renumbered contiguously
+# (0-based). A value that at least one group observes is always retained,
+# even when some other group never observes it.
+#
+# Retaining such a category makes it a structural zero for the groups that do
+# not observe it: those groups contribute no observations to its threshold, so
+# the corresponding group difference is driven by the prior rather than by
+# data. That is the honest representation --- the alternative, merging the
+# category away, silently redefines the variable in the groups that *do*
+# observe it. The function warns whenever this happens.
+#
+# Blume-Capel variables are exempt. Their thresholds are parametric functions
+# of the category *score*, so renumbering categories would change the model
+# rather than relabel it, and an unobserved score is still a meaningful point
+# on the scale. See the note in man/bgmCompare.Rd.
 #
 # Called immediately after reformat_ordinal_data() in the compare path.
+# reformat_ordinal_data() already maps the pooled data onto contiguous codes,
+# so on that input the ordinal branch here is a relabel-free pass that
+# computes the per-group support; it is written to be correct standalone.
 #
 # @param x  Numeric matrix: data already recoded by reformat_ordinal_data().
 # @param group  Integer vector of length nrow(x): group membership (1:K).
@@ -379,7 +397,10 @@ reformat_ordinal_data = function(x, is_ordinal, baseline_category) {
 # @param baseline_category  Integer vector from reformat_ordinal_data().
 #
 # Returns:
-#   list(x, num_categories, baseline_category)
+#   list(x, num_categories, baseline_category, category_support)
+#   - category_support: list, one entry per variable (NULL for Blume-Capel),
+#     each a (num_categories + 1) x num_groups integer matrix of observation
+#     counts on the final 0-based category codes.
 # ------------------------------------------------------------------------------
 collapse_categories_across_groups = function(x,
                                              group,
@@ -387,44 +408,140 @@ collapse_categories_across_groups = function(x,
                                              num_categories,
                                              baseline_category) {
   num_variables = ncol(x)
-  num_groups = max(group)
+  group_ids = sort(unique(group))
+  num_groups = length(group_ids)
+
+  variable_names = colnames(x)
+  variable_label = function(node) {
+    if(is.null(variable_names) || is.na(variable_names[node]) ||
+       !nzchar(variable_names[node])) {
+      paste0("variable ", node)
+    } else {
+      paste0("variable '", variable_names[node], "'")
+    }
+  }
+  group_label = function(g) {
+    paste0("group ", group_ids[g])
+  }
+
+  category_support = vector("list", num_variables)
+  renumbered = integer(0) # variables where a true gap was closed
+  gaps_dropped = integer(0) # how many gap values each of those lost
+  ref_cells = character(0) # empty cells in the reference category
+  zero_cells = character(0) # "<variable>, category <c>, <group>"
 
   for(node in seq_len(num_variables)) {
-    if(!is_ordinal[node]) next # BC variables: no group collapsing
+    if(!is_ordinal[node]) next # Blume-Capel variables: exempt, see above
 
     unq_vls = sort(unique(x[, node]))
     n_unique = length(unq_vls)
 
-    # Build observed_scores matrix: which categories appear in which groups
-    observed_scores = matrix(NA, nrow = n_unique, ncol = num_groups)
-    for(i in seq_along(unq_vls)) {
-      for(g in seq_len(num_groups)) {
-        observed_scores[i, g] =
-          as.integer(any(x[group == g, node] == unq_vls[i]))
-      }
-    }
-
-    # Recode: keep only categories observed in ALL groups
-    original = x[, node]
-    cntr = -1L
-    for(i in seq_along(unq_vls)) {
-      if(sum(observed_scores[i, ]) == num_groups) {
-        cntr = cntr + 1L
-      }
-      x[original == unq_vls[i], node] = max(0L, cntr)
-    }
-
-    num_categories[node] = max(x[, node])
-
-    # After collapsing, check that at least two categories remain
-    if(num_categories[node] == 0) {
+    # A variable with a single observed value carries no threshold information.
+    if(n_unique < 2) {
       stop(paste0("Only one value was observed for variable ", node, "."))
     }
+
+    # Per-group counts on the retained (union) categories.
+    support = matrix(0L, nrow = n_unique, ncol = num_groups)
+    for(g in seq_len(num_groups)) {
+      x_g = x[group == group_ids[g], node]
+      support[, g] = tabulate(match(x_g, unq_vls), nbins = n_unique)
+    }
+
+    # Recode onto the contiguous union. Only true gaps -- values no group
+    # observes -- move a category's code; with no gaps this is the identity.
+    target = seq_len(n_unique) - 1L
+    if(!isTRUE(all.equal(as.numeric(unq_vls), as.numeric(target)))) {
+      renumbered = c(renumbered, node)
+      gaps_dropped = c(gaps_dropped, as.integer(max(unq_vls) + 1 - n_unique))
+      original = x[, node]
+      for(i in seq_along(unq_vls)) {
+        x[original == unq_vls[i], node] = target[i]
+      }
+    }
+
+    num_categories[node] = n_unique - 1L
+
+    dimnames(support) = list(
+      paste0("category ", target),
+      paste0("group ", group_ids)
+    )
+    category_support[[node]] = support
+
+    # Structural zeros: a retained category with no observations in some group.
+    # An empty cell in the REFERENCE category is the consequential one. Every
+    # threshold is identified relative to category 0, so a group that never
+    # used it has nothing fixing the level of its whole threshold vector, not
+    # just one threshold. Those cells say so, and are listed first so the
+    # head() below cannot drop them behind ordinary ones.
+    empty = which(support == 0L, arr.ind = TRUE)
+    if(nrow(empty) > 0) {
+      is_reference = empty[, 1] == 1L
+      cells = paste0(
+        variable_label(node), ", category ", target[empty[, 1]], ", ",
+        vapply(empty[, 2], group_label, character(1))
+      )
+      cells[is_reference] = paste0(
+        cells[is_reference],
+        " -- the reference category; every threshold of this variable is",
+        " affected for that group"
+      )
+      ref_cells = c(ref_cells, cells[is_reference])
+      zero_cells = c(zero_cells, cells[!is_reference])
+    }
+  }
+
+  # --- Reporting ---------------------------------------------------------------
+  # Two conditions, two volumes: renumbering a gap is benign bookkeeping, an
+  # empty cell in a retained category changes what the group difference means.
+  if(length(renumbered) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+    message(
+      "Some category values were not used by any group. They were dropped ",
+      "and the remaining categories renumbered, for ",
+      paste0(
+        vapply(renumbered, variable_label, character(1)),
+        " (", gaps_dropped, " dropped)",
+        collapse = ", "
+      ),
+      ". No observed category was merged."
+    )
+  }
+
+  affected_cells = c(ref_cells, zero_cells)
+  if(length(affected_cells) > 0) {
+    shown = utils::head(affected_cells, 10L)
+    extra = length(affected_cells) - length(shown)
+    # Classed, so a caller can catch this one condition without muffling every
+    # warning the fit might raise. The class is part of the user-facing API.
+    #
+    # Kept tight on purpose: R truncates a warning at getOption("warning.length")
+    # = 1000 characters by default, and the tail of this one is the part that
+    # tells the reader where to look next.
+    warning(warningCondition(
+      paste0(
+        "Some categories were not used by every group:\n",
+        paste0("  ", shown, collapse = "\n"),
+        if(extra > 0) paste0("\n  ... and ", extra, " more") else "",
+        "\nThese categories are kept, because the other groups do use them. ",
+        "But a group with no observations in a category has nothing to say ",
+        "about where its threshold for that category lies, so the reported ",
+        "difference for that group and that category is set by the prior, not ",
+        "by the data. An empty reference category is worse: every threshold is ",
+        "measured relative to category 0, so all of that variable's threshold ",
+        "differences for that group rest on the prior, not just one. Expect ",
+        "large, very uncertain numbers, and do not read them as evidence of a ",
+        "group difference. Only the category thresholds are affected, not the ",
+        "pairwise (edge) differences. The printed summary marks the rows; see ",
+        "?summary.bgmCompare."
+      ),
+      class = "bgms_group_support_warning"
+    ))
   }
 
   list(
     x                 = x,
     num_categories    = num_categories,
-    baseline_category = baseline_category
+    baseline_category = baseline_category,
+    category_support  = category_support
   )
 }

@@ -40,12 +40,12 @@ test_that("bgmCompare is reproducible", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:50, 1:4]
   group_ind = rep(1:2, each = 25)
-  fit2 = bgmCompare(
-    x = x, group_indicator = group_ind,
-    iter = 50, warmup = 100, chains = 2,
-    seed = 54321, # Same seed as fixture
-    display_progress = "none"
-  )
+  fit2 = without_support_warning(bgmCompare(
+      x = x, group_indicator = group_ind,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 54321, # Same seed as fixture
+      display_progress = "none"
+  ))
 
   combine_chains = function(fit) {
     pairs = do.call(rbind, fit$raw_samples$pairwise)

@@ -5,6 +5,9 @@ vignette: >
   %\VignetteIndexEntry{Model Comparison with bgmCompare}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
 ---
 
 ```{r, include = FALSE}
@@ -18,13 +21,17 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-The function `bgmCompare()` extends `bgm()` to independent-sample
-designs. It estimates whether edge weights and category thresholds
-differ across groups in an ordinal Markov random field (MRF).  
+The function `bgmCompare()` extends `bgm()` to independent-sample designs. It
+estimates whether pairwise interactions and category thresholds differ across
+groups in an ordinal Markov random field [@MarsmanHaslbeck_2023_ordinal], the
+member of the family that `bgm()` fits to binary and ordinal data.
 
-Posterior inclusion probabilities indicate how plausible it is that a
-group difference exists in a given parameter. These can be converted to
-Bayes factors for hypothesis testing.
+Each difference is put under selection, so it carries a posterior inclusion
+probability and an inclusion Bayes factor of its own -- the factor by which the
+data shift the odds that the groups differ on that parameter
+[@HuthEtAl_2023; @SekulovskiEtAl_2023]. `verdicts()` reads those Bayes factors
+against a threshold and returns evidence of a difference, evidence of no
+difference, or undecided.
 
 # ADHD dataset
 
@@ -33,7 +40,6 @@ We illustrate with a subset from the `ADHD` dataset included in **bgms**.
 ```{r}
 library(bgms)
 
-?ADHD
 data_adhd = ADHD[ADHD$group == 1, -1]
 data_adhd = data_adhd[, 1:5]
 data_no_adhd = ADHD[ADHD$group == 0, -1]
@@ -52,6 +58,27 @@ fit = bgmCompare(
   display_progress = "none", verbose = FALSE
 )
 ```
+
+The baseline pairwise prior is the same at both entry points:
+`interaction_prior = normal_prior(1)` in `bgm()` and in `bgmCompare()`. A
+`bgmCompare()` fit set beside two separate `bgm()` fits at their stated
+defaults therefore differs in the model for the groups, not in the prior on
+the baseline interactions. The group differences are priced separately, by
+`difference_family` (`"Normal"` by default) and `difference_scale`; these
+govern both the pairwise-interaction differences and the threshold
+differences, and `interaction_prior` does not reach them.
+
+Groups often differ in which answer categories they actually use.
+`bgmCompare()` models the union of the categories observed across the groups,
+so a category one group uses is kept even when the other group never uses it;
+only a category value that no group uses at all is dropped. When a kept
+category is empty in some group, that group's data say nothing about its
+threshold there, so the reported difference for that group-by-category
+combination comes from the prior and will be large and very uncertain.
+`bgmCompare()` warns and names each such case, and
+`extract_arguments(fit)$category_support` holds the per-group category counts.
+The pairwise (edge) parameters are unaffected. See `?bgmCompare` for the
+details, including why Blume--Capel variables are exempt.
 
 # Posterior summaries
 
@@ -72,28 +99,22 @@ differences on the association scale through `difference_scale`, and the
 calibration of that default is under study, so a verdict close to a
 decision threshold can move with the scale.
 
-# Visualizing group networks
+# Visualizing the groups
 
-We can use the output to plot the network for the ADHD group:
+`plot()` on a `bgmCompare()` fit draws the differences by default, split by
+what the data settle about each pair. `type = "groups"` draws each group's own
+graph instead, on one shared layout, so the two pictures can be read side by
+side: line width is that group's posterior mean association and colour carries
+its sign.
 
-```{r, fig.width= 7, fig.height= 7}
-library(qgraph)
-
-adhd_network = matrix(0, 5, 5)
-adhd_network[lower.tri(adhd_network)] = coef(fit)$pairwise_effects_groups[, 1]
-adhd_network = adhd_network + t(adhd_network)
-colnames(adhd_network) = colnames(data_adhd)
-rownames(adhd_network) = colnames(data_adhd)
-
-qgraph(adhd_network,
-  theme = "TeamFortress",
-  maximum = 1,
-  fade = FALSE,
-  color = c("#f0ae0e"), vsize = 10, repulsion = .9,
-  label.cex = 1, label.scale = "FALSE",
-  labels = colnames(data_adhd)
-)
+```{r, fig.width = 10, fig.height = 5, out.width = "100%"}
+plot(fit, type = "groups")
 ```
+
+Drawing needs the **qgraph** package, which **bgms** suggests rather than
+depends on. `plot(fit)` gives the difference display and
+`plot(fit, type = "centrality")` the posterior strength centrality of one
+group; see `?plot.bgmCompare`.
 
 # Next steps
 
@@ -102,3 +123,5 @@ qgraph(adhd_network,
 - For additional analysis tools and more advanced plotting options,
   consider using the **easybgm** package, which integrates smoothly with
   **bgms** objects.
+
+# References

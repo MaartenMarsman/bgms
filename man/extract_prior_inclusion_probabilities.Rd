@@ -44,7 +44,8 @@ probability for \code{bernoulli_prior()}, \code{alpha / (alpha + beta)} for
 \code{beta_bernoulli_prior()}, and the exchangeable partition mixture of
 the within- and between-block means for \code{sbm_prior()}.
 
-Under the joint spike-and-slab prior on a continuous block, the graph
+Under \code{precision_graph_prior = "joint"} the spike-and-slab prior on a
+continuous block leaves \eqn{p(K, \Gamma)} un-normalized, so the graph
 marginal is reweighted by the per-graph normalizer — the
 positive-definite-cone mass of the slab under the edge pattern,
 further shaped by the determinant tilt — so the prior inclusion
@@ -59,11 +60,30 @@ probabilities are estimated by a prior-only chain run with the fit's
 own prior and correction settings; the estimate is cached on the fit,
 and \code{recompute = TRUE} re-runs it.
 
+Under \code{precision_graph_prior = "hierarchical"} the conditional
+\eqn{p(K \mid \Gamma)} is normalized per graph, so integrating \eqn{K}
+out returns \eqn{\pi(\Gamma)} exactly and the continuous block carries
+the same edge-prior marginal as every other class. The tilted table and
+the prior-only chain do not apply, and neither is built.
+
 In mixed models only continuous-continuous edges live in the joint
 block, so the matrix carries up to three distinct values:
 discrete-discrete, continuous-continuous, and cross edges. Variables
 are a priori exchangeable within type, which makes the probabilities
 constant within these classes.
+}
+\examples{
+\donttest{
+fit = bgm(x = Wenchuan[, 1:3])
+
+# An ordinal MRF has no continuous block, so every edge carries the edge
+# prior's own marginal -- 0.5 under the default bernoulli_prior(0.5).
+extract_prior_inclusion_probabilities(fit)
+
+# These are the odds extract_inclusion_bf() divides out.
+extract_posterior_inclusion_probabilities(fit)
+}
+
 }
 \seealso{
 \code{\link[=extract_posterior_inclusion_probabilities]{extract_posterior_inclusion_probabilities()}}, \code{\link[=bgm]{bgm()}}

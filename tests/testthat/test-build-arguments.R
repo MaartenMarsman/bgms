@@ -223,9 +223,10 @@ test_that("Compare build_arguments: all expected field names present", {
     "nuts_max_depth", "learn_mass_matrix",
     "num_chains", "num_groups",
     "data_columnnames", "projection",
-    "num_categories", "category_levels", "blume_capel_shift",
-    "is_ordinal_variable",
-    "group",
+    "num_categories", "category_levels", "category_support",
+    "blume_capel_shift",
+    "is_ordinal_variable", "baseline_category",
+    "group", "group_labels",
     "model_type"
   )
   expect_true(all(expected %in% names(a)),

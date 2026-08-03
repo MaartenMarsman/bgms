@@ -527,6 +527,10 @@ test_that("GGM edge selection works with beta_prime_prior interaction", {
     interaction_prior = beta_prime_prior(1, 1),
     # beta-prime has no scale, so the diagonal prior must give a raw rate
     precision_scale_prior = gamma_prior(shape = 1, rate = 1),
+    # The Z-ratio constants are derived for a normal or Cauchy slab, so the
+    # beta-prime slab lives on the joint path only; the default is
+    # hierarchical, which rejects it.
+    precision_graph_prior = "joint",
     edge_prior = bernoulli_prior(0.5),
     iter = 50, warmup = 100, chains = 1,
     display_progress = "none"
@@ -542,6 +546,9 @@ test_that("GGM beta_prime_prior interaction rejects an eta-frame diagonal prior"
     bgm(Y,
       variable_type = "continuous",
       interaction_prior = beta_prime_prior(1, 1),
+      # As above: the beta-prime slab is a joint-path specification, and the
+      # error under test is the eta-frame diagonal prior, not the slab.
+      precision_graph_prior = "joint",
       iter = 50, warmup = 100, chains = 1,
       display_progress = "none"
     ),
@@ -626,15 +633,15 @@ test_that("bgmCompare works with normal_prior interaction + cauchy threshold", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
-  fit = bgmCompare(
-    x = x, y = y,
-    interaction_prior = normal_prior(scale = 0.5),
-    threshold_prior = cauchy_prior(scale = 1),
-    difference_selection = FALSE,
-    iter = 25, warmup = 100, chains = 1,
-    update_method = "adaptive-metropolis",
-    display_progress = "none"
-  )
+  fit = without_support_warning(bgmCompare(
+      x = x, y = y,
+      interaction_prior = normal_prior(scale = 0.5),
+      threshold_prior = cauchy_prior(scale = 1),
+      difference_selection = FALSE,
+      iter = 25, warmup = 100, chains = 1,
+      update_method = "adaptive-metropolis",
+      display_progress = "none"
+  ))
   expect_s3_class(fit, "bgmCompare")
 })
 
@@ -642,15 +649,15 @@ test_that("bgmCompare works with beta_prime_prior interaction", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
-  fit = bgmCompare(
-    x = x, y = y,
-    interaction_prior = beta_prime_prior(1, 1),
-    threshold_prior = beta_prime_prior(0.5, 0.5),
-    difference_selection = FALSE,
-    iter = 25, warmup = 100, chains = 1,
-    update_method = "adaptive-metropolis",
-    display_progress = "none"
-  )
+  fit = without_support_warning(bgmCompare(
+      x = x, y = y,
+      interaction_prior = beta_prime_prior(1, 1),
+      threshold_prior = beta_prime_prior(0.5, 0.5),
+      difference_selection = FALSE,
+      iter = 25, warmup = 100, chains = 1,
+      update_method = "adaptive-metropolis",
+      display_progress = "none"
+  ))
   expect_s3_class(fit, "bgmCompare")
 })
 
@@ -658,14 +665,14 @@ test_that("bgmCompare with difference selection + non-default priors", {
   data("Wenchuan", package = "bgms")
   x = Wenchuan[1:25, 1:4]
   y = Wenchuan[26:50, 1:4]
-  fit = bgmCompare(
-    x = x, y = y,
-    interaction_prior = normal_prior(scale = 1),
-    threshold_prior = normal_prior(scale = 1),
-    difference_selection = TRUE,
-    iter = 25, warmup = 100, chains = 1,
-    update_method = "adaptive-metropolis",
-    display_progress = "none"
-  )
+  fit = without_support_warning(bgmCompare(
+      x = x, y = y,
+      interaction_prior = normal_prior(scale = 1),
+      threshold_prior = normal_prior(scale = 1),
+      difference_selection = TRUE,
+      iter = 25, warmup = 100, chains = 1,
+      update_method = "adaptive-metropolis",
+      display_progress = "none"
+  ))
   expect_s3_class(fit, "bgmCompare")
 })

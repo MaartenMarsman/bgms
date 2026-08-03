@@ -511,7 +511,7 @@ private:
     mutable LogZScratch  logz_scratch_;
 
     // =========================================================================
-    // RATTLE constraint structure
+    // Graph constraint structure (zero-edge projection)
     // =========================================================================
 
     /// Cholesky constraint structure (per-column excluded/included for Gyy block).

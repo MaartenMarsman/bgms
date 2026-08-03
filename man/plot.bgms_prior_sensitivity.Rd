@@ -18,8 +18,9 @@ label by name; the rest are counted in a corner note. Default: \code{10}.}
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-One panel, answer first: the title states how many edge verdicts depend on
-the slab scale. Each edge's \eqn{\log_{10}} inclusion-Bayes-factor curve
+One panel, answer first: the label above the panel states how many edge
+verdicts depend on the slab scale. Each edge's natural log
+inclusion-Bayes-factor curve
 (the evidence for the edge) is drawn across the anchored scale range, with
 dots at the anchor scales; curve points masked for low importance ESS
 leave visible gaps, and an edge that saturates at some scale is capped at a
@@ -27,6 +28,16 @@ large finite Bayes factor rather than running off to infinity. Edges whose
 verdict genuinely depends on the scale are colored and labeled by name; all
 other edges are the muted background. The shaded band is the undecided zone
 between the evidence thresholds; the zones are labeled at the left edge.
+}
+\details{
+The drawn curves clamp the pooled inclusion probability at
+\eqn{1 - 10^{-6}}, which caps a plotted log Bayes factor at
+\eqn{\ln(10^6) \approx 13.8}. A curve running flat along 13.8 has reached
+that display cap; it is not evidence levelling off. The uncapped value at
+the chosen scale is \code{x$edges$chosen_scale_log_bf}, which
+\code{print()} reports and which can be far larger. \code{x$edges$saturated} does not mark capped curves: it
+records that the edge's inclusion indicator never flipped in the chain,
+which is a different condition.
 }
 \seealso{
 \code{\link{prior_sensitivity_check}()}

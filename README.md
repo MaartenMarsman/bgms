@@ -52,7 +52,7 @@ Or install the development version from GitHub:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms")
+remotes::install_github("Bayesian-Graphical-Modelling-Lab/bgms@develop")
 ```
 
 ## Citation

@@ -5,7 +5,9 @@
 # slope degenerates to the old freeze and is counted rather than deployed.
 #
 # The accuracy gate that chose this rule over freezing and over the fitted
-# quadratic continued as its own extrapolant is the slow-tier gate at the end.
+# quadratic continued as its own extrapolant is the weekly certification gate at
+# the end of this file (T2, BGMS_RUN_CERTIFICATION): it scores the extension
+# against block-Gibbs gold, which is oracle machinery rather than a heartbeat.
 
 # A one-component common-neighbour block: endpoints 1 and 2, k nodes adjacent to
 # both and complete among themselves.
@@ -74,10 +76,7 @@ test_that("a downward fitted edge slope degenerates to the freeze and is counted
 
 test_that("the extension beats the freeze against block-Gibbs gold", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the surface extension accuracy gate"
-  )
+  skip_unless_certification()
   withr::local_options(
     bgms.zratio_surface_cache = FALSE,
     bgms.correction_table_cache = FALSE

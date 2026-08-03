@@ -14,6 +14,16 @@ or \code{bgmCompare} (from \code{\link[=bgmCompare]{bgmCompare()}}).}
 A named list containing all arguments passed to the fitting
 function, including data dimensions, prior settings, and MCMC
 configuration.
+
+For \code{bgmCompare} fits the list additionally carries
+\code{main_effect_indices}: an integer matrix with one row per variable and
+two columns giving the zero-based first and last column of that
+variable's block in the baseline main-effect parameters returned by
+\code{\link[=extract_main_effects]{extract_main_effects()}}. Variables do not occupy a fixed number of
+columns -- an ordinal variable contributes one per category and a
+Blume-Capel variable two -- so this layout is what maps parameter
+columns back to variables. It is not available for \code{bgms} fits, whose
+main effects are already returned as one row per variable.
 }
 \description{
 Retrieves the arguments used when fitting a model with \code{\link[=bgm]{bgm()}} or

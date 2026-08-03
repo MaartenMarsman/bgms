@@ -238,6 +238,24 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   p = length(disc_idx)
   q = length(cont_idx)
 
+  # Degenerate-block guard (F-123). The mixed model is the two-block model: its
+  # parameter layout, its indicator layout and its gradients all assume both
+  # blocks are non-empty. Pure-type data is not a degenerate mixed model, it is
+  # a different model, and bgm_spec() routes it to the OMRF or the GGM before
+  # reaching here -- so this is defensive, not a user-facing path, and it fails
+  # loudly rather than building a spec no downstream code is written for.
+  if(p == 0L || q == 0L) {
+    stop(
+      "The mixed model requires at least one discrete and at least one ",
+      "continuous variable; got ", p, " discrete and ", q, " continuous. ",
+      "Pure-ordinal data is fitted by the ordinal MRF and pure-continuous ",
+      "data by the Gaussian graphical model; bgm() selects the model from ",
+      "variable_type, so reaching this point means the model was chosen ",
+      "internally rather than from the data.",
+      call. = FALSE
+    )
+  }
+
   # Split data
   x_disc = x[, disc_idx, drop = FALSE]
   x_cont = x[, cont_idx, drop = FALSE]
@@ -398,7 +416,7 @@ build_spec_compare = function(x, y, group_indicator,
                               difference_selection, main_difference_selection,
                               difference_prior,
                               difference_scale, difference_probability,
-                              difference_prior_type = "cauchy",
+                              difference_prior_type = "normal",
                               beta_bernoulli_alpha, beta_bernoulli_beta,
                               beta_bernoulli_alpha_between = 1,
                               beta_bernoulli_beta_between = 1,
@@ -436,17 +454,21 @@ build_spec_compare = function(x, y, group_indicator,
       stop("The input group_indicator contains only unique group values.")
     }
 
-    group = group_indicator
-    for(u in unique_g) {
-      group[group_indicator == u] = which(unique_g == u)
-    }
+    # Number the groups by first appearance, whatever the indicator's storage
+    # type: a character or factor indicator would otherwise coerce the recode
+    # back to character and fail tabulate().
+    group = match(group_indicator, unique_g)
     tab = tabulate(group)
     if(any(tab < 2L)) {
       stop("One or more groups only had one member in the input group_indicator.")
     }
+    # The indicator's own values, in the order the numbering assigned them, so
+    # human-facing output can say which group number is which group.
+    group_labels = as.character(unique_g)
   } else {
     group = c(rep.int(1L, nrow(x)), rep.int(2L, nrow(y)))
     x = rbind(x, y)
+    group_labels = c("x", "y")
   }
 
   num_variables = ncol(x)
@@ -500,10 +522,10 @@ build_spec_compare = function(x, y, group_indicator,
         "there was only one value in the input g left."
       ))
     }
-    g = group
-    for(u in unique_g) {
-      group[g == u] = which(unique_g == u)
-    }
+    # Renumbering drops the groups listwise deletion emptied; the labels follow
+    # the surviving codes so label i still names group i.
+    group_labels = group_labels[unique_g]
+    group = match(group, unique_g)
     tab = tabulate(group)
     if(any(tab < 2)) {
       stop(paste0(
@@ -536,6 +558,10 @@ build_spec_compare = function(x, y, group_indicator,
   x_recoded = col$x
   num_categories = col$num_categories
   bc_final = col$baseline_category
+  # Per-group observation counts on the final category codes, one matrix per
+  # ordinal variable (NULL for Blume-Capel). Carried into the fitted object so
+  # a user can see which group-by-category cells are empty.
+  category_support = col$category_support
   ordinal_variable = is_ordinal
 
   # Recode map per ordinal variable: a named vector mapping each original
@@ -550,6 +576,33 @@ build_spec_compare = function(x, y, group_indicator,
       names(lookup) = pairs[, 1]
       category_levels[[vi]] = lookup[order(as.numeric(names(lookup)))]
     }
+  }
+
+  # True gaps have to be reported from here, not from
+  # collapse_categories_across_groups(): reformat_ordinal_data() runs first and
+  # has already closed them, so by the time the cross-group pass sees the data
+  # the values are contiguous. Read them off the supplied values instead. A
+  # scale that merely starts above 0 (1..7, say) is an offset, not a gap, and
+  # is not worth telling anyone about.
+  gap_vars = integer(0)
+  gap_counts = integer(0)
+  for(vi in seq_len(ncol(x_recoded))) {
+    if(!ordinal_variable[vi]) next
+    observed = as.numeric(names(category_levels[[vi]]))
+    missing_values = as.integer(diff(range(observed)) + 1 - length(observed))
+    if(missing_values > 0) {
+      gap_vars = c(gap_vars, vi)
+      gap_counts = c(gap_counts, missing_values)
+    }
+  }
+  if(length(gap_vars) > 0 && isTRUE(getOption("bgms.verbose", TRUE))) {
+    labels = data_columnnames[gap_vars]
+    message(
+      "Some category values were not used by any group. They were dropped ",
+      "and the remaining categories renumbered, for ",
+      paste0("'", labels, "' (", gap_counts, " dropped)", collapse = ", "),
+      ". No observed category was merged."
+    )
   }
 
   num_variables = ncol(x_recoded)
@@ -646,10 +699,12 @@ build_spec_compare = function(x, y, group_indicator,
       num_cases = as.integer(nrow(observations)),
       num_categories = as.integer(num_categories),
       category_levels = category_levels,
+      category_support = category_support,
       # Additive shift to the 0-based scale per Blume-Capel variable (the
       # cross-group collapse leaves Blume-Capel columns unchanged).
       blume_capel_shift = ord$blume_capel_shift,
       group = as.integer(group),
+      group_labels = group_labels,
       num_groups = as.integer(num_groups),
       group_indices = group_indices,
       projection = projection

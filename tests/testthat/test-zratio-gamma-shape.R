@@ -7,6 +7,10 @@
 # ratio (K_ii_new / K_ii_old)^(alpha - 1). Each generalized channel is
 # checked against a direct Monte Carlo of the same moment ratio, and the
 # alpha = 1 path against the closed forms it must reduce to.
+#
+# The direct-Monte-Carlo channel references are the n = 2e6 machinery and run
+# in the weekly certification tier (T2, BGMS_RUN_CERTIFICATION); the quadrature
+# rules and the alpha = 1 reductions are arithmetic and stay local (T0).
 
 test_that("generalized Gauss-Laguerre rule reproduces gamma moments", {
   for(a in c(-0.5, 1, 2.5)) {
@@ -54,10 +58,7 @@ test_that("generalized spike integral matches quadrature-free reference", {
 
 test_that("spike ratio at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
-  )
+  skip_unless_certification()
   delta = 0.5 * log(6)
   beta = 1
   for(alpha in c(0.5, 2)) {
@@ -79,10 +80,7 @@ test_that("spike ratio at alpha != 1 matches direct Monte Carlo", {
 
 test_that("isolated-edge ratio psi0 at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
-  )
+  skip_unless_certification()
   delta = 0.5 * log(6)
   beta = 1
   for(alpha in c(0.5, 2)) {
@@ -109,10 +107,7 @@ test_that("isolated-edge ratio psi0 at alpha != 1 matches direct Monte Carlo", {
 
 test_that("node channel at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
-  )
+  skip_unless_certification()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -132,10 +127,7 @@ test_that("node channel at alpha != 1 matches direct Monte Carlo", {
 
 test_that("bridge channel at alpha != 1 matches direct Monte Carlo", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
-  )
+  skip_unless_certification()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1
@@ -162,10 +154,7 @@ test_that("bridge channel at alpha != 1 matches direct Monte Carlo", {
 
 test_that("clique-2 moments at alpha != 1 match an importance-sampled reference", {
   skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the Monte-Carlo channel references"
-  )
+  skip_unless_certification()
   delta = 0.5 * log(6)
   sigma = 1
   beta = 1

@@ -17,19 +17,11 @@
 # Uniformity tested by KS test at alpha = 0.01 per parameter.
 # Global chi-squared test as a fallback.
 #
-# Gated behind BGMS_RUN_SLOW_TESTS.
+# Weekly certification tier (T2, BGMS_RUN_CERTIFICATION): SBC replicate suites.
 # --------------------------------------------------------------------------- #
 
 
 # ---- Skip gate ---------------------------------------------------------------
-
-skip_unless_slow_sbc = function() {
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run SBC tests"
-  )
-}
-
 
 # ---- Prior sampler -----------------------------------------------------------
 
@@ -109,11 +101,26 @@ compute_sbc_ranks = function(K_true, p, fit, thin_idx = NULL) {
   ranks
 }
 
+# Draw n rows of N(0, Sigma) through the Cholesky factor rather than
+# MASS::mvrnorm().
+#
+# mvrnorm() decomposes Sigma with eigen(), and an eigendecomposition is not
+# unique: eigenvector signs, and the ordering of near-equal eigenvalues, are
+# whatever the platform's LAPACK returns. The same seed therefore gives
+# DIFFERENT data on a different LAPACK, so an SBC realization here is not the
+# fixed thing the seed makes it look like -- it is re-randomized per platform,
+# and any rank statistic computed from it is a fresh draw from its own null
+# rather than a reproducible number. The Cholesky factor of a positive-definite
+# matrix is unique, so this route gives the same data everywhere up to rounding.
+rmvnorm_chol = function(n, Sigma) {
+  matrix(rnorm(n * ncol(Sigma)), n, ncol(Sigma)) %*% chol(Sigma)
+}
+
 
 # ---- SBC test ----------------------------------------------------------------
 
 test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -137,7 +144,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -145,7 +152,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
-      pairwise_scale = scale, delta = 0,
+      interaction_prior = cauchy_prior(scale = scale), delta = 0,
       precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2026L + r
     )
@@ -188,7 +195,7 @@ test_that("SBC: GGM NUTS produces uniform ranks (p=3, no edge selection)", {
 # ---- SBC test: Adaptive Metropolis ------------------------------------------
 
 test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -212,7 +219,7 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -220,7 +227,7 @@ test_that("SBC: GGM MH produces uniform ranks (p=3, no edge selection)", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = FALSE, update_method = "adaptive-metropolis",
-      pairwise_scale = scale, delta = 0,
+      interaction_prior = cauchy_prior(scale = scale), delta = 0,
       precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2027L + r
     )
@@ -321,7 +328,7 @@ compute_sbc_ranks_diag = function(K_true, p, fit, thin_idx = NULL) {
 # ---- SBC test: Edge selection (MH, diagonal elements) ------------------------
 
 test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -345,7 +352,7 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
     draw = prior_draws[[r]]
     K_true = draw$K
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -353,7 +360,11 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
-      pairwise_scale = scale, delta = 0,
+      # joint pinned: the SBC reference chain draws from spec = "joint", and
+      # this block predates the hierarchical default (F-010). Hierarchical SBC
+      # parity is tracked as its own item.
+      precision_graph_prior = "joint",
+      interaction_prior = cauchy_prior(scale = scale), delta = 0,
       precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2028L + r
     )
@@ -439,7 +450,7 @@ draw_prior_K_tilted = function(p, scale = 2.5, delta = 1,
 # ---- SBC test: NUTS under determinant tilt ----------------------------------
 
 test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   p = 3
   n = 100
@@ -462,7 +473,7 @@ test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -470,7 +481,7 @@ test_that("SBC: GGM NUTS produces uniform ranks under tilt (p=3, delta=1)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = FALSE, update_method = "nuts",
-      pairwise_scale = scale, delta = delta,
+      interaction_prior = cauchy_prior(scale = scale), delta = delta,
       precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2029L + r
     )
@@ -527,7 +538,7 @@ reconstruct_K = function(off_row, diag_row, p) {
 }
 
 test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   # Joint-specification SBC: draw (K_true, Gamma_true) from the un-normalised
   # joint prior via sample_ggm_prior(spec = "joint"), simulate Y | K_true, and
@@ -565,7 +576,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
   for(r in seq_len(R)) {
     K_true = reconstruct_K(K_off_true[r, ], K_diag_true[r, ], p)
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -573,6 +584,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
+      precision_graph_prior = "joint", # generator targets the joint spec
       delta = NULL, # auto-default, matches generator
       display_progress = "none", seed = 2030L + r
     )
@@ -627,7 +639,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
 # ---- SBC test: gamma-shape diagonal (Gibbs, no edge selection) ----------------
 
 test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
-  skip_unless_slow_sbc()
+  skip_unless_certification()
 
   # The row-block Gibbs corrects its shape-1 conjugate row proposal by an
   # independence-Metropolis accept at shape != 1; uniform ranks under a
@@ -656,7 +668,7 @@ test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
   for(r in seq_len(R)) {
     K_true = prior_draws[[r]]
     Sigma = solve(K_true)
-    X = MASS::mvrnorm(n, mu = rep(0, p), Sigma = Sigma)
+    X = rmvnorm_chol(n, Sigma)
     dat = as.data.frame(X)
     colnames(dat) = paste0("V", seq_len(p))
 
@@ -664,7 +676,7 @@ test_that("SBC: GGM Gibbs produces uniform ranks at a gamma-shape diagonal", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = FALSE, update_method = "gibbs",
-      pairwise_scale = scale, delta = 0,
+      interaction_prior = cauchy_prior(scale = scale), delta = 0,
       precision_scale_prior = gamma_prior(shape = shape, rate = 1),
       display_progress = "none", seed = 2029L + r
     )

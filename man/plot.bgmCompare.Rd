@@ -10,7 +10,8 @@
   evidence_threshold = 10,
   group = 1,
   layout = "spring",
-  legend = TRUE,
+  max_panels = 3L,
+  page = 1L,
   ...
 )
 }
@@ -18,21 +19,26 @@
 \item{x}{A fitted model object of class \code{bgmCompare}, from \code{\link[=bgmCompare]{bgmCompare()}}.}
 
 \item{type}{Character; which display to draw. \code{"difference"} (default) is
-the verdict-encoded network of group differences; \code{"groups"} draws each
-group's own network and the difference panel on one shared layout;
-\code{"centrality"} is the posterior strength centrality of
+the difference evidence plot; \code{"groups"} draws each group's own network on
+one shared layout; \code{"centrality"} is the posterior strength centrality of
 \code{\link[=extract_centrality]{extract_centrality()}}.}
 
 \item{evidence_threshold}{Numeric > 1; the inclusion Bayes factor separating
 evidence of a difference from undecided, as in \code{\link[=verdicts]{verdicts()}}. Default \code{10}.}
 
-\item{group}{For \code{type = "centrality"}: passed to \code{\link[=extract_centrality]{extract_centrality()}}, so
-a single index gives that group's centrality and two give the difference.
-Default \code{1}.}
+\item{group}{For \code{type = "centrality"}: a single group index, passed to
+\code{\link[=extract_centrality]{extract_centrality()}} for that group's centrality. A difference in
+centrality (two indices) can be extracted and summarized but has no plot;
+see \code{\link[=extract_centrality]{extract_centrality()}} for the interpretation caveat. Default \code{1}.}
 
 \item{layout}{Layout passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}. Default \code{"spring"}.}
 
-\item{legend}{Logical; draw the legend. Default \code{TRUE}.}
+\item{max_panels}{For \code{type = "groups"}: how many group networks are drawn
+at once. A fit with more groups than this is drawn a page at a time.
+Default \code{3}.}
+
+\item{page}{For \code{type = "groups"}: which page of \code{max_panels} networks to
+draw. Default \code{1}.}
 
 \item{...}{Passed to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}, or to \code{\link[=plot.bgms_centrality]{plot.bgms_centrality()}} for
 \code{type = "centrality"}.}
@@ -41,30 +47,94 @@ Default \code{1}.}
 \code{x}, invisibly. Called for the side effect of drawing.
 }
 \description{
-Draws the group differences the data settle, as one network, or the groups'
-own networks beside it on a shared layout.
+Draws the group differences as three panels split by what the data settle
+about each pair, or the groups' own networks on a shared layout.
 }
 \details{
-The default picture is about differences, because differences are what
-\code{\link[=bgmCompare]{bgmCompare()}} parameterizes. A pairwise difference with evidence of presence
-is drawn solid, its width scaled by the size of the difference and its colour
-carrying the sign; an undecided difference is a thin dotted grey line; a
-difference the data rule out is not drawn. The picture therefore says the
-same thing as \code{verdicts(fit)} at the same threshold.
+\strong{The difference evidence plot.} The default picture is about
+differences, because differences are what \code{\link[=bgmCompare]{bgmCompare()}} parameterizes, and
+it is the display \code{\link[=plot.bgms]{plot.bgms()}} uses, read for differences: three panels on
+one shared layout -- the pairs whose difference the data support, the pairs
+whose difference the data rule out, and the pairs the data cannot decide.
+Each panel is titled with what it holds and how many pairs are in it, and
+with the rule that put them there, stated as a Bayes factor rather than its
+logarithm. The classification is the one \code{verdicts(fit)} reports at the same
+\code{evidence_threshold}.
 
-A network with no edges left is a result, not an error: "the groups do not
-differ anywhere" is a common and correct finding, so the nodes are drawn on
-their own and the subtitle says so.
+Only the first panel is weighted: line width is the posterior mean difference
+and colour carries its sign -- blue for a positive difference, vermillion
+for a negative one, the Okabe-Ito pair, so the sign survives common forms of
+colour-vision deficiency. Which group a positive difference favours follows
+the contrast coding, which \code{\link[=extract_group_params]{extract_group_params()}} reports per group. The
+other two are drawn at uniform width, dashed for a difference the data rule
+out and dotted for undecided, because for those pairs the classification is
+the result.
 
-Main-effect differences are not edges. When \code{main_difference_selection = TRUE} gave them their own indicators, their verdicts are carried on the
-nodes: a square node with an accented border where the data settle a
-main-effect difference, a circle with a grey border where they leave it
-undecided, and a faint border where they rule it out. Shape carries the
-settled/unsettled distinction so the encoding does not rest on colour alone.
-Under the default \code{main_difference_selection = FALSE} those indicators are
-never updated and have no verdict, so every node is drawn alike and the
-subtitle says the channel is empty. \code{verdicts()} remains the place to read
-main-effect differences precisely; the nodes are a summary of it.
+The figure carries no key: the panel titles name the evidence class and the
+rule that defines it, and the sign convention is documented here.
+
+"The groups do not differ anywhere" is a common and correct finding, and it
+is what a filled second panel and an empty first panel say.
+
+\strong{Device size.} Three networks side by side need a wide device. R's
+default 7 by 7 inches gives each panel a little over two inches of width, and
+at that size the node labels and the panel titles crowd. Open a wide device
+before plotting -- \verb{width = 13, height = 5} is a good starting point --
+or pass the same to whichever device the output is going to:
+\preformatted{
+dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+plot(fit)
+}
+The single-panel and \code{type = "groups"} displays are content with the default
+device.
+
+\strong{More than two groups.} \code{\link[=bgmCompare]{bgmCompare()}} gives each pair a single
+inclusion indicator shared across all \code{K - 1} contrasts, so the three-way
+split is exactly as well defined for \code{K > 2} as it is for two groups and the
+panels are the same. What changes is the width channel: a pair then has
+\code{K - 1} posterior mean differences rather than one, and no single number is
+"the" difference. The first panel is therefore drawn unweighted for \code{K > 2}
+-- uniform width, plain ink, no sign colour -- because there the
+classification is the whole of what the panel reports. Read the magnitudes
+where they are per group: \code{plot(fit, type = "groups")} for the picture,
+\code{\link[=extract_group_params]{extract_group_params()}} for the numbers.
+
+The panels need the split to exist, and more than two groups \emph{without}
+\code{difference_selection} is the one case where it does not. Selection off
+means weights are the display -- as it does for a \code{\link[=bgm]{bgm()}} fit -- and beyond
+two groups the weights of a pair are \code{K - 1} numbers rather than one, whose
+honest weighted picture is the groups themselves. \code{plot()} therefore draws
+the \code{type = "groups"} panels in that case, with the same layout, the same
+\code{max_panels} paging and the same passthrough to \code{\link[qgraph:qgraph]{qgraph::qgraph()}}.
+\code{\link[=extract_group_params]{extract_group_params()}} remains the way to read the differences as numbers.
+
+\strong{Main-effect differences are not edges.} When
+\code{main_difference_selection = TRUE} gave them their own indicators, their
+evidence is carried on the nodes: each node wears a ring filled to its
+difference indicator's posterior inclusion probability -- a full ring is
+probability 1, half a ring 0.5 -- coloured by the verdict (accented for
+presence, grey for undecided, faint for absence). The fill fraction carries
+the number, so the encoding does not rest on colour alone. Under the default
+\code{main_difference_selection = FALSE} those indicators do not exist and no ring
+is drawn. \code{verdicts()} remains the place to read main-effect differences
+precisely; the rings are a summary of it.
+
+\strong{Without difference selection} there is no indicator and so no
+inclusion Bayes factor to split the pairs by. \code{plot()} then draws one panel
+with every pair on it, width the posterior mean difference and colour its
+sign, titled \code{"Difference weights"} so that the channel the figure is drawn
+in is never in doubt. On more than two groups a pair has \code{K - 1} differences
+and no one of them is the weight to draw, so \code{plot()} draws the groups'
+own networks instead -- the \code{type = "groups"} display, reached without
+asking for it, because with selection off that is what the weighted picture
+of such a fit is.
+
+\strong{\code{type = "groups"}} draws each group's own posterior mean network on
+the layout the difference display uses, so a node sits in the same place
+throughout and a reader compares by position. Those panels are estimates,
+not evidence, so every pair is drawn with its weight. A fit with more groups
+than \code{max_panels} is paged rather than squeezed. The difference evidence is
+the default display and is not repeated here.
 
 Drawing needs the suggested package qgraph.
 }
@@ -81,7 +151,8 @@ plot(fit, type = "groups")
 
 }
 \seealso{
-\code{\link[=verdicts]{verdicts()}} for the table the picture encodes,
+The \pkg{easybgm} package for more extensive plotting and summary
+options around bgms fits; \code{\link[=verdicts]{verdicts()}} for the table the panels encode,
 \code{\link[=extract_centrality]{extract_centrality()}}, \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}}
 
 Other posterior-methods:

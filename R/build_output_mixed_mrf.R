@@ -302,7 +302,33 @@ build_output_mixed_mrf = function(spec, raw) {
   # --- Z-ratio trust gauge (hierarchical spec on the continuous block) ---------
   # Only when the in-chain gauge actually ran (see build_output_bgm).
   if(!is.null(zratio_chains) && zratio_gauge_present(zratio_chains)) {
-    results$zratio_diag = summarize_zratio_gauge(zratio_chains, verbose = TRUE)
+    # Harm channel inputs (F-022). Two blocks, not one: the Z-ratio enters the
+    # continuous-continuous edge moves only, so the gauge's pair stream indexes
+    # the continuous subgraph and the audited pip vector must be that block
+    # alone -- the indicator layout is [Gxx_ut | Gyy_ut | Gxy], so it is the
+    # choose(q, 2) columns after the discrete ones, in the same upper-triangle
+    # order. A Beta-Bernoulli inclusion parameter, by contrast, is drawn from
+    # every edge of the mixed graph, so the feedback pool is the full vector.
+    harm_inputs = if(edge_selection) {
+      n_disc_edges = if(p > 1) p * (p - 1) / 2 else 0
+      n_cont_edges = if(q > 1) q * (q - 1) / 2 else 0
+      cc_idx = n_disc_edges + seq_len(n_cont_edges)
+      pip_all = lapply(raw, function(ch) {
+        if(is.null(ch$indicator_samples)) NULL else colMeans(ch$indicator_samples)
+      })
+      pip_cc = lapply(pip_all, function(v) if(is.null(v)) NULL else v[cc_idx])
+      zratio_harm_inputs(
+        pip_cc, edge_prior,
+        a = pr$beta_bernoulli_alpha, b = pr$beta_bernoulli_beta,
+        pool_pip = pip_all
+      )
+    } else {
+      NULL
+    }
+    results$zratio_diag = summarize_zratio_gauge(
+      zratio_chains,
+      verbose = TRUE, harm_inputs = harm_inputs
+    )
   }
 
   # Routing and extrapolation notices: same pair as the GGM path (see

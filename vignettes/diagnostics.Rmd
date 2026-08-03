@@ -55,15 +55,20 @@ summary(fit)$pairwise
 - The effective sample size (ESS) reflects the number of independent samples that would provide equivalent precision. Larger ESS values indicate more reliable estimates.
 - The Monte Carlo standard error (MCSE) measures the additional variability introduced by using a finite number of MCMC draws. A small MCSE relative to the posterior standard deviation indicates stable estimates, whereas a large MCSE suggests that more samples are needed.
 
-The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the transition counts (`n0->0`, `n0->1`, `n1->0`, `n1->1`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
+The 1.01 rule is a guideline for continuous parameters. It should **not** be applied directly to the binary edge (or difference) **indicators**. A decisive edge produces a nearly saturated indicator chain — the inclusion probability sits close to 0 or 1 and the indicator only rarely flips — so R-hat carries little information and can be `NA` (all chains identical) or large (chains stuck in different structures). Read the indicator R-hat together with the directional transition counts (`n0->1` and `n1->0`, reported in the indicator summary) and the posterior inclusion probability: for a saturated or barely-flipping indicator the statistic is uninformative rather than a sign of trouble. The indicator R-hat is most useful when it is large while the inclusion probability is near 0.5 and the transition counts show the chains disagreeing on inclusion.
 
 ## Diagnostics for edge-selected parameters
 
 With edge or difference selection active, the effect parameters are governed by
 spike-and-slab priors. The corresponding parameter is set to exactly zero when
 the effect is excluded, rather than being removed from the model. Because the
-parameter has a well-defined value at every iteration, the full chain —
-including zeros — is a valid sequence for computing ESS.
+parameter has a well-defined value at every iteration, `mean`, `sd` and `Rhat`
+are computed from the full chain, zeros included. The reported `n_eff` is
+deliberately *not* a full-chain ESS: run through the standard autocorrelation
+machinery, the spike-and-slab chain inflates the ESS in cells where the
+inclusion indicator, rather than the weight itself, drives the variability. The
+package therefore reports a composite estimator built from the two Monte Carlo
+errors that actually limit the model-averaged weight.
 
 - **n_eff** in the pairwise table is the composite ESS of the model-averaged
   weight: it combines the Monte Carlo error of the conditional (included-only)
@@ -81,9 +86,17 @@ summary(fit)$indicator
 - **mean**, **mcse**, **sd**, **n_eff**, and **Rhat** describe the
   Rao-Blackwellized inclusion probability. The sampler records a one-step
   inclusion draw at every indicator update, and that draw is continuous, so the
-  standard Monte Carlo machinery applies to it. They are `NA` only for an
-  indicator whose Rao-Blackwellized draws are constant to double precision,
-  where the inclusion probability sits at its numerical bound.
+  standard Monte Carlo machinery applies to it. They are `NA` when that draw
+  carries too little variability for the machinery to work on, which happens by
+  two routes. The first is an indicator whose Rao-Blackwellized draws are
+  constant to double precision, where the inclusion probability sits at its
+  numerical bound; `sd` is then exactly `0`. The second is a draw whose
+  variance is non-zero but falls below the numerical floor of the
+  autocovariance kernel: `mcse` and `n_eff` come back `NA` while `sd` and
+  `Rhat` are still reported. In the table above, `intrusion-flash` takes the
+  second route — an `sd` of about `2e-11` with `NA` `mcse` and `n_eff` and a
+  finite `Rhat`. Either way the reading is the same: the inclusion probability
+  is pinned, not poorly estimated.
 - **n0->1** and **n1->0** are the directional flip counts of the binary
   indicator chain. They record how much the chain explored the two states, which
   the Rao-Blackwellized columns cannot see: those measure precision conditional
@@ -143,14 +156,27 @@ BF_10 = p / (1 - p)
 BF_10
 ```
 
-Here the Bayes factor in favor of inclusion (H1) is small, meaning that there is little evidence for inclusion. Since the Bayes factor is transitive, we can 
-use it to express the evidence in favor of exclusion (H0) as
+Here the Bayes factor in favor of inclusion (H1) is `r round(BF_10, 2)`: the
+data are about `r round(BF_10)` times more likely under a model that includes
+the `intrusion`-`physior` edge than under one that excludes it, which is
+substantial evidence *for* inclusion. On the natural log scale that the package
+uses elsewhere this is a log Bayes factor of `r round(log(BF_10), 2)`, and
+`verdicts()` — see the model-checking vignette — labels this edge a
+`presence`.
+
+Since the Bayes factor is transitive, the same number expressed the other way
+around gives the evidence in favor of exclusion (H0):
 
 ```{r}
 1 / BF_10
 ```
-This Bayes factor shows that there is strong evidence for the absence of a 
-network relation between the variables `intrusion` and `physior`.
+
+This is the Bayes factor for absence, `BF_01`, and at `r signif(1 / BF_10, 2)`
+it sits well below 1: it is evidence *against* absence rather than for it — the
+mirror image of the reading above.
+Absence is what a **large** `BF_01` would show: a value of, say, 10 or more,
+which is the same as a `BF_10` of 0.1 or less, would be strong evidence that
+there is no edge between two variables.
 
 # NUTS diagnostics
 
@@ -206,7 +232,7 @@ If these diagnostics suggest the chain was still settling, increase `warmup` and
 
 # Hierarchical prior trust gauge
 
-When you use the hierarchical graph prior (`precision_graph_prior = "hierarchical"`), the sampler must weigh, for every candidate edge, how the model's normalizing constant changes when that edge is added or removed. Computing this exactly at every step would be prohibitively slow, so the sampler uses a fast approximation in its place. The approximation is accurate across the prior scales and model sizes it was calibrated on, but it can drift outside that range, most often when there are many variables or a very wide prior scale. When it drifts far enough, it starts to influence which edges the sampler includes, so the recovered network reflects the shortcut rather than the data and prior alone. The trust gauge exists to tell you whether that is happening in your fit.
+When you use the hierarchical graph prior (`precision_graph_prior = "hierarchical"`), the sampler must weigh, for every candidate edge, how the model's normalizing constant changes when that edge is added or removed. Computing this exactly at every step would be prohibitively slow, so the sampler uses a fast approximation in its place. The approximation is accurate across the prior scales and model sizes it was calibrated on, but it can drift outside that range, most often when there are many variables or a very wide prior scale. When it drifts far enough, it starts to influence which edges the sampler includes, so the recovered graph reflects the shortcut rather than the data and prior alone. The trust gauge exists to tell you whether that is happening in your fit.
 
 ## The two alarms
 
@@ -223,11 +249,11 @@ The `per_chain` data frame in `fit$zratio_diag` records the following fields (on
 - **flip_rate**: The fraction of audited decisions that would have come out differently under the exact calculation. Together with `harm_pred`, one of the two fields to watch.
 - **flag**: `TRUE` when the chain's flip rate exceeds the 1% tolerance after allowing for reference noise.
 - **noise_floor**: How much of the flip rate could be explained by Monte Carlo noise in the exact reference alone. The flag compares `flip_rate` against the tolerance plus this floor, so a chain is only flagged when the effect is larger than the reference's own uncertainty.
-- **se_mean**: The average difference between the approximate and exact edge calculations, measured on the log scale the sampler works on. A value near zero means the approximation is unbiased on this chain's moves; a value consistently away from zero means it leans in one direction. An approximation can lean this way without changing any decisions when the data strongly favor one outcome; the harm channel exists to translate exactly that situation into consequences for the recovered network.
+- **se_mean**: The average difference between the approximate and exact edge calculations, measured on the log scale the sampler works on. A value near zero means the approximation is unbiased on this chain's moves; a value consistently away from zero means it leans in one direction. An approximation can lean this way without changing any decisions when the data strongly favor one outcome; the harm channel exists to translate exactly that situation into consequences for the recovered graph.
 - **se_sd**: The spread of that difference across the audited moves.
 - **se_mcse**, **se_se**: The Monte Carlo uncertainty of `se_mean`: `se_mcse` is the contribution of the exact reference's own noise, and `se_se` combines it with the spread across audited moves. The harm channel only flags a lean that is resolved above twice its own uncertainty (accounting for repeated audits of the same edge and for the reference noise), so a flag reflects a measured effect rather than noise.
-- **amplification**, **kappa**, **harm_pred**, **harm_flag**: The harm channel. `amplification` is the feedback factor estimated from the chain's own inclusion probabilities and the edge prior; `kappa` is the predicted shift of the mean inclusion probability per nat of coherent error (a regime summary: how exposed this fit is to approximation error, independent of how large the error turned out to be); `harm_pred` is the projected distortion itself; `harm_flag` is `TRUE` when that projection exceeds 0.01 and is resolved. A fit can be flagged here with a quiet flip rate: that combination means the error is not changing individual decisions but is consistently leaning the recovered network in one direction.
-- **n_ent**, **n_ref**, **n_capped**: How much the audit rests on. `n_ent` is the number of non-trivial edge moves the gauge saw, `n_ref` the number it actually checked against the exact calculation, and `n_capped` the number left unchecked because a per-sweep budget was reached. A small `n_ref` means both channels are based on few comparisons and should be read as a rough indication. On a dense large model the gap is wide by design — a few tens of checked moves against tens of thousands of non-trivial ones — so read the audit as a sample. A sample of that size resolves coherent error, error that leans the same way across edges, which is what `harm_pred` targets and what moves a recovered network. It does not resolve rare edge-specific failures, and `flip_rate` is the flip rate among the audited decisions rather than a guarantee about every edge.
+- **amplification**, **kappa**, **harm_pred**, **harm_flag**: The harm channel. `amplification` is the feedback factor estimated from the chain's own inclusion probabilities and the edge prior; `kappa` is the predicted shift of the mean inclusion probability per nat of coherent error (a regime summary: how exposed this fit is to approximation error, independent of how large the error turned out to be); `harm_pred` is the projected distortion itself; `harm_flag` is `TRUE` when that projection exceeds 0.01 and is resolved. A fit can be flagged here with a quiet flip rate: that combination means the error is not changing individual decisions but is consistently leaning the recovered graph in one direction.
+- **n_ent**, **n_ref**, **n_capped**: How much the audit rests on. `n_ent` is the number of non-trivial edge moves the gauge saw, `n_ref` the number it actually checked against the exact calculation, and `n_capped` the number left unchecked because a per-sweep budget was reached. A small `n_ref` means both channels are based on few comparisons and should be read as a rough indication. On a dense large model the gap is wide by design — a few tens of checked moves against tens of thousands of non-trivial ones — so read the audit as a sample. A sample of that size resolves coherent error, error that leans the same way across edges, which is what `harm_pred` targets and what moves a recovered graph. It does not resolve rare edge-specific failures, and `flip_rate` is the flip rate among the audited decisions rather than a guarantee about every edge.
 - **block_lo**, **block_hi**: The smallest and largest mediating block the audit covered, in variables. Read a flag against these: blocks beyond the approximation's trained size range are where it is expected to drift.
 
 ## Fits that skip the approximation instead

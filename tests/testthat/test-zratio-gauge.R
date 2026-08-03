@@ -1,6 +1,31 @@
 # Trust-gauge reference route (block_reference_logR): the block-local exact
 # Monte-Carlo reference log R_e that the in-chain gauge compares against the
 # deployed log J. These drive the engine reference in isolation.
+#
+# The p = 16 biased-fit detector blocks run in the weekly certification tier
+# (T2, BGMS_RUN_CERTIFICATION) BY CONTRACT: maintainer ruling 2026-08-03
+# (F-103 (iii)) — their statistic is a per-fit Monte-Carlo quantity with real
+# seed-to-seed dispersion, so they are distributional assertions and belong
+# with the Monte-Carlo machinery whatever their runtime (helper-tiers.R).
+#
+# harm_threshold history (F-103): first parked 2026-08-01 when the Linux
+# nightly caught harm_pred 0.01071 against the then-threshold 0.01 (run
+# 30715557912, report 12). Report 13 measured the healthy negative control
+# across 12 seeds: 0.0004-0.0125, threshold inside the spread. Report 24 ran
+# the sweeps program: the spread is the fit's, not the audit's (between-seed
+# sd flat across an 8x audit increase, per-seed r = 0.94, the top seed
+# CONVERGES to ~0.0108), so no sweep count separates it — the default sweep
+# count is unchanged. Resolution 2026-08-03 (F-103 (i), maintainer):
+# harm_threshold raised 0.01 -> 0.02 — above the healthy 12-seed max
+# (0.01253 observed, ~0.0108 converged; 1.6-1.9x margin) and below the
+# biased-kernel fixture (0.0431 at the pinned seed, seed-stable across
+# audit sizes; 2.2x margin), near their geometric midpoint. The biased
+# kernel's per-fit values 0.0012-0.0431 OVERLAP the healthy range at some
+# seeds: a per-realization projection can be honestly small on a coarse
+# kernel, and the overlap zone is exactly where an alarm could not be told
+# from healthy dispersion. Whether the projection itself should be
+# recalibrated is backlogged (F-103 (ii), plans/software/flagged-issues.md).
+# Tables: reports/13, 24 + the F-103 row in dev/review-2026-08/FINDINGS.md.
 
 test_that("the block reference is finite and lands near the deployed ratio", {
   skip_on_cran()
@@ -187,30 +212,55 @@ test_that("a clean chain prints nothing", {
   expect_equal(s$per_chain$block_hi, 5L)
 })
 
-test_that("a known-biased evidence-free fit fires the harm channel", {
-  skip_on_cran()
-  skip_if(
-    !identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    "Set BGMS_RUN_SLOW_TESTS=true to run the p=16 biased-fit detector"
-  )
-  # Bare additive kernel under a dense-leaning Beta-Bernoulli prior with no
-  # data: the feedback-amplified regime where the flip rate stays quiet but the
-  # projected distortion is first-order. The additive kernel is reached through
-  # the non-unit Gamma-diagonal fence (shape = 2), where the surface is not
-  # deployed and the engine falls back to the additive-counts saddle.
-  f = sample_ggm_prior(
+# A 16-variable prior draw under a dense-leaning Beta-Bernoulli prior with no
+# data: the feedback-amplified regime where the flip rate stays quiet but the
+# projected distortion is first-order. The Gamma-diagonal shape selects which
+# kernel the engine reaches, so both sides of the surface's deployment fence
+# run the same fixture.
+biased_evidence_free_fit = function(shape) {
+  sample_ggm_prior(
     p = 16L, n_samples = 1200L, n_warmup = 500L,
     interaction_prior = normal_prior(scale = 0.5),
-    precision_scale_prior = gamma_prior(shape = 2, rate = 6),
+    precision_scale_prior = gamma_prior(shape = shape, rate = 6),
     spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
     update_method = "gibbs",
     zratio_diagnostics = TRUE, seed = 7L, verbose = FALSE
   )
+}
+
+test_that("a known-biased evidence-free fit fires the harm channel", {
+  skip_on_cran()
+  skip_unless_certification()
+  # Below the surface's deployment fence (.zratio_surface_shape_lo = 0.5) the
+  # engine falls back to the additive-counts saddle, and that coarse kernel is
+  # what this channel exists to police. The Gamma-shape constants are
+  # themselves unscored there, which is what the cell warns about; the fixture
+  # is chosen for the kernel it reaches, not as a certified cell.
+  f = suppressWarnings(biased_evidence_free_fit(0.4))
   pc = f$zratio_diagnostics$per_chain
   expect_true(is.finite(pc$se_mcse) && pc$se_mcse > 0)
   expect_true(is.finite(pc$harm_pred))
   expect_gt(pc$amplification, 5)
+  expect_gt(pc$harm_pred, f$zratio_diagnostics$harm_threshold)
   expect_true(pc$harm_flag)
+  # Rung 1 stays quiet: the coarse kernel is invisible on the flip rate, which
+  # is why the harm channel is a separate one.
+  expect_lt(pc$flip_rate, 0.01)
+})
+
+test_that("the deployed surface holds that fixture under the harm threshold", {
+  skip_on_cran()
+  skip_unless_certification()
+  # The same fixture at shape 2, which the surface's deployment range [0.5, 10]
+  # covers. The amplification is a property of the prior and the fit, so it
+  # stays first-order; the accurate kernel cuts the projected distortion about
+  # five-fold and the flag correctly stays down. This is the harm channel's
+  # negative control on a cell that is genuinely at risk.
+  f = biased_evidence_free_fit(2)
+  pc = f$zratio_diagnostics$per_chain
+  expect_gt(pc$amplification, 5)
+  expect_lt(pc$harm_pred, f$zratio_diagnostics$harm_threshold)
+  expect_false(pc$harm_flag)
 })
 
 test_that("the harm channel weights errors by per-edge sensitivity", {
@@ -308,7 +358,7 @@ test_that("the harm channel maps audit records onto the correct edge", {
     verbose = FALSE, harm_inputs = list(pip = list(pip))
   )
   # m = 0.5 * 0.5 on the audited edge, se = 0.2, amplification 1 (no a/b):
-  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.01 threshold.
+  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.02 threshold.
   expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
   expect_true(res$per_chain$harm_flag)
 })
@@ -332,4 +382,128 @@ test_that("harm inputs stay aligned when a chain has no gauge output", {
   expect_equal(nrow(res$per_chain), 1L)
   expect_equal(res$per_chain$chain, 2L)
   expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
+})
+
+test_that("a mixed hierarchical fit reports harm, not NA (F-022)", {
+  skip_on_cran()
+  # The mixed builder used to call summarize_zratio_gauge() without
+  # harm_inputs, so harm_pred, amplification and kappa were permanently NA on
+  # every mixed fit -- the gauge's second channel was dead on that path. The
+  # fixture is dense-leaning and evidence-free on the continuous block so the
+  # audit stream is non-empty in a couple of seconds.
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L, bgms.verbose = FALSE)
+  set.seed(11)
+  n = 50
+  x = cbind(
+    matrix(sample(0:2, n * 2, replace = TRUE), n, 2),
+    matrix(rnorm(n * 8), n, 8)
+  )
+  fit = bgm(
+    x, variable_type = c(rep("ordinal", 2), rep("continuous", 8)),
+    interaction_prior = normal_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 6),
+    edge_prior = beta_bernoulli_prior(9, 1),
+    precision_graph_prior = "hierarchical",
+    iter = 100, warmup = 150, update_method = "adaptive-metropolis",
+    chains = 1, cores = 1, seed = 5,
+    display_progress = "none", verbose = FALSE
+  )
+
+  pc = fit$zratio_diag$per_chain
+  expect_gt(pc$n_ref, 0L)
+  expect_true(is.finite(pc$harm_pred))
+  expect_true(is.finite(pc$amplification))
+  expect_true(is.finite(pc$kappa))
+  # The Beta-Bernoulli feedback is real on this fixture, so the wiring is
+  # visibly doing something rather than passing a degenerate pool through.
+  expect_gt(pc$amplification, 1)
+  expect_false(is.na(pc$harm_flag))
+})
+
+test_that("the harm pool can be wider than the audited block", {
+  # A mixed fit audits the continuous-continuous edges only, while a
+  # Beta-Bernoulli theta is drawn from every edge of the graph. pool_pip
+  # carries that wider pool; without it the feedback gain would be computed
+  # from the audited block alone and understate the amplification.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 0L, pair_j = 1L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  chains = list(list(zratio = list(gauge = g)))
+  a = 9
+  b = 1
+  th = 0.9
+  audited = rep(th, 10L) # 5 continuous variables
+  pool = rep(th, 45L) # plus 5 discrete: the whole mixed graph
+
+  narrow = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE, harm_inputs = list(pip = list(audited), a = a, b = b)
+  )
+  wide = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE,
+    harm_inputs = list(
+      pip = list(audited), a = a, b = b, pool_pip = list(pool)
+    )
+  )
+
+  gain_of = function(E) {
+    m = th * (1 - th)
+    theta_hat = (a + E * th) / (a + b + E)
+    E * m / (theta_hat * (1 - theta_hat) * (a + b + E))
+  }
+  amp_of = function(E) 1 / (1 - min(gain_of(E), 0.98))
+  expect_equal(narrow$per_chain$amplification, amp_of(10L))
+  expect_equal(wide$per_chain$amplification, amp_of(45L))
+  expect_gt(wide$per_chain$amplification, narrow$per_chain$amplification)
+
+  # The numerator is still weighted by the AUDITED edge's sensitivity, so the
+  # two differ by the amplification alone.
+  expect_equal(
+    wide$per_chain$harm_pred / narrow$per_chain$harm_pred,
+    amp_of(45L) / amp_of(10L)
+  )
+  # Omitting pool_pip must leave the GGM path exactly as it was.
+  expect_equal(
+    narrow$per_chain,
+    summarize_zratio_gauge(
+      chains,
+      verbose = FALSE,
+      harm_inputs = list(pip = list(audited), a = a, b = b, pool_pip = NULL)
+    )$per_chain
+  )
+})
+
+test_that("the prior sampler resolves gauge sweeps from the option (F-103)", {
+  skip_on_cran()
+  # sample_ggm_prior() hardwired 2 sweeps while the deployed path resolved
+  # options(bgms.zratio_gauge_sweeps) through zratio_gauge_sweeps(). The two
+  # now share one resolution, so an audit measured on the prior chain describes
+  # the audit a deployed fit performs. zratio_diagnostics stays the on/off
+  # switch: it is not the precision.
+  prior_fit = function(...) {
+    sample_ggm_prior(
+      p = 10L, n_samples = 200L, n_warmup = 100L,
+      interaction_prior = normal_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 2, rate = 6),
+      spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
+      update_method = "gibbs", seed = 3L, verbose = FALSE, ...
+    )
+  }
+  n_ref_at = function(sweeps) {
+    withr::local_options(bgms.zratio_gauge_sweeps = sweeps)
+    prior_fit(zratio_diagnostics = TRUE)$zratio_diagnostics$per_chain$n_ref
+  }
+
+  # The gauge references at most a fixed number of pairs per sweep, so a
+  # saturated audit grows one cap per sweep: the option, and nothing else,
+  # sets the audit size.
+  expect_equal(n_ref_at(2L), 2L * n_ref_at(1L))
+  expect_equal(n_ref_at(6L), 6L * n_ref_at(1L))
+
+  # The on/off switch still wins over the option.
+  withr::local_options(bgms.zratio_gauge_sweeps = 6L)
+  expect_null(prior_fit(zratio_diagnostics = FALSE)$zratio_diagnostics)
 })

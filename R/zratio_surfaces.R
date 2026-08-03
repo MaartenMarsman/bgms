@@ -254,7 +254,7 @@ zratio_anchor_sweeps = function(n) {
 #     shape 15   1.37e-04   (k = 42)
 #     shape 20   6.22e-05   (k = 42)
 #
-# so the whole error of this route is at most 2.84e-04 nats, two orders below
+# so the whole error of this route is at most 2.84e-04 nats, roughly a tenth of
 # the 0.003-nat envelope every accuracy claim in this program lives in. The
 # decay is NOT pointwise monotone in shape (shape 12 sits above shape 10), so
 # the claim rests on the measured band maximum and not on a monotonicity
@@ -331,6 +331,29 @@ zratio_anchor_grids = function(cap) {
   list(cn = cn, bip = bip)
 }
 
+# ------------------------------------------------------------------------------
+# zratio_anchor_grids_empty
+# ------------------------------------------------------------------------------
+# TRUE when a size cap admits no anchors in one of the two families, so there is
+# no surface to fit. A bipartite bridge needs 2 + 2 nodes, so its grid starts at
+# size 4 and filters to nothing at a cap of 3 or less.
+#
+# Nothing is given up there. A mediating block excludes the toggled edge's own
+# two endpoints, so at these caps every component is a single node or a single
+# bridge -- below the surface's size_min, where the additive path the engine
+# keeps is exact (see SurfaceFamily in src/models/ggm/zratio_engine.h). The
+# families are genuinely empty, not un-anchored, and a NULL surface is the
+# honest answer rather than a failed build.
+#
+# @param cap  Largest anchor size for this build.
+#
+# Returns: TRUE when either family's grid is empty.
+# ------------------------------------------------------------------------------
+zratio_anchor_grids_empty = function(cap) {
+  grids = zratio_anchor_grids(cap)
+  nrow(grids$cn) == 0L || nrow(grids$bip) == 0L
+}
+
 # Trained size-hull cap for the anchor build. Components larger than this are
 # extended along the surface's boundary slope at deploy, which is accurate but
 # unanchored, so the cap sets where measured accuracy ends: at 80 the reachable
@@ -347,6 +370,13 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
     return(NULL)
   }
   cap = as.integer(max_size)
+  if(zratio_anchor_grids_empty(cap)) return(NULL)
+
+  # The worker count is settled once, here, from the argument. Everything below
+  # -- the branch choice, the announcement, the cluster -- reads this one value,
+  # so a caller's `cores` cannot be one number in the decision and another at
+  # the constructor.
+  cores = normalize_parallel_cores(cores)
 
   # Get-or-build: the build is data-independent, so a repeat fit of the same
   # cell returns the cached surface (session memory first, then disk) instead of
@@ -448,6 +478,17 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   if(use_psock) {
     cl = parallel::makePSOCKcluster(cores)
     on.exit(parallel::stopCluster(cl), add = TRUE)
+    # The constructor's own default is getOption("mc.cores", 2L), so a worker
+    # count that failed to reach it does not announce itself -- the build just
+    # runs at a width nobody asked for, and under R CMD check that can be more
+    # than the two workers the policy allows. Read the cluster back and say so.
+    if(length(cl) != cores) {
+      stop(
+        "The z-ratio surface build asked for ", cores,
+        " PSOCK worker(s) and got ", length(cl),
+        ". The worker count did not reach the cluster constructor."
+      )
+    }
     res[ord] = parallel::parLapplyLB(cl, ord, job_fun)
   } else {
     mc = if(.Platform$OS.type == "unix") cores else 1L
@@ -487,23 +528,30 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
 # cores are idle during exactly this window. options(bgms.zratio_surface_cores)
 # overrides. Unix parallelizes by forking; Windows by a socket cluster on large
 # builds (small ones run serially there -- see zratio_build_surfaces).
-zratio_surface_build_cores = function(fit_cores = 1L) {
+zratio_surface_build_cores = function(fit_cores) {
+  # No default: every call site states the width it means, so a build cannot
+  # end up at the option's value because nobody said anything.
   fallback = suppressWarnings(as.integer(fit_cores))
   if(length(fallback) != 1L || is.na(fallback) || fallback < 1L) fallback = 1L
   cores = suppressWarnings(as.integer(
     getOption("bgms.zratio_surface_cores", fallback)
   ))
   if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
-  cores
+  normalize_parallel_cores(cores)
 }
 
-# Message the route taken when no surface is attached. Three cases, and they
-# are different claims, so they get different wordings: a shape past the top of
-# the validated range (isolated-edge routing, bounded), a shape below it
-# (additive path, unchanged), or a failed build inside the range (which must not
+# Message the route taken when no surface is attached. Four cases, and they are
+# different claims, so they get different wordings: a shape past the top of the
+# validated range (isolated-edge routing, bounded), a shape below it (additive
+# path, unchanged), an analysis too small to anchor either family (additive
+# path, exact there), or a failed build inside the range (which must not
 # downgrade the fit silently). Shared by every sampler call site so the wordings
 # cannot drift apart.
-zratio_surface_fence_message = function(zc) {
+#
+# @param zc    Cell constants.
+# @param size  Size cap the build was asked for; NA when unknown, which skips
+#              the too-small branch.
+zratio_surface_fence_message = function(zc, size = NA_integer_) {
   if(zratio_mediation_off(zc)) {
     message(
       "z-ratio: precision shape alpha = ", format(zc$alpha),
@@ -513,9 +561,9 @@ zratio_surface_fence_message = function(zc) {
       "isolated-edge ratio. At these shapes the Gamma diagonal concentrates ",
       "the precision diagonal and the whole mediated correction is at most ",
       "0.00028 nats, measured against a block-Gibbs reference at shapes 12, ",
-      "15 and 20; that is the entire error of this route, and it is two ",
-      "orders below the 0.003 nats the surface is claimed to within inside ",
-      "its range."
+      "15 and 20; that is the entire error of this route, and it is roughly a ",
+      "tenth of the 0.003 nats the surface is claimed to within inside its ",
+      "range."
     )
     if(zc$eta > .zratio_mediation_off_eta_hi) {
       message(
@@ -536,6 +584,14 @@ zratio_surface_fence_message = function(zc) {
       "; the interior of that range is interpolated, not measured. Below it ",
       "the surface is unscored, and the additive path that serves instead is ",
       "measurably coarse on common-neighbour mediating blocks."
+    )
+  } else if(!is.na(size) && zratio_anchor_grids_empty(as.integer(size))) {
+    message(
+      "z-ratio: at ", as.integer(size), " variables no absolute-moment ",
+      "surface is built, and none is needed. A mediating block excludes the ",
+      "toggled edge's own two endpoints, so every component here is a single ",
+      "node or a single bridge, where the additive path that serves instead ",
+      "is exact."
     )
   } else {
     message(
@@ -584,15 +640,12 @@ zratio_spec_list = function(zc, gauge_sweeps) {
 # prior sampler paths share. Returns the (possibly surface-carrying) `zratio`
 # list.
 zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
-  surf = zratio_build_surfaces(
-    zc,
-    max_size = min(size, .zratio_surface_size_cap),
-    cores = cores
-  )
+  max_size = min(size, .zratio_surface_size_cap)
+  surf = zratio_build_surfaces(zc, max_size = max_size, cores = cores)
   if(!is.null(surf)) {
     zratio$surface = surf
   } else if(isTRUE(verbose)) {
-    zratio_surface_fence_message(zc)
+    zratio_surface_fence_message(zc, size = max_size)
   }
   zratio
 }
@@ -602,8 +655,9 @@ zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
 # sweeps = 0L) is the off switch. Its cost is fixed per chain (two sweeps, each
 # referencing a capped number of edge moves), so it does not scale with iter:
 # nothing on a sparse posterior, where no mediating block is non-trivial and the
-# ratio is exact, and seconds on a dense large-q one. The prior sampler wires its
-# own flag (sample_ggm_prior); this governs the deployed hierarchical path.
+# ratio is exact, and seconds on a dense large-q one. sample_ggm_prior() reads
+# the same option (its zratio_diagnostics argument is the on/off switch, not the
+# precision), so the prior chain and the deployed path audit alike.
 zratio_gauge_sweeps = function() {
   n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 2L)))
   if(length(n) != 1L || is.na(n) || n < 0L) n = 0L

@@ -9,19 +9,12 @@
 #   PR.1  Dense graph (p=5, all edges present, no edge selection)
 #   PR.2  Sparse graph (p=5, ~40% edges zeroed, edge selection on)
 #
-# Gated behind BGMS_RUN_SLOW_TESTS.
+# Weekly certification tier (T2, BGMS_RUN_CERTIFICATION): a full
+# parameter-recovery sweep over R = 50 simulated datasets per condition.
 # --------------------------------------------------------------------------- #
 
 
 # ---- Skip gate ---------------------------------------------------------------
-
-skip_unless_slow_recovery = function() {
-  skip_if_not(
-    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
-    message = "Set BGMS_RUN_SLOW_TESTS=true to run parameter recovery tests"
-  )
-}
-
 
 # ---- Ground truth precision matrices -----------------------------------------
 
@@ -95,7 +88,10 @@ compute_coverage = function(K_true, p, n, R,
       variable_type = "continuous",
       iter = iter, warmup = warmup, chains = 2,
       edge_selection = edge_selection, update_method = "nuts",
-      pairwise_scale = scale,
+      # joint pinned: the recovery bounds were derived under the joint spec,
+      # before the hierarchical default (F-010)
+      precision_graph_prior = "joint",
+      interaction_prior = cauchy_prior(scale = scale),
       display_progress = "none", seed = base_seed + r
     )
 
@@ -135,7 +131,7 @@ compute_coverage = function(K_true, p, n, R,
 # ---- Tests -------------------------------------------------------------------
 
 test_that("PR.1: GGM parameter recovery, dense graph (p=5)", {
-  skip_unless_slow_recovery()
+  skip_unless_certification()
 
   p = 5
   n = 200
@@ -170,7 +166,7 @@ test_that("PR.1: GGM parameter recovery, dense graph (p=5)", {
 
 
 test_that("PR.2: GGM parameter recovery, sparse graph with edge selection (p=5)", {
-  skip_unless_slow_recovery()
+  skip_unless_certification()
 
   p = 5
   n = 200

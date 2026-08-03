@@ -1,4 +1,4 @@
-// Test interface for the GGM gradient engine and RATTLE projection.
+// Test interface for the GGM gradient engine and the zero-edge constraint projection.
 //
 // Exposes logp_and_gradient and forward_map to R for validation.
 // Also exposes sample_ggm_prior() for sampling from the GGM prior
@@ -130,7 +130,7 @@ Rcpp::List sample_ggm_prior(
 
     // Create model with n=0, S=0 so likelihood is flat (prior-only).
     // edge_selection=false ensures the graph stays fixed throughout:
-    // no update_edge_indicators() calls, required for RATTLE correctness
+    // no update_edge_indicators() calls, required for constraint-projection correctness
     // when the graph is sparse.
     arma::mat suf_stat(p, p, arma::fill::zeros);
     arma::mat inc_prob(p, p, arma::fill::value(0.5));

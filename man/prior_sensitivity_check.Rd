@@ -12,7 +12,7 @@ prior_sensitivity_check(
   refit_sampler = "same-as-fit",
   iter = NULL,
   warmup = NULL,
-  tolerance = 0.5,
+  tolerance = 0.5 * log(10),
   ess_floor = 400,
   include_preferred_scale = FALSE,
   cores = NULL,
@@ -64,9 +64,10 @@ under one identical pipeline; the original fit never enters a comparison.}
 \code{NULL} (default) to use the validated short schedule for warm NUTS
 refits and inherit the original fit's schedule otherwise.}
 
-\item{tolerance}{Numeric. Minimum \eqn{\log_{10}} BF change across scales for
+\item{tolerance}{Numeric. Minimum natural log BF change across scales for
 a verdict flip to count as a move, before the MCSE and noise floors.
-Default: \code{0.5}.}
+Default: \code{0.5 * log(10)} (about 1.15, the same decision boundary the
+former 0.5 carried in \eqn{\log_{10}} units).}
 
 \item{ess_floor}{Positive numeric. Minimum pooled importance effective
 sample size for a curve point to be reported; points below it are
@@ -99,7 +100,7 @@ an \code{insufficient} flag with its two subcauses
 threshold) and \code{insufficient_disagree} (chains disagree on the
 verdict)), a \code{grid} data frame (one row per anchor fit and
 the replicate, with convergence gates), the \code{multipliers} display
-grid with the \code{log10_bf}, \code{log10_bf_mcse}, and \code{verdict}
+grid with the \code{log_bf}, \code{log_bf_mcse}, and \code{verdict}
 curve matrices (grid-by-edge, \code{NA} where masked), the \code{curve}
 bookkeeping (per-point importance ESS, anchor used, \code{ess_floor},
 per-point chain unanimity), the \code{wobble} noise yardstick,
@@ -134,8 +135,8 @@ cancels, so no refit is needed between anchors. Each point of a dense
 log-spaced display grid pools every anchor that clears \code{ess_floor}
 there, weighting each anchor's inclusion-probability estimate by its
 inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
-inclusion-probability scale and is then transformed to the
-\eqn{\log_{10}} Bayes factor, which keeps the curve continuous across
+inclusion-probability scale and is then transformed to the natural log
+Bayes factor, which keeps the curve continuous across
 anchor hand-offs and finite at capped edges. Points where no anchor
 clears the floor are \code{NA} rather than extrapolated, and
 non-overlapping anchor radii trigger a warning to add anchors; log-spaced
@@ -143,7 +144,11 @@ default anchors make the radii overlap. Exactness is kept off the pooled
 curve and on the anchor fits themselves: the per-anchor verdict columns
 and every chosen-scale quantity are read straight from each fit's own
 Rao-Blackwellized statistics, so the \code{1x} column is exactly the
-original fit's reported analysis.
+original fit's reported analysis. Between the anchors the curve is therefore
+importance-reweighted rather than refit, and can deviate from a refit at that
+scale by up to roughly \code{0.01} in inclusion probability at the
+extrapolation ends; the anchors themselves -- including the \code{1x} anchor,
+which is the user's own fit -- are exact.
 
 \strong{Warm starts.} For ordinal (omrf) fits each refit starts from the
 original fit's per-chain final state, and a NUTS refit additionally carries
@@ -156,14 +161,14 @@ indicator transition ESS, not on \eqn{\hat R} alone. Continuous (GGM) and
 mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
 
 \strong{The mover rule.} An edge is flagged scale-sensitive only if its
-verdict differs somewhere along the curve \emph{and} its \eqn{\log_{10}}
+verdict differs somewhere along the curve \emph{and} its natural log
 Bayes-factor change across scales exceeds
 \code{max(tolerance, 2 * MCSE, noise)}, with the per-point MCSE from the
 chain-level spread of the reweighted estimate (so it carries both the
 between-chain and the importance-sampling uncertainty) and the noise band
 the 95th percentile of the spread between one anchor refit and its
 repeat, over threshold-relevant edges
-(\eqn{|\log_{10} \mathrm{BF}| \le 3}; near-saturated edges would
+(\eqn{|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91}; near-saturated edges would
 inflate it). An edge that is threshold-relevant in one of the two refits and
 saturated in the other has a censored rather than an infinite spread, and is
 left out of that percentile; the printed report counts them. When no
@@ -178,7 +183,7 @@ certifiable"). A bare verdict flip inside the replicate noise is never
 reported as a move.
 
 \strong{Edge-level sufficiency.} An edge whose per-chain verdicts disagree, or
-whose between-chain-inflated \eqn{\log_{10}} BF band straddles a verdict
+whose between-chain-inflated log-BF band straddles a verdict
 threshold, is marked \code{insufficient} at that scale: the refit cannot
 certify its verdict. This errs toward caution --- disagreement widens the
 band rather than vanishing into a pooled estimate.

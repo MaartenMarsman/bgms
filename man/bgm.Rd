@@ -17,7 +17,7 @@ bgm(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
-  precision_graph_prior = c("joint", "hierarchical"),
+  precision_graph_prior = c("hierarchical", "joint"),
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -164,7 +164,8 @@ Legacy character strings \code{"Bernoulli"}, \code{"Beta-Bernoulli"},
 Default: \code{bernoulli_prior(0.5)}.
 
 For continuous (GGM) and mixed models with \code{beta_bernoulli_prior()}
-or \code{sbm_prior()}, the hyperparameter updates carry a
+or \code{sbm_prior()} under \code{precision_graph_prior = "joint"}, the
+hyperparameter updates carry a
 normalizing-constant correction: under the determinant-tilted precision
 prior, the plain conjugate updates target the wrong marginals for the
 inclusion probability and the block structure. In mixed models the tilt
@@ -176,14 +177,17 @@ unchanged. The correction table is built from the prior distribution at
 the first fit of a model configuration (a one-time cost of the order of
 minutes, announced when \code{verbose = TRUE}) and cached on disk via
 \code{tools::R_user_dir("bgms", "cache")}, so later fits of the same
-configuration skip the build. With \code{beta_bernoulli_prior()} the
+configuration skip the build. The default
+\code{precision_graph_prior = "hierarchical"} tracks the normalizer in the
+edge moves instead, so it needs no correction table and builds none.
+With \code{beta_bernoulli_prior()} the
 sampled inclusion probability is returned per chain in
 \code{fit$inclusion_parameter_samples}.}
 
 \item{precision_graph_prior}{Character. How the precision prior composes with
 the edge prior under edge selection for continuous (GGM) data:
 \describe{
-\item{"joint"}{(default) The un-normalised joint specification
+\item{"joint"}{The un-normalised joint specification
 \eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
       \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
       \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
@@ -200,7 +204,7 @@ nominal prior, and with a fixed inclusion probability nothing
 absorbs the tilt. A message reports this when \code{verbose = TRUE};
 \code{\link{extract_prior_inclusion_probabilities}} returns the
 realized prior.}
-\item{"hierarchical"}{The hierarchical specification
+\item{"hierarchical"}{(default) The hierarchical specification
 \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 normalized per graph, so the graph marginal is exactly the edge
 prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
@@ -262,7 +266,10 @@ Z-ratio enters the continuous-continuous edge moves only, with the
 mediating-block counts read off the continuous subgraph; discrete
 and cross edges are unchanged.}
 }
-Default: \code{"joint"}.
+Default: \code{"hierarchical"}, so a continuous fit targets the nominal
+edge prior out of the box and pays for the approximation and its trust
+gauge; \code{"joint"} is the un-approximated alternative and remains
+fully supported.
 
 The two specifications differ only in how \eqn{p(K \mid \Gamma)} is
 normalized across graphs, so they differ only where the sampler moves
@@ -276,8 +283,9 @@ the fit does not pay to build them, and \code{fit$zratio_diag} is
 \code{NULL}.
 \item With no continuous precision block — an ordinal model, or mixed
 data with fewer than two continuous variables — there is no \eqn{K}
-for the argument to refer to. A message reports this when
-\code{verbose = TRUE}.
+for the argument to refer to. A message reports this when the
+argument was named and \code{verbose = TRUE}; inheriting the default
+is silent, since the default is not a request.
 }
 The slab is checked only where the choice is meaningful, so a
 \code{beta_prime_prior()} is rejected on a continuous block under edge
@@ -334,7 +342,11 @@ Default: \code{"per-chain"}.}
 single non-negative integer. On Windows with \code{RcppParallel} >= 6.0.0,
 a fixed seed reproduces a run only at the same \code{cores} setting: under
 the oneTBB 2022 scheduler, runs at different core counts are statistically
-equivalent but not bit-for-bit identical.}
+equivalent but not bit-for-bit identical. Results are bit-reproducible for
+a given installed binary; they are not portable across compilers or
+optimization settings — a rebuilt binary may produce different draws from
+the same seed, with any differences concentrated where the posterior is
+weakly identified.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).
