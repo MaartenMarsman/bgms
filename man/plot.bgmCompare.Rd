@@ -151,7 +151,8 @@ plot(fit, type = "groups")
 
 }
 \seealso{
-\code{\link[=verdicts]{verdicts()}} for the table the panels encode,
+The \pkg{easybgm} package for more extensive plotting and summary
+options around bgms fits; \code{\link[=verdicts]{verdicts()}} for the table the panels encode,
 \code{\link[=extract_centrality]{extract_centrality()}}, \code{\link[=prior_sensitivity_check]{prior_sensitivity_check()}}
 
 Other posterior-methods:

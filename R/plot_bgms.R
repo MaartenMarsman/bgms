@@ -531,7 +531,8 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #' plot(fit, type = "centrality")
 #' }
 #'
-#' @seealso [verdicts()] for the table the panels encode,
+#' @seealso The \pkg{easybgm} package for more extensive plotting and summary
+#'   options around bgms fits; [verdicts()] for the table the panels encode,
 #'   [extract_centrality()], [plot_edge_posterior()] for one edge in detail
 #' @family posterior-methods
 #' @export
@@ -589,7 +590,8 @@ require_qgraph = function() {
     stop(
       "Drawing the network needs the qgraph package, which is suggested rather ",
       "than required by bgms. Install it with install.packages(\"qgraph\"), or ",
-      "use verdicts() for the same information as a table."
+      "use verdicts() for the same information as a table. The easybgm package ",
+      "offers more extensive plotting and summary options for bgms fits."
     )
   }
   invisible(TRUE)
@@ -795,7 +797,8 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #' plot(fit, type = "groups")
 #' }
 #'
-#' @seealso [verdicts()] for the table the panels encode,
+#' @seealso The \pkg{easybgm} package for more extensive plotting and summary
+#'   options around bgms fits; [verdicts()] for the table the panels encode,
 #'   [extract_centrality()], [prior_sensitivity_check()]
 #' @family posterior-methods
 #' @export

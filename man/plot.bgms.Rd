@@ -99,7 +99,8 @@ plot(fit, type = "centrality")
 
 }
 \seealso{
-\code{\link[=verdicts]{verdicts()}} for the table the panels encode,
+The \pkg{easybgm} package for more extensive plotting and summary
+options around bgms fits; \code{\link[=verdicts]{verdicts()}} for the table the panels encode,
 \code{\link[=extract_centrality]{extract_centrality()}}, \code{\link[=plot_edge_posterior]{plot_edge_posterior()}} for one edge in detail
 
 Other posterior-methods:
