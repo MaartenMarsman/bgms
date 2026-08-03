@@ -372,6 +372,12 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   cap = as.integer(max_size)
   if(zratio_anchor_grids_empty(cap)) return(NULL)
 
+  # The worker count is settled once, here, from the argument. Everything below
+  # -- the branch choice, the announcement, the cluster -- reads this one value,
+  # so a caller's `cores` cannot be one number in the decision and another at
+  # the constructor.
+  cores = normalize_parallel_cores(cores)
+
   # Get-or-build: the build is data-independent, so a repeat fit of the same
   # cell returns the cached surface (session memory first, then disk) instead of
   # re-running the anchor sweeps. Disable with
@@ -472,6 +478,17 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   if(use_psock) {
     cl = parallel::makePSOCKcluster(cores)
     on.exit(parallel::stopCluster(cl), add = TRUE)
+    # The constructor's own default is getOption("mc.cores", 2L), so a worker
+    # count that failed to reach it does not announce itself -- the build just
+    # runs at a width nobody asked for, and under R CMD check that can be more
+    # than the two workers the policy allows. Read the cluster back and say so.
+    if(length(cl) != cores) {
+      stop(
+        "The z-ratio surface build asked for ", cores,
+        " PSOCK worker(s) and got ", length(cl),
+        ". The worker count did not reach the cluster constructor."
+      )
+    }
     res[ord] = parallel::parLapplyLB(cl, ord, job_fun)
   } else {
     mc = if(.Platform$OS.type == "unix") cores else 1L
@@ -511,7 +528,9 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
 # cores are idle during exactly this window. options(bgms.zratio_surface_cores)
 # overrides. Unix parallelizes by forking; Windows by a socket cluster on large
 # builds (small ones run serially there -- see zratio_build_surfaces).
-zratio_surface_build_cores = function(fit_cores = 1L) {
+zratio_surface_build_cores = function(fit_cores) {
+  # No default: every call site states the width it means, so a build cannot
+  # end up at the option's value because nobody said anything.
   fallback = suppressWarnings(as.integer(fit_cores))
   if(length(fallback) != 1L || is.na(fallback) || fallback < 1L) fallback = 1L
   cores = suppressWarnings(as.integer(

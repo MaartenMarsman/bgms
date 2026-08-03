@@ -332,3 +332,50 @@ test_that("the Cauchy slab builds and deploys its own surface cell", {
   }, numeric(1))
   expect_lt(abs(sv$logR - mean(gold)), 0.04)
 })
+
+
+# ---- The build runs at the width it was asked for (F-104) --------------------
+
+test_that("a worker count that is not one usable number collapses to one", {
+  # parallel::detectCores() is documented to return NA when it cannot tell, and
+  # min(k, NA) is NA -- which would then be handed to a cluster constructor,
+  # where it is not a width but an error or a default. Every shape that is not
+  # a single usable number resolves to 1 rather than travelling on.
+  expect_identical(bgms:::normalize_parallel_cores(NA_integer_), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(integer(0)), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(0L), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(-3L), 1L)
+  expect_identical(bgms:::normalize_parallel_cores("nonsense"), 1L)
+  expect_identical(bgms:::normalize_parallel_cores(1L), 1L)
+
+  local_mocked_bindings(
+    detectCores = function(...) NA_integer_, .package = "parallel"
+  )
+  expect_identical(bgms:::normalize_parallel_cores(2L), 2L)
+})
+
+test_that("the surface build refuses a cluster that is not the width asked for", {
+  skip_on_cran()
+  # The constructor's own default is getOption("mc.cores", 2L), so a worker
+  # count that failed to reach it does not announce itself: the build simply
+  # runs at a width nobody asked for. The builder reads the cluster back, and
+  # this is the read-back firing -- a cluster of the wrong length, however it
+  # got that way, stops the build with both numbers named. A stand-in cluster
+  # is enough: the check is on its length, and no job is ever dispatched.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE,
+    bgms.zratio_surface_psock = TRUE
+  )
+  stand_in = structure(list("node"), class = c("SOCKcluster", "cluster"))
+  local_mocked_bindings(
+    makePSOCKcluster = function(...) stand_in,
+    stopCluster = function(...) invisible(NULL),
+    .package = "parallel"
+  )
+  zc = bgms:::zratio_constants(0.5 * log(12), 3)
+  expect_error(
+    bgms:::zratio_build_surfaces(zc, max_size = 8L, cores = 2L),
+    "asked for 2 PSOCK worker\\(s\\) and got 1"
+  )
+})

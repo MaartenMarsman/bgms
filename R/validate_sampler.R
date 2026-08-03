@@ -27,11 +27,21 @@ check_limit_cores = function() {
 }
 
 normalize_parallel_cores = function(cores) {
-  cores = max(1L, as.integer(cores))
+  cores = suppressWarnings(as.integer(cores))
+  # A worker count that is not one usable number is a bug upstream, not a
+  # number to carry: NA, empty and vectors all reach parallel:: as something
+  # it will either misread or refuse, so they collapse to 1 here.
+  if(length(cores) != 1L || is.na(cores) || cores < 1L) cores = 1L
   if(check_limit_cores()) {
     cores = min(cores, 2L)
   }
-  min(cores, as.integer(parallel::detectCores()))
+  # detectCores() is documented to return NA when it cannot tell, and
+  # min(k, NA) is NA -- which would then be handed to a cluster constructor.
+  detected = suppressWarnings(as.integer(parallel::detectCores()))
+  if(length(detected) != 1L || is.na(detected) || detected < 1L) {
+    return(cores)
+  }
+  min(cores, detected)
 }
 
 check_positive_integer = function(value, name) {
