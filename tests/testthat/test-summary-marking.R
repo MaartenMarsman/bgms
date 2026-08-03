@@ -24,8 +24,15 @@
 # Drop the trailing run of numeric cells from every table row, keeping the row
 # name, the mark gutter and the parameter label. Headers, the truncation line
 # and the notes all end in a word or a ")", so they survive whole.
+#
+# Then collapse runs of spaces. Dropping the numbers is not enough on its own:
+# `print.data.frame` sizes each column to its widest value, so the *header*
+# line silently carries the width of the widest `n_eff` in the run, and that
+# width is MCMC-dependent (`n_eff` 262.605 pads a column that 46.143 does not).
+# A snapshot that keeps the padding is a snapshot of the numbers by proxy.
 labels_only = function(lines) {
-  sub("(\\s+-?[0-9.]+)+\\s*$", "", lines)
+  lines = sub("(\\s+-?[0-9.]+)+\\s*$", "", lines)
+  trimws(gsub("[ \t]{2,}", " ", lines))
 }
 
 # The `n` table rows printed under one block heading (the heading is followed
