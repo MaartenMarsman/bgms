@@ -25,10 +25,15 @@ summarize_zratio_gauge(
 
 \item{harm_inputs}{Optional list enabling the \code{harm_pred} channel:
 \code{pip} (a list with one numeric vector of posterior edge-inclusion
-probabilities per chain) and, for a Beta-Bernoulli edge prior, its shape
+probabilities per chain, over the audited block, which is every edge on a
+Gaussian graphical model and the continuous-continuous block on a mixed
+model) and, for a Beta-Bernoulli edge prior, its shape
 parameters \code{a} and \code{b} (\code{NULL} for a fixed inclusion
-probability). When \code{NULL} (default) the \code{harm_pred} columns are
-\code{NA} and only the \code{flip_rate} channel flags.}
+probability). An optional \code{pool_pip}, of the same shape as
+\code{pip}, gives the edges the shared inclusion parameter is drawn from
+when that pool is wider than the audited block, as on a mixed fit; omit it
+when the two coincide. When \code{NULL} (default) the \code{harm_pred}
+columns are \code{NA} and only the \code{flip_rate} channel flags.}
 
 \item{harm_threshold}{Numeric flag threshold on \code{harm_pred}, in
 inclusion-probability units (default \code{0.01}).}
