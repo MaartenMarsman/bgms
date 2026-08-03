@@ -9,6 +9,19 @@
 0 ERRORs, 0 WARNINGs. Local NOTEs are environment artifacts only (HTML Tidy
 version; incoming-feasibility remarks for a version bump).
 
+## Notes from the previous submission
+
+- The "(possibly) invalid file URIs" NOTE (CONTRIBUTING.md and
+  CODE_OF_CONDUCT.md linked from README.md) is fixed: README.md now links to
+  the files on GitHub with absolute URLs, since both files are excluded from
+  the tarball via .Rbuildignore.
+- The "new files in some other directories" NOTE on the
+  r-devel-linux-x86_64-debian-gcc check of the published version (0.1.6.3)
+  lists Rtmp/xvfb-run/pocl/shm files from concurrent checks on the shared
+  check machine; they are not created by this package. The package's own
+  checks report "checking for detritus in the temp directory ... OK", and the
+  package creates no files under ~/tmp/scratch, /dev/shm, or ~/.cache.
+
 ## Reverse dependencies
 
 easybgm (0.4.0) was checked against this version and against bgms 0.1.6.3:

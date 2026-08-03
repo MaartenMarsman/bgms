@@ -69,10 +69,11 @@ Additional citation formats are available on the
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-how to get started.
+Contributions are welcome. See
+[CONTRIBUTING.md](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/blob/main/CONTRIBUTING.md)
+for how to get started.
 
 ## Code of Conduct
 
 This project follows the [Contributor Covenant Code of
-Conduct](CODE_OF_CONDUCT.md).
+Conduct](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/blob/main/CODE_OF_CONDUCT.md).
