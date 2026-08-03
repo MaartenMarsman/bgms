@@ -253,7 +253,9 @@ body.quarto-dark .hello-quarto div.sourceCode {
   width: calc(100% + 30px);
 }
 .feature {
-  width: calc(33% - 30px);
+  /* Four peer sections (Guide, Worked Analyses, Reference, Manual) lay out
+     two by two; at 33% the fourth wrapped alone onto a second row. */
+  width: calc(50% - 30px);
   margin: 20px 0 0 30px;
 }
 }
