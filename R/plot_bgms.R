@@ -336,6 +336,10 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
   shared = shared_network_layout(weight, pairs, num_variables, layout, variables)
   rules = threshold_rules(evidence_threshold)
 
+  warn_narrow_device(
+    help = if(unit$kind == "difference") "plot.bgmCompare" else "plot.bgms"
+  )
+
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(mfrow = c(1L, 3L))
@@ -368,6 +372,39 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
     )
   }
   invisible(shared)
+}
+
+
+# ------------------------------------------------------------------
+# warn_narrow_device
+# ------------------------------------------------------------------
+# The three-panel display splits the device into thirds, so R's default 7-inch
+# width leaves each network a little over two inches and the labels crowd. The
+# geometry is qgraph's and is not ours to change, so the remedy is the reader's:
+# open a wider device. Said once, when it applies, on the advisory flag every
+# other bgms message follows. Only the three-panel path calls this -- the
+# single-panel and groups displays are content with the default device.
+#
+# @param help       The help topic that carries the advice.
+# @param min_width  Device width, in inches, below which the display crowds.
+#
+# Returns: invisibly, TRUE when the message fired.
+# ------------------------------------------------------------------
+warn_narrow_device = function(help = "plot.bgms", min_width = 10) {
+  if(!isTRUE(getOption("bgms.verbose", TRUE))) {
+    return(invisible(FALSE))
+  }
+  width = tryCatch(graphics::par("din")[1L], error = function(e) NA_real_)
+  if(!is.finite(width) || width >= min_width) {
+    return(invisible(FALSE))
+  }
+  message(
+    "The three-panel display is drawn on a device ", round(width, 1),
+    " inches wide; three networks side by side want at least ", min_width,
+    ". Open a wider device -- width = 13, height = 5 -- before plotting. ",
+    "See the 'Device size' section of ?", help, "."
+  )
+  invisible(TRUE)
 }
 
 
@@ -459,6 +496,18 @@ draw_weight_network = function(weight, pairs, variables, unit,
 #'
 #' The layout is computed once from every pair and reused, so a node sits in the
 #' same place in all three panels and a reader compares them by position.
+#'
+#' \strong{Device size.} Three networks side by side need a wide device. R's
+#' default 7 by 7 inches gives each panel a little over two inches of width, and
+#' at that size the node labels and the panel titles crowd. Open a wide device
+#' before plotting -- `width = 13, height = 5` is a good starting point --
+#' or pass the same to whichever device the output is going to:
+#' \preformatted{
+#' dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+#' plot(fit)
+#' }
+#' The single-panel display (no edge selection) is content with the default
+#' device.
 #'
 #' A fit with no edge left in a panel is a result, not a failure. An all-absence
 #' fit fills the second panel and leaves the first empty, which is the honest
@@ -672,6 +721,18 @@ main_difference_nodes = function(verdict, pip, main_selected) {
 #'
 #' "The groups do not differ anywhere" is a common and correct finding, and it
 #' is what a filled second panel and an empty first panel say.
+#'
+#' \strong{Device size.} Three networks side by side need a wide device. R's
+#' default 7 by 7 inches gives each panel a little over two inches of width, and
+#' at that size the node labels and the panel titles crowd. Open a wide device
+#' before plotting -- `width = 13, height = 5` is a good starting point --
+#' or pass the same to whichever device the output is going to:
+#' \preformatted{
+#' dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+#' plot(fit)
+#' }
+#' The single-panel and `type = "groups"` displays are content with the default
+#' device.
 #'
 #' \strong{More than two groups.} [bgmCompare()] gives each pair a single
 #' inclusion indicator shared across all `K - 1` contrasts, so the three-way
@@ -928,11 +989,6 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #' @param bgms_object A fitted model object of class `bgms`, from [bgm()].
 #' @param variable1,variable2 The two variables naming the edge. Either names
 #'   or column positions.
-#' @param evidence_threshold Numeric > 1; the threshold [verdicts()] is called
-#'   at to read this edge's row. Default `10`. The panel prints no verdict, and
-#'   neither the inclusion probability nor the Bayes factor depends on the
-#'   threshold, so this does not change what is drawn. Ignored for a fit
-#'   without edge selection, which has no inclusion row to read.
 #' @param binwidth `r lifecycle::badge("deprecated")` The panel no longer
 #'   expresses the weight as probability per bin, so this has nothing to set;
 #'   it is warned about and ignored.
@@ -1027,7 +1083,6 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
 #' @family posterior-methods
 #' @export
 plot_edge_posterior = function(bgms_object, variable1, variable2,
-                               evidence_threshold = 10,
                                binwidth = lifecycle::deprecated(), ...) {
   if(lifecycle::is_present(binwidth)) {
     lifecycle::deprecate_warn(
@@ -1040,7 +1095,6 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
       )
     )
   }
-  check_evidence_threshold(evidence_threshold)
   if(inherits(bgms_object, "bgmCompare")) {
     stop(
       "plot_edge_posterior() draws an edge of a single network, and a ",
@@ -1075,7 +1129,7 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
   prior = edge_slab_prior(bgms_object)
 
   if(isTRUE(arguments$edge_selection)) {
-    evidence = edge_selection_evidence(bgms_object, label, evidence_threshold)
+    evidence = edge_selection_evidence(bgms_object, label)
     panel = edge_panel_selection(label, draws, prior,
       evidence$pip, evidence$log_bf)
   } else {
@@ -1219,16 +1273,15 @@ conditional_density = function(draws, n = 512L) {
 #
 # Neither number depends on the threshold -- the threshold only decides which
 # verdict word verdicts() attaches to them, and the panel prints no verdict --
-# so it is passed on to verdicts() and has no further say here.
+# so verdicts() is called at its default and the row is read threshold-free.
 #
-# @param bgms_object        The fit.
-# @param label              The edge label, as the pairwise draws name it.
-# @param evidence_threshold The threshold verdicts() is called at.
+# @param bgms_object  The fit.
+# @param label        The edge label, as the pairwise draws name it.
 #
 # Returns: list(pip, log_bf); both NA when the edge has no row.
 # ------------------------------------------------------------------
-edge_selection_evidence = function(bgms_object, label, evidence_threshold) {
-  edges = verdicts(bgms_object, evidence_threshold = evidence_threshold)
+edge_selection_evidence = function(bgms_object, label) {
+  edges = verdicts(bgms_object)
   row = edges[edges$parameter == label, , drop = FALSE]
   if(!nrow(row)) {
     ends = strsplit(label, "-", fixed = TRUE)[[1]]
@@ -1285,7 +1338,7 @@ edge_panel_selection = function(label, draws, prior, pip, log_bf) {
     wheel_labels = NULL,
     evidence = c(
       format_inclusion(pip),
-      paste("log BF", display_log_bf(log_bf))
+      paste("log BF", format_log_bf(log_bf))
     ),
     estimate = if(is.null(posterior)) NULL else estimate_lines(slab),
     interval = if(is.null(posterior)) NULL else stats::quantile(
@@ -1349,7 +1402,7 @@ edge_panel_savage_dickey = function(label, draws, prior) {
     # explanation can be as long as it needs to be without costing a figure
     # anything.
     wheel_labels = NULL,
-    evidence = paste("log BF", display_log_bf(log_bf)),
+    evidence = paste("log BF", format_log_bf(log_bf)),
     estimate = estimate_lines(draws),
     interval = stats::quantile(draws, c(0.025, 0.975), names = FALSE),
     style = bgms_style()

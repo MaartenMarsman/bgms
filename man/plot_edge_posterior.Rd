@@ -8,7 +8,6 @@ plot_edge_posterior(
   bgms_object,
   variable1,
   variable2,
-  evidence_threshold = 10,
   binwidth = lifecycle::deprecated(),
   ...
 )
@@ -18,12 +17,6 @@ plot_edge_posterior(
 
 \item{variable1, variable2}{The two variables naming the edge. Either names
 or column positions.}
-
-\item{evidence_threshold}{Numeric > 1; the threshold \code{\link[=verdicts]{verdicts()}} is called
-at to read this edge's row. Default \code{10}. The panel prints no verdict, and
-neither the inclusion probability nor the Bayes factor depends on the
-threshold, so this does not change what is drawn. Ignored for a fit
-without edge selection, which has no inclusion row to read.}
 
 \item{binwidth}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} The panel no longer
 expresses the weight as probability per bin, so this has nothing to set;

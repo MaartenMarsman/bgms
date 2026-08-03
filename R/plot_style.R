@@ -416,26 +416,6 @@ format_inclusion = function(p, label = bgms_style()$label_inclusion) {
 
 
 # ------------------------------------------------------------------
-# display_log_bf
-# ------------------------------------------------------------------
-# A log Bayes factor as a figure prints it. format_log_bf() rounds to one
-# decimal, so a Bayes factor that rounds to nothing comes out as "-0.0" -- a
-# sign the run did not establish, and the same thing estimate_lines() already
-# rounds away for a weight. The figures round it out before formatting.
-#
-# @param log_bf  Natural log Bayes factor (scalar).
-#
-# Returns: a length-one character string.
-# ------------------------------------------------------------------
-display_log_bf = function(log_bf) {
-  if(is.finite(log_bf) && abs(log_bf) < 0.05) {
-    log_bf = 0
-  }
-  format_log_bf(log_bf)
-}
-
-
-# ------------------------------------------------------------------
 # format_bayes_factor
 # ------------------------------------------------------------------
 # A Bayes factor as a threshold key prints it: the number itself, not its log.

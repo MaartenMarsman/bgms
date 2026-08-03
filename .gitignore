@@ -30,6 +30,10 @@ dev/*
 # The August 2026 pre-CRAN review record (briefs, reports, findings) is
 # tracked so the review is versioned and visible to every clone.
 !dev/review-2026-08/
+# Generators for the material vignettes ship as .rds. A baked vignette number
+# without its generator is a number with no provenance, so these are tracked;
+# ^dev$ in .Rbuildignore keeps them out of the tarball.
+!dev/vignette-data/
 /paper/
 
 # testthat problem artefacts

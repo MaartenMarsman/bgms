@@ -63,6 +63,18 @@ every figure.
 The layout is computed once from every pair and reused, so a node sits in the
 same place in all three panels and a reader compares them by position.
 
+\strong{Device size.} Three networks side by side need a wide device. R's
+default 7 by 7 inches gives each panel a little over two inches of width, and
+at that size the node labels and the panel titles crowd. Open a wide device
+before plotting -- \verb{width = 13, height = 5} is a good starting point --
+or pass the same to whichever device the output is going to:
+\preformatted{
+dev.new(width = 13, height = 5)   # or pdf(f, width = 13, height = 5)
+plot(fit)
+}
+The single-panel display (no edge selection) is content with the default
+device.
+
 A fit with no edge left in a panel is a result, not a failure. An all-absence
 fit fills the second panel and leaves the first empty, which is the honest
 picture of it.

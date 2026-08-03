@@ -332,9 +332,13 @@ sample_ggm_prior = function(
     # Deploy the same Option-B surface the posterior chain uses, so the prior
     # chain (SBC reference) carries an identical per-edge correction. Silent on
     # a fallback: the SBC reference must not add console noise to the loop.
+    # The prior chain is single-threaded, so the build gets one worker unless
+    # options(bgms.zratio_surface_cores) says otherwise. Stated rather than
+    # defaulted: this is the one caller with no `cores` of its own to pass on,
+    # and leaving it silent is how the option becomes the only thing deciding.
     zratio = zratio_attach_surface(
       zratio, zc, p,
-      cores = zratio_surface_build_cores()
+      cores = zratio_surface_build_cores(fit_cores = 1L)
     )
   } else if(!identical(ep$edge_prior, "Bernoulli") && apply_correction) {
     table = ggm_correction_table(

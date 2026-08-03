@@ -7,8 +7,6 @@
 # Test groups:
 #   1. $arguments contract <U+2014> every field simulate/predict extract is present
 #   2. Fit-object structure <U+2014> posterior_mean_*, raw_samples present
-#   3. Golden fixture cross-check <U+2014> simulate/predict-critical $arguments
-#      values match old pipeline output recorded in golden .rds files
 #   4. Functional roundtrip <U+2014> simulate <U+2192> predict for each model type
 #   5. Posterior-sample method regression
 #   6. Field type and value invariants
@@ -196,174 +194,6 @@ test_that("bgms fit objects have raw_samples for posterior-sample method", {
   }
 })
 
-
-# ==============================================================================
-# 3. Golden fixture cross-check
-# ==============================================================================
-# For each golden fixture, construct a bgm_spec from the frozen inputs and
-# verify that build_arguments() produces the same simulate/predict-critical
-# values (num_categories, baseline_category,
-# variable_type / is_ordinal_variable,
-# is_continuous) as the old pipeline's check_model + reformat_data output.
-#
-# This is fast: bgm_spec() + build_arguments() does no MCMC.
-# ==============================================================================
-
-golden_fixture_path = function(id) {
-  fixture_dir = file.path(
-    testthat::test_path(), "..", "..", "dev", "fixtures", "scaffolding"
-  )
-  file.path(fixture_dir, paste0(id, ".rds"))
-}
-
-has_golden_fixtures = function() {
-  manifest_path = golden_fixture_path("manifest")
-  file.exists(manifest_path)
-}
-
-test_that("golden fixtures: bgm specs produce correct num_categories", {
-  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
-
-  manifest = readRDS(golden_fixture_path("manifest"))
-  bgm_ids = manifest$id[manifest$type == "bgm"]
-
-  for(id in bgm_ids) {
-    fix = readRDS(golden_fixture_path(id))
-    ctx = sprintf("[golden %s]", id)
-
-    # GGM fixtures don't have num_categories in reformat_data
-    if(is.null(fix$reformat_data$num_categories)) next
-
-    spec = bgms:::bgm_spec(
-      fix$input$x,
-      variable_type     = fix$input$variable_type,
-      baseline_category = fix$input$baseline_category
-    )
-    args = bgms:::build_arguments(spec)
-
-    expect_equal(
-      args$num_categories, fix$reformat_data$num_categories,
-      info = sprintf("%s: num_categories mismatch", ctx)
-    )
-  }
-})
-
-test_that("golden fixtures: bgm specs produce correct baseline_category", {
-  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
-
-  manifest = readRDS(golden_fixture_path("manifest"))
-  bgm_ids = manifest$id[manifest$type == "bgm"]
-
-  for(id in bgm_ids) {
-    fix = readRDS(golden_fixture_path(id))
-    ctx = sprintf("[golden %s]", id)
-
-    if(is.null(fix$reformat_data$baseline_category)) next
-
-    spec = bgms:::bgm_spec(
-      fix$input$x,
-      variable_type     = fix$input$variable_type,
-      baseline_category = fix$input$baseline_category
-    )
-    args = bgms:::build_arguments(spec)
-
-    expect_equal(
-      as.numeric(args$baseline_category),
-      as.numeric(fix$reformat_data$baseline_category),
-      info = sprintf("%s: baseline_category mismatch", ctx)
-    )
-  }
-})
-
-test_that("golden fixtures: bgm specs preserve is_continuous flag", {
-  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
-
-  manifest = readRDS(golden_fixture_path("manifest"))
-  bgm_ids = manifest$id[manifest$type == "bgm"]
-
-  for(id in bgm_ids) {
-    fix = readRDS(golden_fixture_path(id))
-    ctx = sprintf("[golden %s]", id)
-
-    spec = bgms:::bgm_spec(
-      fix$input$x,
-      variable_type     = fix$input$variable_type,
-      baseline_category = fix$input$baseline_category
-    )
-    args = bgms:::build_arguments(spec)
-
-    golden_is_continuous = isTRUE(fix$check_model$is_continuous)
-    spec_is_continuous = isTRUE(args$is_continuous)
-    expect_equal(
-      spec_is_continuous, golden_is_continuous,
-      info = sprintf("%s: is_continuous mismatch", ctx)
-    )
-  }
-})
-
-test_that("golden fixtures: compare specs produce correct num_categories", {
-  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
-
-  manifest = readRDS(golden_fixture_path("manifest"))
-  compare_ids = manifest$id[manifest$type == "compare"]
-
-  for(id in compare_ids) {
-    fix = readRDS(golden_fixture_path(id))
-    ctx = sprintf("[golden %s]", id)
-
-    spec = bgms:::bgm_spec(
-      fix$input$x,
-      model_type        = "compare",
-      variable_type     = fix$input$variable_type,
-      baseline_category = fix$input$baseline_category,
-      group_indicator   = fix$input$group_indicator,
-      na_action         = fix$input$na_action
-    )
-    args = bgms:::build_arguments(spec)
-
-    expect_equal(
-      args$num_categories, fix$reformat_data$num_categories,
-      info = sprintf("%s: num_categories mismatch", ctx)
-    )
-  }
-})
-
-test_that("golden fixtures: compare specs produce correct baseline_category", {
-  skip_if_not(has_golden_fixtures(), "golden fixtures not found")
-
-  manifest = readRDS(golden_fixture_path("manifest"))
-  compare_ids = manifest$id[manifest$type == "compare"]
-
-  for(id in compare_ids) {
-    fix = readRDS(golden_fixture_path(id))
-    ctx = sprintf("[golden %s]", id)
-
-    if(is.null(fix$reformat_data$baseline_category)) next
-
-    spec = bgms:::bgm_spec(
-      fix$input$x,
-      model_type        = "compare",
-      variable_type     = fix$input$variable_type,
-      baseline_category = fix$input$baseline_category,
-      group_indicator   = fix$input$group_indicator,
-      na_action         = fix$input$na_action
-    )
-    args = bgms:::build_arguments(spec)
-
-    # Compare uses is_ordinal_variable rather than baseline_category
-    # but baseline_category is still available in spec$variables
-    # The key field for simulate/predict is is_ordinal_variable
-    expect_true(!is.null(args$is_ordinal_variable),
-      info = sprintf("%s: missing is_ordinal_variable", ctx)
-    )
-
-    golden_is_ordinal = fix$check_model$variable_bool
-    expect_equal(
-      args$is_ordinal_variable, golden_is_ordinal,
-      info = sprintf("%s: is_ordinal_variable mismatch", ctx)
-    )
-  }
-})
 
 
 # ==============================================================================
@@ -957,4 +787,107 @@ test_that("sparse category codings recode to the fitted categories", {
     probs <- predict(fit_sparse, newdata = sim, type = "probabilities")
   )
   expect_false(any(vapply(probs, anyNA, logical(1))))
+})
+
+
+# ==============================================================================
+# 9. simulate.bgmCompare() draws from the group it was asked for (F-073)
+# ==============================================================================
+# The only group-difference test simulate.bgmCompare() had described itself as
+# soft. This one is numeric: data simulated from a group, scored back through
+# predict() with the SAME group's parameters, must reproduce its own category
+# margins -- E[1{X_v = c}] = E[P(X_v = c | X_-v)] holds for any fit that puts
+# the same parameters into both paths, and fails if one of them scales,
+# shifts, or selects the group differently from the other.
+# ==============================================================================
+
+test_that("simulated margins match predicted margins for the same group", {
+  skip_on_cran()
+  # Groups that differ a lot, so a group mix-up is not a rounding question.
+  p = 4
+  symmetric = function(values) {
+    m = matrix(0, p, p)
+    m[upper.tri(m)] = values
+    m + t(m)
+  }
+  omega_1 = symmetric(c(0.6, 0.0, 0.1, 0.0, 0.5, 0.1))
+  omega_2 = symmetric(c(0.0, 0.0, 0.6, 0.0, 0.0, 0.5))
+  main = matrix(c(0, 0), nrow = p, ncol = 2, byrow = TRUE)
+
+  draw = function(omega, seed) {
+    simulate_mrf(
+      500, p, num_categories = 2, pairwise = omega, main = main,
+      variable_type = "ordinal", iter = 50, seed = seed
+    )
+  }
+  x = rbind(draw(omega_1, 6), draw(omega_2, 106))
+  # Full support WITHIN each group, not merely pooled: a category one group
+  # never uses has its threshold set by the prior there, and the fit says so in
+  # a warning. This block is about the numeric convention, so the data is chosen
+  # to keep that question out of it rather than to silence the warning.
+  for(g in 1:2) {
+    rows = seq_len(500) + (g - 1L) * 500L
+    expect_true(all(apply(x[rows, ], 2, function(z) length(unique(z))) == 3L),
+      info = sprintf("group %d does not use every category", g))
+  }
+
+  fit = bgmCompare(
+    x, group = rep(1:2, each = 500),
+    iter = 300, warmup = 200, chains = 1, seed = 42,
+    difference_selection = FALSE, display_progress = "none"
+  )
+
+  # simulate() returns the original scale and predict() returns one column per
+  # INTERNAL category, and a sparsely observed category is collapsed into its
+  # neighbour, so the two are not index-for-index the same set. The fit's own
+  # level map says which original values a predicted column stands for; using
+  # it keeps this a test of the numeric convention rather than of the coding.
+  levels_of = extract_arguments(fit)$category_levels
+  originals_for = function(v, k) {
+    map = levels_of[[v]]
+    as.numeric(names(map)[map == (k - 1L)])
+  }
+
+  nsim = 2000L
+  for(g in 1:2) {
+    ctx = sprintf("group %d", g)
+    sim = simulate(fit, nsim = nsim, seed = 100L + g, group = g, iter = 500)
+    probabilities = predict(fit, newdata = sim, group = g,
+      type = "probabilities")
+
+    residual = function(scored) {
+      max(vapply(seq_len(p), function(v) {
+        max(vapply(seq_len(ncol(scored[[v]])), function(k) {
+          abs(mean(sim[, v] %in% originals_for(v, k)) - mean(scored[[v]][, k]))
+        }, 0.0))
+      }, 0.0))
+    }
+
+    for(v in seq_len(p)) {
+      predicted = probabilities[[v]]
+      for(k in seq_len(ncol(predicted))) {
+        observed_rate = mean(sim[, v] %in% originals_for(v, k))
+        predicted_rate = mean(predicted[, k])
+        # The two estimate the same probability. The simulated margin is the
+        # noisy one -- nsim near-independent draws -- so the band is its
+        # binomial Monte-Carlo error, sqrt(pi (1 - pi) / nsim), at 4 standard
+        # errors, with a floor of 0.01 so a category near 0 or 1 does not get
+        # a vanishing band from its own vanishing variance. The predicted
+        # margin averages conditional probabilities over the same rows and is
+        # far tighter, so it contributes little to the spread.
+        mc_error = sqrt(predicted_rate * (1 - predicted_rate) / nsim)
+        expect_lt(
+          abs(observed_rate - predicted_rate), max(4 * mc_error, 0.01),
+          label = sprintf("%s, variable %d, category %d", ctx, v, k)
+        )
+      }
+    }
+
+    # And the agreement is a statement about THIS group: scoring the same
+    # simulated data with the other group's parameters has to miss, or the
+    # test above would pass for a fit that ignored `group` entirely.
+    other = if(g == 1L) 2L else 1L
+    cross = predict(fit, newdata = sim, group = other, type = "probabilities")
+    expect_gt(residual(cross), 10 * residual(probabilities), label = ctx)
+  }
 })

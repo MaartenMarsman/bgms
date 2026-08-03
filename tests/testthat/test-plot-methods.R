@@ -42,10 +42,6 @@ test_that("plot_edge_posterior draws one edge and validates its arguments", {
 
   expect_error(plot_edge_posterior(fit, "intrusion", "intrusion"), "two different variables")
   expect_error(plot_edge_posterior(fit, "intrusion", "nope"), "not one of the model's variables")
-  expect_error(
-    plot_edge_posterior(fit, "intrusion", "upset", evidence_threshold = 0.5),
-    "greater than 1"
-  )
 })
 
 test_that("a network with nothing left to support is still a figure", {
@@ -478,7 +474,7 @@ test_that("the panel reads a Blume-Capel fit like any other", {
     display_progress = "none", verbose = FALSE
   )
   label = "intrusion-dreams"
-  evidence = edge_selection_evidence(fit, label, 10)
+  evidence = edge_selection_evidence(fit, label)
   panel = edge_panel_selection(
     label, extract_pairwise_interactions(fit)[, label],
     edge_slab_prior(fit), evidence$pip, evidence$log_bf
@@ -522,6 +518,36 @@ test_that("the slab prior is the fit's own, not the package default", {
   expect_equal(
     unname(extract_pairwise_interactions(cauchy)[, 1]),
     unname(do.call(rbind, anchor_draws(cauchy)$theta)[, 1])
+  )
+})
+
+test_that("the extractor frame is the slab frame on a GGM and a mixed fit", {
+  skip_on_cran()
+  # The overlay drawn by edge_slab_prior() needs no change of variable, on any
+  # family: extract_pairwise_interactions() already reports in the frame the
+  # slab prior applies to. On a continuous block that frame is -K_ij/2 rather
+  # than the precision entry, so the claim has real content there -- and the
+  # way to get it wrong is to apply the -0.5 twice, once in the extractor and
+  # once again on the way to the prior. The ordinal pin above cannot see that;
+  # these two can.
+  ggm = get_bgms_fit_ggm()
+  extracted = unname(extract_pairwise_interactions(ggm))
+  slab = unname(do.call(rbind, anchor_draws(ggm)$theta))
+  expect_equal(extracted, slab)
+
+  # ... and the frame is not the raw one, which is what makes the equality
+  # above an assertion rather than a tautology: a doubled -0.5 would show up
+  # here as a factor of -0.5 between the two, not as agreement.
+  raw = unname(do.call(rbind, get_raw_samples(ggm)$pairwise))
+  expect_equal(extracted, -0.5 * raw)
+  expect_false(isTRUE(all.equal(extracted, raw)))
+
+  # A mixed fit lays its pairwise draws out by block, so the two frames have
+  # to agree column for column in that layout too, not merely in aggregate.
+  mixed = get_bgms_fit_mixed_mrf()
+  expect_equal(
+    unname(extract_pairwise_interactions(mixed)),
+    unname(do.call(rbind, anchor_draws(mixed)$theta))
   )
 })
 
@@ -633,4 +659,62 @@ test_that("a mixed fit's cross edge is drawn rather than reported missing", {
   expect_true("d2-c1" %in% colnames(extract_pairwise_interactions(fit)))
   expect_invisible(plot_edge_posterior(fit, "c1", "d2"))
   expect_invisible(plot_edge_posterior(fit, "c1", "c2"))
+})
+
+
+# ==============================================================================
+# The narrow-device advisory (F-115)
+# ==============================================================================
+
+test_that("the three-panel display advises a wider device, once, on the flag", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  # setup.R silences bgms.verbose for the suite; the advisory follows that flag
+  # like every other bgms message, so it has to be raised to see it at all.
+  withr::local_options(bgms.verbose = TRUE)
+  fit = get_bgms_fit_wenchuan6()
+
+  # R's default device is 7 inches wide; split three ways that is the crowding
+  # the advice is about. The remedy is documentation only -- the geometry is
+  # qgraph's -- so what is tested is that the reader is told, and pointed at
+  # the Rd section that says what to do.
+  narrow = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(narrow, width = 7, height = 7)
+  expect_message(plot(fit), "Open a wider device")
+  expect_message(plot(fit), "\\?plot\\.bgms")
+  grDevices::dev.off()
+
+  # A device that already has the room says nothing.
+  wide = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(wide, width = 13, height = 5)
+  expect_no_message(plot(fit))
+  grDevices::dev.off()
+})
+
+test_that("the narrow-device advisory follows bgms.verbose", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  withr::local_options(bgms.verbose = FALSE)
+  fit = get_bgms_fit_wenchuan6()
+
+  quiet = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(quiet, width = 7, height = 7)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_message(plot(fit))
+})
+
+test_that("the single-panel and groups displays do not advise a wider device", {
+  skip_on_cran()
+  skip_if_not_installed("qgraph")
+  withr::local_options(bgms.verbose = TRUE)
+
+  path = withr::local_tempfile(fileext = ".pdf")
+  grDevices::pdf(path, width = 7, height = 7)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  # No edge selection: one panel, which fits the default device.
+  expect_no_message(plot(get_bgms_fit_wenchuan6_noselection()))
+  # The groups display pages rather than squeezing, so it has its own answer to
+  # a narrow device and does not want this one.
+  expect_no_message(plot(get_bgmcompare_fit_wenchuan5(), type = "groups"))
 })
