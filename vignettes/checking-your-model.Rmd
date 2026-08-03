@@ -21,8 +21,9 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-A fitted network raises questions of two kinds. *Which edges does the evidence
-settle?* is a question about the posterior, and `verdicts()` answers it. *Does
+A fitted graphical model raises questions of two kinds. *Which edges does the
+evidence settle?* is a question about the posterior, and `verdicts()` answers
+it. *Does
 the model describe the data?* is a question about fit, and it splits in two:
 whether the conditional prediction for each variable is calibrated, which
 `calibration_check()` answers, and whether the joint distribution is
@@ -77,20 +78,25 @@ edges[edges$fragile, c("parameter", "log_bf", "verdict")]
 The default picture encodes the same three verdicts, so what a reader sees and
 what the table says cannot drift apart.
 
-```{r, fig.height = 5.5, fig.width = 6}
+```{r, fig.width = 12, fig.height = 4.5, out.width = "100%"}
 plot(fit)
 ```
 
-Solid edges have evidence of presence, with width scaled by the model-averaged
-weight; dotted grey edges are undecided; edges with evidence of absence are not
-drawn at all. For one edge in detail, the spike-and-slab posterior shows how
-the mass is actually divided:
+There is one panel per verdict -- the pairs the data support, the pairs the
+data rule out, and the pairs the data cannot decide -- drawn on one shared
+layout, so a variable sits in the same place in all three. Only the first panel
+is weighted, with line width the posterior mean association and colour its
+sign; the other two are drawn at uniform width, dashed for a ruled-out pair and
+dotted for an undecided one, because there the classification is the result. A
+single drawing would have to leave the last two classes as the same blank,
+which is exactly what a reader cannot interpret. For one edge in detail, the
+spike-and-slab posterior shows how the mass is actually divided:
 
 ```{r, fig.height = 3.6, fig.width = 5}
 plot_edge_posterior(fit, "intrusion", "upset")
 ```
 
-Centrality is a function of the network, so it inherits the same uncertainty.
+Centrality is a function of the graph, so it inherits the same uncertainty.
 Evaluating it on every posterior draw gives its posterior directly, which is
 what `extract_centrality()` returns.
 
@@ -202,7 +208,7 @@ scores; the blue curve is where the real one puts them. Read the shape, not
 the count: a curve that wanders in and out of the band is ordinary sampling
 variation, whereas one that sits above the band across a whole stretch of the
 scale and below it across another is the model getting the spread of total
-severity wrong, which is what a network model can miss while predicting each
+severity wrong, which is what a graphical model can miss while predicting each
 symptom from its neighbours perfectly well.
 
 Here the departures are scattered -- a few isolated scores at the sparse low
@@ -224,7 +230,7 @@ other two.
 - `verdicts()`: which edges the data settle, and which verdicts the run is too
   short to settle.
 - `calibration_check()`: whether to trust a prediction for one variable.
-- A `simulate()`-based display: whether to trust the network as a description
+- A `simulate()`-based display: whether to trust the model as a description
   of the joint distribution.
 
 An edge can be firmly settled in a model that reproduces the joint
