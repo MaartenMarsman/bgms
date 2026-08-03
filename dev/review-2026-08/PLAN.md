@@ -125,6 +125,12 @@ code-read brief.
   step = develop→main re-merge (MM's word).**
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
+- **RELEASE STAGED 2026-08-03**: candidate tarball built from main
+  (`ed940ded` tree; tag `v0.2.0.0` at `59572769`), CITATION parses, final
+  easybgm revdep check against the candidate: nothing bgms-caused (WARNING =
+  published-tarball artifact, NOTE = easybgm's own igraph import; donttest
+  [251s/128s], tests [30s/16s] — report-25 numbers reproduced). Tarball
+  handed to MM at the repo root; submission = MM's click; memos same day.
 - ~~win-builder + mac-builder~~ SKIPPED by MM 2026-08-03 — CRAN incoming is
   the first cross-platform run; one resubmission round is the accepted
   worst case (F-027 closed-unsettled on the same ruling).
