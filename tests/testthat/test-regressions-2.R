@@ -184,7 +184,7 @@ test_that("split-Rhat flags a drifting chain that classic Rhat misses", {
 
 # ---------------------------------------------------------------------------
 # bgmCompare difference prior family is independent of the interaction
-# prior, defaulting to Cauchy
+# prior, defaulting to Normal (F-119)
 # ---------------------------------------------------------------------------
 
 test_that("difference_family selects the difference prior independently", {
@@ -198,28 +198,48 @@ test_that("difference_family selects the difference prior independently", {
   colnames(x) = paste0("V", seq_len(p))
   g = rep(seq_len(ng), each = npg)
 
-  run = function(fam) {
+  run = function(...) {
     bgmCompare(
       x,
-      group_indicator = g, difference_family = fam,
+      group_indicator = g, ...,
       difference_selection = FALSE, iter = 80, warmup = 80, chains = 1,
       seed = 3, display_progress = "none"
     )
   }
 
-  cauchy = run("Cauchy")
-  normal = run("Normal")
+  cauchy = run(difference_family = "Cauchy")
+  normal = run(difference_family = "Normal")
 
   # Same seed, different prior family -> different difference draws.
   expect_false(isTRUE(all.equal(
     cauchy$raw_samples$pairwise[[1]], normal$raw_samples$pairwise[[1]]
   )))
 
-  # The default is Cauchy.
-  default = run("Cauchy")
+  # The default is Normal (F-119). Omitting difference_family must reproduce
+  # the explicit "Normal" run draw for draw at the same seed, and must not
+  # reproduce the "Cauchy" one -- the previous version of this block passed
+  # difference_family = "Cauchy" explicitly and so asserted nothing about the
+  # default. Exact equality: same seed, same sampler path, no tolerance.
+  default = run()
   expect_equal(
-    default$raw_samples$pairwise[[1]], cauchy$raw_samples$pairwise[[1]]
+    default$raw_samples$pairwise[[1]], normal$raw_samples$pairwise[[1]]
   )
+  expect_false(isTRUE(all.equal(
+    default$raw_samples$pairwise[[1]], cauchy$raw_samples$pairwise[[1]]
+  )))
+
+  # The baseline interaction prior defaults to the Normal too, mirroring bgm()
+  # (F-119). Same idiom: the default fit must reproduce the explicit Normal run
+  # and diverge from the explicit Cauchy one. extract_arguments() does not
+  # surface the slab family for compare fits, so the draws are the evidence.
+  expect_equal(
+    default$raw_samples$pairwise[[1]],
+    run(interaction_prior = normal_prior(scale = 1))$raw_samples$pairwise[[1]]
+  )
+  expect_false(isTRUE(all.equal(
+    default$raw_samples$pairwise[[1]],
+    run(interaction_prior = cauchy_prior(scale = 1))$raw_samples$pairwise[[1]]
+  )))
 
   # An unknown family is rejected.
   expect_error(
