@@ -13,10 +13,10 @@ bgmCompare(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
-  difference_family = c("Cauchy", "Normal"),
+  difference_family = c("Normal", "Cauchy"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   iter = 2000,
   warmup = 2000,
@@ -89,9 +89,11 @@ for Blume--Capel variables.}
 parameters. Default: \code{1}.}
 
 \item{difference_family}{Character. Distributional family of the prior on
-difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
-Independent of \code{interaction_prior}, which governs the baseline
-interactions.}
+difference parameters, one of \code{"Normal"} (default) or \code{"Cauchy"}.
+Governs both the pairwise-interaction differences and the main-effect
+(threshold) differences; under \code{difference_selection = TRUE} it is
+the slab of the spike-and-slab. Independent of \code{interaction_prior},
+which governs the baseline interactions.}
 
 \item{difference_prior}{An indicator prior specification object for
 difference selection, created by one of:
@@ -111,11 +113,13 @@ Default: \code{0.5}.}
 \item{interaction_prior}{A prior specification object for baseline pairwise
 interaction parameters, created by one of the prior constructor functions:
 \itemize{
-\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-\item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+\item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+\item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 }
 When supplied, overrides \code{pairwise_scale}.
-Default: \code{cauchy_prior(scale = 1)}.}
+Default: \code{normal_prior(scale = 1)}, matching \code{\link{bgm}}.
+Governs the baseline pairwise interactions only; the group differences
+are governed by \code{difference_family} and \code{difference_scale}.}
 
 \item{threshold_prior}{A prior specification object for threshold (main
 effect) parameters, created by one of the prior constructor functions:
@@ -172,8 +176,9 @@ their own progress reporting.
 When \code{NULL} (the default), no callback is invoked.}
 
 \item{pairwise_scale}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Double. Scale of the
-Cauchy prior for baseline pairwise interactions.
-Use \code{interaction_prior = cauchy_prior(scale)} instead.}
+baseline pairwise interaction prior. Retained for backward compatibility,
+it sets a Cauchy prior at that scale, which is not the current default.
+Use \code{interaction_prior} instead.}
 
 \item{main_alpha, main_beta}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Doubles. Shape
 parameters of the beta-prime prior for baseline threshold parameters.

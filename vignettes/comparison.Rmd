@@ -53,13 +53,14 @@ fit = bgmCompare(
 )
 ```
 
-One default differs between the two entry points: the baseline pairwise prior
-is `interaction_prior = normal_prior(1)` in `bgm()` but
-`interaction_prior = cauchy_prior(1)` in `bgmCompare()`. Setting a
-`bgmCompare()` fit beside two separate `bgm()` fits at their stated defaults
-therefore compares two different models, not just two groups. Pass the same
-`interaction_prior` to both functions whenever the comparison is meant to be
-like-for-like.
+The baseline pairwise prior is the same at both entry points:
+`interaction_prior = normal_prior(1)` in `bgm()` and in `bgmCompare()`. A
+`bgmCompare()` fit set beside two separate `bgm()` fits at their stated
+defaults therefore differs in the model for the groups, not in the prior on
+the baseline interactions. The group differences are priced separately, by
+`difference_family` (`"Normal"` by default) and `difference_scale`; these
+govern both the pairwise-interaction differences and the threshold
+differences, and `interaction_prior` does not reach them.
 
 Groups often differ in which answer categories they actually use.
 `bgmCompare()` models the union of the categories observed across the groups,

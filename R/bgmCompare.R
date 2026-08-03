@@ -90,9 +90,11 @@
 #' @param difference_scale Double. Scale of the prior for difference
 #'   parameters. Default: \code{1}.
 #' @param difference_family Character. Distributional family of the prior on
-#'   difference parameters, one of \code{"Cauchy"} (default) or \code{"Normal"}.
-#'   Independent of \code{interaction_prior}, which governs the baseline
-#'   interactions.
+#'   difference parameters, one of \code{"Normal"} (default) or \code{"Cauchy"}.
+#'   Governs both the pairwise-interaction differences and the main-effect
+#'   (threshold) differences; under \code{difference_selection = TRUE} it is
+#'   the slab of the spike-and-slab. Independent of \code{interaction_prior},
+#'   which governs the baseline interactions.
 #' @param difference_prior An indicator prior specification object for
 #'   difference selection, created by one of:
 #'   \itemize{
@@ -109,11 +111,13 @@
 #' @param interaction_prior A prior specification object for baseline pairwise
 #'   interaction parameters, created by one of the prior constructor functions:
 #'   \itemize{
-#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior (default).
-#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior.
+#'     \item \code{\link{normal_prior}()}: Normal(0, scale) prior (default).
+#'     \item \code{\link{cauchy_prior}()}: Cauchy(0, scale) prior.
 #'   }
 #'   When supplied, overrides \code{pairwise_scale}.
-#'   Default: \code{cauchy_prior(scale = 1)}.
+#'   Default: \code{normal_prior(scale = 1)}, matching \code{\link{bgm}}.
+#'   Governs the baseline pairwise interactions only; the group differences
+#'   are governed by \code{difference_family} and \code{difference_scale}.
 #' @param threshold_prior A prior specification object for threshold (main
 #'   effect) parameters, created by one of the prior constructor functions:
 #'   \itemize{
@@ -126,8 +130,9 @@
 #'   of the Beta prior for inclusion probabilities in the Beta--Bernoulli
 #'   model. Defaults: \code{1}.
 #' @param pairwise_scale `r lifecycle::badge("deprecated")` Double. Scale of the
-#'   Cauchy prior for baseline pairwise interactions.
-#'   Use \code{interaction_prior = cauchy_prior(scale)} instead.
+#'   baseline pairwise interaction prior. Retained for backward compatibility,
+#'   it sets a Cauchy prior at that scale, which is not the current default.
+#'   Use \code{interaction_prior} instead.
 #' @param main_alpha,main_beta `r lifecycle::badge("deprecated")` Doubles. Shape
 #'   parameters of the beta-prime prior for baseline threshold parameters.
 #'   Use \code{threshold_prior = beta_prime_prior(alpha, beta)} instead.
@@ -236,10 +241,10 @@ bgmCompare = function(
   variable_type = "ordinal",
   baseline_category,
   difference_scale = 1,
-  difference_family = c("Cauchy", "Normal"),
+  difference_family = c("Normal", "Cauchy"),
   difference_prior = bernoulli_prior(0.5),
   difference_probability,
-  interaction_prior = cauchy_prior(scale = 1),
+  interaction_prior = normal_prior(scale = 1),
   threshold_prior = beta_prime_prior(alpha = 0.5, beta = 0.5),
   iter = 2e3,
   warmup = 2e3,
@@ -358,7 +363,7 @@ bgmCompare = function(
       "bgmCompare(interaction_prior =)"
     )
     if(!hasArg(pairwise_scale) &&
-      identical(interaction_prior, cauchy_prior(scale = 1))) {
+      identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = interaction_scale)
     }
   }
@@ -368,7 +373,7 @@ bgmCompare = function(
       "0.2.0", "bgmCompare(pairwise_scale =)",
       "bgmCompare(interaction_prior =)"
     )
-    if(identical(interaction_prior, cauchy_prior(scale = 1))) {
+    if(identical(interaction_prior, normal_prior(scale = 1))) {
       interaction_prior = cauchy_prior(scale = pairwise_scale)
     }
   }
@@ -428,7 +433,7 @@ bgmCompare = function(
           "Pairwise interactions are on the association scale and share one",
           "prior scale, so the per-pair adjustment by the maximum score",
           "product (scale * m_i * m_j) has been dropped. Set the scales",
-          "directly, e.g. interaction_prior = cauchy_prior(scale =) for the",
+          "directly, e.g. interaction_prior = normal_prior(scale =) for the",
           "baseline and difference_scale for the differences; there is no",
           "per-pair equivalent."
         )
