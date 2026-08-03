@@ -163,3 +163,4 @@ orientation, cumulatively covering the architecture.
 | 20 standalone batch (F-100/F-109/F-114) | Opus | DONE — merged `a1c0e768`, NEWS `121890e5`; F-116 opened (fixture provenance); records in FINDINGS | reports/20-standalone-batch.md |
 | 21 mark prior-only compare summary rows (F-117) | Opus | **issued 2026-08-03, LIVE** — `briefs/21-summary-zero-marking.md` stands as written (MM re-ratified after the F-120 detour); runs alongside 13 | handed to MM 2026-08-03 |
 | 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | QUEUED — draft after 13 merges (test-surface collision); F-120 REVERSED, no sampler change; NEWS one-liner at integration | — |
+| 24 precision_graph_prior default → "hierarchical" (F-010 superseded) + F-022 gauge wiring | Opus | QUEUED — draft after 13 merges (zratio test files); NEWS as feature wording; memo line + docs-site re-bake flag | — |
