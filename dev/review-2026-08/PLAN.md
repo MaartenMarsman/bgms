@@ -85,6 +85,12 @@ code-read brief.
   the first real Sunday run is the T2 budget proof (~70 min measured blocks +
   the 11-fit F-049 block vs `timeout-minutes: 360` — ample on paper, unproven;
   watch it) and un-reds the weekly-compliance harness once F-100's fix lands.
+  It is ALSO the live proof of the F-125 joint-pins (eight T2 blocks pinned at
+  22's integration after the hierarchical flip re-pointed them) and of the two
+  restored-at-0.02 gauge harm blocks (F-103).
+- Check-gate baseline for future briefs/agents: 2 NOTEs plain `--as-cran`;
+  **3 NOTEs under `--run-donttest`** (the third is the F-018 examples-timing
+  NOTE, verified base-vs-branch identical in report 22 §7).
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
 - win-builder + mac-builder; reverse-dependency check (easybgm at minimum);
@@ -167,6 +173,6 @@ orientation, cumulatively covering the architecture.
 | 19 F-075 fix batch (release gate: F-075/110/111/112/113) | Opus | DONE — merged `02c609c3`; GATE CLEARED, OCs at bgm parity 10/10 seeds; F-074 settled; F-117/F-118 opened; record in F-075 | reports/19-category-collapse-fix.md |
 | 20 standalone batch (F-100/F-109/F-114) | Opus | DONE — merged `a1c0e768`, NEWS `121890e5`; F-116 opened (fixture provenance); records in FINDINGS | reports/20-standalone-batch.md |
 | 21 mark prior-only compare summary rows (F-117) + F-121 diagnosis | Opus | **DONE 2026-08-03** — merged `20e0e1d7` (widened mark, 906-char warning, BC pin, build-invariant snapshot; lead-verified green on a second build); report + addendum landed at integration; F-121 mechanism: legal FP compilation variance (-O0 stowaway build), NOT UB — lift pending MM | report 21 + addendum |
-| 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | **issued 2026-08-03** — `briefs/22-normal-slab.md`; ~4 threads, one fit at a time | handed to MM 2026-08-03 |
+| 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | **DONE 2026-08-03** — merged `436a7a89`; both defaults flipped (baseline + difference families), shim guards re-pointed (F-119-a), tautological default test fixed (F-119-e); ridge 7.5 → 2.9 (MM judges figures); 0/16 sampling-zero over-calls; escalation declined on the paired contrast (lead accepted; full-ten completion running, F-119-b); NEWS three edits + seed sentence landed; T2 joint-pins (F-125) ride the same integration | report 22 |
 | 23 mixed relational certification (vs OMRF sharp, vs GGM calibrated, cross-block planted recovery) | Opus | **DONE 2026-08-03** — merged `0e94e62e`; mixed NOT user-reachable on pure data (internal-machinery cert); sharp reduction blocked by F-123 (degenerate-block spin/error, first-class); substitutes certify mixed≡OMRF (slope 1.0036, ΔPIP ≤ 0.0096, residual = companion by measurement) and mixed-vs-GGM shrinking 1.00239→1.00037 (no convention bug); cross-block 15/15, 0/30, slope 1.039; mgm 9/9 cross; F-124 opened (ord-ord slope 1.164, Q1) | report 23 |
 | 24 precision_graph_prior default → "hierarchical" (F-010) + F-022 harm wiring + F-103 sweeps program + F-123 (b) guard/hygiene | Opus | **DONE 2026-08-03** — merged `d3d8dbcf`; flip shipped with request-aware advisory; mixed harm channel live (pool-aware gain, GGM byte-identical); F-103 STOP branch: lever spent, dispersion is the fit's not the audit's, threshold question back to MM with decision inputs; F-123 guard + 7 bounds (8 residual bounds = lead follow-up); NEWS N1–N4 landed (parse 33); gate T0/T1 0F/0W + as-cran 2 baseline NOTEs | report 24 |
