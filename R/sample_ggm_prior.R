@@ -114,7 +114,10 @@
 #'   inclusion probability from the measured error under the edge prior's
 #'   feedback (\code{harm_pred}). Evidence-free sampling is the regime where
 #'   the second alarm matters: a small consistent error can shift the graph
-#'   marginal without flipping individual decisions.
+#'   marginal without flipping individual decisions. This argument switches
+#'   the gauge on and off; how precisely it audits is set by
+#'   \code{options(bgms.zratio_gauge_sweeps)}, the same option the deployed
+#'   path reads.
 #' @param delta Non-negative numeric, or \code{NULL} for the dimension-
 #'   adaptive default. Determinant-tilt exponent: multiplies the prior
 #'   by \eqn{|K|^{\delta}}, softly repelling the chain from the
@@ -325,9 +328,13 @@ sample_ggm_prior = function(
       scale_shape = sp$scale_shape,
       slab = ip$interaction_prior_type
     )
+    # Audit precision comes from the same place as on the deployed path
+    # (F-103): options(bgms.zratio_gauge_sweeps), resolved by
+    # zratio_gauge_sweeps(). zratio_diagnostics stays the on/off switch here,
+    # so FALSE is still 0 sweeps regardless of the option.
     zratio = zratio_spec_list(
       zc,
-      gauge_sweeps = if(isTRUE(zratio_diagnostics)) 2L else 0L
+      gauge_sweeps = if(isTRUE(zratio_diagnostics)) zratio_gauge_sweeps() else 0L
     )
     # Deploy the same Option-B surface the posterior chain uses, so the prior
     # chain (SBC reference) carries an identical per-edge correction. Silent on

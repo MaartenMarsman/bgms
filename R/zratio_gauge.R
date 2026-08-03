@@ -66,10 +66,15 @@
 #' @param verbose Logical: message flagged chains (default \code{TRUE}).
 #' @param harm_inputs Optional list enabling the \code{harm_pred} channel:
 #'   \code{pip} (a list with one numeric vector of posterior edge-inclusion
-#'   probabilities per chain) and, for a Beta-Bernoulli edge prior, its shape
+#'   probabilities per chain, over the audited block, which is every edge on a
+#'   Gaussian graphical model and the continuous-continuous block on a mixed
+#'   model) and, for a Beta-Bernoulli edge prior, its shape
 #'   parameters \code{a} and \code{b} (\code{NULL} for a fixed inclusion
-#'   probability). When \code{NULL} (default) the \code{harm_pred} columns are
-#'   \code{NA} and only the \code{flip_rate} channel flags.
+#'   probability). An optional \code{pool_pip}, of the same shape as
+#'   \code{pip}, gives the edges the shared inclusion parameter is drawn from
+#'   when that pool is wider than the audited block, as on a mixed fit; omit it
+#'   when the two coincide. When \code{NULL} (default) the \code{harm_pred}
+#'   columns are \code{NA} and only the \code{flip_rate} channel flags.
 #' @param harm_threshold Numeric flag threshold on \code{harm_pred}, in
 #'   inclusion-probability units (default \code{0.01}).
 #'
@@ -191,11 +196,27 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       pip = as.numeric(harm_inputs$pip[[c_idx]])
       m_bar = mean(pip * (1 - pip))
       n_edges = length(pip)
+
+      # Feedback pool: the edges the shared inclusion parameter is drawn from.
+      # On a GGM every edge is audited, so the pool is the audited block and
+      # pool_pip is absent. On a mixed fit the Z-ratio enters the
+      # continuous-continuous moves only, while a Beta-Bernoulli theta is drawn
+      # from all three edge classes; the pool is then supplied separately and
+      # the gain is read off it, so the feedback is not understated by the size
+      # of the audited block.
+      pool = if(is.null(harm_inputs$pool_pip) ||
+        is.null(harm_inputs$pool_pip[[c_idx]])) {
+        pip
+      } else {
+        as.numeric(harm_inputs$pool_pip[[c_idx]])
+      }
+      n_pool = length(pool)
+      m_bar_pool = mean(pool * (1 - pool))
       gain = if(!is.null(harm_inputs$a) && !is.null(harm_inputs$b)) {
         a = as.numeric(harm_inputs$a)
         b = as.numeric(harm_inputs$b)
-        theta_hat = (a + sum(pip)) / (a + b + n_edges)
-        n_edges * m_bar / (theta_hat * (1 - theta_hat) * (a + b + n_edges))
+        theta_hat = (a + sum(pool)) / (a + b + n_pool)
+        n_pool * m_bar_pool / (theta_hat * (1 - theta_hat) * (a + b + n_pool))
       } else {
         0
       }
@@ -576,19 +597,27 @@ zratio_extrapolation_notice = function(chains) {
 # prior the channel is disabled (NULL return).
 #
 # @param pip         List with one numeric vector of posterior edge-inclusion
-#                    probabilities per chain.
+#                    probabilities per chain, over the AUDITED block: the edges
+#                    the gauge's pair stream indexes. On a GGM that is every
+#                    edge; on a mixed fit it is the continuous-continuous block
+#                    in upper-triangle order over the continuous variables.
 # @param edge_prior  Character edge-prior name (e.g. "Bernoulli",
 #                    "Beta-Bernoulli").
 # @param a,b         Numeric Beta-Bernoulli shape parameters; ignored for other
 #                    priors.
+# @param pool_pip    Optional list, same shape as pip, over the edges the
+#                    shared inclusion parameter is drawn from, when that pool
+#                    is wider than the audited block (mixed fits). NULL means
+#                    pool == audited block, which is the GGM case.
 #
 # Returns: A list for harm_inputs, or NULL when the edge prior is not covered.
 # ------------------------------------------------------------------------------
-zratio_harm_inputs = function(pip, edge_prior, a = NULL, b = NULL) {
+zratio_harm_inputs = function(pip, edge_prior, a = NULL, b = NULL,
+                              pool_pip = NULL) {
   if(identical(edge_prior, "Bernoulli")) {
-    list(pip = pip, a = NULL, b = NULL)
+    list(pip = pip, a = NULL, b = NULL, pool_pip = pool_pip)
   } else if(identical(edge_prior, "Beta-Bernoulli")) {
-    list(pip = pip, a = a, b = b)
+    list(pip = pip, a = a, b = b, pool_pip = pool_pip)
   } else {
     NULL
   }

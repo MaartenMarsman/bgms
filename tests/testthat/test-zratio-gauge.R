@@ -10,6 +10,18 @@
 # 2026-08-01, run 30715557912 -- no earlier nightly ever reached this file).
 # It is parked in T2 so the nightly stays green; the marginal failure needs an
 # owner. See dev/review-2026-08/reports/12-nightly-respec.md.
+#
+# F-103, second measurement (report 24). The sweeps-first program ran the
+# negative control at gauge_sweeps in {2, 4, 8, 16} across the same 12 seeds
+# report 13 used. Raising the audit precision does NOT close the gap: the max
+# converges to about 0.0107, still above the 0.01 threshold, and the
+# between-seed spread is flat (sd 0.0041 -> 0.0039 while the audit sample grew
+# eightfold). The per-seed values are a stable property of the seed
+# (r = 0.94 between the 2- and 16-sweep columns), not audit noise, so more
+# sweeps sharpen each estimate without moving the distribution off the
+# threshold. The default sweep count is therefore UNCHANGED and this block
+# stays in T2: the threshold-versus-margin question is back with the
+# maintainer. Full table in dev/review-2026-08/reports/24-hierarchical-gauge.md.
 
 test_that("the block reference is finite and lands near the deployed ratio", {
   skip_on_cran()
@@ -366,4 +378,128 @@ test_that("harm inputs stay aligned when a chain has no gauge output", {
   expect_equal(nrow(res$per_chain), 1L)
   expect_equal(res$per_chain$chain, 2L)
   expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
+})
+
+test_that("a mixed hierarchical fit reports harm, not NA (F-022)", {
+  skip_on_cran()
+  # The mixed builder used to call summarize_zratio_gauge() without
+  # harm_inputs, so harm_pred, amplification and kappa were permanently NA on
+  # every mixed fit -- the gauge's second channel was dead on that path. The
+  # fixture is dense-leaning and evidence-free on the continuous block so the
+  # audit stream is non-empty in a couple of seconds.
+  withr::local_options(bgms.zratio_gauge_sweeps = 2L, bgms.verbose = FALSE)
+  set.seed(11)
+  n = 50
+  x = cbind(
+    matrix(sample(0:2, n * 2, replace = TRUE), n, 2),
+    matrix(rnorm(n * 8), n, 8)
+  )
+  fit = bgm(
+    x, variable_type = c(rep("ordinal", 2), rep("continuous", 8)),
+    interaction_prior = normal_prior(scale = 0.5),
+    precision_scale_prior = gamma_prior(shape = 1, rate = 6),
+    edge_prior = beta_bernoulli_prior(9, 1),
+    precision_graph_prior = "hierarchical",
+    iter = 100, warmup = 150, update_method = "adaptive-metropolis",
+    chains = 1, cores = 1, seed = 5,
+    display_progress = "none", verbose = FALSE
+  )
+
+  pc = fit$zratio_diag$per_chain
+  expect_gt(pc$n_ref, 0L)
+  expect_true(is.finite(pc$harm_pred))
+  expect_true(is.finite(pc$amplification))
+  expect_true(is.finite(pc$kappa))
+  # The Beta-Bernoulli feedback is real on this fixture, so the wiring is
+  # visibly doing something rather than passing a degenerate pool through.
+  expect_gt(pc$amplification, 1)
+  expect_false(is.na(pc$harm_flag))
+})
+
+test_that("the harm pool can be wider than the audited block", {
+  # A mixed fit audits the continuous-continuous edges only, while a
+  # Beta-Bernoulli theta is drawn from every edge of the graph. pool_pip
+  # carries that wider pool; without it the feedback gain would be computed
+  # from the audited block alone and understate the amplification.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 0L, pair_j = 1L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  chains = list(list(zratio = list(gauge = g)))
+  a = 9
+  b = 1
+  th = 0.9
+  audited = rep(th, 10L) # 5 continuous variables
+  pool = rep(th, 45L) # plus 5 discrete: the whole mixed graph
+
+  narrow = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE, harm_inputs = list(pip = list(audited), a = a, b = b)
+  )
+  wide = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE,
+    harm_inputs = list(
+      pip = list(audited), a = a, b = b, pool_pip = list(pool)
+    )
+  )
+
+  gain_of = function(E) {
+    m = th * (1 - th)
+    theta_hat = (a + E * th) / (a + b + E)
+    E * m / (theta_hat * (1 - theta_hat) * (a + b + E))
+  }
+  amp_of = function(E) 1 / (1 - min(gain_of(E), 0.98))
+  expect_equal(narrow$per_chain$amplification, amp_of(10L))
+  expect_equal(wide$per_chain$amplification, amp_of(45L))
+  expect_gt(wide$per_chain$amplification, narrow$per_chain$amplification)
+
+  # The numerator is still weighted by the AUDITED edge's sensitivity, so the
+  # two differ by the amplification alone.
+  expect_equal(
+    wide$per_chain$harm_pred / narrow$per_chain$harm_pred,
+    amp_of(45L) / amp_of(10L)
+  )
+  # Omitting pool_pip must leave the GGM path exactly as it was.
+  expect_equal(
+    narrow$per_chain,
+    summarize_zratio_gauge(
+      chains,
+      verbose = FALSE,
+      harm_inputs = list(pip = list(audited), a = a, b = b, pool_pip = NULL)
+    )$per_chain
+  )
+})
+
+test_that("the prior sampler resolves gauge sweeps from the option (F-103)", {
+  skip_on_cran()
+  # sample_ggm_prior() hardwired 2 sweeps while the deployed path resolved
+  # options(bgms.zratio_gauge_sweeps) through zratio_gauge_sweeps(). The two
+  # now share one resolution, so an audit measured on the prior chain describes
+  # the audit a deployed fit performs. zratio_diagnostics stays the on/off
+  # switch: it is not the precision.
+  prior_fit = function(...) {
+    sample_ggm_prior(
+      p = 10L, n_samples = 200L, n_warmup = 100L,
+      interaction_prior = normal_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 2, rate = 6),
+      spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
+      update_method = "gibbs", seed = 3L, verbose = FALSE, ...
+    )
+  }
+  n_ref_at = function(sweeps) {
+    withr::local_options(bgms.zratio_gauge_sweeps = sweeps)
+    prior_fit(zratio_diagnostics = TRUE)$zratio_diagnostics$per_chain$n_ref
+  }
+
+  # The gauge references at most a fixed number of pairs per sweep, so a
+  # saturated audit grows one cap per sweep: the option, and nothing else,
+  # sets the audit size.
+  expect_equal(n_ref_at(2L), 2L * n_ref_at(1L))
+  expect_equal(n_ref_at(6L), 6L * n_ref_at(1L))
+
+  # The on/off switch still wins over the option.
+  withr::local_options(bgms.zratio_gauge_sweeps = 6L)
+  expect_null(prior_fit(zratio_diagnostics = FALSE)$zratio_diagnostics)
 })

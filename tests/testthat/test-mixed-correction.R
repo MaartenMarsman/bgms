@@ -239,6 +239,12 @@ test_that("uncorrected mixed prior chain under-segments the partition", {
 
 # --------------------------------------------------------------------------- #
 # bgm() end to end
+#
+# The normalizing-constant correction is a joint-specification artifact: the
+# hierarchical path tracks Z(Gamma) in the edge moves and builds no table at
+# all. Since F-010 the default is hierarchical, so every fit below names the
+# joint specification -- these tests are about the correction, not about what a
+# default fit does.
 # --------------------------------------------------------------------------- #
 
 mixed_smoke_data = function() {
@@ -271,6 +277,7 @@ test_that("bgm() applies the correction to a mixed beta-bernoulli fit", {
       fit <- bgm(d$x,
         variable_type = d$variable_type,
         edge_prior = beta_bernoulli_prior(),
+        precision_graph_prior = "joint",
         iter = 300, warmup = 300, chains = 1, cores = 1,
         display_progress = "none", verbose = TRUE
       ),
@@ -296,6 +303,7 @@ test_that("bgm() applies the correction to a mixed sbm fit", {
   fit = suppressMessages(bgm(d$x,
     variable_type = d$variable_type,
     edge_prior = sbm_prior(),
+    precision_graph_prior = "joint",
     iter = 300, warmup = 300, chains = 1, cores = 1,
     display_progress = "none"
   ))
@@ -313,6 +321,7 @@ test_that("bgm() skips the correction with one continuous variable", {
     fit <- bgm(d$x[, 1:3],
       variable_type = d$variable_type[1:3],
       edge_prior = beta_bernoulli_prior(),
+      precision_graph_prior = "joint",
       iter = 200, warmup = 300, chains = 1, cores = 1,
       display_progress = "none", verbose = TRUE
     ),
@@ -338,6 +347,7 @@ test_that("two continuous variables: beta-bernoulli corrects, sbm falls back", {
   fit_bb = suppressMessages(bgm(x2,
     variable_type = vt2,
     edge_prior = beta_bernoulli_prior(),
+    precision_graph_prior = "joint",
     iter = 200, warmup = 300, chains = 1, cores = 1,
     display_progress = "none"
   ))
@@ -350,6 +360,7 @@ test_that("two continuous variables: beta-bernoulli corrects, sbm falls back", {
     fit_sbm <- suppressMessages(bgm(x2,
       variable_type = vt2,
       edge_prior = sbm_prior(),
+      precision_graph_prior = "joint",
       iter = 200, warmup = 300, chains = 1, cores = 1,
       display_progress = "none"
     )),

@@ -238,6 +238,24 @@ build_spec_mixed_mrf = function(x, data_columnnames, num_variables,
   p = length(disc_idx)
   q = length(cont_idx)
 
+  # Degenerate-block guard (F-123). The mixed model is the two-block model: its
+  # parameter layout, its indicator layout and its gradients all assume both
+  # blocks are non-empty. Pure-type data is not a degenerate mixed model, it is
+  # a different model, and bgm_spec() routes it to the OMRF or the GGM before
+  # reaching here -- so this is defensive, not a user-facing path, and it fails
+  # loudly rather than building a spec no downstream code is written for.
+  if(p == 0L || q == 0L) {
+    stop(
+      "The mixed model requires at least one discrete and at least one ",
+      "continuous variable; got ", p, " discrete and ", q, " continuous. ",
+      "Pure-ordinal data is fitted by the ordinal MRF and pure-continuous ",
+      "data by the Gaussian graphical model; bgm() selects the model from ",
+      "variable_type, so reaching this point means the model was chosen ",
+      "internally rather than from the data.",
+      call. = FALSE
+    )
+  }
+
   # Split data
   x_disc = x[, disc_idx, drop = FALSE]
   x_cont = x[, cont_idx, drop = FALSE]
