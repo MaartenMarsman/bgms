@@ -764,7 +764,7 @@ logarithm.
   exceeds 1% is flagged. A second channel, `harm_pred`, projects the measured
   approximation error onto the inclusion-probability scale using the chain's own
   edge sensitivities and the edge-prior feedback amplification, and flags when
-  the projected distortion exceeds 0.01 — this catches a consistent error that
+  the projected distortion exceeds 0.02 — this catches a consistent error that
   shifts the recovered network without changing individual edge decisions, which
   `flip_rate` cannot see at chains whose decisions are far from their
   accept/reject boundaries. It is computed for Bernoulli and Beta-Bernoulli edge

@@ -76,7 +76,11 @@
 #'   when the two coincide. When \code{NULL} (default) the \code{harm_pred}
 #'   columns are \code{NA} and only the \code{flip_rate} channel flags.
 #' @param harm_threshold Numeric flag threshold on \code{harm_pred}, in
-#'   inclusion-probability units (default \code{0.01}).
+#'   inclusion-probability units (default \code{0.02}). The default sits above
+#'   the spread this projection shows across healthy reference fits and below
+#'   its value on a known-biased reference kernel, near the geometric midpoint
+#'   of the two, so a flag marks a projected distortion outside anything a
+#'   healthy fit produces.
 #'
 #' @return An invisible named list:
 #'   \describe{
@@ -157,7 +161,7 @@
 #' @family diagnostics
 #' @export
 summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
-                                  harm_inputs = NULL, harm_threshold = 0.01) {
+                                  harm_inputs = NULL, harm_threshold = 0.02) {
   # Keep the original chain indices: harm_inputs$pip is positional over ALL
   # chains, so a chain without gauge output (e.g. an interrupt during another
   # chain's sweeps) must not shift the pip alignment of the chains after it.

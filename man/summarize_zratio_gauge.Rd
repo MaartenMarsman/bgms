@@ -9,7 +9,7 @@ summarize_zratio_gauge(
   threshold = 0.01,
   verbose = TRUE,
   harm_inputs = NULL,
-  harm_threshold = 0.01
+  harm_threshold = 0.02
 )
 }
 \arguments{
@@ -36,7 +36,11 @@ when the two coincide. When \code{NULL} (default) the \code{harm_pred}
 columns are \code{NA} and only the \code{flip_rate} channel flags.}
 
 \item{harm_threshold}{Numeric flag threshold on \code{harm_pred}, in
-inclusion-probability units (default \code{0.01}).}
+inclusion-probability units (default \code{0.02}). The default sits above
+the spread this projection shows across healthy reference fits and below
+its value on a known-biased reference kernel, near the geometric midpoint
+of the two, so a flag marks a projected distortion outside anything a
+healthy fit produces.}
 }
 \value{
 An invisible named list:

@@ -2,26 +2,30 @@
 # Monte-Carlo reference log R_e that the in-chain gauge compares against the
 # deployed log J. These drive the engine reference in isolation.
 #
-# The p = 16 biased-fit detector runs in the weekly certification tier (T2,
-# BGMS_RUN_CERTIFICATION). It is cheap enough for the nightly (~1.5 min on the
-# 2-core runner) and the tier contract names the gauge detector a T1 concern,
-# but it FAILS on the Linux CI runner while passing locally: the harm
-# prediction lands at 0.01071 against a 0.01000 threshold (first observed
-# 2026-08-01, run 30715557912 -- no earlier nightly ever reached this file).
-# It is parked in T2 so the nightly stays green; the marginal failure needs an
-# owner. See dev/review-2026-08/reports/12-nightly-respec.md.
+# The p = 16 biased-fit detector blocks run in the weekly certification tier
+# (T2, BGMS_RUN_CERTIFICATION) BY CONTRACT: maintainer ruling 2026-08-03
+# (F-103 (iii)) — their statistic is a per-fit Monte-Carlo quantity with real
+# seed-to-seed dispersion, so they are distributional assertions and belong
+# with the Monte-Carlo machinery whatever their runtime (helper-tiers.R).
 #
-# F-103, second measurement (report 24). The sweeps-first program ran the
-# negative control at gauge_sweeps in {2, 4, 8, 16} across the same 12 seeds
-# report 13 used. Raising the audit precision does NOT close the gap: the max
-# converges to about 0.0107, still above the 0.01 threshold, and the
-# between-seed spread is flat (sd 0.0041 -> 0.0039 while the audit sample grew
-# eightfold). The per-seed values are a stable property of the seed
-# (r = 0.94 between the 2- and 16-sweep columns), not audit noise, so more
-# sweeps sharpen each estimate without moving the distribution off the
-# threshold. The default sweep count is therefore UNCHANGED and this block
-# stays in T2: the threshold-versus-margin question is back with the
-# maintainer. Full table in dev/review-2026-08/reports/24-hierarchical-gauge.md.
+# harm_threshold history (F-103): first parked 2026-08-01 when the Linux
+# nightly caught harm_pred 0.01071 against the then-threshold 0.01 (run
+# 30715557912, report 12). Report 13 measured the healthy negative control
+# across 12 seeds: 0.0004-0.0125, threshold inside the spread. Report 24 ran
+# the sweeps program: the spread is the fit's, not the audit's (between-seed
+# sd flat across an 8x audit increase, per-seed r = 0.94, the top seed
+# CONVERGES to ~0.0108), so no sweep count separates it — the default sweep
+# count is unchanged. Resolution 2026-08-03 (F-103 (i), maintainer):
+# harm_threshold raised 0.01 -> 0.02 — above the healthy 12-seed max
+# (0.01253 observed, ~0.0108 converged; 1.6-1.9x margin) and below the
+# biased-kernel fixture (0.0431 at the pinned seed, seed-stable across
+# audit sizes; 2.2x margin), near their geometric midpoint. The biased
+# kernel's per-fit values 0.0012-0.0431 OVERLAP the healthy range at some
+# seeds: a per-realization projection can be honestly small on a coarse
+# kernel, and the overlap zone is exactly where an alarm could not be told
+# from healthy dispersion. Whether the projection itself should be
+# recalibrated is backlogged (F-103 (ii), plans/software/flagged-issues.md).
+# Tables: reports/13, 24 + the F-103 row in dev/review-2026-08/FINDINGS.md.
 
 test_that("the block reference is finite and lands near the deployed ratio", {
   skip_on_cran()
@@ -354,7 +358,7 @@ test_that("the harm channel maps audit records onto the correct edge", {
     verbose = FALSE, harm_inputs = list(pip = list(pip))
   )
   # m = 0.5 * 0.5 on the audited edge, se = 0.2, amplification 1 (no a/b):
-  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.01 threshold.
+  # harm_pred = 0.25 * 0.2 = 0.05, resolved and above the 0.02 threshold.
   expect_equal(res$per_chain$harm_pred, 0.05, tolerance = 1e-12)
   expect_true(res$per_chain$harm_flag)
 })
