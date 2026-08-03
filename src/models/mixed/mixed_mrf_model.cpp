@@ -459,7 +459,7 @@ void MixedMRFModel::adopt_cross_proposal_caches(
 
 
 // =============================================================================
-// Constraint structure (RATTLE)
+// Constraint structure (zero-edge Cholesky projection)
 // =============================================================================
 
 void MixedMRFModel::ensure_constraint_structure() {

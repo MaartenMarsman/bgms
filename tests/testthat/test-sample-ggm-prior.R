@@ -54,7 +54,7 @@ test_that("excluded edges are exactly zero in K_offdiag", {
   draws = short_run(p = p, n_samples = 80L, edge_indicators = E)
 
   colnames(draws$K_offdiag) = draws$offdiag_names
-  # Excluded edges are zeroed out by the constraint structure / RATTLE
+  # Excluded edges are zeroed out by the constraint structure
   # projection; with the Cholesky parameterization "structural" zeros
   # (Phi[i, j] = 0 directly) are exact, while quadratic constraints are
   # held to numerical tolerance.

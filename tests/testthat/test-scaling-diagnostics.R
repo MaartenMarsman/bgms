@@ -330,7 +330,7 @@ test_that("S.M5: Mixed NUTS survives near-singular Kyy", {
   skip_unless_certification()
 
   # K_yy = [[1, 0.05], [0.05, 0.012]]: condition number ~106,
-  # stresses the RATTLE projection while keeping data well-behaved.
+  # stresses the zero-edge constraint projection while keeping data well-behaved.
   pairwise_cont_m5 = matrix(c(-0.5, -0.025, -0.025, -0.006), 2, 2)
 
   dat = generate_mixed_scaling_data(
