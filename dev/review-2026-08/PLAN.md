@@ -125,7 +125,10 @@ code-read brief.
   step = develop→main re-merge (MM's word).**
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
-- win-builder + mac-builder; reverse-dependency check (easybgm at minimum —
+- ~~win-builder + mac-builder~~ SKIPPED by MM 2026-08-03 — CRAN incoming is
+  the first cross-platform run; one resubmission round is the accepted
+  worst case (F-027 closed-unsettled on the same ruling).
+- Reverse-dependency check (easybgm at minimum —
   dress rehearsal DONE, report 25 §3.4: `--as-cran` status IDENTICAL on both
   builds (1W/2N, none bgms-caused), runtime the only delta; re-run against
   the final tarball at rc); `cran-comments.md`; bump-and-tag; submit.

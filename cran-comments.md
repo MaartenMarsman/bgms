@@ -3,8 +3,6 @@
 ## Test environments
 
 - Local: macOS 15 (aarch64), R 4.6.0 — `R CMD check --as-cran`
-- win-builder (release, devel) — pending
-- mac-builder — pending
 
 ## R CMD check results
 
