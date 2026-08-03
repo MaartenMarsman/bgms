@@ -53,7 +53,9 @@
 #' \code{warning()} naming every variable, category, and group this affects,
 #' and records the per-group category counts in the fitted object
 #' (\code{extract_arguments(fit)$category_support}) so they can be checked
-#' afterwards. Only the category thresholds are affected this way; the
+#' afterwards. The affected rows are also marked with a \code{*} in the
+#' printed summary; see \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}.
+#' Only the category thresholds are affected this way; the
 #' pairwise (edge) parameters and their differences are estimated from all the
 #' data and are not.
 #'

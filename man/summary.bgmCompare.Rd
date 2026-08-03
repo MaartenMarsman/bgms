@@ -17,6 +17,20 @@ An object of class \code{summary.bgmCompare} with posterior summaries.
 \description{
 Returns posterior summaries and diagnostics for a fitted \code{bgmCompare} model.
 }
+\details{
+In the printed "Group differences (main effects)" block, a row
+whose category is observed in some groups but not in others is marked with
+a leading \code{*}, and the block gains the footnote \emph{no observations in this
+group for this category; the estimate reflects the prior, not the data}.
+\code{bgmCompare()} keeps the union of the categories the groups observe, so a
+group can contribute no observations at all to a retained category; its
+threshold for that category is then set by the prior, and the reported
+difference is large and very uncertain without being evidence of a group
+difference. The per-group counts behind the mark are in
+\code{extract_arguments(fit)$category_support}, one matrix of category-by-group
+observation counts per variable (\code{NULL} for Blume-Capel variables, which
+are exempt). Fits made before that field existed print unmarked.
+}
 \examples{
 \donttest{
 # See ?bgmCompare for a full example

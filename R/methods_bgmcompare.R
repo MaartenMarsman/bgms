@@ -45,6 +45,85 @@ group_mapping_line = function(arguments, num_groups = NULL) {
   )
 }
 
+# ---- prior-only main-effect difference rows ---------------------------------
+# bgmCompare keeps the union of the ordinal categories the groups observe, so a
+# retained category can have no observations at all in some group. That group's
+# data then say nothing about where its threshold for that category lies, and
+# the reported threshold difference is whatever the prior says. The fit warns
+# about this once (class `bgms_group_support_warning`) and stores the per-group
+# counts in `category_support`; the reader of a saved fit never saw the warning,
+# so the printed summary marks the affected rows as well.
+#
+# Rows are mapped to support cells by index, never by parsing the label. The
+# main-effects matrix carries one row per free parameter in variable order --
+# `num_categories[v]` thresholds for an ordinal variable, two (linear,
+# quadratic) for a Blume-Capel one -- and threshold `k` of variable `v` is the
+# threshold for category code `k`, i.e. row `k + 1` of `category_support[[v]]`
+# (row 1 is the reference category 0). Blume-Capel variables are exempt from
+# the union recode and carry no support matrix, so their rows are never marked.
+#
+# The difference rows are contrasts, not groups: a group's effect is
+# `baseline + projection[g, ] %*% differences`, so an empty cell in any group
+# reaches every contrast of that variable-by-category pair. A pair is therefore
+# marked in all of its contrasts or in none of them.
+#
+# Returns a logical vector, one entry per row of
+# `posterior_summary_main_differences`, or NULL when the fit carries no
+# usable `category_support` (fits made before the field existed, and any
+# layout the mapping cannot verify). NULL means "print exactly as before".
+compare_prior_only_main_diff = function(arguments, num_rows) {
+  support = arguments$category_support
+  num_variables = arguments$num_variables
+  num_groups = arguments$num_groups
+  num_categories = arguments$num_categories
+  is_ordinal = arguments$is_ordinal_variable
+
+  if(is.null(support) || is.null(num_variables) || is.null(num_groups) ||
+     is.null(num_categories) || is.null(is_ordinal)) {
+    return(NULL)
+  }
+  num_variables = as.integer(num_variables)
+  num_groups = as.integer(num_groups)
+  if(num_groups < 2L) return(NULL)
+  if(length(support) != num_variables) return(NULL)
+  if(length(num_categories) != num_variables) return(NULL)
+  if(length(is_ordinal) != num_variables) return(NULL)
+
+  # one flag per row of the main-effects matrix, in variable order
+  by_row = vector("list", num_variables)
+  for(v in seq_len(num_variables)) {
+    if(!isTRUE(is_ordinal[v])) {
+      by_row[[v]] = c(FALSE, FALSE) # Blume-Capel: linear + quadratic
+      next
+    }
+    num_thresholds = as.integer(num_categories[v])
+    cells = support[[v]]
+    if(!is.matrix(cells) || nrow(cells) != num_thresholds + 1L ||
+       ncol(cells) != num_groups) {
+      by_row[[v]] = rep(FALSE, num_thresholds)
+      next
+    }
+    # drop the reference row (category 0); row k of the remainder is threshold k
+    by_row[[v]] = apply(cells[-1L, , drop = FALSE] == 0L, 1L, any)
+  }
+  by_row = unname(unlist(by_row))
+
+  num_contrasts = num_groups - 1L
+  flags = if(isTRUE(arguments$difference_selection)) {
+    # selection path (summarize_main_diff_compare): variable-major, with the
+    # contrasts of one row adjacent
+    rep(by_row, each = num_contrasts)
+  } else {
+    # no selection (summarize_manual_compare on the difference columns):
+    # contrast-major, the whole main-effects matrix once per contrast
+    rep(by_row, times = num_contrasts)
+  }
+
+  if(length(flags) != num_rows) return(NULL)
+  flags
+}
+
+
 #' @name print.bgmCompare
 #' @title Print method for `bgmCompare` objects
 #' @description Minimal console output for `bgmCompare` fit objects.
@@ -111,6 +190,19 @@ print.bgmCompare = function(x, ...) {
 #' @title Summary method for `bgmCompare` objects
 #'
 #' @description Returns posterior summaries and diagnostics for a fitted `bgmCompare` model.
+#'
+#' @details In the printed "Group differences (main effects)" block, a row
+#'   whose category is observed in some groups but not in others is marked with
+#'   a leading `*`, and the block gains the footnote *no observations in this
+#'   group for this category; the estimate reflects the prior, not the data*.
+#'   `bgmCompare()` keeps the union of the categories the groups observe, so a
+#'   group can contribute no observations at all to a retained category; its
+#'   threshold for that category is then set by the prior, and the reported
+#'   difference is large and very uncertain without being evidence of a group
+#'   difference. The per-group counts behind the mark are in
+#'   `extract_arguments(fit)$category_support`, one matrix of category-by-group
+#'   observation counts per variable (`NULL` for Blume-Capel variables, which
+#'   are exempt). Fits made before that field existed print unmarked.
 #'
 #' @param object An object of class `bgmCompare`.
 #' @param ... Currently ignored.
@@ -244,10 +336,31 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       function(col) ifelse(is.na(col), "", round(col, digits))
     )
 
+    # Rows whose group-by-category cell is empty carry the prior, not the data.
+    # The mark goes in front of the label rather than after the numbers: it
+    # qualifies which parameter the row is, and a leading gutter keeps it from
+    # reading as part of `mean`.
+    prior_only = compare_prior_only_main_diff(x$arguments, nrow(x$main_diff))
+    marked = if(is.null(prior_only) || is.null(maind$parameter)) {
+      logical(nrow(maind))
+    } else {
+      prior_only[seq_len(nrow(maind))]
+    }
+    if(any(marked)) {
+      maind$parameter = paste0(ifelse(marked, "* ", "  "), maind$parameter)
+    }
+
     print(maind, row.names = FALSE)
 
     if(nrow(x$main_diff) > 6) {
       cat("... (use `summary(fit)$main_diff` to see full output)\n")
+    }
+
+    if(any(marked)) {
+      cat(
+        "* no observations in this group for this category;",
+        "the estimate reflects the prior, not the data\n"
+      )
     }
 
     if(!is.null(x$indicator) && maind_has_na) {
