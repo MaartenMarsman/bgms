@@ -427,6 +427,7 @@ collapse_categories_across_groups = function(x,
   category_support = vector("list", num_variables)
   renumbered = integer(0) # variables where a true gap was closed
   gaps_dropped = integer(0) # how many gap values each of those lost
+  ref_cells = character(0) # empty cells in the reference category
   zero_cells = character(0) # "<variable>, category <c>, <group>"
 
   for(node in seq_len(num_variables)) {
@@ -468,12 +469,25 @@ collapse_categories_across_groups = function(x,
     category_support[[node]] = support
 
     # Structural zeros: a retained category with no observations in some group.
+    # An empty cell in the REFERENCE category is the consequential one. Every
+    # threshold is identified relative to category 0, so a group that never
+    # used it has nothing fixing the level of its whole threshold vector, not
+    # just one threshold. Those cells say so, and are listed first so the
+    # head() below cannot drop them behind ordinary ones.
     empty = which(support == 0L, arr.ind = TRUE)
     if(nrow(empty) > 0) {
-      zero_cells = c(zero_cells, paste0(
+      is_reference = empty[, 1] == 1L
+      cells = paste0(
         variable_label(node), ", category ", target[empty[, 1]], ", ",
         vapply(empty[, 2], group_label, character(1))
-      ))
+      )
+      cells[is_reference] = paste0(
+        cells[is_reference],
+        " -- the reference category; every threshold of this variable is",
+        " affected for that group"
+      )
+      ref_cells = c(ref_cells, cells[is_reference])
+      zero_cells = c(zero_cells, cells[!is_reference])
     }
   }
 
@@ -493,11 +507,16 @@ collapse_categories_across_groups = function(x,
     )
   }
 
-  if(length(zero_cells) > 0) {
-    shown = utils::head(zero_cells, 10L)
-    extra = length(zero_cells) - length(shown)
+  affected_cells = c(ref_cells, zero_cells)
+  if(length(affected_cells) > 0) {
+    shown = utils::head(affected_cells, 10L)
+    extra = length(affected_cells) - length(shown)
     # Classed, so a caller can catch this one condition without muffling every
     # warning the fit might raise. The class is part of the user-facing API.
+    #
+    # Kept tight on purpose: R truncates a warning at getOption("warning.length")
+    # = 1000 characters by default, and the tail of this one is the part that
+    # tells the reader where to look next.
     warning(warningCondition(
       paste0(
         "Some categories were not used by every group:\n",
@@ -507,9 +526,13 @@ collapse_categories_across_groups = function(x,
         "But a group with no observations in a category has nothing to say ",
         "about where its threshold for that category lies, so the reported ",
         "difference for that group and that category is set by the prior, not ",
-        "by the data. Expect a large and very uncertain number there, and do ",
-        "not read it as evidence of a group difference. Only the category ",
-        "thresholds are affected; the pairwise (edge) differences are not."
+        "by the data. An empty reference category is worse: every threshold is ",
+        "measured relative to category 0, so all of that variable's threshold ",
+        "differences for that group rest on the prior, not just one. Expect ",
+        "large, very uncertain numbers, and do not read them as evidence of a ",
+        "group difference. Only the category thresholds are affected, not the ",
+        "pairwise (edge) differences. The printed summary marks the rows; see ",
+        "?summary.bgmCompare."
       ),
       class = "bgms_group_support_warning"
     ))

@@ -49,7 +49,11 @@
 #' data say nothing about where its threshold for that category lies, and the
 #' estimated difference for that group-by-category combination is determined
 #' by the prior rather than by the data: it will be large and very uncertain,
-#' and it is not evidence of a group difference. \code{bgmCompare()} raises a
+#' and it is not evidence of a group difference. An unused \emph{reference}
+#' category goes further: every threshold is measured relative to category 0,
+#' so a group that never used it has no data fixing the level of its threshold
+#' vector at all, and every one of that variable's threshold differences for
+#' that group rests on the prior. \code{bgmCompare()} raises a
 #' \code{warning()} naming every variable, category, and group this affects,
 #' and records the per-group category counts in the fitted object
 #' (\code{extract_arguments(fit)$category_support}) so they can be checked

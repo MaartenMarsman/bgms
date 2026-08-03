@@ -362,6 +362,32 @@ test_that("the structural-zero warning names variable, category, and group", {
   expect_false(grepl("v2", w, fixed = TRUE))
   # and says what it means for the user, in words
   expect_match(w, "set by the prior, not")
+
+  # An empty REFERENCE cell is not one cell among others: every threshold is
+  # identified relative to category 0, so it takes the whole threshold vector
+  # of that variable with it. The line says so, and it is listed first, ahead
+  # of the ordinary cells, so the 10-line head() cannot bury it.
+  lines = strsplit(w, "\n", fixed = TRUE)[[1]]
+  expect_match(
+    lines[2],
+    paste0(
+      "variable 'v1', category 0, group 2 -- the reference category; ",
+      "every threshold of this variable is affected for that group"
+    ),
+    fixed = TRUE
+  )
+  expect_match(lines[3], "variable 'v1', category 3, group 1", fixed = TRUE)
+  expect_false(grepl("reference category", lines[3], fixed = TRUE))
+  expect_match(
+    w, "all of that variable's threshold differences for that group rest on",
+    fixed = TRUE
+  )
+  # and points at the display that repeats the marking
+  expect_match(w, "?summary.bgmCompare", fixed = TRUE)
+
+  # R truncates a warning at warning.length (1000 by default) and the tail is
+  # the pointer, so the whole thing has to fit for the common case.
+  expect_lt(nchar(w), getOption("warning.length", 1000L))
 })
 
 

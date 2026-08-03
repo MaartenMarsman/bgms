@@ -9,6 +9,12 @@
 # marks the affected rows so that the reader of a saved fit, who never saw the
 # warning, is told as well.
 #
+# A row is marked on either of two conditions: its own cell is empty, or the
+# variable's REFERENCE cell (category 0) is empty in some group. The second
+# condition marks every threshold of that variable, because every threshold is
+# identified relative to category 0 and a group that never used it has nothing
+# fixing the level of its threshold vector.
+#
 # The snapshot drops the MCMC numbers (see `labels_only()`): what is under test
 # is the printed FORMAT -- which rows carry the mark, where the mark sits, and
 # the footnote text -- and posterior means are not stable enough across
@@ -76,6 +82,12 @@ shared_support_compare_fit = function() {
 }
 
 
+FOOTNOTE = paste0(
+  "* a group lacks observations in this category or in the reference ",
+  "category; the estimate reflects the prior, not the data"
+)
+
+
 test_that("an empty group-by-category cell marks its difference rows", {
   # The classed condition is named rather than muffled wholesale, so an
   # unrelated warning from the fit would still fail this test.
@@ -96,16 +108,19 @@ test_that("an empty group-by-category cell marks its difference rows", {
   out = capture.output(print(summary(fit)))
   rows = block_rows(out, "Group differences (main effects):", 6L)
 
-  # Threshold 3 of A is the row whose own cell is empty; every other rendered
-  # row is backed by observations in both groups.
-  marked = grep("^\\*", rows, value = TRUE)
-  expect_length(marked, 1L)
-  expect_match(marked, "A \\(diff1; 3\\)")
-
-  expect_true(any(out == paste0(
-    "* no observations in this group for this category; ",
-    "the estimate reflects the prior, not the data"
+  # All three of A's thresholds are marked, not just threshold 3. Threshold 3
+  # has its own empty cell in group 1; thresholds 1 and 2 are marked because
+  # group 2 never uses the reference category, which unfixes the level of its
+  # whole threshold vector. B and C are backed by observations throughout.
+  expect_identical(
+    grepl("^\\*", rows),
+    c(TRUE, TRUE, TRUE, FALSE, FALSE, FALSE)
+  )
+  expect_true(all(startsWith(
+    sub("^\\* ", "", rows[1:3]), paste0("A (diff1; ", 1:3, ")")
   )))
+
+  expect_true(any(out == FOOTNOTE))
 
   # The mark is a display device: the data frame behind it is untouched.
   expect_false(any(grepl("*", summary(fit)$main_diff$parameter, fixed = TRUE)))
@@ -124,7 +139,7 @@ test_that("a fit whose groups share their support prints unmarked", {
   rows = block_rows(out, "Group differences (main effects):", 6L)
 
   expect_false(any(grepl("^\\*", rows)))
-  expect_false(any(startsWith(out, "* no observations")))
+  expect_false(any(startsWith(out, "* a group lacks")))
   # No mark anywhere means no gutter either: the labels print as they are.
   expect_true(all(startsWith(
     rows, head(summary(fit)$main_diff$parameter, 6L)
@@ -165,8 +180,9 @@ test_that("the mark follows the row layout of both difference summaries", {
     flags = compare_prior_only_main_diff(
       extract_arguments(fit), length(labels)
     )
-    # Threshold 3 of A is the only one with an empty cell, in every contrast.
-    expect_identical(flags, grepl("^A \\(diff\\d+; 3\\)$", labels))
+    # Group 2 never uses A's reference category, so every threshold of A is
+    # marked, in every contrast. B and C are untouched.
+    expect_identical(flags, grepl("^A \\(diff\\d+; \\d+\\)$", labels))
 
     rows = block_rows(
       capture.output(print(summary(fit))),
@@ -174,6 +190,56 @@ test_that("the mark follows the row layout of both difference summaries", {
     )
     expect_identical(grepl("^\\*", rows), head(flags, 6L))
   }
+})
+
+
+test_that("Blume-Capel rows are never marked", {
+  # Blume-Capel variables are exempt from the union recode -- their two
+  # parameters are functions of the category SCORE, so an unobserved score is
+  # still a meaningful point on the scale -- and they carry no support matrix.
+  # The exemption is by construction, which is exactly why it wants pinning:
+  # the mapping walks all variables and has to hand back two unmarked rows for
+  # a variable whose `category_support` entry is NULL.
+  set.seed(311)
+  n = 90
+  draw = function(lo, hi) {
+    cbind(
+      A = sample(lo:hi, n, TRUE),   # ordinal, split support -> marked
+      D = sample(lo:hi, n, TRUE),   # same data, Blume-Capel -> exempt
+      B = sample(0:2, n, TRUE)
+    )
+  }
+  x = rbind(draw(0, 2), draw(1, 3))
+  x[(n + 1L):(2L * n), "B"] = sample(0:2, n, TRUE)
+
+  expect_warning(
+    fit <- bgmCompare(
+      x, group_indicator = rep(1:2, each = n),
+      variable_type = c("ordinal", "blume-capel", "ordinal"),
+      baseline_category = 0L,
+      iter = 200, warmup = 200, chains = 1, cores = 1, seed = 311,
+      display_progress = "none", verbose = FALSE
+    ),
+    class = "bgms_group_support_warning"
+  )
+
+  args = extract_arguments(fit)
+  expect_false(args$is_ordinal_variable[2L])
+  # D's support is never computed: the recode skips Blume-Capel variables.
+  expect_null(args$category_support[[2L]])
+  # A's is, and it is adverse in both directions.
+  expect_equal(unname(args$category_support[[1L]][4L, 1L]), 0L)
+  expect_equal(unname(args$category_support[[1L]][1L, 2L]), 0L)
+
+  labels = summary(fit)$main_diff$parameter
+  flags = compare_prior_only_main_diff(args, length(labels))
+
+  # D contributes exactly two rows per contrast, `linear` and `quadratic`, and
+  # neither is marked -- while A, on the same data, is marked throughout.
+  expect_identical(flags, grepl("^A \\(", labels))
+  expect_true(any(grepl("^D \\(diff1; linear\\)$", labels)))
+  expect_true(any(grepl("^D \\(diff1; quadratic\\)$", labels)))
+  expect_false(any(flags[grepl("^D \\(", labels)]))
 })
 
 
@@ -193,6 +259,6 @@ test_that("a fit that carries no category_support prints exactly as before", {
 
   rows = block_rows(out, "Group differences (main effects):", 6L)
   expect_false(any(grepl("^\\*", rows)))
-  expect_false(any(startsWith(out, "* no observations")))
+  expect_false(any(startsWith(out, "* a group lacks")))
   expect_true(all(startsWith(rows, head(old$main_diff$parameter, 6L))))
 })

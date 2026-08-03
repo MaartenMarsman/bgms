@@ -62,6 +62,14 @@ group_mapping_line = function(arguments, num_groups = NULL) {
 # (row 1 is the reference category 0). Blume-Capel variables are exempt from
 # the union recode and carry no support matrix, so their rows are never marked.
 #
+# A row is marked on either of two conditions. Its OWN cell can be empty: that
+# group observes no one in that category, so its threshold for the category has
+# nothing behind it. Or the REFERENCE cell can be empty: every threshold is
+# identified relative to category 0, so a group that never uses category 0 has
+# no data fixing the level of its threshold vector at all, and the whole
+# vector -- every threshold of that variable, not just one -- rests on the
+# prior. The second condition marks all of the variable's rows.
+#
 # The difference rows are contrasts, not groups: a group's effect is
 # `baseline + projection[g, ] %*% differences`, so an empty cell in any group
 # reaches every contrast of that variable-by-category pair. A pair is therefore
@@ -104,7 +112,9 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
       next
     }
     # drop the reference row (category 0); row k of the remainder is threshold k
-    by_row[[v]] = apply(cells[-1L, , drop = FALSE] == 0L, 1L, any)
+    own = apply(cells[-1L, , drop = FALSE] == 0L, 1L, any)
+    # an empty reference cell unfixes the level of the whole threshold vector
+    by_row[[v]] = own | any(cells[1L, ] == 0L)
   }
   by_row = unname(unlist(by_row))
 
@@ -191,18 +201,27 @@ print.bgmCompare = function(x, ...) {
 #'
 #' @description Returns posterior summaries and diagnostics for a fitted `bgmCompare` model.
 #'
-#' @details In the printed "Group differences (main effects)" block, a row
-#'   whose category is observed in some groups but not in others is marked with
-#'   a leading `*`, and the block gains the footnote *no observations in this
-#'   group for this category; the estimate reflects the prior, not the data*.
+#' @details In the printed "Group differences (main effects)" block, a
+#'   threshold difference that rests on the prior rather than on the data is
+#'   marked with a leading `*`, and the block gains the footnote *a group lacks
+#'   observations in this category or in the reference category; the estimate
+#'   reflects the prior, not the data*.
+#'
 #'   `bgmCompare()` keeps the union of the categories the groups observe, so a
-#'   group can contribute no observations at all to a retained category; its
-#'   threshold for that category is then set by the prior, and the reported
-#'   difference is large and very uncertain without being evidence of a group
-#'   difference. The per-group counts behind the mark are in
+#'   group can contribute no observations at all to a retained category. Two
+#'   things follow. If the empty category is the row's own, that group's
+#'   threshold for it has nothing behind it. If the empty category is the
+#'   reference category, the group has no data fixing the level of its
+#'   threshold vector at all, and *every* threshold of that variable is
+#'   affected, not just one --- so the whole variable is marked. Either way the
+#'   reported difference is large and very uncertain without being evidence of
+#'   a group difference.
+#'
+#'   The per-group counts behind the mark are in
 #'   `extract_arguments(fit)$category_support`, one matrix of category-by-group
 #'   observation counts per variable (`NULL` for Blume-Capel variables, which
-#'   are exempt). Fits made before that field existed print unmarked.
+#'   are exempt from the union recode and are never marked). Fits made before
+#'   that field existed print unmarked.
 #'
 #' @param object An object of class `bgmCompare`.
 #' @param ... Currently ignored.
@@ -358,8 +377,8 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
 
     if(any(marked)) {
       cat(
-        "* no observations in this group for this category;",
-        "the estimate reflects the prior, not the data\n"
+        "* a group lacks observations in this category or in the reference",
+        "category; the estimate reflects the prior, not the data\n"
       )
     }
 

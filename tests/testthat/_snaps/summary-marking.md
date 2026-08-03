@@ -37,14 +37,14 @@
       
       Group differences (main effects):
             parameter   mean  mcse    sd   n_eff share_incl Rhat
-         A (diff1; 1)
-         A (diff1; 2)
+       * A (diff1; 1)
+       * A (diff1; 2)
        * A (diff1; 3)
          B (diff1; 1)
          B (diff1; 2)
          C (diff1; 1)
       ... (use `summary(fit)$main_diff` to see full output)
-      * no observations in this group for this category; the estimate reflects the prior, not the data
+      * a group lacks observations in this category or in the reference category; the estimate reflects the prior, not the data
       Note: NA values are suppressed in the print table. They occur for differences
       that were never selected, so the composite ESS and share are undefined;
       `summary(fit)$main_diff` still contains the NA values.
