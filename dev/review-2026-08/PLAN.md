@@ -79,6 +79,14 @@ code-read brief.
 
 ## Phase 3 — CRAN mechanics and ship
 
+- Unrouted-tail disposition sweep (lead): **DONE 2026-08-03** — every
+  remaining open row dispositioned in FINDINGS (routed to the submission
+  batch / Phase-3 / wrap-up, backlogged post-release, or accepted; F-006
+  closed; F-080/081 open-watch for the nightly proof). FOUR need MM's word,
+  lead recommendation attached to each: F-007 (drop Readme.Rmd), F-020
+  (SLAB-2 ship-later + caveat sentence), F-026 (intro-vignette full rewrite
+  post-release), F-046 (qgraph status quo).
+
 - Resolve all blockers; land fixes on develop; re-merge develop→main;
   re-verify (full `--as-cran` + targeted re-tests of every fixed finding).
 - The re-merge ACTIVATES the new CI schedules (crons fire from main's files):
