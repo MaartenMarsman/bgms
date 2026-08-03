@@ -363,7 +363,7 @@ does not fire is F-025-1 (§1.6), and it fails loudly.
 | N1 | Pairwise parameters on the **association scale** — `extract_pairwise_interactions()` and the raw pairwise draws are ~half their 0.1.6.3 values | `functions.bgms.R:146-148`, `:194-195` | `res$parameters`, `res$samples_posterior`, every edge weight in `plot_network`/`plot_parameterHDI`, and `res$centrality` (strength = row sums of `abs(samples_posterior)`, `AuxiliaryFunctions.R:100-112`) all halve |
 | N2 | Same for `bgmCompare()`, incl. `extract_group_params()` | `functions.bgmscompare.R:207`, `:229-231`, `:233`, `:282`, `:284`, `:300`, `:309` | `res$parameters`, `parameters_g1`, `parameters_g2`, `group_estimates`, `overall_estimate`, `samples_posterior` all halve |
 | N3 | `bgm()` interaction prior **Cauchy(2.5) → `normal_prior(1)`** | no site — easybgm never passes `interaction_scale`, so it inherits the default | a default `easybgm(type="binary", package="bgms")` is now a **different model**. easybgm's documentation (`easybgm.R:86-87`, "Cauchy … default is 2.5") is now factually wrong (**F-025-2**) |
-| N4 | `bgmCompare()` baseline `interaction_prior = normal_prior(1)` **and** `difference_family = "Normal"` (both Cauchy before) | inherited | every `easybgm_compare(..., package="bgms")` result changes; difference verdicts on categories one group never observed move most |
+| N4 | `bgmCompare()` baseline `interaction_prior = normal_prior(1)` **and** `difference_family = "Normal"` (both Cauchy before) — **verified on both builds, not taken from NEWS**: 0.1.6.3 has no `difference_family`, documents `difference_scale` as the *Cauchy* scale (anchor `bgmCompare.R:94`) and its C++ difference gradient is `-2*v/(v^2+s^2)` (anchor `bgmCompare_logp_and_grad.cpp:454`, `:474`, `:729`, `:747`), the derivative of a Cauchy log-density; 0.2.0.0 at all defaults records `difference_prior_type = "normal"`, `difference_scale = 1`, i.e. Normal(0,1), and `difference_family = "Cauchy"` restores the old family | inherited | every `easybgm_compare(..., package="bgms")` result changes; difference verdicts on categories one group never observed move most, because a Normal slab bounds a weakly-identified difference far more tightly than a Cauchy |
 | N5 | `iter`/`warmup` **1e3 → 2e3** | easybgm passes `iter` (`functions.bgms.R:15`, `functions.bgmscompare.R:38`/`:54`) but **never `warmup`** | a different chain, and the dominant term in the runtime result of §3.5 |
 | N6 | NUTS `target_accept` **0.60 → 0.80** (`bgm`), **0.65 → 0.80** (`bgmCompare`) | inherited | smaller steps, more leapfrogs; compounds N5 |
 | N7 | **Rao-Blackwellized inclusion probability is canonical** — `extract_posterior_inclusion_probabilities()` defaults to `estimator = "rb"` ([extractor_functions.R:268-296](R/extractor_functions.R#L268-L296)) | `functions.bgms.R:153`, `:201` | `res$inc_probs` changes; `res$inc_BF` (hand-computed `:155-178`, `:203-226`) with it; `res$structure = 1*(inc_probs > 0.5)` (`:184`) can flip an edge. Most visible effect: raw indicator averages saturate at 0/1 on a short chain and gave `inc_BF` of `0`/`Inf`; RB averages do not, so easybgm's Bayes factors are now **finite where they used to be infinite** |
@@ -499,25 +499,61 @@ plot_structure_probabilities   -> ggplot2::ggplot,ggplot,...
 
 easybgm-extracted GGM result:
   thresholds (from extract_category_thresholds): NULL
-  parameters (assoc scale):
-            intrusion dreams   flash   upset
-  intrusion    0.0000 0.8434  0.5891  0.0153
-  dreams       0.8434 0.0000  0.1015  0.4674
-  flash        0.5891 0.1015  0.0000  0.1927
-  upset        0.0153 0.4674  0.1927  0.0000
-  bgms partial correlations (posterior mean):
-  intrusion    dreams     flash     upset
-     0.5065    0.5093    0.4328    0.4020
 ```
 
-No error, no warning. But easybgm documents `parameters` as "a p × p matrix
-containing **partial associations**" (`easybgm.R:23`), and for a GGM what it
-receives is the association-scale coupling (`-0.5 ×` precision off-diagonal),
-not the partial correlation a user reading a Gaussian network would expect.
-The two differ, and nothing tells the user which one is on the plot. The mixed
-fit behaves the same and additionally carries `zratio_diag` and emits the
-z-ratio message. This is not a regression against 0.1.6.3 — the path did not
-exist — but it is new, unguarded, untested surface.
+and the quantity easybgm puts in `res$parameters`, beside what a reader of a
+Gaussian network would expect there (same fit, `seed = 11`):
+
+```
+== what easybgm puts in res$parameters (association scale) ==
+          intrusion dreams  flash  upset
+intrusion    0.0000 0.8434 0.5891 0.0153
+dreams       0.8434 0.0000 0.1015 0.4674
+flash        0.5891 0.1015 0.0000 0.1927
+upset        0.0153 0.4674 0.1927 0.0000
+
+== bgms::extract_partial_correlations(fit) ==
+          intrusion dreams  flash  upset
+intrusion    1.0000 0.5563 0.4567 0.0129
+dreams       0.5563 1.0000 0.0801 0.4009
+flash        0.4567 0.0801 1.0000 0.1943
+upset        0.0129 0.4009 0.1943 1.0000
+
+== bgms::extract_precision(fit) posterior mean ==
+          intrusion  dreams   flash   upset
+intrusion    3.0893 -1.6868 -1.1781 -0.0307
+dreams      -1.6868  2.9761 -0.2029 -0.9347
+flash       -1.1781 -0.2029  2.1542 -0.3855
+upset       -0.0307 -0.9347 -0.3855  1.8266
+```
+
+No error, no warning. The issue is **not** that this contradicts easybgm's
+documented "partial associations" (`easybgm.R:23`) — that phrase covers the
+pairwise coupling perfectly well, and easybgm has always put the unbounded
+coupling in `parameters` for ordinal bgms fits (`functions.bgms.R:147`,
+`:195`), where no standard normalization exists. The issue is that easybgm
+uses a **different convention for Gaussian models**, and a bgms GGM is a
+Gaussian model arriving down the discrete path:
+
+| easybgm backend | what goes into `res$parameters` | site | this edge |
+|---|---|---|---|
+| BGGM | `out_select$pcor_mat` — partial correlations | `functions.bggm.R:44` | — |
+| BDgraph | `qgraph::wi2net(fit$K_hat)` = `-cov2cor(K)` — partial correlations | `functions.bdgraph.R:91`, `:131` | **0.5563** |
+| bgms, ordinal | pairwise interaction parameter (unbounded) | `functions.bgms.R:147`, `:195` | n/a |
+| **bgms, GGM** (new) | **same as ordinal** — association coupling, `-0.5 × K_ij` | `functions.bgms.R:147` | **0.8434** |
+
+Both of easybgm's Gaussian backends report the partial correlation, and
+`qgraph::wi2net` applied to this fit's precision matrix returns **0.5563** —
+identical to `bgms::extract_partial_correlations()`. A bgms GGM fit reports
+**0.8434** for the same edge of the same fit. Same model class, same slot, two
+scales, and nothing marks which one is on the plot; a user comparing a BGGM
+network against a bgms GGM network is comparing 0.5563 against 0.8434. (The
+identities check: `-0.5 × -1.6868 = 0.8434`;
+`1.6868 / sqrt(3.0893 × 2.9761) = 0.5563`.)
+
+The mixed fit behaves the same and additionally carries `zratio_diag` and emits
+the z-ratio message. This is not a regression against 0.1.6.3 — the path did
+not exist — but it is new, unguarded, untested surface.
 
 ### 3.4 `R CMD check --as-cran` — the reverse-dependency dress rehearsal
 
@@ -761,16 +797,25 @@ names: `interaction_prior`, `threshold_prior`, `edge_prior` (a prior object).
 `c("bgmCompare", "S7_object")` and `extract_arguments(fit)` on the next line
 dispatches on it.
 
-**E10 — BUG, pre-existing, still wrong. The two-group Beta-Bernoulli branch
-reads argument names that have never existed.** Lines 189-194 use
-`args$beta_bernoulli_alpha`/`args$beta_bernoulli_beta`. A `bgmCompare` fit's
-`$arguments` has never carried those — not in 0.2.0.0
-([build_arguments.R:150-190](R/build_arguments.R#L150-L190)) and not in 0.1.6.3
-(anchor `output_utils.R:293-321`), where they are `difference_selection_alpha`
-and `difference_selection_beta`, which the **multi-group** branch at lines
-254-256 already uses correctly. Fix by copying those names. Without it
-`edge.prior` is `numeric(0)` and `inc_BF` (line 214) is a zero-length matrix.
-Not a 0.2.0.0 regression — flagged because the maintainer will be in this file.
+**E10 — BUG, pre-existing. The two-group Beta-Bernoulli branch reads the
+*formal's* name off the *stored* argument list.** Lines 189-194 use
+`args$beta_bernoulli_alpha`/`args$beta_bernoulli_beta`. Those **are** genuine
+`bgmCompare()` formals (0.1.6.0–0.1.6.3 `bgmCompare.R:189`, documented at
+`:94`; still deprecated formals in 0.2.0.0), which is why the slip is natural —
+but the value has never been *stored* under that name in a compare fit's
+`$arguments`. Checked across every version easybgm's branches can reach:
+0.1.4.2 stored `pairwise_beta_bernoulli_alpha`/`main_beta_bernoulli_alpha`
+(`bgmCompare.R:311-314`); 0.1.6.0, 0.1.6.3 (anchor `output_utils.R:293-321`)
+and 0.2.0.0 ([build_arguments.R:150-190](R/build_arguments.R#L150-L190)) all
+store `difference_selection_alpha`/`_beta`. The **multi-group** branch at lines
+254-256 already uses the stored names, so this is a bgms 0.1.6.0 rename
+followed through in one sub-branch and not the other; easybgm's own pre-0.1.6.0
+branch (lines 116-117) has the same slip against 0.1.4.2's prefixed names.
+Without the fix `edge.prior` is `numeric(0)` and `inc_BF` (line 214) is a
+zero-length matrix. Fires only on a two-group comparison with a Beta-Bernoulli
+difference prior, which is why the test suite — Bernoulli only — does not catch
+it. Not a 0.2.0.0 regression; flagged because the maintainer will be in this
+file.
 
 **E11 — OPTIONAL. Adopt the RB estimator on the compare side** (lines 213,
 291). Note the RB matrix carries `NA` for main-effect difference indicators the
@@ -779,11 +824,17 @@ existing `(pairwise)` restriction or filter on `is.na()`.
 
 #### `R/plottingfunctions.easybgm.R`
 
-**E12 — BUG, pre-existing. `plot_centrality.list` reads a field that does not
-exist.** Line 663: `if(!fit_args$save)`. `save` has never been a field of a
-bgms fit's `$arguments` in either version, so this is `if(logical(0))` →
-`argument is of length zero`. Every sibling method guards it first (e.g.
-`plottingfunctions.bgms.R:10-12`). Add the same guard here and at `:776-783`.
+**E12 — BUG, pre-existing. `plot_centrality.list` is missing the guard its
+siblings have.** Line 663: `if(!fit_args$save)`. `save` **was** a stored field
+of a bgms fit's `$arguments` up to bgms 0.1.4.2 (`bgm.R:466`), was dropped in
+0.1.6.0 when saving became unconditional, and survives only as a deprecated
+formal in 0.2.0.0 ([bgm.R:526](R/bgm.R#L526)). From 0.1.6.0 onward
+`fit_args$save` is `NULL`, so this is `if(!NULL)` → `argument is of length
+zero`. easybgm already compensates for exactly that removal —
+`plottingfunctions.bgms.R:10-12` sets `fit_args$save <- TRUE` when
+`packageVersion("bgms") > "0.1.4.2"` — in every sibling method;
+`plot_centrality.list` is the one place it was not added. Add the same guard
+here and at `:776-783`. Broken since bgms 0.1.6.0, not by 0.2.0.0.
 
 #### `tests/testthat/test-easybgm.R`
 
@@ -928,9 +979,9 @@ fix is one argument in two `.Rd` files and it is theirs to make.
 | **F-025-5** | **INFO** | bgms | The shim's comment ([build_output.R:310-311](R/build_output.R#L310-L311)) says easybgm "uses `.subset2` directly". It does not; `.subset2` appears nowhere in easybgm 0.4.0. Only the class overwrite is real. → B2. |
 | **F-025-6** | **MEDIUM** | both | easybgm's `R CMD check` cost rises **2.36×** (83 s → 196 s); the `--run-donttest` pass **3.2× CPU / 5.1× elapsed**; the two full-Wenchuan examples **~6.4× elapsed** each. Cause: `warmup` 1e3 → 2e3 (easybgm passes `iter` but never `warmup`) plus `target_accept` 0.60 → 0.80. Not a CRAN gate at this size, but it is the reverse-dependency check's only visible change. BGGM-backed examples unchanged to within 1%, which makes it attributable. → E13, memo item (3). |
 | **F-025-6b** | **LOW** | bgms | On the two heavy examples the 4-chain parallel speedup fell from ~3.6× to ~2.0× between builds (CPU 3.55× vs elapsed 6.41×). Cause not established; recorded, not diagnosed. → B4. |
-| **F-025-7** | **MEDIUM** | both | GGM and mixed-MRF fits — model classes new in 0.2.0.0 — pass through easybgm's `plot_*.bgms` methods without error and produce real `qgraph`/`ggplot` output, but `res$parameters` is the association-scale coupling while easybgm documents that slot as "partial associations". For a GGM the expected quantity is the partial correlation, and they differ (§3.3). New, unguarded, untested surface; the anchor control confirms it did not exist under 0.1.6.3. → E14. |
-| **F-025-8** | **LOW** | easybgm, pre-existing | `functions.bgmscompare.R:189-194` reads `args$beta_bernoulli_alpha`/`beta` from a `bgmCompare` fit, which has never carried them in either bgms version; the correct names are `difference_selection_alpha`/`beta`, used correctly by the multi-group branch at `:254-256`. → E10. |
-| **F-025-9** | **LOW** | easybgm, pre-existing | `plottingfunctions.easybgm.R:663` does `if(!fit_args$save)` where `save` is not a field of `$arguments` in either version → `argument is of length zero`. Sibling methods guard it first. → E12. |
+| **F-025-7** | **MEDIUM** | both | GGM and mixed-MRF fits — model classes new in 0.2.0.0 — pass through easybgm's `plot_*.bgms` methods without error and produce real `qgraph`/`ggplot` output. `res$parameters` then holds the association-scale coupling, which is what easybgm's *discrete* path reports; but both of easybgm's **Gaussian** backends report partial correlations instead (BGGM `pcor_mat`, `functions.bggm.R:44`; BDgraph `qgraph::wi2net`, `functions.bdgraph.R:91`/`:131`). Same model class, same slot, two scales: **0.8434** vs **0.5563** on the same edge of the same fit (§3.3). New, unguarded, untested surface; the anchor control confirms it did not exist under 0.1.6.3. → E14. |
+| **F-025-8** | **LOW** | easybgm, pre-existing | `functions.bgmscompare.R:189-194` reads `args$beta_bernoulli_alpha`/`beta` off a `bgmCompare` fit. That **is** a real `bgmCompare()` *formal* (0.1.6.0–0.1.6.3 `bgmCompare.R:189`; still a deprecated formal in 0.2.0.0), which is why the slip is natural — but it has never been the name the value is *stored* under: 0.1.4.2 stored `pairwise_beta_bernoulli_alpha`/`main_beta_bernoulli_alpha` (`bgmCompare.R:311-314`), and 0.1.6.0 onward store `difference_selection_alpha`/`_beta`. The multi-group branch at `:254-256` uses the stored names correctly; this is a bgms 0.1.6.0 rename followed through in one sub-branch and not the other. Checked against 0.1.4.2, 0.1.6.0, 0.1.6.3, 0.2.0.0. → E10. |
+| **F-025-9** | **LOW** | easybgm, pre-existing | `plottingfunctions.easybgm.R:663` does `if(!fit_args$save)`. `save` **was** a stored field up to bgms 0.1.4.2 (`bgm.R:466`), was dropped from `$arguments` in 0.1.6.0 when saving became unconditional, and survives only as a deprecated formal in 0.2.0.0 ([bgm.R:526](R/bgm.R#L526)). easybgm compensates for exactly that removal with `if(packageVersion("bgms") > "0.1.4.2") fit_args$save <- TRUE` in its sibling methods (`plottingfunctions.bgms.R:10-12`); `plot_centrality.list` is the one place the guard was not added, so it raises `argument is of length zero`. Broken since bgms 0.1.6.0, not by 0.2.0.0. → E12. |
 
 Nothing in this report requires a change to bgms before submission. B1, B2 and
 B3 are documentation and comment hygiene; B4 is worth a look but is not a gate.
