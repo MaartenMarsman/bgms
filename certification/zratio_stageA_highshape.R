@@ -22,7 +22,7 @@
 # evidence about 15 or 20.
 #
 # Usage, from the repo root (installed build):
-#   Rscript dev/validation/zratio_stageA_highshape.R
+#   Rscript certification/zratio_stageA_highshape.R
 
 suppressMessages(library(bgms))
 
@@ -141,7 +141,7 @@ for(alpha in SHAPES) {
 }
 
 cert = do.call(rbind, rows)
-saveRDS(cert, "dev/validation/wp5_stageA_highshape.rds")
+saveRDS(cert, "certification/wp5_stageA_highshape.rds")
 
 cat("\n=== summary: worst relative error per channel and shape ===\n")
 agg = stats::aggregate(rel_err ~ channel + alpha, data = cert, FUN = max)
@@ -154,4 +154,4 @@ cat(sprintf("\ncertified channels worst %.3g against tolerance %.0e -> %s\n",
             max(gated$rel_err), TOL,
             if(max(gated$rel_err) <= TOL) "PASS" else "FAIL"))
 
-cat("written to dev/validation/wp5_stageA_highshape.rds\n")
+cat("written to certification/wp5_stageA_highshape.rds\n")

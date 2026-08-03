@@ -14,13 +14,13 @@
 # reproduces a recorded result or fails the run.
 #
 # Usage, from the repo root:
-#   Rscript dev/validation/zratio_shape_verdict.R --shape=10 --cores=12
+#   Rscript certification/zratio_shape_verdict.R --shape=10 --cores=12
 #
 # Options: --shape (required), --control (default 2, "none" to drop),
 #          --cores, --out, --cap, --seeds (build seeds).
 
 suppressMessages(devtools::load_all(".", quiet = TRUE))
-source("dev/validation/zratio_gold_bank.R")
+source("certification/zratio_gold_bank.R")
 
 opt = function(name, default = NULL) {
   a = grep(paste0("^--", name, "="), commandArgs(TRUE), value = TRUE)
@@ -33,7 +33,7 @@ control = opt("control", "2")
 cores = as.integer(opt("cores", "12"))
 cap = as.integer(opt("cap", "80"))
 build_seeds = as.integer(strsplit(opt("seeds", "700000,900000"), ",")[[1]])
-out_path = opt("out", sprintf("dev/validation/wp5_verdict_%s.rds",
+out_path = opt("out", sprintf("certification/wp5_verdict_%s.rds",
                               sub("[.]", "p", format(shape))))
 
 # The WP4 cell, and its gold budget. Gold seeds and budget match the banked

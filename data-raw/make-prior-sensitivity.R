@@ -9,7 +9,7 @@
 #
 # Run from the package root after any change that could move the report:
 #
-#     Rscript dev/vignette-data/make-prior-sensitivity.R
+#     Rscript data-raw/make-prior-sensitivity.R
 #
 # The script is tracked so the vignette's number has a provenance; dev/ is
 # .Rbuildignore'd, so it does not ship. The .rds does ship, and holds the ps

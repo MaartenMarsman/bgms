@@ -24,10 +24,10 @@
 # from eta 1 to eta 2 at shape 10), so arm 2 runs there.
 #
 # Usage, from the repo root (installed build):
-#   Rscript dev/validation/zratio_isolated_route_cert.R --cores=12
+#   Rscript certification/zratio_isolated_route_cert.R --cores=12
 
 suppressMessages(library(bgms))
-source("dev/validation/zratio_gold_bank.R")
+source("certification/zratio_gold_bank.R")
 
 opt = function(name, default) {
   a = grep(paste0("^--", name, "="), commandArgs(TRUE), value = TRUE)
@@ -143,5 +143,5 @@ cat(sprintf("gold sd worst %.3g; deployed error / gold sd worst %.1f\n",
             max(spots$gold_sd), max(spots$err_deployed / spots$gold_sd)))
 
 saveRDS(list(identity = ident, spots = spots),
-        "dev/validation/zratio_isolated_route_cert.rds")
-cat("\nwritten to dev/validation/zratio_isolated_route_cert.rds\n")
+        "certification/zratio_isolated_route_cert.rds")
+cat("\nwritten to certification/zratio_isolated_route_cert.rds\n")

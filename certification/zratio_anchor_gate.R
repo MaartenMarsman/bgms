@@ -18,8 +18,8 @@
 # alongside other load.
 #
 # Usage, from the repo root:
-#   Rscript dev/validation/zratio_anchor_gate.R --cores=12
-#   Rscript dev/validation/zratio_anchor_gate.R --cost-only --cores=1
+#   Rscript certification/zratio_anchor_gate.R --cores=12
+#   Rscript certification/zratio_anchor_gate.R --cost-only --cores=1
 
 suppressMessages(library(bgms))
 
@@ -112,10 +112,10 @@ if(!has_flag("cost-only")) {
     }
   }
   gate = do.call(rbind, rows)
-  saveRDS(gate, "dev/validation/wp5_anchor_gate.rds")
+  saveRDS(gate, "certification/wp5_anchor_gate.rds")
   cat("\n=== resolved multipliers ===\n")
   print(gate, digits = 3)
-  cat("\nwritten to dev/validation/wp5_anchor_gate.rds\n")
+  cat("\nwritten to certification/wp5_anchor_gate.rds\n")
 }
 
 if(has_flag("gate-only")) {
@@ -145,7 +145,7 @@ for(alpha in cost_shapes) {
   utils::flush.console()
 }
 cost = do.call(rbind, crows)
-saveRDS(cost, "dev/validation/wp5_build_cost.rds")
+saveRDS(cost, "certification/wp5_build_cost.rds")
 print(cost, digits = 3)
 
 assign(".zratio_surface_shape_lo", fence_old[1], envir = ns)

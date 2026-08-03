@@ -278,7 +278,7 @@ zratio_anchor_sweeps = function(n) {
 # construction, not merely unvalidated. The additive kernel serving there has a
 # known limitation of its own (it discards the ratio on common-neighbour blocks
 # above a delta-dependent size, measured at 12-32 variables and out of reach on
-# small models; dev/validation/zratio_additive_collapse_map.R and
+# small models; certification/zratio_additive_collapse_map.R and
 # zratio_collapse_reachability.R),
 # and that is documented rather than traded for a worse approximation.
 zratio_mediation_off = function(zc) {

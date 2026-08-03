@@ -1,0 +1,21 @@
+[21:00:14] === SBC row-block Gibbs at q=10, R=1000, cores=12 ===
+[21:00:14] Grid: alpha x delta x factorization = 9 cells; per-block pooled KS p-values
+[21:00:14] START alpha=0.50 delta=0.000 fac=hierarchical
+[21:05:21]   DONE 999 reps in 307.0s  K_diag=0.982  Koff=0.000  Kslab|g=1=0.615  gamma=0.000
+[21:05:21] START alpha=1.00 delta=0.000 fac=hierarchical
+[21:09:24]   DONE 1000 reps in 242.4s  K_diag=0.577  Koff=0.000  Kslab|g=1=0.459  gamma=0.024
+[21:09:24] START alpha=2.00 delta=0.000 fac=hierarchical
+[21:14:40]   DONE 1000 reps in 316.5s  K_diag=0.239  Koff=0.000  Kslab|g=1=0.229  gamma=0.012
+[21:14:40] START alpha=0.50 delta=1.151 fac=hierarchical
+[21:19:58]   DONE 1000 reps in 317.2s  K_diag=0.102  Koff=0.000  Kslab|g=1=0.881  gamma=0.571
+[21:19:58] START alpha=1.00 delta=1.151 fac=hierarchical
+[21:23:56]   DONE 1000 reps in 238.2s  K_diag=0.292  Koff=0.000  Kslab|g=1=0.341  gamma=0.951
+[21:23:56] START alpha=2.00 delta=1.151 fac=hierarchical
+[21:29:15]   DONE 1000 reps in 319.0s  K_diag=0.239  Koff=0.000  Kslab|g=1=0.104  gamma=0.338
+[21:29:15] START alpha=0.50 delta=2.000 fac=hierarchical
+[21:34:28]   DONE 1000 reps in 312.8s  K_diag=0.112  Koff=0.000  Kslab|g=1=0.688  gamma=0.365
+[21:34:28] START alpha=1.00 delta=2.000 fac=hierarchical
+[21:38:26]   DONE 1000 reps in 238.9s  K_diag=0.987  Koff=0.000  Kslab|g=1=0.339  gamma=0.153
+[21:38:26] START alpha=2.00 delta=2.000 fac=hierarchical
+[21:43:26]   DONE 1000 reps in 299.3s  K_diag=0.465  Koff=0.000  Kslab|g=1=0.002  gamma=0.583
+[21:43:26] === Summary written to baselines/sbc_row_block_gibbs_summary_R1000.csv ===

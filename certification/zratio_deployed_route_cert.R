@@ -17,10 +17,10 @@
 #      confirmation per shape rather than an argument.
 #
 # Usage, from the repo root (installed build):
-#   Rscript dev/validation/zratio_deployed_route_cert.R --cores=12
+#   Rscript certification/zratio_deployed_route_cert.R --cores=12
 
 suppressMessages(library(bgms))
-source("dev/validation/zratio_gold_bank.R")
+source("certification/zratio_gold_bank.R")
 
 opt = function(name, default) {
   a = grep(paste0("^--", name, "="), commandArgs(TRUE), value = TRUE)
@@ -99,9 +99,9 @@ for(alpha in SHAPES) {
 spots = do.call(rbind, spot_rows)
 
 saveRDS(list(identity = ident, spots = spots),
-        "dev/validation/wp5_deployed_route_cert.rds")
+        "certification/wp5_deployed_route_cert.rds")
 cat("\n=== summary ===\n")
 print(spots, digits = 3, row.names = FALSE)
 cat(sprintf("\nidentity worst %.3g (limit 1e-12); deployed gold error worst %.3g\n",
             worst_id, max(spots$err_deployed)))
-cat("written to dev/validation/wp5_deployed_route_cert.rds\n")
+cat("written to certification/wp5_deployed_route_cert.rds\n")

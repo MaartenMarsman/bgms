@@ -444,7 +444,7 @@ zratio_eta = function(pairwise_scale, scale_rate, scale_eta = NA_real_) {
 # closed-form Gamma moments, I_spike against nested adaptive Gauss-Kronrod, G
 # against a refined (nlag 96, nleg 320) rule, and psi0 against both -- were
 # certified at shapes {2, 10, 12, 15, 20} x eta {1, 2}, worst deviation 8.6e-08
-# against a 1e-06 tolerance (dev/validation/zratio_stageA_highshape.R, run at
+# against a 1e-06 tolerance (certification/zratio_stageA_highshape.R, run at
 # the shipped nleg = 128). Nothing is measured past 20, so the warning stays
 # there.
 #

@@ -28,7 +28,7 @@
 # reproduces the map exactly or it is reported as unexplained.
 #
 # Usage, from the repo root (installed build):
-#   Rscript dev/validation/zratio_additive_collapse_map.R
+#   Rscript certification/zratio_additive_collapse_map.R
 
 suppressMessages(library(bgms))
 
@@ -280,5 +280,5 @@ cat(sprintf("\nclosed-form boundary matches the scan in %d of %d cells (predicti
             nrow(fine)))
 
 saveRDS(list(constants = consts, map = map, boundary = bnd, fine = fine),
-        "dev/validation/zratio_additive_collapse.rds")
-cat("\nwritten to dev/validation/zratio_additive_collapse.rds\n")
+        "certification/zratio_additive_collapse.rds")
+cat("\nwritten to certification/zratio_additive_collapse.rds\n")

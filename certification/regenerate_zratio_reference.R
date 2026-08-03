@@ -16,8 +16,8 @@
 # `evals` entry is rebuilt from the live engine in the same pass.
 #
 # Usage, from the repo root:
-#   Rscript dev/validation/regenerate_zratio_reference.R --check   # verify only
-#   Rscript dev/validation/regenerate_zratio_reference.R --write   # rewrite it
+#   Rscript certification/regenerate_zratio_reference.R --check   # verify only
+#   Rscript certification/regenerate_zratio_reference.R --write   # rewrite it
 #
 # --check recomputes everything and reports the deltas without touching the
 # fixture, so the committed reference can be confirmed reproducible at any time.

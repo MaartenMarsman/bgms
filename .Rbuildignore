@@ -34,6 +34,13 @@
 ^paper$
 ^LICENSE$
 
+# ---- Tracked package assets, deliberately NOT shipped ----
+# Kept in the repo for provenance and reproducibility, but maintainer-facing;
+# see .gitignore for what each one holds.
+^certification$
+^data-raw$
+^baselines$
+
 # ---- Legacy test fixtures and the bitwise compliance tier ----
 # ---- GitHub CI only, not shipped to CRAN ----
 ^tests/testthat/fixtures$

@@ -72,7 +72,7 @@ ps
 
 ```{r, echo = FALSE}
 # The report below is the real object that call produced, run once with those
-# exact arguments by dev/vignette-data/make-prior-sensitivity.R and stored
+# exact arguments by data-raw/make-prior-sensitivity.R and stored
 # beside this file. Nothing here is transcribed: the check is not re-run on
 # every build, but what is printed is still `print()` on a genuine
 # prior_sensitivity_check() result.

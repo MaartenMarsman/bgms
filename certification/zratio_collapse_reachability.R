@@ -26,4 +26,4 @@ d = do.call(rbind, rows)
 print(d, digits = 4, row.names = FALSE)
 cat(sprintf("\nreachable at default delta in %d of %d (q, shape, eta) cells\n",
             sum(d$reachable), nrow(d)))
-saveRDS(d, "dev/validation/zratio_collapse_reachability.rds")
+saveRDS(d, "certification/zratio_collapse_reachability.rds")

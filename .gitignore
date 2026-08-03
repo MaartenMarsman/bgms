@@ -23,18 +23,22 @@ docs/*
 /doc/
 /inst/doc/
 dev/*
-# Validation artefacts are tracked: the block-Gibbs gold references anchor the
-# Z-ratio surface accuracy claims and cost hours of compute to regenerate.
-# ^dev$ in .Rbuildignore keeps them out of the tarball.
-!dev/validation/
 # The August 2026 pre-CRAN review record (briefs, reports, findings) is
 # tracked so the review is versioned and visible to every clone.
 !dev/review-2026-08/
-# Generators for the material vignettes ship as .rds. A baked vignette number
-# without its generator is a number with no provenance, so these are tracked;
-# ^dev$ in .Rbuildignore keeps them out of the tarball.
-!dev/vignette-data/
 /paper/
+
+# Tracked, but excluded from the tarball by .Rbuildignore (see the entries
+# there). These are durable package assets, not development scratch, so they
+# live at the top level rather than under dev/:
+#   certification/  block-Gibbs gold references + route certificates. They
+#                   anchor the Z-ratio surface accuracy claims and cost hours
+#                   of compute to regenerate.
+#   data-raw/       generators for the material vignettes, which ship as .rds.
+#                   A baked vignette number without its generator is a number
+#                   with no provenance.
+#   baselines/      bitwise SBC reference summaries. Re-baselined whenever a
+#                   patch changes an FP arithmetic route.
 
 # testthat problem artefacts
 tests/testthat/_problems/
@@ -43,3 +47,7 @@ tests/testthat/testthat-problems.rds
 # Local tooling
 .claude/
 renv/
+
+# Baseline snapshot copies made before re-baselining runs -- scratch, not assets
+baselines/*.bak_*
+baselines/*.pre_perf_*

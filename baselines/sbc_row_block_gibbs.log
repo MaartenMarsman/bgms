@@ -1,0 +1,66 @@
+[15:46:58] === SBC row-block Gibbs at q=10, R=500, cores=12 ===
+[15:46:58] Grid: alpha x delta x factorization = 18 cells
+[15:46:58] START alpha=0.50 delta=0.000 fac=joint       
+[15:47:36]   DONE 500 reps (0 dropped) in 38.7s  min(KS)=0.000  frac(KS>0.01)=0.00  gap=0.0943
+[15:47:36] START alpha=1.00 delta=0.000 fac=joint       
+[15:48:10]   DONE 500 reps (0 dropped) in 33.6s  min(KS)=0.000  frac(KS>0.01)=0.20  gap=0.1072
+[15:48:10] START alpha=2.00 delta=0.000 fac=joint       
+[15:48:32]   DONE 500 reps (0 dropped) in 22.4s  min(KS)=0.008  frac(KS>0.01)=0.90  gap=0.1361
+[15:48:32] START alpha=0.50 delta=1.151 fac=joint       
+[15:48:50]   DONE 500 reps (0 dropped) in 17.0s  min(KS)=0.001  frac(KS>0.01)=0.60  gap=0.1573
+[15:48:50] START alpha=1.00 delta=1.151 fac=joint       
+[15:49:07]   DONE 500 reps (0 dropped) in 17.3s  min(KS)=0.000  frac(KS>0.01)=0.60  gap=0.1723
+[15:49:07] START alpha=2.00 delta=1.151 fac=joint       
+[15:49:25]   DONE 500 reps (0 dropped) in 18.6s  min(KS)=0.002  frac(KS>0.01)=0.90  gap=0.1984
+[15:49:25] START alpha=0.50 delta=2.000 fac=joint       
+[15:49:44]   DONE 500 reps (0 dropped) in 18.8s  min(KS)=0.001  frac(KS>0.01)=0.80  gap=0.1931
+[15:49:44] START alpha=1.00 delta=2.000 fac=joint       
+[15:50:03]   DONE 500 reps (0 dropped) in 18.6s  min(KS)=0.003  frac(KS>0.01)=0.80  gap=0.2027
+[15:50:03] START alpha=2.00 delta=2.000 fac=joint       
+[15:50:22]   DONE 500 reps (0 dropped) in 19.3s  min(KS)=0.005  frac(KS>0.01)=0.90  gap=0.2271
+[15:50:22] START alpha=0.50 delta=0.000 fac=hierarchical
+[15:53:00]   DONE 500 reps (0 dropped) in 157.6s  min(KS)=0.029  frac(KS>0.01)=1.00  gap=0.0091
+[15:53:00] START alpha=1.00 delta=0.000 fac=hierarchical
+[15:54:52]   DONE 500 reps (0 dropped) in 111.8s  min(KS)=0.148  frac(KS>0.01)=1.00  gap=0.0009
+[15:54:52] START alpha=2.00 delta=0.000 fac=hierarchical
+[15:57:21]   DONE 500 reps (0 dropped) in 149.9s  min(KS)=0.077  frac(KS>0.01)=1.00  gap=0.0058
+[15:57:21] START alpha=0.50 delta=1.151 fac=hierarchical
+[15:59:02] === SBC row-block Gibbs at q=10, R=500, cores=12 ===
+[15:59:02] Grid: alpha x delta x factorization = 18 cells; per-block pooled KS p-values
+[15:59:02] START alpha=0.50 delta=0.000 fac=joint       
+[15:59:40]   DONE 500 reps in 37.7s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.001  gamma=0.000
+[15:59:40] START alpha=1.00 delta=0.000 fac=joint       
+[16:00:11]   DONE 500 reps in 31.4s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.000  gamma=0.000
+[16:00:11] START alpha=2.00 delta=0.000 fac=joint       
+[16:00:33]   DONE 500 reps in 22.0s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.041  gamma=0.000
+[16:00:33] START alpha=0.50 delta=1.151 fac=joint       
+[16:00:50]   DONE 500 reps in 17.2s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.008  gamma=0.000
+[16:00:50] START alpha=1.00 delta=1.151 fac=joint       
+[16:01:08]   DONE 500 reps in 18.0s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.009  gamma=0.000
+[16:01:08] START alpha=2.00 delta=1.151 fac=joint       
+[16:01:28]   DONE 500 reps in 19.2s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.005  gamma=0.000
+[16:01:28] START alpha=0.50 delta=2.000 fac=joint       
+[16:01:47]   DONE 500 reps in 19.2s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.001  gamma=0.000
+[16:01:47] START alpha=1.00 delta=2.000 fac=joint       
+[16:02:06]   DONE 500 reps in 18.8s  K_diag=0.000  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.000  gamma=0.000
+[16:02:06] START alpha=2.00 delta=2.000 fac=joint       
+[16:02:25]   DONE 500 reps in 19.9s  K_diag=0.021  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.000  gamma=0.000
+[16:02:25] START alpha=0.50 delta=0.000 fac=hierarchical
+[16:05:08]   DONE 500 reps in 162.2s  K_diag=0.322  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.236  gamma=0.015
+[16:05:08] START alpha=1.00 delta=0.000 fac=hierarchical
+[16:07:06]   DONE 500 reps in 117.9s  K_diag=0.468  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.219  gamma=0.996
+[16:07:06] START alpha=2.00 delta=0.000 fac=hierarchical
+[16:09:40]   DONE 500 reps in 153.9s  K_diag=0.237  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.456  gamma=0.085
+[16:09:40] START alpha=0.50 delta=1.151 fac=hierarchical
+[16:12:15]   DONE 500 reps in 155.6s  K_diag=0.061  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.086  gamma=0.617
+[16:12:15] START alpha=1.00 delta=1.151 fac=hierarchical
+[16:14:21]   DONE 500 reps in 125.3s  K_diag=0.058  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.296  gamma=0.542
+[16:14:21] START alpha=2.00 delta=1.151 fac=hierarchical
+[16:16:51]   DONE 500 reps in 150.4s  K_diag=0.052  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.378  gamma=0.445
+[16:16:51] START alpha=0.50 delta=2.000 fac=hierarchical
+[16:19:25]   DONE 500 reps in 154.2s  K_diag=0.640  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.288  gamma=0.831
+[16:19:25] START alpha=1.00 delta=2.000 fac=hierarchical
+[16:21:21]   DONE 500 reps in 115.4s  K_diag=0.967  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.449  gamma=0.752
+[16:21:21] START alpha=2.00 delta=2.000 fac=hierarchical
+[16:23:55]   DONE 500 reps in 154.2s  K_diag=0.872  Koff|g=0=0.000  Koff|g=1=0.000  Kslab|g=1=0.070  gamma=0.935
+[16:23:55] === Summary written to baselines/sbc_row_block_gibbs_summary.csv ===

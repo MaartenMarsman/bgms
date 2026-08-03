@@ -28,10 +28,10 @@
 # confirms the direction rather than assuming it.
 #
 # Usage, from the repo root (installed build):
-#   Rscript dev/validation/zratio_mediation_bound.R
+#   Rscript certification/zratio_mediation_bound.R
 
 suppressMessages(library(bgms))
-source("dev/validation/zratio_gold_bank.R")
+source("certification/zratio_gold_bank.R")
 
 DELTA = 0.5 * log(12)
 SHAPES = c(2, 3, 5, 10)
@@ -123,5 +123,5 @@ for(eta in ETAS) {
   }
 }
 
-saveRDS(med, "dev/validation/wp5_mediation.rds")
-cat("\nwritten to dev/validation/wp5_mediation.rds\n")
+saveRDS(med, "certification/wp5_mediation.rds")
+cat("\nwritten to certification/wp5_mediation.rds\n")

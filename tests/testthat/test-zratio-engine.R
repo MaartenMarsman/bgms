@@ -5,7 +5,7 @@
 fixture_path = testthat::test_path("fixtures", "zratio_reference.rds")
 
 test_that("engine reproduces the reference log Z-ratios (all cells/variants)", {
-  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with dev/validation/regenerate_zratio_reference.R")
+  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with certification/regenerate_zratio_reference.R")
   fx = readRDS(fixture_path)
   for(cell in fx) {
     addc13 = c(cell$addc6, cell$fc_coef, 1)
@@ -41,7 +41,7 @@ test_that("engine reproduces the reference log Z-ratios (all cells/variants)", {
 })
 
 test_that("fit-time constant builders match the reference builders", {
-  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with dev/validation/regenerate_zratio_reference.R")
+  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with certification/regenerate_zratio_reference.R")
   fx = readRDS(fixture_path)
   # The builders run in the standardized cell (sigma = 1), so match against
   # the two sigma = 1 reference cells; eta = sigma * beta = beta there.
@@ -94,7 +94,7 @@ test_that("I_spike matches its delta = 0 Bessel identity", {
 })
 
 test_that("engine invariants: state-invariance, isolated edge, precompute", {
-  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with dev/validation/regenerate_zratio_reference.R")
+  skip_if_not(file.exists(fixture_path), "fixtures/zratio_reference.rds not in this build (the tarball excludes tests/testthat/fixtures/) - regenerate with certification/regenerate_zratio_reference.R")
   cell = readRDS(fixture_path)[[2]]
   g = cell$graphs$er3
   edges = cbind(1L, 2L)

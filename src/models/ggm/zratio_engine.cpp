@@ -690,7 +690,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     // moment net of its two endpoint nodes) and is negative in most cells, while
     // cne grows as the square of the block size against a linear ncn. MEASURED
     // over 4160 cells, this condition accounts for the collapse in every one of
-    // them (dev/validation/zratio_additive_collapse_map.R).
+    // them (certification/zratio_additive_collapse_map.R).
     //
     // Counted here rather than inside saddle_ratio for two reasons: this is the
     // only branch the additive kernel serves, so the surface and isolated-edge
