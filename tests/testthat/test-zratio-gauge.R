@@ -10,6 +10,18 @@
 # 2026-08-01, run 30715557912 -- no earlier nightly ever reached this file).
 # It is parked in T2 so the nightly stays green; the marginal failure needs an
 # owner. See dev/review-2026-08/reports/12-nightly-respec.md.
+#
+# F-103, second measurement (report 24). The sweeps-first program ran the
+# negative control at gauge_sweeps in {2, 4, 8, 16} across the same 12 seeds
+# report 13 used. Raising the audit precision does NOT close the gap: the max
+# converges to about 0.0107, still above the 0.01 threshold, and the
+# between-seed spread is flat (sd 0.0041 -> 0.0039 while the audit sample grew
+# eightfold). The per-seed values are a stable property of the seed
+# (r = 0.94 between the 2- and 16-sweep columns), not audit noise, so more
+# sweeps sharpen each estimate without moving the distribution off the
+# threshold. The default sweep count is therefore UNCHANGED and this block
+# stays in T2: the threshold-versus-margin question is back with the
+# maintainer. Full table in dev/review-2026-08/reports/24-hierarchical-gauge.md.
 
 test_that("the block reference is finite and lands near the deployed ratio", {
   skip_on_cran()
@@ -458,4 +470,36 @@ test_that("the harm pool can be wider than the audited block", {
       harm_inputs = list(pip = list(audited), a = a, b = b, pool_pip = NULL)
     )$per_chain
   )
+})
+
+test_that("the prior sampler resolves gauge sweeps from the option (F-103)", {
+  skip_on_cran()
+  # sample_ggm_prior() hardwired 2 sweeps while the deployed path resolved
+  # options(bgms.zratio_gauge_sweeps) through zratio_gauge_sweeps(). The two
+  # now share one resolution, so an audit measured on the prior chain describes
+  # the audit a deployed fit performs. zratio_diagnostics stays the on/off
+  # switch: it is not the precision.
+  prior_fit = function(...) {
+    sample_ggm_prior(
+      p = 10L, n_samples = 200L, n_warmup = 100L,
+      interaction_prior = normal_prior(scale = 0.5),
+      precision_scale_prior = gamma_prior(shape = 2, rate = 6),
+      spec = "hierarchical", edge_prior = beta_bernoulli_prior(9, 1),
+      update_method = "gibbs", seed = 3L, verbose = FALSE, ...
+    )
+  }
+  n_ref_at = function(sweeps) {
+    withr::local_options(bgms.zratio_gauge_sweeps = sweeps)
+    prior_fit(zratio_diagnostics = TRUE)$zratio_diagnostics$per_chain$n_ref
+  }
+
+  # The gauge references at most a fixed number of pairs per sweep, so a
+  # saturated audit grows one cap per sweep: the option, and nothing else,
+  # sets the audit size.
+  expect_equal(n_ref_at(2L), 2L * n_ref_at(1L))
+  expect_equal(n_ref_at(6L), 6L * n_ref_at(1L))
+
+  # The on/off switch still wins over the option.
+  withr::local_options(bgms.zratio_gauge_sweeps = 6L)
+  expect_null(prior_fit(zratio_diagnostics = FALSE)$zratio_diagnostics)
 })

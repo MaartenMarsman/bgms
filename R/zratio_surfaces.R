@@ -655,8 +655,9 @@ zratio_attach_surface = function(zratio, zc, size, cores, verbose = FALSE) {
 # sweeps = 0L) is the off switch. Its cost is fixed per chain (two sweeps, each
 # referencing a capped number of edge moves), so it does not scale with iter:
 # nothing on a sparse posterior, where no mediating block is non-trivial and the
-# ratio is exact, and seconds on a dense large-q one. The prior sampler wires its
-# own flag (sample_ggm_prior); this governs the deployed hierarchical path.
+# ratio is exact, and seconds on a dense large-q one. sample_ggm_prior() reads
+# the same option (its zratio_diagnostics argument is the on/off switch, not the
+# precision), so the prior chain and the deployed path audit alike.
 zratio_gauge_sweeps = function() {
   n = suppressWarnings(as.integer(getOption("bgms.zratio_gauge_sweeps", 2L)))
   if(length(n) != 1L || is.na(n) || n < 0L) n = 0L
