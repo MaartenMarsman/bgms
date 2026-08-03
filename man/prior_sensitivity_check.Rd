@@ -131,7 +131,10 @@ difference families alike, since \code{bgmCompare()} gives them one scale.
 anchor is the original fit and is never refit). A fit at fixed anchor
 scale \eqn{s_a} is reweighted to a nearby scale \eqn{s} with per-draw
 slab-density ratios over the currently included edges; the likelihood
-cancels, so no refit is needed between anchors. Each point of a dense
+cancels, so no refit is needed between anchors. The posterior-density-ratio
+reweighting identity of Bartos et al. (2026) is used locally around each
+refit anchor; the anchored construction itself is specific to \pkg{bgms}.
+Each point of a dense
 log-spaced display grid pools every anchor that clears \code{ess_floor}
 there, weighting each anchor's inclusion-probability estimate by its
 inverse variance (\eqn{\mathrm{ESS} / (p(1-p))}); the pooling is on the
