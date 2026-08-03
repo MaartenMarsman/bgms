@@ -82,10 +82,10 @@ code-read brief.
 - Unrouted-tail disposition sweep (lead): **DONE 2026-08-03** — every
   remaining open row dispositioned in FINDINGS (routed to the submission
   batch / Phase-3 / wrap-up, backlogged post-release, or accepted; F-006
-  closed; F-080/081 open-watch for the nightly proof). FOUR need MM's word,
-  lead recommendation attached to each: F-007 (drop Readme.Rmd), F-020
-  (SLAB-2 ship-later + caveat sentence), F-026 (intro-vignette full rewrite
-  post-release), F-046 (qgraph status quo).
+  closed; F-080/081 open-watch for the nightly proof). MM ruled 2026-08-03 on
+  three of the four: F-007 dropped (done), F-026 rewrite NOW (brief 26),
+  F-046 status quo + graceful message + easybgm pointer (done). F-020 awaits
+  his word after the lead's plain explanation.
 
 - Resolve all blockers; land fixes on develop; re-merge develop→main;
   re-verify (full `--as-cran` + targeted re-tests of every fixed finding).
@@ -181,6 +181,7 @@ orientation, cumulatively covering the architecture.
 | 19 F-075 fix batch (release gate: F-075/110/111/112/113) | Opus | DONE — merged `02c609c3`; GATE CLEARED, OCs at bgm parity 10/10 seeds; F-074 settled; F-117/F-118 opened; record in F-075 | reports/19-category-collapse-fix.md |
 | 20 standalone batch (F-100/F-109/F-114) | Opus | DONE — merged `a1c0e768`, NEWS `121890e5`; F-116 opened (fixture provenance); records in FINDINGS | reports/20-standalone-batch.md |
 | 21 mark prior-only compare summary rows (F-117) + F-121 diagnosis | Opus | **DONE 2026-08-03** — merged `20e0e1d7` (widened mark, 906-char warning, BC pin, build-invariant snapshot; lead-verified green on a second build); report + addendum landed at integration; F-121 mechanism: legal FP compilation variance (-O0 stowaway build), NOT UB — lift pending MM | report 21 + addendum |
+| 26 intro-vignette rewrite against 0.2.0.0 (F-026, MM-ordered) | Opus | **issued 2026-08-03** — `briefs/26-intro-vignette.md`; single-file surface + optional bake; rendered HTML (`f026-intro.html`) for MM's judgment pre-merge; NEWS line proposed (tag-visible) | handed to MM 2026-08-03 |
 | 25 easybgm compatibility report (shim exercise vs CRAN easybgm, delta enumeration, revdep dress rehearsal, submission-ordering answer) | Opus | **issued 2026-08-03** — `briefs/25-easybgm-compat.md`; REPORT-ONLY, easybgm not modified; fits wait for the lead's OC background job; feeds the F-002 memo + Phase-3 revdep line | handed to MM 2026-08-03 |
 | 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | **DONE 2026-08-03** — merged `436a7a89`; both defaults flipped (baseline + difference families), shim guards re-pointed (F-119-a), tautological default test fixed (F-119-e); ridge 7.5 → 2.9 (MM judges figures); 0/16 sampling-zero over-calls; escalation declined on the paired contrast (lead accepted; full-ten completion running, F-119-b); NEWS three edits + seed sentence landed; T2 joint-pins (F-125) ride the same integration | report 22 |
 | 23 mixed relational certification (vs OMRF sharp, vs GGM calibrated, cross-block planted recovery) | Opus | **DONE 2026-08-03** — merged `0e94e62e`; mixed NOT user-reachable on pure data (internal-machinery cert); sharp reduction blocked by F-123 (degenerate-block spin/error, first-class); substitutes certify mixed≡OMRF (slope 1.0036, ΔPIP ≤ 0.0096, residual = companion by measurement) and mixed-vs-GGM shrinking 1.00239→1.00037 (no convention bug); cross-block 15/15, 0/30, slope 1.039; mgm 9/9 cross; F-124 opened (ord-ord slope 1.164, Q1) | report 23 |
