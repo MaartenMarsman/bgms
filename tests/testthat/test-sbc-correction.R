@@ -218,6 +218,9 @@ run_ggm_bb_theta_sbc = function(eta, R, seed_base) {
         iter = iter, warmup = warmup, chains = 1, cores = 1,
         edge_selection = TRUE, update_method = "gibbs",
         edge_prior = beta_bernoulli_prior(1, 1),
+        # joint pinned: the correction under test exists only on the joint
+        # path; the hierarchical default (F-010) would bypass it entirely
+        precision_graph_prior = "joint",
         interaction_prior = cauchy_prior(scale = 2.5),
         precision_scale_prior = gamma_prior(shape = 1, eta = eta),
         delta = delta,
@@ -471,6 +474,7 @@ run_sbm_nc_sbc = function(R, seed_base) {
         iter = iter, warmup = warmup, chains = 1, cores = 1,
         edge_selection = TRUE, update_method = "gibbs",
         edge_prior = sbm_prior(),
+        precision_graph_prior = "joint",
         interaction_prior = cauchy_prior(scale = 2.5),
         precision_scale_prior = gamma_prior(shape = 1, eta = 1),
         delta = delta,

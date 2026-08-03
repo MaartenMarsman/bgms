@@ -360,6 +360,10 @@ test_that("SBC: GGM MH produces uniform diagonal ranks (p=3, edge selection)", {
       variable_type = "continuous",
       iter = L_raw, warmup = 5000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
+      # joint pinned: the SBC reference chain draws from spec = "joint", and
+      # this block predates the hierarchical default (F-010). Hierarchical SBC
+      # parity is tracked as its own item.
+      precision_graph_prior = "joint",
       interaction_prior = cauchy_prior(scale = scale), delta = 0,
       precision_scale_prior = gamma_prior(shape = 1, rate = 1),
       display_progress = "none", seed = 2028L + r
@@ -580,6 +584,7 @@ test_that("SBC: GGM joint-spec produces uniform ranks (p=5, edge selection)", {
       variable_type = "continuous",
       iter = L, warmup = 1000, chains = 1,
       edge_selection = TRUE, update_method = "adaptive-metropolis",
+      precision_graph_prior = "joint", # generator targets the joint spec
       delta = NULL, # auto-default, matches generator
       display_progress = "none", seed = 2030L + r
     )

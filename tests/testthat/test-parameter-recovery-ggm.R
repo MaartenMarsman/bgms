@@ -88,6 +88,9 @@ compute_coverage = function(K_true, p, n, R,
       variable_type = "continuous",
       iter = iter, warmup = warmup, chains = 2,
       edge_selection = edge_selection, update_method = "nuts",
+      # joint pinned: the recovery bounds were derived under the joint spec,
+      # before the hierarchical default (F-010)
+      precision_graph_prior = "joint",
       interaction_prior = cauchy_prior(scale = scale),
       display_progress = "none", seed = base_seed + r
     )

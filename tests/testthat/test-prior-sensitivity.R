@@ -260,6 +260,9 @@ test_that("prior_sensitivity_check runs for GGM and mixed fits (cold refits)", {
   fg = bgm(xg,
     variable_type = "continuous",
     iter = 300, warmup = 250, chains = 2, seed = 8,
+    # joint pinned: this smoke's anchors were recorded under the joint spec,
+    # before the hierarchical default (F-010)
+    precision_graph_prior = "joint",
     update_method = "adaptive-metropolis", display_progress = "none"
   )
   psg = suppressWarnings(suppressMessages(prior_sensitivity_check(fg,

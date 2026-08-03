@@ -216,6 +216,9 @@ test_that("S.G3: GGM NUTS healthy at p=10 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
+    # joint pinned: these health baselines predate the hierarchical
+    # default (F-010)
+    precision_graph_prior = "joint",
     interaction_prior = cauchy_prior(scale = 2.5),
     display_progress = "none", seed = 3003
   )
@@ -232,6 +235,7 @@ test_that("S.G4: GGM NUTS healthy at p=15 with edge selection", {
     variable_type = "continuous",
     iter = 2000, warmup = 2000, chains = 4,
     edge_selection = TRUE, update_method = "nuts",
+    precision_graph_prior = "joint",
     interaction_prior = cauchy_prior(scale = 2.5),
     display_progress = "none", seed = 3004
   )
