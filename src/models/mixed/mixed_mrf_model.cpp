@@ -556,7 +556,7 @@ size_t MixedMRFModel::parameter_dimension() const {
     size_t dim = num_main_ + q_ + chol_constraint_structure_.active_dim;
 
     // Active pairwise_effects_discrete_ edges
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j)) dim++;
         }
@@ -603,7 +603,7 @@ arma::vec MixedMRFModel::get_vectorized_parameters() const {
     }
 
     // 2. pairwise_effects_discrete_ upper-triangular (included edges only)
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j) == 1) {
                 out(idx++) = pairwise_effects_discrete_(i, j);
@@ -653,7 +653,7 @@ arma::vec MixedMRFModel::get_full_vectorized_parameters() const {
     }
 
     // 2. pairwise_effects_discrete_ upper-triangular (all entries, zeros for inactive)
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             out(idx++) = pairwise_effects_discrete_(i, j);
         }
@@ -700,7 +700,7 @@ arma::vec MixedMRFModel::get_storage_vectorized_parameters() const {
     }
 
     // 2. pairwise_effects_discrete_ upper-triangular
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             out(idx++) = pairwise_effects_discrete_(i, j);
         }
@@ -745,7 +745,7 @@ void MixedMRFModel::set_vectorized_parameters(const arma::vec& params) {
     }
 
     // 2. pairwise_effects_discrete_ upper-triangular (included edges only)
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j) == 1) {
                 pairwise_effects_discrete_(i, j) = params(idx);
@@ -808,7 +808,7 @@ arma::vec MixedMRFModel::get_active_inv_mass() const {
     size_t offset_active = num_main_;
 
     // pairwise_effects_discrete_ included edges
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(gxx(i, j) == 1) {
                 active(offset_active++) = inv_mass_(offset_full);
@@ -1118,7 +1118,7 @@ void MixedMRFModel::do_one_metropolis_step(int iteration) {
     }
 
     // Step 3: pairwise_effects_discrete_ (upper triangle, edge-gated)
-    for(size_t i = 0; i < p_ - 1; ++i)
+    for(size_t i = 0; i + 1 < p_; ++i)
         for(size_t j = i + 1; j < p_; ++j)
             if(!edge_selection_active_ || gxx(i, j) == 1) {
                 ar_pair_disc(i, j) = update_pairwise_discrete(i, j, std::nullopt);
@@ -1192,7 +1192,7 @@ void MixedMRFModel::sweep_within_model_mh(std::optional<double> rm_weight) {
         update_continuous_mean(j, rm_weight);
 
     // Step 3: Update pairwise_effects_discrete_ (upper triangle, edge-gated)
-    for(size_t i = 0; i < p_ - 1; ++i)
+    for(size_t i = 0; i + 1 < p_; ++i)
         for(size_t j = i + 1; j < p_; ++j)
             if(!edge_selection_active_ || gxx(i, j) == 1)
                 update_pairwise_discrete(i, j, rm_weight);
