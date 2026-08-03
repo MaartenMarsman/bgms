@@ -274,7 +274,10 @@ test_that("more than two groups keeps the panels and drops the width channel", {
     group_indicator = rep(1:2, length.out = nrow(ADHD)),
     difference_selection = FALSE,
     iter = 50, warmup = 150, chains = 2, seed = 905,
-    display_progress = "none"
+    display_progress = "none",
+    # verbose explicitly off: this test re-enables bgms.verbose for the paging
+    # advisories above, and the tiny fixture trips the NUTS energy advisory
+    verbose = FALSE
   )
   expect_false(is.list(two@posterior_mean_pairwise_differences))
   expect_invisible(plot(two))
