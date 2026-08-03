@@ -117,7 +117,12 @@ code-read brief.
   contention (MM's own suite run measured 286 s against the agents' idle
   221.7 s — same job, contention only). Post-sign-off hygiene from MM's
   console observations landed first: F-129 (verbose leak) + F-130 (RATTLE
-  retirement); final gate run includes both.
+  retirement); final gate run includes both. **FINAL GATE GREEN 2026-08-03
+  (tree `f5b823d1`): Status: 2 NOTEs, both baseline (stale Date / local HTML
+  Tidy); testthat `[108s/86s]` — the idle-machine number, confirming the
+  earlier 118 s was contention; donttest examples `[485s/248s]` OK, NO
+  timing NOTE; vignettes `[93s/50s]` OK. Phase-3 entry condition met; next
+  step = develop→main re-merge (MM's word).**
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
 - win-builder + mac-builder; reverse-dependency check (easybgm at minimum —
