@@ -73,7 +73,9 @@ code-read brief.
   brief; folds in F-001).
 - Vignette accuracy sweep (F-006 mixture-ESS gloss + full pass), man-page
   spot-checks against behavior.
-- Defaults-freeze memo to easybgm/JASP/docs/tutorial (F-002).
+- Defaults-freeze memo to easybgm/JASP/docs/tutorial (F-002) — draft ready
+  (report 25 §4.3 + change list §4.1); MM sends AT submission time (bgms
+  first, notify at submission, not after — report 25 §4.4).
 - Test-adequacy verdict from brief 01's skip analysis: what does CRAN actually
   exercise; nightly-validation workflow coverage.
 
@@ -84,8 +86,10 @@ code-read brief.
   batch / Phase-3 / wrap-up, backlogged post-release, or accepted; F-006
   closed; F-080/081 open-watch for the nightly proof). MM ruled 2026-08-03 on
   three of the four: F-007 dropped (done), F-026 rewrite NOW (brief 26),
-  F-046 status quo + graceful message + easybgm pointer (done). F-020 awaits
-  his word after the lead's plain explanation.
+  F-046 status quo + graceful message + easybgm pointer (done). F-020
+  RESOLVED ship-later (MM 2026-08-03, "Ship later indeed") — caveat landed
+  `fbb0adaa` (`extract_rhat` @details), implementation = flagged-issues
+  item 16. All four rulings executed; sweep CLOSED.
 
 - Resolve all blockers; land fixes on develop; re-merge develop→main;
   re-verify (full `--as-cran` + targeted re-tests of every fixed finding).
@@ -101,8 +105,10 @@ code-read brief.
   NOTE, verified base-vs-branch identical in report 22 §7).
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
-- win-builder + mac-builder; reverse-dependency check (easybgm at minimum);
-  `cran-comments.md`; bump-and-tag; submit.
+- win-builder + mac-builder; reverse-dependency check (easybgm at minimum —
+  dress rehearsal DONE, report 25 §3.4: `--as-cran` status IDENTICAL on both
+  builds (1W/2N, none bgms-caused), runtime the only delta; re-run against
+  the final tarball at rc); `cran-comments.md`; bump-and-tag; submit.
 - F-121 residue (MM lifted 2026-08-03): one containerized ASan run (instrumented R,
   e.g. `wch1/r-debug` clang-ASAN) — the only defect class the diagnosis leaves
   unexamined; seed-docs portability sentence (both fits) lands at 22's
@@ -182,7 +188,7 @@ orientation, cumulatively covering the architecture.
 | 20 standalone batch (F-100/F-109/F-114) | Opus | DONE — merged `a1c0e768`, NEWS `121890e5`; F-116 opened (fixture provenance); records in FINDINGS | reports/20-standalone-batch.md |
 | 21 mark prior-only compare summary rows (F-117) + F-121 diagnosis | Opus | **DONE 2026-08-03** — merged `20e0e1d7` (widened mark, 906-char warning, BC pin, build-invariant snapshot; lead-verified green on a second build); report + addendum landed at integration; F-121 mechanism: legal FP compilation variance (-O0 stowaway build), NOT UB — lift pending MM | report 21 + addendum |
 | 26 intro-vignette rewrite against 0.2.0.0 (F-026, MM-ordered) | Opus | **issued 2026-08-03** — `briefs/26-intro-vignette.md`; single-file surface + optional bake; rendered HTML (`f026-intro.html`) for MM's judgment pre-merge; NEWS line proposed (tag-visible) | handed to MM 2026-08-03 |
-| 25 easybgm compatibility report (shim exercise vs CRAN easybgm, delta enumeration, revdep dress rehearsal, submission-ordering answer) | Opus | **issued 2026-08-03** — `briefs/25-easybgm-compat.md`; REPORT-ONLY, easybgm not modified; fits wait for the lead's OC background job; feeds the F-002 memo + Phase-3 revdep line | handed to MM 2026-08-03 |
+| 25 easybgm compatibility report (shim exercise vs CRAN easybgm, delta enumeration, revdep dress rehearsal, submission-ordering answer) | Opus | **DONE 2026-08-03** — merged `23bf0234` + lead fixes `fbb0adaa` (B1/B2 + F-020 caveat); 0 BREAKS: easybgm 0.4.0 suite 0/0 on both builds (lead re-ran, 185/0/0 reproduced), 14 workflows 0 errors on new, `--as-cran` status IDENTICAL; ordering = bgms FIRST with notification; only revdep-visible change is runtime (check 83→196 s; two heavy examples ~6.4× elapsed → flagged item 17); memo draft §4.3 ready for MM at submission; findings registered as F-126 | report 25 |
 | 22 compare slab Cauchy → Normal (F-119) + ridge visualization + zero-support difference-test evaluation | Opus | **DONE 2026-08-03** — merged `436a7a89`; both defaults flipped (baseline + difference families), shim guards re-pointed (F-119-a), tautological default test fixed (F-119-e); ridge 7.5 → 2.9 (MM judges figures); 0/16 sampling-zero over-calls; escalation declined on the paired contrast (lead accepted; full-ten completion running, F-119-b); NEWS three edits + seed sentence landed; T2 joint-pins (F-125) ride the same integration | report 22 |
 | 23 mixed relational certification (vs OMRF sharp, vs GGM calibrated, cross-block planted recovery) | Opus | **DONE 2026-08-03** — merged `0e94e62e`; mixed NOT user-reachable on pure data (internal-machinery cert); sharp reduction blocked by F-123 (degenerate-block spin/error, first-class); substitutes certify mixed≡OMRF (slope 1.0036, ΔPIP ≤ 0.0096, residual = companion by measurement) and mixed-vs-GGM shrinking 1.00239→1.00037 (no convention bug); cross-block 15/15, 0/30, slope 1.039; mgm 9/9 cross; F-124 opened (ord-ord slope 1.164, Q1) | report 23 |
 | 24 precision_graph_prior default → "hierarchical" (F-010) + F-022 harm wiring + F-103 sweeps program + F-123 (b) guard/hygiene | Opus | **DONE 2026-08-03** — merged `d3d8dbcf`; flip shipped with request-aware advisory; mixed harm channel live (pool-aware gain, GGM byte-identical); F-103 STOP branch: lever spent, dispersion is the fit's not the audit's, threshold question back to MM with decision inputs; F-123 guard + 7 bounds (8 residual bounds = lead follow-up); NEWS N1–N4 landed (parse 33); gate T0/T1 0F/0W + as-cran 2 baseline NOTEs | report 24 |
