@@ -89,7 +89,7 @@ code-read brief.
   framing sentence (F-005). (F-004's README line landed in brief 12.)
 - win-builder + mac-builder; reverse-dependency check (easybgm at minimum);
   `cran-comments.md`; bump-and-tag; submit.
-- F-121 residue (once MM lifts): one containerized ASan run (instrumented R,
+- F-121 residue (MM lifted 2026-08-03): one containerized ASan run (instrumented R,
   e.g. `wch1/r-debug` clang-ASAN) — the only defect class the diagnosis leaves
   unexamined; seed-docs portability sentence (both fits) lands at 22's
   integration (lead); afterwards clear `~/bgms-review/f121/` incl.
