@@ -151,7 +151,8 @@
 #'   Default: \code{bernoulli_prior(0.5)}.
 #'
 #'   For continuous (GGM) and mixed models with \code{beta_bernoulli_prior()}
-#'   or \code{sbm_prior()}, the hyperparameter updates carry a
+#'   or \code{sbm_prior()} under \code{precision_graph_prior = "joint"}, the
+#'   hyperparameter updates carry a
 #'   normalizing-constant correction: under the determinant-tilted precision
 #'   prior, the plain conjugate updates target the wrong marginals for the
 #'   inclusion probability and the block structure. In mixed models the tilt
@@ -163,14 +164,17 @@
 #'   the first fit of a model configuration (a one-time cost of the order of
 #'   minutes, announced when \code{verbose = TRUE}) and cached on disk via
 #'   \code{tools::R_user_dir("bgms", "cache")}, so later fits of the same
-#'   configuration skip the build. With \code{beta_bernoulli_prior()} the
+#'   configuration skip the build. The default
+#'   \code{precision_graph_prior = "hierarchical"} tracks the normalizer in the
+#'   edge moves instead, so it needs no correction table and builds none.
+#'   With \code{beta_bernoulli_prior()} the
 #'   sampled inclusion probability is returned per chain in
 #'   \code{fit$inclusion_parameter_samples}.
 #'
 #' @param precision_graph_prior Character. How the precision prior composes with
 #'   the edge prior under edge selection for continuous (GGM) data:
 #'   \describe{
-#'     \item{"joint"}{(default) The un-normalised joint specification
+#'     \item{"joint"}{The un-normalised joint specification
 #'       \eqn{p(K, \Gamma) \propto \mathrm{slab}(K) \cdot \mathrm{diag}(K)
 #'       \cdot |K|^{\delta} \cdot \mathbf{1}\{K \in \mathcal{M}^{+}(\Gamma)\}
 #'       \cdot \pi(\Gamma)}. The graph marginal is \eqn{\pi(\Gamma) \cdot
@@ -187,7 +191,7 @@
 #'       absorbs the tilt. A message reports this when \code{verbose = TRUE};
 #'       \code{\link{extract_prior_inclusion_probabilities}} returns the
 #'       realized prior.}
-#'     \item{"hierarchical"}{The hierarchical specification
+#'     \item{"hierarchical"}{(default) The hierarchical specification
 #'       \eqn{p(\Gamma) \, p(K \mid \Gamma)} with \eqn{p(K \mid \Gamma)}
 #'       normalized per graph, so the graph marginal is exactly the edge
 #'       prior \eqn{\pi(\Gamma)}. Each edge move evaluates the normalizer
@@ -249,7 +253,10 @@
 #'       mediating-block counts read off the continuous subgraph; discrete
 #'       and cross edges are unchanged.}
 #'   }
-#'   Default: \code{"joint"}.
+#'   Default: \code{"hierarchical"}, so a continuous fit targets the nominal
+#'   edge prior out of the box and pays for the approximation and its trust
+#'   gauge; \code{"joint"} is the un-approximated alternative and remains
+#'   fully supported.
 #'
 #'   The two specifications differ only in how \eqn{p(K \mid \Gamma)} is
 #'   normalized across graphs, so they differ only where the sampler moves
@@ -263,8 +270,9 @@
 #'       \code{NULL}.
 #'     \item With no continuous precision block — an ordinal model, or mixed
 #'       data with fewer than two continuous variables — there is no \eqn{K}
-#'       for the argument to refer to. A message reports this when
-#'       \code{verbose = TRUE}.
+#'       for the argument to refer to. A message reports this when the
+#'       argument was named and \code{verbose = TRUE}; inheriting the default
+#'       is silent, since the default is not a request.
 #'   }
 #'   The slab is checked only where the choice is meaningful, so a
 #'   \code{beta_prime_prior()} is rejected on a continuous block under edge
@@ -485,7 +493,7 @@ bgm = function(
   delta = NULL,
   edge_selection = TRUE,
   edge_prior = bernoulli_prior(0.5),
-  precision_graph_prior = c("joint", "hierarchical"),
+  precision_graph_prior = c("hierarchical", "joint"),
   na_action = c("listwise", "impute"),
   update_method = c("nuts", "adaptive-metropolis", "gibbs"),
   target_accept,
@@ -658,6 +666,15 @@ bgm = function(
   mp = unpack_parameter_prior(means_prior)
   sp = unpack_scale_prior(precision_scale_prior)
 
+  # --- Precision-graph specification ------------------------------------------
+  # "hierarchical" is the default, so the argument is set on every fit, not only
+  # on the fits that asked for it. The vacuous-spec advisory ("this argument has
+  # no effect for this model") reports on a user's request, and an ordinal fit
+  # never made one -- so record whether the caller named the argument and resolve
+  # it here, rather than leaving the two-element default for bgm_spec() to match.
+  precision_graph_prior_explicit = hasArg(precision_graph_prior)
+  precision_graph_prior = match.arg(precision_graph_prior)
+
   # --- Build spec, sample, build output ----------------------------------------
   spec = bgm_spec(
     x = x,
@@ -685,6 +702,7 @@ bgm = function(
     edge_selection = edge_selection,
     edge_prior = edge_prior,
     precision_graph_prior = precision_graph_prior,
+    precision_graph_prior_explicit = precision_graph_prior_explicit,
     update_method = update_method,
     target_accept = if(hasArg(target_accept)) target_accept else NULL,
     iter = iter,

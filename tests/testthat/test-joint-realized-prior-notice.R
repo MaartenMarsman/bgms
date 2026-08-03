@@ -74,6 +74,10 @@ test_that("bgm wires the realized-prior notice into the joint spec", {
   }
   fires = function(msgs) any(grepl("realized edge-inclusion prior", msgs, fixed = TRUE))
 
-  expect_true(fires(fit_messages()))
+  # The notice is about the joint specification, which is no longer the default
+  # (F-010), so the firing case names it.
+  expect_true(fires(fit_messages(list(precision_graph_prior = "joint"))))
   expect_false(fires(fit_messages(list(precision_graph_prior = "hierarchical"))))
+  # ... and the default, now hierarchical, does not fire it either.
+  expect_false(fires(fit_messages()))
 })

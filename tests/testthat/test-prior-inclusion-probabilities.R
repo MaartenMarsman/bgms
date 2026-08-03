@@ -110,7 +110,11 @@ test_that("GGM beta-bernoulli prior PIPs match the prior-only chain", {
 
   fit = small_fit(prior_pip_ggm_data(), "continuous",
     beta_bernoulli_prior(),
-    update_method = "gibbs"
+    update_method = "gibbs",
+    # The tilted table and the prior-only chain are the joint route; the
+    # default is hierarchical since F-010, and it returns the edge prior
+    # itself (asserted in its own section below).
+    precision_graph_prior = "joint"
   )
   pip = extract_prior_inclusion_probabilities(fit)
 
@@ -131,7 +135,8 @@ test_that("the joint block reweights a fixed Bernoulli prior at delta = 0", {
 
   fit = small_fit(prior_pip_ggm_data(), "continuous",
     bernoulli_prior(0.5),
-    update_method = "gibbs", delta = 0
+    update_method = "gibbs", delta = 0,
+    precision_graph_prior = "joint"
   )
   pip = extract_prior_inclusion_probabilities(fit)[1, 2]
 
@@ -147,7 +152,8 @@ test_that("GGM SBM prior PIPs come from a cached deterministic chain", {
 
   fit = small_fit(prior_pip_ggm_data(), "continuous",
     sbm_prior(),
-    update_method = "gibbs"
+    update_method = "gibbs",
+    precision_graph_prior = "joint"
   )
   pip1 = extract_prior_inclusion_probabilities(fit, iter = 3000, warmup = 500)
   pip2 = extract_prior_inclusion_probabilities(fit)
@@ -172,7 +178,9 @@ test_that("mixed beta-bernoulli prior PIPs split by edge class", {
   skip_on_cran()
 
   d = prior_pip_mixed_data()
-  fit = small_fit(d$x, d$variable_type, beta_bernoulli_prior())
+  fit = small_fit(d$x, d$variable_type, beta_bernoulli_prior(),
+    precision_graph_prior = "joint"
+  )
   pip = extract_prior_inclusion_probabilities(fit)
 
   expect_true(isTRUE(all.equal(pip, t(pip))))
