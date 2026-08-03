@@ -848,14 +848,14 @@ arma::ivec MixedMRFModel::get_vectorized_indicator_parameters() {
     size_t idx = 0;
 
     // 1. Upper-triangle of Gxx
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             out(idx++) = gxx(i, j);
         }
     }
 
     // 2. Upper-triangle of Gyy
-    for(size_t i = 0; i < q_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < q_; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
             out(idx++) = gyy(i, j);
         }

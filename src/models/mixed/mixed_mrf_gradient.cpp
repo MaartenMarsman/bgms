@@ -28,7 +28,7 @@ void MixedMRFModel::ensure_gradient_cache() {
     disc_index_cache_.zeros();
 
     int num_active_disc = 0;
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 1) {
                 disc_index_cache_(i, j) = num_main_ + num_active_disc;
@@ -84,7 +84,7 @@ void MixedMRFModel::ensure_gradient_cache() {
     }
 
     // Observed statistics for pairwise_effects_discrete_ edges
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
             int loc = disc_index_cache_(i, j);
@@ -143,7 +143,7 @@ void MixedMRFModel::unvectorize_nuts_to_temps(
     }
 
     // 2. pairwise_effects_discrete_ upper-triangular (active only)
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 1) {
                 temp_pairwise_discrete(i, j) = params(idx++);
@@ -495,7 +495,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     }
 
     // --- pairwise_effects_discrete_ priors ---
-    for(size_t i = 0; i < p_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < p_; ++i) {
         for(size_t j = i + 1; j < p_; ++j) {
             if(edge_indicators_(i, j) == 0) continue;
             int loc = disc_index_cache_(i, j);
@@ -567,7 +567,7 @@ std::pair<double, arma::vec> MixedMRFModel::logp_and_gradient(
     // Ω̄ + Ω̄ᵀ in Phase 4 handles the lower triangle automatically.
     // The prior is on Kyy_{ij}, so we evaluate at -Ω_{ij}/2 and apply
     // chain rule: ∂logπ/∂Ω_{ij} = ∂logπ/∂Kyy_{ij} · (-1/2).
-    for(size_t i = 0; i < q_ - 1; ++i) {
+    for(size_t i = 0; i + 1 < q_; ++i) {
         for(size_t j = i + 1; j < q_; ++j) {
             if(edge_indicators_(p_ + i, p_ + j) == 0) continue;
             double kyy_val = -0.5 * temp_precision(i, j);
