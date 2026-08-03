@@ -342,7 +342,11 @@ Default: \code{"per-chain"}.}
 single non-negative integer. On Windows with \code{RcppParallel} >= 6.0.0,
 a fixed seed reproduces a run only at the same \code{cores} setting: under
 the oneTBB 2022 scheduler, runs at different core counts are statistically
-equivalent but not bit-for-bit identical.}
+equivalent but not bit-for-bit identical. Results are bit-reproducible for
+a given installed binary; they are not portable across compilers or
+optimization settings — a rebuilt binary may produce different draws from
+the same seed, with any differences concentrated where the posterior is
+weakly identified.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).

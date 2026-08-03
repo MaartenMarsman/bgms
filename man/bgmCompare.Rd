@@ -160,7 +160,12 @@ matrix during warmup (NUTS only). Default: \code{TRUE}.}
 \code{"per-chain"}, \code{"total"}, or \code{"none"}.
 Default: \code{"per-chain"}.}
 
-\item{seed}{Optional integer. Random seed for reproducibility.}
+\item{seed}{Optional integer. Random seed for reproducibility. Results are
+bit-reproducible for a given installed binary: the same seed on the same
+build yields identical draws. They are not portable across compilers or
+optimization settings — a rebuilt binary may produce different draws from
+the same seed, with any differences concentrated where the posterior is
+weakly identified.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints informational messages
 during data processing (e.g., missing data handling, variable recoding).

@@ -57,15 +57,26 @@ logarithm.
 * The default interaction prior is `normal_prior(scale = 1)` in `bgm()`, where
   0.1.6.3 used a Cauchy at `pairwise_scale = 2.5`; `sample_ggm_prior()` uses
   the same default, so the GGM prior chain matches `bgm()`. `bgmCompare()`
-  keeps a Cauchy default, `cauchy_prior(scale = 1)` — the two entry points
-  therefore ship different defaults for an identically named argument, which
-  matters if you compare a compare fit against separate `bgm()` fits at stated
-  defaults. Pass `interaction_prior = cauchy_prior(scale = 2.5)` to `bgm()` for
+  takes the same default for its baseline pairwise interactions, so a compare
+  fit and separate `bgm()` fits at stated defaults now price a baseline
+  interaction alike. Pass `interaction_prior = cauchy_prior(scale = 2.5)` to `bgm()` for
   the 0.1.6.3 prior, remembering that the scale now acts on the association
   coordinate. Under the joint precision-graph specification the normalizer
   correction table is keyed on the interaction prior, so the first fit at the
   new default cell (with a Beta-Bernoulli or Stochastic-Block edge prior)
   builds and caches a fresh table once.
+
+* `bgmCompare()` now defaults to `interaction_prior = normal_prior(scale = 1)`
+  for the baseline pairwise interactions and to `difference_family = "Normal"`
+  for the group differences, both of which were Cauchy in 0.1.6.3 and through
+  0.2.0.0's development; the baseline default now matches `bgm()`, so the two
+  entry points no longer ship different priors for an identically named
+  argument. Results under the defaults change: a fit at the new defaults is a
+  different model from a fit at the old ones, and difference verdicts on
+  categories one group never observed move the most, because a Normal slab
+  bounds an unidentified threshold difference far more tightly than a Cauchy
+  one. `cauchy_prior(scale = 1)` and `difference_family = "Cauchy"` remain
+  fully available and reproduce the previous behaviour.
 
 * `iter` and `warmup` default to `2e3` in `bgm()` and `bgmCompare()`, up from
   `1e3`. A default call therefore runs about twice as long and returns twice as
@@ -245,8 +256,10 @@ logarithm.
   `0.5 * log(p)` over the continuous variables.
 
 * `bgmCompare(difference_family =)` chooses the family of the prior on the
-  group differences, `"Cauchy"` (the default, and 0.1.6.3's fixed behaviour) or
-  `"Normal"`.
+  group differences, `"Normal"` (the default) or `"Cauchy"` (0.1.6.3's fixed
+  behaviour). It governs the pairwise-interaction differences and the
+  main-effect threshold differences alike, and under
+  `difference_selection = TRUE` it is the slab of the spike-and-slab.
 
 **Inclusion inference.**
 
