@@ -19,28 +19,30 @@ knitr::opts_chunk$set(
 )
 ```
 
-**bgms** is for Bayesian analysis of graphical models: Markov random fields, in
-which two variables are connected by an edge when they remain associated after
-accounting for every other variable in the model. Every model in the package is
-a Markov random field -- `variable_type` selects the member: the ordinal Markov
-random field (with binary variables as a special case), the Blume--Capel model,
-the Gaussian graphical model for continuous variables, and the mixed Markov
-random field that joins discrete and continuous variables in one model.
+**bgms** provides Bayesian analyses of graphical models, all of which are
+Markov random fields (MRFs). In an MRF, two variables are connected by an edge
+when they remain associated after accounting for all other variables in the
+model. The `variable_type` argument selects the model family: the ordinal
+Markov random field, with binary variables as a special case; the Blume--Capel
+model; the Gaussian graphical model for continuous variables; or the mixed
+Markov random field, which joins discrete and continuous variables in one
+model.
 
-The graph is treated as unknown, not fixed: the analysis returns a posterior
-distribution over graphs, and for every pair of variables an inclusion Bayes
-factor -- the factor by which the data shift the odds that the edge is present.
-Because a Bayes factor can point both ways, every pair ends in one of three
-states -- evidence of presence, evidence of absence, or undecided -- and
-`verdicts()` reports which.
+The graph is treated as unknown rather than fixed. The analysis returns a
+posterior distribution over graphs and, for every pair of variables, an
+inclusion Bayes factor: the factor by which the data update the odds that the
+edge is present. The reporting convention assigns each pair one of three
+verdicts: evidence of presence, evidence of absence, or undecided. The
+`verdicts()` function reports these classifications.
 
 This vignette is the front door: enough to run an analysis and read what comes
-back, and no more. The inclusion Bayes factor and the three-state reading it
-supports are developed in @HuthEtAl_2023 and @SekulovskiEtAl_2023. The extended
-teaching material -- model background, MCMC output, worked analyses -- lives on
-the package website,
-<https://bayesian-graphical-modelling-lab.github.io/bgms-docs/>, and the other
-vignettes take the individual pieces further.
+back, and no more. The inclusion Bayes factor and its three-state interpretation
+are developed in @HuthEtAl_2023 and @SekulovskiEtAl_2023. Extended teaching
+material, including model background, Markov Chain Monte Carlo (MCMC) output,
+and worked analyses, is available on the package website,
+<https://bayesian-graphical-modelling-lab.github.io/bgms-docs/>. The other
+vignettes develop the individual components in greater detail.
+
 
 # The models
 
