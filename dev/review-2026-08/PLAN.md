@@ -110,6 +110,14 @@ code-read brief.
 - Check-gate baseline for future briefs/agents: 2 NOTEs plain `--as-cran`;
   **3 NOTEs under `--run-donttest`** (the third is the F-018 examples-timing
   NOTE, verified base-vs-branch identical in report 22 §7).
+- Phase-3 entry gate (post-sign-off): run 1 came back 2-baseline + a
+  SELF-INFLICTED third NOTE (the lead's wrapper wrote `build.log` into the
+  build dir and `R CMD build` swept it into the tarball — harness lesson:
+  build from a pristine archive dir, logs outside); rerun killed for machine
+  contention (MM's own suite run measured 286 s against the agents' idle
+  221.7 s — same job, contention only). Post-sign-off hygiene from MM's
+  console observations landed first: F-129 (verbose leak) + F-130 (RATTLE
+  retirement); final gate run includes both.
 - Submission-batch commit: Date bump (F-003), sensitivity-check roxygen
   framing sentence (F-005). (F-004's README line landed in brief 12.)
 - win-builder + mac-builder; reverse-dependency check (easybgm at minimum —
