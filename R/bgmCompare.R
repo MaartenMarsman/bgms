@@ -59,6 +59,10 @@
 #' (\code{extract_arguments(fit)$category_support}) so they can be checked
 #' afterwards. The affected rows are also marked with a \code{*} in the
 #' printed summary; see \code{\link[=summary.bgmCompare]{summary.bgmCompare()}}.
+#' Under \code{main_difference_selection = TRUE} such a cell's difference is
+#' never tested alone: the inclusion indicator is per variable, so the block's
+#' Bayes factor pools the prior-driven cell with the variable's identified
+#' categories (see \code{main_difference_selection}).
 #' Only the category thresholds are affected this way; the
 #' pairwise (edge) parameters and their differences are estimated from all the
 #' data and are not.
@@ -84,11 +88,17 @@
 #' @param difference_selection Logical. If \code{TRUE}, spike-and-slab priors
 #'   are applied to difference parameters. Default: \code{TRUE}.
 #' @param main_difference_selection Logical. If \code{TRUE}, apply spike-and-slab
-#'   selection to main effect (threshold) differences. If \code{FALSE}, main
-#'   effect differences are always included (no selection). Since main effects
-#'   are often nuisance parameters and their selection can interfere with
-#'   pairwise selection under the Beta-Bernoulli prior, the default is
-#'   \code{FALSE}. Only used when \code{difference_selection = TRUE}.
+#'   selection to main effect (threshold) differences. Selection is per
+#'   variable, not per category: one indicator gates a variable's entire block
+#'   of category-threshold differences across all group contrasts, so the
+#'   inclusion Bayes factor for a main-effect difference is a block test of
+#'   whether that variable's thresholds differ between groups at all — a
+#'   single category's difference is never selected on its own. If
+#'   \code{FALSE}, main effect differences are always included (no selection).
+#'   Since main effects are often nuisance parameters and their selection can
+#'   interfere with pairwise selection under the Beta-Bernoulli prior, the
+#'   default is \code{FALSE}. Only used when
+#'   \code{difference_selection = TRUE}.
 #' @param variable_type Character vector specifying type of each variable:
 #'   \code{"ordinal"} (default) or \code{"blume-capel"}.
 #' @param baseline_category Integer or vector giving the baseline category
