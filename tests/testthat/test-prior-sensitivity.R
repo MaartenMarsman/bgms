@@ -326,7 +326,10 @@ test_that("compare_anchor_draws aligns every gated difference with its indicator
   expect_equal(ncol(d$theta[[1]]), 6L + 16L)
   expect_equal(ncol(d$indicator[[1]]), 10L)
   expect_equal(dim(d$gamma[[1]]), dim(d$theta[[1]]))
-  expect_equal(d$family, "cauchy")
+  # anchor_draws() reports tolower(spec$prior$difference_prior_type), which is
+  # tolower(difference_family). The fit is at defaults, and that default is
+  # "Normal" as of F-119, so the family is "normal". Exact, not a tolerance.
+  expect_equal(d$family, "normal")
 
   # Each parameter carries its own indicator's draws, not a neighbour's. The
   # pairwise differences come first, in the order the indicators name them.
