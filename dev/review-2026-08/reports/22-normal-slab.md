@@ -24,6 +24,15 @@ Headline: **the switch is inert for the operating characteristics report 19
 measured, and decisive for the one thing it was meant to fix** — the width of
 the unidentified direction at a cell one group never observed.
 
+**Branch state.** Based on `f60101b6`; `origin/develop` has since advanced to
+`41612747` (other batches merged, including the one that owned
+`R/methods_bgmcompare.R`). The branch touches twelve files, none of them
+off-limits, and `git merge-tree origin/develop HEAD` merges **clean, no
+conflicts** — verified, and the merged tree still carries both new defaults
+(`normal_prior(scale = 1)`, `c("Normal", "Cauchy")`), both re-pointed
+deprecation guards, and both internal spec defaults. Upstream introduced no new
+Cauchy default on the compare path.
+
 ---
 
 ## 1. The slab-coverage map (task 1, before any change)
@@ -425,8 +434,9 @@ carries it at a tuned rate. Realised rates 0.2532 (target 0.25) and 0.0512
 | rare, 0.051 | 1600 | 44 | 1.0000 | **+35.84** | 3.7e+15 | presence |
 
 Direction and magnitude: the BF points at *presence* in five of six cells and
-grows close to linearly in n₁ — roughly 0.17 log units per non-observing
-observation when the category is common, 0.023 when it is rare. The control
+grows close to linearly in n₁ — about 0.16 log units per non-observing
+observation when the category is common (n₁ 100 → 1600), about 0.024 when it is
+rare. The control
 variables V2–V4, which have no planted difference, point the other way in all
 eighteen control readings — every one negative, the largest magnitude 6.13
 (`common / n₁=1600`).
