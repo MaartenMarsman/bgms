@@ -612,7 +612,7 @@ logarithm.
   builds. The bar follows `display_progress` (the same control as the sampler's
   bar), not the advisory `bgms.verbose` flag.
 
-* Under the joint precision-graph specification (the default), a fit with edge
+* Under `precision_graph_prior = "joint"`, a fit with edge
   selection on a continuous precision block reports once that the realized
   edge-inclusion prior is `pi(Gamma) * Z(Gamma)`, the edge prior reweighted by
   the per-graph normalizer, rather than the nominal edge prior. This holds for
@@ -628,11 +628,13 @@ logarithm.
 
 **The hierarchical precision-graph prior (continuous and mixed models).**
 
-* `bgm(precision_graph_prior = "hierarchical")` composes the edge prior and the
-  precision prior as `p(Gamma) p(K | Gamma)` with `p(K | Gamma)` normalized per
-  graph, so the graph marginal is exactly the edge prior; under the default
-  `"joint"` specification it is that prior reweighted by the per-graph
-  normalizer. Each edge move evaluates the normalizer ratio with a fast
+* `precision_graph_prior = "hierarchical"` is the default on continuous and
+  mixed models. It composes the edge prior and the precision prior as
+  `p(Gamma) p(K | Gamma)` with `p(K | Gamma)` normalized per graph, so the
+  graph marginal is exactly the edge prior; under
+  `precision_graph_prior = "joint"` it is that prior reweighted by the
+  per-graph normalizer. Both specifications are fully supported; the default
+  is the one whose graph marginal is the prior you wrote down. Each edge move evaluates the normalizer ratio with a fast
   per-component surface approximation, built once per analysis at the fixed
   `(eta, delta)` from block-Gibbs anchors. It requires `edge_selection = TRUE`
   and a `normal_prior()` or `cauchy_prior()` interaction prior; the precision
@@ -655,8 +657,11 @@ logarithm.
   correction surface and the trust gauge are skipped rather than built and left
   unused. With no continuous precision block — an ordinal model, or mixed data
   with fewer than two continuous variables — there is no `K` for the argument to
-  refer to; the fit is accepted and a message reports this when
-  `verbose = TRUE`. Both cases run the joint path, which applies no correction
+  refer to; the fit is accepted, and a message reports this when the argument
+  was named and `verbose = TRUE`. Inheriting the default is silent: since
+  `"hierarchical"` is the default, the value reaches every fit, and the
+  message reports a user's choice rather than a default nobody made. Both
+  cases run the joint path, which applies no correction
   on exactly these configurations either, so the posterior is identical to a
   `"joint"` fit from the same seed. A `beta_prime_prior()` interaction slab is
   still rejected where the choice is meaningful — a continuous precision block
@@ -749,7 +754,8 @@ logarithm.
   exponential shape (43 to 47 s serial at a non-unit shape); a fit on fewer
   variables sizes the build to its own variable count.
 
-* A trust gauge runs by default on the deployed hierarchical path, with
+* A trust gauge runs by default on the deployed hierarchical path — which is
+  to say on a default continuous or mixed fit with edge selection — with
   `options(bgms.zratio_gauge_sweeps = 0L)` as the off switch;
   `sample_ggm_prior()` keeps its own `zratio_diagnostics` argument. While the
   sampler runs, the gauge redoes a subset of each chain's edge add/remove
