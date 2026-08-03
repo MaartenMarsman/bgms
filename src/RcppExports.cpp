@@ -11,6 +11,38 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// bgmCompare_test_logp_and_gradient
+Rcpp::List bgmCompare_test_logp_and_gradient(const arma::vec& params, const arma::imat& observations, const arma::imat& group_indices, int num_groups, const std::vector<arma::imat>& counts_per_category, const std::vector<arma::imat>& blume_capel_stats, const std::vector<arma::mat>& pairwise_stats, const arma::ivec& num_categories, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, const arma::imat& main_effect_indices, const arma::imat& pairwise_effect_indices, const arma::imat& inclusion_indicator, const arma::mat& projection, double pairwise_scale, double difference_scale, double main_alpha, double main_beta, std::string interaction_prior_type, std::string difference_prior_type, std::string threshold_prior_type, double threshold_scale);
+RcppExport SEXP _bgms_bgmCompare_test_logp_and_gradient(SEXP paramsSEXP, SEXP observationsSEXP, SEXP group_indicesSEXP, SEXP num_groupsSEXP, SEXP counts_per_categorySEXP, SEXP blume_capel_statsSEXP, SEXP pairwise_statsSEXP, SEXP num_categoriesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP main_effect_indicesSEXP, SEXP pairwise_effect_indicesSEXP, SEXP inclusion_indicatorSEXP, SEXP projectionSEXP, SEXP pairwise_scaleSEXP, SEXP difference_scaleSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP interaction_prior_typeSEXP, SEXP difference_prior_typeSEXP, SEXP threshold_prior_typeSEXP, SEXP threshold_scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type observations(observationsSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type group_indices(group_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type num_groups(num_groupsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::imat>& >::type counts_per_category(counts_per_categorySEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::imat>& >::type blume_capel_stats(blume_capel_statsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type pairwise_stats(pairwise_statsSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type num_categories(num_categoriesSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec& >::type is_ordinal_variable(is_ordinal_variableSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type baseline_category(baseline_categorySEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type main_effect_indices(main_effect_indicesSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type pairwise_effect_indices(pairwise_effect_indicesSEXP);
+    Rcpp::traits::input_parameter< const arma::imat& >::type inclusion_indicator(inclusion_indicatorSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type projection(projectionSEXP);
+    Rcpp::traits::input_parameter< double >::type pairwise_scale(pairwise_scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type difference_scale(difference_scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type main_alpha(main_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type main_beta(main_betaSEXP);
+    Rcpp::traits::input_parameter< std::string >::type interaction_prior_type(interaction_prior_typeSEXP);
+    Rcpp::traits::input_parameter< std::string >::type difference_prior_type(difference_prior_typeSEXP);
+    Rcpp::traits::input_parameter< std::string >::type threshold_prior_type(threshold_prior_typeSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold_scale(threshold_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(bgmCompare_test_logp_and_gradient(params, observations, group_indices, num_groups, counts_per_category, blume_capel_stats, pairwise_stats, num_categories, is_ordinal_variable, baseline_category, main_effect_indices, pairwise_effect_indices, inclusion_indicator, projection, pairwise_scale, difference_scale, main_alpha, main_beta, interaction_prior_type, difference_prior_type, threshold_prior_type, threshold_scale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // run_bgmCompare_parallel
 Rcpp::List run_bgmCompare_parallel(const arma::imat& observations, int num_groups, const std::vector<arma::imat>& counts_per_category, const std::vector<arma::imat>& blume_capel_stats, const std::vector<arma::mat>& pairwise_stats, const arma::ivec& num_categories, double main_alpha, double main_beta, double pairwise_scale, double difference_scale, double difference_selection_alpha, double difference_selection_beta, double difference_selection_alpha_between, double difference_selection_beta_between, double difference_dirichlet_alpha, double difference_lambda, const std::string& difference_prior, int iter, int warmup, bool na_impute, const arma::imat& missing_data_indices, const arma::uvec& is_ordinal_variable, const arma::ivec& baseline_category, bool difference_selection, bool main_difference_selection, const arma::imat& main_effect_indices, const arma::imat& pairwise_effect_indices, double target_accept, int nuts_max_depth, bool learn_mass_matrix, const arma::mat& projection, const arma::ivec& group_membership, const arma::imat& group_indices, const arma::imat& interaction_index_matrix, const arma::mat& inclusion_probability, int num_chains, int nThreads, int seed, const std::string& update_method, int progress_type, const std::string& interaction_prior_type_str, const std::string& difference_prior_type_str, const std::string& threshold_prior_type_str, double threshold_scale, SEXP progress_callback);
 RcppExport SEXP _bgms_run_bgmCompare_parallel(SEXP observationsSEXP, SEXP num_groupsSEXP, SEXP counts_per_categorySEXP, SEXP blume_capel_statsSEXP, SEXP pairwise_statsSEXP, SEXP num_categoriesSEXP, SEXP main_alphaSEXP, SEXP main_betaSEXP, SEXP pairwise_scaleSEXP, SEXP difference_scaleSEXP, SEXP difference_selection_alphaSEXP, SEXP difference_selection_betaSEXP, SEXP difference_selection_alpha_betweenSEXP, SEXP difference_selection_beta_betweenSEXP, SEXP difference_dirichlet_alphaSEXP, SEXP difference_lambdaSEXP, SEXP difference_priorSEXP, SEXP iterSEXP, SEXP warmupSEXP, SEXP na_imputeSEXP, SEXP missing_data_indicesSEXP, SEXP is_ordinal_variableSEXP, SEXP baseline_categorySEXP, SEXP difference_selectionSEXP, SEXP main_difference_selectionSEXP, SEXP main_effect_indicesSEXP, SEXP pairwise_effect_indicesSEXP, SEXP target_acceptSEXP, SEXP nuts_max_depthSEXP, SEXP learn_mass_matrixSEXP, SEXP projectionSEXP, SEXP group_membershipSEXP, SEXP group_indicesSEXP, SEXP interaction_index_matrixSEXP, SEXP inclusion_probabilitySEXP, SEXP num_chainsSEXP, SEXP nThreadsSEXP, SEXP seedSEXP, SEXP update_methodSEXP, SEXP progress_typeSEXP, SEXP interaction_prior_type_strSEXP, SEXP difference_prior_type_strSEXP, SEXP threshold_prior_type_strSEXP, SEXP threshold_scaleSEXP, SEXP progress_callbackSEXP) {
@@ -956,6 +988,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_bgms_bgmCompare_test_logp_and_gradient", (DL_FUNC) &_bgms_bgmCompare_test_logp_and_gradient, 22},
     {"_bgms_run_bgmCompare_parallel", (DL_FUNC) &_bgms_run_bgmCompare_parallel, 45},
     {"_bgms_test_cholesky_downdate", (DL_FUNC) &_bgms_test_cholesky_downdate, 3},
     {"_bgms_test_correction_logC_interp", (DL_FUNC) &_bgms_test_correction_logC_interp, 3},

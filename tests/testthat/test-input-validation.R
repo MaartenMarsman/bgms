@@ -152,7 +152,9 @@ test_that("bgmCompare accepts character, factor, integer, and 0/1 group indicato
     zero_one = match(language, unique(language)) - 1L
   )
   specs = lapply(indicators, function(g) {
-    bgm_spec(x = x, model_type = "compare", group_indicator = g, chains = 1)
+    without_support_warning(
+      bgm_spec(x = x, model_type = "compare", group_indicator = g, chains = 1)
+    )
   })
   for(nm in names(specs)) {
     expect_equal(tabulate(specs[[nm]]$data$group), c(25L, 25L),
@@ -167,11 +169,11 @@ test_that("bgmCompare accepts character, factor, integer, and 0/1 group indicato
     )
   }
 
-  fit = bgmCompare(
-    x = x, group_indicator = language,
-    iter = 25, warmup = 50, chains = 1, seed = 21,
-    display_progress = "none"
-  )
+  fit = without_support_warning(bgmCompare(
+      x = x, group_indicator = language,
+      iter = 25, warmup = 50, chains = 1, seed = 21,
+      display_progress = "none"
+  ))
   expect_s3_class(fit, "bgmCompare")
   expect_equal(sort(unique(extract_arguments(fit)$group)), c(1L, 2L))
 })
@@ -181,11 +183,11 @@ test_that("a character group indicator survives listwise removal", {
   rows = c(1:25, 491:515)
   x = Boredom[rows, 2:4]
   x[3, 1] = NA
-  spec = bgm_spec(
+  spec = without_support_warning(bgm_spec(
     x = x, model_type = "compare",
     group_indicator = Boredom[rows, "language"],
     na_action = "listwise", chains = 1
-  )
+  ))
   expect_equal(tabulate(spec$data$group), c(24L, 25L))
 })
 

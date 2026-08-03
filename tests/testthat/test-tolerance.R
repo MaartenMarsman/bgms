@@ -340,7 +340,7 @@ test_that("bgms outputs are numerically sane (stochastic-robust)", {
 
   for(spec in specs) {
     ctx = sprintf("[%s / %s]", spec$fun_label, spec$label)
-    res = do.call(spec$fun, spec$args)
+    res = without_support_warning(do.call(spec$fun, spec$args))
     for(chk in spec$checks) chk(res, ctx)
   }
 })

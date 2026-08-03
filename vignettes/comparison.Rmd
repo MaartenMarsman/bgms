@@ -61,6 +61,18 @@ therefore compares two different models, not just two groups. Pass the same
 `interaction_prior` to both functions whenever the comparison is meant to be
 like-for-like.
 
+Groups often differ in which answer categories they actually use.
+`bgmCompare()` models the union of the categories observed across the groups,
+so a category one group uses is kept even when the other group never uses it;
+only a category value that no group uses at all is dropped. When a kept
+category is empty in some group, that group's data say nothing about its
+threshold there, so the reported difference for that group-by-category
+combination comes from the prior and will be large and very uncertain.
+`bgmCompare()` warns and names each such case, and
+`extract_arguments(fit)$category_support` holds the per-group category counts.
+The pairwise (edge) parameters are unaffected. See `?bgmCompare` for the
+details, including why Blume--Capel variables are exempt.
+
 # Posterior summaries
 
 The summary shows both baseline effects and group differences:
