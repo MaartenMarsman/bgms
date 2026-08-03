@@ -820,7 +820,16 @@ test_that("simulated margins match predicted margins for the same group", {
       variable_type = "ordinal", iter = 50, seed = seed
     )
   }
-  x = rbind(draw(omega_1, 5), draw(omega_2, 6))
+  x = rbind(draw(omega_1, 6), draw(omega_2, 106))
+  # Full support WITHIN each group, not merely pooled: a category one group
+  # never uses has its threshold set by the prior there, and the fit says so in
+  # a warning. This block is about the numeric convention, so the data is chosen
+  # to keep that question out of it rather than to silence the warning.
+  for(g in 1:2) {
+    rows = seq_len(500) + (g - 1L) * 500L
+    expect_true(all(apply(x[rows, ], 2, function(z) length(unique(z))) == 3L),
+      info = sprintf("group %d does not use every category", g))
+  }
 
   fit = bgmCompare(
     x, group = rep(1:2, each = 500),
