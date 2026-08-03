@@ -40,7 +40,6 @@ We illustrate with a subset from the `ADHD` dataset included in **bgms**.
 ```{r}
 library(bgms)
 
-?ADHD
 data_adhd = ADHD[ADHD$group == 1, -1]
 data_adhd = data_adhd[, 1:5]
 data_no_adhd = ADHD[ADHD$group == 0, -1]

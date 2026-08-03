@@ -183,5 +183,3 @@ between-chain dispersion is reduced by construction, so split-$\hat R$ is a
 weakened diagnostic at the refits; the per-anchor convergence gate therefore
 also leans on the effective sample size and on per-chain verdict agreement. An
 anchor that fails its gate is dropped from the curve rather than folded in.
-
-# References

@@ -824,6 +824,28 @@ logarithm.
 
 ## Other changes
 
+* The "Getting Started with bgms" vignette has been rewritten against this
+  release. It opens on what the package is for -- Bayesian analyses of
+  graphical models, all of them Markov random fields, with `variable_type`
+  selecting the model family -- and on what an analysis returns: a posterior
+  over graphs and an inclusion Bayes factor per pair, read as evidence of
+  presence, evidence of absence, or undecided. It states the current defaults
+  (`normal_prior(scale = 1)` for the interaction slab, `bernoulli_prior(0.5)`
+  for the edge prior, `"hierarchical"` for `precision_graph_prior`) and works
+  through `summary()`, `verdicts()` on the natural log Bayes-factor scale, and
+  `plot()`'s three-panel edge evidence display on nine Wenchuan items. It
+  gained the bibliography header the other vignettes carry, a `bgmCompare()`
+  section, and pointers to the package website and to `easybgm`. The
+  hand-thresholded median-probability graph drawn with `qgraph`, the `coef()`
+  walkthrough, and the "What's new in 0.2.0" section were dropped.
+
+* The "Model Comparison with bgmCompare" vignette now draws the groups with
+  `plot(fit, type = "groups")` -- each group's own graph on one shared layout --
+  in place of the hand-assembled `qgraph()` call it built from
+  `coef(fit)$pairwise_effects_groups`, which drew one group only. It gained the
+  bibliography header the other vignettes carry, and its introduction now states
+  the inclusion Bayes factor and the three verdicts `verdicts()` returns.
+
 * NUTS uses Stan's multinomial candidate weighting (log-sum-exp of `H0 - h` per
   leaf, biased progressive sampling at the top level) in place of the
   Hoffman-Gelman slice variable. The two schemes target the same posterior; the
