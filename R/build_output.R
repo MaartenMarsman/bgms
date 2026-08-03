@@ -307,9 +307,16 @@ attach_sbm_posterior_summary = function(results, raw, arguments) {
 # needs_easybgm_s3_compat
 # ------------------------------------------------------------------
 # Returns TRUE when easybgm is loaded at a version that overwrites
-# class(fit) and uses .subset2 directly, both of which are
-# incompatible with S7 objects. In that case the builder returns a
-# plain S3 list instead of converting to S7.
+# class(fit), which an S7 object does not survive: the assignment
+# silently strips the S7_object class, and because the base type is
+# not a list every later `$` access on the object fails. In that
+# case the builder returns a plain S3 list instead of converting to
+# S7.
+#
+# The gate runs when a fit is BUILT, not when it is read. A fit
+# constructed before easybgm was loaded is therefore S7, and old
+# easybgm versions fail loudly on it (review F-025-1) -- hence the
+# documented advice to load easybgm before fitting.
 #
 # easybgm >= 0.5.0 uses extractor functions and no longer overwrites
 # class(fit), so it is S7-compatible.

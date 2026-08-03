@@ -1361,8 +1361,17 @@ extract_pairwise_thresholds = function(bgms_object) {
 #' @details
 #' The `indicator` element is the split-R-hat of the Rao-Blackwellized
 #' inclusion draws, matching the default of [extract_ess()]; the indicator
-#' chain's transition-based effective sample size is available as
-#' `extract_ess(fit, estimator = "mixt")`.
+#' chain's transition-based effective sample size remains available as
+#' `extract_ess(fit, estimator = "mixt")` (deprecated).
+#'
+#' One failure mode these diagnostics may miss: chains can agree that an edge
+#' is included while disagreeing about the magnitude of its weight, for
+#' example when the weight's posterior has more than one mode and different
+#' chains settle in different ones. The indicator diagnostics cannot see this
+#' by construction, and the pooled-draw `Rhat` responds only weakly when
+#' inclusion is intermittent. When it matters, compare each edge's weight
+#' across chains using only the draws in which the edge is included; a
+#' dedicated diagnostic for this is planned for a future release.
 #'
 #' @seealso [bgm()], [bgmCompare()], [extract_ess()]
 #' @family extractors

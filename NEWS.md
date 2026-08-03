@@ -198,7 +198,9 @@ logarithm.
   dependency: `S7`). All existing `$`, `[[`, and `names()` access patterns
   continue to work. When an incompatible `easybgm` version is loaded, bgms
   returns plain S3 lists for backwards compatibility; this shim will be removed
-  in a future release.
+  in a future release. The compatibility mode is chosen when the fit object is
+  constructed, so load `easybgm` before fitting when the fit is meant for use
+  with an older `easybgm`.
 
 * `summary()` on a `bgms` fit returns an additional `quadratic` element (the
   precision diagonal, reported on the residual-variance scale for continuous
