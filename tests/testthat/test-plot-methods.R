@@ -204,10 +204,14 @@ test_that("both network methods split their pairs with the same wording rule", {
 test_that("a pair that differs in several contrasts is laid out by its largest", {
   pairs = cbind(row = c(1L, 1L, 2L), col = c(2L, 3L, 3L))
   first = matrix(0, 3, 3)
-  first[1, 2] = 0.4; first[1, 3] = -0.9; first[2, 3] = 0.1
+  first[1, 2] = 0.4
+  first[1, 3] = -0.9
+  first[2, 3] = 0.1
   first = first + t(first)
   second = matrix(0, 3, 3)
-  second[1, 2] = -0.7; second[1, 3] = 0.2; second[2, 3] = 0.05
+  second[1, 2] = -0.7
+  second[1, 3] = 0.2
+  second[2, 3] = 0.05
   second = second + t(second)
 
   # The layout summary is the largest absolute difference over the contrasts,
