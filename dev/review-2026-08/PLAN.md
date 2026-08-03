@@ -75,7 +75,10 @@ code-read brief.
   spot-checks against behavior.
 - Defaults-freeze memo to easybgm/JASP/docs/tutorial (F-002) — draft ready
   (report 25 §4.3 + change list §4.1); MM sends AT submission time (bgms
-  first, notify at submission, not after — report 25 §4.4).
+  first, notify at submission, not after — report 25 §4.4). Notification
+  only, ZERO WAIT: bgms submits on its own schedule (MM 2026-08-03); the
+  easybgm adaptation is Nikola's, in-house, with report §4.1 as his work
+  order; easybgm 0.5.0 must FOLLOW bgms 0.2.0.0 to CRAN, never precede it.
 - Test-adequacy verdict from brief 01's skip analysis: what does CRAN actually
   exercise; nightly-validation workflow coverage.
 
