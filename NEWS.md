@@ -1,3 +1,8 @@
+# bgms 0.2.0.1 (development)
+
+Development version, opened after 0.2.0.0 went to CRAN on 2026-08-03. Nothing
+released from this line yet.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits
