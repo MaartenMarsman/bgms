@@ -2486,6 +2486,94 @@
     ]
   },
   {
+    "objectID": "examples/check-your-priors.html",
+    "href": "examples/check-your-priors.html",
+    "title": "Check your priors",
+    "section": "",
+    "text": "Figure 1\nNinety-one of the 136 edge verdicts of the Wenchuan analysis hold across the whole examined range of prior scales. The colored, named curves are the ten edges whose verdict depends most on that choice, and every verdict that moves anywhere on this plot moves between undecided and a neighboring category.\n“Would your conclusions survive a different prior?” is the question every reviewer of a Bayesian analysis is entitled to ask, and for edge verdicts it has real force: the Bayes factor’s evidence of absence is calibrated by how large the weights of a present edge were assumed to be, which is exactly what the interaction prior’s scale says. The honest answer is to redo the analysis under a range of scales and see which verdicts move. Refitting a slow model many times is usually the obstacle; prior_sensitivity_check() gives you the refit-based answer with one call, at well under the cost of one additional fit.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#run-it",
+    "href": "examples/check-your-priors.html#run-it",
+    "title": "Check your priors",
+    "section": "Run it",
+    "text": "Run it\n\nlibrary(bgms)\n\nfit = bgm(Wenchuan, iter = 1e4, warmup = 5e3, seed = 123)\nps = prior_sensitivity_check(fit, seed = 123)\n\nThe check traces every edge’s inclusion Bayes factor as a continuous curve over scales from 0.4 to 2.5 times the one you fitted with. It rests on five anchor fits, and one of them is your original fit, so the verdicts at your own scale are exactly the analysis you already reported; nothing is re-estimated at 1x. The other four anchors are warm-started refits, and one anchor is refit twice so the check knows how much a Bayes factor wobbles between reruns with no prior change at all. On this fit the four refits cost 123 seconds on top of the original fit. That is the whole price of the reviewer’s answer.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#read-the-report",
+    "href": "examples/check-your-priors.html#read-the-report",
+    "title": "Check your priors",
+    "section": "Read the report",
+    "text": "Read the report\nPrinting the result gives the answer first and the machinery last:\n\nps\n\nPrior sensitivity check: are the edge verdicts robust to the slab scale?\nBayes-factor curve from 0.4x to 2.5x the chosen scale (anchors at 0.4x, 0.63x,\n1x, 1.6x, 2.5x; the 1x anchor is the original fit); 136 edges.\n\n91 of 136 verdicts hold across the whole 0.4x-2.5x range; the exceptions are\nnamed below.\n\n  robust (same verdict at every scale)     91\n  changed, within run-to-run noise          6\n  changed, beyond run-to-run noise         31\n  not certifiable (too noisy to assess)     8\n\n31 edges' verdicts genuinely depend on the scale:\n  edge               0.4x       0.63x      1x         1.6x       2.5x     \n  intrusion-lossint  undecided  absence    absence    absence    absence  \n  intrusion-numb     undecided  absence    absence    absence    absence  \n  intrusion-sleep    undecided  undecided  undecided  undecided  absence  \n  flash-upset        undecided  undecided  absence    absence    absence  \n  flash-avoidth      undecided  undecided  undecided  absence    absence  \n  flash-sleep        undecided  undecided  absence    absence    absence  \n  flash-concen       presence   presence   presence   undecided  undecided\n  flash-hyper        undecided  absence    absence    absence    absence  \n  upset-distant      undecided  undecided  undecided  undecided  absence  \n  upset-numb         undecided  undecided  undecided  absence    absence  \n  ...and 21 more; see $edges.\n\n8 edges are too noisy to assess: intrusion-startle, dreams-numb, flash-startle,\nupset-avoidact, upset-concen, avoidth-concen, avoidth-hyper, avoidact-startle.\nTheir Bayes factor sits within Monte Carlo error of an evidence threshold, or\ntheir chains disagree on the verdict, at the chosen scale itself; a rerun with\na fresh seed could flip them without any prior change. Run more iterations to\nsettle these verdicts before reading their sensitivity.\n\nVerdict counts by scale (at the anchors):\n            0.4x 0.63x 1x 1.6x 2.5x\n  presence    37    36 35   32   32\n  undecided   62    49 39   31   27\n  absence     37    51 62   73   77\nMore absence at wider scales is expected: a wider slab strengthens evidence\nagainst borderline edges.\n\nNote: the chosen scale (1) is much wider than the estimated interactions (about\n0.18 [0.148, 0.218]); absence verdicts in particular depend on this choice.\n\nMethod:  43-point curve from 5 anchor fits (0.4x to 2.5x the chosen scale),\n         joined by importance reweighting; the 1x anchor is the original fit.\n         Points with reweighting effective sample size below 400 are not shown.\nRefits:  5 nuts refits, warm-started from the original fit, 123 s total.\nNoise:   two identical refits at 1.6x differed by up to 0.72 log BF across\n         threshold-relevant edges; verdict moves smaller than that are reported\n         as run-to-run noise, not prior sensitivity.\n         1 edge saturated in one of the two and was left out of that spread.\nSee ?prior_sensitivity_check for the full construction.\n\n\nWalk it top to bottom:\n\nThe headline. 91 of 136 verdicts hold across the whole range. Within the examined scales, those conclusions belong to the data, not to your prior.\nThe four categories. Robust edges kept their verdict at every scale. Changed within run-to-run noise (6 edges) moved less than two identical reruns differ from each other, so the check refuses to call that prior sensitivity. Changed beyond run-to-run noise (31 edges) are the genuine movers. Not certifiable (8 edges) are too noisy to assess at all.\nThe movers table. One row per genuine mover, with its verdict at each anchor scale, so you can see where along the range each verdict changes. Read the direction: a wider slab pulls borderline presence edges into the undecided band and borderline undecided edges into absence. The presence verdicts are the sturdy ones here: of the 35, one (flash-concen) genuinely moves, and then no further than undecided. No edge anywhere crosses between presence and absence.\nThe not-certifiable list. These eight edges sit within Monte Carlo error of a threshold at the chosen scale itself, or their chains disagree, so a rerun with a fresh seed could flip them without any prior change. They need more iterations, not interpretation.\nVerdict counts by scale. The same drift, summarized: absence grows from 37 edges at 0.4x to 77 at 2.5x. The report says why: a wider slab strengthens evidence against borderline edges. That is a property of the Bayes factor, not a defect of the check.\nThe chosen-scale note. The data prefer a scale of about 0.18 [0.148, 0.218]; the analysis used 1. The interaction weights of these data are small, so the conventional unit scale is a deliberately wide assumption, and the absence verdicts near a threshold should be read with that in mind.\nThe method block. One honesty acknowledgement suffices here: the curve is carried by real refits, not by reweighting one fit beyond its reach. The construction lives in prior_sensitivity_check() and, in full, in the paper.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#read-the-curve",
+    "href": "examples/check-your-priors.html#read-the-curve",
+    "title": "Check your priors",
+    "section": "Read the curve",
+    "text": "Read the curve\nThe figure at the top of the page is one call:\n\nplot(ps)\n\nEach line is one edge’s log inclusion Bayes factor as a continuous function of the slab scale; the dots mark the five anchor fits, and the 1x anchor is your own analysis. The shaded band is the undecided zone between the evidence thresholds, so the plot reads at a glance: a flat curve is a robust edge, and a verdict changes exactly where a curve crosses into or out of the band. The colored, labeled curves are the ten movers with the largest evidence swings (max_labels sets how many are named); the remaining movers stay grey alongside the robust edges, so the movers table in the report, not the figure, is the complete list. Here the curves drift downward nearly in parallel as the slab widens, which is the mechanism from the report’s count table drawn as geometry.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#how-to-report",
+    "href": "examples/check-your-priors.html#how-to-report",
+    "title": "Check your priors",
+    "section": "How to report",
+    "text": "How to report\nReport four items and one figure: how many verdicts hold across the whole range; the named edges whose verdicts genuinely depend on the scale, together with the direction of their change; the scale the data prefer next to the scale you chose; and, for any edge that carries a substantive claim, the range of scales over which its verdict holds. The curve figure belongs in an appendix or supplementary material. In a manuscript this takes two sentences:\n\nA prior sensitivity check (prior_sensitivity_check() in bgms) varied the interaction slab scale from 0.4 to 2.5 times the chosen value; &lt;N&gt; of &lt;M&gt; edge verdicts held across the whole range, and no edge moved between presence and absence. The &lt;K&gt; scale-dependent verdicts all moved between undecided and a neighboring category (&lt;named edges and directions&gt;); the data-preferred scale was &lt;s-hat&gt; [&lt;lo&gt;, &lt;hi&gt;] against the chosen &lt;s&gt;.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#how-to-act",
+    "href": "examples/check-your-priors.html#how-to-act",
+    "title": "Check your priors",
+    "section": "How to act",
+    "text": "How to act\nActing on the result follows the report’s categories.\n\nA robust verdict is reported as is. The check has shown that, within the examined range, the conclusion belongs to the data rather than to the scale.\nA not-certifiable edge calls for more iterations, not for interpretation.\nA genuine mover is a finding, not a nuisance. Its verdict is a joint product of the data and the chosen scale, and the honest report says so and names the scales on which each reading rests. Three responses are defensible: when substantive grounds single out a narrower range of plausible scales and the verdict holds there, report the verdict with those grounds; when no such grounds exist, treat the mover as undecided in the interpretation, whatever its verdict at your chosen scale, and let its stability range say why; and when the edge matters enough, collect more data: sharper Bayes factors sit further from the thresholds.\n\nOne response is not defensible: choosing the scale after seeing which verdict it delivers. The check reports sensitivity; it is not a menu.\nOne extra caution for evidence of absence, visible in the curve figure: a wider slab mechanically strengthens the evidence against borderline edges. When your chosen scale sits far above the scale the data prefer, as it does here, absence verdicts near the threshold are scale-conditional statements and should be reported as such.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#what-to-report",
+    "href": "examples/check-your-priors.html#what-to-report",
+    "title": "Check your priors",
+    "section": "What to report",
+    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nThe count: “&lt;N&gt; of &lt;M&gt; edge verdicts held across slab scales from 0.4 to 2.5 times the chosen value; no edge moved between presence and absence.”\nThe movers, named, with their direction of change; treat a mover as undecided in the interpretation unless substantive grounds pin down a narrower range of scales on which its verdict holds.\nThe data-preferred scale next to the chosen one: “&lt;s-hat&gt; [&lt;lo&gt;, &lt;hi&gt;] against the chosen &lt;s&gt;.”\nFor any edge carrying a substantive claim, the range of scales over which its verdict holds.\nNot licensed: rerunning the analysis at whichever scale delivers the verdict you prefer.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/check-your-priors.html#where-to-next",
+    "href": "examples/check-your-priors.html#where-to-next",
+    "title": "Check your priors",
+    "section": "Where to next",
+    "text": "Where to next\n\nPrior Basics for what the slab scale does and why it has this leverage on the verdicts.\nprior_sensitivity_check() for the arguments, the returned object, and the construction of the curve.\nThe tutorial manuscript that develops the check and its reading in full is in preparation.\nBack in the series: From estimation to evidence, the analysis this check certifies.",
+    "crumbs": [
+      "Examples",
+      "Check your priors"
+    ]
+  },
+  {
     "objectID": "examples/estimation-to-evidence.html",
     "href": "examples/estimation-to-evidence.html",
     "title": "From estimation to evidence",
@@ -2567,7 +2655,7 @@
     "href": "examples/estimation-to-evidence.html#where-to-next",
     "title": "From estimation to evidence",
     "section": "Where to next",
-    "text": "Where to next\n\nEdge Selection for why the inclusion Bayes factor works this way. A Check your priors page, on whether your verdicts depend on the prior, is in preparation; until it ships, see prior_sensitivity_check().\nbgm() and extract_inclusion_bf() for the arguments and return values.\nThe tutorial manuscript that develops this analysis in full, with the estimation-versus-evidence comparison it only gestures at here, is in preparation; Huth et al. (2026) carry the citable record on how often published network edges rest on inconclusive evidence.\nNext in the series: Reading the output.",
+    "text": "Where to next\n\nEdge Selection for why the inclusion Bayes factor works this way, and Check your priors for whether these verdicts depend on the prior.\nbgm() and extract_inclusion_bf() for the arguments and return values.\nThe tutorial manuscript that develops this analysis in full, with the estimation-versus-evidence comparison it only gestures at here, is in preparation; Huth et al. (2026) carry the citable record on how often published network edges rest on inconclusive evidence.\nNext in the series: Reading the output.",
     "crumbs": [
       "Examples",
       "From estimation to evidence"
@@ -3161,7 +3249,7 @@
     "href": "guide/prior-basics.html#the-slab-prior-on-effect-sizes",
     "title": "Prior Basics",
     "section": "The slab: prior on effect sizes",
-    "text": "The slab: prior on effect sizes\nThe slab distribution determines the prior plausibility of different effect sizes for edges that are present. In bgms, the slab is set via the interaction_prior argument and defaults to a Normal distribution centered at zero with scale 1 (normal_prior(scale = 1)). Alternative slabs are available through the prior constructors: cauchy_prior() for a heavier-tailed prior and beta_prime_prior() for a beta-prime parameterization.\nThe Normal slab concentrates prior mass on moderate effect sizes: its peak at zero provides shrinkage toward small effects, and its light tails discourage extreme estimates. The Cauchy alternative has heavy tails, which allows occasional large effects when the data support them at the cost of weaker regularization. bgmCompare() takes the same Normal default for its baseline effects, so a comparison and a single-group fit place the same prior on a baseline interaction.\nThe scale parameter controls the width of the slab. A wider slab spreads prior probability over a larger range of effect sizes. This has a direct consequence for edge selection: because the slab is also the alternative hypothesis for the inclusion Bayes factor, a wider slab makes it harder for the Bayes factor to favor inclusion when the true effect is small.\nBecause the choice is consequential, bgms lets you check it after the fact. prior_sensitivity_check() recovers each edge’s inclusion Bayes factor across a range of slab scales around the one you used, and reports which edge verdicts are robust to that choice and which depend on it.",
+    "text": "The slab: prior on effect sizes\nThe slab distribution determines the prior plausibility of different effect sizes for edges that are present. In bgms, the slab is set via the interaction_prior argument and defaults to a Normal distribution centered at zero with scale 1 (normal_prior(scale = 1)). Alternative slabs are available through the prior constructors: cauchy_prior() for a heavier-tailed prior and beta_prime_prior() for a beta-prime parameterization.\nThe Normal slab concentrates prior mass on moderate effect sizes: its peak at zero provides shrinkage toward small effects, and its light tails discourage extreme estimates. The Cauchy alternative has heavy tails, which allows occasional large effects when the data support them at the cost of weaker regularization. bgmCompare() takes the same Normal default for its baseline effects, so a comparison and a single-group fit place the same prior on a baseline interaction.\nThe scale parameter controls the width of the slab. A wider slab spreads prior probability over a larger range of effect sizes. This has a direct consequence for edge selection: because the slab is also the alternative hypothesis for the inclusion Bayes factor, a wider slab makes it harder for the Bayes factor to favor inclusion when the true effect is small.\nBecause the choice is consequential, bgms lets you check it after the fact. prior_sensitivity_check() recovers each edge’s inclusion Bayes factor across a range of slab scales around the one you used, and reports which edge verdicts are robust to that choice and which depend on it. Check your priors runs the check on a real fit and walks through its report, its curve, and what to do with a verdict that moves.",
     "crumbs": [
       "Get Started",
       "Background",

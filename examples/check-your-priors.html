@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Worked analyses – bgms</title>
+<title>Check your priors – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,6 +26,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -36,7 +71,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../examples/estimation-to-evidence.html" rel="next">
+<link href="../examples/reading-the-output.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -324,7 +359,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/index.html">Worked analyses</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/check-your-priors.html">Check your priors</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -338,7 +373,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../examples/index.html" class="sidebar-item-text sidebar-link active">
+  <a href="../examples/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Worked analyses</span></a>
   </div>
 </li>
@@ -356,7 +391,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../examples/check-your-priors.html" class="sidebar-item-text sidebar-link">
+  <a href="../examples/check-your-priors.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Check your priors</span></a>
   </div>
 </li>
@@ -372,8 +407,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Worked analyses</h1>
-<p class="subtitle lead">One analysis per page, from the call you type to the sentence you write</p>
+<h1 class="title">Check your priors</h1>
 </div>
 
 
@@ -390,31 +424,160 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Each page in this section runs one analysis end to end on data that ships with the package. You see the figure first, then the code that produced it, then the output it prints, then the claims that output licenses. Everything on a page is reproducible: the code you read is the code that ran, and each page comes with a companion script that reruns it in your own session.</p>
-<p>These pages give you just enough to run and report each analysis; the Guide carries the reasoning, the Reference the details.</p>
-<section id="the-series" class="level2">
-<h2 class="anchored" data-anchor-id="the-series">The series</h2>
-<ol type="1">
-<li><strong><a href="../guide/getting-started.html">Your first network</a>.</strong> Install <code>bgms</code>, fit your first model, and read the network split by evidence. Afterwards you can fit <a href="../reference/bgm.html"><code>bgm()</code></a> to your own data and produce the figure this site treats as the canonical result display.</li>
-<li><strong><a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>.</strong> The full Wenchuan network, estimated first and then weighed pair by pair with an inclusion Bayes factor. Afterwards you can say which associations your data support, which they rule out, and which they leave open.</li>
-<li><strong><a href="../examples/reading-the-output.html">Reading the output</a>.</strong> The <code>summary()</code> of a real fit, walked block by block. Afterwards you can tell whether a fit is trustworthy and where every number you need lives.</li>
-<li><strong><a href="../examples/check-your-priors.html">Check your priors</a>.</strong> <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a> run on a fitted model, with its report and its curve read in full. Afterwards you can answer the question of whether your prior drove your conclusions, and report the answer.</li>
-<li><strong>Comparing groups.</strong> Two groups compared with <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>. Afterwards you can state both kinds of claim the method separates: this association differs between groups, and this one is credibly the same.</li>
-<li><strong>Edge clustering.</strong> The stochastic block model prior on the same data. Afterwards you can report clusters of variables together with the uncertainty in the allocations.</li>
-<li><strong>Coming from bootnet and qgraph.</strong> Your current workflow mapped onto <code>bgms</code>, call by call. Afterwards you know which function replaces which step, what is new, and what has no direct analogue.</li>
-<li><strong>Reporting your results.</strong> Checklists and template paragraphs per analysis type. Afterwards you can assemble a Methods and Results section that a reviewer can follow.</li>
-</ol>
-<p>Entries without a link are still in preparation.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-payoff" class="quarto-float quarto-figure quarto-figure-center anchored" width="768">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="check-your-priors_files/figure-html/fig-payoff-1.png" id="fig-payoff" class="img-fluid figure-img" width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Ninety-one of the 136 edge verdicts of the Wenchuan analysis hold across the whole examined range of prior scales. The colored, named curves are the ten edges whose verdict depends most on that choice, and every verdict that moves anywhere on this plot moves between undecided and a neighboring category.</p>
+<p>“Would your conclusions survive a different prior?” is the question every reviewer of a Bayesian analysis is entitled to ask, and for edge verdicts it has real force: the Bayes factor’s evidence of absence is calibrated by how large the weights of a present edge were assumed to be, which is exactly what the interaction prior’s scale says. The honest answer is to redo the analysis under a range of scales and see which verdicts move. Refitting a slow model many times is usually the obstacle; <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a> gives you the refit-based answer with one call, at well under the cost of one additional fit.</p>
+<section id="run-it" class="level2">
+<h2 class="anchored" data-anchor-id="run-it">Run it</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">=</span> <span class="fu">prior_sensitivity_check</span>(fit, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The check traces every edge’s inclusion Bayes factor as a continuous curve over scales from 0.4 to 2.5 times the one you fitted with. It rests on five anchor fits, and one of them <em>is</em> your original fit, so the verdicts at your own scale are exactly the analysis you already reported; nothing is re-estimated at 1x. The other four anchors are warm-started refits, and one anchor is refit twice so the check knows how much a Bayes factor wobbles between reruns with no prior change at all. On this fit the four refits cost 123 seconds on top of the original fit. That is the whole price of the reviewer’s answer.</p>
 </section>
-<section id="how-to-use-a-page" class="level2">
-<h2 class="anchored" data-anchor-id="how-to-use-a-page">How to use a page</h2>
-<p>Read the figure and the opening question first: they tell you whether the page answers the question you arrived with. The code chunks are shown in the order they ran, so you can work through a page from top to bottom in your own session. Where a page needs the reasoning behind a choice, it links to the <a href="../guide/index.html">Guide</a>; where it needs an argument, a default, or a return value, it links to the <a href="../reference/index.html">Reference</a>.</p>
-<!-- PDF download. Uncomment once the first example pages ship; until then the
-     PDF profile renders this index alone and the link would offer a one-page
-     download. Build it with `make examples-pdf` (see STYLE_GUIDE.md, Example
-     Pages).
-[Download the series as a PDF](bgms-worked-analyses.pdf)
--->
+<section id="read-the-report" class="level2">
+<h2 class="anchored" data-anchor-id="read-the-report">Read the report</h2>
+<p>Printing the result gives the answer first and the machinery last:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ps</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Prior sensitivity check: are the edge verdicts robust to the slab scale?
+Bayes-factor curve from 0.4x to 2.5x the chosen scale (anchors at 0.4x, 0.63x,
+1x, 1.6x, 2.5x; the 1x anchor is the original fit); 136 edges.
+
+91 of 136 verdicts hold across the whole 0.4x-2.5x range; the exceptions are
+named below.
+
+  robust (same verdict at every scale)     91
+  changed, within run-to-run noise          6
+  changed, beyond run-to-run noise         31
+  not certifiable (too noisy to assess)     8
+
+31 edges' verdicts genuinely depend on the scale:
+  edge               0.4x       0.63x      1x         1.6x       2.5x     
+  intrusion-lossint  undecided  absence    absence    absence    absence  
+  intrusion-numb     undecided  absence    absence    absence    absence  
+  intrusion-sleep    undecided  undecided  undecided  undecided  absence  
+  flash-upset        undecided  undecided  absence    absence    absence  
+  flash-avoidth      undecided  undecided  undecided  absence    absence  
+  flash-sleep        undecided  undecided  absence    absence    absence  
+  flash-concen       presence   presence   presence   undecided  undecided
+  flash-hyper        undecided  absence    absence    absence    absence  
+  upset-distant      undecided  undecided  undecided  undecided  absence  
+  upset-numb         undecided  undecided  undecided  absence    absence  
+  ...and 21 more; see $edges.
+
+8 edges are too noisy to assess: intrusion-startle, dreams-numb, flash-startle,
+upset-avoidact, upset-concen, avoidth-concen, avoidth-hyper, avoidact-startle.
+Their Bayes factor sits within Monte Carlo error of an evidence threshold, or
+their chains disagree on the verdict, at the chosen scale itself; a rerun with
+a fresh seed could flip them without any prior change. Run more iterations to
+settle these verdicts before reading their sensitivity.
+
+Verdict counts by scale (at the anchors):
+            0.4x 0.63x 1x 1.6x 2.5x
+  presence    37    36 35   32   32
+  undecided   62    49 39   31   27
+  absence     37    51 62   73   77
+More absence at wider scales is expected: a wider slab strengthens evidence
+against borderline edges.
+
+Note: the chosen scale (1) is much wider than the estimated interactions (about
+0.18 [0.148, 0.218]); absence verdicts in particular depend on this choice.
+
+Method:  43-point curve from 5 anchor fits (0.4x to 2.5x the chosen scale),
+         joined by importance reweighting; the 1x anchor is the original fit.
+         Points with reweighting effective sample size below 400 are not shown.
+Refits:  5 nuts refits, warm-started from the original fit, 123 s total.
+Noise:   two identical refits at 1.6x differed by up to 0.72 log BF across
+         threshold-relevant edges; verdict moves smaller than that are reported
+         as run-to-run noise, not prior sensitivity.
+         1 edge saturated in one of the two and was left out of that spread.
+See ?prior_sensitivity_check for the full construction.</code></pre>
+</div>
+</div>
+<p>Walk it top to bottom:</p>
+<ul>
+<li><strong>The headline.</strong> 91 of 136 verdicts hold across the whole range. Within the examined scales, those conclusions belong to the data, not to your prior.</li>
+<li><strong>The four categories.</strong> <em>Robust</em> edges kept their verdict at every scale. <em>Changed within run-to-run noise</em> (6 edges) moved less than two identical reruns differ from each other, so the check refuses to call that prior sensitivity. <em>Changed beyond run-to-run noise</em> (31 edges) are the genuine movers. <em>Not certifiable</em> (8 edges) are too noisy to assess at all.</li>
+<li><strong>The movers table.</strong> One row per genuine mover, with its verdict at each anchor scale, so you can see where along the range each verdict changes. Read the direction: a wider slab pulls borderline presence edges into the undecided band and borderline undecided edges into absence. The presence verdicts are the sturdy ones here: of the 35, one (<code>flash-concen</code>) genuinely moves, and then no further than undecided. No edge anywhere crosses between presence and absence.</li>
+<li><strong>The not-certifiable list.</strong> These eight edges sit within Monte Carlo error of a threshold at the chosen scale itself, or their chains disagree, so a rerun with a fresh seed could flip them without any prior change. They need more iterations, not interpretation.</li>
+<li><strong>Verdict counts by scale.</strong> The same drift, summarized: absence grows from 37 edges at 0.4x to 77 at 2.5x. The report says why: a wider slab strengthens evidence against borderline edges. That is a property of the Bayes factor, not a defect of the check.</li>
+<li><strong>The chosen-scale note.</strong> The data prefer a scale of about 0.18 [0.148, 0.218]; the analysis used 1. The interaction weights of these data are small, so the conventional unit scale is a deliberately wide assumption, and the absence verdicts near a threshold should be read with that in mind.</li>
+<li><strong>The method block.</strong> One honesty acknowledgement suffices here: the curve is carried by real refits, not by reweighting one fit beyond its reach. The construction lives in <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a> and, in full, in the paper.</li>
+</ul>
+</section>
+<section id="read-the-curve" class="level2">
+<h2 class="anchored" data-anchor-id="read-the-curve">Read the curve</h2>
+<p>The figure at the top of the page is one call:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ps)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Each line is one edge’s log inclusion Bayes factor as a continuous function of the slab scale; the dots mark the five anchor fits, and the 1x anchor is your own analysis. The shaded band is the undecided zone between the evidence thresholds, so the plot reads at a glance: a flat curve is a robust edge, and a verdict changes exactly where a curve crosses into or out of the band. The colored, labeled curves are the ten movers with the largest evidence swings (<code>max_labels</code> sets how many are named); the remaining movers stay grey alongside the robust edges, so the movers table in the report, not the figure, is the complete list. Here the curves drift downward nearly in parallel as the slab widens, which is the mechanism from the report’s count table drawn as geometry.</p>
+</section>
+<section id="how-to-report" class="level2">
+<h2 class="anchored" data-anchor-id="how-to-report">How to report</h2>
+<p>Report four items and one figure: how many verdicts hold across the whole range; the named edges whose verdicts genuinely depend on the scale, together with the direction of their change; the scale the data prefer next to the scale you chose; and, for any edge that carries a substantive claim, the range of scales over which its verdict holds. The curve figure belongs in an appendix or supplementary material. In a manuscript this takes two sentences:</p>
+<blockquote class="blockquote">
+<p>A prior sensitivity check (<code>prior_sensitivity_check()</code> in <code>bgms</code>) varied the interaction slab scale from 0.4 to 2.5 times the chosen value; <code>&lt;N&gt;</code> of <code>&lt;M&gt;</code> edge verdicts held across the whole range, and no edge moved between presence and absence. The <code>&lt;K&gt;</code> scale-dependent verdicts all moved between undecided and a neighboring category (<code>&lt;named edges and directions&gt;</code>); the data-preferred scale was <code>&lt;s-hat&gt;</code> <code>[&lt;lo&gt;, &lt;hi&gt;]</code> against the chosen <code>&lt;s&gt;</code>.</p>
+</blockquote>
+</section>
+<section id="how-to-act" class="level2">
+<h2 class="anchored" data-anchor-id="how-to-act">How to act</h2>
+<p>Acting on the result follows the report’s categories.</p>
+<ul>
+<li><strong>A robust verdict is reported as is.</strong> The check has shown that, within the examined range, the conclusion belongs to the data rather than to the scale.</li>
+<li><strong>A not-certifiable edge calls for more iterations, not for interpretation.</strong></li>
+<li><strong>A genuine mover is a finding, not a nuisance.</strong> Its verdict is a joint product of the data and the chosen scale, and the honest report says so and names the scales on which each reading rests. Three responses are defensible: when substantive grounds single out a narrower range of plausible scales and the verdict holds there, report the verdict with those grounds; when no such grounds exist, treat the mover as undecided in the interpretation, whatever its verdict at your chosen scale, and let its stability range say why; and when the edge matters enough, collect more data: sharper Bayes factors sit further from the thresholds.</li>
+</ul>
+<p>One response is not defensible: choosing the scale after seeing which verdict it delivers. The check reports sensitivity; it is not a menu.</p>
+<p>One extra caution for evidence of absence, visible in the curve figure: a wider slab mechanically strengthens the evidence against borderline edges. When your chosen scale sits far above the scale the data prefer, as it does here, absence verdicts near the threshold are scale-conditional statements and should be reported as such.</p>
+</section>
+<section id="what-to-report" class="level2">
+<h2 class="anchored" data-anchor-id="what-to-report">What to report</h2>
+<div class="callout callout-style-simple callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>What to report
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>The count: “<code>&lt;N&gt;</code> of <code>&lt;M&gt;</code> edge verdicts held across slab scales from 0.4 to 2.5 times the chosen value; no edge moved between presence and absence.”</li>
+<li>The movers, named, with their direction of change; treat a mover as undecided in the interpretation unless substantive grounds pin down a narrower range of scales on which its verdict holds.</li>
+<li>The data-preferred scale next to the chosen one: “<code>&lt;s-hat&gt;</code> <code>[&lt;lo&gt;, &lt;hi&gt;]</code> against the chosen <code>&lt;s&gt;</code>.”</li>
+<li>For any edge carrying a substantive claim, the range of scales over which its verdict holds.</li>
+<li>Not licensed: rerunning the analysis at whichever scale delivers the verdict you prefer.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="where-to-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-next">Where to next</h2>
+<ul>
+<li><a href="../guide/prior-basics.html">Prior Basics</a> for what the slab scale does and why it has this leverage on the verdicts.</li>
+<li><a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a> for the arguments, the returned object, and the construction of the curve.</li>
+<li>The tutorial manuscript that develops the check and its reading in full is in preparation.</li>
+<li>Back in the series: <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>, the analysis this check certifies.</li>
+</ul>
 
 
 </section>
@@ -1054,11 +1217,11 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
+      <a href="../examples/reading-the-output.html" class="pagination-link" aria-label="Reading the output">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Reading the output</span>
+      </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../examples/estimation-to-evidence.html" class="pagination-link" aria-label="From estimation to evidence">
-        <span class="nav-page-text">From estimation to evidence</span> <i class="bi bi-arrow-right-short"></i>
-      </a>
   </div>
 </nav>
 </div> <!-- /content -->
@@ -1069,7 +1232,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </div>   
     <div class="nav-footer-center">
 <p>Built with <a href="https://quarto.org">Quarto</a></p>
-<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/examples/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/examples/check-your-priors.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
