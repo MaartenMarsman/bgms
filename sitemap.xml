@@ -1,67 +1,203 @@
-<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/404.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/CODE_OF_CONDUCT.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/CONTRIBUTING.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/LICENSE-text.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/PULL_REQUEST_TEMPLATE.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/comparison.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/diagnostics.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/index.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/articles/intro.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/authors.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/copilot-instructions.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/index.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/news/index.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/ADHD.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/Boredom.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/Wenchuan.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bernoulli_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_bernoulli_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/beta_prime_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgms-package.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cash-.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cash-.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/cauchy_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/coef.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/exponential_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_arguments.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_category_thresholds.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_edge_indicators.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_ess.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_group_params.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicator_priors.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_indicators.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_log_odds.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_main_effects.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_interactions.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_pairwise_thresholds.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_partial_correlations.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_posterior_inclusion_probabilities.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_precision.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_rhat.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extract_sbm.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/gamma_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/index.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/mrfSampler.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/normal_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/predict.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/print.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sample_ggm_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sbm_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/simulate_mrf.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgmCompare.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/summary.bgms.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/unpack_indicator_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/unpack_interaction_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/unpack_parameter_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/unpack_scale_prior.html</loc></url>
-<url><loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/unpack_threshold_prior.html</loc></url>
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/sample-ggm-prior.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/prior-sensitivity.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/methods.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/extractors.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgmCompare.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/news.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/warmup.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/sbm-prior.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/r-scaffolding.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/parameter-priors.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/omrf-internals.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/numerical.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/model-classes.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/metropolis.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/ggm-internals.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/diagnostics.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/architecture.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/prior-basics.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/mixed-model.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/mcmc-output.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/index.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/graphical-models.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/getting-started.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/clustering.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/examples/reading-the-output.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/examples/index.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/bayesian-approach.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/edge-selection.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/ggm.html</loc>
+    <lastmod>2026-08-04T12:07:01.419Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/group-comparison.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/mcmc-diagnostics.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/missing-data.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/guide/omrf.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/index.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/bgmcompare-internals.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/edge-priors.html</loc>
+    <lastmod>2026-08-04T12:07:01.420Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/index.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/mixed-internals.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/null-space.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/nuts.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/parallel-chains.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/pseudolikelihood.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/samplers.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/variable-helpers.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/manual/zratio-hierarchical.html</loc>
+    <lastmod>2026-08-04T12:07:01.421Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/bgm.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/datasets.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/index.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/prior-samplers.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
+  <url>
+    <loc>https://bayesian-graphical-modelling-lab.github.io/bgms/reference/priors.html</loc>
+    <lastmod>2026-08-04T12:07:01.422Z</lastmod>
+  </url>
 </urlset>
-

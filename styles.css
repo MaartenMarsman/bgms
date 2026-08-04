@@ -1,0 +1,262 @@
+/* bgms documentation */
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+:root {
+  --bs-body-font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bs-body-font-size: 1rem;
+}
+
+/* Base typography */
+body {
+  font-family: var(--bs-body-font-family);
+  font-size: 1rem;
+}
+
+/* Links: no underlines, matching Quarto.org style */
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Navbar styling - consistent across themes */
+.navbar {
+  border-bottom: 1px solid #dee2e6;
+  font-size: 1rem;
+}
+
+.navbar-brand {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.navbar-nav .nav-link {
+  font-size: 1rem;
+}
+
+/* Logo sizing in navbar */
+.navbar-brand img {
+  height: 50px;
+  width: auto;
+  max-height: none;
+}
+
+.navbar {
+  min-height: 66px;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+/* Custom navbar icons */
+.navbar-icon {
+  height: 20px;
+  width: auto;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.navbar-icon:hover {
+  opacity: 1;
+}
+
+.navbar-nav .nav-link .navbar-icon {
+  vertical-align: middle;
+}
+
+pre {
+  border-radius: 6px;
+}
+
+/* Math styling */
+.math {
+  font-size: 1em;
+}
+
+/* Code block improvements */
+div.sourceCode {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+/* Headings */
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.6rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+h3 {
+  font-size: 1.3rem;
+}
+
+/* Sidebar styling */
+.sidebar-navigation .sidebar-item a {
+  font-size: 0.95rem;
+}
+
+.sidebar-navigation {
+  padding-left: 0;
+}
+
+/* Table of contents */
+.sidebar nav[role="doc-toc"] a {
+  font-size: 0.9rem;
+}
+
+/* Consistent sizing in dark mode */
+[data-bs-theme="dark"] body,
+.quarto-dark body {
+  font-size: 1.05rem;
+}
+
+[data-bs-theme="dark"] .navbar,
+.quarto-dark .navbar {
+  font-size: 1rem;
+}
+
+/* Citation picker */
+.citation-picker {
+  margin-top: 0.6rem;
+}
+
+.citation-picker-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.citation-tab {
+  border: 1px solid #c7ced6;
+  background: #f8f9fb;
+  border-radius: 999px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.citation-tab.is-active {
+  border-color: #0b5ed7;
+  background: #0b5ed7;
+  color: #fff;
+}
+
+.citation-panel {
+  padding: 0.8rem;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.citation-panel > p {
+  margin: 0;
+}
+
+[data-bs-theme="dark"] .citation-tab,
+.quarto-dark .citation-tab {
+  border-color: #4a5057;
+  background: #25292e;
+  color: #e8ecef;
+}
+
+[data-bs-theme="dark"] .citation-panel,
+.quarto-dark .citation-panel {
+  border-color: #4a5057;
+  background: #1f2328;
+}
+
+/* Version switcher: the navbar dropdown written by js.html from versions.json.
+   The navbar carries data-bs-theme="dark" in both colour schemes, so the
+   dropdown inherits one legible palette either way. */
+.bgms-version-switcher .nav-link {
+  cursor: pointer;
+}
+
+.bgms-version-switcher .dropdown-menu {
+  min-width: 11rem;
+  font-size: 0.95rem;
+}
+
+.bgms-version-switcher .dropdown-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bgms-version-kind {
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+/* Development-build banner, written into every page of a /dev/ build by
+   scripts/dev-build.R. The navbar is fixed to the top of the viewport, so the
+   banner sits above it and both the navbar and the page start lower. */
+:root {
+  --bgms-dev-banner-height: 2.25rem;
+  /* Mirrors Quarto's own body.nav-fixed padding, which reserves the navbar. */
+  --bgms-navbar-height: 64px;
+}
+
+.bgms-dev-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1035;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--bgms-dev-banner-height);
+  padding: 0.3rem 2.25rem;
+  background: #8a5a00;
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.bgms-dev-banner a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.bgms-dev-banner-dismiss {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 0.35rem;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.bgms-dev-banner-dismiss:hover {
+  opacity: 1;
+}
+
+body.bgms-dev-build.nav-fixed {
+  padding-top: calc(var(--bgms-navbar-height) + var(--bgms-dev-banner-height));
+}
+
+body.bgms-dev-build #quarto-header.fixed-top {
+  top: var(--bgms-dev-banner-height);
+}
+
+[data-bs-theme="dark"] .bgms-dev-banner,
+.quarto-dark .bgms-dev-banner {
+  background: #6b4600;
+}

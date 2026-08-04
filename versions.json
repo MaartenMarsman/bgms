@@ -1,0 +1,9 @@
+{
+  "_comment": "Written by scripts/versions.R during the release render; do not edit. Every documented version of bgms, newest first. Add an archived release by adding its version string to ARCHIVED in that script.",
+  "root": "/bgms/",
+  "versions": [
+    {"version": "0.2.0.0", "kind": "release", "path": "/bgms/"},
+    {"version": "development", "kind": "development", "path": "/bgms/dev/"}
+  ]
+}
+
