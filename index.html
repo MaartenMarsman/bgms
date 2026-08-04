@@ -416,9 +416,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(Wenchuan)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan)</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The same fit weighs every possible edge and reports the evidence:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/edge-evidence-wenchuan.png" class="img-fluid figure-img" alt="Three network panels on one shared layout: evidence of presence (35 edges, weighted), evidence of absence (62, dashed), undecided (39, dotted)."></p>
+<figcaption>The Wenchuan network split by evidence: pairs the data support, pairs they rule out, and pairs they leave undecided.</figcaption>
+</figure>
+</div>
+<p>Of the 136 possible edges, 35 are supported, 62 are ruled out, and 39 are undecided: the split an estimated network cannot make. <a href="./examples/estimation-to-evidence.html">See the full analysis →</a></p>
 </section>
 </div>
 <div class="content-block">
+<div class="text-center pt-3 pb-2">
+<p>New to Bayesian graphical models? Start with the <a href="./examples/index.html">worked analyses</a>. Coming from <code>bootnet</code> or <code>qgraph</code>? Start with <a href="./examples/from-bootnet-qgraph.html">your workflow, translated</a>.</p>
+</div>
 <div class="features">
 <section id="users-guide" class="feature">
 <h3>User’s Guide</h3>
@@ -443,8 +454,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="get-started alt-background">
-<section id="citation" class="content-block">
-<h3>Citation</h3>
+<div class="content-block">
+<h3 id="citation">Citation</h3>
 <p>If you use <code>bgms</code> in your research, please cite the software package.</p>
 <p>Choose a citation format (version is set to the documented release):</p>
 <div class="citation-picker" data-cite-picker="bgms">
@@ -495,7 +506,10 @@ ER  -
 <p>To generate citations directly from your installed package in R:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">citation</span>(<span class="st">"bgms"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">toBibtex</span>(<span class="fu">citation</span>(<span class="st">"bgms"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
+<h3 id="the-science">The science</h3>
+<p>The tutorial developing this workflow end to end is in preparation. The methods are published: <a href="https://doi.org/10.1007/s11336-022-09848-8">Marsman et al.&nbsp;(2022)</a> on Bayesian edge screening and structure selection, <a href="https://doi.org/10.1080/00273171.2024.2345915">Sekulovski et al.&nbsp;(2024)</a> on testing conditional independence, and <a href="https://doi.org/10.1038/s41562-025-02314-2">Huth et al.&nbsp;(2026)</a> on how often published network edges rest on inconclusive evidence.</p>
+<p><strong>2026-08-04</strong>: <code>bgms</code> 0.2.0.0 is on CRAN. <a href="./news.html">News →</a></p>
+</div>
 </div>
 
 
