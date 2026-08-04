@@ -41,6 +41,16 @@ released from this line yet.
   follows it, as the measurement that says whether the flag is noise rather than
   as the first thing to try. `vignette("diagnostics")` gives the same order.
 
+## Documentation
+
+* `prior_sensitivity_check()`'s Details said the refit gate leans on per-chain
+  verdict agreement and the indicator transition ESS. The gate reads the median
+  split-R-hat over the continuous parameters and over the Rao-Blackwellized
+  inclusion probabilities together with the NUTS energy diagnostics, and reports
+  the smallest Rao-Blackwellized inclusion `n_eff` in `$grid$inclusion_ess_min`;
+  per-chain agreement is the edge-level sufficiency check. The transition ESS
+  was retired in 0.2.0.0.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits
