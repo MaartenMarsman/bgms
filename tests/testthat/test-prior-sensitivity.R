@@ -375,7 +375,8 @@ test_that("the compare noise yardstick runs per indicator, not per gated paramet
   warns = character(0)
   ps = withCallingHandlers(
     suppressMessages(prior_sensitivity_check(
-      fit, anchors = c(0.5, 1, 2), iter = 200, warmup = 200,
+      fit,
+      anchors = c(0.5, 1, 2), iter = 200, warmup = 200,
       ess_floor = 50, seed = 13
     )),
     warning = function(w) {
@@ -490,8 +491,12 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
   # the doubled scale, all on deterministic seeds.
   anchors = lapply(c(11, 1011, 2011), function(s) compare_at(1, s))
   pair_seeds = list(c(12, 13), c(14, 15), c(16, 17), c(18, 19))
-  pips = lapply(pair_seeds, function(s) list(pip_of(compare_at(2, s[1])),
-                                             pip_of(compare_at(2, s[2]))))
+  pips = lapply(pair_seeds, function(s) {
+    list(
+      pip_of(compare_at(2, s[1])),
+      pip_of(compare_at(2, s[2]))
+    )
+  })
 
   nm = get_raw_samples(anchors[[1]])$parameter_names$indicator
   pairwise = !grepl("(main)", nm, fixed = TRUE)

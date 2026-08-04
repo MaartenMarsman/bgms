@@ -170,9 +170,9 @@ test_that("bgmCompare accepts character, factor, integer, and 0/1 group indicato
   }
 
   fit = without_support_warning(bgmCompare(
-      x = x, group_indicator = language,
-      iter = 25, warmup = 50, chains = 1, seed = 21,
-      display_progress = "none"
+    x = x, group_indicator = language,
+    iter = 25, warmup = 50, chains = 1, seed = 21,
+    display_progress = "none"
   ))
   expect_s3_class(fit, "bgmCompare")
   expect_equal(sort(unique(extract_arguments(fit)$group)), c(1L, 2L))

@@ -753,8 +753,10 @@ test_that("sparse category codings recode to the fitted categories", {
   for(v in seq_len(p)) expect_equal(as.numeric(args$category_levels[[v]]), sparse)
 
   # --- original-scale newdata is recoded through the map, not by min-shift ---
-  newdata = matrix(rep(sparse, times = p), nrow = 4, ncol = p,
-    dimnames = list(NULL, colnames(x_sparse)))
+  newdata = matrix(rep(sparse, times = p),
+    nrow = 4, ncol = p,
+    dimnames = list(NULL, colnames(x_sparse))
+  )
   recoded = bgms:::recode_data_for_prediction(
     newdata, args$num_categories, rep(TRUE, p),
     category_levels = args$category_levels,
@@ -816,7 +818,8 @@ test_that("simulated margins match predicted margins for the same group", {
 
   draw = function(omega, seed) {
     simulate_mrf(
-      500, p, num_categories = 2, pairwise = omega, main = main,
+      500, p,
+      num_categories = 2, pairwise = omega, main = main,
       variable_type = "ordinal", iter = 50, seed = seed
     )
   }
@@ -828,11 +831,13 @@ test_that("simulated margins match predicted margins for the same group", {
   for(g in 1:2) {
     rows = seq_len(500) + (g - 1L) * 500L
     expect_true(all(apply(x[rows, ], 2, function(z) length(unique(z))) == 3L),
-      info = sprintf("group %d does not use every category", g))
+      info = sprintf("group %d does not use every category", g)
+    )
   }
 
   fit = bgmCompare(
-    x, group = rep(1:2, each = 500),
+    x,
+    group = rep(1:2, each = 500),
     iter = 300, warmup = 200, chains = 1, seed = 42,
     difference_selection = FALSE, display_progress = "none"
   )
@@ -852,8 +857,10 @@ test_that("simulated margins match predicted margins for the same group", {
   for(g in 1:2) {
     ctx = sprintf("group %d", g)
     sim = simulate(fit, nsim = nsim, seed = 100L + g, group = g, iter = 500)
-    probabilities = predict(fit, newdata = sim, group = g,
-      type = "probabilities")
+    probabilities = predict(fit,
+      newdata = sim, group = g,
+      type = "probabilities"
+    )
 
     residual = function(scored) {
       max(vapply(seq_len(p), function(v) {

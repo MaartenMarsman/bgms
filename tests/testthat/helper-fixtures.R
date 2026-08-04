@@ -98,11 +98,11 @@ get_bgmcompare_fit = function() {
   if(is.null(.test_cache$bgmcompare_fit)) {
     data("ADHD", package = "bgms")
     .test_cache$bgmcompare_fit = without_support_warning(bgmCompare(
-        x = ADHD[, 2:5], # 4 binary symptom variables, full dataset
-        group_indicator = ADHD[, "group"], # ADHD diagnosis group
-        iter = 50, warmup = 100, chains = 2,
-        seed = 54321,
-        display_progress = "none"
+      x = ADHD[, 2:5], # 4 binary symptom variables, full dataset
+      group_indicator = ADHD[, "group"], # ADHD diagnosis group
+      iter = 50, warmup = 100, chains = 2,
+      seed = 54321,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit
@@ -116,10 +116,10 @@ get_bgmcompare_fit_xy = function() {
     x = Wenchuan[1:25, 1:4]
     y = Wenchuan[26:50, 1:4]
     .test_cache$bgmcompare_fit_xy = without_support_warning(bgmCompare(
-        x = x, y = y,
-        iter = 50, warmup = 100, chains = 2,
-        seed = 1234,
-        display_progress = "none"
+      x = x, y = y,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 1234,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_xy
@@ -133,10 +133,10 @@ get_bgmcompare_fit_ordinal = function() {
     x = Wenchuan[1:50, 1:4] # 4 ordinal variables
     group_ind = rep(1:2, each = 25)
     .test_cache$bgmcompare_fit_ordinal = without_support_warning(bgmCompare(
-        x = x, group_indicator = group_ind,
-        iter = 50, warmup = 100, chains = 2,
-        seed = 54321,
-        display_progress = "none"
+      x = x, group_indicator = group_ind,
+      iter = 50, warmup = 100, chains = 2,
+      seed = 54321,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_ordinal
@@ -193,12 +193,12 @@ get_bgmcompare_fit_adaptive_metropolis = function() {
   if(is.null(.test_cache$bgmcompare_fit_am)) {
     data("ADHD", package = "bgms")
     .test_cache$bgmcompare_fit_am = without_support_warning(bgmCompare(
-        x = ADHD[, 2:5],
-        group_indicator = ADHD[, "group"],
-        update_method = "adaptive-metropolis",
-        iter = 50, warmup = 100, chains = 2,
-        seed = 88888,
-        display_progress = "none"
+      x = ADHD[, 2:5],
+      group_indicator = ADHD[, "group"],
+      update_method = "adaptive-metropolis",
+      iter = 50, warmup = 100, chains = 2,
+      seed = 88888,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_am
@@ -215,15 +215,15 @@ get_bgmcompare_fit_main_selection = function() {
     rows = c(1:25, 491:515)
     lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_main_sel = without_support_warning(bgmCompare(
-        x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
-        group_indicator = lang,
-        difference_selection = TRUE,
-        main_difference_selection = TRUE,
-        variable_type = "blume-capel",
-        baseline_category = 3,
-        iter = 25, warmup = 50, chains = 1,
-        seed = 44444,
-        display_progress = "none"
+      x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      difference_selection = TRUE,
+      main_difference_selection = TRUE,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 44444,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_main_sel
@@ -239,13 +239,13 @@ get_bgmcompare_fit_beta_bernoulli = function() {
     x = Wenchuan[1:25, 1:4]
     y = Wenchuan[26:50, 1:4]
     .test_cache$bgmcompare_fit_bb = without_support_warning(bgmCompare(
-        x = x, y = y,
-        difference_selection = TRUE,
-        main_difference_selection = TRUE,
-        difference_prior = beta_bernoulli_prior(alpha = 1, beta = 4),
-        iter = 25, warmup = 50, chains = 1,
-        seed = 55555,
-        display_progress = "none"
+      x = x, y = y,
+      difference_selection = TRUE,
+      main_difference_selection = TRUE,
+      difference_prior = beta_bernoulli_prior(alpha = 1, beta = 4),
+      iter = 25, warmup = 50, chains = 1,
+      seed = 55555,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_bb
@@ -327,13 +327,13 @@ get_bgmcompare_fit_blumecapel = function() {
     # The character column is a valid indicator; groups number by first appearance.
     lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_bc = without_support_warning(bgmCompare(
-        x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
-        group_indicator = lang,
-        variable_type = "blume-capel",
-        baseline_category = 3,
-        iter = 25, warmup = 50, chains = 1,
-        seed = 99991,
-        display_progress = "none"
+      x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 99991,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_bc
@@ -350,14 +350,14 @@ get_bgmcompare_fit_am_blumecapel = function() {
     # The character column is a valid indicator; groups number by first appearance.
     lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_am_bc = without_support_warning(bgmCompare(
-        x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
-        group_indicator = lang,
-        update_method = "adaptive-metropolis",
-        variable_type = "blume-capel",
-        baseline_category = 3,
-        iter = 25, warmup = 50, chains = 1,
-        seed = 99992,
-        display_progress = "none"
+      x = Boredom[rows, 2:5], # 4 ordinal variables (7 categories)
+      group_indicator = lang,
+      update_method = "adaptive-metropolis",
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      iter = 25, warmup = 50, chains = 1,
+      seed = 99992,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_am_bc
@@ -372,11 +372,11 @@ get_bgmcompare_fit_impute = function() {
     x[5, 2] = NA
     y[10, 3] = NA
     .test_cache$bgmcompare_fit_impute = without_support_warning(bgmCompare(
-        x = x, y = y,
-        na_action = "impute",
-        iter = 25, warmup = 50, chains = 1,
-        seed = 11112,
-        display_progress = "none"
+      x = x, y = y,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 11112,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_impute
@@ -396,14 +396,14 @@ get_bgmcompare_fit_blumecapel_impute = function() {
     # The character column is a valid indicator; groups number by first appearance.
     lang = Boredom[rows, "language"]
     .test_cache$bgmcompare_fit_bc_impute = without_support_warning(bgmCompare(
-        x = x,
-        group_indicator = lang,
-        variable_type = "blume-capel",
-        baseline_category = 3,
-        na_action = "impute",
-        iter = 25, warmup = 50, chains = 1,
-        seed = 11113,
-        display_progress = "none"
+      x = x,
+      group_indicator = lang,
+      variable_type = "blume-capel",
+      baseline_category = 3,
+      na_action = "impute",
+      iter = 25, warmup = 50, chains = 1,
+      seed = 11113,
+      display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_bc_impute
@@ -785,7 +785,8 @@ get_bgms_fit_wenchuan6_noselection = function() {
   if(is.null(.test_cache$bgms_fit_wenchuan6_nosel)) {
     data("Wenchuan", package = "bgms")
     .test_cache$bgms_fit_wenchuan6_nosel = bgm(
-      Wenchuan[, 1:6], edge_selection = FALSE,
+      Wenchuan[, 1:6],
+      edge_selection = FALSE,
       chains = 2, iter = 400, warmup = 400, cores = 2, seed = 1,
       display_progress = "none", verbose = FALSE
     )
@@ -813,9 +814,9 @@ get_bgmcompare_fit_wenchuan5 = function() {
   if(is.null(.test_cache$bgmcompare_fit_wenchuan5)) {
     data("Wenchuan", package = "bgms")
     .test_cache$bgmcompare_fit_wenchuan5 = without_support_warning(bgmCompare(
-        x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
-        iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
-        difference_selection = TRUE, display_progress = "none"
+      x = Wenchuan[1:120, 1:5], group_indicator = rep(1:2, each = 60),
+      iter = 300, warmup = 300, chains = 2, cores = 2, seed = 13,
+      difference_selection = TRUE, display_progress = "none"
     ))
   }
   .test_cache$bgmcompare_fit_wenchuan5

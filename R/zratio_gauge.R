@@ -301,7 +301,8 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       } else {
         sprintf("; mediating blocks %d-%d variables", pc$block_lo, pc$block_hi)
       }
-      sprintf("audited %d of %d non-trivial edge moves%s",
+      sprintf(
+        "audited %d of %d non-trivial edge moves%s",
         pc$n_ref, pc$n_ent, blocks
       )
     }
@@ -470,8 +471,10 @@ zratio_collapse_notice = function(chains) {
   }
   max_size = max(vapply(counters, zratio_counter, numeric(1), "max_collapse_size"))
   n_ret = sum(vapply(counters, zratio_counter, numeric(1), "n_collapsed_retained"))
-  max_ret = max(vapply(counters, zratio_counter, numeric(1),
-                       "max_collapse_size_retained"))
+  max_ret = max(vapply(
+    counters, zratio_counter, numeric(1),
+    "max_collapse_size_retained"
+  ))
   limitation = paste0(
     "This is a known limitation of the additive kernel, which serves a Gamma ",
     "diagonal shape below 0.5. The block size at which it discards the ratio ",

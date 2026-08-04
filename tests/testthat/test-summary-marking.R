@@ -176,7 +176,8 @@ test_that("the mark follows the row layout of both difference summaries", {
   for(selection in c(TRUE, FALSE)) {
     expect_warning(
       fit <- bgmCompare(
-        x, group_indicator = group, difference_selection = selection,
+        x,
+        group_indicator = group, difference_selection = selection,
         iter = 200, warmup = 200, chains = 1, cores = 1, seed = 9,
         display_progress = "none", verbose = FALSE
       ),
@@ -211,8 +212,8 @@ test_that("Blume-Capel rows are never marked", {
   n = 90
   draw = function(lo, hi) {
     cbind(
-      A = sample(lo:hi, n, TRUE),   # ordinal, split support -> marked
-      D = sample(lo:hi, n, TRUE),   # same data, Blume-Capel -> exempt
+      A = sample(lo:hi, n, TRUE), # ordinal, split support -> marked
+      D = sample(lo:hi, n, TRUE), # same data, Blume-Capel -> exempt
       B = sample(0:2, n, TRUE)
     )
   }
@@ -221,7 +222,8 @@ test_that("Blume-Capel rows are never marked", {
 
   expect_warning(
     fit <- bgmCompare(
-      x, group_indicator = rep(1:2, each = n),
+      x,
+      group_indicator = rep(1:2, each = n),
       variable_type = c("ordinal", "blume-capel", "ordinal"),
       baseline_category = 0L,
       iter = 200, warmup = 200, chains = 1, cores = 1, seed = 311,

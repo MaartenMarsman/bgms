@@ -215,7 +215,8 @@ test_that("the collapse counter counts exactly the guard hits, and nothing else"
   # is checked against, never as an expectation of its own.
   zc = suppressWarnings(bgms:::zratio_constants(DELTA, 1, alpha = 0.25))
   spec = bgms:::zratio_attach_surface(
-    bgms:::zratio_spec_list(zc, gauge_sweeps = 0L), zc, size = 40, cores = 1L
+    bgms:::zratio_spec_list(zc, gauge_sweeps = 0L), zc,
+    size = 40, cores = 1L
   )
   # The cell must actually be the additive one, or this tests nothing.
   expect_false(isTRUE(spec$mediation_off))

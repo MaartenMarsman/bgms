@@ -6,14 +6,16 @@
 
 test_that("check_warmup_complete returns one value per chain for every field", {
   set.seed(1)
-  energy <- t(replicate(3, as.numeric(arima.sim(list(ar = 0.5), n = 500))))
-  out <- check_warmup_complete(energy)
+  energy = t(replicate(3, as.numeric(arima.sim(list(ar = 0.5), n = 500))))
+  out = check_warmup_complete(energy)
 
-  expected <- c("warmup_incomplete", "energy_slope", "slope_significant",
-                "ebfmi_first_half", "ebfmi_second_half", "var_ratio",
-                "energy_tau", "slope_t_corrected")
+  expected = c(
+    "warmup_incomplete", "energy_slope", "slope_significant",
+    "ebfmi_first_half", "ebfmi_second_half", "var_ratio",
+    "energy_tau", "slope_t_corrected"
+  )
   expect_true(all(expected %in% names(out)))
-  for (nm in expected) expect_length(out[[nm]], 3)
+  for(nm in expected) expect_length(out[[nm]], 3)
 
   expect_type(out$warmup_incomplete, "logical")
   expect_type(out$slope_significant, "logical")
@@ -24,16 +26,16 @@ test_that("check_warmup_complete returns one value per chain for every field", {
 
 test_that("short or degenerate traces return NA diagnostics rather than erroring", {
   # Fewer than 20 draws overall.
-  short <- matrix(rnorm(2 * 10), nrow = 2)
-  out <- check_warmup_complete(short)
+  short = matrix(rnorm(2 * 10), nrow = 2)
+  out = check_warmup_complete(short)
   expect_false(any(out$warmup_incomplete))
   expect_true(all(is.na(out$energy_tau)))
 
   # Enough columns, but one chain is almost entirely non-finite.
   set.seed(2)
-  energy <- t(replicate(2, as.numeric(arima.sim(list(ar = 0.5), n = 100))))
-  energy[2, 5:100] <- NA_real_
-  out2 <- check_warmup_complete(energy)
+  energy = t(replicate(2, as.numeric(arima.sim(list(ar = 0.5), n = 100))))
+  energy[2, 5:100] = NA_real_
+  out2 = check_warmup_complete(energy)
   expect_false(out2$warmup_incomplete[2])
   expect_true(is.na(out2$energy_tau[2]))
 })
@@ -43,8 +45,8 @@ test_that("a stationary trace has tau near 3 and a corrected t below the thresho
   # rho = 0.5 gives an integrated autocorrelation time of about (1+rho)/(1-rho) = 3,
   # matching what real bgms energy traces show.
   set.seed(3)
-  energy <- matrix(as.numeric(arima.sim(list(ar = 0.5), n = 4000)), nrow = 1)
-  out <- check_warmup_complete(energy)
+  energy = matrix(as.numeric(arima.sim(list(ar = 0.5), n = 4000)), nrow = 1)
+  out = check_warmup_complete(energy)
 
   expect_gt(out$energy_tau, 1.5)
   expect_lt(out$energy_tau, 6)
@@ -55,14 +57,14 @@ test_that("a stationary trace has tau near 3 and a corrected t below the thresho
 test_that("a settling transient inflates the naive t and is caught by the flag", {
   # Exponential decay over the first ~600 draws, several energy SDs tall.
   set.seed(4)
-  n <- 2000
-  noise <- as.numeric(arima.sim(list(ar = 0.5), n = n))
-  energy <- matrix(noise + 6 * exp(-seq_len(n) / 300), nrow = 1)
-  out <- check_warmup_complete(energy)
+  n = 2000
+  noise = as.numeric(arima.sim(list(ar = 0.5), n = n))
+  energy = matrix(noise + 6 * exp(-seq_len(n) / 300), nrow = 1)
+  out = check_warmup_complete(energy)
 
   expect_true(out$slope_significant)
   expect_true(out$warmup_incomplete)
-  expect_lt(out$energy_slope, 0)          # settling drifts energy downward
+  expect_lt(out$energy_slope, 0) # settling drifts energy downward
   expect_gt(abs(out$slope_t_corrected), 2.58)
 })
 
@@ -71,10 +73,10 @@ test_that("the reported fields do not change when the flag fires", {
   # energy_tau and slope_t_corrected are reported only. Removing the trend must
   # not alter warmup_incomplete, which is driven by the naive statistic.
   set.seed(5)
-  energy <- t(replicate(4, as.numeric(arima.sim(list(ar = 0.5), n = 1000))))
-  out <- check_warmup_complete(energy)
+  energy = t(replicate(4, as.numeric(arima.sim(list(ar = 0.5), n = 1000))))
+  out = check_warmup_complete(energy)
 
-  naive_flag <- abs(out$energy_slope) > 0 &
+  naive_flag = abs(out$energy_slope) > 0 &
     out$slope_significant | out$ebfmi_first_half < 0.3 | out$var_ratio > 2.0
   expect_equal(out$warmup_incomplete, unname(naive_flag))
 })
@@ -83,7 +85,7 @@ test_that("the reported fields do not change when the flag fires", {
 test_that("integrated_act recovers a known autocorrelation time", {
   set.seed(6)
   # tau = (1 + rho) / (1 - rho); rho = 0.8 gives tau = 9.
-  x <- as.numeric(arima.sim(list(ar = 0.8), n = 20000))
+  x = as.numeric(arima.sim(list(ar = 0.8), n = 20000))
   expect_gt(integrated_act(x), 6)
   expect_lt(integrated_act(x), 13)
 

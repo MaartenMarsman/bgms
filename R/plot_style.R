@@ -207,7 +207,8 @@ bgms_axis = function(side, at, labels = NULL, style = bgms_style()) {
     labels = formatC(at, digits = digits, format = "f")
   }
   graphics::axis(
-    side, at = at, labels = labels,
+    side,
+    at = at, labels = labels,
     col = style$muted, col.ticks = style$muted, col.axis = style$ink,
     lwd = style$lwd_axis, cex.axis = style$cex_axis
   )
@@ -437,8 +438,10 @@ format_bayes_factor = function(bf) {
     return("NA")
   }
   if(bf >= 1) {
-    return(format(round(bf, 2), trim = TRUE, scientific = FALSE,
-      big.mark = ",", drop0trailing = TRUE))
+    return(format(round(bf, 2),
+      trim = TRUE, scientific = FALSE,
+      big.mark = ",", drop0trailing = TRUE
+    ))
   }
   # Below one, keep enough places that 1/10 and 1/100 do not both print as "0".
   places = max(2L, ceiling(-log10(bf)) + 1L)

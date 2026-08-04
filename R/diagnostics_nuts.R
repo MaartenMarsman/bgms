@@ -25,9 +25,13 @@
 # ------------------------------------------------------------------------------
 integrated_act = function(x) {
   n = length(x)
-  if(n < 20) return(1)
+  if(n < 20) {
+    return(1)
+  }
   ess = .compute_ess_cpp(array(x, dim = c(n, 1L, 1L)))[1]
-  if(!is.finite(ess) || ess <= 0) return(NA_real_)
+  if(!is.finite(ess) || ess <= 0) {
+    return(NA_real_)
+  }
   max(1, n / ess)
 }
 
@@ -127,7 +131,9 @@ check_warmup_complete = function(energy_mat) {
     energy_tau = integrated_act(trend_resid[(mid + 1):n_chain])
     slope_t_corrected = if(is.finite(energy_tau)) {
       unname(slope / (slope_se * sqrt(energy_tau)))
-    } else NA_real_
+    } else {
+      NA_real_
+    }
 
     # E-BFMI per half
     ebfmi_first = mean(diff(first_half)^2) / stats::var(first_half)
@@ -286,7 +292,8 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
     # about residual warmup, so reporting it as "energy not stationary" would
     # misdescribe it.
     trigger = if(any(warmup_check$ebfmi_first_half[incomplete_chains] < 0.3,
-                     na.rm = TRUE)) {
+      na.rm = TRUE
+    )) {
       "low first-half E-BFMI"
     } else {
       "energy not stationary"

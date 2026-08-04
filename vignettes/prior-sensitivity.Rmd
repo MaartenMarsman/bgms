@@ -63,10 +63,14 @@ it --- so the call is shown as you would type it and the report beneath it is
 the object that call returned.
 
 ```{r, eval = FALSE}
-fit = bgm(data[, 1:6], seed = 1234, chains = 2, cores = 2,
-          display_progress = "none", verbose = FALSE)
-ps = prior_sensitivity_check(fit, seed = 1234, iter = 3000, warmup = 1000,
-                             cores = 2)
+fit = bgm(data[, 1:6],
+  seed = 1234, chains = 2, cores = 2,
+  display_progress = "none", verbose = FALSE
+)
+ps = prior_sensitivity_check(fit,
+  seed = 1234, iter = 3000, warmup = 1000,
+  cores = 2
+)
 ps
 ```
 

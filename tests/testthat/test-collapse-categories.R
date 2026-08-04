@@ -522,7 +522,8 @@ test_that("bgmCompare() records the per-group support and warns once", {
 
   expect_warning(
     fit <- bgmCompare(
-      x, group_indicator = group, iter = 60, warmup = 60,
+      x,
+      group_indicator = group, iter = 60, warmup = 60,
       chains = 1, cores = 1, seed = 3, display_progress = "none",
       verbose = FALSE
     ),

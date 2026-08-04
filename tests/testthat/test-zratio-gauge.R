@@ -401,7 +401,8 @@ test_that("a mixed hierarchical fit reports harm, not NA (F-022)", {
     matrix(rnorm(n * 8), n, 8)
   )
   fit = bgm(
-    x, variable_type = c(rep("ordinal", 2), rep("continuous", 8)),
+    x,
+    variable_type = c(rep("ordinal", 2), rep("continuous", 8)),
     interaction_prior = normal_prior(scale = 0.5),
     precision_scale_prior = gamma_prior(shape = 1, rate = 6),
     edge_prior = beta_bernoulli_prior(9, 1),

@@ -104,7 +104,7 @@ test_that("format_log_bf caps the magnitude it prints", {
   expect_equal(format_log_bf(-0.004), "= 0.0")
   expect_equal(format_log_bf(-0.04), "= 0.0")
   expect_equal(format_log_bf(0.004), "= 0.0")
-  expect_equal(format_log_bf(-0.06), "= -0.1")   # still rounds to a real value
+  expect_equal(format_log_bf(-0.06), "= -0.1") # still rounds to a real value
 })
 
 test_that("compare_indicator_index lays out main then pairwise per variable", {

@@ -346,13 +346,15 @@ test_that("bgmCompare pairwise effects are on the association scale", {
 
   draw = function(seed) {
     simulate_mrf(
-      400, p, num_categories = 2, pairwise = omega, main = main,
+      400, p,
+      num_categories = 2, pairwise = omega, main = main,
       variable_type = "ordinal", iter = 50, seed = seed
     )
   }
 
   fit = bgmCompare(
-    rbind(draw(11), draw(12)), group = rep(1:2, each = 400),
+    rbind(draw(11), draw(12)),
+    group = rep(1:2, each = 400),
     iter = 600, warmup = 300, chains = 1, seed = 1234,
     difference_selection = FALSE, display_progress = "none"
   )
@@ -387,7 +389,8 @@ test_that("bgmCompare pairwise effects are on the association scale", {
     # And the correct scale has to fit better than the doubled one, which is
     # the direction this data size does resolve.
     expect_lt(rmse(estimate, target), 0.8 * rmse(estimate, 2 * target),
-      label = ctx)
+      label = ctx
+    )
   }
 })
 
@@ -416,7 +419,8 @@ test_that("bgmCompare recovers a planted group difference at its planted size", 
 
   draw = function(omega, seed) {
     simulate_mrf(
-      1200, p, num_categories = 2, pairwise = omega, main = main,
+      1200, p,
+      num_categories = 2, pairwise = omega, main = main,
       variable_type = "ordinal", iter = 50, seed = seed
     )
   }

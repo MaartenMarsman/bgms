@@ -23,10 +23,14 @@ library(bgms)
 
 data = Wenchuan
 
-fit = bgm(data[, 1:6], seed = 1234, chains = 2, cores = 2,
-          display_progress = "none", verbose = FALSE)
-ps = prior_sensitivity_check(fit, seed = 1234, iter = 3000, warmup = 1000,
-                             cores = 2)
+fit = bgm(data[, 1:6],
+  seed = 1234, chains = 2, cores = 2,
+  display_progress = "none", verbose = FALSE
+)
+ps = prior_sensitivity_check(fit,
+  seed = 1234, iter = 3000, warmup = 1000,
+  cores = 2
+)
 
 # prior_sensitivity_check() keeps the anchor refits only when asked to
 # (keep_fits), so at the vignette's call there are no chains attached; the
@@ -40,8 +44,10 @@ saveRDS(ps, out, version = 2)
 size_kb = file.size(out) / 1024
 cat(sprintf("wrote %s (%.1f KB)\n", out, size_kb))
 if(size_kb >= 100) {
-  stop("The vignette payload must stay in double-digit KB; got ",
-       round(size_kb, 1), " KB. Thin it further before shipping.")
+  stop(
+    "The vignette payload must stay in double-digit KB; got ",
+    round(size_kb, 1), " KB. Thin it further before shipping."
+  )
 }
 
 # The vignette prints the object; if that errors here it will error at build.

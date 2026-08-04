@@ -11,10 +11,16 @@
 
 compare_group_labels = function(arguments, num_groups = NULL) {
   labels = arguments$group_labels
-  if(is.null(labels) || !length(labels)) return(NULL)
+  if(is.null(labels) || !length(labels)) {
+    return(NULL)
+  }
   labels = as.character(labels)
-  if(anyNA(labels)) return(NULL)
-  if(!is.null(num_groups) && length(labels) != num_groups) return(NULL)
+  if(anyNA(labels)) {
+    return(NULL)
+  }
+  if(!is.null(num_groups) && length(labels) != num_groups) {
+    return(NULL)
+  }
   labels
 }
 
@@ -23,8 +29,12 @@ compare_group_labels = function(arguments, num_groups = NULL) {
 # tells a reader nothing they did not already have; the parenthetical is for
 # the case where the original value carries information the number does not.
 group_tag = function(labels, g) {
-  if(is.null(labels) || g > length(labels)) return(sprintf("group %d", g))
-  if(identical(labels[g], as.character(g))) return(sprintf("group %d", g))
+  if(is.null(labels) || g > length(labels)) {
+    return(sprintf("group %d", g))
+  }
+  if(identical(labels[g], as.character(g))) {
+    return(sprintf("group %d", g))
+  }
   sprintf("group %d (%s)", g, labels[g])
 }
 
@@ -32,7 +42,9 @@ group_tag = function(labels, g) {
 # when the fit kept its case-level group vector.
 group_mapping_line = function(arguments, num_groups = NULL) {
   labels = compare_group_labels(arguments, num_groups)
-  if(is.null(labels)) return(NULL)
+  if(is.null(labels)) {
+    return(NULL)
+  }
   sizes = NULL
   if(!is.null(arguments$group)) {
     counts = tabulate(as.integer(arguments$group), nbins = length(labels))
@@ -87,15 +99,23 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
   is_ordinal = arguments$is_ordinal_variable
 
   if(is.null(support) || is.null(num_variables) || is.null(num_groups) ||
-     is.null(num_categories) || is.null(is_ordinal)) {
+    is.null(num_categories) || is.null(is_ordinal)) {
     return(NULL)
   }
   num_variables = as.integer(num_variables)
   num_groups = as.integer(num_groups)
-  if(num_groups < 2L) return(NULL)
-  if(length(support) != num_variables) return(NULL)
-  if(length(num_categories) != num_variables) return(NULL)
-  if(length(is_ordinal) != num_variables) return(NULL)
+  if(num_groups < 2L) {
+    return(NULL)
+  }
+  if(length(support) != num_variables) {
+    return(NULL)
+  }
+  if(length(num_categories) != num_variables) {
+    return(NULL)
+  }
+  if(length(is_ordinal) != num_variables) {
+    return(NULL)
+  }
 
   # one flag per row of the main-effects matrix, in variable order
   by_row = vector("list", num_variables)
@@ -107,7 +127,7 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
     num_thresholds = as.integer(num_categories[v])
     cells = support[[v]]
     if(!is.matrix(cells) || nrow(cells) != num_thresholds + 1L ||
-       ncol(cells) != num_groups) {
+      ncol(cells) != num_groups) {
       by_row[[v]] = rep(FALSE, num_thresholds)
       next
     }
@@ -129,7 +149,9 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
     rep(by_row, times = num_contrasts)
   }
 
-  if(length(flags) != num_rows) return(NULL)
+  if(length(flags) != num_rows) {
+    return(NULL)
+  }
   flags
 }
 

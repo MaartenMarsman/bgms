@@ -536,7 +536,7 @@ compare_fields = function(expected, actual, type, id) {
     act_val = actual[[field]]
 
     if(is.null(exp_val) && is.null(act_val)) next
-    if(is.null(exp_val) && field %in% new_since_baseline) next  # note 11
+    if(is.null(exp_val) && field %in% new_since_baseline) next # note 11
     if(is.null(exp_val) != is.null(act_val)) {
       mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next
@@ -673,7 +673,7 @@ check_structure = function(expected, actual, type) {
     exp_val = expected[[field]]
     act_val = actual[[field]]
     if(is.null(exp_val) && is.null(act_val)) next
-    if(is.null(exp_val) && field %in% new_since_baseline) next  # note 11
+    if(is.null(exp_val) && field %in% new_since_baseline) next # note 11
     if(is.null(exp_val) != is.null(act_val)) {
       mismatches = c(mismatches, sprintf("  %s: one is NULL, the other is not", field))
       next

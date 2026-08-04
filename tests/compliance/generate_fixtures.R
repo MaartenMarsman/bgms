@@ -54,8 +54,10 @@ if(identical(cran_version, baseline_version)) {
     "https://cran.r-project.org/src/contrib/Archive/bgms/bgms_%s.tar.gz",
     baseline_version
   )
-  cat("CRAN currently serves", cran_version, "- installing pinned",
-    baseline_version, "from the CRAN Archive...\n")
+  cat(
+    "CRAN currently serves", cran_version, "- installing pinned",
+    baseline_version, "from the CRAN Archive...\n"
+  )
   install.packages(archive_url, repos = NULL, type = "source", lib = cran_lib, quiet = TRUE)
 }
 

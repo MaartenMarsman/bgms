@@ -360,8 +360,10 @@ test_that("the conjugate edge move keeps prior-only chains inside the PD cone", 
       error = function(e) e
     )
     expect_false(inherits(draws, "error"),
-      info = sprintf("%s: %s", ctx,
-        if(inherits(draws, "error")) conditionMessage(draws) else "")
+      info = sprintf(
+        "%s: %s", ctx,
+        if(inherits(draws, "error")) conditionMessage(draws) else ""
+      )
     )
     if(inherits(draws, "error")) next
 

@@ -154,8 +154,10 @@ matrix_edge_colors = function(m) {
 # Returns: the layout matrix qgraph computed.
 # ------------------------------------------------------------------
 shared_network_layout = function(weight, pairs, num_variables, layout, labels) {
-  full = panel_edge_matrix(abs(weight), rep(TRUE, length(weight)), pairs,
-    num_variables)
+  full = panel_edge_matrix(
+    abs(weight), rep(TRUE, length(weight)), pairs,
+    num_variables
+  )
   qgraph::qgraph(
     input = full, labels = labels, directed = FALSE,
     layout = layout, DoNotPlot = TRUE
@@ -182,8 +184,10 @@ shared_network_layout = function(weight, pairs, num_variables, layout, labels) {
 # ------------------------------------------------------------------
 contrast_magnitude = function(differences, pairs) {
   index = cbind(pairs[, 1], pairs[, 2])
-  per_contrast = vapply(differences, function(d) abs(d[index]),
-    numeric(nrow(pairs)))
+  per_contrast = vapply(
+    differences, function(d) abs(d[index]),
+    numeric(nrow(pairs))
+  )
   apply(matrix(per_contrast, nrow = nrow(pairs)), 1L, max)
 }
 
@@ -366,7 +370,11 @@ draw_evidence_panels = function(weight, verdict, pairs, variables,
         absence = grDevices::adjustcolor(style$ink, 0.8),
         undecided = style$muted
       ),
-      lty = switch(class, presence = 1L, absence = 2L, undecided = 3L),
+      lty = switch(class,
+        presence = 1L,
+        absence = 2L,
+        undecided = 3L
+      ),
       edge.width = if(carries_weight) NULL else 1.6,
       ...
     )
@@ -835,12 +843,15 @@ plot.bgmCompare = function(x,
 
   differences = x@posterior_mean_pairwise_differences
   pairs = which(upper.tri(matrix(0, num_variables, num_variables)),
-    arr.ind = TRUE)
+    arr.ind = TRUE
+  )
   pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
 
   if(type == "groups") {
-    compare_group_panels(x, pairs, variables, num_groups, layout,
-      max_panels, page, ...)
+    compare_group_panels(
+      x, pairs, variables, num_groups, layout,
+      max_panels, page, ...
+    )
     return(invisible(x))
   }
 
@@ -865,8 +876,10 @@ plot.bgmCompare = function(x,
     # `type = "groups"` already draws, on the same layout and with the same
     # paging. So this dispatches there rather than refusing.
     if(!weighted) {
-      compare_group_panels(x, pairs, variables, num_groups, layout,
-        max_panels, page, ...)
+      compare_group_panels(
+        x, pairs, variables, num_groups, layout,
+        max_panels, page, ...
+      )
       return(invisible(x))
     }
     draw_weight_network(weight, pairs, variables, unit, layout, ...)
@@ -955,8 +968,10 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
   # so that a node sits in the same place on every page as well as in every
   # panel of one page.
   union_weight = Reduce(pmax, lapply(group_weight, abs))
-  shared = shared_network_layout(union_weight, pairs, num_variables, layout,
-    variables)
+  shared = shared_network_layout(
+    union_weight, pairs, num_variables, layout,
+    variables
+  )
 
   old_par = graphics::par(no.readonly = TRUE)
   on.exit(graphics::par(old_par), add = TRUE)
@@ -966,8 +981,10 @@ compare_group_panels = function(x, pairs, variables, num_groups, layout,
   graphics::par(mfrow = c(1L, min(max_panels, num_groups)))
 
   for(g in shown) {
-    m = panel_edge_matrix(group_weight[[g]], rep(TRUE, nrow(pairs)), pairs,
-      num_variables)
+    m = panel_edge_matrix(
+      group_weight[[g]], rep(TRUE, nrow(pairs)), pairs,
+      num_variables
+    )
     draw_network_panel(
       m, variables, shared,
       title = group_tag(labels, g),
@@ -1122,8 +1139,10 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
       variables[if(first == 1L) 2L else 1L], "')."
     )
   }
-  label = edge_column_label(variables[first], variables[second],
-    colnames(samples))
+  label = edge_column_label(
+    variables[first], variables[second],
+    colnames(samples)
+  )
   if(is.null(label)) {
     stop("No edge between '", variables[first], "' and '", variables[second], "'.")
   }
@@ -1133,8 +1152,10 @@ plot_edge_posterior = function(bgms_object, variable1, variable2,
 
   if(isTRUE(arguments$edge_selection)) {
     evidence = edge_selection_evidence(bgms_object, label)
-    panel = edge_panel_selection(label, draws, prior,
-      evidence$pip, evidence$log_bf)
+    panel = edge_panel_selection(
+      label, draws, prior,
+      evidence$pip, evidence$log_bf
+    )
   } else {
     panel = edge_panel_savage_dickey(label, draws, prior)
   }
@@ -1344,9 +1365,14 @@ edge_panel_selection = function(label, draws, prior, pip, log_bf) {
       paste("log BF", format_log_bf(log_bf))
     ),
     estimate = if(is.null(posterior)) NULL else estimate_lines(slab),
-    interval = if(is.null(posterior)) NULL else stats::quantile(
-      slab, c(0.025, 0.975), names = FALSE
-    ),
+    interval = if(is.null(posterior)) {
+      NULL
+    } else {
+      stats::quantile(
+        slab, c(0.025, 0.975),
+        names = FALSE
+      )
+    },
     style = style
   )
 }
@@ -1482,8 +1508,10 @@ draw_edge_panel = function(panel) {
   posterior_y = if(is.null(panel$posterior)) {
     NULL
   } else {
-    stats::approx(panel$posterior$x, panel$posterior$y, xout = grid,
-      yleft = 0, yright = 0)$y
+    stats::approx(panel$posterior$x, panel$posterior$y,
+      xout = grid,
+      yleft = 0, yright = 0
+    )$y
   }
   # A fit old enough to carry no spec and an edge no draw included leave both
   # curves empty; max() of nothing warns, so the empty case is named instead.
@@ -1551,7 +1579,9 @@ draw_edge_panel = function(panel) {
       if(left_heavy) x_axis$lim[2] else x_axis$lim[1], max(y_axis$at),
       legend = legend_labels,
       lty = if(length(legend_labels) == 2L) c(1, 3) else if(is.null(posterior_y)) 3 else 1,
-      col = if(length(legend_labels) == 2L) c(style$accent, style$muted) else {
+      col = if(length(legend_labels) == 2L) {
+        c(style$accent, style$muted)
+      } else {
         if(is.null(posterior_y)) style$muted else style$accent
       },
       lwd = style$lwd_curve, bty = "n", cex = style$cex_legend,

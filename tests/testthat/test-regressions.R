@@ -45,10 +45,10 @@ test_that("pairwise difference summaries carry the right labels for 3 groups", {
   group_indicator = rep(seq_len(n_groups), each = n_per_group)
 
   fit = without_support_warning(bgmCompare(
-      x = x, group_indicator = group_indicator,
-      difference_selection = TRUE,
-      iter = 50, warmup = 50, chains = 1, seed = 3,
-      display_progress = "none"
+    x = x, group_indicator = group_indicator,
+    difference_selection = TRUE,
+    iter = 50, warmup = 50, chains = 1, seed = 3,
+    display_progress = "none"
   ))
 
   actual = fit$posterior_summary_pairwise_differences$parameter

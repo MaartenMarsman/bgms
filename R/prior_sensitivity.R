@@ -1333,7 +1333,8 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   graphics::rect(10^usr[1], -thr, 10^usr[2], thr,
     col = grDevices::adjustcolor("grey60", 0.12), border = NA
   )
-  graphics::abline(h = c(-thr, thr), col = style$muted, lty = 2,
+  graphics::abline(
+    h = c(-thr, thr), col = style$muted, lty = 2,
     lwd = style$lwd_axis
   )
   graphics::abline(v = 1, col = style$muted, lty = 3, lwd = style$lwd_axis)

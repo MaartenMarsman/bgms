@@ -631,8 +631,8 @@ test_that("the transition scan restarts at every chain boundary", {
 
   expect_equal(res[1, "n01"], 0, ignore_attr = TRUE)
   expect_equal(res[1, "n10"], 0, ignore_attr = TRUE)
-  expect_equal(res[1, "n00"], 49, ignore_attr = TRUE)   # 49 within-chain steps in chain 1
-  expect_equal(res[1, "n11"], 49, ignore_attr = TRUE)   # 49 within-chain steps in chain 2
+  expect_equal(res[1, "n00"], 49, ignore_attr = TRUE) # 49 within-chain steps in chain 1
+  expect_equal(res[1, "n11"], 49, ignore_attr = TRUE) # 49 within-chain steps in chain 2
   # No flip in either direction, so there is no transition ESS to report.
   expect_true(is.na(res[1, "n_eff_mixt"]))
   expect_true(is.na(res[1, "mcse"]))
@@ -643,7 +643,7 @@ test_that("the transition scan restarts at every chain boundary", {
   # three chains that each alternate 0,1,0,1 give 3 * 1 of each per pair.
   alt = make_array(rep(c(0, 1, 0, 1), 3), niter = 4, nchains = 3)
   alt_res = bgms:::.compute_indicator_ess_cpp(alt)
-  expect_equal(alt_res[1, "n01"], 6, ignore_attr = TRUE)   # 2 per chain, 3 chains
-  expect_equal(alt_res[1, "n10"], 3, ignore_attr = TRUE)   # 1 per chain, 3 chains
+  expect_equal(alt_res[1, "n01"], 6, ignore_attr = TRUE) # 2 per chain, 3 chains
+  expect_equal(alt_res[1, "n10"], 3, ignore_attr = TRUE) # 1 per chain, 3 chains
   expect_equal(unname(alt_res[1, "n00"] + alt_res[1, "n11"]), 0)
 })

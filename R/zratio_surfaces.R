@@ -83,7 +83,9 @@ zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
     slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
-  if(!isTRUE(r$ok)) return(NULL)
+  if(!isTRUE(r$ok)) {
+    return(NULL)
+  }
   data.frame(size = n, dens = e / choose(n, 2), S1 = r$S1, S2 = r$S2)
 }
 
@@ -91,7 +93,9 @@ zratio_anchor_cn = function(n, dens, zc, sweeps, burn, seed) {
 zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
   na_ = max(2, floor(n / 2))
   nb_ = n - na_
-  if(nb_ < 2) return(NULL)
+  if(nb_ < 2) {
+    return(NULL)
+  }
   e = min(max(round(dens * na_ * nb_), n - 1), na_ * nb_)
   bp = zratio_rand_conn_bip(na_, nb_, e, seed)
   ee = sum(bp$adj) / 2
@@ -102,7 +106,9 @@ zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
     zc$delta, zc$eta, as.integer(sweeps), as.integer(burn), seed,
     slab_cauchy = identical(zc$slab, "cauchy"), alpha = zc$alpha
   )
-  if(!isTRUE(r$ok)) return(NULL)
+  if(!isTRUE(r$ok)) {
+    return(NULL)
+  }
   data.frame(size = n, dens = ee / (na_ * nb_), S1 = r$S1, S2 = r$S2)
 }
 
@@ -116,8 +122,10 @@ zratio_anchor_bip = function(n, dens, zc, sweeps, burn, seed) {
 # engine uses the additive per-component moment). NULL if no usable anchors.
 zratio_fit_surface_family = function(anchors) {
   train = anchors[is.finite(anchors$S1) & anchors$S1 > 0 &
-                  is.finite(anchors$S2) & anchors$S2 > 0, ]
-  if(nrow(train) == 0) return(NULL)
+    is.finite(anchors$S2) & anchors$S2 > 0, ]
+  if(nrow(train) == 0) {
+    return(NULL)
+  }
   ll = log(train$size)
   dd = train$dens
   df = data.frame(
@@ -129,7 +137,7 @@ zratio_fit_surface_family = function(anchors) {
   fit1 = stats::lm(stats::as.formula(paste("y1 ~", rhs)), data = df)
   fit2 = stats::lm(stats::as.formula(paste("y2 ~", rhs)), data = df)
   coef9 = function(fit) {
-    v = unname(stats::coef(fit))   # [Intercept, m1..m8] in the deploy order
+    v = unname(stats::coef(fit)) # [Intercept, m1..m8] in the deploy order
     v[!is.finite(v)] = 0
     v
   }
@@ -190,7 +198,9 @@ zratio_surface_cache_key = function(zc, max_size, seed0) {
 # Returns: The grid, with a cap tier appended when one is needed.
 # ------------------------------------------------------------------------------
 zratio_cap_tier = function(jobs, cap, dens) {
-  if(nrow(jobs) == 0L || cap - max(jobs$n) <= 2) return(jobs)
+  if(nrow(jobs) == 0L || cap - max(jobs$n) <= 2) {
+    return(jobs)
+  }
   rbind(jobs, expand.grid(n = as.numeric(cap), d = dens))
 }
 
@@ -308,17 +318,17 @@ zratio_anchor_shape_multiplier = function(alpha) {
 zratio_anchor_grids = function(cap) {
   cn = rbind(
     expand.grid(n = c(4, 6, 8, 10, 12, 15, 18, 22, 26, 30), d = c(0.7, 0.8, 0.9, 1.0)),
-    expand.grid(n = c(3, 4),                                 d = c(0.5, 0.7, 0.85, 1.0)),
-    expand.grid(n = c(4, 6, 8, 10, 12, 15),                  d = c(0.35, 0.5)),
-    expand.grid(n = c(36, 42),                               d = c(0.8, 0.9)),
-    expand.grid(n = c(52, 64, 80),                           d = c(0.8, 0.9))
+    expand.grid(n = c(3, 4), d = c(0.5, 0.7, 0.85, 1.0)),
+    expand.grid(n = c(4, 6, 8, 10, 12, 15), d = c(0.35, 0.5)),
+    expand.grid(n = c(36, 42), d = c(0.8, 0.9)),
+    expand.grid(n = c(52, 64, 80), d = c(0.8, 0.9))
   )
   cn = zratio_cap_tier(cn[cn$n <= cap, , drop = FALSE], cap, dens = c(0.8, 0.9))
-  cn = rbind(cn, cn)                                         # 2 reps
+  cn = rbind(cn, cn) # 2 reps
 
   bip = rbind(
     expand.grid(n = c(4, 6, 8, 10, 12, 14, 16, 18, 20, 22), d = c(0.55, 0.7, 0.85, 1.0)),
-    expand.grid(n = c(30, 38, 52, 64, 80),                  d = c(0.7, 1.0))
+    expand.grid(n = c(30, 38, 52, 64, 80), d = c(0.7, 1.0))
   )
   bip = zratio_cap_tier(bip[bip$n <= cap, , drop = FALSE], cap, dens = c(0.7, 1.0))
   bip = rbind(bip, bip)
@@ -370,7 +380,9 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
     return(NULL)
   }
   cap = as.integer(max_size)
-  if(zratio_anchor_grids_empty(cap)) return(NULL)
+  if(zratio_anchor_grids_empty(cap)) {
+    return(NULL)
+  }
 
   # The worker count is settled once, here, from the argument. Everything below
   # -- the branch choice, the announcement, the cluster -- reads this one value,
@@ -391,7 +403,9 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   if(use_cache) {
     key = zratio_surface_cache_key(zc, cap, seed0)
     hit = get0(key, envir = .zratio_surface_cache, inherits = FALSE)
-    if(!is.null(hit)) return(hit)
+    if(!is.null(hit)) {
+      return(hit)
+    }
     cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, paste0(key, ".rds"))
     if(file.exists(cache_file)) {
@@ -500,10 +514,14 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   cn_rows = do.call(rbind, res[jobs$fam == "cn"])
   bip_rows = do.call(rbind, res[jobs$fam == "bip"])
 
-  if(is.null(cn_rows) || is.null(bip_rows)) return(NULL)
+  if(is.null(cn_rows) || is.null(bip_rows)) {
+    return(NULL)
+  }
   cn = zratio_fit_surface_family(cn_rows)
   bip = zratio_fit_surface_family(bip_rows)
-  if(is.null(cn) || is.null(bip)) return(NULL)
+  if(is.null(cn) || is.null(bip)) {
+    return(NULL)
+  }
   surf = list(cn = cn, bip = bip)
   if(verbose) {
     secs = proc.time()[["elapsed"]] - t0
@@ -514,10 +532,13 @@ zratio_build_surfaces = function(zc, max_size = .zratio_surface_size_cap,
   }
   if(use_cache) {
     assign(key, surf, envir = .zratio_surface_cache)
-    tryCatch({
-      dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
-      saveRDS(surf, cache_file)
-    }, error = function(e) NULL)
+    tryCatch(
+      {
+        dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
+        saveRDS(surf, cache_file)
+      },
+      error = function(e) NULL
+    )
   }
   surf
 }

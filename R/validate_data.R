@@ -414,7 +414,7 @@ collapse_categories_across_groups = function(x,
   variable_names = colnames(x)
   variable_label = function(node) {
     if(is.null(variable_names) || is.na(variable_names[node]) ||
-       !nzchar(variable_names[node])) {
+      !nzchar(variable_names[node])) {
       paste0("variable ", node)
     } else {
       paste0("variable '", variable_names[node], "'")

@@ -73,7 +73,8 @@ test_that("main_difference_nodes fills each node's ring to its inclusion probabi
   # carries the number, so the encoding does not fail for a reader who cannot
   # tell the ring colours apart.
   expect_equal(nodes$pie, pip)
-  expect_equal(nodes$pie_color,
+  expect_equal(
+    nodes$pie_color,
     c(mover_palette()[1], style$muted, style$pale)
   )
 
@@ -261,8 +262,10 @@ test_that("more than two groups keeps the panels and drops the width channel", {
   # the default an alias for that display rather than a lookalike of it.
   withr::local_options(bgms.verbose = TRUE)
   expect_message(plot(nosel, max_panels = 2L), "Showing page 1 of 2")
-  expect_message(plot(nosel, type = "groups", max_panels = 2L),
-    "Showing page 1 of 2")
+  expect_message(
+    plot(nosel, type = "groups", max_panels = 2L),
+    "Showing page 1 of 2"
+  )
   expect_message(plot(nosel, max_panels = 2L, page = 2L), "Showing page 2 of 2")
   expect_error(plot(nosel, max_panels = 2L, page = 3L), "make 2 pages")
   expect_error(plot(nosel, max_panels = 0L), "max_panels")
@@ -362,10 +365,14 @@ describe_panel = function(panel) {
   cat("subtitle  : ", panel$subtitle %||% "(none)", "\n", sep = "")
   cat("evidence  : ", paste(panel$evidence, collapse = " | "), "\n", sep = "")
   cat("estimate  : ", paste(panel$estimate %||% "(none)", collapse = " | "),
-    "\n", sep = "")
+    "\n",
+    sep = ""
+  )
   cat("wheel     : ", sprintf("%.3f", panel$wheel_prob), "\n", sep = "")
   cat("wheel tags: ", paste(panel$wheel_labels %||% "(none)", collapse = " / "),
-    "\n", sep = "")
+    "\n",
+    sep = ""
+  )
   cat("posterior : ", present(panel$posterior), "\n", sep = "")
   cat("prior     : ", present(panel$prior), "\n", sep = "")
   cat("dots      : ", if(is.null(panel$dots)) {
@@ -374,7 +381,8 @@ describe_panel = function(panel) {
     paste(sprintf("%.3f", panel$dots$y), collapse = ", ")
   }, "\n", sep = "")
   cat("window    : ", paste(sprintf("%.2f", edge_panel_window(panel)),
-    collapse = " to "), "\n", sep = "")
+    collapse = " to "
+  ), "\n", sep = "")
   invisible(NULL)
 }
 

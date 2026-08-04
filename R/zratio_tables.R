@@ -200,7 +200,7 @@ zratio_saddle_grid = function(
   # ihat/ghat by ~2e-6 in every cell. The clamp is invisible at the call site,
   # so the compatibility is asserted where the two grids meet rather than left
   # to whoever next edits either constant.
-  if (max(pair$cg) < Cmax) {
+  if(max(pair$cg) < Cmax) {
     stop(
       "z-ratio: the pair table covers [0, ", format(max(pair$cg)),
       "] but the saddle integration reads to ", format(Cmax),

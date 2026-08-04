@@ -50,21 +50,22 @@ make_graph1 = function() {
     G[a, b] <<- 1L
     G[b, a] <<- 1L
   }
-  for(v in 3:6) {                              # CN nodes 3..6 adjacent to both
+  for(v in 3:6) { # CN nodes 3..6 adjacent to both
     ei(1, v)
     ei(2, v)
   }
-  for(a in 3:5) for(b in (a + 1):6) ei(a, b)   # CN-CN complete K4
-  for(b in c(7, 8)) ei(1, b)                   # A-side adjacent to i only
-  for(b in c(9, 10, 11)) ei(2, b)              # B-side adjacent to j only
-  for(e in list(c(7, 9), c(7, 10), c(8, 10), c(8, 11))) ei(e[1], e[2])  # bridges
+  for(a in 3:5) for(b in (a + 1):6) ei(a, b) # CN-CN complete K4
+  for(b in c(7, 8)) ei(1, b) # A-side adjacent to i only
+  for(b in c(9, 10, 11)) ei(2, b) # B-side adjacent to j only
+  for(e in list(c(7, 9), c(7, 10), c(8, 10), c(8, 11))) ei(e[1], e[2]) # bridges
   G
 }
 
 surf_eval = function(G, i, j, surf, alpha = 1) {
   zratio_test_surface_eval(
     G, i, j, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt, zc$psi0,
-    surf, zc$delta, zc$eta, slab_cauchy = FALSE, alpha = alpha
+    surf, zc$delta, zc$eta,
+    slab_cauchy = FALSE, alpha = alpha
   )
 }
 
@@ -134,19 +135,19 @@ test_that("components below size_min fall back to additive (exact through pairwi
     G[a, b] <<- 1L
     G[b, a] <<- 1L
   }
-  for(e in list(c(1, 3), c(2, 3), c(1, 4), c(2, 4), c(3, 4))) ei(e[1], e[2])  # CN pair {3,4}, e 1
-  for(e in list(c(1, 5), c(2, 6), c(5, 6))) ei(e[1], e[2])                    # single bridge 5-6
+  for(e in list(c(1, 3), c(2, 3), c(1, 4), c(2, 4), c(3, 4))) ei(e[1], e[2]) # CN pair {3,4}, e 1
+  for(e in list(c(1, 5), c(2, 6), c(5, 6))) ei(e[1], e[2]) # single bridge 5-6
   r = surf_eval(G, 1, 2, surface)
   cn = r$comp[r$comp$family == 0, ]
   bp = r$comp[r$comp$family == 1, ]
   expect_equal(cn$size, 2)
   expect_equal(cn$used_surface, 0)
-  expect_equal(cn$s1, 2 * zc$addc[1] + 1 * zc$addc[3], tolerance = 1e-12)  # 2*kcn + kcc
+  expect_equal(cn$s1, 2 * zc$addc[1] + 1 * zc$addc[3], tolerance = 1e-12) # 2*kcn + kcc
   expect_equal(cn$s2, 2 * zc$addc[2] + 1 * zc$addc[4], tolerance = 1e-12)
   expect_equal(bp$size, 2)
   expect_equal(bp$e, 1)
   expect_equal(bp$used_surface, 0)
-  expect_equal(bp$s1, zc$addc[5], tolerance = 1e-12)                       # kbr
+  expect_equal(bp$s1, zc$addc[5], tolerance = 1e-12) # kbr
   expect_equal(bp$s2, zc$addc[6], tolerance = 1e-12)
 })
 
@@ -226,8 +227,10 @@ test_that("the extrapolation counter fires only beyond the trained hull", {
   run = function(G) {
     ed = which(upper.tri(G) & G == 1, arr.ind = TRUE)
     storage.mode(ed) = "integer"
-    zratio_test_surface_batch(G, ed, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt,
-      zc$psi0, surface, zc$delta, zc$eta, FALSE, 1)
+    zratio_test_surface_batch(
+      G, ed, zc$addc, zc$tg, zc$ihat, zc$ghat, zc$wt,
+      zc$psi0, surface, zc$delta, zc$eta, FALSE, 1
+    )
   }
   r30 = run(cn_clique(30))
   expect_equal(r30$n_extrap, 0)
