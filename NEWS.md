@@ -43,6 +43,16 @@ released from this line yet.
 
 ## Documentation
 
+* New vignette, `vignette("fast-ggm")`, on the Gaussian graphical model route
+  built for large graphs: `precision_graph_prior = "joint"` with
+  `update_method = "gibbs"`. It states what the joint specification changes
+  about the prior over graphs before it reports any timing, gives a fifty-
+  variable model run both ways and a two-hundred-variable model run on the fast
+  route, and lists the configurations the route covers. The timings are
+  precomputed by `data-raw/make-fast-ggm.R` and shipped, as the prior
+  sensitivity vignette does; the hardware and thread count are stated with them.
+  The README gained a short pointer to it.
+
 * `prior_sensitivity_check()`'s Details said the refit gate leans on per-chain
   verdict agreement and the indicator transition ESS. The gate reads the median
   split-R-hat over the continuous parameters and over the Rao-Blackwellized
