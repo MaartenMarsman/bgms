@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>News – bgms</title>
+<title>Frequently asked questions – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -299,7 +299,7 @@ ul.task-list li input[type="checkbox"] {
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./news.html" aria-current="page"> 
+    <a class="nav-link" href="./news.html"> 
 <span class="menu-text">News</span></a>
   </li>  
   <li class="nav-item">
@@ -330,7 +330,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">News</h1>
+<h1 class="title">Frequently asked questions</h1>
 </div>
 
 
@@ -347,18 +347,76 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Release notes for <code>bgms</code> and for this documentation site, newest first. The package’s complete change log, including breaking changes and bug fixes, is <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/blob/main/NEWS.md">NEWS.md</a> in the package repository.</p>
-<section id="bgms-0.2.0.0-on-cran" class="level2">
-<h2 class="anchored" data-anchor-id="bgms-0.2.0.0-on-cran">2026-08-04: bgms 0.2.0.0 on CRAN</h2>
-<p>This release widens the model class. <a href="./reference/bgm.html"><code>bgm()</code></a> now fits Gaussian graphical models with <code>variable_type = "continuous"</code>, and mixed networks of binary, ordinal, and continuous variables from a per-variable type vector. Fitted models gained <code>predict()</code> and <code>simulate()</code> methods. The C++ backend was rewritten around a shared NUTS sampler running its chains in parallel; inclusion probabilities are Rao-Blackwellized by default, and <a href="./reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> reports inclusion Bayes factors that stay finite where the raw average saturates. Priors are now built with constructor functions such as <code>normal_prior()</code> and <code>beta_bernoulli_prior()</code>. New as well: <a href="./reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a>, which reports which edge verdicts depend on the slab scale you chose.</p>
-<p>Several defaults changed, so a script written against 0.1.6.3 can run and give different numbers. Pairwise parameters are now reported on the association scale, about half their old values. The interaction slab defaults to <code>normal_prior(scale = 1)</code> in both <a href="./reference/bgm.html"><code>bgm()</code></a> and <a href="./reference/bgmCompare.html"><code>bgmCompare()</code></a>, which also takes <code>difference_family = "Normal"</code> for group differences; on continuous and mixed models <code>precision_graph_prior</code> defaults to <code>"hierarchical"</code>, so the prior over structures is exactly the edge prior you wrote down. <code>iter</code> and <code>warmup</code> default to <code>2000</code> and the NUTS <code>target_accept</code> to <code>0.80</code>. The package’s <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/blob/main/NEWS.md">NEWS.md</a> lists every one of them with the argument that restores the old behavior.</p>
+<p>Short answers that route to the page carrying the full story. If your question is not here, the <a href="./examples/index.html">worked analyses</a> and the <a href="./guide/index.html">User’s Guide</a> are the two front doors.</p>
+<section id="getting-started" class="level2">
+<h2 class="anchored" data-anchor-id="getting-started">Getting started</h2>
+<section id="what-data-can-i-give-bgm" class="level3">
+<h3 class="anchored" data-anchor-id="what-data-can-i-give-bgm">What data can I give <code>bgm()</code>?</h3>
+<p>Binary, ordinal, and continuous variables, in a matrix or a data frame; <code>variable_type</code> says which columns are which, and the default reads every column as ordinal. Binary items are ordinal items with two categories, so they need no special treatment. More: <a href="./reference/bgm.html"><code>bgm()</code></a> and <a href="./guide/getting-started.html">Getting Started</a>.</p>
 </section>
-<section id="documentation-site-launched" class="level2">
-<h2 class="anchored" data-anchor-id="documentation-site-launched">2026-08-04: Documentation site launched</h2>
-<p>This site replaces the reference-only pages that used to live at this address. It adds a <a href="./guide/index.html">User’s Guide</a> that explains the modelling and prior choices behind a fit, a <a href="./reference/index.html">Reference</a> grouped by topic rather than by help file, and a <a href="./manual/index.html">Manual</a> that documents the C++ internals for contributors.</p>
-<p>Links to the old pages redirect here, so existing bookmarks and citations keep working.</p>
+<section id="why-does-the-documentation-run-bgm-so-much-longer-than-the-default" class="level3">
+<h3 class="anchored" data-anchor-id="why-does-the-documentation-run-bgm-so-much-longer-than-the-default">Why does the documentation run <code>bgm()</code> so much longer than the default?</h3>
+<p>The defaults (2,000 warmup and 2,000 sampling iterations) are tuned for exploration. What you read off a fit is evidence, and the run has to be long enough to pin each inclusion probability down to the precision the evidence claim needs, which is why the worked analyses run <code>iter = 1e4, warmup = 5e3</code>. More: <a href="./guide/mcmc-diagnostics.html#sec-run-length">run-length settings</a> and <a href="./examples/reading-the-output.html">Reading the output</a>.</p>
+</section>
+<section id="why-does-bgm-take-minutes-when-ebicglasso-takes-seconds" class="level3">
+<h3 class="anchored" data-anchor-id="why-does-bgm-take-minutes-when-ebicglasso-takes-seconds">Why does <code>bgm()</code> take minutes when <code>EBICglasso</code> takes seconds?</h3>
+<p>Because it computes a posterior over network structures and weights rather than one penalized point estimate. The credible intervals, the evidence per edge, and the undecided category all come out of those draws, with no bootstrap loop to run afterwards; the comparison page prices the trade honestly. More: <a href="./examples/from-bootnet-qgraph.html">Coming from bootnet and qgraph</a>.</p>
+</section>
+</section>
+<section id="reading-the-results" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-results">Reading the results</h2>
+<section id="what-does-an-inclusion-bayes-factor-of-10-mean" class="level3">
+<h3 class="anchored" data-anchor-id="what-does-an-inclusion-bayes-factor-of-10-mean">What does an inclusion Bayes factor of 10 mean?</h3>
+<p>The data have multiplied the prior odds in favor of the edge by ten. It is a ratio, so it runs in both directions: 1/10 is tenfold evidence against the edge, and values near one mean the data moved nothing either way. Ten is a reporting convention, not a law of nature; state the threshold you use. More: <a href="./guide/edge-selection.html">Edge Selection</a>.</p>
+</section>
+<section id="can-i-say-an-edge-is-absent" class="level3">
+<h3 class="anchored" data-anchor-id="can-i-say-an-edge-is-absent">Can I say an edge is absent?</h3>
+<p>Yes, and that is much of the point: an inclusion Bayes factor at or below 1/10 is evidence of conditional independence, a positive finding you can report. What you cannot do is read absence off a blank in an estimated network, which cannot distinguish “ruled out” from “not enough data”. More: <a href="./examples/estimation-to-evidence.html">From estimation to evidence</a>.</p>
+</section>
+<section id="the-posterior-inclusion-probability-is-high.-is-that-the-evidence" class="level3">
+<h3 class="anchored" data-anchor-id="the-posterior-inclusion-probability-is-high.-is-that-the-evidence">The posterior inclusion probability is high. Is that the evidence?</h3>
+<p>Not by itself. The inclusion probability mixes what the data showed with where the prior started, so under any edge prior other than 0.5 the posterior odds understate or overstate the evidence. The inclusion Bayes factor divides the prior odds out, which is why the verdicts are read from it. More: <a href="./guide/edge-selection.html#sec-bf-continuous">Edge Selection</a>.</p>
+</section>
+<section id="i-reran-the-analysis-and-the-numbers-changed-slightly.-is-something-wrong" class="level3">
+<h3 class="anchored" data-anchor-id="i-reran-the-analysis-and-the-numbers-changed-slightly.-is-something-wrong">I reran the analysis and the numbers changed slightly. Is something wrong?</h3>
+<p>No: the estimates are Monte Carlo averages, so two unseeded runs differ by sampling error, and <code>summary(fit)</code> reports each estimate’s <code>mcse</code>. Set <code>seed</code> for a repeatable run, and read the diagnostics page for what a seed does and does not guarantee. A difference large enough to change what you would report is a mixing problem, not a seeding one. More: <a href="./guide/mcmc-diagnostics.html#sec-reproducibility">Results differ between runs</a>.</p>
+</section>
+<section id="does-a-thicker-edge-mean-stronger-evidence" class="level3">
+<h3 class="anchored" data-anchor-id="does-a-thicker-edge-mean-stronger-evidence">Does a thicker edge mean stronger evidence?</h3>
+<p>No.&nbsp;Width encodes the estimated weight, and effect size and evidence are different quantities: a moderate weight can be estimated with overwhelming evidence, and a large one with next to none. That is why the edge evidence plot weights only its presence panel and draws the other two by classification alone. More: <a href="./reference/methods.html#plot">the edge evidence plot</a>.</p>
+</section>
+<section id="verdicts-flagged-some-verdicts-as-fragile.-is-the-analysis-broken" class="level3">
+<h3 class="anchored" data-anchor-id="verdicts-flagged-some-verdicts-as-fragile.-is-the-analysis-broken"><code>verdicts()</code> flagged some verdicts as fragile. Is the analysis broken?</h3>
+<p>No: fragile means the verdict sits within two Monte Carlo standard errors of an evidence threshold, so a rerun or a longer run could change it. It is a statement about run length, not about the data, and the remedy is more iterations. More: <a href="./reference/checks.html#verdicts"><code>verdicts()</code></a>.</p>
+</section>
+</section>
+<section id="priors" class="level2">
+<h2 class="anchored" data-anchor-id="priors">Priors</h2>
+<section id="do-the-default-priors-matter" class="level3">
+<h3 class="anchored" data-anchor-id="do-the-default-priors-matter">Do the default priors matter?</h3>
+<p>They are defensible defaults, not neutral ones: the slab is the alternative hypothesis the inclusion Bayes factor tests against, so its scale has real leverage on the verdicts. Understand what the defaults assume, and state them when you report. More: <a href="./guide/prior-basics.html">Prior Basics</a>.</p>
+</section>
+<section id="a-reviewer-asks-whether-my-conclusions-depend-on-the-prior.-what-do-i-answer" class="level3">
+<h3 class="anchored" data-anchor-id="a-reviewer-asks-whether-my-conclusions-depend-on-the-prior.-what-do-i-answer">A reviewer asks whether my conclusions depend on the prior. What do I answer?</h3>
+<p>Run <code>prior_sensitivity_check(fit)</code> and report what it prints: how many verdicts hold across the examined range of prior scales, which edges genuinely move, and the scale the data prefer next to the one you chose. One page walks the whole report, including the two-sentence manuscript template. More: <a href="./examples/check-your-priors.html">Check your priors</a>.</p>
+</section>
+</section>
+<section id="practicalities" class="level2">
+<h2 class="anchored" data-anchor-id="practicalities">Practicalities</h2>
+<section id="what-happens-to-my-missing-data" class="level3">
+<h3 class="anchored" data-anchor-id="what-happens-to-my-missing-data">What happens to my missing data?</h3>
+<p>By default, rows with any missing value are dropped (<code>na_action = "listwise"</code>), and a message reports how many. Setting <code>na_action = "impute"</code> instead imputes the missing entries inside the MCMC, drawing each from its full conditional distribution at every iteration. More: <a href="./guide/missing-data.html">Missing Data</a>.</p>
+</section>
+<section id="how-do-i-cite-bgms" class="level3">
+<h3 class="anchored" data-anchor-id="how-do-i-cite-bgms">How do I cite <code>bgms</code>?</h3>
+<p><code>citation("bgms")</code> prints the reference for your installed version, and the <a href="./index.html">homepage</a> has a citation picker with APA, Chicago, BibTeX, and RIS formats. Cite the version you actually used.</p>
+</section>
+<section id="where-do-i-ask-a-question-or-report-a-bug" class="level3">
+<h3 class="anchored" data-anchor-id="where-do-i-ask-a-question-or-report-a-bug">Where do I ask a question or report a bug?</h3>
+<p>On the <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues">bgms issue tracker</a>. A report that can be acted on carries the <code>bgm()</code> call as you ran it, <code>fit$nuts_diag$summary</code>, and the output of <code>sessionInfo()</code>. More: <a href="./guide/mcmc-diagnostics.html#sec-still-stuck">Still stuck</a>.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -1003,7 +1061,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
     <div class="nav-footer-center">
       <ul class="footer-items list-unstyled">
     <li class="nav-item">
-    <a class="nav-link" href="./faq.html">
+    <a class="nav-link active" href="./faq.html" aria-current="page">
 <p>FAQ</p>
 </a>
   </li>  
@@ -1013,7 +1071,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/news.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/faq.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
