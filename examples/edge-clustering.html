@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Datasets – bgms</title>
+<title>Edge clustering – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -91,7 +91,8 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../reference/extractors.html" rel="prev">
+<link href="../examples/from-bootnet-qgraph.html" rel="next">
+<link href="../examples/comparing-groups.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -135,6 +136,35 @@ div.csl-indent {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../styles.css">
 </head>
@@ -337,7 +367,7 @@ div.csl-indent {
 <span class="menu-text">Get Started</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../examples/index.html"> 
+    <a class="nav-link active" href="../examples/index.html" aria-current="page"> 
 <span class="menu-text">Examples</span></a>
   </li>  
   <li class="nav-item">
@@ -345,7 +375,7 @@ div.csl-indent {
 <span class="menu-text">Guide</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link active" href="../reference/index.html" aria-current="page"> 
+    <a class="nav-link" href="../reference/index.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
@@ -379,7 +409,7 @@ div.csl-indent {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/datasets.html">Datasets</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/edge-clustering.html">Edge clustering</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -393,112 +423,44 @@ div.csl-indent {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Function Reference</span></a>
-  </div>
-</li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
- <span class="menu-text">Core Functions</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/bgm.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">bgm()</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/bgmCompare.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">bgmCompare()</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
- <span class="menu-text">Priors</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/priors.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Prior Constructors</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/sample-ggm-prior.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">sample_ggm_prior()</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/prior-samplers.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Prior Samplers</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
- <span class="menu-text">Methods</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/methods.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Methods</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
- <span class="menu-text">Diagnostics</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Checking Tools</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/prior-sensitivity.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">prior_sensitivity_check()</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/extractors.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Extractor Functions</span></a>
+  <a href="../examples/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Worked analyses</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/datasets.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Datasets</span></a>
+  <a href="../examples/estimation-to-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">From estimation to evidence</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/reading-the-output.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reading the output</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/check-your-priors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Check your priors</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/comparing-groups.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Comparing groups</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/edge-clustering.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Edge clustering</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/from-bootnet-qgraph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Coming from bootnet and qgraph</span></a>
   </div>
 </li>
     </ul>
@@ -513,7 +475,7 @@ div.csl-indent {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Datasets</h1>
+<h1 class="title">Edge clustering</h1>
 </div>
 
 
@@ -530,253 +492,155 @@ div.csl-indent {
 </header>
 
 
-<p>Example datasets included in bgms.</p>
-<section id="adhd" class="level2">
-<h2 class="anchored" data-anchor-id="adhd">ADHD</h2>
-<p>Used in the executed examples of <a href="../reference/methods.html">Methods</a> (via the <code>bgmCompare</code> fixture).</p>
-<p>ADHD symptom ratings for 355 children aged 6 to 8 years from the Children’s Attention Project (CAP) cohort (<span class="citation" data-cites="SilkEtAl_2019_adhd">Silk et al. (<a href="#ref-SilkEtAl_2019_adhd" role="doc-biblioref">2019</a>)</span>). The sample consists of 146 children diagnosed with ADHD and 209 without a diagnosis. Symptoms were assessed through structured interviews with parents using the NIMH Diagnostic Interview Schedule for Children IV (DISC-IV; <span class="citation" data-cites="ShafferEtAl_2000_disc">Shaffer et al. (<a href="#ref-ShafferEtAl_2000_disc" role="doc-biblioref">2000</a>)</span>). The checklist includes 18 items: 9 Inattentive (I) and 9 Hyperactive/Impulsive (HI). Each item is binary (1 = present, 0 = absent).</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"ADHD"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A data frame with 355 rows and 19 columns:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 38%">
-<col style="width: 61%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Column</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>group</code></td>
-<td>ADHD diagnosis: 1 = diagnosed, 0 = not diagnosed</td>
-</tr>
-<tr class="even">
-<td><code>avoid</code></td>
-<td>Often avoids tasks that require sustained mental effort (I)</td>
-</tr>
-<tr class="odd">
-<td><code>closeatt</code></td>
-<td>Often fails to give close attention to details (I)</td>
-</tr>
-<tr class="even">
-<td><code>distract</code></td>
-<td>Is often easily distracted by extraneous stimuli (I)</td>
-</tr>
-<tr class="odd">
-<td><code>forget</code></td>
-<td>Is often forgetful in daily activities (I)</td>
-</tr>
-<tr class="even">
-<td><code>instruct</code></td>
-<td>Often does not follow through on instructions (I)</td>
-</tr>
-<tr class="odd">
-<td><code>listen</code></td>
-<td>Often does not seem to listen when spoken to directly (I)</td>
-</tr>
-<tr class="even">
-<td><code>loses</code></td>
-<td>Often loses things necessary for tasks (I)</td>
-</tr>
-<tr class="odd">
-<td><code>org</code></td>
-<td>Often has difficulty organizing tasks (I)</td>
-</tr>
-<tr class="even">
-<td><code>susatt</code></td>
-<td>Often has difficulty sustaining attention (I)</td>
-</tr>
-<tr class="odd">
-<td><code>blurts</code></td>
-<td>Often blurts out answers before questions are completed (HI)</td>
-</tr>
-<tr class="even">
-<td><code>fidget</code></td>
-<td>Often fidgets with hands or feet (HI)</td>
-</tr>
-<tr class="odd">
-<td><code>interrupt</code></td>
-<td>Often interrupts or intrudes on others (HI)</td>
-</tr>
-<tr class="even">
-<td><code>motor</code></td>
-<td>Is often “on the go” or acts as if “driven by a motor” (HI)</td>
-</tr>
-<tr class="odd">
-<td><code>quiet</code></td>
-<td>Often has difficulty playing quietly (HI)</td>
-</tr>
-<tr class="even">
-<td><code>runs</code></td>
-<td>Often runs about or climbs excessively (HI)</td>
-</tr>
-<tr class="odd">
-<td><code>seat</code></td>
-<td>Often leaves seat when remaining seated is expected (HI)</td>
-</tr>
-<tr class="even">
-<td><code>talks</code></td>
-<td>Often talks excessively (HI)</td>
-</tr>
-<tr class="odd">
-<td><code>turn</code></td>
-<td>Often has difficulty awaiting turn (HI)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Source</strong>: <span class="citation" data-cites="SilkEtAl_2019_adhd">Silk et al. (<a href="#ref-SilkEtAl_2019_adhd" role="doc-biblioref">2019</a>)</span>. Data retrieved from <a href="https://doi.org/10.1371/journal.pone.0211053.s004">doi:10.1371/journal.pone.0211053.s004</a>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-payoff" class="quarto-float quarto-figure quarto-figure-center anchored" width="720">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="edge-clustering_files/figure-html/fig-payoff-1.png" id="fig-payoff" class="img-fluid figure-img" width="720">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>This is the posterior co-clustering matrix of 18 boredom and curiosity items: each cell is the share of posterior draws in which two items landed in the same cluster. Two dark blocks stand out, and they are the two instruments: the eight boredom items of the Short Boredom Proneness Scale cluster together, the ten items of the Curiosity and Exploration Inventory cluster together, and pairs that cross the boundary co-cluster far less often. The model was never told which item belongs to which questionnaire; it recovered the division from the pattern of partial associations, and it reports how sure it is: pairs inside a block co-cluster in 82 to 96 percent of draws, pairs across the boundary in at most 9 percent, and the Bayes factor for clustering over no clustering is about 200.</p>
+<p>The usual route to communities is post-hoc: estimate a network, then run a community detection algorithm on the point estimate. That returns a partition, always, with no statement of how sure to be about it, and no way to conclude that there is <em>no</em> community structure. The stochastic block model (SBM) edge prior instead makes the clustering part of the graphical model: cluster assignments, the number of clusters, and the evidence for clustering against no clustering are all estimated together with the network, so every cluster statement arrives with a posterior probability attached <span class="citation" data-cites="SekulovskiEtAl_2025_sbm">(<a href="#ref-SekulovskiEtAl_2025_sbm" role="doc-biblioref">Sekulovski et al., 2025</a>)</span>.</p>
+<section id="the-data-and-the-fit" class="level2">
+<h2 class="anchored" data-anchor-id="the-data-and-the-fit">The data and the fit</h2>
+<p>The data come from the French validation of the Short Boredom Proneness Scale <span class="citation" data-cites="MartarelliEtAl_2023_sbps">(<a href="#ref-MartarelliEtAl_2023_sbps" role="doc-biblioref">Martarelli et al., 2023</a>)</span>: 490 participants, 18 items on 7-point scales, of which 8 measure boredom proneness (SBPS) and 10 measure curiosity and exploration (CEI-II). The two questionnaires give the analysis a natural question: do the items organize into communities, and do the communities follow the instruments? A copy of the dataset is published with this site, so the code below runs as is.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>martarelli <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="fu">url</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"https://bayesian-graphical-modelling-lab.github.io/bgms/data/martarelli.rds"</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>items <span class="ot">=</span> <span class="fu">as.data.frame</span>(martarelli[, <span class="dv">3</span><span class="sc">:</span><span class="dv">20</span>])</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(items, <span class="at">edge_prior =</span> <span class="fu">sbm_prior</span>(), <span class="at">iter =</span> <span class="fl">2e4</span>, <span class="at">warmup =</span> <span class="fl">1e4</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The call is <a href="../reference/bgm.html"><code>bgm()</code></a> with <a href="../reference/priors.html#sbm_prior"><code>sbm_prior()</code></a> at its defaults, including <code>lambda = 1</code>: a prior expectation of two clusters, and prior probability <span class="math inline">\(\exp(-1) \approx 0.37\)</span> on no clustering at all. The run length is the one deliberate setting, and it earns its place on this page. At the package defaults (2,000 warmup, 2,000 sampling iterations) this fit prints a warmup warning, and the follow-up checks that <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a> prescribes confirm it is real: largest split-<span class="math inline">\(\hat{R}\)</span> 1.35, smallest effective sample size 44. Worse, the clustering answer is not yet stable at short lengths; an intermediate run at <code>iter = 1e4</code> put a Bayes factor of only about 6 on clustering where the converged run below puts about 200. At the length shown, the worst split-<span class="math inline">\(\hat{R}\)</span> is 1.013 and the smallest effective sample size about 350, with the residual wobble confined to a handful of edges that straddle the two blocks. Budget on the order of ten minutes for the run. The guide’s <a href="../guide/clustering.html">Edge Clustering</a> page carries the model and the hyperparameter guidance, including settings for when clustering is expected and when the goal is to protect against false positive clusters.</p>
 </section>
-<section id="boredom" class="level2">
-<h2 class="anchored" data-anchor-id="boredom">Boredom</h2>
-<p>Used in the example of <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>.</p>
-<p>Responses to the 8-item Short Boredom Proneness Scale (SBPS), a self-report measure of susceptibility to boredom (<span class="citation" data-cites="MartarelliEtAl_2023_sbps">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_sbps" role="doc-biblioref">2023</a>)</span>). Items were rated on a 7-point Likert scale from 1 (“strongly disagree”) to 7 (“strongly agree”). The scale was administered in either English <span class="citation" data-cites="StrukEtAl_2015_bps">Struk et al. (<a href="#ref-StrukEtAl_2015_bps" role="doc-biblioref">2017</a>)</span> or French <span class="citation" data-cites="MartarelliEtAl_2023_sbps">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_sbps" role="doc-biblioref">2023</a>)</span>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"Boredom"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A data frame with 986 rows and 9 columns:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 38%">
-<col style="width: 61%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Column</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>language</code></td>
-<td>Language: <code>"en"</code> = English, <code>"fr"</code> = French</td>
-</tr>
-<tr class="even">
-<td><code>loose_ends</code></td>
-<td>I often find myself at “loose ends,” not knowing what to do.</td>
-</tr>
-<tr class="odd">
-<td><code>entertain</code></td>
-<td>I find it hard to entertain myself.</td>
-</tr>
-<tr class="even">
-<td><code>repetitive</code></td>
-<td>Many things I have to do are repetitive and monotonous.</td>
-</tr>
-<tr class="odd">
-<td><code>stimulation</code></td>
-<td>It takes more stimulation to get me going than most people.</td>
-</tr>
-<tr class="even">
-<td><code>motivated</code></td>
-<td>I don’t feel motivated by most things that I do.</td>
-</tr>
-<tr class="odd">
-<td><code>keep_interest</code></td>
-<td>In most situations, it is hard for me to find something to keep me interested.</td>
-</tr>
-<tr class="even">
-<td><code>sit_around</code></td>
-<td>Much of the time, I just sit around doing nothing.</td>
-</tr>
-<tr class="odd">
-<td><code>half_dead_dull</code></td>
-<td>Unless I am doing something exciting, even dangerous, I feel half-dead and dull.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Source</strong>: <span class="citation" data-cites="MartarelliEtAl_2023_sbps">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_sbps" role="doc-biblioref">2023</a>)</span>. Data retrieved from <a href="https://osf.io/qhux8">osf.io/qhux8</a>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>.</p>
-<p>The <a href="../examples/edge-clustering.html">Edge clustering</a> worked analysis uses a companion dataset from the same validation study: the French subsample (490 participants) with all 18 items, the 8 SBPS items together with 10 items of the Curiosity and Exploration Inventory (CEI-II). A copy of that file is published with this site; the example page shows the download call.</p>
+<section id="read-the-clustering" class="level2">
+<h2 class="anchored" data-anchor-id="read-the-clustering">Read the clustering</h2>
+<p>Everything cluster-related lives in one extractor, <a href="../reference/extractors.html#extract_sbm"><code>extract_sbm()</code></a>. Its first component is the posterior over the number of clusters:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sbm <span class="ot">=</span> <span class="fu">extract_sbm</span>(fit)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">head</span>(sbm<span class="sc">$</span>posterior_num_blocks, <span class="dv">4</span>), <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  probability
+1       0.003
+2       0.608
+3       0.292
+4       0.079</code></pre>
+</div>
+</div>
+<p>The rows are numbers of clusters, and the posterior concentrates on two: probability 0.61 on two clusters, 0.29 on three, and 0.003 on no clustering at all. The Bayes factor tests compare these posterior probabilities with the prior odds implied by the shifted-Poisson prior on the number of clusters; both tests are derived in the guide’s <a href="../guide/clustering.html#testing-for-clustering">Testing for clustering</a> section.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">=</span> sbm<span class="sc">$</span>posterior_num_blocks<span class="sc">$</span>probability</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(p) <span class="ot">=</span> <span class="fu">rownames</span>(sbm<span class="sc">$</span>posterior_num_blocks)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># H1: some clustering (B &gt; 1) vs H0: none; prior odds exp(lambda) - 1</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">clustering   =</span> ((<span class="dv">1</span> <span class="sc">-</span> p[<span class="st">"1"</span>]) <span class="sc">/</span> p[<span class="st">"1"</span>]) <span class="sc">/</span> (<span class="fu">exp</span>(<span class="dv">1</span>) <span class="sc">-</span> <span class="dv">1</span>),</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># H1: B = 2 vs H2: B = 1; prior odds 1 at lambda = 1</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">two_vs_one   =</span> p[<span class="st">"2"</span>] <span class="sc">/</span> p[<span class="st">"1"</span>],</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># H1: B = 2 vs H2: B = 3; prior odds 2 at lambda = 1</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">two_vs_three =</span> (p[<span class="st">"2"</span>] <span class="sc">/</span> p[<span class="st">"3"</span>]) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  clustering.1   two_vs_one.2 two_vs_three.2 
+        201.96         211.54           1.04 </code></pre>
+</div>
+</div>
+<p>Read the three together. The data support clustering over no clustering (Bayes factor about 200), and two clusters over one (about 212). But two clusters against three is undecided (about 1.04): the data are confident that structure exists and agnostic about whether a third community splits off. That second-order honesty is exactly what the post-hoc route cannot give you; a community detection algorithm handed you one partition and no warning.</p>
+<p>The allocations say which items go together:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span>(<span class="fu">rownames</span>(sbm<span class="sc">$</span>posterior_mean_coclustering_matrix),</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>      sbm<span class="sc">$</span>posterior_mode_allocations)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$`1`
+[1] "SBPS1" "SBPS2" "SBPS3" "SBPS4" "SBPS5" "SBPS6" "SBPS7" "SBPS8"
+
+$`2`
+ [1] "CEIII1E"  "CEIII2C"  "CEIII3E"  "CEIII4C"  "CEIII5E"  "CEIII6C" 
+ [7] "CEIII7E"  "CEIII8C"  "CEIII9E"  "CEIII10C"</code></pre>
+</div>
+</div>
+<p>The modal partition is the two questionnaires, exactly: all eight SBPS items in one cluster, all ten CEI-II items in the other. The co-clustering matrix quantifies how firm each part of that statement is:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>cm <span class="ot">=</span> sbm<span class="sc">$</span>posterior_mean_coclustering_matrix</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>z <span class="ot">=</span> sbm<span class="sc">$</span>posterior_mode_allocations</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>same <span class="ot">=</span> <span class="fu">outer</span>(z, z, <span class="st">"=="</span>)[<span class="fu">upper.tri</span>(cm)]</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>cc <span class="ot">=</span> cm[<span class="fu">upper.tri</span>(cm)]</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">rbind</span>(<span class="at">within =</span> <span class="fu">range</span>(cc[same]), <span class="at">between =</span> <span class="fu">range</span>(cc[<span class="sc">!</span>same])), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        [,1] [,2]
+within  0.82 0.96
+between 0.00 0.09</code></pre>
+</div>
+</div>
+<p>Pairs inside a block co-cluster in 82 to 96 percent of draws; pairs that cross the boundary do so in at most 9. That is what the figure at the top of the page shows; it was drawn from the extractor’s co-clustering matrix directly:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">=</span> <span class="fu">nrow</span>(cm)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>op <span class="ot">=</span> <span class="fu">par</span>(<span class="at">mar =</span> <span class="fu">c</span>(<span class="fl">6.5</span>, <span class="fl">6.5</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">image</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="dv">1</span><span class="sc">:</span>p, cm[, p<span class="sc">:</span><span class="dv">1</span>], <span class="at">col =</span> <span class="fu">hcl.colors</span>(<span class="dv">20</span>, <span class="st">"Blues"</span>, <span class="at">rev =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">axes =</span> <span class="cn">FALSE</span>, <span class="at">xlab =</span> <span class="st">""</span>, <span class="at">ylab =</span> <span class="st">""</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>, <span class="at">at =</span> <span class="dv">1</span><span class="sc">:</span>p, <span class="at">labels =</span> <span class="fu">rownames</span>(cm), <span class="at">las =</span> <span class="dv">2</span>, <span class="at">cex.axis =</span> <span class="fl">0.7</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">2</span>, <span class="at">at =</span> p<span class="sc">:</span><span class="dv">1</span>, <span class="at">labels =</span> <span class="fu">colnames</span>(cm), <span class="at">las =</span> <span class="dv">1</span>, <span class="at">cex.axis =</span> <span class="fl">0.7</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(op)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Report the partition and this matrix together: a partition without its co-clustering matrix hides exactly the uncertainty this analysis exists to expose.</p>
 </section>
-<section id="wenchuan" class="level2">
-<h2 class="anchored" data-anchor-id="wenchuan">Wenchuan</h2>
-<p>Used in the examples of <a href="../reference/bgm.html"><code>bgm()</code></a>, <a href="../guide/getting-started.html">Getting Started</a>, and the MCMC output pages.</p>
-<p>Responses to 17 items assessing PTSD symptoms in Chinese adults who survived the 2008 Wenchuan earthquake and lost at least one child in the disaster (<span class="citation" data-cites="McNallyEtAl_2015_ptsd">McNally et al. (<a href="#ref-McNallyEtAl_2015_ptsd" role="doc-biblioref">2015</a>)</span>). Participants completed the civilian version of the Posttraumatic Checklist, with each item corresponding to a DSM-IV PTSD symptom. Items were rated on a 5-point Likert scale from “not at all” to “extremely.”</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"Wenchuan"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A matrix with 362 rows and 17 columns:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 38%">
-<col style="width: 61%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Column</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>intrusion</code></td>
-<td>Repeated, disturbing memories, thoughts, or images of a stressful experience?</td>
-</tr>
-<tr class="even">
-<td><code>dreams</code></td>
-<td>Repeated, disturbing dreams of a stressful experience?</td>
-</tr>
-<tr class="odd">
-<td><code>flash</code></td>
-<td>Suddenly acting or feeling as if a stressful experience were happening again?</td>
-</tr>
-<tr class="even">
-<td><code>upset</code></td>
-<td>Feeling very upset when something reminded you of a stressful experience?</td>
-</tr>
-<tr class="odd">
-<td><code>physior</code></td>
-<td>Having physical reactions when something reminded you of a stressful experience?</td>
-</tr>
-<tr class="even">
-<td><code>avoidth</code></td>
-<td>Avoiding thinking about or talking about a stressful experience?</td>
-</tr>
-<tr class="odd">
-<td><code>avoidact</code></td>
-<td>Avoiding activities or situations because they reminded you of a stressful experience?</td>
-</tr>
-<tr class="even">
-<td><code>amnesia</code></td>
-<td>Trouble remembering important parts of a stressful experience?</td>
-</tr>
-<tr class="odd">
-<td><code>lossint</code></td>
-<td>Loss of interest in activities that you used to enjoy?</td>
-</tr>
-<tr class="even">
-<td><code>distant</code></td>
-<td>Feeling distant or cut off from other people?</td>
-</tr>
-<tr class="odd">
-<td><code>numb</code></td>
-<td>Feeling emotionally numb or unable to have loving feelings?</td>
-</tr>
-<tr class="even">
-<td><code>future</code></td>
-<td>Feeling as if your future will somehow be cut short?</td>
-</tr>
-<tr class="odd">
-<td><code>sleep</code></td>
-<td>Trouble falling or staying asleep?</td>
-</tr>
-<tr class="even">
-<td><code>anger</code></td>
-<td>Feeling irritable or having angry outbursts?</td>
-</tr>
-<tr class="odd">
-<td><code>concen</code></td>
-<td>Having difficulty concentrating?</td>
-</tr>
-<tr class="even">
-<td><code>hyper</code></td>
-<td>Being “super-alert” or watchful or on guard?</td>
-</tr>
-<tr class="odd">
-<td><code>startle</code></td>
-<td>Feeling jumpy or easily startled?</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Source</strong>: <span class="citation" data-cites="McNallyEtAl_2015_ptsd">McNally et al. (<a href="#ref-McNallyEtAl_2015_ptsd" role="doc-biblioref">2015</a>)</span>. Data retrieved from <a href="https://psychosystems.org/wp-content/uploads/2014/10/Wenchuan.csv">psychosystems.org</a>.</p>
+<section id="the-edges-still-get-verdicts" class="level2">
+<h2 class="anchored" data-anchor-id="the-edges-still-get-verdicts">The edges still get verdicts</h2>
+<p>The SBM prior is an edge prior, so the fit is still a full analysis of the network itself, and every tool from the earlier pages applies:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">verdicts</span>(fit)<span class="sc">$</span>verdict)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ presence undecided   absence 
+       37        24        92 </code></pre>
+</div>
+</div>
+<p>The edge prior is part of the model, and the inclusion Bayes factors inherit it: under the SBM, an edge between two items that the clustering places together is a priori more plausible than one that crosses the boundary.</p>
+</section>
+<section id="what-a-cluster-is-not" class="level2">
+<h2 class="anchored" data-anchor-id="what-a-cluster-is-not">What a cluster is not</h2>
+<p>A cluster here is structure in edge <em>inclusion probabilities</em> under this prior: items in the same block are modeled as more likely to share edges with each other than with the rest. It is not a causal module, not a latent factor, and not proof that the two questionnaires measure distinct constructs; none of those readings are licensed by a partition of a partial association structure. The finding is narrower and still worth having: conditional on everything else, boredom items predict boredom items and curiosity items predict curiosity items far more than they predict each other.</p>
+<p>The complement matters too. On data without block structure, this same analysis reports that honestly: the posterior favors a single cluster, the clustering Bayes factor drops below one, and the co-clustering matrix turns diffuse instead of block-diagonal. An uncertain or absent clustering is not a failed analysis; it is a finding, and a caution against over-reading the apparent groupings that any network drawing produces by placing connected nodes near each other.</p>
+</section>
+<section id="what-to-report" class="level2">
+<h2 class="anchored" data-anchor-id="what-to-report">What to report</h2>
+<div class="callout callout-style-simple callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>What to report
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>The clustering test with the prior it rests on: “The Bayes factor for clustering against no clustering was <span class="math inline">\(\text{BF} = \texttt{&lt;value&gt;}\)</span> under <code>sbm_prior()</code> with <span class="math inline">\(\lambda = \texttt{&lt;value&gt;}\)</span>,” and its verdict: support, evidence against, or undecided.</li>
+<li>The posterior over the number of clusters, the modal allocations, and the co-clustering matrix (or its within- and between-block ranges) as the uncertainty statement for the partition.</li>
+<li>The hyperparameters, if changed from the defaults: they encode how strongly the prior expects clustering.</li>
+<li>Not licensed: reading groups in a network drawing as clusters, reporting a partition without its allocation uncertainty, treating a cluster as a latent variable, or reading a Bayes factor near one as evidence that there are no clusters.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="where-to-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-next">Where to next</h2>
+<ul>
+<li><a href="../guide/clustering.html">Edge Clustering</a> for the model: the block structure on inclusion probabilities, the two Bayes factor tests, and hyperparameter guidance.</li>
+<li><a href="../reference/priors.html#sbm_prior"><code>sbm_prior()</code></a> and <a href="../reference/extractors.html#extract_sbm"><code>extract_sbm()</code></a> for the arguments and the return value.</li>
+<li><span class="citation" data-cites="SekulovskiEtAl_2025_sbm">Sekulovski et al. (<a href="#ref-SekulovskiEtAl_2025_sbm" role="doc-biblioref">2025</a>)</span> for the step-by-step tutorial behind this analysis, and <span class="citation" data-cites="MartarelliEtAl_2023_sbps">Martarelli et al. (<a href="#ref-MartarelliEtAl_2023_sbps" role="doc-biblioref">2023</a>)</span> for the study the data come from.</li>
+<li>Back in the series: <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>, the single-network analysis this page builds on.</li>
+</ul>
 
 
 
@@ -786,17 +650,8 @@ div.csl-indent {
 <div id="ref-MartarelliEtAl_2023_sbps" class="csl-entry" role="listitem">
 Martarelli, C. S., Baillifard, A., &amp; Audrin, C. (2023). A trait-based network perspective on the validation of the <span>French</span> <span>Short</span> <span>Boredom</span> <span>Proneness</span> <span>Scale</span>. <em>European Journal of Psychological Assessment</em>, <em>39</em>(6), 390–399. <a href="https://doi.org/10.1027/1015-5759/a000718">https://doi.org/10.1027/1015-5759/a000718</a>
 </div>
-<div id="ref-McNallyEtAl_2015_ptsd" class="csl-entry" role="listitem">
-McNally, R. J., Robinaugh, D. J., Wu, G. W. Y., Wang, L., Deserno, M. K., &amp; Borsboom, D. (2015). Mental disorders as causal systems: A network approach to posttraumatic stress disorder. <em>Clinical Psychological Science</em>, <em>3</em>(6), 836–849. <a href="https://doi.org/10.1177/2167702614553230">https://doi.org/10.1177/2167702614553230</a>
-</div>
-<div id="ref-ShafferEtAl_2000_disc" class="csl-entry" role="listitem">
-Shaffer, D., Fisher, P., Lucas, C. P., Dulcan, M. K., &amp; Schwab-Stone, M. E. (2000). <span>NIMH</span> diagnostic interview schedule for children version <span>IV</span> (<span>NIMH DISC-IV</span>): Description, differences from previous versions, and reliability of some common diagnoses. <em>Journal of the American Academy of Child &amp; Adolescent Psychiatry</em>, <em>39</em>(1), 28–38. <a href="https://doi.org/10.1097/00004583-200001000-00014">https://doi.org/10.1097/00004583-200001000-00014</a>
-</div>
-<div id="ref-SilkEtAl_2019_adhd" class="csl-entry" role="listitem">
-Silk, T. J., Vilgis, V., Vance, A., &amp; Bellgrove, M. A. (2019). A network analysis approach to <span>ADHD</span> symptoms in early adolescence. <em>PLOS ONE</em>, <em>14</em>(1), e0211053. <a href="https://doi.org/10.1371/journal.pone.0211053">https://doi.org/10.1371/journal.pone.0211053</a>
-</div>
-<div id="ref-StrukEtAl_2015_bps" class="csl-entry" role="listitem">
-Struk, A. A., Carriere, J. S. A., Cheyne, J. A., &amp; Danckert, J. (2017). A short boredom proneness scale: Development and psychometric properties. <em>Assessment</em>, <em>24</em>(3), 346–359. <a href="https://doi.org/10.1177/1073191115609996">https://doi.org/10.1177/1073191115609996</a>
+<div id="ref-SekulovskiEtAl_2025_sbm" class="csl-entry" role="listitem">
+Sekulovski, N., Arena, G., Haslbeck, J. M. B., Huth, K. B. S., Friel, N., &amp; Marsman, M. (2025). A stochastic block prior for clustering in graphical models. <em>Manuscript Submitted for Publication</em>. <a href="https://osf.io/preprints/psyarxiv/29p3m_v3">https://osf.io/preprints/psyarxiv/29p3m_v3</a>
 </div>
 </div></section></div></main> <!-- /main -->
 <script type="text/javascript">
@@ -1433,11 +1288,14 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../reference/extractors.html" class="pagination-link" aria-label="Extractor Functions">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Extractor Functions</span>
+      <a href="../examples/comparing-groups.html" class="pagination-link" aria-label="Comparing groups">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Comparing groups</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
+      <a href="../examples/from-bootnet-qgraph.html" class="pagination-link" aria-label="Coming from bootnet and qgraph">
+        <span class="nav-page-text">Coming from bootnet and qgraph</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
   </div>
 </nav>
 </div> <!-- /content -->
@@ -1459,7 +1317,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/reference/datasets.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/examples/edge-clustering.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

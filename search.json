@@ -2666,80 +2666,80 @@
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html",
-    "href": "examples/comparing-groups.html",
-    "title": "Comparing groups",
+    "objectID": "examples/edge-clustering.html",
+    "href": "examples/edge-clustering.html",
+    "title": "Edge clustering",
     "section": "",
-    "text": "Figure 1\nOf the 153 pairwise associations in the ADHD symptom network, the data support a group difference for five, rule none out, and leave 148 undecided. That headline is the page: a comparison that reports, per parameter, whether the groups differ, whether they are credibly the same, or whether these data cannot tell.\n“Is the network different between groups?” is really two claims that a comparison should keep apart: this association differs between the groups, and this association is credibly the same. The second claim is the one a significance test cannot make: where the Network Comparison Test asks whether two networks differ somewhere, the Bayesian comparison answers parameter by parameter, and evidence of equivalence becomes expressible. Each pairwise difference gets its own indicator and its own inclusion Bayes factor, read exactly like the edge verdicts of From estimation to evidence, with “difference” in place of “edge”.",
+    "text": "Figure 1\nThis is the posterior co-clustering matrix of 18 boredom and curiosity items: each cell is the share of posterior draws in which two items landed in the same cluster. Two dark blocks stand out, and they are the two instruments: the eight boredom items of the Short Boredom Proneness Scale cluster together, the ten items of the Curiosity and Exploration Inventory cluster together, and pairs that cross the boundary co-cluster far less often. The model was never told which item belongs to which questionnaire; it recovered the division from the pattern of partial associations, and it reports how sure it is: pairs inside a block co-cluster in 82 to 96 percent of draws, pairs across the boundary in at most 9 percent, and the Bayes factor for clustering over no clustering is about 200.\nThe usual route to communities is post-hoc: estimate a network, then run a community detection algorithm on the point estimate. That returns a partition, always, with no statement of how sure to be about it, and no way to conclude that there is no community structure. The stochastic block model (SBM) edge prior instead makes the clustering part of the graphical model: cluster assignments, the number of clusters, and the evidence for clustering against no clustering are all estimated together with the network, so every cluster statement arrives with a posterior probability attached (Sekulovski et al., 2025).",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#the-fit",
-    "href": "examples/comparing-groups.html#the-fit",
-    "title": "Comparing groups",
-    "section": "The fit",
-    "text": "The fit\n\nlibrary(bgms)\n\nfit = bgmCompare(\n  x = ADHD[, -1],\n  group_indicator = ADHD$group,\n  variable_type = \"ordinal\",\n  seed = 123\n)\n\nThe ADHD data ship with the package: 18 binary DISC-IV symptom items for 355 children, 146 with an ADHD diagnosis and 209 without, with group coding the diagnosis. The call is bgmCompare() at its defaults plus a seed, so every number below is what the defaults give you on these data. The run takes a few minutes. The defaults are exploration-length (2,000 warmup, 2,000 sampling iterations); for a published claim, the run-length reasoning of Reading the output applies to difference indicators exactly as it does to edges.\n\nplot(fit)",
+    "objectID": "examples/edge-clustering.html#the-data-and-the-fit",
+    "href": "examples/edge-clustering.html#the-data-and-the-fit",
+    "title": "Edge clustering",
+    "section": "The data and the fit",
+    "text": "The data and the fit\nThe data come from the French validation of the Short Boredom Proneness Scale (Martarelli et al., 2023): 490 participants, 18 items on 7-point scales, of which 8 measure boredom proneness (SBPS) and 10 measure curiosity and exploration (CEI-II). The two questionnaires give the analysis a natural question: do the items organize into communities, and do the communities follow the instruments? A copy of the dataset is published with this site, so the code below runs as is.\n\nlibrary(bgms)\n\nmartarelli = readRDS(url(\n  \"https://bayesian-graphical-modelling-lab.github.io/bgms/data/martarelli.rds\"\n))\nitems = as.data.frame(martarelli[, 3:20])\n\nfit = bgm(items, edge_prior = sbm_prior(), iter = 2e4, warmup = 1e4,\n          seed = 123)\n\nThe call is bgm() with sbm_prior() at its defaults, including lambda = 1: a prior expectation of two clusters, and prior probability \\(\\exp(-1) \\approx 0.37\\) on no clustering at all. The run length is the one deliberate setting, and it earns its place on this page. At the package defaults (2,000 warmup, 2,000 sampling iterations) this fit prints a warmup warning, and the follow-up checks that MCMC Diagnostics prescribes confirm it is real: largest split-\\(\\hat{R}\\) 1.35, smallest effective sample size 44. Worse, the clustering answer is not yet stable at short lengths; an intermediate run at iter = 1e4 put a Bayes factor of only about 6 on clustering where the converged run below puts about 200. At the length shown, the worst split-\\(\\hat{R}\\) is 1.013 and the smallest effective sample size about 350, with the residual wobble confined to a handful of edges that straddle the two blocks. Budget on the order of ten minutes for the run. The guide’s Edge Clustering page carries the model and the hyperparameter guidance, including settings for when clustering is expected and when the goal is to protect against false positive clusters.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#read-the-verdicts",
-    "href": "examples/comparing-groups.html#read-the-verdicts",
-    "title": "Comparing groups",
-    "section": "Read the verdicts",
-    "text": "Read the verdicts\n\nverdicts(fit)\n\nEdge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):\npresence: log BF &gt; 2.30; absence: log BF &lt; -2.30\n\n  presence 5 | undecided 148 | absence 0   (153 indicators)\n  Main-effect differences are not under selection (main_difference_selection = FALSE).\n\n                 parameter   pip log_bf   verdict fragile\n avoid-closeatt (pairwise) 0.861  1.826 undecided   FALSE\n avoid-distract (pairwise) 0.353 -0.606 undecided   FALSE\n   avoid-forget (pairwise) 0.809  1.442 undecided   FALSE\n avoid-instruct (pairwise) 0.970  3.480  presence   FALSE\n   avoid-listen (pairwise) 0.823  1.540 undecided   FALSE\n    avoid-loses (pairwise) 0.480 -0.082 undecided   FALSE\n      avoid-org (pairwise) 0.754  1.121 undecided   FALSE\n   avoid-susatt (pairwise) 0.680  0.752 undecided   FALSE\n   avoid-blurts (pairwise) 0.377 -0.502 undecided   FALSE\n   avoid-fidget (pairwise) 0.872  1.918 undecided   FALSE\n... (143 more rows)\n\n2 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n\nThe fragility flag is not validated for difference indicators: its\noperating point was established on single-network edge indicators only.\nRead it as an indication that a verdict sits near a boundary, not as a\ncalibrated error rate.\n\nDifference verdicts are scale-contingent: group differences are priced\non the association scale through difference_scale, and the calibration\nof that default is under study, so a verdict close to a decision\nthreshold can move with the scale.\n\n\nThe counts are the headline: 5 differences supported, 148 undecided, 0 with evidence of equivalence at the default threshold of 10. The 18 main-effect difference rows print as unsampled: under the default main_difference_selection = FALSE the threshold differences are free parameters, not selected ones, so they carry no indicator to read (the print marks those rows and leaves them out of its counts). Two verdicts are flagged fragile, and the print also notes that the fragility flag’s operating point was calibrated on single-network edge verdicts, not on difference verdicts; the flag still marks verdicts near a boundary, but its error-catching rate is unmeasured here. See verdicts() for both contracts.\nThe summary(fit) layout follows the single-network fit block by block, and Reading the output owns that walkthrough; what is new here is that the selected parameters are the differences, so the pairwise_diff table is where share_incl and the indicator diagnostics live.",
+    "objectID": "examples/edge-clustering.html#read-the-clustering",
+    "href": "examples/edge-clustering.html#read-the-clustering",
+    "title": "Edge clustering",
+    "section": "Read the clustering",
+    "text": "Read the clustering\nEverything cluster-related lives in one extractor, extract_sbm(). Its first component is the posterior over the number of clusters:\n\nsbm = extract_sbm(fit)\nround(head(sbm$posterior_num_blocks, 4), 3)\n\n  probability\n1       0.003\n2       0.608\n3       0.292\n4       0.079\n\n\nThe rows are numbers of clusters, and the posterior concentrates on two: probability 0.61 on two clusters, 0.29 on three, and 0.003 on no clustering at all. The Bayes factor tests compare these posterior probabilities with the prior odds implied by the shifted-Poisson prior on the number of clusters; both tests are derived in the guide’s Testing for clustering section.\n\np = sbm$posterior_num_blocks$probability\nnames(p) = rownames(sbm$posterior_num_blocks)\nround(c(\n  # H1: some clustering (B &gt; 1) vs H0: none; prior odds exp(lambda) - 1\n  clustering   = ((1 - p[\"1\"]) / p[\"1\"]) / (exp(1) - 1),\n  # H1: B = 2 vs H2: B = 1; prior odds 1 at lambda = 1\n  two_vs_one   = p[\"2\"] / p[\"1\"],\n  # H1: B = 2 vs H2: B = 3; prior odds 2 at lambda = 1\n  two_vs_three = (p[\"2\"] / p[\"3\"]) / 2\n), 2)\n\n  clustering.1   two_vs_one.2 two_vs_three.2 \n        201.96         211.54           1.04 \n\n\nRead the three together. The data support clustering over no clustering (Bayes factor about 200), and two clusters over one (about 212). But two clusters against three is undecided (about 1.04): the data are confident that structure exists and agnostic about whether a third community splits off. That second-order honesty is exactly what the post-hoc route cannot give you; a community detection algorithm handed you one partition and no warning.\nThe allocations say which items go together:\n\nsplit(rownames(sbm$posterior_mean_coclustering_matrix),\n      sbm$posterior_mode_allocations)\n\n$`1`\n[1] \"SBPS1\" \"SBPS2\" \"SBPS3\" \"SBPS4\" \"SBPS5\" \"SBPS6\" \"SBPS7\" \"SBPS8\"\n\n$`2`\n [1] \"CEIII1E\"  \"CEIII2C\"  \"CEIII3E\"  \"CEIII4C\"  \"CEIII5E\"  \"CEIII6C\" \n [7] \"CEIII7E\"  \"CEIII8C\"  \"CEIII9E\"  \"CEIII10C\"\n\n\nThe modal partition is the two questionnaires, exactly: all eight SBPS items in one cluster, all ten CEI-II items in the other. The co-clustering matrix quantifies how firm each part of that statement is:\n\ncm = sbm$posterior_mean_coclustering_matrix\nz = sbm$posterior_mode_allocations\nsame = outer(z, z, \"==\")[upper.tri(cm)]\ncc = cm[upper.tri(cm)]\nround(rbind(within = range(cc[same]), between = range(cc[!same])), 2)\n\n        [,1] [,2]\nwithin  0.82 0.96\nbetween 0.00 0.09\n\n\nPairs inside a block co-cluster in 82 to 96 percent of draws; pairs that cross the boundary do so in at most 9. That is what the figure at the top of the page shows; it was drawn from the extractor’s co-clustering matrix directly:\n\np = nrow(cm)\nop = par(mar = c(6.5, 6.5, 1, 1))\nimage(1:p, 1:p, cm[, p:1], col = hcl.colors(20, \"Blues\", rev = TRUE),\n      axes = FALSE, xlab = \"\", ylab = \"\")\naxis(1, at = 1:p, labels = rownames(cm), las = 2, cex.axis = 0.7)\naxis(2, at = p:1, labels = colnames(cm), las = 1, cex.axis = 0.7)\npar(op)\n\nReport the partition and this matrix together: a partition without its co-clustering matrix hides exactly the uncertainty this analysis exists to expose.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#the-two-directions",
-    "href": "examples/comparing-groups.html#the-two-directions",
-    "title": "Comparing groups",
-    "section": "The two directions",
-    "text": "The two directions\nA difference, walked. The strongest one is motor-seat, the association between being “on the go, driven by a motor” and leaving one’s seat:\n\nbf = extract_inclusion_bf(fit)\nbf[\"motor\", \"seat\"]\n\n[1] 886.4053\n\ncoef(fit)$pairwise_effects_groups[\"motor-seat\", ]\n\n    group1     group2 \n-0.5076113  0.9122395 \n\n\nA difference Bayes factor of about 886, and the group-specific model-averaged weights say what the difference is: in the group without a diagnosis the association is negative (about \\(-0.51\\)), in the diagnosed group strongly positive (about \\(0.91\\)). The two symptoms travel together among diagnosed children and apart among the others, conditional on the remaining sixteen symptoms. That sign flip, not just its size, is the finding.\nEquivalence, honestly. On these data at this run length, no difference reaches evidence of equivalence at the threshold of 10: the strongest lean toward invariance is forget-org at \\(\\text{BF}_{01} \\approx 3.6\\), which is still undecided. The claim becomes available at a laxer convention:\n\ntable(verdicts(fit, evidence_threshold = 3)$verdict)\n\n\n presence undecided   absence \n       25       120         8 \n\n\nAt a threshold of 3, eight associations carry evidence of equivalence. State the threshold, and read the claim with the same care as the absence panel of the single-network analysis: it is evidence that the modeled partial association is invariant across the groups, under this model and these priors. It is not a statement that the groups are identical, and an undecided difference is not equivalence; with 148 of 153 differences undecided, the loudest thing these data say is that 355 children decide very little about group differences at this evidence bar.",
+    "objectID": "examples/edge-clustering.html#the-edges-still-get-verdicts",
+    "href": "examples/edge-clustering.html#the-edges-still-get-verdicts",
+    "title": "Edge clustering",
+    "section": "The edges still get verdicts",
+    "text": "The edges still get verdicts\nThe SBM prior is an edge prior, so the fit is still a full analysis of the network itself, and every tool from the earlier pages applies:\n\ntable(verdicts(fit)$verdict)\n\n\n presence undecided   absence \n       37        24        92 \n\n\nThe edge prior is part of the model, and the inclusion Bayes factors inherit it: under the SBM, an edge between two items that the clustering places together is a priori more plausible than one that crosses the boundary.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#the-three-panels",
-    "href": "examples/comparing-groups.html#the-three-panels",
-    "title": "Comparing groups",
-    "section": "The three panels",
-    "text": "The three panels\nThe figure at the top of the page is plot(fit): the same three-panel evidence display as for a single network, read for differences. The first panel holds the five supported differences, weighted by the posterior mean difference; the second holds the differences the data rule out, drawn dashed, and is empty here; the third holds the 148 dotted undecided pairs. A blank in a side-by-side drawing of two estimated networks cannot distinguish “no difference” from “cannot tell”; this display keeps them apart, and on these data the honest panel is the crowded third one.",
+    "objectID": "examples/edge-clustering.html#what-a-cluster-is-not",
+    "href": "examples/edge-clustering.html#what-a-cluster-is-not",
+    "title": "Edge clustering",
+    "section": "What a cluster is not",
+    "text": "What a cluster is not\nA cluster here is structure in edge inclusion probabilities under this prior: items in the same block are modeled as more likely to share edges with each other than with the rest. It is not a causal module, not a latent factor, and not proof that the two questionnaires measure distinct constructs; none of those readings are licensed by a partition of a partial association structure. The finding is narrower and still worth having: conditional on everything else, boredom items predict boredom items and curiosity items predict curiosity items far more than they predict each other.\nThe complement matters too. On data without block structure, this same analysis reports that honestly: the posterior favors a single cluster, the clustering Bayes factor drops below one, and the co-clustering matrix turns diffuse instead of block-diagonal. An uncertain or absent clustering is not a failed analysis; it is a finding, and a caution against over-reading the apparent groupings that any network drawing produces by placing connected nodes near each other.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#what-to-report",
-    "href": "examples/comparing-groups.html#what-to-report",
-    "title": "Comparing groups",
+    "objectID": "examples/edge-clustering.html#what-to-report",
+    "href": "examples/edge-clustering.html#what-to-report",
+    "title": "Edge clustering",
     "section": "What to report",
-    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nFor a supported difference: “The partial association between &lt;X&gt; and &lt;Y&gt; differed between the groups (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)); it was &lt;w1&gt; in &lt;group 1&gt; and &lt;w2&gt; in &lt;group 2&gt;.”\nFor an equivalence claim: “The data supported invariance of the &lt;X&gt;-&lt;Y&gt; association across groups (\\(\\text{BF}_{01} = \\texttt{&lt;value&gt;}\\)),” stating the threshold it clears and the run it rests on.\nThe counts: how many differences were supported, ruled out, and undecided at your threshold, out of how many possible.\nNot licensed: reading an undecided difference as evidence the groups are the same, or a side-by-side pair of estimated networks as a difference test.",
+    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nThe clustering test with the prior it rests on: “The Bayes factor for clustering against no clustering was \\(\\text{BF} = \\texttt{&lt;value&gt;}\\) under sbm_prior() with \\(\\lambda = \\texttt{&lt;value&gt;}\\),” and its verdict: support, evidence against, or undecided.\nThe posterior over the number of clusters, the modal allocations, and the co-clustering matrix (or its within- and between-block ranges) as the uncertainty statement for the partition.\nThe hyperparameters, if changed from the defaults: they encode how strongly the prior expects clustering.\nNot licensed: reading groups in a network drawing as clusters, reporting a partition without its allocation uncertainty, treating a cluster as a latent variable, or reading a Bayes factor near one as evidence that there are no clusters.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
-    "objectID": "examples/comparing-groups.html#where-to-next",
-    "href": "examples/comparing-groups.html#where-to-next",
-    "title": "Comparing groups",
+    "objectID": "examples/edge-clustering.html#where-to-next",
+    "href": "examples/edge-clustering.html#where-to-next",
+    "title": "Edge clustering",
     "section": "Where to next",
-    "text": "Where to next\n\nGroup Comparison for the model: the contrast parameterization, difference selection, and the prior on the differences.\nbgmCompare() for the arguments and return value, and Reading the output for the shared summary blocks.\nA companion tutorial developing the Bayesian group comparison in full is in preparation.\nBack in the series: From estimation to evidence, the single-network analysis this page extends.",
+    "text": "Where to next\n\nEdge Clustering for the model: the block structure on inclusion probabilities, the two Bayes factor tests, and hyperparameter guidance.\nsbm_prior() and extract_sbm() for the arguments and the return value.\nSekulovski et al. (2025) for the step-by-step tutorial behind this analysis, and Martarelli et al. (2023) for the study the data come from.\nBack in the series: From estimation to evidence, the single-network analysis this page builds on.",
     "crumbs": [
       "Examples",
-      "Comparing groups"
+      "Edge clustering"
     ]
   },
   {
@@ -2828,6 +2828,83 @@
     "crumbs": [
       "Examples",
       "Check your priors"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html",
+    "href": "examples/comparing-groups.html",
+    "title": "Comparing groups",
+    "section": "",
+    "text": "Figure 1\nOf the 153 pairwise associations in the ADHD symptom network, the data support a group difference for five, rule none out, and leave 148 undecided. That headline is the page: a comparison that reports, per parameter, whether the groups differ, whether they are credibly the same, or whether these data cannot tell.\n“Is the network different between groups?” is really two claims that a comparison should keep apart: this association differs between the groups, and this association is credibly the same. The second claim is the one a significance test cannot make: where the Network Comparison Test asks whether two networks differ somewhere, the Bayesian comparison answers parameter by parameter, and evidence of equivalence becomes expressible. Each pairwise difference gets its own indicator and its own inclusion Bayes factor, read exactly like the edge verdicts of From estimation to evidence, with “difference” in place of “edge”.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#the-fit",
+    "href": "examples/comparing-groups.html#the-fit",
+    "title": "Comparing groups",
+    "section": "The fit",
+    "text": "The fit\n\nlibrary(bgms)\n\nfit = bgmCompare(\n  x = ADHD[, -1],\n  group_indicator = ADHD$group,\n  variable_type = \"ordinal\",\n  seed = 123\n)\n\nThe ADHD data ship with the package: 18 binary DISC-IV symptom items for 355 children, 146 with an ADHD diagnosis and 209 without, with group coding the diagnosis. The call is bgmCompare() at its defaults plus a seed, so every number below is what the defaults give you on these data. The run takes a few minutes. The defaults are exploration-length (2,000 warmup, 2,000 sampling iterations); for a published claim, the run-length reasoning of Reading the output applies to difference indicators exactly as it does to edges.\n\nplot(fit)",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#read-the-verdicts",
+    "href": "examples/comparing-groups.html#read-the-verdicts",
+    "title": "Comparing groups",
+    "section": "Read the verdicts",
+    "text": "Read the verdicts\n\nverdicts(fit)\n\nEdge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):\npresence: log BF &gt; 2.30; absence: log BF &lt; -2.30\n\n  presence 5 | undecided 148 | absence 0   (153 indicators)\n  Main-effect differences are not under selection (main_difference_selection = FALSE).\n\n                 parameter   pip log_bf   verdict fragile\n avoid-closeatt (pairwise) 0.861  1.826 undecided   FALSE\n avoid-distract (pairwise) 0.353 -0.606 undecided   FALSE\n   avoid-forget (pairwise) 0.809  1.442 undecided   FALSE\n avoid-instruct (pairwise) 0.970  3.480  presence   FALSE\n   avoid-listen (pairwise) 0.823  1.540 undecided   FALSE\n    avoid-loses (pairwise) 0.480 -0.082 undecided   FALSE\n      avoid-org (pairwise) 0.754  1.121 undecided   FALSE\n   avoid-susatt (pairwise) 0.680  0.752 undecided   FALSE\n   avoid-blurts (pairwise) 0.377 -0.502 undecided   FALSE\n   avoid-fidget (pairwise) 0.872  1.918 undecided   FALSE\n... (143 more rows)\n\n2 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n\nThe fragility flag is not validated for difference indicators: its\noperating point was established on single-network edge indicators only.\nRead it as an indication that a verdict sits near a boundary, not as a\ncalibrated error rate.\n\nDifference verdicts are scale-contingent: group differences are priced\non the association scale through difference_scale, and the calibration\nof that default is under study, so a verdict close to a decision\nthreshold can move with the scale.\n\n\nThe counts are the headline: 5 differences supported, 148 undecided, 0 with evidence of equivalence at the default threshold of 10. The 18 main-effect difference rows print as unsampled: under the default main_difference_selection = FALSE the threshold differences are free parameters, not selected ones, so they carry no indicator to read (the print marks those rows and leaves them out of its counts). Two verdicts are flagged fragile, and the print also notes that the fragility flag’s operating point was calibrated on single-network edge verdicts, not on difference verdicts; the flag still marks verdicts near a boundary, but its error-catching rate is unmeasured here. See verdicts() for both contracts.\nThe summary(fit) layout follows the single-network fit block by block, and Reading the output owns that walkthrough; what is new here is that the selected parameters are the differences, so the pairwise_diff table is where share_incl and the indicator diagnostics live.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#the-two-directions",
+    "href": "examples/comparing-groups.html#the-two-directions",
+    "title": "Comparing groups",
+    "section": "The two directions",
+    "text": "The two directions\nA difference, walked. The strongest one is motor-seat, the association between being “on the go, driven by a motor” and leaving one’s seat:\n\nbf = extract_inclusion_bf(fit)\nbf[\"motor\", \"seat\"]\n\n[1] 886.4053\n\ncoef(fit)$pairwise_effects_groups[\"motor-seat\", ]\n\n    group1     group2 \n-0.5076113  0.9122395 \n\n\nA difference Bayes factor of about 886, and the group-specific model-averaged weights say what the difference is: in the group without a diagnosis the association is negative (about \\(-0.51\\)), in the diagnosed group strongly positive (about \\(0.91\\)). The two symptoms travel together among diagnosed children and apart among the others, conditional on the remaining sixteen symptoms. That sign flip, not just its size, is the finding.\nEquivalence, honestly. On these data at this run length, no difference reaches evidence of equivalence at the threshold of 10: the strongest lean toward invariance is forget-org at \\(\\text{BF}_{01} \\approx 3.6\\), which is still undecided. The claim becomes available at a laxer convention:\n\ntable(verdicts(fit, evidence_threshold = 3)$verdict)\n\n\n presence undecided   absence \n       25       120         8 \n\n\nAt a threshold of 3, eight associations carry evidence of equivalence. State the threshold, and read the claim with the same care as the absence panel of the single-network analysis: it is evidence that the modeled partial association is invariant across the groups, under this model and these priors. It is not a statement that the groups are identical, and an undecided difference is not equivalence; with 148 of 153 differences undecided, the loudest thing these data say is that 355 children decide very little about group differences at this evidence bar.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#the-three-panels",
+    "href": "examples/comparing-groups.html#the-three-panels",
+    "title": "Comparing groups",
+    "section": "The three panels",
+    "text": "The three panels\nThe figure at the top of the page is plot(fit): the same three-panel evidence display as for a single network, read for differences. The first panel holds the five supported differences, weighted by the posterior mean difference; the second holds the differences the data rule out, drawn dashed, and is empty here; the third holds the 148 dotted undecided pairs. A blank in a side-by-side drawing of two estimated networks cannot distinguish “no difference” from “cannot tell”; this display keeps them apart, and on these data the honest panel is the crowded third one.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#what-to-report",
+    "href": "examples/comparing-groups.html#what-to-report",
+    "title": "Comparing groups",
+    "section": "What to report",
+    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nFor a supported difference: “The partial association between &lt;X&gt; and &lt;Y&gt; differed between the groups (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)); it was &lt;w1&gt; in &lt;group 1&gt; and &lt;w2&gt; in &lt;group 2&gt;.”\nFor an equivalence claim: “The data supported invariance of the &lt;X&gt;-&lt;Y&gt; association across groups (\\(\\text{BF}_{01} = \\texttt{&lt;value&gt;}\\)),” stating the threshold it clears and the run it rests on.\nThe counts: how many differences were supported, ruled out, and undecided at your threshold, out of how many possible.\nNot licensed: reading an undecided difference as evidence the groups are the same, or a side-by-side pair of estimated networks as a difference test.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
+    ]
+  },
+  {
+    "objectID": "examples/comparing-groups.html#where-to-next",
+    "href": "examples/comparing-groups.html#where-to-next",
+    "title": "Comparing groups",
+    "section": "Where to next",
+    "text": "Where to next\n\nGroup Comparison for the model: the contrast parameterization, difference selection, and the prior on the differences.\nbgmCompare() for the arguments and return value, and Reading the output for the shared summary blocks.\nA companion tutorial developing the Bayesian group comparison in full is in preparation.\nBack in the series: From estimation to evidence, the single-network analysis this page extends.",
+    "crumbs": [
+      "Examples",
+      "Comparing groups"
     ]
   },
   {
@@ -2934,7 +3011,7 @@
     "href": "examples/index.html#the-series",
     "title": "Worked analyses",
     "section": "The series",
-    "text": "The series\n\nYour first network. Install bgms, fit your first model, and read the network split by evidence. Afterwards you can fit bgm() to your own data and produce the figure this site treats as the canonical result display.\nFrom estimation to evidence. The full Wenchuan network, estimated first and then weighed pair by pair with an inclusion Bayes factor. Afterwards you can say which associations your data support, which they rule out, and which they leave open.\nReading the output. The summary() of a real fit, walked block by block. Afterwards you can tell whether a fit is trustworthy and where every number you need lives.\nCheck your priors. prior_sensitivity_check() run on a fitted model, with its report and its curve read in full. Afterwards you can answer the question of whether your prior drove your conclusions, and report the answer.\nComparing groups. Two groups compared with bgmCompare(). Afterwards you can state both kinds of claim the method separates: this association differs between groups, and this one is credibly the same.\nEdge clustering. The stochastic block model prior on the same data. Afterwards you can report clusters of variables together with the uncertainty in the allocations.\nComing from bootnet and qgraph. Your current workflow mapped onto bgms, call by call. Afterwards you know which function replaces which step, what is new, and what has no direct analogue.\nReporting your results. Checklists and template paragraphs per analysis type. Afterwards you can assemble a Methods and Results section that a reviewer can follow.\n\nEntries without a link are still in preparation.",
+    "text": "The series\n\nYour first network. Install bgms, fit your first model, and read the network split by evidence. Afterwards you can fit bgm() to your own data and produce the figure this site treats as the canonical result display.\nFrom estimation to evidence. The full Wenchuan network, estimated first and then weighed pair by pair with an inclusion Bayes factor. Afterwards you can say which associations your data support, which they rule out, and which they leave open.\nReading the output. The summary() of a real fit, walked block by block. Afterwards you can tell whether a fit is trustworthy and where every number you need lives.\nCheck your priors. prior_sensitivity_check() run on a fitted model, with its report and its curve read in full. Afterwards you can answer the question of whether your prior drove your conclusions, and report the answer.\nComparing groups. Two groups compared with bgmCompare(). Afterwards you can state both kinds of claim the method separates: this association differs between groups, and this one is credibly the same.\nEdge clustering. The stochastic block model prior on boredom and curiosity items. Afterwards you can test whether variables cluster and report the clusters together with the uncertainty in the allocations.\nComing from bootnet and qgraph. Your current workflow mapped onto bgms, call by call. Afterwards you know which function replaces which step, what is new, and what has no direct analogue.\nReporting your results. Checklists and template paragraphs per analysis type. Afterwards you can assemble a Methods and Results section that a reviewer can follow.\n\nEntries without a link are still in preparation.",
     "crumbs": [
       "Examples",
       "Worked analyses"
@@ -3051,7 +3128,7 @@
     "href": "guide/clustering.html#a-worked-example",
     "title": "Edge Clustering",
     "section": "A worked example",
-    "text": "A worked example\nFit the Wenchuan PTSD data with the SBM edge prior (run in advance here; this takes several minutes):\n\nlibrary(bgms)\nfit = bgm(Wenchuan, edge_prior = sbm_prior(), seed = 123)\n\nApart from the edge prior and the seed this is bgm() at its defaults, so what follows is what the defaults give you on these data.\n\nsbm = extract_sbm(fit)\nround(head(sbm$posterior_num_blocks, 4), 3)\n\n  probability\n1       0.421\n2       0.362\n3       0.156\n4       0.049\n\n\nThe posterior puts most of its mass on one or two clusters. The posterior probability of no clustering (\\(B = 1\\)) is about 0.42, so the clustering-vs-no-clustering Bayes factor provides no compelling evidence for block structure among these PTSD symptoms — a finding in itself, and a caution against over-reading apparent groupings in the network plot.\nThe co-clustering matrix tells the same story:\n\ncm = sbm$posterior_mean_coclustering_matrix\np = nrow(cm)\nop = par(mar = c(6.5, 6.5, 1, 1))\nimage(1:p, 1:p, cm[, p:1], col = hcl.colors(20, \"Blues\", rev = TRUE),\n      axes = FALSE, xlab = \"\", ylab = \"\")\naxis(1, at = 1:p, labels = rownames(cm), las = 2, cex.axis = 0.7)\naxis(2, at = p:1, labels = colnames(cm), las = 1, cex.axis = 0.7)\n\n\n\n\n\n\n\npar(op)\n\nMost pairs co-cluster in a large share of iterations — consistent with one big cluster rather than separated blocks. In a dataset with real block structure, this plot shows distinct dark diagonal blocks of variables that always cluster together.",
+    "text": "A worked example\nThe full SBM analysis of 18 boredom and curiosity items from the French Short Boredom Proneness Scale validation study (Martarelli et al., 2023) is the worked analysis Edge clustering: the posterior over the number of clusters, both clustering Bayes factors computed from it, the modal allocations, and the co-clustering matrix as the uncertainty statement for the partition. On those data the model recovers the two questionnaires as two clusters without being told the item assignments, while remaining undecided between two and three clusters, a second-order statement no post-hoc community detection can make.",
     "crumbs": [
       "Get Started",
       "Analyses",
@@ -4626,7 +4703,7 @@
     "href": "reference/datasets.html#boredom",
     "title": "Datasets",
     "section": "Boredom",
-    "text": "Boredom\nUsed in the example of bgmCompare().\nResponses to the 8-item Short Boredom Proneness Scale (SBPS), a self-report measure of susceptibility to boredom (Martarelli et al. (2023)). Items were rated on a 7-point Likert scale from 1 (“strongly disagree”) to 7 (“strongly agree”). The scale was administered in either English Struk et al. (2017) or French Martarelli et al. (2023).\ndata(\"Boredom\")\nA data frame with 986 rows and 9 columns:\n\n\n\n\n\n\n\nColumn\nDescription\n\n\n\n\nlanguage\nLanguage: \"en\" = English, \"fr\" = French\n\n\nloose_ends\nI often find myself at “loose ends,” not knowing what to do.\n\n\nentertain\nI find it hard to entertain myself.\n\n\nrepetitive\nMany things I have to do are repetitive and monotonous.\n\n\nstimulation\nIt takes more stimulation to get me going than most people.\n\n\nmotivated\nI don’t feel motivated by most things that I do.\n\n\nkeep_interest\nIn most situations, it is hard for me to find something to keep me interested.\n\n\nsit_around\nMuch of the time, I just sit around doing nothing.\n\n\nhalf_dead_dull\nUnless I am doing something exciting, even dangerous, I feel half-dead and dull.\n\n\n\nSource: Martarelli et al. (2023). Data retrieved from osf.io/qhux8. Licensed under CC-BY 4.0.",
+    "text": "Boredom\nUsed in the example of bgmCompare().\nResponses to the 8-item Short Boredom Proneness Scale (SBPS), a self-report measure of susceptibility to boredom (Martarelli et al. (2023)). Items were rated on a 7-point Likert scale from 1 (“strongly disagree”) to 7 (“strongly agree”). The scale was administered in either English Struk et al. (2017) or French Martarelli et al. (2023).\ndata(\"Boredom\")\nA data frame with 986 rows and 9 columns:\n\n\n\n\n\n\n\nColumn\nDescription\n\n\n\n\nlanguage\nLanguage: \"en\" = English, \"fr\" = French\n\n\nloose_ends\nI often find myself at “loose ends,” not knowing what to do.\n\n\nentertain\nI find it hard to entertain myself.\n\n\nrepetitive\nMany things I have to do are repetitive and monotonous.\n\n\nstimulation\nIt takes more stimulation to get me going than most people.\n\n\nmotivated\nI don’t feel motivated by most things that I do.\n\n\nkeep_interest\nIn most situations, it is hard for me to find something to keep me interested.\n\n\nsit_around\nMuch of the time, I just sit around doing nothing.\n\n\nhalf_dead_dull\nUnless I am doing something exciting, even dangerous, I feel half-dead and dull.\n\n\n\nSource: Martarelli et al. (2023). Data retrieved from osf.io/qhux8. Licensed under CC-BY 4.0.\nThe Edge clustering worked analysis uses a companion dataset from the same validation study: the French subsample (490 participants) with all 18 items, the 8 SBPS items together with 10 items of the Curiosity and Exploration Inventory (CEI-II). A copy of that file is published with this site; the example page shows the download call.",
     "crumbs": [
       "Reference",
       "Datasets"
