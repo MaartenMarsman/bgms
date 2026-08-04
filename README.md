@@ -40,6 +40,34 @@ yielding posterior inclusion probabilities for each edge. `bgm()` can
 additionally model **community structure**, and `bgmCompare()` can test
 for **group differences** in individual parameters.
 
+## Large Gaussian graphical models
+
+Continuous data are where graphs get large, and large graphs are where
+runtime becomes the constraint. `bgm()` has a faster route for that
+case: a conjugate Gibbs sampler for the Gaussian graphical model,
+paired with a precision-graph prior that is normalized once rather than
+once per graph. Two arguments select it.
+
+``` r
+fit = bgm(y,
+  variable_type = "continuous",
+  precision_graph_prior = "joint",
+  update_method = "gibbs"
+)
+```
+
+On an Apple M5 Pro, four chains on four threads, at the package's
+default chain length: a 50-variable graph in 3.1 seconds against 31.4
+for the default route, and a 200-variable graph, 19,900 candidate
+edges, in under 7 minutes.
+
+The joint specification is a different model, not only a faster sampler:
+its prior over graphs is the edge prior reweighted, so inclusion Bayes
+factors are not interchangeable between the two routes. The vignette
+`vignette("fast-ggm")`, also on the [package
+website](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/),
+sets out that trade-off, the timings, and where the route applies.
+
 ## Installation
 
 Install from CRAN:

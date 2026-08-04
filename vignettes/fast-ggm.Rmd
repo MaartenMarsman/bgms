@@ -1,0 +1,367 @@
+---
+title: "Speed and Scale in Gaussian Graphical Models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Speed and Scale in Gaussian Graphical Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: refs.bib
+csl: apa.csl
+link-citations: TRUE
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2
+)
+library(bgms)
+# Every number in this vignette comes from this object. It was produced by one
+# run of data-raw/make-fast-ggm.R, whose calls are the calls shown below.
+B = readRDS("fast-ggm.rds")
+sec = function(x) sprintf("%.1f", x)
+# knitr's inline hook renders counts of this size in scientific notation.
+num = function(x) formatC(x, format = "d", big.mark = ",")
+```
+
+# When runtime is the constraint
+
+Continuous data give a Gaussian graphical model, and continuous data are where
+graphs get large. Two hundred variables is twenty thousand candidate edges, and
+an analysis that decides them one by one is a long analysis. For that case
+`bgm()` has a faster route. Two arguments select it:
+
+```{r, eval = FALSE}
+fit = bgm(y,
+  variable_type = "continuous",
+  precision_graph_prior = "joint",
+  update_method = "gibbs"
+)
+```
+
+`update_method = "gibbs"` replaces the default No-U-Turn sampler with a
+conjugate sampler that redraws a whole column of the precision matrix at a time.
+`precision_graph_prior = "joint"` normalizes the prior over the precision matrix
+and the graph once, globally, instead of once per graph, which puts every term
+of the edge move in closed form. Neither is the default, and the second one
+changes the model being fitted. That change comes first below; the timings
+follow.
+
+On an Apple M5 Pro, four chains on four threads, at fifty variables the pair is
+worth a factor of `r sprintf("%.0f", B$mid$speedup)`. At two hundred variables
+(twenty thousand candidate edges) it decides all of them in
+`r sprintf("%.0f", B$high$elapsed / 60)` minutes.
+
+
+# The trade-off
+
+The two routes do not target the same model, and the difference is in the prior
+over graphs.
+
+`bgm()`'s default, `precision_graph_prior = "hierarchical"`, normalizes the
+prior over the precision matrix separately within each graph. Integrating the
+precision matrix out then returns the stated edge prior exactly: set
+`bernoulli_prior(0.5)` and every edge really does carry prior probability
+one half. The price is that each edge move has to evaluate a graph-dependent
+normalizing constant.
+
+The joint specification normalizes once for the whole model. That is what makes
+the edge move cheap (the constant is the same on both sides of the comparison
+and cancels), but it also means the edge prior is no longer the prior over
+graphs. What survives is the edge prior reweighted by each graph's normalizing
+constant, and that reweighting favors sparser graphs. On six variables, with a
+nominal inclusion probability of one half:
+
+```{r, eval = FALSE}
+extract_prior_inclusion_probabilities(fit)[1, 2]
+```
+
+```{r, echo = FALSE}
+data.frame(
+  route = c("hierarchical (default)", "joint"),
+  nominal = c(B$prior$nominal, B$prior$nominal),
+  realized = round(c(B$prior$hierarchical, B$prior$joint), 3)
+)
+```
+
+The default returns the stated half. The joint specification returns
+`r round(B$prior$joint, 3)`, and the gap widens as the model grows. Nothing here
+is broken (the joint specification is a coherent model, and the sampler targets
+its posterior correctly), but it is a *different* model, so its
+inclusion Bayes factors are not interchangeable with the default's. An edge that
+is undecided on one route can be evidence of absence on the other, without
+either fit being wrong.
+
+`bgm()` says so when it fits:
+
+```
+Joint precision-graph specification: the realized edge-inclusion prior is the
+edge prior reweighted by the per-graph normalizer, not the nominal edge prior
+```
+
+The choice is a modelling choice, not a tuning knob. Take the fast route when
+the size of the problem is the obstacle, and report which specification the
+answer came from. An analysis whose report includes a stated prior inclusion
+probability needs the nominal edge prior to be the prior over graphs, and that
+is the default route.
+
+One practical consequence. Reading the realized prior back, which
+`extract_prior_inclusion_probabilities()`, `extract_inclusion_bf()` and
+`verdicts()` all need, requires a table built by simulation for the model size
+at hand. It is computed once and cached on disk, but it is not quick: at six
+variables it is a few seconds, and by fifty it is longer than the fit it
+describes. Posterior inclusion probabilities, from `summary()` or
+`extract_posterior_inclusion_probabilities()`, need nothing of the kind.
+
+
+# A mid-sized model, both ways
+
+`r B$mid$p` variables, `r B$mid$n` observations, drawn from a sparse Gaussian
+graphical model with `r B$mid$edges` edges among `r B$mid$pairs` pairs. Both
+fits use the package defaults for length (`r formals(bgm)$warmup` warmup and
+`r formals(bgm)$iter` retained iterations) and both run four chains on four
+threads. They differ in nothing else.
+
+```{r, eval = FALSE}
+default = bgm(y,
+  variable_type = "continuous",
+  chains = 4, cores = 4, seed = 2026
+)
+
+fast = bgm(y,
+  variable_type = "continuous",
+  precision_graph_prior = "joint",
+  update_method = "gibbs",
+  chains = 4, cores = 4, seed = 2026
+)
+```
+
+```{r, echo = FALSE}
+data.frame(
+  route = c("hierarchical + nuts (default)", "joint + gibbs"),
+  seconds = c(round(B$mid$default$elapsed, 1), round(B$mid$fast$elapsed, 1)),
+  edges_found = c(B$mid$default$selected, B$mid$fast$selected),
+  true_edges_found = c(B$mid$default$detected, B$mid$fast$detected),
+  false_positives = c(
+    B$mid$default$false_positive, B$mid$fast$false_positive
+  ),
+  max_rhat = round(c(B$mid$default$max_rhat, B$mid$fast$max_rhat), 3)
+)
+```
+
+`r sec(B$mid$default$elapsed)` seconds against `r sec(B$mid$fast$elapsed)`, a
+factor of `r sprintf("%.0f", B$mid$speedup)`, on four chains on four threads.
+Both routes recovered `r B$mid$fast$detected` of the `r B$mid$edges` true edges
+at the conventional half cut, and both are converged.
+
+The two edge sets agree on `r B$mid$agreement` of the `r B$mid$pairs` pairs.
+That agreement is an observation about this data set, not a guarantee: the
+sparser realized prior of the joint specification will pull verdicts toward
+absence, and how far it pulls them depends on how much the data have to say. On
+data with weaker signal the two routes will part company sooner. The point of
+the table is the left-hand column.
+
+
+# Two hundred variables
+
+`r B$high$p` variables and `r B$high$n` observations: `r num(B$high$pairs)`
+candidate edges, `r B$high$edges` of them real. The fast route only.
+
+```{r, eval = FALSE}
+fit = bgm(y,
+  variable_type = "continuous",
+  precision_graph_prior = "joint",
+  update_method = "gibbs",
+  chains = 4, cores = 4, seed = 2026
+)
+```
+
+```{r, echo = FALSE}
+data.frame(
+  variables = B$high$p,
+  candidate_edges = B$high$pairs,
+  seconds = round(B$high$elapsed, 1),
+  edges_found = B$high$selected,
+  true_edges_found = B$high$detected,
+  false_positives = B$high$false_positive,
+  max_rhat = round(B$high$max_rhat, 3)
+)
+```
+
+`r sec(B$high$elapsed)` seconds (about
+`r sprintf("%.0f", B$high$elapsed / 60)` minutes) for four chains on four
+threads at the package's default length, deciding `r num(B$high$pairs)` edges.
+It found `r B$high$detected` of the `r B$high$edges` true edges and
+`r B$high$false_positive` pairs that are not edges, which on the
+`r num(B$high$pairs - B$high$edges)` non-edges is a false-positive rate of
+`r sprintf("%.1f%%", 100 * B$high$false_positive / (B$high$pairs - B$high$edges))`.
+
+Nothing about reading the fit changes at this size:
+
+```{r, eval = FALSE}
+head(summary(fit)$indicator)
+```
+
+```{r, echo = FALSE}
+round(B$high$head, 3)
+```
+
+The remaining question, across all `r num(B$high$pairs)` pairs, is how decided
+the posterior is. The middle of the range holds `r B$high$profile$pairs[3]`
+pairs
+(`r sprintf("%.1f%%", 100 * B$high$profile$pairs[3] / B$high$pairs)` of the
+candidates), so the pairs that need a second look are a short list rather
+than a second analysis:
+
+```{r, echo = FALSE}
+knitr::kable(B$high$profile, col.names = c("inclusion probability", "pairs"))
+```
+
+The default route was not run at this size, so this vignette makes no claim
+about what it would have cost. The measured comparison is the one at fifty
+variables above.
+
+
+# How it scales
+
+Same generator, same `r B$high$n` observations, same four chains on four
+threads, the fast route throughout.
+
+```{r, echo = FALSE}
+knitr::kable(
+  data.frame(
+    variables = B$scaling$p,
+    candidate_edges = B$scaling$pairs,
+    seconds = round(B$scaling$elapsed, 1)
+  )
+)
+```
+
+```{r, echo = FALSE, fig.alt = "Wall-clock seconds against the number of variables, on a logarithmic vertical axis, rising steeply from a fraction of a second at 25 variables to several minutes at 200."}
+op = par(mar = c(4.2, 4.4, 1.2, 1.2), las = 1, bty = "n", cex = 0.9)
+plot(B$scaling$p, B$scaling$elapsed,
+  log = "y", type = "b", pch = 19, lwd = 2, cex = 1.1,
+  col = "#2f6f9f",
+  xlab = "Number of variables",
+  ylab = "Seconds (four chains, four threads)",
+  panel.first = grid(col = "grey92", lty = 1, lwd = 1)
+)
+text(B$scaling$p, B$scaling$elapsed,
+  labels = sprintf("%.1f", B$scaling$elapsed),
+  pos = c(4, 4, 4, 4, 2), offset = 0.6, cex = 0.8, col = "grey30"
+)
+par(op)
+```
+
+What drives that curve is the number of variables, not the number of
+observations. Complete data enter the sampler only through the cross-product of
+the data matrix, formed once before sampling starts; every draw after that
+works on the precision matrix, whose size the variables alone set. More
+observations change what the sampler is drawing from, not how much work a draw
+costs. More variables change both.
+
+
+# Where the fast route applies
+
+`update_method = "gibbs"` is the Gaussian graphical model's sampler and nothing
+else. Ordinal, Blume-Capel or mixed data are refused outright:
+
+```{r, error = TRUE}
+bgm(Wenchuan[, 1:4], update_method = "gibbs")
+```
+
+Within continuous data it needs conjugate ingredients: a `normal_prior()` or
+`cauchy_prior()` on the interactions, and `exponential_prior()` or
+`gamma_prior()` on the precision diagonal. Those are the defaults for
+`interaction_prior` and `precision_scale_prior`, so the usual call already
+qualifies; `beta_prime_prior()` on the interactions does not. Edge selection is
+supported for both slabs, and so is `edge_selection = FALSE`, which estimates
+the precision matrix at a fixed graph.
+
+`precision_graph_prior = "joint"` is separate from the sampler and applies to
+continuous data under edge selection, in Gaussian graphical models and in the
+continuous block of a mixed model. The two arguments compose but do not depend
+on each other: the Gibbs sampler runs under the default hierarchical
+specification, and the joint specification runs under `"nuts"`.
+
+One combination is fast to fit but slow to start. Under the joint
+specification a learned inclusion probability (`beta_bernoulli_prior()` or
+`sbm_prior()`) needs the same simulated correction table described above,
+because the constant that cancels for a fixed inclusion probability stops
+cancelling once that probability is itself being updated. The table is built at
+the first fit of a model configuration and cached, but at large numbers of
+variables that first fit will be waiting on it for far longer than the sampling
+takes. For a fast run at scale, keep `bernoulli_prior()`, the default.
+
+
+# Background
+
+The prior used here specifies the precision matrix entry by entry: an edge that
+is absent has its entry fixed at exactly zero, and an edge that is present draws
+its entry from a diffuse slab. The construction comes from the Bayesian
+variable-selection literature [@george1993jasa_variable] and was brought to
+Gaussian graphical models by @wang2015ba_scaling, whose column-wise block Gibbs
+sampler is the ancestor of the one `update_method = "gibbs"` runs. Its appeal
+was, and is, that it avoids the graph-dependent normalizing constant that makes
+structure learning expensive under the G-Wishart prior
+[@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating]. That
+avoidance is exactly what the joint specification does and what the
+hierarchical specification declines to do, which is the choice
+`precision_graph_prior` exposes. @vogels2024jasa_bayesian survey the wider field
+and compare the available samplers empirically.
+
+`bgms` adds one thing to the classical construction. Specifying the precision
+matrix entry by entry does not guarantee that the result is positive definite,
+so the prior has to be truncated to the cone of positive-definite matrices, and
+that truncation distorts it more and more as the number of variables grows
+[@jewson2024biometrics_graphical]. `bgm()` counters this by tilting the prior by
+a power `delta` of the determinant, which pushes mass away from the boundary of
+the cone; `delta` defaults to half the logarithm of the number of variables, so
+larger models are tilted harder. This is why the numbers above hold up at two
+hundred variables rather than collapsing onto the empty graph.
+
+Scaling this prior is an active problem and `bgms` is not alone on it.
+@sulem2025arxiv_bayesian give the closest treatment:
+Metropolis-Hastings within block Gibbs on the same spike-and-slab Gaussian
+graphical model, with mixing bounds that are dimension-free under suitable
+conditions and a global proposal that adds or removes several edges in one
+move. They report carrying exact Bayesian inference from roughly one hundred
+variables to roughly one thousand. Their work is implemented in the CRAN package
+**modelSelection** (version 1.0.7, 2026-05-16), which covers Bayesian model
+selection and averaging for regression, generalized linear and additive models,
+mixtures and graphical models. **ssgraph** (version 1.16, 2025-08-29) is the
+other near neighbor, doing Bayesian structure learning for undirected graphical
+models with spike-and-slab priors on continuous, discrete and mixed data.
+
+Neither package was run against `bgms` on the same data for this vignette, so it
+makes no comparative speed claim about either. Every timing above is `bgms`
+against `bgms`. Readers whose problem is a single very large Gaussian graphical
+model and nothing else should look at all three; what `bgms` adds around this
+route is the rest of the package: ordinal, Blume-Capel and mixed models,
+group comparison, prior sensitivity, and the determinant tilt that keeps the
+prior usable as the number of variables grows.
+
+
+# Reproducing the timings
+
+Every number above was produced by `data-raw/make-fast-ggm.R`, which is in the
+package repository and shows the generator, the seeds and the calls. Each fit
+ran on its own, four chains on four threads.
+
+```{r, echo = FALSE}
+data.frame(
+  field = c("CPU", "cores available", "threads used", "chains",
+            "operating system", "R", "bgms", "run"),
+  value = c(B$machine$cpu, B$machine$cores_total, B$machine$threads,
+            B$machine$chains, B$machine$os, B$machine$r_version,
+            B$machine$bgms_version, B$machine$date)
+)
+```
+
+Timings are facts about a machine. The ratios will travel further than the
+seconds.
+
+
+# References
