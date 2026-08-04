@@ -475,11 +475,6 @@ window.Quarto = {
 
 
 <div class="cell">
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'qgraph' was built under R version 4.6.1</code></pre>
-</div>
-</div>
-<div class="cell">
 <div class="cell-output-display">
 <div id="fig-payoff" class="quarto-float quarto-figure quarto-figure-center anchored" width="912">
 <figure class="quarto-float quarto-float-fig figure">
@@ -498,9 +493,9 @@ Figure&nbsp;1
 <section id="the-fit" class="level2">
 <h2 class="anchored" data-anchor-id="the-fit">The fit</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The <a href="../reference/datasets.html#wenchuan">Wenchuan</a> data ship with the package: 17 ordinal PTSD symptom items from survivors of the 2008 Wenchuan earthquake, with 344 of 362 rows complete under the default <code>na_action = "listwise"</code>. Everything except the run length is at its default. The longer run is the point: what you read off this fit is evidence, and the run has to be long enough to pin each inclusion probability down to the precision the evidence claim needs. At the default length these data leave the inclusion effective sample sizes in the hundreds; at this length they run into the thousands. <a href="../examples/reading-the-output.html">Reading the output</a> walks the <code>summary()</code> of this exact fit block by block.</p>
 </section>
@@ -508,17 +503,17 @@ Figure&nbsp;1
 <h2 class="anchored" data-anchor-id="the-silent-zero">The silent zero</h2>
 <p>Start where the field starts. The standard estimation workflow computes polychoric correlations and fits a regularized network with <code>EBICglasso</code>, which sets small partial associations to exactly zero:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>wenchuan <span class="ot">=</span> Wenchuan[<span class="fu">complete.cases</span>(Wenchuan), ]</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>correlations <span class="ot">=</span> <span class="fu">cor_auto</span>(wenchuan)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>glasso <span class="ot">=</span> <span class="fu">EBICglasso</span>(<span class="at">S =</span> correlations, <span class="at">n =</span> <span class="fu">nrow</span>(wenchuan), <span class="at">gamma =</span> <span class="fl">0.5</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(glasso[<span class="fu">upper.tri</span>(glasso)] <span class="sc">!=</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>wenchuan <span class="ot">=</span> Wenchuan[<span class="fu">complete.cases</span>(Wenchuan), ]</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>correlations <span class="ot">=</span> <span class="fu">cor_auto</span>(wenchuan)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>glasso <span class="ot">=</span> <span class="fu">EBICglasso</span>(<span class="at">S =</span> correlations, <span class="at">n =</span> <span class="fu">nrow</span>(wenchuan), <span class="at">gamma =</span> <span class="fl">0.5</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(glasso[<span class="fu">upper.tri</span>(glasso)] <span class="sc">!=</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 75</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>glasso[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>glasso[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0</code></pre>
 </div>
@@ -530,8 +525,8 @@ Figure&nbsp;1
 <p>The Bayesian analysis treats the network structure itself as unknown: every arrangement of the 136 edges is a candidate, and each candidate earns a posterior probability from the data. An edge’s <strong>posterior inclusion probability</strong> adds up the probability of all structures that contain it. The <strong>inclusion Bayes factor</strong> then compares that quantity against where it started, as the ratio of posterior to prior inclusion odds: a value of 10 means the data have multiplied the odds in favor of the edge by ten, a value of 1/10 means the data have multiplied the odds against it by ten, and a value near one means the data moved nothing. Because it is a ratio, evidence runs in both directions — which is exactly the distinction the estimated network’s blank could not make.</p>
 <p>Two properties matter in practice. The verdict on each edge is model-averaged over every structure the data leave plausible, so it does not depend on one particular arrangement of the other 135 edges. And because the prior odds are divided out, the Bayes factor reports what the data showed, not what you believed beforehand. The reasoning behind both lives in <a href="../guide/edge-selection.html">Edge Selection</a> and <a href="../guide/bayesian-approach.html">The Bayesian Approach</a>; <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> returns all 136 at once:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>bf[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>bf[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 158.6393</code></pre>
 </div>
@@ -542,7 +537,7 @@ Figure&nbsp;1
 <h2 class="anchored" data-anchor-id="three-verdicts-for-136-edges">Three verdicts for 136 edges</h2>
 <p>Nobody reads 136 Bayes factors one at a time. Following common conventions, values at or above 10 count as <strong>evidence of presence</strong>, values at or below 1/10 as <strong>evidence of absence</strong>, and everything in between is <strong>undecided</strong>. One call classifies every edge:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Edge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):
 presence: log BF &gt; 2.30; absence: log BF &lt; -2.30
@@ -572,49 +567,49 @@ longer run.</code></pre>
 </section>
 <section id="the-three-panels" class="level2">
 <h2 class="anchored" data-anchor-id="the-three-panels">The three panels</h2>
-<p>The figure at the top of the page is the verdict table drawn as three networks on one shared layout, so the panels match node for node (<code>plot(fit)</code> draws the same display in one call):</p>
+<p>The figure at the top of the page is the verdict table drawn as three networks on one shared layout, so the panels match node for node. You do not need custom code to get it: <a href="../reference/methods.html#plot"><code>plot(fit)</code></a> draws a rudimentary version of the same display in one call, and the <a href="https://cran.r-project.org/package=easybgm">easybgm</a> package offers more elaborate plotting and summary functions on top of <code>bgms</code>. The helper below builds the figure with <code>qgraph</code> directly, with every styling choice under your control:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>plot_edge_evidence <span class="ot">=</span> <span class="cf">function</span>(fit, labels, node_color, <span class="at">threshold =</span> <span class="dv">10</span>,</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                              <span class="at">seed =</span> <span class="dv">1234</span>, <span class="at">vsize =</span> <span class="dv">9</span>) {</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">=</span> <span class="fu">coef</span>(fit)<span class="sc">$</span>pairwise</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  presence <span class="ot">=</span> bf <span class="sc">&gt;=</span> threshold</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  absence <span class="ot">=</span> bf <span class="sc">&lt;=</span> <span class="dv">1</span> <span class="sc">/</span> threshold</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  undecided <span class="ot">=</span> <span class="sc">!</span>presence <span class="sc">&amp;</span> <span class="sc">!</span>absence</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">diag</span>(presence) <span class="ot">=</span> <span class="fu">diag</span>(absence) <span class="ot">=</span> <span class="fu">diag</span>(undecided) <span class="ot">=</span> <span class="cn">FALSE</span></span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># One layout, computed from every pair, so the three panels match node</span></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for node.</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  shared <span class="ot">=</span> <span class="fu">qgraph</span>(<span class="fu">abs</span>(weights), <span class="at">layout =</span> <span class="st">"spring"</span>, <span class="at">repulsion =</span> <span class="fl">0.9</span>,</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>                  <span class="at">DoNotPlot =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>layout</span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>  panel <span class="ot">=</span> <span class="cf">function</span>(edges, label, count, ...) {</span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">qgraph</span>(edges, <span class="at">layout =</span> shared, <span class="at">labels =</span> labels, <span class="at">fade =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> node_color, <span class="at">vsize =</span> vsize, <span class="at">label.scale.equal =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>           <span class="at">border.color =</span> <span class="st">"grey30"</span>, <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">4</span>), ...)</span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(<span class="fu">sprintf</span>(<span class="st">"%s: %d"</span>, label, count), <span class="at">side =</span> <span class="dv">3</span>, <span class="at">line =</span> <span class="fl">1.2</span>,</span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>          <span class="at">cex =</span> <span class="fl">0.95</span>, <span class="at">font =</span> <span class="dv">2</span>)</span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
-<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(weights <span class="sc">*</span> presence, <span class="st">"evidence of presence"</span>, <span class="fu">sum</span>(presence) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">theme =</span> <span class="st">"TeamFortress"</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
-<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(absence <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"evidence of absence"</span>, <span class="fu">sum</span>(absence) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#A66A1E"</span>, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
-<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(undecided <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"undecided"</span>, <span class="fu">sum</span>(undecided) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#8A8578"</span>, <span class="at">lty =</span> <span class="dv">3</span>, <span class="at">edge.width =</span> <span class="fl">1.4</span>)</span>
-<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_edge_evidence</span>(fit, <span class="fu">colnames</span>(Wenchuan), <span class="st">"#f0ae0e"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>plot_edge_evidence <span class="ot">=</span> <span class="cf">function</span>(fit, labels, node_color, <span class="at">threshold =</span> <span class="dv">10</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                              <span class="at">seed =</span> <span class="dv">1234</span>, <span class="at">vsize =</span> <span class="dv">9</span>) {</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">=</span> <span class="fu">coef</span>(fit)<span class="sc">$</span>pairwise</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  presence <span class="ot">=</span> bf <span class="sc">&gt;=</span> threshold</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  absence <span class="ot">=</span> bf <span class="sc">&lt;=</span> <span class="dv">1</span> <span class="sc">/</span> threshold</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  undecided <span class="ot">=</span> <span class="sc">!</span>presence <span class="sc">&amp;</span> <span class="sc">!</span>absence</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">diag</span>(presence) <span class="ot">=</span> <span class="fu">diag</span>(absence) <span class="ot">=</span> <span class="fu">diag</span>(undecided) <span class="ot">=</span> <span class="cn">FALSE</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># One layout, computed from every pair, so the three panels match node</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for node.</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  shared <span class="ot">=</span> <span class="fu">qgraph</span>(<span class="fu">abs</span>(weights), <span class="at">layout =</span> <span class="st">"spring"</span>, <span class="at">repulsion =</span> <span class="fl">0.9</span>,</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>                  <span class="at">DoNotPlot =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>layout</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  panel <span class="ot">=</span> <span class="cf">function</span>(edges, label, count, ...) {</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">qgraph</span>(edges, <span class="at">layout =</span> shared, <span class="at">labels =</span> labels, <span class="at">fade =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> node_color, <span class="at">vsize =</span> vsize, <span class="at">label.scale.equal =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>           <span class="at">border.color =</span> <span class="st">"grey30"</span>, <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">4</span>), ...)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(<span class="fu">sprintf</span>(<span class="st">"%s: %d"</span>, label, count), <span class="at">side =</span> <span class="dv">3</span>, <span class="at">line =</span> <span class="fl">1.2</span>,</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>          <span class="at">cex =</span> <span class="fl">0.95</span>, <span class="at">font =</span> <span class="dv">2</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(weights <span class="sc">*</span> presence, <span class="st">"evidence of presence"</span>, <span class="fu">sum</span>(presence) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">theme =</span> <span class="st">"TeamFortress"</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(absence <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"evidence of absence"</span>, <span class="fu">sum</span>(absence) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#A66A1E"</span>, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(undecided <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"undecided"</span>, <span class="fu">sum</span>(undecided) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#8A8578"</span>, <span class="at">lty =</span> <span class="dv">3</span>, <span class="at">edge.width =</span> <span class="fl">1.4</span>)</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_edge_evidence</span>(fit, <span class="fu">colnames</span>(Wenchuan), <span class="st">"#f0ae0e"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p><strong>Evidence of presence.</strong> For these 35 pairs the data favor a direct association that survives conditioning on the other symptoms. Only this panel is weighted: line width is the posterior mean partial association, so the effect sizes live here. The edge between <code>intrusion</code> and <code>concen</code> — the graphical lasso’s zero — is one of them:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>w <span class="ot">=</span> <span class="fu">extract_pairwise_interactions</span>(fit)[, <span class="st">"intrusion-concen"</span>]</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(w), <span class="fu">quantile</span>(w, <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>w <span class="ot">=</span> <span class="fu">extract_pairwise_interactions</span>(fit)[, <span class="st">"intrusion-concen"</span>]</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(w), <span class="fu">quantile</span>(w, <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> mean  2.5% 97.5% 
 -0.14 -0.20 -0.07 </code></pre>
@@ -640,6 +635,7 @@ longer run.</code></pre>
 <li>For a supported edge: “There was strong evidence for a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> (<span class="math inline">\(\text{BF}_{10} = \texttt{&lt;value&gt;}\)</span>), with a model-averaged weight of <code>&lt;mean&gt;</code> (95% CI <code>&lt;lower&gt;</code> to <code>&lt;upper&gt;</code>).”</li>
 <li>For a ruled-out edge: “The data provided evidence against a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> (<span class="math inline">\(\text{BF}_{01} = \texttt{&lt;value&gt;}\)</span>).”</li>
 <li>For an undecided edge: “The evidence for a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> was inconclusive (<span class="math inline">\(\text{BF}_{10} = \texttt{&lt;value&gt;}\)</span>); these data do not decide it.”</li>
+<li>For an edge that carries a substantive claim, <a href="../reference/methods.html#plot_edge_posterior"><code>plot_edge_posterior(fit, "intrusion", "concen")</code></a> draws the posterior of its weight against the prior it was updated from, with the inclusion evidence as a probability wheel: a single-edge figure for a results section.</li>
 <li>State the evidence threshold and the counts it produced, and check the fragility note in <code>verdicts()</code> before resting a conclusion on a borderline edge.</li>
 <li>Not licensed: reading an edge that is merely missing from an estimated or thresholded network as evidence that the association is absent.</li>
 </ul>
