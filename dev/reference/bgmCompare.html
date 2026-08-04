@@ -557,7 +557,7 @@ window.Quarto = {
 <p>Compares group differences in networks for discrete (binary and ordinal) variables using Bayesian estimation and optional difference selection.</p>
 <section id="description" class="level2">
 <h2 class="anchored" data-anchor-id="description">Description</h2>
-<p><code>bgmCompare()</code> extends <code>bgm()</code> to test group differences in threshold and partial-association parameters for discrete MRFs. Groups can be supplied as two datasets (<code>x</code> and <code>y</code>) or through a grouping vector in <code>group_indicator</code>. This page is the technical reference for arguments and return values. For workflow and interpretation, see <a href="../guide/group-comparison.html">Group Comparison</a>, <a href="../guide/edge-selection.html">Edge Selection</a>, <a href="../guide/mcmc-output.html">MCMC Output</a>, and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>. Methodological background is provided in <span class="citation" data-cites="MarsmanEtAl_2025_ttest">Marsman et al. (<a href="#ref-MarsmanEtAl_2025_ttest" role="doc-biblioref">2025</a>)</span>.</p>
+<p><code>bgmCompare()</code> extends <code>bgm()</code> to test group differences in threshold and partial-association parameters for discrete MRFs. Groups can be supplied as two datasets (<code>x</code> and <code>y</code>) or through a grouping vector in <code>group_indicator</code>. This page is the technical reference for arguments and return values. For workflow and interpretation, see <a href="../guide/group-comparison.html">Group Comparison</a>, <a href="../guide/edge-selection.html">Edge Selection</a>, <a href="../guide/mcmc-output.html">Model Output</a>, and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>. Methodological background is provided in <span class="citation" data-cites="MarsmanEtAl_2025_ttest">Marsman et al. (<a href="#ref-MarsmanEtAl_2025_ttest" role="doc-biblioref">2025</a>)</span>.</p>
 </section>
 <section id="usage" class="level2">
 <h2 class="anchored" data-anchor-id="usage">Usage</h2>
@@ -570,9 +570,9 @@ window.Quarto = {
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  baseline_category,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">difference_scale =</span> <span class="dv">1</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">difference_family =</span> <span class="fu">c</span>(<span class="st">"Cauchy"</span>, <span class="st">"Normal"</span>),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">difference_family =</span> <span class="fu">c</span>(<span class="st">"Normal"</span>, <span class="st">"Cauchy"</span>),</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">difference_prior =</span> <span class="fu">bernoulli_prior</span>(<span class="fl">0.5</span>),</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">interaction_prior =</span> <span class="fu">cauchy_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>),</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">interaction_prior =</span> <span class="fu">normal_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>),</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">threshold_prior =</span> <span class="fu">beta_prime_prior</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">beta =</span> <span class="fl">0.5</span>),</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup =</span> <span class="dv">2000</span>,</span>
@@ -652,7 +652,7 @@ window.Quarto = {
 </tr>
 <tr class="even">
 <td><code>difference_family</code></td>
-<td>Character. Distributional family of the prior on the contrast parameters, one of <code>"Cauchy"</code> (default) or <code>"Normal"</code>. Independent of <code>interaction_prior</code>, which governs the baseline interactions.</td>
+<td>Character. Distributional family of the slab prior on the contrast parameters, one of <code>"Normal"</code> (default) or <code>"Cauchy"</code>. Independent of <code>interaction_prior</code>, which governs the baseline interactions.</td>
 </tr>
 <tr class="odd">
 <td><code>difference_prior</code></td>
@@ -675,7 +675,7 @@ window.Quarto = {
 <tbody>
 <tr class="odd">
 <td><code>interaction_prior</code></td>
-<td>A <code>bgms_parameter_prior</code> object for baseline pairwise interactions. Allowed: <a href="../reference/priors.html#cauchy_prior"><code>cauchy_prior()</code></a> (default), <a href="../reference/priors.html#normal_prior"><code>normal_prior()</code></a>. Note that the default here remains Cauchy, unlike <a href="../reference/bgm.html"><code>bgm()</code></a>, whose default interaction prior is Normal. Default: <code>cauchy_prior(scale = 1)</code>.</td>
+<td>A <code>bgms_parameter_prior</code> object for baseline pairwise interactions. Allowed: <a href="../reference/priors.html#normal_prior"><code>normal_prior()</code></a> (default), <a href="../reference/priors.html#cauchy_prior"><code>cauchy_prior()</code></a>. This matches the default in <a href="../reference/bgm.html"><code>bgm()</code></a>, so a comparison and separate single-group fits place the same prior on a baseline interaction. Default: <code>normal_prior(scale = 1)</code>.</td>
 </tr>
 <tr class="even">
 <td><code>threshold_prior</code></td>
@@ -869,7 +869,7 @@ window.Quarto = {
 </section>
 <section id="details" class="level2">
 <h2 class="anchored" data-anchor-id="details">Details</h2>
-<p>For full explanations, see the guide. The modeling setup for cross-group contrasts is explained in <a href="../guide/group-comparison.html">Group Comparison</a>, with related background in <a href="../guide/graphical-models.html">Graphical Models</a>. Prior choices for difference selection are discussed in <a href="../guide/edge-selection.html">Edge Selection</a>, and output interpretation and convergence checks are covered in <a href="../guide/mcmc-output.html">MCMC Output</a> and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>.</p>
+<p>For full explanations, see the guide. The modeling setup for cross-group contrasts is explained in <a href="../guide/group-comparison.html">Group Comparison</a>, with related background in <a href="../guide/graphical-models.html">Graphical Models</a>. Prior choices for difference selection are discussed in <a href="../guide/edge-selection.html">Edge Selection</a>, and output interpretation and convergence checks are covered in <a href="../guide/mcmc-output.html">Model Output</a> and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>.</p>
 </section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>

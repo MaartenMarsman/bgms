@@ -574,7 +574,7 @@ window.Quarto = {
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta =</span> <span class="cn">NULL</span>,</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">edge_selection =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">edge_prior =</span> <span class="fu">bernoulli_prior</span>(<span class="fl">0.5</span>),</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">precision_graph_prior =</span> <span class="fu">c</span>(<span class="st">"joint"</span>, <span class="st">"hierarchical"</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">precision_graph_prior =</span> <span class="fu">c</span>(<span class="st">"hierarchical"</span>, <span class="st">"joint"</span>),</span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">na_action =</span> <span class="fu">c</span>(<span class="st">"listwise"</span>, <span class="st">"impute"</span>),</span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">update_method =</span> <span class="fu">c</span>(<span class="st">"nuts"</span>, <span class="st">"adaptive-metropolis"</span>, <span class="st">"gibbs"</span>),</span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  target_accept,</span>
@@ -621,7 +621,7 @@ window.Quarto = {
 </section>
 <section id="prior-specification" class="level3">
 <h3 class="anchored" data-anchor-id="prior-specification">Prior specification</h3>
-<p>Priors are specified by passing prior-object constructors (see <a href="../reference/priors.html">Prior Constructors</a>). The legacy scalar arguments listed below the table (<code>pairwise_scale</code>, <code>main_alpha</code>, <code>main_beta</code>, <code>inclusion_probability</code>, <code>beta_bernoulli_alpha/beta</code>, …) are deprecated as of bgms 0.2.0; they still work but emit a lifecycle warning and forward to the equivalent prior object.</p>
+<p>Priors are specified by passing prior-object constructors (see <a href="../reference/priors.html">Prior Constructors</a>). The legacy scalar arguments listed below the table (<code>pairwise_scale</code>, <code>main_alpha</code>, <code>main_beta</code>, <code>inclusion_probability</code>, <code>beta_bernoulli_alpha/beta</code>, …) are deprecated as of bgms 0.2.0.0; they still work but emit a lifecycle warning and forward to the equivalent prior object.</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -660,7 +660,7 @@ window.Quarto = {
 </tr>
 <tr class="even">
 <td><code>precision_graph_prior</code></td>
-<td>Character. How the precision prior composes with the edge prior under edge selection for continuous (GGM) data. <code>"joint"</code> (default): the un-normalized joint specification, whose graph marginal is the edge prior times a graph-dependent normalizing constant; with <code>beta_bernoulli_prior()</code> or <code>sbm_prior()</code> the hyperparameter updates then carry the normalizing-constant correction described in the note below. <code>"hierarchical"</code>: the hierarchical specification <span class="math inline">\(p(\Gamma)\,p(K \mid \Gamma)\)</span> with the precision prior normalized per graph, so that the graph marginal is exactly the edge prior. Each edge move then evaluates a normalizer ratio with a fast local approximation, built once at the start of the analysis. An optional trust gauge (off by default; enable with <code>options(bgms.zratio_gauge_sweeps = 2L)</code> before fitting) audits the approximation after sampling; its summary is returned as <code>fit$zratio_diag</code> (see <a href="../reference/prior-samplers.html#summarize_zratio_gauge"><code>summarize_zratio_gauge()</code></a>). Requires <code>edge_selection = TRUE</code>, a <code>normal_prior()</code> or <code>cauchy_prior()</code> interaction prior, and continuous data — all-continuous, or mixed with at least two continuous variables (the normalizer then lives on the continuous block, and only continuous-continuous edge moves are affected). Default: <code>"joint"</code>.</td>
+<td>Character. How the precision prior composes with the edge prior under edge selection for continuous (GGM) data. <code>"hierarchical"</code> (default): the hierarchical specification <span class="math inline">\(p(\Gamma)\,p(K \mid \Gamma)\)</span> with the precision prior normalized per graph, so that the graph marginal is exactly the edge prior. Each edge move then evaluates a normalizer ratio with a fast local approximation, built once at the start of the analysis; a trust gauge runs in-chain and audits that approximation, and its summary is returned as <code>fit$zratio_diag</code> (see <a href="../reference/prior-samplers.html#summarize_zratio_gauge"><code>summarize_zratio_gauge()</code></a>). Set <code>options(bgms.zratio_gauge_sweeps = 0L)</code> before fitting to switch the gauge off. <code>"joint"</code>: the un-normalized joint specification, whose graph marginal is the edge prior times a graph-dependent normalizing constant; with <code>beta_bernoulli_prior()</code> or <code>sbm_prior()</code> the hyperparameter updates then carry the normalizing-constant correction described in the note below. The hierarchical specification requires <code>edge_selection = TRUE</code>, a <code>normal_prior()</code> or <code>cauchy_prior()</code> interaction prior, and continuous data — all-continuous, or mixed with at least two continuous variables (the normalizer then lives on the continuous block, and only continuous-continuous edge moves are affected). When the choice has no effect (<code>edge_selection = FALSE</code>, or no continuous precision block) the argument is accepted rather than an error: the surface and the gauge are skipped, and the posterior is identical under either value. Setting the argument yourself in that case prints a note when <code>verbose = TRUE</code>. Default: <code>"hierarchical"</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -670,11 +670,13 @@ window.Quarto = {
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Edge-prior correction for continuous models
+<span class="screen-reader-only">Note</span>What a continuous fit builds before the chains start
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>For continuous (GGM) and mixed models with <code>beta_bernoulli_prior()</code> or <code>sbm_prior()</code> under the default <code>precision_graph_prior = "joint"</code>, the hyperparameter updates carry a normalizing-constant correction: under the determinant-tilted precision prior, the plain conjugate updates would target the wrong marginals for the inclusion probability and the block structure. In mixed models the tilt acts on the continuous precision block, so the correction reads continuous-continuous edges only; with fewer than two continuous variables the plain conjugate updates apply unchanged. The correction table is built from the prior distribution at the first fit of a model configuration — a one-time cost of the order of minutes, announced when <code>verbose = TRUE</code> — and cached on disk via <code>tools::R_user_dir("bgms", "cache")</code>, so later fits of the same configuration skip the build. With <code>beta_bernoulli_prior()</code> the sampled inclusion probability is returned per chain in <code>fit$inclusion_parameter_samples</code>.</p>
+<p>Both specifications precompute something once per analysis, and both cache it on disk via <code>tools::R_user_dir("bgms", "cache")</code>, so a repeat fit of the same configuration skips the build.</p>
+<p>Under the default <code>precision_graph_prior = "hierarchical"</code> it is the <strong>normalizer surface</strong> the edge moves evaluate their ratio against. It announces itself with the size it covers and the number of cores it uses, then reports its elapsed time — this is the pause before the chains start on a first hierarchical fit. At the full 80-variable range it costs about 24 seconds serial and about 7 on four cores; a fit on fewer variables sizes the build to its own variable count. A hierarchical fit needs no edge-prior correction table, whatever its edge prior.</p>
+<p>Under <code>precision_graph_prior = "joint"</code> with <code>beta_bernoulli_prior()</code> or <code>sbm_prior()</code> it is instead the <strong>edge-prior correction table</strong>, which the hyperparameter updates read: under the determinant-tilted precision prior, the plain conjugate updates would target the wrong marginals for the inclusion probability and the block structure. In mixed models the tilt acts on the continuous precision block, so the correction reads continuous-continuous edges only; with fewer than two continuous variables the plain conjugate updates apply unchanged. The table is keyed on the interaction prior and takes of the order of minutes to build. It announces itself only when it actually builds; a cache hit is silent. With <code>beta_bernoulli_prior()</code> the sampled inclusion probability is returned per chain in <code>fit$inclusion_parameter_samples</code>.</p>
 </div>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -845,13 +847,13 @@ window.Quarto = {
 <p>Fields tied to specific settings:</p>
 <ul>
 <li><code>inclusion_parameter_samples</code> — Per-chain draws of the sampled inclusion probability, present for continuous and mixed models with <code>edge_prior = beta_bernoulli_prior(...)</code>.</li>
-<li><code>zratio_diag</code> — Trust-gauge summary for <code>precision_graph_prior = "hierarchical"</code> when the gauge is enabled with <code>options(bgms.zratio_gauge_sweeps = 2L)</code>; <code>NULL</code> otherwise. See <a href="../reference/prior-samplers.html#summarize_zratio_gauge"><code>summarize_zratio_gauge()</code></a>.</li>
+<li><code>zratio_diag</code> — Per-chain trust-gauge summary, present on any fit that runs the deployed hierarchical path: a continuous or mixed model with edge selection at the default <code>precision_graph_prior = "hierarchical"</code>. It is <code>NULL</code> under <code>"joint"</code>, where there is no approximation to audit, on models with no continuous precision block, and when the gauge is switched off with <code>options(bgms.zratio_gauge_sweeps = 0L)</code>. See <a href="../reference/prior-samplers.html#summarize_zratio_gauge"><code>summarize_zratio_gauge()</code></a>.</li>
 <li><code>nuts_diag</code> — NUTS diagnostics (tree depth, divergences, acceptance probabilities, energy, E-BFMI, and a warmup-completeness check), present when <code>update_method = "nuts"</code>. Its summary includes <code>mean_accept_prob</code>, <code>warmup_incomplete</code>, and an overall <code>has_issues</code> flag that triggers a printed warning after fitting.</li>
 </ul>
 </section>
 <section id="details" class="level2">
 <h2 class="anchored" data-anchor-id="details">Details</h2>
-<p>For full explanations, see the guide. Model-specific assumptions and parameterization are described in <a href="../guide/omrf.html">Ordinal MRF</a>, <a href="../guide/ggm.html">Gaussian Graphical Model</a>, and <a href="../guide/mixed-model.html">Mixed MRF</a>. Prior specification and structure learning are discussed in <a href="../guide/prior-basics.html">Prior Basics</a>, <a href="../guide/edge-selection.html">Edge Selection</a>, and <a href="../guide/clustering.html">Edge Clustering</a>. To interpret outputs and verify chain quality, see <a href="../guide/mcmc-output.html">MCMC Output</a> and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>.</p>
+<p>For full explanations, see the guide. Model-specific assumptions and parameterization are described in <a href="../guide/omrf.html">Ordinal MRF</a>, <a href="../guide/ggm.html">Gaussian Graphical Model</a>, and <a href="../guide/mixed-model.html">Mixed MRF</a>. Prior specification and structure learning are discussed in <a href="../guide/prior-basics.html">Prior Basics</a>, <a href="../guide/edge-selection.html">Edge Selection</a>, and <a href="../guide/clustering.html">Edge Clustering</a>. To interpret outputs and verify chain quality, see <a href="../guide/mcmc-output.html">Model Output</a> and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>.</p>
 </section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
@@ -887,13 +889,13 @@ intrusion-avoidact  0.000 0.000 0.005 38820.463      0.011 1.000
 ... (use `summary(fit)$pairwise` to see full output)
 
 Inclusion probabilities:
-                    mean  mcse    sd     n_eff n_eff_mixt  Rhat n0-&gt;1 n1-&gt;0
-intrusion-dreams   1.000       0.000                                0     0
-intrusion-flash    1.000       0.001                                0     0
-intrusion-upset    0.664 0.013 0.460  1300.913   1534.486 1.005   660   660
-intrusion-physior  0.217 0.008 0.388  2477.845   3478.729 1.001  1090  1090
-intrusion-avoidth  0.034 0.001 0.109 21794.876  24396.171     1  1018  1018
-intrusion-avoidact 0.029 0.001 0.094 23071.446   27374.96     1   913   913
+                    mean  mcse    sd     n_eff  Rhat n0-&gt;1 n1-&gt;0
+intrusion-dreams   1.000       0.000                     0     0
+intrusion-flash    1.000     0 0.001 39460.069     1     0     0
+intrusion-upset    0.664 0.013 0.460  1300.913 1.005   659   660
+intrusion-physior  0.217 0.008 0.388  2477.845 1.001  1090  1090
+intrusion-avoidth  0.034 0.001 0.109 21794.876     1  1018  1018
+intrusion-avoidact 0.029 0.001 0.094 23071.446     1   913   913
 ... (use `summary(fit)$indicator` to see full output)
 Note: NA values are suppressed in the print table; they occur for indicators
 that were not updated or whose draws are constant, so ESS/Rhat are undefined.
@@ -904,7 +906,7 @@ Use `extract_log_odds(fit)` for log odds ratios.
 See the `easybgm` package for other summary and plotting tools.</code></pre>
 </div>
 </div>
-<p>The threshold and pairwise tables report the posterior mean, Monte Carlo standard error (<code>mcse</code>), posterior standard deviation, effective sample size, and R-hat for each parameter; the pairwise table adds <code>share_incl</code>, the share of that Monte Carlo error owed to inclusion rather than slab uncertainty. In the pairwise table, an estimate of <code>0.000</code> (e.g.&nbsp;<code>intrusion-avoidact</code>) is an edge that edge selection excluded in essentially every draw. The inclusion table (further down the printed output) gives each edge’s posterior inclusion probability in the <code>mean</code> column. See <a href="../guide/mcmc-output.html">MCMC Output</a> for a walkthrough of every component and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a> for how to act on <code>n_eff</code> and <code>Rhat</code>.</p>
+<p>The threshold and pairwise tables report, in that column order, the posterior mean, posterior standard deviation, Monte Carlo standard error (<code>mcse</code>), effective sample size, and R-hat for each parameter; the pairwise table adds <code>share_incl</code>, the share of that Monte Carlo error owed to inclusion rather than slab uncertainty. In the pairwise table, an estimate of <code>0.000</code> (e.g.&nbsp;<code>intrusion-avoidact</code>) is an edge that edge selection excluded in essentially every draw. The inclusion table (further down the printed output) gives each edge’s posterior inclusion probability in the <code>mean</code> column. See <a href="../guide/mcmc-output.html">Model Output</a> for a walkthrough of every component and <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a> for how to act on <code>n_eff</code> and <code>Rhat</code>.</p>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>

@@ -616,7 +616,7 @@ flash          1.00   1.00  0.00  0.07
 upset          0.66   0.89  0.07  0.00</code></pre>
 </div>
 </div>
-<p>Here the <code>intrusion</code>–<code>dreams</code> edge saturates at probability 1, while <code>intrusion</code>–<code>upset</code> sits around 0.66 — the data do not clearly decide that edge. See <a href="../guide/edge-selection.html">Edge Selection</a> for turning these into Bayes factors, and <a href="#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> for a Bayes-factor estimator that stays finite even for saturated edges. - <strong><code>bgmCompare</code></strong>: Diagonal entries are main-effect inclusion probabilities; off-diagonal entries are pairwise difference inclusion probabilities. Requires <code>difference_selection = TRUE</code>. With <code>estimator = "rb"</code>, indicators that were not selected (e.g.&nbsp;main-effect differences when <code>main_difference_selection = FALSE</code>) are returned as <code>NA</code>.</p>
+<p>Here the <code>intrusion</code>–<code>dreams</code> edge saturates at probability 1, while <code>intrusion</code>–<code>upset</code> sits around 0.66 — the data do not clearly decide that edge. See <a href="../guide/edge-selection.html">Edge Selection</a> for turning these into Bayes factors, and <a href="#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> for a Bayes-factor estimator that stays finite for saturated edges up to the numerical bound described there. - <strong><code>bgmCompare</code></strong>: Diagonal entries are main-effect inclusion probabilities; off-diagonal entries are pairwise difference inclusion probabilities. Requires <code>difference_selection = TRUE</code>. With <code>estimator = "rb"</code>, indicators that were not selected (e.g.&nbsp;main-effect differences when <code>main_difference_selection = FALSE</code>) are returned as <code>NA</code>.</p>
 </section>
 <section id="extract_inclusion_bf" class="level2">
 <h2 class="anchored" data-anchor-id="extract_inclusion_bf">extract_inclusion_bf</h2>
@@ -669,8 +669,9 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgms</code> object with <code>edge_selection = TRUE</code>. Returns a symmetric matrix of prior inclusion probabilities with the variable names as row and column names and a zero diagonal.</p>
 <p>For models without a continuous block of at least two variables (ordinal MRFs, mixed models with a single continuous variable), the prior inclusion probability is simply the edge prior’s marginal: the fixed probability for <code>bernoulli_prior()</code>, <span class="math inline">\(\alpha / (\alpha + \beta)\)</span> for <code>beta_bernoulli_prior()</code>, and the mixture of the within- and between-block means for <code>sbm_prior()</code>.</p>
-<p>Under the default joint spike-and-slab prior on a continuous block (<code>precision_graph_prior = "joint"</code> in <a href="../reference/bgm.html"><code>bgm()</code></a>), the graph marginal is reweighted by a per-graph normalizing constant, so the prior inclusion probability of a continuous-continuous edge differs from the edge-prior marginal — even at <code>delta = 0</code>. This function returns the actual reweighted probabilities: for <code>bernoulli_prior()</code> and <code>beta_bernoulli_prior()</code> they are read from the same cached normalizing-constant table that corrects the fit’s hyperparameter updates; for <code>sbm_prior()</code> (and slab families without a table) they are estimated by a prior-only chain run with the fit’s own prior settings, controlled by <code>iter</code> and <code>warmup</code>. That estimate is cached on the fit, and <code>recompute = TRUE</code> re-runs it.</p>
-<p>In mixed models only continuous-continuous edges live in the joint block, so the matrix carries up to three distinct values: discrete-discrete, continuous-continuous, and cross edges.</p>
+<p>Under the default <code>precision_graph_prior = "hierarchical"</code> in <a href="../reference/bgm.html"><code>bgm()</code></a> the same holds for a continuous block: <span class="math inline">\(p(K \mid \Gamma)\)</span> is normalized per graph, so integrating <span class="math inline">\(K\)</span> out returns the edge prior exactly and every edge class keeps the edge-prior marginal. Nothing is read off a table or estimated by a chain, and the function returns quickly.</p>
+<p>Under <code>precision_graph_prior = "joint"</code> the graph marginal is instead reweighted by a per-graph normalizing constant, so the prior inclusion probability of a continuous-continuous edge differs from the edge-prior marginal — even at <code>delta = 0</code>. This function then returns the actual reweighted probabilities: for <code>bernoulli_prior()</code> and <code>beta_bernoulli_prior()</code> they are read from the same cached normalizing-constant table that corrects the fit’s hyperparameter updates; for <code>sbm_prior()</code> (and slab families without a table) they are estimated by a prior-only chain run with the fit’s own prior settings, controlled by <code>iter</code> and <code>warmup</code>. That estimate is cached on the fit, and <code>recompute = TRUE</code> re-runs it. Building an uncached table takes minutes; the build is announced and draws a progress bar rather than pausing silently.</p>
+<p>In mixed models only continuous-continuous edges live in the joint block, so on a joint fit the matrix carries up to three distinct values: discrete-discrete, continuous-continuous, and cross edges.</p>
 </section>
 <section id="extract_indicator_priors" class="level2">
 <h2 class="anchored" data-anchor-id="extract_indicator_priors">extract_indicator_priors</h2>
@@ -714,12 +715,9 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="fu">c</span>(<span class="st">"rb"</span>, <span class="st">"mixt"</span>)</span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a named list with ESS values for each parameter type present in the model (e.g., <code>main</code>, <code>pairwise</code>, <code>indicator</code>). ESS values match <code>coda::effectiveSize</code>. For implementation details, see the <a href="../manual/diagnostics.html">Technical Manual</a>.</p>
-<p>Two elements are composite rather than raw-chain quantities. The <code>indicator</code> element reports one of the two effective sample sizes of the inclusion inference, and <code>estimator</code> picks which. It is ignored for every other parameter type.</p>
-<ul>
-<li><code>"rb"</code> (the default) is the <code>n_eff</code> column of <code>summary(fit)$indicator</code>: the ESS of the Rao-Blackwellized inclusion draws, and therefore the ESS of the inclusion probability the fit reports. It is read from the same continuous chain that <a href="#extract_rhat"><code>extract_rhat()</code></a> uses for indicators, and it measures precision conditional on exploration.</li>
-<li><code>"mixt"</code> is the <code>n_eff_mixt</code> column: the transition-based ESS of the binary indicator chain, which measures the exploration itself. Few transitions are expected when an edge’s inclusion probability sits near 0 or 1, so a small or <code>NA</code> transition ESS beside a confident Rao-Blackwellized ESS marks a decisive edge rather than a failure.</li>
-</ul>
-<p>Both are <code>NA</code> for edges whose indicator never flipped, and they are read as a pair; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>. Fits made with bgms &lt; 0.2.0.0 carry no Rao-Blackwellized draws: a default call falls back to the transition ESS there, while an explicit <code>estimator = "rb"</code> errors.</p>
+<p>Two elements are composite rather than raw-chain quantities. The <code>indicator</code> element is the <code>n_eff</code> column of <code>summary(fit)$indicator</code>: the ESS of the Rao-Blackwellized inclusion draws, and therefore the ESS of the inclusion probability the fit reports. It is read from the same continuous chain that <a href="#extract_rhat"><code>extract_rhat()</code></a> uses for indicators, and it measures precision conditional on exploration. Read it beside the directional transition counts <code>n0-&gt;1</code> and <code>n1-&gt;0</code>, which carry the exploration itself; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>.</p>
+<p><code>estimator</code> has one live value, <code>"rb"</code>. The alternative, <code>estimator = "mixt"</code> — the transition-based ESS of the binary indicator chain — is deprecated as of 0.2.0.0: the simple two-state process it assumes describes many edge chains poorly, so the statistic no longer feeds any inclusion verdict. Passing it warns and still returns the statistic. <code>n_eff_mixt</code> is no longer a column of <code>summary(fit)$indicator</code>.</p>
+<p>The <code>indicator</code> element is <code>NA</code> wherever the inclusion probability is pinned at its bound and no precision is left to estimate; see <a href="#extract_rhat"><code>extract_rhat()</code></a> for the exact rule. Fits made with bgms &lt; 0.2.0.0 carry no Rao-Blackwellized draws, so an explicit <code>estimator = "rb"</code> errors there.</p>
 <p>The <code>pairwise</code> element is the composite ESS of the model-averaged edge weight, which combines inclusion and slab uncertainty.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ess <span class="ot">=</span> <span class="fu">extract_ess</span>(fit)</span>
@@ -731,17 +729,20 @@ upset          0.68   2.06 -2.61    NA</code></pre>
              45609              38820 </code></pre>
 </div>
 </div>
-<p>Both indicator readings side by side, for a contested edge and a decisive one:</p>
+<p>The indicator ESS beside the transition counts that carry the exploration, for a contested edge and a decisive one:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>edges <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"intrusion-upset"</span>, <span class="st">"intrusion-avoidact"</span>)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">rb   =</span> <span class="fu">round</span>(<span class="fu">extract_ess</span>(fit)<span class="sc">$</span>indicator[edges]),</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">mixt =</span> <span class="fu">round</span>(<span class="fu">extract_ess</span>(fit, <span class="at">estimator =</span> <span class="st">"mixt"</span>)<span class="sc">$</span>indicator[edges])</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>indicator</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_eff =</span> <span class="fu">round</span>(<span class="fu">extract_ess</span>(fit)<span class="sc">$</span>indicator[edges]),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n0-&gt;1</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n0-&gt;1"</span>],</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n1-&gt;0</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n1-&gt;0"</span>],</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                      rb  mixt
-intrusion-upset     1301  1534
-intrusion-avoidact 23071 27375</code></pre>
+<pre><code>                   n_eff n0-&gt;1 n1-&gt;0
+intrusion-upset     1301   659   660
+intrusion-avoidact 23071   913   913</code></pre>
 </div>
 </div>
 <p>Low values relative to the total number of retained draws signal slow mixing for that parameter; see <a href="../guide/mcmc-diagnostics.html#sec-ess">MCMC Diagnostics</a> for guidance.</p>
@@ -751,7 +752,21 @@ intrusion-avoidact 23071 27375</code></pre>
 <p>Retrieve R-hat convergence diagnostics for all parameters.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_rhat</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a named list with R-hat values for each parameter type present in the model (e.g., <code>main</code>, <code>pairwise</code>, <code>indicator</code>). The statistic is split-R-hat <span class="citation" data-cites="VehtariEtAl_2021">(<a href="#ref-VehtariEtAl_2021" role="doc-biblioref">Vehtari et al., 2021</a>)</span>: each chain is split in half and the Gelman-Rubin formula is applied to the half-chains, so that within-chain drift is detected as well as between-chain disagreement. No degrees-of-freedom adjustment is applied. For implementation details, see <a href="../manual/diagnostics.html">diagnostics</a> in the Technical Manual.</p>
-<p>The <code>indicator</code> element is computed on the continuous Rao-Blackwellized inclusion draws, and is <code>NA</code> for edges whose indicator never flipped.</p>
+<p>The <code>indicator</code> element is computed on the continuous Rao-Blackwellized inclusion draws. It is <code>NA</code> where those draws are exactly constant, with the inclusion probability pinned at its bound. Draws that vary too little for the autocorrelation machinery, without being exactly constant, keep a finite <code>Rhat</code> while <code>mcse</code> and <code>n_eff</code> are <code>NA</code>. Neither set is the same as the set of edges whose binary indicator never flipped.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>One failure mode these diagnostics do not see
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Chains can agree that an edge is included while disagreeing about the magnitude of its weight — for instance when the weight’s posterior has more than one mode and different chains settle in different ones. The indicator diagnostics cannot see this by construction, and the pooled-draw <code>pairwise</code> R-hat responds only weakly when inclusion is intermittent, because the zeros the excluded draws contribute dominate the between-chain comparison.</p>
+<p>When it matters, compare each edge’s weight across chains using only the draws in which that edge is included, reading the per-chain pairwise and indicator draws out of <code>fit$raw_samples</code>. A dedicated diagnostic for this is planned for a future release.</p>
+</div>
+</div>
 </section>
 <section id="extract_precision" class="level2">
 <h2 class="anchored" data-anchor-id="extract_precision">extract_precision</h2>

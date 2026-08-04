@@ -559,7 +559,7 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="description">Description</h2>
 <p><code>prior_sensitivity_check()</code> takes a fitted <a href="../reference/bgm.html"><code>bgm()</code></a> object with edge selection and recovers, for every edge, the continuous curve of the inclusion Bayes factor as a function of the interaction (pairwise) slab scale <span class="math inline">\(s\)</span>. It then labels each edge by how its verdict behaves along that curve.</p>
 <p>The curve is anchored at a handful of fixed-scale fits and filled in between anchors by importance reweighting. The <code>1x</code> anchor is the original fit and is never refit, so the chosen-scale verdicts the check reports are exactly the analysis you already ran. A noise band, calibrated from a repeated refit at one anchor, keeps boundary edges that merely flip between reruns of the same prior from being reported as prior sensitivity.</p>
-<p>The check prices the curve with a handful of warm-started anchor fits, reweighting between neighbouring anchors. It deliberately does not use the single-fit shortcut of <span class="citation" data-cites="BartosEtAl_2026_sensitivity"><span class="nocase">Bartoš et al.</span> (<a href="#ref-BartosEtAl_2026_sensitivity" role="doc-biblioref">2026</a>)</span>, which recovers the whole curve by reweighting one fit: on network models the scale posterior is too narrow for a single fit to cover the band.</p>
+<p>The check prices the curve with a handful of warm-started anchor fits, reweighting between neighboring anchors. The reweighting itself is the posterior-density-ratio identity of <span class="citation" data-cites="BartosEtAl_2026_sensitivity"><span class="nocase">Bartoš et al.</span> (<a href="#ref-BartosEtAl_2026_sensitivity" role="doc-biblioref">2026</a>)</span>, applied locally around each refit anchor; the anchored construction is <code>bgms</code>’s own. What the check deliberately does not use is that paper’s single-fit shortcut, which recovers the whole curve by reweighting one fit: on graphical models the scale posterior is too narrow for a single fit to cover the band.</p>
 <p>For why the slab scale matters for edge verdicts at all, see <a href="../guide/prior-basics.html">Prior Basics</a> and <a href="../guide/edge-selection.html">Edge Selection</a>.</p>
 </section>
 <section id="usage" class="level2">
@@ -568,17 +568,18 @@ window.Quarto = {
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">anchors =</span> <span class="fu">c</span>(<span class="fl">0.4</span>, <span class="fl">0.63</span>, <span class="dv">1</span>, <span class="fl">1.6</span>, <span class="fl">2.5</span>),</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">evidence_threshold =</span> <span class="dv">10</span>,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">refit_sampler =</span> <span class="st">"same-as-fit"</span>,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="cn">NULL</span>,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup =</span> <span class="cn">NULL</span>,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">tolerance =</span> <span class="fl">0.5</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">ess_floor =</span> <span class="dv">400</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">include_preferred_scale =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cores =</span> <span class="cn">NULL</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1</span>L,</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">keep_fits =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">vary =</span> <span class="fu">c</span>(<span class="st">"auto"</span>, <span class="st">"slab"</span>, <span class="st">"slab-and-diagonal"</span>),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refit_sampler =</span> <span class="st">"same-as-fit"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">tolerance =</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">log</span>(<span class="dv">10</span>),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">ess_floor =</span> <span class="dv">400</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">include_preferred_scale =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">cores =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1</span>L,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">keep_fits =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The result has <code>print()</code> and <code>plot()</code> methods:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(x, <span class="at">max_rows =</span> <span class="dv">10</span>L, ...)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, <span class="at">max_labels =</span> <span class="dv">10</span>L, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -606,50 +607,54 @@ window.Quarto = {
 <td>Positive numeric. Inclusion Bayes factor threshold for a presence verdict; <code>1 / evidence_threshold</code> is the absence threshold. Default: <code>10</code>.</td>
 </tr>
 <tr class="even">
+<td><code>vary</code></td>
+<td>What the sweep moves, for models that also have a prior on the precision diagonal (continuous and mixed); ignored for discrete models, which have none. The slab scale <span class="math inline">\(s\)</span> and the diagonal rate are tied through the standardized frame (raw rate <span class="math inline">\(= \eta / s\)</span>), so a sweep of <span class="math inline">\(s\)</span> has to hold one of the two fixed. <code>"slab"</code> holds the raw diagonal rate at its fitted value and moves the interaction prior alone, answering how much the verdicts depend on how wide an edge is allowed to be. <code>"slab-and-diagonal"</code> holds <span class="math inline">\(\eta\)</span> fixed and lets the raw rate follow, answering how much they depend on the overall prior scale with its shape held fixed. <code>"auto"</code> (default) follows the frame the fit itself used: <code>"slab-and-diagonal"</code> when the diagonal prior was given as <code>eta</code>, <code>"slab"</code> when it was given as a raw <code>rate</code>. The resolved mode is named in the printed report.</td>
+</tr>
+<tr class="odd">
 <td><code>refit_sampler</code></td>
 <td><code>"same-as-fit"</code> (default; inherit the original fit’s update method), or an explicit <code>"nuts"</code>, <code>"adaptive-metropolis"</code>, or <code>"gibbs"</code>. NUTS refits of an ordinal fit carry the adapted metric and run fastest; when an inherited slower sampler makes the check cost more than about a minute, a message suggests the switch.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>iter</code>, <code>warmup</code></td>
 <td>Integer sampling and warmup iterations per refit, or <code>NULL</code> (default) to use the validated short schedule for warm NUTS refits and to inherit the original fit’s schedule otherwise.</td>
 </tr>
-<tr class="even">
-<td><code>tolerance</code></td>
-<td>Numeric. Minimum change in <span class="math inline">\(\log_{10}\)</span> Bayes factor across scales for a verdict flip to count as a move, before the MCSE and noise floors. Default: <code>0.5</code>.</td>
-</tr>
 <tr class="odd">
+<td><code>tolerance</code></td>
+<td>Numeric. Minimum change in natural log Bayes factor across scales for a verdict flip to count as a move, before the MCSE and noise floors. Default: <code>0.5 * log(10)</code>, about <code>1.15</code>.</td>
+</tr>
+<tr class="even">
 <td><code>ess_floor</code></td>
 <td>Positive numeric. Minimum pooled importance effective sample size for a curve point to be reported; points below it are <code>NA</code>. Default: <code>400</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>include_preferred_scale</code></td>
 <td>Logical. Add an extra anchor at the data-preferred scale <span class="math inline">\(\hat{s}\)</span>. Default: <code>FALSE</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>cores</code></td>
 <td>Integer thread count for each refit’s chains. Default: the original fit’s core count.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>seed</code></td>
 <td>Integer base seed for the refits. Default: <code>1</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>keep_fits</code></td>
 <td>Logical. Retain the full refit objects in <code>$fits</code>; the default keeps only the per-scale summaries. Default: <code>FALSE</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>verbose</code></td>
 <td>Logical. If <code>TRUE</code>, print each internal refit’s raw sampler notes live as it runs. Default: <code>FALSE</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>x</code></td>
 <td>A <code>bgms_prior_sensitivity</code> object (<code>print()</code> and <code>plot()</code>).</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>max_rows</code></td>
 <td>Integer. Maximum edges to name in the printed scale-dependent table; the rest are counted and left to <code>$edges</code>. Default: <code>10</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>max_labels</code></td>
 <td>Integer. Maximum scale-dependent edges to color and label by name in the plot; the rest are counted in a corner note. Default: <code>10</code>.</td>
 </tr>
@@ -673,11 +678,11 @@ window.Quarto = {
 <tbody>
 <tr class="odd">
 <td><code>edges</code></td>
-<td>Data frame, one row per edge: <code>edge</code>, <code>prior_inclusion_probability</code>, the chosen-scale quantities (<code>chosen_scale_pip</code>, <code>chosen_scale_log10_bf</code>, <code>chosen_scale_mcse</code>, <code>chosen_scale_verdict</code>), the dense-grid stability range (<code>stability_lower</code>, <code>stability_upper</code>), the <code>mover</code> category, <code>insufficient</code> with its two subcauses <code>insufficient_noisy</code> and <code>insufficient_disagree</code>, <code>saturated</code>, and one <code>verdict_x&lt;multiplier&gt;</code> column per anchor.</td>
+<td>Data frame, one row per edge: <code>edge</code>, <code>prior_inclusion_probability</code>, the chosen-scale quantities (<code>chosen_scale_pip</code>, <code>chosen_scale_log_bf</code>, <code>chosen_scale_mcse</code>, <code>chosen_scale_verdict</code>), the dense-grid stability range (<code>stability_lower</code>, <code>stability_upper</code>), the <code>mover</code> category, <code>insufficient</code> with its two subcauses <code>insufficient_noisy</code> and <code>insufficient_disagree</code>, <code>saturated</code>, and one <code>verdict_x&lt;multiplier&gt;</code> column per anchor.</td>
 </tr>
 <tr class="even">
 <td><code>grid</code></td>
-<td>Data frame, one row per anchor fit plus the replicate: <code>multiplier</code>, <code>scale</code>, <code>replicate</code>, <code>original_fit</code>, <code>usable</code>, the convergence numbers behind the gate (<code>rhat_continuous</code>, the median across continuous parameters, alongside <code>rhat_continuous_max</code>, <code>ess_continuous</code>, <code>indicator_pair_ess</code>, <code>rb_median_rhat</code>, <code>warmup_incomplete</code>), <code>sampler_notes</code>, and <code>seconds</code>.</td>
+<td>Data frame, one row per anchor fit plus the replicate: <code>multiplier</code>, <code>scale</code>, <code>replicate</code>, <code>original_fit</code>, <code>usable</code>, the convergence numbers behind the gate (<code>rhat_continuous</code>, the median across continuous parameters, alongside <code>rhat_continuous_max</code>, <code>ess_continuous</code>, <code>inclusion_ess_min</code>, <code>rb_median_rhat</code>, <code>warmup_incomplete</code>), <code>sampler_notes</code>, and <code>seconds</code>.</td>
 </tr>
 <tr class="odd">
 <td><code>anchors</code>, <code>replicate_anchor</code></td>
@@ -688,34 +693,38 @@ window.Quarto = {
 <td>The dense display grid (43 points by default), in multipliers and in absolute scale, plus the grid positions of the anchors and of the chosen scale.</td>
 </tr>
 <tr class="odd">
-<td><code>log10_bf</code>, <code>log10_bf_mcse</code>, <code>verdict</code></td>
-<td>Grid-by-edge matrices holding the curve, its Monte Carlo standard error, and the verdict at each point. <code>NA</code> where the point was masked.</td>
+<td><code>log_bf</code>, <code>log_bf_mcse</code>, <code>verdict</code></td>
+<td>Grid-by-edge matrices holding the curve, its Monte Carlo standard error, and the verdict at each point, on the natural log Bayes-factor scale that the rest of the package uses. <code>NA</code> where the point was masked.</td>
 </tr>
 <tr class="even">
+<td><code>unit</code>, <code>vary</code></td>
+<td>What the curve varies and in what units: the varied prior quantity, the scale it is measured on, and the plain-language question the check answers.</td>
+</tr>
+<tr class="odd">
 <td><code>anchor_verdict</code></td>
 <td>Anchor-by-edge character matrix of the verdicts read straight from the anchor fits.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>curve</code></td>
 <td>Curve bookkeeping: per-point importance <code>ess</code>, the dominant <code>anchor_used</code> at each point, the <code>ess_floor</code> in force, and per-point chain <code>unanimous</code>ity.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>wobble</code></td>
 <td>The run-to-run noise yardstick: <code>q95</code>, <code>median</code>, <code>per_edge</code>, and the <code>anchor</code> it was measured at.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>preferred_scale</code></td>
 <td>The data-preferred slab scale: <code>s_hat</code> with interval <code>lo</code>, <code>hi</code>, plus <code>log_sd</code> and the number of included edges <code>m</code> it was estimated from.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>refit_diagnostics</code></td>
 <td>The captured raw sampler notes per anchor and for the replicate; a character vector per entry, empty when a refit was quiet.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>fits</code></td>
 <td>The full refit objects when <code>keep_fits = TRUE</code>, otherwise <code>NULL</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>evidence_threshold</code>, <code>tolerance</code>, <code>refit_sampler</code>, <code>warm</code>, <code>model_type</code>, <code>runtime_seconds</code>, <code>chosen_scale</code>, <code>edge_names</code></td>
 <td>The settings used and the measured cost.</td>
 </tr>
@@ -727,21 +736,21 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="details">Details</h2>
 <section id="the-anchored-curve" class="level3">
 <h3 class="anchored" data-anchor-id="the-anchored-curve">The anchored curve</h3>
-<p>The model is refit at each non-unit anchor. A fit at fixed anchor scale <span class="math inline">\(s_a\)</span> is reweighted to a nearby scale <span class="math inline">\(s\)</span> with per-draw slab-density ratios over the currently included edges; the likelihood cancels, so no refit is needed between anchors. Each point of the dense log-spaced display grid pools every anchor that clears <code>ess_floor</code> there, weighting each anchor’s inclusion-probability estimate by its inverse variance. The pooling happens on the inclusion-probability scale and is then transformed to the <span class="math inline">\(\log_{10}\)</span> Bayes factor, which keeps the curve continuous across anchor hand-offs and finite at capped edges. Points where no anchor clears the floor are <code>NA</code> rather than extrapolated, and non-overlapping anchor radii trigger a warning to add anchors.</p>
+<p>The model is refit at each non-unit anchor. A fit at fixed anchor scale <span class="math inline">\(s_a\)</span> is reweighted to a nearby scale <span class="math inline">\(s\)</span> with per-draw slab-density ratios over the currently included edges; the likelihood cancels, so no refit is needed between anchors. Each point of the dense log-spaced display grid pools every anchor that clears <code>ess_floor</code> there, weighting each anchor’s inclusion-probability estimate by its inverse variance. The pooling happens on the inclusion-probability scale and is then transformed to the natural log Bayes factor, which keeps the curve continuous across anchor hand-offs and finite at capped edges. Points where no anchor clears the floor are <code>NA</code> rather than extrapolated, and non-overlapping anchor radii trigger a warning to add anchors.</p>
 <p>Exactness is kept off the pooled curve and on the anchor fits themselves: the per-anchor verdict columns and every chosen-scale quantity are read straight from each fit’s own Rao-Blackwellized statistics, so the <code>1x</code> column is exactly the original fit’s reported analysis.</p>
 </section>
 <section id="warm-starts-and-cost" class="level3">
 <h3 class="anchored" data-anchor-id="warm-starts-and-cost">Warm starts and cost</h3>
 <p>For ordinal (OMRF) fits each refit starts from the original fit’s per-chain final state, and a NUTS refit additionally carries the adapted step size and diagonal mass matrix, so a short warmup suffices and the whole check costs about one original fit. Continuous (GGM) and mixed-MRF fits refit cold with full warmup, costing about one fit per scale.</p>
-<p>Because the warm starts sit near the chosen-scale posterior, cross-chain dispersion is reduced by construction, which weakens split-<span class="math inline">\(\hat{R}\)</span> as a between-chain diagnostic. The refit gate therefore leans on per-chain verdict agreement and the indicator transition ESS, not on <span class="math inline">\(\hat{R}\)</span> alone.</p>
+<p>Because the warm starts sit near the chosen-scale posterior, cross-chain dispersion is reduced by construction, which weakens split-<span class="math inline">\(\hat{R}\)</span> as a between-chain diagnostic. The refit gate therefore leans on per-chain verdict agreement and the indicator effective sample size, reported per anchor as <code>inclusion_ess_min</code>, not on <span class="math inline">\(\hat{R}\)</span> alone.</p>
 </section>
 <section id="the-mover-rule" class="level3">
 <h3 class="anchored" data-anchor-id="the-mover-rule">The mover rule</h3>
-<p>An edge is flagged scale-sensitive only if its verdict differs somewhere along the curve <em>and</em> its <span class="math inline">\(\log_{10}\)</span> Bayes-factor change across scales exceeds <code>max(tolerance, 2 * MCSE, noise)</code>. The per-point MCSE comes from the chain-level spread of the reweighted estimate, so it carries both the between-chain and the importance-sampling uncertainty. The noise band is the 95th percentile of the spread between one anchor refit and its repeat, over threshold-relevant edges (<span class="math inline">\(|\log_{10} \text{BF}| \le 3\)</span>; near-saturated edges would inflate it). A bare verdict flip inside the replicate noise is never reported as a move.</p>
+<p>An edge is flagged scale-sensitive only if its verdict differs somewhere along the curve <em>and</em> its natural log Bayes-factor change across scales exceeds <code>max(tolerance, 2 * MCSE, noise)</code>. The per-point MCSE comes from the chain-level spread of the reweighted estimate, so it carries both the between-chain and the importance-sampling uncertainty. The noise band is the 95th percentile of the spread between one anchor refit and its repeat, over threshold-relevant edges (<span class="math inline">\(|\log \text{BF}| \le 3\log 10 \approx 6.91\)</span>; near-saturated edges would inflate it). A bare verdict flip inside the replicate noise is never reported as a move.</p>
 </section>
 <section id="edge-level-sufficiency" class="level3">
 <h3 class="anchored" data-anchor-id="edge-level-sufficiency">Edge-level sufficiency</h3>
-<p>An edge whose per-chain verdicts disagree, or whose between-chain-inflated <span class="math inline">\(\log_{10}\)</span> Bayes factor band straddles a verdict threshold, is marked <code>insufficient</code> at that scale: the refit cannot certify its verdict. This errs toward caution, because disagreement widens the band rather than vanishing into a pooled estimate. The printed report calls these edges “not certifiable”.</p>
+<p>An edge whose per-chain verdicts disagree, or whose between-chain-inflated natural log Bayes factor band straddles a verdict threshold, is marked <code>insufficient</code> at that scale: the refit cannot certify its verdict. This errs toward caution, because disagreement widens the band rather than vanishing into a pooled estimate. The printed report calls these edges “not certifiable”.</p>
 </section>
 <section id="convergence-gates-and-captured-sampler-notes" class="level3">
 <h3 class="anchored" data-anchor-id="convergence-gates-and-captured-sampler-notes">Convergence gates and captured sampler notes</h3>
@@ -808,14 +817,15 @@ Note: the chosen scale (1) is much wider than the estimated interactions (about
 Method:  43-point curve from 5 anchor fits (0.4x to 2.5x the chosen scale),
          joined by importance reweighting; the 1x anchor is the original fit.
          Points with reweighting effective sample size below 400 are not shown.
-Refits:  5 nuts refits, warm-started from the original fit, 129 s total.
-Noise:   two identical refits at 1.6x differed by up to 0.35 log10 BF across
+Refits:  5 nuts refits, warm-started from the original fit, 123 s total.
+Noise:   two identical refits at 1.6x differed by up to 0.72 log BF across
          threshold-relevant edges; verdict moves smaller than that are reported
          as run-to-run noise, not prior sensitivity.
+         1 edge saturated in one of the two and was left out of that spread.
 See ?prior_sensitivity_check for the full construction.</code></pre>
 </div>
 </div>
-<p><code>plot()</code> draws the same result as curves. Each line is one edge’s <span class="math inline">\(\log_{10}\)</span> inclusion Bayes factor across the anchored scale range, with dots at the anchor scales. The shaded band is the undecided zone between the evidence thresholds. Edges whose verdict depends on the scale are colored and labeled by name; the rest are the muted background. Masked curve points leave visible gaps, and a saturated edge is capped at a large finite Bayes factor rather than running off the panel.</p>
+<p><code>plot()</code> draws the same result as curves. Each line is one edge’s natural log inclusion Bayes factor across the anchored scale range, with dots at the anchor scales. The shaded band is the undecided zone between the evidence thresholds. Edges whose verdict depends on the scale are colored and labeled by name; the rest are the muted background. Masked curve points leave visible gaps, and a saturated edge is capped at a large finite value rather than running off the panel: the cap follows from the inclusion-probability clamp and sits at <span class="math inline">\(\log(10^6)\)</span>, about 13.8.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ps)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
@@ -833,16 +843,16 @@ Figure&nbsp;1: Inclusion Bayes factor curves across the slab scale for the Wench
 </div>
 <p>The per-edge table carries the same information numerically:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ps<span class="sc">$</span>edges[, <span class="fu">c</span>(<span class="st">"edge"</span>, <span class="st">"chosen_scale_log10_bf"</span>, <span class="st">"chosen_scale_verdict"</span>,</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ps<span class="sc">$</span>edges[, <span class="fu">c</span>(<span class="st">"edge"</span>, <span class="st">"chosen_scale_log_bf"</span>, <span class="st">"chosen_scale_verdict"</span>,</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"stability_lower"</span>, <span class="st">"stability_upper"</span>, <span class="st">"mover"</span>)], <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                edge chosen_scale_log10_bf chosen_scale_verdict stability_lower
-1   intrusion-dreams                   Inf             presence             0.4
-2    intrusion-flash             5.2602963             presence             0.4
-3    intrusion-upset             0.2957863            undecided             0.4
-4  intrusion-physior            -0.5576671            undecided             0.4
-5  intrusion-avoidth            -1.4571337              absence             0.4
-6 intrusion-avoidact            -1.5172177              absence             0.4
+<pre><code>                edge chosen_scale_log_bf chosen_scale_verdict stability_lower
+1   intrusion-dreams                 Inf             presence             0.4
+2    intrusion-flash          12.1122799             presence             0.4
+3    intrusion-upset           0.6810731            undecided             0.4
+4  intrusion-physior          -1.2840760            undecided             0.4
+5  intrusion-avoidth          -3.3551742              absence             0.4
+6 intrusion-avoidact          -3.4935228              absence             0.4
   stability_upper  mover
 1             2.5 stable
 2             2.5 stable
@@ -858,12 +868,12 @@ Figure&nbsp;1: Inclusion Bayes factor curves across the slab scale for the Wench
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>            <span class="st">"rhat_continuous"</span>, <span class="st">"seconds"</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  multiplier replicate original_fit usable rhat_continuous  seconds
-1       0.40     FALSE        FALSE   TRUE        1.002550 22.29083
-2       0.63     FALSE        FALSE   TRUE        1.001617 25.10607
+1       0.40     FALSE        FALSE   TRUE        1.002550 22.98249
+2       0.63     FALSE        FALSE   TRUE        1.001617 24.49928
 3       1.00     FALSE         TRUE   TRUE        1.000277  0.00000
-4       1.60     FALSE        FALSE   TRUE        1.002826 28.45471
-5       2.50     FALSE        FALSE   TRUE        1.002199 26.93453
-6       1.60      TRUE        FALSE   TRUE        1.002668 26.57359</code></pre>
+4       1.60     FALSE        FALSE   TRUE        1.002826 25.09576
+5       2.50     FALSE        FALSE   TRUE        1.002199 25.81125
+6       1.60      TRUE        FALSE   TRUE        1.002668 25.09772</code></pre>
 </div>
 </div>
 </section>

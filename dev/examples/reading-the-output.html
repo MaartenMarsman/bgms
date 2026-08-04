@@ -499,13 +499,13 @@ intrusion-avoidact  0.000 0.000 0.005 38820.463      0.011 1.000
 ... (use `summary(fit)$pairwise` to see full output)
 
 Inclusion probabilities:
-                    mean  mcse    sd     n_eff n_eff_mixt  Rhat n0-&gt;1 n1-&gt;0
-intrusion-dreams   1.000       0.000                                0     0
-intrusion-flash    1.000       0.001                                0     0
-intrusion-upset    0.664 0.013 0.460  1300.913   1534.486 1.005   660   660
-intrusion-physior  0.217 0.008 0.388  2477.845   3478.729 1.001  1090  1090
-intrusion-avoidth  0.034 0.001 0.109 21794.876  24396.171     1  1018  1018
-intrusion-avoidact 0.029 0.001 0.094 23071.446   27374.96     1   913   913
+                    mean  mcse    sd     n_eff  Rhat n0-&gt;1 n1-&gt;0
+intrusion-dreams   1.000       0.000                     0     0
+intrusion-flash    1.000     0 0.001 39460.069     1     0     0
+intrusion-upset    0.664 0.013 0.460  1300.913 1.005   659   660
+intrusion-physior  0.217 0.008 0.388  2477.845 1.001  1090  1090
+intrusion-avoidth  0.034 0.001 0.109 21794.876     1  1018  1018
+intrusion-avoidact 0.029 0.001 0.094 23071.446     1   913   913
 ... (use `summary(fit)$indicator` to see full output)
 Note: NA values are suppressed in the print table; they occur for indicators
 that were not updated or whose draws are constant, so ESS/Rhat are undefined.
@@ -541,9 +541,9 @@ See the `easybgm` package for other summary and plotting tools.</code></pre>
 <section id="inclusion-probabilities" class="level2">
 <h2 class="anchored" data-anchor-id="inclusion-probabilities">Inclusion probabilities</h2>
 <p>One row per pair again, and <code>mean</code> is now the posterior inclusion probability: how plausible it is, after seeing the data, that the edge is in the network. A value of 0.99 is strong evidence for a direct association; a value near 0 is evidence against one; 0.5 means the data have not decided, which is a finding, not a failure. It is estimated by averaging the Rao-Blackwellized inclusion draws rather than the raw 0/1 indicator draws, which targets the same probability with less Monte Carlo noise. For evidence claims, turn probabilities into inclusion Bayes factors with <code>extract_inclusion_bf()</code>; see <a href="../guide/edge-selection.html#bayes-factors-for-edges">Edge Selection</a> for the thresholds and their reading.</p>
-<p><code>mcse</code>, <code>sd</code>, <code>n_eff</code>, and <code>Rhat</code> are the familiar columns, computed on the Rao-Blackwellized draws. The two new columns watch the sampler’s exploration of structures: <code>n0-&gt;1</code> and <code>n1-&gt;0</code> count how often the edge indicator switched state across the four chains, and <code>n_eff_mixt</code> is the effective sample size built from those switch rates. Read <code>n_eff</code> and <code>n_eff_mixt</code> as a pair: <code>n_eff</code> says the probability estimate is precise, <code>n_eff_mixt</code> says the chain actually moved between structures, and only together do they say converged and explored. See <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>.</p>
-<p>The blanks are the note’s suppressed <code>NA</code> values. Sixteen edges here, <code>intrusion-dreams</code> among them, were included in every sweep of every chain: zero transitions, so the transition-based <code>n_eff_mixt</code> does not exist, and the package also reports <code>NA</code> for the Rao-Blackwellized <code>mcse</code>, <code>n_eff</code>, and <code>Rhat</code> rather than print reassuring-looking numbers computed from a chain that never moved. The <code>mean</code> stays, and for these saturated edges the evidence verdict rests on <code>extract_inclusion_bf()</code>, which remains finite where the probability rounds to 1.</p>
-<p>Is this block okay? Guidelines as before, applied to the non-blank rows: here the smallest <code>n_eff</code> is 995, the smallest <code>n_eff_mixt</code> is 1122, and every <code>Rhat</code> is at most 1.006. Blank rows are not failures; here they are the sixteen edges the data decided most emphatically.</p>
+<p><code>mcse</code>, <code>sd</code>, <code>n_eff</code>, and <code>Rhat</code> are the familiar columns, computed on the Rao-Blackwellized draws. The two new columns watch the sampler’s exploration of structures: <code>n0-&gt;1</code> and <code>n1-&gt;0</code> count how often the edge indicator switched state across the four chains. Read them beside <code>n_eff</code>: <code>n_eff</code> says the probability estimate is precise, the counts say the chain actually moved between structures, and only together do they say converged and explored. See <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>.</p>
+<p>The blanks are the note’s suppressed <code>NA</code> values. Nine edges here, <code>intrusion-dreams</code> among them, were included in every sweep of every chain: their inclusion probabilities are pinned at 1, and a chain that never moves gives the precision estimates nothing to work with. The package reports <code>NA</code> for <code>mcse</code> and <code>n_eff</code> on those rows (and for all but one of them <code>Rhat</code> too) rather than print reassuring-looking numbers. The <code>mean</code> stays, and for these saturated edges the evidence verdict rests on <code>extract_inclusion_bf()</code>, which remains finite where the probability rounds to 1.</p>
+<p>Is this block okay? Guidelines as before, applied to the non-blank rows: here the smallest <code>n_eff</code> is 995 and every <code>Rhat</code> is at most 1.006. Blank rows are not failures; they are the edges the data decided most emphatically.</p>
 </section>
 <section id="where-is-x" class="level2">
 <h2 class="anchored" data-anchor-id="where-is-x">Where is X?</h2>

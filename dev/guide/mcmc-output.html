@@ -564,7 +564,7 @@ window.Quarto = {
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="the-fit-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-fit-object">The fit object</h2>
-<p><a href="../reference/bgm.html"><code>bgm()</code></a> returns a list of class <code>"bgms"</code>.</p>
+<p><a href="../reference/bgm.html"><code>bgm()</code></a> returns an S7 object of class <code>bgms</code> (<code>class(fit)</code> reports <code>"bgms"</code> and <code>"S7_object"</code>). Its components are reached with <code>$</code>, as below.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -578,7 +578,7 @@ window.Quarto = {
 </div>
 </div>
 <p>The two primary interfaces are <code>summary()</code> for tabular diagnostics and <code>coef()</code> for posterior means in matrix form. Raw samples are available in <code>fit$raw_samples</code> for custom analyses.</p>
-<p>Some components are present only for particular configurations: <code>fit$inclusion_parameter_samples</code> holds per-chain draws of the shared inclusion probability for continuous models with <code>beta_bernoulli_prior()</code> (see <a href="../guide/ggm.html">Gaussian Graphical Model</a>), and <code>fit$zratio_diag</code> holds the trust-gauge summary for <code>precision_graph_prior = "hierarchical"</code> fits when the gauge is enabled (see <a href="../guide/mcmc-diagnostics.html#sec-trust-gauge">MCMC Diagnostics</a>); both are <code>NULL</code> otherwise.</p>
+<p>Some components are present only for particular configurations: <code>fit$inclusion_parameter_samples</code> holds per-chain draws of the shared inclusion probability for continuous models with <code>beta_bernoulli_prior()</code> (see <a href="../guide/ggm.html">Gaussian Graphical Model</a>), and <code>fit$zratio_diag</code> holds the trust-gauge summary, which a continuous or mixed fit with edge selection produces by default under <code>precision_graph_prior = "hierarchical"</code> (see <a href="../guide/mcmc-diagnostics.html#sec-trust-gauge">MCMC Diagnostics</a>); both are <code>NULL</code> otherwise, as they are on this ordinal fit.</p>
 </section>
 <section id="sec-posterior-summaries" class="level2">
 <h2 class="anchored" data-anchor-id="sec-posterior-summaries">Posterior summaries</h2>
@@ -609,13 +609,13 @@ intrusion-avoidact  0.000 0.000 0.005 38820.463      0.011 1.000
 ... (use `summary(fit)$pairwise` to see full output)
 
 Inclusion probabilities:
-                    mean  mcse    sd     n_eff n_eff_mixt  Rhat n0-&gt;1 n1-&gt;0
-intrusion-dreams   1.000       0.000                                0     0
-intrusion-flash    1.000       0.001                                0     0
-intrusion-upset    0.664 0.013 0.460  1300.913   1534.486 1.005   660   660
-intrusion-physior  0.217 0.008 0.388  2477.845   3478.729 1.001  1090  1090
-intrusion-avoidth  0.034 0.001 0.109 21794.876  24396.171     1  1018  1018
-intrusion-avoidact 0.029 0.001 0.094 23071.446   27374.96     1   913   913
+                    mean  mcse    sd     n_eff  Rhat n0-&gt;1 n1-&gt;0
+intrusion-dreams   1.000       0.000                     0     0
+intrusion-flash    1.000     0 0.001 39460.069     1     0     0
+intrusion-upset    0.664 0.013 0.460  1300.913 1.005   659   660
+intrusion-physior  0.217 0.008 0.388  2477.845 1.001  1090  1090
+intrusion-avoidth  0.034 0.001 0.109 21794.876     1  1018  1018
+intrusion-avoidact 0.029 0.001 0.094 23071.446     1   913   913
 ... (use `summary(fit)$indicator` to see full output)
 Note: NA values are suppressed in the print table; they occur for indicators
 that were not updated or whose draws are constant, so ESS/Rhat are undefined.
@@ -626,8 +626,8 @@ Use `extract_log_odds(fit)` for log odds ratios.
 See the `easybgm` package for other summary and plotting tools.</code></pre>
 </div>
 </div>
-<section id="reading-the-output" class="level3">
-<h3 class="anchored" data-anchor-id="reading-the-output">Reading the output</h3>
+<section id="which-tables-appear" class="level3">
+<h3 class="anchored" data-anchor-id="which-tables-appear">Which tables appear</h3>
 <p>The summary produces a set of tables depending on the model type. Each row is a parameter; each column is a posterior summary statistic. The tables that appear depend on which model was fitted:</p>
 <table class="caption-top table">
 <colgroup>
@@ -680,7 +680,7 @@ See the `easybgm` package for other summary and plotting tools.</code></pre>
 <p><strong>Category thresholds</strong> report the posterior estimates of the ordinal threshold parameters. These define the boundary between adjacent response categories on the log-odds scale. Negative values indicate that higher categories are less probable.</p>
 <p><strong>Residual variances</strong> report the posterior estimates of the residual variance <span class="math inline">\(1 / \Theta_{ii}\)</span> for each continuous variable, where <span class="math inline">\(\Theta_{ii}\)</span> is the corresponding diagonal element of the precision matrix (see <a href="../guide/ggm.html">Gaussian Graphical Model</a>). Use <code>extract_precision()</code> to obtain the full precision matrix.</p>
 <p><strong>Pairwise interactions</strong> report the conditional association between each pair of variables, controlling for all others. These are the edge weights in the graphical model. A value of zero means the two variables are conditionally independent. For mixed models, these span three blocks: discrete–discrete, continuous–continuous, and cross-type edges. Use <code>extract_partial_correlations()</code> for standardized partial correlations (continuous variables) and <code>extract_log_odds()</code> for log-odds ratios (discrete variables).</p>
-<p><strong>Inclusion indicators</strong> report the posterior inclusion probability of each edge — estimated, by default, from the Rao-Blackwellized inclusion draws rather than the raw 0/1 indicators, which gives the same quantity with less Monte Carlo noise. An inclusion probability near 1 indicates strong evidence for the edge; near 0 indicates strong evidence against it. Values around 0.5 are inconclusive. The directional transition counts (<code>n0-&gt;1</code>, <code>n1-&gt;0</code>) show how often the edge indicator switched between excluded (0) and included (1) states during sampling, and <code>n_eff_mixt</code> is the transition-based ESS that summarizes them. For edges whose indicator never switched, both the transition ESS and the Rao-Blackwellized precision columns (<code>mcse</code>, <code>n_eff</code>, <code>Rhat</code>) are reported as <code>NA</code>: such a chain carries no exploration information, and a near-constant Rao-Blackwellized chain would otherwise report reassuring-looking numbers. Read <code>n_eff</code> and <code>n_eff_mixt</code> as a pair; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>. <a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a> returns the same two columns for indicators: <code>n_eff</code> by default, and <code>n_eff_mixt</code> with <code>estimator = "mixt"</code>.</p>
+<p><strong>Inclusion indicators</strong> report the posterior inclusion probability of each edge — estimated, by default, from the Rao-Blackwellized inclusion draws rather than the raw 0/1 indicators, which gives the same quantity with less Monte Carlo noise. An inclusion probability near 1 indicates strong evidence for the edge; near 0 indicates strong evidence against it. Values around 0.5 are inconclusive. The directional transition counts (<code>n0-&gt;1</code>, <code>n1-&gt;0</code>) show how often the edge indicator switched between excluded (0) and included (1) states during sampling; they show how much the sampler explored. Read them beside <code>n_eff</code>, which measures precision conditional on that exploration; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>. The Rao-Blackwellized precision columns (<code>mcse</code>, <code>n_eff</code>, <code>Rhat</code>) come back <code>NA</code> when the chain is so certain about an edge that there is nothing left to estimate, rather than reporting the reassuring-looking numbers a near-constant chain would otherwise produce. <a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a> returns the same Rao-Blackwellized <code>n_eff</code> for indicators.</p>
 </section>
 <section id="summary-columns" class="level3">
 <h3 class="anchored" data-anchor-id="summary-columns">Summary columns</h3>
@@ -713,14 +713,10 @@ See the `easybgm` package for other summary and plotting tools.</code></pre>
 <td>Tables of parameters under selection only (<code>pairwise</code> for <a href="../reference/bgm.html"><code>bgm()</code></a>; <code>main_diff</code> and <code>pairwise_diff</code> for <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>). The share of the squared Monte Carlo error of the model-averaged parameter that comes from inclusion uncertainty rather than from the slab. Values near 1 mean the bottleneck is how well the chain resolved whether the parameter is in; values near 0 mean it is how well the chain resolved the effect size given inclusion.</td>
 </tr>
 <tr class="even">
-<td><code>n_eff_mixt</code></td>
-<td>Inclusion table only. Transition-based ESS for the binary edge indicator, accounting for the spike-and-slab structure. See <a href="../guide/mcmc-diagnostics.html#sec-mixture-ess">MCMC Diagnostics</a>.</td>
+<td><code>n0-&gt;1</code>, <code>n1-&gt;0</code></td>
+<td>Inclusion table only. Directional counts of indicator transitions; they show how much the sampler moved between structures. See <a href="../guide/mcmc-diagnostics.html#sec-mixture-ess">MCMC Diagnostics</a>.</td>
 </tr>
 <tr class="odd">
-<td><code>n0-&gt;1</code>, <code>n1-&gt;0</code></td>
-<td>Inclusion table only. Directional counts of indicator transitions.</td>
-</tr>
-<tr class="even">
 <td><code>Rhat</code></td>
 <td>Split <span class="math inline">\(\hat{R}\)</span> convergence diagnostic. Values above 1.01 suggest the chains have not mixed. See <a href="../guide/mcmc-diagnostics.html#sec-rhat">MCMC Diagnostics</a>.</td>
 </tr>
@@ -759,16 +755,16 @@ intrusion-physior 1.001205</code></pre>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">summary</span>(fit)<span class="sc">$</span>indicator, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                       mean        mcse           sd    n_eff n_eff_mixt
-intrusion-dreams  1.0000000          NA 0.0000000000       NA         NA
-intrusion-flash   0.9999945          NA 0.0007590734       NA         NA
-intrusion-upset   0.6639782 0.012748955 0.4598314371 1300.913   1534.486
-intrusion-physior 0.2168572 0.007796554 0.3880965207 2477.845   3478.729
-                      Rhat n0-&gt;1 n1-&gt;0
-intrusion-dreams        NA     0     0
-intrusion-flash         NA     0     0
-intrusion-upset   1.005265   660   660
-intrusion-physior 1.001313  1090  1090</code></pre>
+<pre><code>                       mean         mcse           sd     n_eff      Rhat n0-&gt;1
+intrusion-dreams  1.0000000           NA 0.0000000000        NA        NA     0
+intrusion-flash   0.9999945 3.821245e-06 0.0007590734 39460.069 0.9999875     0
+intrusion-upset   0.6639782 1.274895e-02 0.4598314371  1300.913 1.0052646   659
+intrusion-physior 0.2168572 7.796554e-03 0.3880965207  2477.845 1.0013129  1090
+                  n1-&gt;0
+intrusion-dreams      0
+intrusion-flash       0
+intrusion-upset     660
+intrusion-physior  1090</code></pre>
 </div>
 </div>
 </section>
@@ -823,7 +819,7 @@ upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
 <p>With edge selection, <code>fit$raw_samples$rb_inclusion</code> additionally holds the Rao-Blackwellized inclusion draws: for each edge and iteration, the conditional probability that the edge ends the sweep included, given the rest of the state. Averaging these gives a lower-variance estimate of the inclusion probability than averaging the binary indicators — it is the default estimator behind <code>summary()</code> and <a href="../reference/extractors.html#extract_posterior_inclusion_probabilities"><code>extract_posterior_inclusion_probabilities()</code></a>.</p>
 <section id="example-posterior-density-for-an-edge" class="level3">
 <h3 class="anchored" data-anchor-id="example-posterior-density-for-an-edge">Example: posterior density for an edge</h3>
-<p>To extract the posterior samples for the intrusion–dreams interaction and compute a 95% credible interval:</p>
+<p>To extract the posterior samples for the <code>intrusion-dreams</code> interaction and compute a 95% credible interval:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine chains for one parameter</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>edge <span class="ot">=</span> <span class="st">"intrusion-dreams"</span></span>
@@ -888,7 +884,7 @@ upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
 </tr>
 <tr class="even">
 <td><code>extract_inclusion_bf()</code></td>
-<td>Inclusion Bayes factors, computed from Rao-Blackwellized odds accumulators; finite even for edges whose inclusion probability saturates at 0 or 1. <code>log = TRUE</code> returns their natural logarithms</td>
+<td>Inclusion Bayes factors, computed from Rao-Blackwellized odds accumulators, so they stay finite where edges whose inclusion probability saturates at 0 or 1 would overflow the posterior-odds transformation — up to the numerical bound, beyond which the value is still <code>Inf</code>. <code>log = TRUE</code> returns their natural logarithms</td>
 </tr>
 <tr class="odd">
 <td><code>extract_precision()</code></td>
@@ -904,7 +900,7 @@ upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
 </tr>
 <tr class="even">
 <td><code>extract_ess()</code></td>
-<td>Effective sample sizes. For edge indicators the Rao-Blackwellized ESS by default; <code>estimator = "mixt"</code> returns the transition ESS</td>
+<td>Effective sample sizes. For edge indicators, the Rao-Blackwellized ESS</td>
 </tr>
 <tr class="odd">
 <td><code>extract_rhat()</code></td>
@@ -942,7 +938,7 @@ upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
 </section>
 <section id="output-from-bgmcompare" class="level2">
 <h2 class="anchored" data-anchor-id="output-from-bgmcompare">Output from <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a></h2>
-<p><a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> returns a list of class <code>"bgmCompare"</code> with the same structure as <a href="../reference/bgm.html"><code>bgm()</code></a>, plus additional components for group differences. The examples use the ADHD data (18 binary items, two groups):</p>
+<p><a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> returns an S7 object of class <code>bgmCompare</code> with the same structure as <a href="../reference/bgm.html"><code>bgm()</code></a>, plus additional components for group differences. The examples use the ADHD data (18 binary items, two groups):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fit_compare <span class="ot">=</span> <span class="fu">bgmCompare</span>(</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> ADHD[, <span class="sc">-</span><span class="dv">1</span>],</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_indicator =</span> ADHD<span class="sc">$</span>group,</span>
@@ -954,64 +950,59 @@ upset      0.05808203 -2.234899 -5.254066 -10.19885</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Posterior summaries from Bayesian grouped MRF estimation (bgmCompare):
 
+groups: 1 = 0 (n = 209), 2 = 1 (n = 146)
+
 Category thresholds:
-     parameter   mean  mcse    sd     n_eff Rhat
-1    avoid (1) -3.240 0.006 0.594  9247.354    1
-2 closeatt (1) -2.731 0.004 0.525 13657.273    1
-3 distract (1) -2.228 0.005 0.506  9072.175    1
-4   forget (1) -2.140 0.005 0.500  9326.339    1
-5 instruct (1) -3.324 0.006 0.610  9092.346    1
-6   listen (1) -1.287 0.007 0.619  7208.479    1
+     parameter   mean  mcse    sd    n_eff Rhat
+1    avoid (1) -3.751 0.005 0.562 11855.45    1
+2 closeatt (1) -3.099 0.004 0.499 13397.86    1
+3 distract (1) -2.468 0.005 0.462 10545.78    1
+4   forget (1) -2.528 0.004 0.440 14639.71    1
+5 instruct (1) -3.821 0.005 0.558 13726.72    1
+6   listen (1) -2.267 0.004 0.457 11981.31    1
 ... (use `summary(fit)$main` to see full output)
 
 Pairwise interactions:
        parameter   mean  mcse    sd     n_eff Rhat
-1 avoid-closeatt  0.908 0.007 0.493  5582.690    1
-2 avoid-distract  1.798 0.003 0.396 15318.080    1
-3   avoid-forget  0.596 0.005 0.395  7685.541    1
-4 avoid-instruct  0.902 0.005 0.505  8544.622    1
-5   avoid-listen -0.139 0.004 0.448 12282.787    1
-6    avoid-loses  0.177 0.003 0.364 14350.026    1
+1 avoid-closeatt  0.592 0.004 0.247  3912.005    1
+2 avoid-distract  0.971 0.002 0.194 15082.191    1
+3   avoid-forget  0.401 0.003 0.207  5802.918    1
+4 avoid-instruct  0.536 0.003 0.241  7742.765    1
+5   avoid-listen -0.061 0.002 0.246  9816.732    1
+6    avoid-loses  0.126 0.002 0.206 10426.572    1
 ... (use `summary(fit)$pairwise` to see full output)
 
 Inclusion probabilities:
-                 parameter  mean  mcse    sd    n_eff n_eff_mixt  Rhat n0-&gt;1
-              avoid (main)                                                 0
- avoid-closeatt (pairwise) 0.765 0.007 0.376 2641.238   2584.413     1   700
- avoid-distract (pairwise) 0.381 0.005 0.393 7156.609   6855.068     1  1739
-   avoid-forget (pairwise) 0.775 0.007 0.368  2673.71   2683.212     1   698
- avoid-instruct (pairwise) 0.948 0.004 0.195 2538.859   2414.362 1.003   187
-   avoid-listen (pairwise) 0.648 0.007 0.417 3972.026   3363.932 1.001  1076
- n1-&gt;0
-     0
-   701
-  1740
-   699
-   187
-  1075
+                 parameter  mean  mcse    sd    n_eff  Rhat n0-&gt;1 n1-&gt;0
+              avoid (main)                                      0     0
+ avoid-closeatt (pairwise) 0.861 0.008 0.312 1573.518 1.003   342   341
+ avoid-distract (pairwise) 0.353 0.005  0.37 6604.088     1  1538  1538
+   avoid-forget (pairwise) 0.809 0.008 0.351 1964.199 1.001   501   502
+ avoid-instruct (pairwise)  0.97 0.003 0.151 2500.687 1.002   100   100
+   avoid-listen (pairwise) 0.823 0.008 0.344 1853.866 1.002   461   460
 ... (use `summary(fit)$indicator` to see full output)
 Note: NA values are suppressed in the print table; they occur for indicators
 that were not updated or whose draws are constant, so ESS/Rhat are undefined.
 `summary(fit)$indicator` still contains all computed values.
 
 Group differences (main effects):
-           parameter  mean  mcse    sd    n_eff share_incl  Rhat
-    avoid (diff1; 1) 1.863 0.014 1.171 6813.981          0 1.000
- closeatt (diff1; 1) 2.572 0.011 1.026 9153.441          0 1.000
- distract (diff1; 1) 0.639 0.011 0.911 7029.409          0 1.000
-   forget (diff1; 1) 2.304 0.011 0.943 6836.639          0 1.001
- instruct (diff1; 1) 1.737 0.015 1.206 6353.165          0 1.000
-   listen (diff1; 1) 3.921 0.018 1.276 5139.512          0 1.001
+           parameter  mean  mcse    sd     n_eff share_incl Rhat
+    avoid (diff1; 1) 1.023 0.008 0.780  9778.027          0    1
+ closeatt (diff1; 1) 1.614 0.007 0.720 11347.286          0    1
+ distract (diff1; 1) 0.316 0.008 0.772  8553.696          0    1
+   forget (diff1; 1) 1.561 0.007 0.660  9257.068          0    1
+ instruct (diff1; 1) 1.069 0.008 0.779  9292.954          0    1
+   listen (diff1; 1) 1.821 0.008 0.750  8083.348          0    1
 ... (use `summary(fit)$main_diff` to see full output)
 
 Group differences (pairwise effects):
-              parameter   mean  mcse    sd     n_eff share_incl Rhat
- avoid-closeatt (diff1) -1.234 0.014 1.064  5713.631      0.702    1
- avoid-distract (diff1) -0.198 0.004 0.472 11102.975      0.294    1
-   avoid-forget (diff1) -1.094 0.012 0.895  5769.045      0.725    1
- avoid-instruct (diff1)  2.307 0.014 1.172  7220.920      0.465    1
-   avoid-listen (diff1)  0.869 0.012 1.002  7533.176      0.584    1
-    avoid-loses (diff1) -0.277 0.005 0.553 11151.235      0.379    1
+              parameter   mean  mcse    sd     n_eff share_incl  Rhat
+ avoid-closeatt (diff1) -0.852 0.009 0.520  3590.634      0.806 1.001
+ avoid-distract (diff1) -0.118 0.003 0.265 11152.842      0.369 1.000
+   avoid-forget (diff1) -0.646 0.007 0.453  4324.164      0.847 1.001
+ avoid-instruct (diff1)  1.223 0.006 0.492  7247.341      0.433 1.000
+   avoid-listen (diff1)  0.798 0.009 0.550  4047.721      0.804 1.001
+    avoid-loses (diff1) -0.239 0.004 0.372  7755.712      0.652 1.000
 ... (use `summary(fit)$pairwise_diff` to see full output)
 
 Use `summary(fit)$&lt;component&gt;` to access full results.

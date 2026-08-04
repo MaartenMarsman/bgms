@@ -533,12 +533,12 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td><a href="../reference/priors.html#cauchy_prior"><code>cauchy_prior()</code></a></td>
 <td>Cauchy(0, scale)</td>
-<td>Interactions (<code>bgmCompare()</code> default), thresholds, means</td>
+<td>Interactions, thresholds, means</td>
 </tr>
 <tr class="even">
 <td><a href="../reference/priors.html#normal_prior"><code>normal_prior()</code></a></td>
 <td>Normal(0, scale)</td>
-<td>Interactions (<code>bgm()</code> default), thresholds, means</td>
+<td>Interactions (<code>bgm()</code> and <code>bgmCompare()</code> default), thresholds, means</td>
 </tr>
 <tr class="odd">
 <td><a href="../reference/priors.html#beta_prime_prior"><code>beta_prime_prior()</code></a></td>
@@ -684,7 +684,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td><a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a></td>
-<td>Compute effective sample sizes for model parameters; for indicators the Rao-Blackwellized ESS by default or the transition ESS with <code>estimator = "mixt"</code></td>
+<td>Compute effective sample sizes for model parameters; for indicators, the Rao-Blackwellized ESS</td>
 </tr>
 <tr class="even">
 <td><a href="../reference/extractors.html#extract_rhat"><code>extract_rhat()</code></a></td>

@@ -780,7 +780,7 @@ window.Quarto = {
 <li><strong><code>flip_rate</code></strong> — the fraction of add/remove decisions that would come out differently under the exact calculation. A chain is flagged on this channel when <code>flip_rate</code> exceeds the tolerance by more than the exact reference’s own Monte Carlo noise. This channel detects error that changed decisions the chain actually made; it is insensitive to a small coherent error at chains whose decisions are far from their accept/reject boundaries.</li>
 <li><strong><code>harm_pred</code></strong> — the projected distortion of the mean posterior inclusion probability under the measured approximation error. This channel detects coherent error whose equilibrium effect exceeds the tolerance even when no individual decision visibly flips; it targets the mean-inclusion shift and does not bound edge-specific distortions that cancel in the mean. It is computed for Bernoulli and Beta-Bernoulli edge priors; under other priors it is <code>NA</code>.</li>
 </ul>
-<p>In <code>bgm()</code>, the gauge is off by default; enable it with <code>options(bgms.zratio_gauge_sweeps = 2L)</code> before fitting, after which the summary is returned as <code>fit$zratio_diag</code> and flagged issues print like other sampler warnings. Most users read the result there rather than calling this function directly; the direct call is for re-summarizing stored sampler output at different tolerances.</p>
+<p>In <code>bgm()</code>, the gauge runs by default on the deployed hierarchical path — a continuous or mixed fit with edge selection — and its summary is returned as <code>fit$zratio_diag</code>, with flagged issues printed like other sampler warnings. Set <code>options(bgms.zratio_gauge_sweeps = 0L)</code> before fitting to switch it off, and raise the same option to audit more finely. <code>sample_ggm_prior()</code> keeps its own <code>zratio_diagnostics</code> argument for the switch. Most users read the result off the fit rather than calling this function directly; the direct call is for re-summarizing stored sampler output at different tolerances.</p>
 <section id="usage-2" class="level3">
 <h3 class="anchored" data-anchor-id="usage-2">Usage</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summarize_zratio_gauge</span>(</span>
@@ -788,7 +788,7 @@ window.Quarto = {
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">threshold      =</span> <span class="fl">0.01</span>,</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose        =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">harm_inputs    =</span> <span class="cn">NULL</span>,</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">harm_threshold =</span> <span class="fl">0.01</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">harm_threshold =</span> <span class="fl">0.02</span></span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="arguments-2" class="level3">
@@ -823,7 +823,7 @@ window.Quarto = {
 </tr>
 <tr class="odd">
 <td><code>harm_threshold</code></td>
-<td>Numeric flag threshold on <code>harm_pred</code>, in inclusion-probability units. Default: <code>0.01</code>.</td>
+<td>Numeric flag threshold on <code>harm_pred</code>, in inclusion-probability units. Default: <code>0.02</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -845,7 +845,7 @@ window.Quarto = {
 <tbody>
 <tr class="odd">
 <td><code>per_chain</code></td>
-<td>Data frame, one row per chain: <code>flip_rate</code> and its <code>flag</code>; the signed mean and spread of the log-ratio error (<code>se_mean</code>, <code>se_sd</code>), the reference-noise component <code>se_mcse</code> and combined standard error <code>se_se</code>; the reference <code>noise_floor</code>; the pair counts (<code>n_ent</code> non-trivial seen, <code>n_ref</code> referenced, <code>n_capped</code> cap hits); and the harm channel (<code>amplification</code>, <code>kappa</code>, <code>harm_pred</code>, <code>harm_flag</code>).</td>
+<td>Data frame, one row per chain: <code>flip_rate</code> and its <code>flag</code>; the signed mean and spread of the log-ratio error (<code>se_mean</code>, <code>se_sd</code>), the reference-noise component <code>se_mcse</code> and combined standard error <code>se_se</code>; the reference <code>noise_floor</code>; the pair counts (<code>n_ent</code> non-trivial seen, <code>n_ref</code> referenced, <code>n_capped</code> cap hits); the mediating-block sizes the audit covered (<code>block_lo</code>, <code>block_hi</code>); and the harm channel (<code>amplification</code>, <code>kappa</code>, <code>harm_pred</code>, <code>harm_flag</code>).</td>
 </tr>
 <tr class="even">
 <td><code>threshold</code></td>

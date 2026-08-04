@@ -567,7 +567,7 @@ window.Quarto = {
 <p>Priors on real-valued parameters. Used for <code>interaction_prior</code>, <code>threshold_prior</code>, and <code>means_prior</code> arguments of <code>bgm()</code> / <code>bgmCompare()</code>.</p>
 <section id="cauchy_prior" class="level3">
 <h3 class="anchored" data-anchor-id="cauchy_prior"><code>cauchy_prior()</code></h3>
-<p>Cauchy(0, scale) prior. Produces heavy-tailed shrinkage toward zero. The default for baseline pairwise interactions in <code>bgmCompare()</code>; in <code>bgm()</code> the default interaction prior is <a href="#normal_prior"><code>normal_prior()</code></a>.</p>
+<p>Cauchy(0, scale) prior. Produces heavy-tailed shrinkage toward zero. It is the opt-in alternative for pairwise interactions in both <code>bgm()</code> and <code>bgmCompare()</code>, whose shared default is <a href="#normal_prior"><code>normal_prior(scale = 1)</code></a>.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cauchy_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>
@@ -591,7 +591,7 @@ window.Quarto = {
 </section>
 <section id="normal_prior" class="level3">
 <h3 class="anchored" data-anchor-id="normal_prior"><code>normal_prior()</code></h3>
-<p>Normal(0, scale) prior. Lighter-tailed than Cauchy, and the default for pairwise interactions in <code>bgm()</code>. The lighter tails also make it the better choice for simulation studies, where a Cauchy prior can generate data with extreme parameter values.</p>
+<p>Normal(0, scale) prior. Lighter-tailed than Cauchy, and the default for pairwise interactions in both <code>bgm()</code> and <code>bgmCompare()</code>, which also takes it as the default slab family for group differences. The lighter tails also make it the better choice for simulation studies, where a Cauchy prior can generate data with extreme parameter values.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">normal_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>

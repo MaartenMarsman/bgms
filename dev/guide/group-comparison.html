@@ -602,7 +602,7 @@ window.Quarto = {
 <p>When <code>difference_selection = TRUE</code> (the default), spike-and-slab priors are placed on the contrast parameters. For each pairwise interaction, a binary indicator <span class="math inline">\(\gamma_{ij}\)</span> — here indexing difference inclusion, not the edge inclusion it denotes in <code>bgm()</code> — governs whether the contrast parameters are included in the model:</p>
 <ul>
 <li>When <span class="math inline">\(\gamma_{ij} = 0\)</span> (spike), the contrast parameters are exactly zero — all groups have the same partial association.</li>
-<li>When <span class="math inline">\(\gamma_{ij} = 1\)</span> (slab), each contrast parameter receives a slab prior and is estimated from the data. The slab family is set by <code>difference_family</code> — <code>"Cauchy"</code> (the default) or <code>"Normal"</code> — with scale <code>difference_scale</code>.</li>
+<li>When <span class="math inline">\(\gamma_{ij} = 1\)</span> (slab), each contrast parameter receives a slab prior and is estimated from the data. The slab family is set by <code>difference_family</code> — <code>"Normal"</code> (the default) or <code>"Cauchy"</code> — with scale <code>difference_scale</code>.</li>
 </ul>
 <p>By default, only pairwise interaction differences are selected (<code>main_difference_selection = FALSE</code>). Threshold differences are always included as free parameters. This default reflects that thresholds are typically nuisance parameters: their selection can interfere with pairwise selection under the Beta-Bernoulli prior, and group differences in thresholds are rarely the primary research question.</p>
 </section>
@@ -650,21 +650,21 @@ window.Quarto = {
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diffs, <span class="at">digits =</span> <span class="dv">3</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                 parameter  mean    BF10
- avoid-closeatt (pairwise) 0.765   3.259
-   forget-talks (pairwise) 0.284   0.396
-     motor-seat (pairwise) 0.997 304.664</code></pre>
+ avoid-closeatt (pairwise) 0.861   6.206
+   forget-talks (pairwise) 0.227   0.294
+     motor-seat (pairwise) 0.999 886.405</code></pre>
 </div>
 </div>
 <ul>
-<li><strong><code>motor-seat</code></strong>: an inclusion probability of 0.997 gives <span class="math inline">\(\text{BF}_{10} \approx 305\)</span> — strong evidence that the partial association between these two symptoms differs between the groups.</li>
-<li><strong><code>avoid-closeatt</code></strong>: <span class="math inline">\(\text{BF}_{10} \approx 3.3\)</span> — modest evidence for a group difference.</li>
-<li><strong><code>forget-talks</code></strong>: an inclusion probability of about 0.28 gives <span class="math inline">\(\text{BF}_{01} \approx 2.5\)</span> — the data lean toward invariance, but the evidence is weak.</li>
+<li><strong><code>motor-seat</code></strong>: an inclusion probability of 0.999 gives <span class="math inline">\(\text{BF}_{10} \approx 886\)</span> — strong evidence that the partial association between these two symptoms differs between the groups.</li>
+<li><strong><code>avoid-closeatt</code></strong>: <span class="math inline">\(\text{BF}_{10} \approx 6.2\)</span> — modest evidence for a group difference.</li>
+<li><strong><code>forget-talks</code></strong>: an inclusion probability of about 0.23 gives <span class="math inline">\(\text{BF}_{01} \approx 3.4\)</span> — the data lean toward invariance, but the evidence is weak.</li>
 </ul>
 </section>
 <section id="prior-guidance" class="level2">
 <h2 class="anchored" data-anchor-id="prior-guidance">Prior guidance</h2>
 <ul>
-<li><strong><code>difference_scale = 1</code></strong> (default): scale of the slab on the contrast parameters, whose family is set by <code>difference_family</code> (<code>"Cauchy"</code> by default, <code>"Normal"</code> as the lighter-tailed alternative). The default matches the scale of the baseline <code>interaction_prior</code> (<code>cauchy_prior(scale = 1)</code>). Note the asymmetry with <a href="../reference/bgm.html"><code>bgm()</code></a>: the single-group model defaults to a Normal slab, while <code>bgmCompare()</code> keeps Cauchy defaults for both the baseline interactions and the contrast parameters.</li>
+<li><strong><code>difference_scale = 1</code></strong> (default): scale of the slab on the contrast parameters, whose family is set by <code>difference_family</code> (<code>"Normal"</code> by default, <code>"Cauchy"</code> as the heavier-tailed alternative). The default matches the scale of the baseline <code>interaction_prior</code> (<code>normal_prior(scale = 1)</code>), and both match <a href="../reference/bgm.html"><code>bgm()</code></a>, so a comparison and separate single-group fits place the same prior on a baseline interaction. Pass <code>difference_family = "Cauchy"</code> and <code>interaction_prior = cauchy_prior(scale = 1)</code> to recover the pre-0.2.0.0 behavior. The choice matters most for differences the data cannot inform, such as thresholds of categories one group never observed: a Normal slab keeps such a difference within a moderate range, where a Cauchy slab lets it wander.</li>
 <li><strong><code>difference_prior = bernoulli_prior(0.5)</code></strong> (default): each difference has a fixed prior inclusion probability of 0.5. Pass <a href="../reference/priors.html#beta_bernoulli_prior"><code>beta_bernoulli_prior(1, 1)</code></a> to place a beta hyperprior on the inclusion probability instead — this provides automatic multiplicity correction, important when the number of potential group differences is large <span class="citation" data-cites="MarsmanEtAl_2025_ttest">(<a href="#ref-MarsmanEtAl_2025_ttest" role="doc-biblioref">Marsman et al., 2025</a>)</span>. Setting <code>bernoulli_prior(p)</code> with <code>p = 0.5</code> makes the prior odds equal to one, so the Bayes factor simplifies to the posterior odds.</li>
 <li><strong><code>difference_prior = sbm_prior(...)</code></strong>: a stochastic block model on the off-diagonal differences, with cluster-structured inclusion probabilities. Useful when group differences are expected to concentrate within latent clusters of variables. The diagonal (main-effect difference inclusions, when <code>main_difference_selection = TRUE</code>) follows a separate Beta-Bernoulli using the within-cluster <code>alpha</code> and <code>beta</code>. See <a href="../guide/clustering.html">Edge Clustering</a> and <a href="../manual/sbm-prior.html">SBM Prior</a> for the formulation; cluster summaries are accessible via <a href="../reference/extractors.html#extract_sbm"><code>extract_sbm()</code></a>.</li>
 </ul>
