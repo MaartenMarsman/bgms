@@ -2534,6 +2534,94 @@
     ]
   },
   {
+    "objectID": "examples/estimation-to-evidence.html",
+    "href": "examples/estimation-to-evidence.html",
+    "title": "From estimation to evidence",
+    "section": "",
+    "text": "Figure 1\nThe 35 pairs in the presence panel are associations these data support, each drawn with its estimated weight. The 62 dashed pairs in the absence panel are positive findings too: the data support conditional independence for each of them. The 39 dotted pairs in the undecided panel are the ones these data have too little to say about, and only this display keeps them visible as their own category.\nAn estimated network cannot give you this figure. It makes every pair either an edge or a blank, and a blank cannot tell you whether the data ruled the pair out or simply had too little to say — the reanalysis of Huth et al. (2026) suggests that in published networks the second case is the more common one. This page runs the full Wenchuan analysis from that familiar starting point to the figure above: fit the model, weigh every pair with an inclusion Bayes factor, and split the network by what the data actually established.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#the-fit",
+    "href": "examples/estimation-to-evidence.html#the-fit",
+    "title": "From estimation to evidence",
+    "section": "The fit",
+    "text": "The fit\n\nlibrary(bgms)\n\nfit = bgm(Wenchuan, iter = 1e4, warmup = 5e3, seed = 123)\n\nThe Wenchuan data ship with the package: 17 ordinal PTSD symptom items from survivors of the 2008 Wenchuan earthquake, with 344 of 362 rows complete under the default na_action = \"listwise\". Everything except the run length is at its default. The longer run is the point: what you read off this fit is evidence, and the run has to be long enough to pin each inclusion probability down to the precision the evidence claim needs. At the default length these data leave the inclusion effective sample sizes in the hundreds; at this length they run into the thousands. Reading the output walks the summary() of this exact fit block by block.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#the-silent-zero",
+    "href": "examples/estimation-to-evidence.html#the-silent-zero",
+    "title": "From estimation to evidence",
+    "section": "The silent zero",
+    "text": "The silent zero\nStart where the field starts. The standard estimation workflow computes polychoric correlations and fits a regularized network with EBICglasso, which sets small partial associations to exactly zero:\n\nlibrary(qgraph)\n\nwenchuan = Wenchuan[complete.cases(Wenchuan), ]\ncorrelations = cor_auto(wenchuan)\nglasso = EBICglasso(S = correlations, n = nrow(wenchuan), gamma = 0.5)\n\nsum(glasso[upper.tri(glasso)] != 0)\n\n[1] 75\n\nglasso[\"intrusion\", \"concen\"]\n\n[1] 0\n\n\nSeventy-five of the 136 possible edges survive; the other 61 are zeros. One of those zeros sits between intrusive memories (intrusion) and concentration problems (concen), two symptoms with a long clinical history together. Is that a finding — the data support their conditional independence — or did the penalty simply shave off an association the data could not resist? The estimated network prints the same zero either way. Keep that pair in view; it returns below.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#from-probabilities-to-evidence",
+    "href": "examples/estimation-to-evidence.html#from-probabilities-to-evidence",
+    "title": "From estimation to evidence",
+    "section": "From probabilities to evidence",
+    "text": "From probabilities to evidence\nThe Bayesian analysis treats the network structure itself as unknown: every arrangement of the 136 edges is a candidate, and each candidate earns a posterior probability from the data. An edge’s posterior inclusion probability adds up the probability of all structures that contain it. The inclusion Bayes factor then compares that quantity against where it started, as the ratio of posterior to prior inclusion odds: a value of 10 means the data have multiplied the odds in favor of the edge by ten, a value of 1/10 means the data have multiplied the odds against it by ten, and a value near one means the data moved nothing. Because it is a ratio, evidence runs in both directions — which is exactly the distinction the estimated network’s blank could not make.\nTwo properties matter in practice. The verdict on each edge is model-averaged over every structure the data leave plausible, so it does not depend on one particular arrangement of the other 135 edges. And because the prior odds are divided out, the Bayes factor reports what the data showed, not what you believed beforehand. The reasoning behind both lives in Edge Selection and The Bayesian Approach; extract_inclusion_bf() returns all 136 at once:\n\nbf = extract_inclusion_bf(fit)\nbf[\"intrusion\", \"concen\"]\n\n[1] 158.6393\n\n\nThere it is: the pair the graphical lasso silently zeroed carries a Bayes factor of about 159. The data multiply the odds of this edge by more than a hundred and fifty.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#three-verdicts-for-136-edges",
+    "href": "examples/estimation-to-evidence.html#three-verdicts-for-136-edges",
+    "title": "From estimation to evidence",
+    "section": "Three verdicts for 136 edges",
+    "text": "Three verdicts for 136 edges\nNobody reads 136 Bayes factors one at a time. Following common conventions, values at or above 10 count as evidence of presence, values at or below 1/10 as evidence of absence, and everything in between is undecided. One call classifies every edge:\n\nverdicts(fit)\n\nEdge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):\npresence: log BF &gt; 2.30; absence: log BF &lt; -2.30\n\n  presence 35 | undecided 39 | absence 62   (136 indicators)\n\n          parameter   pip  log_bf   verdict fragile\n   intrusion-dreams 1.000 274.759  presence   FALSE\n    intrusion-flash 1.000  12.112  presence   FALSE\n    intrusion-upset 0.664   0.681 undecided   FALSE\n  intrusion-physior 0.217  -1.284 undecided   FALSE\n  intrusion-avoidth 0.034  -3.355   absence   FALSE\n intrusion-avoidact 0.029  -3.494   absence   FALSE\n  intrusion-amnesia 0.038  -3.243   absence   FALSE\n  intrusion-lossint 0.044  -3.077   absence   FALSE\n  intrusion-distant 0.031  -3.452   absence   FALSE\n     intrusion-numb 0.058  -2.784   absence   FALSE\n... (126 more rows)\n\n7 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n\n\nThe counts are the headline: 35 presence, 39 undecided, 62 absence. The log_bf column is the natural logarithm of the Bayes factor — the scale to compare evidence spanning many orders of magnitude — and the thresholds reappear on it as \\(\\pm\\log 10 \\approx \\pm 2.30\\). The closing note flags seven fragile verdicts: edges whose Bayes factor sits within two Monte Carlo standard errors of a threshold, so a rerun could land them in the neighboring category. Those are borderline edges, not failures, and any of them that matters to your conclusions deserves a longer run.\nThe threshold itself is a reporting convention, not a law. Rerunning the classification with verdicts(fit, evidence_threshold = 3) gives 40 presence, 12 undecided, and 84 absence; at a threshold of 30 the counts become 29, 83, and 24. The counts shift with the convention, but no edge can jump between presence and absence, and stating a second threshold costs one sentence. See verdicts() for the full contract.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#the-three-panels",
+    "href": "examples/estimation-to-evidence.html#the-three-panels",
+    "title": "From estimation to evidence",
+    "section": "The three panels",
+    "text": "The three panels\nThe figure at the top of the page is the verdict table drawn as three networks on one shared layout, so the panels match node for node. You do not need custom code to get it: plot(fit) draws a rudimentary version of the same display in one call, and the easybgm package offers more elaborate plotting and summary functions on top of bgms. The helper below builds the figure with qgraph directly, with every styling choice under your control:\n\nlibrary(qgraph)\n\nplot_edge_evidence = function(fit, labels, node_color, threshold = 10,\n                              seed = 1234, vsize = 9) {\n  bf = extract_inclusion_bf(fit)\n  weights = coef(fit)$pairwise\n\n  presence = bf &gt;= threshold\n  absence = bf &lt;= 1 / threshold\n  undecided = !presence & !absence\n  diag(presence) = diag(absence) = diag(undecided) = FALSE\n\n  # One layout, computed from every pair, so the three panels match node\n  # for node.\n  set.seed(seed)\n  shared = qgraph(abs(weights), layout = \"spring\", repulsion = 0.9,\n                  DoNotPlot = TRUE)$layout\n\n  panel = function(edges, label, count, ...) {\n    qgraph(edges, layout = shared, labels = labels, fade = FALSE,\n           color = node_color, vsize = vsize, label.scale.equal = TRUE,\n           border.color = \"grey30\", mar = c(3, 4, 8, 4), ...)\n    mtext(sprintf(\"%s: %d\", label, count), side = 3, line = 1.2,\n          cex = 0.95, font = 2)\n  }\n\n  par(mfrow = c(1, 3))\n  panel(weights * presence, \"evidence of presence\", sum(presence) / 2,\n        theme = \"TeamFortress\", edge.width = 1.1)\n  panel(absence * 1, \"evidence of absence\", sum(absence) / 2,\n        edge.color = \"#A66A1E\", lty = 2, edge.width = 1.1)\n  panel(undecided * 1, \"undecided\", sum(undecided) / 2,\n        edge.color = \"#8A8578\", lty = 3, edge.width = 1.4)\n}\n\nplot_edge_evidence(fit, colnames(Wenchuan), \"#f0ae0e\")\n\nEvidence of presence. For these 35 pairs the data favor a direct association that survives conditioning on the other symptoms. Only this panel is weighted: line width is the posterior mean partial association, so the effect sizes live here. The edge between intrusion and concen — the graphical lasso’s zero — is one of them:\n\nw = extract_pairwise_interactions(fit)[, \"intrusion-concen\"]\nround(c(mean = mean(w), quantile(w, c(0.025, 0.975))), 2)\n\n mean  2.5% 97.5% \n-0.14 -0.20 -0.07 \n\n\nA model-averaged weight of about \\(-0.14\\), credibly below zero: conditional on the other symptoms, more intrusive memories accompany fewer reported concentration problems. Strong evidence for an edge, where the estimation workflow returned a silent zero.\nEvidence of absence. Each of these 62 dashed pairs is a positive statement: the data support conditional independence. This is the statement an estimated network cannot make — its blanks are silent — and it is stated here at uniform width because the classification, not a weight, is the result.\nUndecided. These 39 pairs — 29% of all possible edges, in a sample of 344 people — are the ones these data have too little to say about. They are not edges the analysis failed on, and they are not absences. Fold them in with the blanks of a thresholded drawing and you would report more than a quarter of the network as settled when it is an open question.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#what-to-report",
+    "href": "examples/estimation-to-evidence.html#what-to-report",
+    "title": "From estimation to evidence",
+    "section": "What to report",
+    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nFor a supported edge: “There was strong evidence for a conditional association between &lt;X&gt; and &lt;Y&gt; (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)), with a model-averaged weight of &lt;mean&gt; (95% CI &lt;lower&gt; to &lt;upper&gt;).”\nFor a ruled-out edge: “The data provided evidence against a conditional association between &lt;X&gt; and &lt;Y&gt; (\\(\\text{BF}_{01} = \\texttt{&lt;value&gt;}\\)).”\nFor an undecided edge: “The evidence for a conditional association between &lt;X&gt; and &lt;Y&gt; was inconclusive (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)); these data do not decide it.”\nFor an edge that carries a substantive claim, plot_edge_posterior(fit, \"intrusion\", \"concen\") draws the posterior of its weight against the prior it was updated from, with the inclusion evidence as a probability wheel: a single-edge figure for a results section.\nState the evidence threshold and the counts it produced, and check the fragility note in verdicts() before resting a conclusion on a borderline edge.\nNot licensed: reading an edge that is merely missing from an estimated or thresholded network as evidence that the association is absent.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
+    "objectID": "examples/estimation-to-evidence.html#where-to-next",
+    "href": "examples/estimation-to-evidence.html#where-to-next",
+    "title": "From estimation to evidence",
+    "section": "Where to next",
+    "text": "Where to next\n\nEdge Selection for why the inclusion Bayes factor works this way, and Check your priors for whether these verdicts depend on the prior.\nbgm() and extract_inclusion_bf() for the arguments and return values.\nThe tutorial manuscript that develops this analysis in full, with the estimation-versus-evidence comparison it only gestures at here, is in preparation; Huth et al. (2026) carry the citable record on how often published network edges rest on inconclusive evidence.\nNext in the series: Reading the output.",
+    "crumbs": [
+      "Examples",
+      "From estimation to evidence"
+    ]
+  },
+  {
     "objectID": "examples/check-your-priors.html",
     "href": "examples/check-your-priors.html",
     "title": "Check your priors",
@@ -2622,91 +2710,80 @@
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html",
-    "href": "examples/estimation-to-evidence.html",
-    "title": "From estimation to evidence",
+    "objectID": "examples/from-bootnet-qgraph.html",
+    "href": "examples/from-bootnet-qgraph.html",
+    "title": "Coming from bootnet and qgraph",
     "section": "",
-    "text": "Figure 1\nThe 35 pairs in the presence panel are associations these data support, each drawn with its estimated weight. The 62 dashed pairs in the absence panel are positive findings too: the data support conditional independence for each of them. The 39 dotted pairs in the undecided panel are the ones these data have too little to say about, and only this display keeps them visible as their own category.\nAn estimated network cannot give you this figure. It makes every pair either an edge or a blank, and a blank cannot tell you whether the data ruled the pair out or simply had too little to say — the reanalysis of Huth et al. (2026) suggests that in published networks the second case is the more common one. This page runs the full Wenchuan analysis from that familiar starting point to the figure above: fit the model, weigh every pair with an inclusion Bayes factor, and split the network by what the data actually established.",
+    "text": "You already know what to ask of a network analysis; the estimation workflow of qgraph and bootnet is the field’s standard for good reasons (Epskamp et al., 2012, 2018), and nothing on this page asks you to unlearn it. What bgms adds is a second question next to “what is the network?”: what is the evidence for each edge? You keep your data, your plots, and most of your intuitions; this page maps each familiar step onto its Bayesian counterpart, says what is conceptually new, and says plainly what you give up.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#the-fit",
-    "href": "examples/estimation-to-evidence.html#the-fit",
-    "title": "From estimation to evidence",
-    "section": "The fit",
-    "text": "The fit\n\nlibrary(bgms)\n\nfit = bgm(Wenchuan, iter = 1e4, warmup = 5e3, seed = 123)\n\nThe Wenchuan data ship with the package: 17 ordinal PTSD symptom items from survivors of the 2008 Wenchuan earthquake, with 344 of 362 rows complete under the default na_action = \"listwise\". Everything except the run length is at its default. The longer run is the point: what you read off this fit is evidence, and the run has to be long enough to pin each inclusion probability down to the precision the evidence claim needs. At the default length these data leave the inclusion effective sample sizes in the hundreds; at this length they run into the thousands. Reading the output walks the summary() of this exact fit block by block.",
+    "objectID": "examples/from-bootnet-qgraph.html#sec-the-map",
+    "href": "examples/from-bootnet-qgraph.html#sec-the-map",
+    "title": "Coming from bootnet and qgraph",
+    "section": "The map",
+    "text": "The map\nEach row is one question you already ask. The left call is the estimation workflow’s answer (verified against bootnet 1.9.1, qgraph 1.10.1, and NetworkComparisonTest 2.2.3); the right call is the bgms counterpart, with fit = bgm(Wenchuan) as the one fit every right-hand call reads from.\n\n\n\nThe question\nEstimation workflow\nBayesian counterpart\nWhat changes\n\n\n\n\nWhat does the network look like?\nnetwork = estimateNetwork(Wenchuan, default = \"EBICglasso\", corMethod = \"cor_auto\")\nfit = bgm(Wenchuan)\nOne point estimate becomes a model-averaged posterior over structures and weights.\n\n\nHow do I draw it?\nplot(network)\nplot(fit)\nThe drawing splits into three panels by evidence. Your qgraph skills carry over: qgraph(coef(fit)$pairwise, ...) draws the posterior means with any styling you already use.\n\n\nHow certain are the edge weights?\nboots = bootnet(network, nBoots = 1000), then plot(boots)\nsummary(fit)$pairwise\nCredible intervals come with the fit; there is no resampling loop to run or wait for.\n\n\nHow stable are the results?\ncorStability(bootnet(network, nBoots = 1000, type = \"case\"))\nNothing to run\nThe posterior carries its uncertainty natively, so the case-drop bootstrap has no counterpart and there is no CS-coefficient to report; see the honest trade-offs.\n\n\nIs this edge in the network?\nIn or out of the point estimate\nverdicts(fit)\nIn-or-out becomes graded evidence: an inclusion Bayes factor per edge, classified as presence, absence, or undecided.\n\n\nIs this edge absent?\nUnanswerable\nverdicts(fit)\nEvidence of absence becomes a positive, reportable finding rather than a blank.\n\n\nDo these two edges differ?\ndifferenceTest(boots, \"intrusion--dreams\", \"intrusion--upset\", measure = \"edge\")\nw = extract_pairwise_interactions(fit), then quantile(w[, \"intrusion-dreams\"] - w[, \"intrusion-upset\"], c(0.025, 0.975))\nThe difference between two weights has a posterior distribution of its own; read its credible interval directly.\n\n\nWhich nodes are central?\ncentralityPlot(network)\nplot(extract_centrality(fit))\nCentrality gets a posterior: every node’s strength comes with a credible interval, and the ranking’s uncertainty is visible instead of assumed away.\n\n\nDo the groups differ?\nNCT(data1, data2, it = 1000, test.edges = TRUE)\nbgmCompare(x = data1, y = data2)\nWhere the Network Comparison Test asks whether two networks differ somewhere, the comparison answers parameter by parameter, and evidence of equality becomes expressible. See Group Comparison.\n\n\nDoes the model describe the data?\nNot part of the standard workflow\ncalibration_check(fit, seed = 123)\nA new check: reliability diagrams of the model’s conditional predictions, plus simulate() for posterior predictive displays.\n\n\nWhat does a blank in the drawing mean?\nIt cannot say: ruled out and undecided look the same\nThe blank splits in two: evidence of absence and undecided are separate panels of plot(fit)\nThe three-way reading is worked through in From estimation to evidence.\n\n\n\nEvery call in the left column is real, runnable bootnet/qgraph syntax, verified against the installed packages; every call in the right column runs against a bgm() fit of the Wenchuan data during the build of this page.\nOne argument in the first row deserves a note. The Wenchuan items are ordinal, so the estimation workflow computes polychoric correlations, which is what corMethod = \"cor_auto\" requests; bootnet 1.9.1’s own default, corMethod = \"cor\", would treat the items as continuous, and the choice is not cosmetic (73 versus 81 selected edges on these data). On the right side there is nothing to set: bgm() reads the items as ordinal by default (variable_type = \"ordinal\").",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#the-silent-zero",
-    "href": "examples/estimation-to-evidence.html#the-silent-zero",
-    "title": "From estimation to evidence",
-    "section": "The silent zero",
-    "text": "The silent zero\nStart where the field starts. The standard estimation workflow computes polychoric correlations and fits a regularized network with EBICglasso, which sets small partial associations to exactly zero:\n\nlibrary(qgraph)\n\nwenchuan = Wenchuan[complete.cases(Wenchuan), ]\ncorrelations = cor_auto(wenchuan)\nglasso = EBICglasso(S = correlations, n = nrow(wenchuan), gamma = 0.5)\n\nsum(glasso[upper.tri(glasso)] != 0)\n\n[1] 75\n\nglasso[\"intrusion\", \"concen\"]\n\n[1] 0\n\n\nSeventy-five of the 136 possible edges survive; the other 61 are zeros. One of those zeros sits between intrusive memories (intrusion) and concentration problems (concen), two symptoms with a long clinical history together. Is that a finding — the data support their conditional independence — or did the penalty simply shave off an association the data could not resist? The estimated network prints the same zero either way. Keep that pair in view; it returns below.",
+    "objectID": "examples/from-bootnet-qgraph.html#sec-run-it",
+    "href": "examples/from-bootnet-qgraph.html#sec-run-it",
+    "title": "Coming from bootnet and qgraph",
+    "section": "Run the right column",
+    "text": "Run the right column\nThe complete Bayesian side of the table, on data that ship with the package. This is also the page’s companion script:\n\nlibrary(bgms)\n\n# Fit once; everything else reads from the fit.\nfit = bgm(Wenchuan, iter = 1e4, warmup = 5e3, seed = 123)\n\n# The network, split by evidence, and the verdict table behind it.\nplot(fit)\nverdicts(fit)\n\n# Edge weights with credible intervals.\nsummary(fit)$pairwise\n\n# The difference between two edges, as a posterior.\nw = extract_pairwise_interactions(fit)\nquantile(w[, \"intrusion-dreams\"] - w[, \"intrusion-upset\"],\n         c(0.025, 0.975))\n\n# Centrality with uncertainty.\nplot(extract_centrality(fit))\n\n# Do the conditional predictions hold up?\ncalibration_check(fit, seed = 123)\n\nThe run length is the one departure from the defaults, and it is deliberate: what you read off this fit is evidence, and the run must be long enough to pin each inclusion probability down. Reading the output walks the summary() of this exact fit.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#from-probabilities-to-evidence",
-    "href": "examples/estimation-to-evidence.html#from-probabilities-to-evidence",
-    "title": "From estimation to evidence",
-    "section": "From probabilities to evidence",
-    "text": "From probabilities to evidence\nThe Bayesian analysis treats the network structure itself as unknown: every arrangement of the 136 edges is a candidate, and each candidate earns a posterior probability from the data. An edge’s posterior inclusion probability adds up the probability of all structures that contain it. The inclusion Bayes factor then compares that quantity against where it started, as the ratio of posterior to prior inclusion odds: a value of 10 means the data have multiplied the odds in favor of the edge by ten, a value of 1/10 means the data have multiplied the odds against it by ten, and a value near one means the data moved nothing. Because it is a ratio, evidence runs in both directions — which is exactly the distinction the estimated network’s blank could not make.\nTwo properties matter in practice. The verdict on each edge is model-averaged over every structure the data leave plausible, so it does not depend on one particular arrangement of the other 135 edges. And because the prior odds are divided out, the Bayes factor reports what the data showed, not what you believed beforehand. The reasoning behind both lives in Edge Selection and The Bayesian Approach; extract_inclusion_bf() returns all 136 at once:\n\nbf = extract_inclusion_bf(fit)\nbf[\"intrusion\", \"concen\"]\n\n[1] 158.6393\n\n\nThere it is: the pair the graphical lasso silently zeroed carries a Bayes factor of about 159. The data multiply the odds of this edge by more than a hundred and fifty.",
+    "objectID": "examples/from-bootnet-qgraph.html#what-changes-conceptually",
+    "href": "examples/from-bootnet-qgraph.html#what-changes-conceptually",
+    "title": "Coming from bootnet and qgraph",
+    "section": "What changes conceptually",
+    "text": "What changes conceptually\nSelection is not evidence. EBICglasso answers “is this edge in the network?” with the point estimate’s word: in or out. The penalty biases every weight toward zero, and the bootnet authors are explicit that the bootstrapped intervals “should not be interpreted as significance tests to zero” (Epskamp et al., 2018, p. 200), so a zero in the estimated network is silent about whether the data ruled the edge out or simply had too little to say. The inclusion Bayes factor answers that question directly, in both directions: the same number that can support an edge can support its absence. From estimation to evidence runs both workflows on the same data and shows a zero turning into strong evidence of presence.\nThe bootstrap was a substitute; the posterior is the original. The bootstrap exists because a point estimate carries no uncertainty of its own, so resampling manufactures a stand-in. A posterior distribution carries its uncertainty natively: the credible intervals, the edge differences, and the centrality uncertainty all come from the same set of draws the fit already produced. This is why the stability row of the map has nothing on the right side; the information the bootstrap approximates is already in the output.\nUndecided is a feature. The estimation workflow must commit every pair to edge or blank. The Bayesian workflow keeps a third category for the pairs the data cannot decide, and reports it as a count you can state in a paper. An analysis that can say “these data are not enough to settle this association” is telling you something the point estimate never could, and on real data the undecided category is rarely empty: 39 of the Wenchuan analysis’s 136 pairs land there.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#three-verdicts-for-136-edges",
-    "href": "examples/estimation-to-evidence.html#three-verdicts-for-136-edges",
-    "title": "From estimation to evidence",
-    "section": "Three verdicts for 136 edges",
-    "text": "Three verdicts for 136 edges\nNobody reads 136 Bayes factors one at a time. Following common conventions, values at or above 10 count as evidence of presence, values at or below 1/10 as evidence of absence, and everything in between is undecided. One call classifies every edge:\n\nverdicts(fit)\n\nEdge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):\npresence: log BF &gt; 2.30; absence: log BF &lt; -2.30\n\n  presence 35 | undecided 39 | absence 62   (136 indicators)\n\n          parameter   pip  log_bf   verdict fragile\n   intrusion-dreams 1.000 274.759  presence   FALSE\n    intrusion-flash 1.000  12.112  presence   FALSE\n    intrusion-upset 0.664   0.681 undecided   FALSE\n  intrusion-physior 0.217  -1.284 undecided   FALSE\n  intrusion-avoidth 0.034  -3.355   absence   FALSE\n intrusion-avoidact 0.029  -3.494   absence   FALSE\n  intrusion-amnesia 0.038  -3.243   absence   FALSE\n  intrusion-lossint 0.044  -3.077   absence   FALSE\n  intrusion-distant 0.031  -3.452   absence   FALSE\n     intrusion-numb 0.058  -2.784   absence   FALSE\n... (126 more rows)\n\n7 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard\nerrors of the evidence, so the verdict could change on a rerun. Consider a\nlonger run.\n\n\nThe counts are the headline: 35 presence, 39 undecided, 62 absence. The log_bf column is the natural logarithm of the Bayes factor — the scale to compare evidence spanning many orders of magnitude — and the thresholds reappear on it as \\(\\pm\\log 10 \\approx \\pm 2.30\\). The closing note flags seven fragile verdicts: edges whose Bayes factor sits within two Monte Carlo standard errors of a threshold, so a rerun could land them in the neighboring category. Those are borderline edges, not failures, and any of them that matters to your conclusions deserves a longer run.\nThe threshold itself is a reporting convention, not a law. Rerunning the classification with verdicts(fit, evidence_threshold = 3) gives 40 presence, 12 undecided, and 84 absence; at a threshold of 30 the counts become 29, 83, and 24. The counts shift with the convention, but no edge can jump between presence and absence, and stating a second threshold costs one sentence. See verdicts() for the full contract.",
+    "objectID": "examples/from-bootnet-qgraph.html#sec-give-up",
+    "href": "examples/from-bootnet-qgraph.html#sec-give-up",
+    "title": "Coming from bootnet and qgraph",
+    "section": "What you give up",
+    "text": "What you give up\nHonesty about the trade. A bgm() fit at evidence-grade run lengths takes minutes where EBICglasso takes seconds, and the gap grows with the number of variables. The shrinkage the penalty provided is now the job of the prior distributions, which you should understand and can check (Prior Basics, Check your priors). And parts of the bootnet ecosystem have no bgms analogue: the CS-coefficient as a familiar, reviewer-recognized stability number; bridge centrality and expected influence; the many estimateNetwork defaults beyond EBICglasso, including the time-series models. If your analysis depends on those, the estimation workflow remains the right tool for that part, and the two can coexist in one paper.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#the-three-panels",
-    "href": "examples/estimation-to-evidence.html#the-three-panels",
-    "title": "From estimation to evidence",
-    "section": "The three panels",
-    "text": "The three panels\nThe figure at the top of the page is the verdict table drawn as three networks on one shared layout, so the panels match node for node. You do not need custom code to get it: plot(fit) draws a rudimentary version of the same display in one call, and the easybgm package offers more elaborate plotting and summary functions on top of bgms. The helper below builds the figure with qgraph directly, with every styling choice under your control:\n\nlibrary(qgraph)\n\nplot_edge_evidence = function(fit, labels, node_color, threshold = 10,\n                              seed = 1234, vsize = 9) {\n  bf = extract_inclusion_bf(fit)\n  weights = coef(fit)$pairwise\n\n  presence = bf &gt;= threshold\n  absence = bf &lt;= 1 / threshold\n  undecided = !presence & !absence\n  diag(presence) = diag(absence) = diag(undecided) = FALSE\n\n  # One layout, computed from every pair, so the three panels match node\n  # for node.\n  set.seed(seed)\n  shared = qgraph(abs(weights), layout = \"spring\", repulsion = 0.9,\n                  DoNotPlot = TRUE)$layout\n\n  panel = function(edges, label, count, ...) {\n    qgraph(edges, layout = shared, labels = labels, fade = FALSE,\n           color = node_color, vsize = vsize, label.scale.equal = TRUE,\n           border.color = \"grey30\", mar = c(3, 4, 8, 4), ...)\n    mtext(sprintf(\"%s: %d\", label, count), side = 3, line = 1.2,\n          cex = 0.95, font = 2)\n  }\n\n  par(mfrow = c(1, 3))\n  panel(weights * presence, \"evidence of presence\", sum(presence) / 2,\n        theme = \"TeamFortress\", edge.width = 1.1)\n  panel(absence * 1, \"evidence of absence\", sum(absence) / 2,\n        edge.color = \"#A66A1E\", lty = 2, edge.width = 1.1)\n  panel(undecided * 1, \"undecided\", sum(undecided) / 2,\n        edge.color = \"#8A8578\", lty = 3, edge.width = 1.4)\n}\n\nplot_edge_evidence(fit, colnames(Wenchuan), \"#f0ae0e\")\n\nEvidence of presence. For these 35 pairs the data favor a direct association that survives conditioning on the other symptoms. Only this panel is weighted: line width is the posterior mean partial association, so the effect sizes live here. The edge between intrusion and concen — the graphical lasso’s zero — is one of them:\n\nw = extract_pairwise_interactions(fit)[, \"intrusion-concen\"]\nround(c(mean = mean(w), quantile(w, c(0.025, 0.975))), 2)\n\n mean  2.5% 97.5% \n-0.14 -0.20 -0.07 \n\n\nA model-averaged weight of about \\(-0.14\\), credibly below zero: conditional on the other symptoms, more intrusive memories accompany fewer reported concentration problems. Strong evidence for an edge, where the estimation workflow returned a silent zero.\nEvidence of absence. Each of these 62 dashed pairs is a positive statement: the data support conditional independence. This is the statement an estimated network cannot make — its blanks are silent — and it is stated here at uniform width because the classification, not a weight, is the result.\nUndecided. These 39 pairs — 29% of all possible edges, in a sample of 344 people — are the ones these data have too little to say about. They are not edges the analysis failed on, and they are not absences. Fold them in with the blanks of a thresholded drawing and you would report more than a quarter of the network as settled when it is an open question.",
+    "objectID": "examples/from-bootnet-qgraph.html#sec-your-data",
+    "href": "examples/from-bootnet-qgraph.html#sec-your-data",
+    "title": "Coming from bootnet and qgraph",
+    "section": "Run your own data",
+    "text": "Run your own data\ninstall.packages(\"bgms\")\nfit = bgm(YourData, iter = 1e4, warmup = 5e3, seed = 123)\nverdicts(fit); plot(fit)\nGetting Started walks this first fit step by step; From estimation to evidence is the full worked analysis, from the familiar starting point to the reported sentence.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
-    "objectID": "examples/estimation-to-evidence.html#what-to-report",
-    "href": "examples/estimation-to-evidence.html#what-to-report",
-    "title": "From estimation to evidence",
-    "section": "What to report",
-    "text": "What to report\n\n\n\n\n\n\nNoteWhat to report\n\n\n\n\nFor a supported edge: “There was strong evidence for a conditional association between &lt;X&gt; and &lt;Y&gt; (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)), with a model-averaged weight of &lt;mean&gt; (95% CI &lt;lower&gt; to &lt;upper&gt;).”\nFor a ruled-out edge: “The data provided evidence against a conditional association between &lt;X&gt; and &lt;Y&gt; (\\(\\text{BF}_{01} = \\texttt{&lt;value&gt;}\\)).”\nFor an undecided edge: “The evidence for a conditional association between &lt;X&gt; and &lt;Y&gt; was inconclusive (\\(\\text{BF}_{10} = \\texttt{&lt;value&gt;}\\)); these data do not decide it.”\nFor an edge that carries a substantive claim, plot_edge_posterior(fit, \"intrusion\", \"concen\") draws the posterior of its weight against the prior it was updated from, with the inclusion evidence as a probability wheel: a single-edge figure for a results section.\nState the evidence threshold and the counts it produced, and check the fragility note in verdicts() before resting a conclusion on a borderline edge.\nNot licensed: reading an edge that is merely missing from an estimated or thresholded network as evidence that the association is absent.",
-    "crumbs": [
-      "Examples",
-      "From estimation to evidence"
-    ]
-  },
-  {
-    "objectID": "examples/estimation-to-evidence.html#where-to-next",
-    "href": "examples/estimation-to-evidence.html#where-to-next",
-    "title": "From estimation to evidence",
+    "objectID": "examples/from-bootnet-qgraph.html#where-to-next",
+    "href": "examples/from-bootnet-qgraph.html#where-to-next",
+    "title": "Coming from bootnet and qgraph",
     "section": "Where to next",
-    "text": "Where to next\n\nEdge Selection for why the inclusion Bayes factor works this way, and Check your priors for whether these verdicts depend on the prior.\nbgm() and extract_inclusion_bf() for the arguments and return values.\nThe tutorial manuscript that develops this analysis in full, with the estimation-versus-evidence comparison it only gestures at here, is in preparation; Huth et al. (2026) carry the citable record on how often published network edges rest on inconclusive evidence.\nNext in the series: Reading the output.",
+    "text": "Where to next\n\nFrom estimation to evidence: both workflows on the same data, and what the Bayes factors add.\nEdge Selection for why the inclusion Bayes factor works the way it does.\nGroup Comparison for the bgmCompare() counterpart to network comparison tests.\nThe tutorial manuscript that develops this translation in full is in preparation.\nNext in the series: Reporting your results is in preparation; until it ships, the what-to-report callouts on each example page carry the templates.",
     "crumbs": [
       "Examples",
-      "From estimation to evidence"
+      "Coming from bootnet and qgraph"
     ]
   },
   {
