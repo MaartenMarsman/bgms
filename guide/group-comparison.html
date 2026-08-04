@@ -628,38 +628,7 @@ window.Quarto = {
 </section>
 <section id="a-worked-example" class="level2">
 <h2 class="anchored" data-anchor-id="a-worked-example">A worked example</h2>
-<p>The <a href="../reference/datasets.html#adhd">ADHD</a> data contain 18 binary symptom ratings for 355 respondents, plus a group column. Compare the two groups (run in advance here; this takes several minutes):</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgmCompare</span>(</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> ADHD[, <span class="sc">-</span><span class="dv">1</span>],</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_indicator =</span> ADHD<span class="sc">$</span>group,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>That is <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> at its defaults plus a seed, so the numbers below are what the defaults give you on these data.</p>
-<p>The <code>summary(fit)$indicator</code> table reports, for each threshold and each partial association, the posterior probability that the contrast parameters are included — that is, that the groups differ on that parameter. With the default <code>bernoulli_prior(0.5)</code>, the difference Bayes factor is again the posterior odds:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>indicator</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>rows <span class="ot">=</span> ind<span class="sc">$</span>parameter <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"motor-seat (pairwise)"</span>,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                            <span class="st">"avoid-closeatt (pairwise)"</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                            <span class="st">"forget-talks (pairwise)"</span>)</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>diffs <span class="ot">=</span> ind[rows, <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"mean"</span>)]</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>diffs<span class="sc">$</span>BF10 <span class="ot">=</span> diffs<span class="sc">$</span>mean <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> diffs<span class="sc">$</span>mean)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diffs, <span class="at">digits =</span> <span class="dv">3</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                 parameter  mean    BF10
- avoid-closeatt (pairwise) 0.861   6.206
-   forget-talks (pairwise) 0.227   0.294
-     motor-seat (pairwise) 0.999 886.405</code></pre>
-</div>
-</div>
-<ul>
-<li><strong><code>motor-seat</code></strong>: an inclusion probability of 0.999 gives <span class="math inline">\(\text{BF}_{10} \approx 886\)</span> — strong evidence that the partial association between these two symptoms differs between the groups.</li>
-<li><strong><code>avoid-closeatt</code></strong>: <span class="math inline">\(\text{BF}_{10} \approx 6.2\)</span> — modest evidence for a group difference.</li>
-<li><strong><code>forget-talks</code></strong>: an inclusion probability of about 0.23 gives <span class="math inline">\(\text{BF}_{01} \approx 3.4\)</span> — the data lean toward invariance, but the evidence is weak.</li>
-</ul>
+<p>The full comparison of the <a href="../reference/datasets.html#adhd">ADHD</a> groups, run at the package defaults, is the worked analysis <a href="../examples/comparing-groups.html">Comparing groups</a>: the three-way verdicts on all 153 pairwise differences (5 supported, 148 undecided, none reaching evidence of equivalence at the default threshold), the strongest difference walked through its group-specific weights, and the reporting templates for both kinds of claim.</p>
 </section>
 <section id="prior-guidance" class="level2">
 <h2 class="anchored" data-anchor-id="prior-guidance">Prior guidance</h2>

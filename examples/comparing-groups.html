@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>From estimation to evidence – bgms</title>
+<title>Comparing groups – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -61,27 +61,7 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-/* CSS for citations */
-div.csl-bib-body { }
-div.csl-entry {
-  clear: both;
-  margin-bottom: 0em;
-}
-.hanging-indent div.csl-entry {
-  margin-left:2em;
-  text-indent:-2em;
-}
-div.csl-left-margin {
-  min-width:2em;
-  float:left;
-}
-div.csl-right-inline {
-  margin-left:2em;
-  padding-left:1em;
-}
-div.csl-indent {
-  margin-left: 2em;
-}</style>
+</style>
 
 
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
@@ -91,8 +71,8 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../examples/reading-the-output.html" rel="next">
-<link href="../examples/index.html" rel="prev">
+<link href="../examples/from-bootnet-qgraph.html" rel="next">
+<link href="../examples/check-your-priors.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -409,7 +389,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/estimation-to-evidence.html">From estimation to evidence</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/comparing-groups.html">Comparing groups</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -429,7 +409,7 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../examples/estimation-to-evidence.html" class="sidebar-item-text sidebar-link active">
+  <a href="../examples/estimation-to-evidence.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">From estimation to evidence</span></a>
   </div>
 </li>
@@ -447,7 +427,7 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../examples/comparing-groups.html" class="sidebar-item-text sidebar-link">
+  <a href="../examples/comparing-groups.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Comparing groups</span></a>
   </div>
 </li>
@@ -469,7 +449,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">From estimation to evidence</h1>
+<h1 class="title">Comparing groups</h1>
 </div>
 
 
@@ -488,10 +468,10 @@ window.Quarto = {
 
 <div class="cell">
 <div class="cell-output-display">
-<div id="fig-payoff" class="quarto-float quarto-figure quarto-figure-center anchored" width="912">
+<div id="fig-payoff" class="quarto-float quarto-figure quarto-figure-center anchored" width="1248">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="estimation-to-evidence_files/figure-html/fig-payoff-1.png" id="fig-payoff" class="img-fluid figure-img" width="912">
+<img src="comparing-groups_files/figure-html/fig-payoff-1.png" id="fig-payoff" class="img-fluid figure-img" width="1248">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-payoff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;1
@@ -500,136 +480,97 @@ Figure&nbsp;1
 </div>
 </div>
 </div>
-<p>The 35 pairs in the presence panel are associations these data support, each drawn with its estimated weight. The 62 dashed pairs in the absence panel are positive findings too: the data support conditional independence for each of them. The 39 dotted pairs in the undecided panel are the ones these data have too little to say about, and only this display keeps them visible as their own category.</p>
-<p>An estimated network cannot give you this figure. It makes every pair either an edge or a blank, and a blank cannot tell you whether the data ruled the pair out or simply had too little to say — the reanalysis of <span class="citation" data-cites="HuthEtAl_2026_evidence"><span class="nocase">Huth et al.</span> (<a href="#ref-HuthEtAl_2026_evidence" role="doc-biblioref">2026</a>)</span> suggests that in published networks the second case is the more common one. This page runs the full Wenchuan analysis from that familiar starting point to the figure above: fit the model, weigh every pair with an inclusion Bayes factor, and split the network by what the data actually established.</p>
+<p>Of the 153 pairwise associations in the ADHD symptom network, the data support a group difference for five, rule none out, and leave 148 undecided. That headline is the page: a comparison that reports, per parameter, whether the groups differ, whether they are credibly the same, or whether these data cannot tell.</p>
+<p>“Is the network different between groups?” is really two claims that a comparison should keep apart: <em>this association differs between the groups</em>, and <em>this association is credibly the same</em>. The second claim is the one a significance test cannot make: where the Network Comparison Test asks whether two networks differ somewhere, the Bayesian comparison answers parameter by parameter, and evidence of equivalence becomes expressible. Each pairwise difference gets its own indicator and its own inclusion Bayes factor, read exactly like the edge verdicts of <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>, with “difference” in place of “edge”.</p>
 <section id="the-fit" class="level2">
 <h2 class="anchored" data-anchor-id="the-fit">The fit</h2>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgmCompare</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> ADHD[, <span class="sc">-</span><span class="dv">1</span>],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_indicator =</span> ADHD<span class="sc">$</span>group,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The <a href="../reference/datasets.html#wenchuan">Wenchuan</a> data ship with the package: 17 ordinal PTSD symptom items from survivors of the 2008 Wenchuan earthquake, with 344 of 362 rows complete under the default <code>na_action = "listwise"</code>. Everything except the run length is at its default. The longer run is the point: what you read off this fit is evidence, and the run has to be long enough to pin each inclusion probability down to the precision the evidence claim needs. At the default length these data leave the inclusion effective sample sizes in the hundreds; at this length they run into the thousands. <a href="../examples/reading-the-output.html">Reading the output</a> walks the <code>summary()</code> of this exact fit block by block.</p>
-</section>
-<section id="the-silent-zero" class="level2">
-<h2 class="anchored" data-anchor-id="the-silent-zero">The silent zero</h2>
-<p>Start where the field starts. The standard estimation workflow computes polychoric correlations and fits a regularized network with <code>EBICglasso</code>, which sets small partial associations to exactly zero:</p>
+<p>The <a href="../reference/datasets.html#adhd">ADHD</a> data ship with the package: 18 binary DISC-IV symptom items for 355 children, 146 with an ADHD diagnosis and 209 without, with <code>group</code> coding the diagnosis. The call is <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> at its defaults plus a seed, so every number below is what the defaults give you on these data. The run takes a few minutes. The defaults are exploration-length (2,000 warmup, 2,000 sampling iterations); for a published claim, the run-length reasoning of <a href="../examples/reading-the-output.html">Reading the output</a> applies to difference indicators exactly as it does to edges.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>wenchuan <span class="ot">=</span> Wenchuan[<span class="fu">complete.cases</span>(Wenchuan), ]</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>correlations <span class="ot">=</span> <span class="fu">cor_auto</span>(wenchuan)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>glasso <span class="ot">=</span> <span class="fu">EBICglasso</span>(<span class="at">S =</span> correlations, <span class="at">n =</span> <span class="fu">nrow</span>(wenchuan), <span class="at">gamma =</span> <span class="fl">0.5</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(glasso[<span class="fu">upper.tri</span>(glasso)] <span class="sc">!=</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 75</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>glasso[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 0</code></pre>
-</div>
-</div>
-<p>Seventy-five of the 136 possible edges survive; the other 61 are zeros. One of those zeros sits between intrusive memories (<code>intrusion</code>) and concentration problems (<code>concen</code>), two symptoms with a long clinical history together. Is that a finding — the data support their conditional independence — or did the penalty simply shave off an association the data could not resist? The estimated network prints the same zero either way. Keep that pair in view; it returns below.</p>
 </section>
-<section id="from-probabilities-to-evidence" class="level2">
-<h2 class="anchored" data-anchor-id="from-probabilities-to-evidence">From probabilities to evidence</h2>
-<p>The Bayesian analysis treats the network structure itself as unknown: every arrangement of the 136 edges is a candidate, and each candidate earns a posterior probability from the data. An edge’s <strong>posterior inclusion probability</strong> adds up the probability of all structures that contain it. The <strong>inclusion Bayes factor</strong> then compares that quantity against where it started, as the ratio of posterior to prior inclusion odds: a value of 10 means the data have multiplied the odds in favor of the edge by ten, a value of 1/10 means the data have multiplied the odds against it by ten, and a value near one means the data moved nothing. Because it is a ratio, evidence runs in both directions — which is exactly the distinction the estimated network’s blank could not make.</p>
-<p>Two properties matter in practice. The verdict on each edge is model-averaged over every structure the data leave plausible, so it does not depend on one particular arrangement of the other 135 edges. And because the prior odds are divided out, the Bayes factor reports what the data showed, not what you believed beforehand. The reasoning behind both lives in <a href="../guide/edge-selection.html">Edge Selection</a> and <a href="../guide/bayesian-approach.html">The Bayesian Approach</a>; <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> returns all 136 at once:</p>
+<section id="read-the-verdicts" class="level2">
+<h2 class="anchored" data-anchor-id="read-the-verdicts">Read the verdicts</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>bf[<span class="st">"intrusion"</span>, <span class="st">"concen"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 158.6393</code></pre>
-</div>
-</div>
-<p>There it is: the pair the graphical lasso silently zeroed carries a Bayes factor of about 159. The data multiply the odds of this edge by more than a hundred and fifty.</p>
-</section>
-<section id="three-verdicts-for-136-edges" class="level2">
-<h2 class="anchored" data-anchor-id="three-verdicts-for-136-edges">Three verdicts for 136 edges</h2>
-<p>Nobody reads 136 Bayes factors one at a time. Following common conventions, values at or above 10 count as <strong>evidence of presence</strong>, values at or below 1/10 as <strong>evidence of absence</strong>, and everything in between is <strong>undecided</strong>. One call classifies every edge:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Edge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):
 presence: log BF &gt; 2.30; absence: log BF &lt; -2.30
 
-  presence 35 | undecided 39 | absence 62   (136 indicators)
+  presence 5 | undecided 148 | absence 0   (153 indicators)
+  Main-effect differences are not under selection (main_difference_selection = FALSE).
 
-          parameter   pip  log_bf   verdict fragile
-   intrusion-dreams 1.000 274.759  presence   FALSE
-    intrusion-flash 1.000  12.112  presence   FALSE
-    intrusion-upset 0.664   0.681 undecided   FALSE
-  intrusion-physior 0.217  -1.284 undecided   FALSE
-  intrusion-avoidth 0.034  -3.355   absence   FALSE
- intrusion-avoidact 0.029  -3.494   absence   FALSE
-  intrusion-amnesia 0.038  -3.243   absence   FALSE
-  intrusion-lossint 0.044  -3.077   absence   FALSE
-  intrusion-distant 0.031  -3.452   absence   FALSE
-     intrusion-numb 0.058  -2.784   absence   FALSE
-... (126 more rows)
+                 parameter   pip log_bf   verdict fragile
+ avoid-closeatt (pairwise) 0.861  1.826 undecided   FALSE
+ avoid-distract (pairwise) 0.353 -0.606 undecided   FALSE
+   avoid-forget (pairwise) 0.809  1.442 undecided   FALSE
+ avoid-instruct (pairwise) 0.970  3.480  presence   FALSE
+   avoid-listen (pairwise) 0.823  1.540 undecided   FALSE
+    avoid-loses (pairwise) 0.480 -0.082 undecided   FALSE
+      avoid-org (pairwise) 0.754  1.121 undecided   FALSE
+   avoid-susatt (pairwise) 0.680  0.752 undecided   FALSE
+   avoid-blurts (pairwise) 0.377 -0.502 undecided   FALSE
+   avoid-fidget (pairwise) 0.872  1.918 undecided   FALSE
+... (143 more rows)
 
-7 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard
+2 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard
 errors of the evidence, so the verdict could change on a rerun. Consider a
-longer run.</code></pre>
+longer run.
+
+The fragility flag is not validated for difference indicators: its
+operating point was established on single-network edge indicators only.
+Read it as an indication that a verdict sits near a boundary, not as a
+calibrated error rate.
+
+Difference verdicts are scale-contingent: group differences are priced
+on the association scale through difference_scale, and the calibration
+of that default is under study, so a verdict close to a decision
+threshold can move with the scale.</code></pre>
 </div>
 </div>
-<p>The counts are the headline: 35 presence, 39 undecided, 62 absence. The <code>log_bf</code> column is the natural logarithm of the Bayes factor — the scale to compare evidence spanning many orders of magnitude — and the thresholds reappear on it as <span class="math inline">\(\pm\log 10 \approx \pm 2.30\)</span>. The closing note flags seven <strong>fragile</strong> verdicts: edges whose Bayes factor sits within two Monte Carlo standard errors of a threshold, so a rerun could land them in the neighboring category. Those are borderline edges, not failures, and any of them that matters to your conclusions deserves a longer run.</p>
-<p>The threshold itself is a reporting convention, not a law. Rerunning the classification with <code>verdicts(fit, evidence_threshold = 3)</code> gives 40 presence, 12 undecided, and 84 absence; at a threshold of 30 the counts become 29, 83, and 24. The counts shift with the convention, but no edge can jump between presence and absence, and stating a second threshold costs one sentence. See <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> for the full contract.</p>
+<p>The counts are the headline: 5 differences supported, 148 undecided, 0 with evidence of equivalence at the default threshold of 10. The 18 main-effect difference rows print as unsampled: under the default <code>main_difference_selection = FALSE</code> the threshold differences are free parameters, not selected ones, so they carry no indicator to read (the print marks those rows and leaves them out of its counts). Two verdicts are flagged fragile, and the print also notes that the fragility flag’s operating point was calibrated on single-network edge verdicts, not on difference verdicts; the flag still marks verdicts near a boundary, but its error-catching rate is unmeasured here. See <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> for both contracts.</p>
+<p>The <code>summary(fit)</code> layout follows the single-network fit block by block, and <a href="../examples/reading-the-output.html">Reading the output</a> owns that walkthrough; what is new here is that the selected parameters are the <em>differences</em>, so the <code>pairwise_diff</code> table is where <code>share_incl</code> and the indicator diagnostics live.</p>
+</section>
+<section id="the-two-directions" class="level2">
+<h2 class="anchored" data-anchor-id="the-two-directions">The two directions</h2>
+<p><strong>A difference, walked.</strong> The strongest one is <code>motor-seat</code>, the association between being “on the go, driven by a motor” and leaving one’s seat:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>bf[<span class="st">"motor"</span>, <span class="st">"seat"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 886.4053</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)<span class="sc">$</span>pairwise_effects_groups[<span class="st">"motor-seat"</span>, ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    group1     group2 
+-0.5076113  0.9122395 </code></pre>
+</div>
+</div>
+<p>A difference Bayes factor of about 886, and the group-specific model-averaged weights say what the difference is: in the group without a diagnosis the association is negative (about <span class="math inline">\(-0.51\)</span>), in the diagnosed group strongly positive (about <span class="math inline">\(0.91\)</span>). The two symptoms travel together among diagnosed children and apart among the others, conditional on the remaining sixteen symptoms. That sign flip, not just its size, is the finding.</p>
+<p><strong>Equivalence, honestly.</strong> On these data at this run length, no difference reaches evidence of equivalence at the threshold of 10: the strongest lean toward invariance is <code>forget-org</code> at <span class="math inline">\(\text{BF}_{01} \approx 3.6\)</span>, which is still undecided. The claim becomes available at a laxer convention:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">verdicts</span>(fit, <span class="at">evidence_threshold =</span> <span class="dv">3</span>)<span class="sc">$</span>verdict)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ presence undecided   absence 
+       25       120         8 </code></pre>
+</div>
+</div>
+<p>At a threshold of 3, eight associations carry evidence of equivalence. State the threshold, and read the claim with the same care as the absence panel of the single-network analysis: it is evidence that the <em>modeled partial association</em> is invariant across the groups, under this model and these priors. It is not a statement that the groups are identical, and an undecided difference is not equivalence; with 148 of 153 differences undecided, the loudest thing these data say is that 355 children decide very little about group differences at this evidence bar.</p>
 </section>
 <section id="the-three-panels" class="level2">
 <h2 class="anchored" data-anchor-id="the-three-panels">The three panels</h2>
-<p>The figure at the top of the page is the verdict table drawn as three networks on one shared layout, so the panels match node for node. You do not need custom code to get it: <a href="../reference/methods.html#plot"><code>plot(fit)</code></a> draws a rudimentary version of the same display in one call, and the <a href="https://cran.r-project.org/package=easybgm">easybgm</a> package offers more elaborate plotting and summary functions on top of <code>bgms</code>. The helper below builds the figure with <code>qgraph</code> directly, with every styling choice under your control:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qgraph)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>plot_edge_evidence <span class="ot">=</span> <span class="cf">function</span>(fit, labels, node_color, <span class="at">threshold =</span> <span class="dv">10</span>,</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                              <span class="at">seed =</span> <span class="dv">1234</span>, <span class="at">vsize =</span> <span class="dv">9</span>) {</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">=</span> <span class="fu">coef</span>(fit)<span class="sc">$</span>pairwise</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  presence <span class="ot">=</span> bf <span class="sc">&gt;=</span> threshold</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  absence <span class="ot">=</span> bf <span class="sc">&lt;=</span> <span class="dv">1</span> <span class="sc">/</span> threshold</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  undecided <span class="ot">=</span> <span class="sc">!</span>presence <span class="sc">&amp;</span> <span class="sc">!</span>absence</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">diag</span>(presence) <span class="ot">=</span> <span class="fu">diag</span>(absence) <span class="ot">=</span> <span class="fu">diag</span>(undecided) <span class="ot">=</span> <span class="cn">FALSE</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># One layout, computed from every pair, so the three panels match node</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for node.</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set.seed</span>(seed)</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  shared <span class="ot">=</span> <span class="fu">qgraph</span>(<span class="fu">abs</span>(weights), <span class="at">layout =</span> <span class="st">"spring"</span>, <span class="at">repulsion =</span> <span class="fl">0.9</span>,</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>                  <span class="at">DoNotPlot =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>layout</span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  panel <span class="ot">=</span> <span class="cf">function</span>(edges, label, count, ...) {</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">qgraph</span>(edges, <span class="at">layout =</span> shared, <span class="at">labels =</span> labels, <span class="at">fade =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> node_color, <span class="at">vsize =</span> vsize, <span class="at">label.scale.equal =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>           <span class="at">border.color =</span> <span class="st">"grey30"</span>, <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">4</span>), ...)</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mtext</span>(<span class="fu">sprintf</span>(<span class="st">"%s: %d"</span>, label, count), <span class="at">side =</span> <span class="dv">3</span>, <span class="at">line =</span> <span class="fl">1.2</span>,</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>          <span class="at">cex =</span> <span class="fl">0.95</span>, <span class="at">font =</span> <span class="dv">2</span>)</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(weights <span class="sc">*</span> presence, <span class="st">"evidence of presence"</span>, <span class="fu">sum</span>(presence) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">theme =</span> <span class="st">"TeamFortress"</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(absence <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"evidence of absence"</span>, <span class="fu">sum</span>(absence) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#A66A1E"</span>, <span class="at">lty =</span> <span class="dv">2</span>, <span class="at">edge.width =</span> <span class="fl">1.1</span>)</span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">panel</span>(undecided <span class="sc">*</span> <span class="dv">1</span>, <span class="st">"undecided"</span>, <span class="fu">sum</span>(undecided) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">edge.color =</span> <span class="st">"#8A8578"</span>, <span class="at">lty =</span> <span class="dv">3</span>, <span class="at">edge.width =</span> <span class="fl">1.4</span>)</span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_edge_evidence</span>(fit, <span class="fu">colnames</span>(Wenchuan), <span class="st">"#f0ae0e"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p><strong>Evidence of presence.</strong> For these 35 pairs the data favor a direct association that survives conditioning on the other symptoms. Only this panel is weighted: line width is the posterior mean partial association, so the effect sizes live here. The edge between <code>intrusion</code> and <code>concen</code> — the graphical lasso’s zero — is one of them:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>w <span class="ot">=</span> <span class="fu">extract_pairwise_interactions</span>(fit)[, <span class="st">"intrusion-concen"</span>]</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(w), <span class="fu">quantile</span>(w, <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code> mean  2.5% 97.5% 
--0.14 -0.20 -0.07 </code></pre>
-</div>
-</div>
-<p>A model-averaged weight of about <span class="math inline">\(-0.14\)</span>, credibly below zero: conditional on the other symptoms, more intrusive memories accompany fewer reported concentration problems. Strong evidence for an edge, where the estimation workflow returned a silent zero.</p>
-<p><strong>Evidence of absence.</strong> Each of these 62 dashed pairs is a positive statement: the data support conditional independence. This is the statement an estimated network cannot make — its blanks are silent — and it is stated here at uniform width because the classification, not a weight, is the result.</p>
-<p><strong>Undecided.</strong> These 39 pairs — 29% of all possible edges, in a sample of 344 people — are the ones these data have too little to say about. They are not edges the analysis failed on, and they are not absences. Fold them in with the blanks of a thresholded drawing and you would report more than a quarter of the network as settled when it is an open question.</p>
+<p>The figure at the top of the page is <code>plot(fit)</code>: the same three-panel evidence display as for a single network, read for differences. The first panel holds the five supported differences, weighted by the posterior mean difference; the second holds the differences the data rule out, drawn dashed, and is empty here; the third holds the 148 dotted undecided pairs. A blank in a side-by-side drawing of two estimated networks cannot distinguish “no difference” from “cannot tell”; this display keeps them apart, and on these data the honest panel is the crowded third one.</p>
 </section>
 <section id="what-to-report" class="level2">
 <h2 class="anchored" data-anchor-id="what-to-report">What to report</h2>
@@ -644,12 +585,10 @@ longer run.</code></pre>
 </div>
 <div class="callout-body-container callout-body">
 <ul>
-<li>For a supported edge: “There was strong evidence for a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> (<span class="math inline">\(\text{BF}_{10} = \texttt{&lt;value&gt;}\)</span>), with a model-averaged weight of <code>&lt;mean&gt;</code> (95% CI <code>&lt;lower&gt;</code> to <code>&lt;upper&gt;</code>).”</li>
-<li>For a ruled-out edge: “The data provided evidence against a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> (<span class="math inline">\(\text{BF}_{01} = \texttt{&lt;value&gt;}\)</span>).”</li>
-<li>For an undecided edge: “The evidence for a conditional association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> was inconclusive (<span class="math inline">\(\text{BF}_{10} = \texttt{&lt;value&gt;}\)</span>); these data do not decide it.”</li>
-<li>For an edge that carries a substantive claim, <a href="../reference/methods.html#plot_edge_posterior"><code>plot_edge_posterior(fit, "intrusion", "concen")</code></a> draws the posterior of its weight against the prior it was updated from, with the inclusion evidence as a probability wheel: a single-edge figure for a results section.</li>
-<li>State the evidence threshold and the counts it produced, and check the fragility note in <code>verdicts()</code> before resting a conclusion on a borderline edge.</li>
-<li>Not licensed: reading an edge that is merely missing from an estimated or thresholded network as evidence that the association is absent.</li>
+<li>For a supported difference: “The partial association between <code>&lt;X&gt;</code> and <code>&lt;Y&gt;</code> differed between the groups (<span class="math inline">\(\text{BF}_{10} = \texttt{&lt;value&gt;}\)</span>); it was <code>&lt;w1&gt;</code> in <code>&lt;group 1&gt;</code> and <code>&lt;w2&gt;</code> in <code>&lt;group 2&gt;</code>.”</li>
+<li>For an equivalence claim: “The data supported invariance of the <code>&lt;X&gt;</code>-<code>&lt;Y&gt;</code> association across groups (<span class="math inline">\(\text{BF}_{01} = \texttt{&lt;value&gt;}\)</span>),” stating the threshold it clears and the run it rests on.</li>
+<li>The counts: how many differences were supported, ruled out, and undecided at your threshold, out of how many possible.</li>
+<li>Not licensed: reading an undecided difference as evidence the groups are the same, or a side-by-side pair of estimated networks as a difference test.</li>
 </ul>
 </div>
 </div>
@@ -657,21 +596,16 @@ longer run.</code></pre>
 <section id="where-to-next" class="level2">
 <h2 class="anchored" data-anchor-id="where-to-next">Where to next</h2>
 <ul>
-<li><a href="../guide/edge-selection.html">Edge Selection</a> for why the inclusion Bayes factor works this way, and <a href="../examples/check-your-priors.html">Check your priors</a> for whether these verdicts depend on the prior.</li>
-<li><a href="../reference/bgm.html"><code>bgm()</code></a> and <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a> for the arguments and return values.</li>
-<li>The tutorial manuscript that develops this analysis in full, with the estimation-versus-evidence comparison it only gestures at here, is in preparation; <span class="citation" data-cites="HuthEtAl_2026_evidence"><span class="nocase">Huth et al.</span> (<a href="#ref-HuthEtAl_2026_evidence" role="doc-biblioref">2026</a>)</span> carry the citable record on how often published network edges rest on inconclusive evidence.</li>
-<li>Next in the series: <a href="../examples/reading-the-output.html">Reading the output</a>.</li>
+<li><a href="../guide/group-comparison.html">Group Comparison</a> for the model: the contrast parameterization, difference selection, and the prior on the differences.</li>
+<li><a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> for the arguments and return value, and <a href="../examples/reading-the-output.html">Reading the output</a> for the shared summary blocks.</li>
+<li>A companion tutorial developing the Bayesian group comparison in full is in preparation.</li>
+<li>Back in the series: <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>, the single-network analysis this page extends.</li>
 </ul>
-
 
 
 </section>
 
-<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
-<div id="ref-HuthEtAl_2026_evidence" class="csl-entry" role="listitem">
-<span class="nocase">Huth, K. B. S., Haslbeck, J. M. B., Keetelaar, S., van Holst, R. J., &amp; Marsman, M.</span> (2026). Statistical evidence in psychological networks. <em>Nature Human Behaviour</em>, <em>10</em>, 333–346. <a href="https://doi.org/10.1038/s41562-025-02314-2">https://doi.org/10.1038/s41562-025-02314-2</a>
-</div>
-</div></section></div></main> <!-- /main -->
+</main> <!-- /main -->
 <script type="text/javascript">
 
 // replace cmd keyboard shortcut w/ control on non-Mac platforms
@@ -1306,13 +1240,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../examples/index.html" class="pagination-link" aria-label="Worked analyses">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Worked analyses</span>
+      <a href="../examples/check-your-priors.html" class="pagination-link" aria-label="Check your priors">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Check your priors</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../examples/reading-the-output.html" class="pagination-link" aria-label="Reading the output">
-        <span class="nav-page-text">Reading the output</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../examples/from-bootnet-qgraph.html" class="pagination-link" aria-label="Coming from bootnet and qgraph">
+        <span class="nav-page-text">Coming from bootnet and qgraph</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1335,7 +1269,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/examples/estimation-to-evidence.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/examples/comparing-groups.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
