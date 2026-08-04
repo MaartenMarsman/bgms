@@ -31,9 +31,14 @@
       B (main)
       B-C (pairwise)
       C (main)
-      Note: NA values are suppressed in the print table; they occur for indicators
-      that were not updated or whose draws are constant, so ESS/Rhat are undefined.
-      `summary(fit)$indicator` still contains all computed values.
+      Note: blank mcse/n_eff/Rhat cells mark indicators whose inclusion draws never
+      varied: the per-iteration evidence is so one-sided that the draws round to
+      exactly 0 or 1, and no variation is left to estimate precision from. An
+      indicator that is almost as certain still shows numbers; the difference is
+      rounding, not evidence.
+      Main-effect difference rows are blank when main_difference_selection = FALSE
+      left their indicators unsampled.
+      All computed values remain in `summary(fit)$indicator`.
       
       Group differences (main effects):
       parameter mean mcse sd n_eff share_incl Rhat

@@ -26,6 +26,14 @@ released from this line yet.
   explains that the energy trace is recorded only after warmup ends, so the check
   measures transient that survived warmup.
 
+* The note printed under the inclusion table of `summary()` describes the blank
+  cells in plain terms: the inclusion draws never varied, so no precision can be
+  estimated from them, and an almost equally certain edge still shows numbers.
+  It previously attributed the blanks to indicators that were constant or not
+  updated. `print.summary.bgmCompare()` names the unsampled main-effect
+  difference rows separately, which is a different cause with a different
+  reading.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits
