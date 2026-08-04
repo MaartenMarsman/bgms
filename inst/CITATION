@@ -50,7 +50,7 @@ bibentry(
              person("Karoline B. S.", "Huth"),
              person("Nial", "Friel"),
              person("Maarten", "Marsman")),
-  year = "2026",
+  year = "in press",
   journal = "Psychological Methods",
   doi = "10.1037/met0000847",
   key = "Sekulovski2025-stochastic"
