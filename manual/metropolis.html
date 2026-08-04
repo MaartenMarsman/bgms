@@ -619,11 +619,12 @@ window.Quarto = {
 </section>
 <section id="robbinsmonro-adaptation" class="level2">
 <h2 class="anchored" data-anchor-id="robbinsmonro-adaptation">Robbins–Monro adaptation</h2>
-<p>During warmup, the proposal standard deviations <span class="math inline">\(\sigma_k\)</span> are adapted to target an acceptance rate of 0.44. The <code>MetropolisAdaptationController</code> applies the update rule:</p>
+<p>During warmup, the proposal standard deviations <span class="math inline">\(\sigma_k\)</span> are adapted toward a target acceptance rate <span class="math inline">\(\alpha^*\)</span>. The <code>MetropolisAdaptationController</code> applies the update rule:</p>
 <p><span class="math display">\[
-\sigma_k^{(t+1)} = \sigma_k^{(t)} + \bigl(\alpha_k^{(t)} - 0.44\bigr)\,w_t,
+\sigma_k^{(t+1)} = \sigma_k^{(t)} + \bigl(\alpha_k^{(t)} - \alpha^*\bigr)\,w_t,
 \]</span></p>
 <p>where <span class="math inline">\(w_t = t^{-0.75}\)</span> is the Robbins–Monro weight with decay exponent 0.75. The updated value is clamped to <span class="math inline">\([0.001,\; 2.0]\)</span>. NaN values (from degenerate proposals) are reset to 1.0.</p>
+<p>Under <code>update_method = "adaptive-metropolis"</code> the target is the resolved <code>target_accept</code>, which defaults to 0.44, the componentwise random-walk optimum. Under NUTS the edge-move proposals tuned in stage 3b use a fixed 0.44 instead, because <code>target_accept</code> there sets the step-size adaptation target.</p>
 <section id="element-wise-adaptation" class="level3">
 <h3 class="anchored" data-anchor-id="element-wise-adaptation">Element-wise adaptation</h3>
 <p>The controller operates on a matrix of proposal standard deviations (matching the parameter layout of the model) with an index mask that selects which elements to adapt. At each iteration, the controller receives the matrix of acceptance probabilities from the most recent sweep and updates only the masked elements.</p>

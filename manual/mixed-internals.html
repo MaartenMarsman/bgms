@@ -696,7 +696,7 @@ window.Quarto = {
 </section>
 <section id="output-assembly" class="level2">
 <h2 class="anchored" data-anchor-id="output-assembly">Output assembly</h2>
-<p>The R output builder (<code>build_output_mixed_mrf()</code> in <code>build_output.R</code>) maps the flat storage vector back to the original variable ordering using <code>fill_mixed_symmetric()</code>. This function places discrete-discrete, continuous-continuous, and cross-type interactions into the correct cells of the <span class="math inline">\((p+q) \times (p+q)\)</span> output matrix, respecting the original column order (which may interleave discrete and continuous variables).</p>
+<p>The R output builder (<code>build_output_mixed_mrf()</code> in <code>R/build_output_mixed_mrf.R</code>) maps the flat storage vector back to the original variable ordering using <code>fill_mixed_symmetric()</code> (defined in <code>R/build_output.R</code>). This function places discrete-discrete, continuous-continuous, and cross-type interactions into the correct cells of the <span class="math inline">\((p+q) \times (p+q)\)</span> output matrix, respecting the original column order (which may interleave discrete and continuous variables).</p>
 
 
 </section>

@@ -594,14 +594,14 @@ window.Quarto = {
 
 
 <p>For continuous data with edge selection, <code>bgm()</code> offers two ways to compose the precision prior with the edge prior (<code>precision_graph_prior</code>; see <a href="../reference/bgm.html"><code>bgm()</code></a>). This page documents the machinery behind the <code>"hierarchical"</code> option: the per-edge normalizing-constant ratio, the deterministic estimator that evaluates it inside every edge move, and the trust gauge that audits the estimator after sampling.</p>
-<p>Source: <code>src/models/ggm/zratio_engine.{h,cpp}</code>, <code>src/models/zratio_gauge.h</code>, and the fit-time builders in <code>R/zratio_tables.R</code> and <code>R/zratio_surfaces.R</code>.</p>
+<p>Source: <code>src/models/ggm/zratio_engine.{h,cpp}</code>, <code>src/models/ggm/zratio_gauge.h</code>, and the fit-time builders in <code>R/zratio_tables.R</code> and <code>R/zratio_surfaces.R</code>.</p>
 <section id="joint-versus-hierarchical-specification" class="level2">
 <h2 class="anchored" data-anchor-id="joint-versus-hierarchical-specification">Joint versus hierarchical specification</h2>
 <p>Write <span class="math inline">\(\rho_\Gamma(\Theta)\)</span> for the un-normalized precision prior under graph <span class="math inline">\(\Gamma\)</span>: the slab on the included off-diagonals, the scale prior on the diagonal, the determinant tilt <span class="math inline">\(|\Theta|^{\delta}\)</span>, and the positive-definite-cone indicator with zeros at excluded edges.</p>
 <ul>
-<li><strong>Joint</strong> (default): <span class="math inline">\(p(\Theta, \Gamma) \propto \rho_\Gamma(\Theta)\,
+<li><strong>Joint</strong>: <span class="math inline">\(p(\Theta, \Gamma) \propto \rho_\Gamma(\Theta)\,
 \pi(\Gamma)\)</span>. Nothing is normalized per graph, so the implied graph marginal is <span class="math inline">\(\pi(\Gamma)\, Z(\Gamma)\)</span> with <span class="math inline">\(Z(\Gamma) = \int \rho_\Gamma(\Theta)\, d\Theta\)</span> — the edge prior reweighted by how much prior mass the cone leaves each graph. With a Beta-Bernoulli or SBM edge prior the hyperparameter updates then need the normalizing-constant correction described in <a href="../manual/edge-priors.html">Edge Priors</a>.</li>
-<li><strong>Hierarchical</strong>: <span class="math inline">\(p(\Gamma)\, p(\Theta \mid \Gamma)\)</span> with <span class="math inline">\(p(\Theta \mid \Gamma) = \rho_\Gamma(\Theta) / Z(\Gamma)\)</span> normalized per graph. The graph marginal is exactly the edge prior, and the hyperparameter updates stay clean conjugate — but every between-model move that toggles an edge now carries the ratio</li>
+<li><strong>Hierarchical</strong> (default): <span class="math inline">\(p(\Gamma)\, p(\Theta \mid \Gamma)\)</span> with <span class="math inline">\(p(\Theta \mid \Gamma) = \rho_\Gamma(\Theta) / Z(\Gamma)\)</span> normalized per graph. The graph marginal is exactly the edge prior, and the hyperparameter updates stay clean conjugate — but every between-model move that toggles an edge now carries the ratio</li>
 </ul>
 <p><span class="math display">\[
 J = \frac{Z(\Gamma^-)}{Z(\Gamma^+)},
@@ -646,7 +646,7 @@ J = \frac{Z(\Gamma^-)}{Z(\Gamma^+)},
 </section>
 <section id="the-trust-gauge" class="level2">
 <h2 class="anchored" data-anchor-id="the-trust-gauge">The trust gauge</h2>
-<p>The estimator is deterministic and fast, but approximate. The optional <strong>trust gauge</strong> quantifies whether the approximation could have mattered. It is off by default; enable it with <code>options(bgms.zratio_gauge_sweeps = 2L)</code> before fitting.</p>
+<p>The estimator is deterministic and fast, but approximate. The <strong>trust gauge</strong> quantifies whether the approximation could have mattered. It runs by default, at two assessment sweeps per chain; <code>options(bgms.zratio_gauge_sweeps = 0L)</code> turns it off, and <code>fit$zratio_diag</code> is then <code>NULL</code>. Raising the option audits more edge moves per chain.</p>
 <p>After sampling, each chain runs the configured number of assessment sweeps on the frozen kernel: deployed selection passes that re-decide a subset of the chain’s own edge moves while also evaluating a <strong>block-local exact reference</strong> — a Monte Carlo evaluation of the block’s normalizer ratio with the full product transform over all cross-resolvent singular values, common random numbers across numerator and denominator, and a batch-means Monte Carlo standard error. Two per-chain statistics result:</p>
 <ul>
 <li><strong><code>flip_rate</code></strong> — the fraction of add/remove decisions that would come out differently under the exact calculation. Flagged when it exceeds its tolerance by more than the reference’s own Monte Carlo noise (the <em>noise floor</em>). Sensitive to error that changed actual decisions; insensitive to small coherent error at edges far from their accept/reject boundaries.</li>

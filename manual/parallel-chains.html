@@ -638,7 +638,7 @@ window.Quarto = {
 <li><strong>Dispatch</strong> — All chains are dispatched to threads. Each thread runs <code>run_mcmc_chain()</code> with its own model, prior, and result container.</li>
 <li><strong>Collect</strong> — Results are gathered and returned as a vector of <code>ChainResult</code> objects.</li>
 </ol>
-<p>After a chain’s main loop finishes, two post-loop steps run before the chain returns. If the Z-ratio trust gauge is enabled (<code>options(bgms.zratio_gauge_sweeps = ...)</code> under the hierarchical graph prior), the chain runs the configured number of assessment sweeps on the frozen kernel — deployed selection passes that also reference non-trivial edge moves against the exact block-local calculation; no stored samples are touched. Then <code>model.collect_chain_diagnostics(chain_result)</code> copies run-level diagnostic state (Z-ratio counters, frozen constants, gauge results) into the <code>ChainResult</code>.</p>
+<p>After a chain’s main loop finishes, three post-loop steps run before the chain returns. If the Z-ratio trust gauge is enabled (<code>options(bgms.zratio_gauge_sweeps = ...)</code> under the hierarchical graph prior), the chain runs the configured number of assessment sweeps on the frozen kernel — deployed selection passes that also reference non-trivial edge moves against the exact block-local calculation; no stored samples are touched. Next the sampler’s adaptation-averaged step size and diagonal metric are retained on the <code>ChainResult</code> (<code>final_step_size</code>, <code>final_inv_mass</code>; NaN and empty for non-gradient samplers) so a refit can warm-start them. Then <code>model.collect_chain_diagnostics(chain_result)</code> copies run-level diagnostic state (Z-ratio counters, frozen constants, gauge results) into the <code>ChainResult</code>.</p>
 </section>
 <section id="model-and-prior-cloning" class="level2">
 <h2 class="anchored" data-anchor-id="model-and-prior-cloning">Model and prior cloning</h2>
@@ -648,7 +648,7 @@ window.Quarto = {
 <section id="tbb-thread-control" class="level2">
 <h2 class="anchored" data-anchor-id="tbb-thread-control">TBB thread control</h2>
 <p>Before dispatching, <code>bgms</code> sets the maximum parallelism via TBB’s global control:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tbb<span class="op">::</span>global_control gc<span class="op">(</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tbb<span class="op">::</span>global_control control<span class="op">(</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    tbb<span class="op">::</span>global_control<span class="op">::</span>max_allowed_parallelism<span class="op">,</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    no_threads</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="op">);</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -657,12 +657,26 @@ window.Quarto = {
 <section id="rcppparallel-dispatch" class="level2">
 <h2 class="anchored" data-anchor-id="rcppparallel-dispatch">RcppParallel dispatch</h2>
 <p>The <code>MCMCChainRunner</code> struct inherits from <code>RcppParallel::Worker</code> and implements <code>operator()(begin, end)</code>. Each unit of work is one chain:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> MCMCChainRunner<span class="op">::</span><span class="kw">operator</span><span class="op">()(</span><span class="dt">size_t</span> begin<span class="op">,</span> <span class="dt">size_t</span> end<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span><span class="op">(</span><span class="dt">size_t</span> i <span class="op">=</span> begin<span class="op">;</span> i <span class="op">&lt;</span> end<span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        run_mcmc_chain<span class="op">(</span><span class="va">results_</span><span class="op">[</span>i<span class="op">],</span> <span class="op">*</span><span class="va">models_</span><span class="op">[</span>i<span class="op">],</span> <span class="op">*</span><span class="va">edge_priors_</span><span class="op">[</span>i<span class="op">],</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                       <span class="va">config_</span><span class="op">,</span> i<span class="op">,</span> <span class="va">pm_</span><span class="op">);</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode cpp code-with-copy"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> MCMCChainRunner<span class="op">::</span><span class="kw">operator</span><span class="op">()(</span><span class="bu">std::</span>size_t begin<span class="op">,</span> <span class="bu">std::</span>size_t end<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="bu">std::</span>size_t i <span class="op">=</span> begin<span class="op">;</span> i <span class="op">&lt;</span> end<span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        ChainResult<span class="op">&amp;</span> chain_result <span class="op">=</span> <span class="va">results_</span><span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        BaseModel<span class="op">&amp;</span> model <span class="op">=</span> <span class="op">*</span><span class="va">models_</span><span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        BaseEdgePrior<span class="op">&amp;</span> edge_prior <span class="op">=</span> <span class="op">*</span><span class="va">edge_priors_</span><span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        model<span class="op">.</span>set_seed<span class="op">(</span><span class="va">config_</span><span class="op">.</span>seed <span class="op">+</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">int</span><span class="op">&gt;(</span>i<span class="op">));</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span> <span class="op">{</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>            run_mcmc_chain<span class="op">(</span>chain_result<span class="op">,</span> model<span class="op">,</span> edge_prior<span class="op">,</span> <span class="va">config_</span><span class="op">,</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>                           <span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">int</span><span class="op">&gt;(</span>i<span class="op">),</span> <span class="va">pm_</span><span class="op">,</span> warm_eps<span class="op">,</span> warm_metric<span class="op">);</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">catch</span> <span class="op">(</span><span class="bu">std::</span>exception<span class="op">&amp;</span> e<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>            chain_result<span class="op">.</span>error <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            chain_result<span class="op">.</span>error_msg <span class="op">=</span> e<span class="op">.</span>what<span class="op">();</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">catch</span> <span class="op">(...)</span> <span class="op">{</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            chain_result<span class="op">.</span>error <span class="op">=</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>            chain_result<span class="op">.</span>error_msg <span class="op">=</span> <span class="st">"Unknown error"</span><span class="op">;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>try</code>/<code>catch</code> is what turns a thrown chain into the <code>error</code> and <code>error_msg</code> fields the R output builder reads, rather than an exception crossing a worker thread. <code>warm_eps</code> and <code>warm_metric</code> are the per-chain warm-start step size and diagonal metric, NaN and empty unless a refit supplied them.</p>
 <p>Dispatch uses <code>RcppParallel::parallelFor(0, no_chains, runner)</code>.</p>
 </section>
 <section id="sequential-fallback" class="level2">
@@ -712,6 +726,16 @@ window.Quarto = {
 <td><code>indicator_samples</code></td>
 <td>n_edges × n_iter</td>
 <td>Edge indicators (if edge selection)</td>
+</tr>
+<tr class="odd">
+<td><code>rb_inclusion_samples</code></td>
+<td>n_edges × n_iter</td>
+<td>Rao-Blackwellized inclusion draws (if edge selection)</td>
+</tr>
+<tr class="even">
+<td><code>rb_counts</code></td>
+<td>n_edges × 4</td>
+<td>Per-edge odds accumulators <code>[n01, n10, n0_visits, n1_visits]</code> on the alpha scale (if edge selection)</td>
 </tr>
 <tr class="odd">
 <td><code>allocation_samples</code></td>

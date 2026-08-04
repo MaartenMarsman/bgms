@@ -626,7 +626,7 @@ window.Quarto = {
 <ul>
 <li><strong>Observed-data gradient</strong> (<code>gradient_observed_active()</code>) — projects group-level sufficient statistics into the active-parameter layout using the contrast matrix. Precomputed from <code>counts_per_category</code>, <code>blume_capel_stats</code>, and <code>pairwise_stats</code>.</li>
 <li><strong>Expected-data gradient</strong> — computed inline within <code>gradient()</code> by building group-specific parameters via the contrast projection, evaluating softmax probabilities, and subtracting expected counts.</li>
-<li><strong>Prior gradient</strong> — penalties on both baseline and contrast pairwise parameters through the polymorphic prior objects: the baseline family comes from <code>interaction_prior</code> (Cauchy default) and the contrast family from <code>difference_family</code> (<code>"Cauchy"</code> default or <code>"Normal"</code>) at scale <code>difference_scale</code>. See <a href="../manual/parameter-priors.html">Parameter Priors</a>.</li>
+<li><strong>Prior gradient</strong> — penalties on both baseline and contrast pairwise parameters through the polymorphic prior objects: the baseline family comes from <code>interaction_prior</code> (<code>normal_prior(scale = 1)</code> by default) and the contrast family from <code>difference_family</code> (<code>"Normal"</code> by default, or <code>"Cauchy"</code>) at scale <code>difference_scale</code>. See <a href="../manual/parameter-priors.html">Parameter Priors</a>.</li>
 </ul>
 </section>
 <section id="sampler-implementation" class="level2">
@@ -683,6 +683,14 @@ The difference-prior updates are always the plain (uncorrected) conjugate forms:
 <td>Contrast inclusion indicators (iterations <span class="math inline">\(\times\)</span> parameters)</td>
 </tr>
 <tr class="even">
+<td><code>rb_inclusion_samples</code></td>
+<td>Rao-Blackwellized inclusion draws, same layout as <code>indicator_samples</code>; NaN marks indicators that were not selected</td>
+</tr>
+<tr class="odd">
+<td><code>rb_counts</code></td>
+<td>Per-indicator odds accumulators (parameters <span class="math inline">\(\times\)</span> 4) on the alpha scale: <code>[n01, n10, n0_visits, n1_visits]</code></td>
+</tr>
+<tr class="even">
 <td><code>allocation_samples</code></td>
 <td>Cluster allocations (iterations <span class="math inline">\(\times\)</span> variables; SBM difference prior only)</td>
 </tr>
@@ -697,6 +705,10 @@ The difference-prior updates are always the plain (uncorrected) conjugate forms:
 <tr class="odd">
 <td><code>energy_samples</code></td>
 <td>Hamiltonian energy per iteration (NUTS only)</td>
+</tr>
+<tr class="even">
+<td><code>accept_prob_samples</code></td>
+<td>Mean per-trajectory acceptance probability (NUTS only)</td>
 </tr>
 </tbody>
 </table>

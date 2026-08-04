@@ -662,7 +662,7 @@ window.Quarto = {
 </section>
 <section id="corrected-sweeps-on-continuous-data" class="level2">
 <h2 class="anchored" data-anchor-id="corrected-sweeps-on-continuous-data">Corrected sweeps on continuous data</h2>
-<p>On continuous (GGM) and mixed models under the default joint graph specification, the sweeps above run in a corrected form: the determinant-tilted precision prior reweights the graph marginal, so the plain collapsed updates would target the wrong block structure (see <a href="../manual/edge-priors.html#normalizing-constant-corrections">Edge Priors — Normalizing-constant corrections</a>). The correction enters the SBM locally:</p>
+<p>On continuous (GGM) and mixed models under the joint graph specification, the sweeps above run in a corrected form: the determinant-tilted precision prior reweights the graph marginal, so the plain collapsed updates would target the wrong block structure (see <a href="../manual/edge-priors.html#normalizing-constant-corrections">Edge Priors — Normalizing-constant corrections</a>). The correction enters the SBM locally:</p>
 <ul>
 <li>each allocation move adds a per-edge tilt term, the slope <span class="math inline">\(f'(d)\)</span> of the correction curve evaluated at the edge’s min-endpoint expected degree density;</li>
 <li>the new-cluster collapsed marginal integrates the corrected per-pair curve <span class="math inline">\(f(\theta)\)</span> over a quadrature grid instead of the plain Beta marginal.</li>

@@ -694,7 +694,7 @@ window.Quarto = {
 <section id="openlibm-solution" class="level2">
 <h2 class="anchored" data-anchor-id="openlibm-solution">OpenLibM solution</h2>
 <p><code>bgms</code> ships a copy of the <code>__ieee754_exp()</code> and <code>__ieee754_log()</code> implementations from OpenLibM (the FreeBSD/Sun math library). These are self-contained C functions that bypass the toolchain’s standard library, bringing Windows performance much closer to macOS and Linux.</p>
-<p>The implementation in <code>custom_explog.cpp</code> (approximately 800 lines) is the original Sun/FreeBSD code, lightly adapted to compile as C++ within an R package.</p>
+<p>The implementation in <code>custom_explog.cpp</code> (just under 400 lines) is the original Sun/FreeBSD code, lightly adapted to compile as C++ within an R package.</p>
 </section>
 <section id="platform-detection" class="level2">
 <h2 class="anchored" data-anchor-id="platform-detection">Platform detection</h2>

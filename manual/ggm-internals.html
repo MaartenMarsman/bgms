@@ -753,7 +753,7 @@ M^{-1}\big)\)</span>, drawn by triangular solves against the Cholesky factor of 
 <ul>
 <li>The <span class="math inline">\(O(1)\)</span> likelihood ratio via the matrix-determinant lemma, plus <span class="math inline">\(\delta\)</span> times the same log-determinant ratio (the tilt)</li>
 <li>The prior odds <span class="math inline">\(\log\{(1 - \pi_{ij}) / \pi_{ij}\}\)</span></li>
-<li><span class="math inline">\(-\log J\)</span> under the <a href="../manual/zratio-hierarchical.html">hierarchical specification</a> (absent under the default joint specification)</li>
+<li><span class="math inline">\(-\log J\)</span> under the default <a href="../manual/zratio-hierarchical.html">hierarchical specification</a> (absent under the joint specification)</li>
 <li>The reverse proposal density <span class="math inline">\(+\log\{\phi(\theta_{ij}^{\text{curr}} / c_3;\, 0,\, \sigma_{ij}) / c_3\}\)</span></li>
 <li>Minus the slab density of the removed entry, evaluated on the partial-association scale with its Jacobian: <span class="math inline">\(-\log p_{\text{slab}}(-\theta_{ij}^{\text{curr}}/2) + \log 2\)</span></li>
 <li>The scale-prior ratio on the slaved diagonal, <span class="math inline">\(\log p_{\text{diag}}(\theta_{jj}^*/2) - \log p_{\text{diag}}(\theta_{jj}/2)\)</span></li>

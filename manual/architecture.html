@@ -588,11 +588,11 @@ Warning
 │   └── execution/       # Orchestration: chain_runner, warmup_schedule, chain_result
 ├── models/
 │   ├── base_model.h     # Abstract interface (30+ virtual methods)
-│   ├── zratio_gauge.h   # In-chain trust gauge accumulator (hierarchical prior)
 │   ├── ggm/             # GGMModel — NUTS, adaptive Metropolis, or conjugate Gibbs
 │   │                    #   + graph_constraint_structure.h (null-space bookkeeping),
 │   │                    #   ggm_gradient.h/cpp (theta-space forward map + adjoint),
-│   │                    #   zratio_engine.h/cpp, zratio_law.h (Z-ratio surfaces)
+│   │                    #   zratio_engine.h/cpp (Z-ratio estimator),
+│   │                    #   zratio_gauge.h (in-chain trust gauge accumulator)
 │   ├── omrf/            # OMRFModel — ordinal MRF, gradient-based
 │   ├── mixed/           # MixedMRFModel — mixed discrete-continuous MRF
 │   └── bgmCompare/      # Group comparison sampler, helpers, logp/grad,
