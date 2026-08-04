@@ -9,6 +9,30 @@
 
 
 # ------------------------------------------------------------------------------
+# integrated_act
+# ------------------------------------------------------------------------------
+# Integrated autocorrelation time, tau = n / ESS, via the package's own ESS
+# (AR spectral density, coda compatible).
+#
+# The OLS standard error of the energy trend assumes independent draws. An MCMC
+# energy trace is autocorrelated, so the naive |t| is inflated by sqrt(tau).
+# This is what makes the trend criterion fire far more often than its nominal
+# level suggests; see check_warmup_complete() for how it is reported.
+#
+# @param x  Numeric vector.
+#
+# Returns: Numeric scalar >= 1, or NA_real_ if ESS is not computable.
+# ------------------------------------------------------------------------------
+integrated_act = function(x) {
+  n = length(x)
+  if(n < 20) return(1)
+  ess = .compute_ess_cpp(array(x, dim = c(n, 1L, 1L)))[1]
+  if(!is.finite(ess) || ess <= 0) return(NA_real_)
+  max(1, n / ess)
+}
+
+
+# ------------------------------------------------------------------------------
 # check_warmup_complete
 # ------------------------------------------------------------------------------
 # Assess whether warmup is complete using energy stationarity.
@@ -29,6 +53,19 @@
 #   - ebfmi_first_half:   Numeric, E-BFMI for the first half.
 #   - ebfmi_second_half:  Numeric, E-BFMI for the second half.
 #   - var_ratio:          Numeric, var(first_half) / var(second_half).
+#   - energy_tau:         Numeric, integrated autocorrelation time of the trend
+#       residuals, estimated on the SECOND half. A residual transient lives in
+#       the first half and would inflate tau there, so the second half gives the
+#       stationary value.
+#   - slope_t_corrected:  Numeric, the slope t-statistic with its standard error
+#       widened by sqrt(energy_tau).
+#
+# energy_tau and slope_t_corrected are reported only; they do not enter
+# warmup_incomplete. The flag stays deliberately sensitive because it exists to
+# send the user to R-hat and ESS, and nothing else in the package does. They let
+# a user who investigates separate a real drift from an autocorrelation artifact:
+# a corrected |t| well under 2.58 alongside tau around 3 means the trend is an
+# artifact of autocorrelation, not residual warmup.
 # ------------------------------------------------------------------------------
 check_warmup_complete = function(energy_mat) {
   nchains = nrow(energy_mat)
@@ -41,7 +78,9 @@ check_warmup_complete = function(energy_mat) {
       slope_significant = rep(FALSE, nchains),
       ebfmi_first_half = rep(NA_real_, nchains),
       ebfmi_second_half = rep(NA_real_, nchains),
-      var_ratio = rep(NA_real_, nchains)
+      var_ratio = rep(NA_real_, nchains),
+      energy_tau = rep(NA_real_, nchains),
+      slope_t_corrected = rep(NA_real_, nchains)
     ))
   }
 
@@ -52,7 +91,9 @@ check_warmup_complete = function(energy_mat) {
     slope_significant = FALSE,
     ebfmi_first_half = NA_real_,
     ebfmi_second_half = NA_real_,
-    var_ratio = NA_real_
+    var_ratio = NA_real_,
+    energy_tau = NA_real_,
+    slope_t_corrected = NA_real_
   )
 
   results = lapply(seq_len(nchains), function(chain) {
@@ -79,6 +120,15 @@ check_warmup_complete = function(energy_mat) {
     slope_se = summary(trend_lm)$coefficients[2, 2]
     slope_significant = abs(slope / slope_se) > 2.58
 
+    # Reported alongside the flag, not part of it: the same statistic with its
+    # standard error corrected for autocorrelation. tau comes from the second
+    # half of the residuals, which is stationary even when the first half is not.
+    trend_resid = stats::residuals(trend_lm)
+    energy_tau = integrated_act(trend_resid[(mid + 1):n_chain])
+    slope_t_corrected = if(is.finite(energy_tau)) {
+      unname(slope / (slope_se * sqrt(energy_tau)))
+    } else NA_real_
+
     # E-BFMI per half
     ebfmi_first = mean(diff(first_half)^2) / stats::var(first_half)
     ebfmi_second = mean(diff(second_half)^2) / stats::var(second_half)
@@ -95,7 +145,9 @@ check_warmup_complete = function(energy_mat) {
       slope_significant = slope_significant,
       ebfmi_first_half = ebfmi_first,
       ebfmi_second_half = ebfmi_second,
-      var_ratio = var_ratio
+      var_ratio = var_ratio,
+      energy_tau = energy_tau,
+      slope_t_corrected = slope_t_corrected
     )
   })
 
@@ -105,7 +157,9 @@ check_warmup_complete = function(energy_mat) {
     slope_significant = sapply(results, `[[`, "slope_significant"),
     ebfmi_first_half = sapply(results, `[[`, "ebfmi_first_half"),
     ebfmi_second_half = sapply(results, `[[`, "ebfmi_second_half"),
-    var_ratio = sapply(results, `[[`, "var_ratio")
+    var_ratio = sapply(results, `[[`, "var_ratio"),
+    energy_tau = sapply(results, `[[`, "energy_tau"),
+    slope_t_corrected = sapply(results, `[[`, "slope_t_corrected")
   )
 }
 
@@ -227,8 +281,19 @@ summarize_nuts_diagnostics = function(out, nuts_max_depth = 10, verbose = TRUE) 
 
   incomplete_chains = which(warmup_check$warmup_incomplete)
   if(length(incomplete_chains) > 0) {
+    # Name the criterion that actually fired. A low first-half E-BFMI is a
+    # statement about how the sampler moves through the energy landscape, not
+    # about residual warmup, so reporting it as "energy not stationary" would
+    # misdescribe it.
+    trigger = if(any(warmup_check$ebfmi_first_half[incomplete_chains] < 0.3,
+                     na.rm = TRUE)) {
+      "low first-half E-BFMI"
+    } else {
+      "energy not stationary"
+    }
     issues = c(issues, sprintf(
-      "Warmup may be incomplete: energy not stationary in chain%s %s - check R-hat and ESS",
+      "Warmup may be incomplete: %s in chain%s %s - check R-hat and ESS",
+      trigger,
       if(length(incomplete_chains) > 1) "s" else "",
       paste(incomplete_chains, collapse = ", ")
     ))

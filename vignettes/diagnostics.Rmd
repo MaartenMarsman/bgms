@@ -224,11 +224,46 @@ The returned list contains the following fields (one value per chain):
 
 - **warmup_incomplete**: A logical flag that is `TRUE` when any of the indicators below suggest the chain may not have reached stationarity.
 - **energy_slope**: The slope of a linear regression of energy against iteration number. A slope near zero indicates stable energy; a significant negative slope suggests the chain is still drifting toward higher-probability regions.
-- **slope_significant**: `TRUE` if the energy slope is statistically significant (p < 0.01).
+- **slope_significant**: `TRUE` when the slope's t-statistic exceeds 2.58 in absolute value. Read this as a screening rule rather than a p-value: the t-statistic uses the ordinary least-squares standard error, which assumes independent draws, while an energy trace is autocorrelated. See "How sensitive is this flag?" below.
 - **ebfmi_first_half** and **ebfmi_second_half**: E-BFMI computed separately for the first and second halves of the post-warmup samples. If the first-half value is much lower (for example, below 0.3) while the second-half value is healthy, the early samples were likely still settling.
 - **var_ratio**: The ratio of energy variance in the first half to that in the second half. A ratio much greater than 1 (for example, above 2) indicates higher variability early on, consistent with transient behavior.
+- **energy_tau**: The integrated autocorrelation time of the trend residuals, estimated on the second half of the run. Typical values for a healthy chain are around 3. A much larger value usually means a transient is still present, since a settling chain leaves strongly autocorrelated residuals behind.
+- **slope_t_corrected**: The same t-statistic as `slope_significant` uses, but with its standard error widened by `sqrt(energy_tau)` to account for autocorrelation. This is reported for interpretation only and does not affect the flag.
 
-If these diagnostics suggest the chain was still settling, increase `warmup` and re-run the model. If diagnostics remain problematic after a substantial increase (for example, doubling or tripling `warmup`), consider re-fitting with `update_method = "adaptive-metropolis"` and comparing the posterior summaries. If the two samplers produce similar results, the estimates are likely trustworthy despite the warnings; if they differ substantially, that warrants further investigation of the model or data.
+## How sensitive is this flag?
+
+The trend criterion compares energy against iteration using an ordinary
+least-squares standard error, which assumes independent draws. Energy traces are
+autocorrelated, so that standard error is too small and the t-statistic too
+large. Across `bgm()` and `bgmCompare()` fits to this package's three example
+datasets, the integrated autocorrelation time of the energy trace is around 3,
+which understates the standard error by a factor of roughly 1.8. The `|t| > 2.58`
+rule therefore behaves like a 15% per-chain screening rule rather than a 1% test,
+and because the flag is raised when *any* chain trips it, a well-behaved
+four-chain fit raises it a substantial fraction of the time.
+
+This is deliberate. The flag's purpose is to send you to R-hat and ESS, which are
+the diagnostics that decide whether a fit is usable, and nothing else in the
+package prompts you to look. A flag that occasionally sends you to check a
+healthy fit is less costly than one that stays silent on an unhealthy one.
+
+`slope_t_corrected` and `energy_tau` are what to read once you are looking. A
+corrected `|t|` comfortably below 2.58 alongside an `energy_tau` near 3 means the
+apparent trend is an artifact of autocorrelation rather than residual warmup. A
+large corrected `|t|`, or an `energy_tau` far above 3, points to a real transient.
+
+## What to do about it
+
+If these diagnostics suggest the chain was still settling, increase `warmup` and
+re-run the model. Note that the energy trace is recorded only after warmup ends,
+so these statistics describe the sampling phase: they detect transient that
+*survived* warmup, which is why a longer warmup changes the fit rather than the
+measurement. If diagnostics remain problematic after a substantial increase (for
+example, doubling or tripling `warmup`), consider re-fitting with
+`update_method = "adaptive-metropolis"` and comparing the posterior summaries. If
+the two samplers produce similar results, the estimates are likely trustworthy
+despite the warnings; if they differ substantially, that warrants further
+investigation of the model or data.
 
 # Hierarchical prior trust gauge
 
