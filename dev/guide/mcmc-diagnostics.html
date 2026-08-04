@@ -611,7 +611,7 @@ window.Quarto = {
 <p><span class="math display">\[
 \text{MCSE} = \frac{\text{sd}}{\sqrt{n_{\text{eff}}}}
 \]</span></p>
-<p>The same formula covers inclusion probabilities: because the reported estimate is the average of the continuous Rao-Blackwellized inclusion draws rather than of the binary indicators, its <code>sd</code> and <code>n_eff</code> are those of that continuous chain (see <a href="#sec-rb-inclusion-ess">Inclusion ESS and the exploration pair</a>). Edges whose indicator never flipped report <code>NA</code> here.</p>
+<p>The same formula covers inclusion probabilities: because the reported estimate is the average of the continuous Rao-Blackwellized inclusion draws rather than of the binary indicators, its <code>sd</code> and <code>n_eff</code> are those of that continuous chain (see <a href="#sec-rb-inclusion-ess">Inclusion ESS and the exploration counts</a>). Edges whose inclusion probability is pinned at its bound report <code>NA</code> here.</p>
 <p>A small MCSE relative to the posterior standard deviation indicates stable estimates; a large MCSE suggests that more iterations are needed.</p>
 </section>
 <section id="sec-rhat" class="level2">
@@ -626,7 +626,7 @@ window.Quarto = {
 \]</span></p>
 <p>No degrees-of-freedom adjustment is applied.</p>
 <p>R-hat is reported in <code>summary()</code> output and through <code>extract_rhat()</code>. It is <code>NA</code> when only one chain was run, and when a parameter is constant at the same value in every chain — for example, a pairwise effect whose edge was never included in any chain, so every draw is zero. Constant chains carry no mixing information, so no value is reported rather than a misleading one. If chains are instead stuck at <em>different</em> constant values, R-hat is <code>+Inf</code>: that is a real mixing failure, and it is reported loudly rather than hidden.</p>
-<p>For edge indicators, the reported R-hat is computed on the continuous Rao-Blackwellized inclusion draws, and is <code>NA</code> for edges whose indicator never flipped (<a href="#sec-rb-inclusion-ess">see above</a>).</p>
+<p>For edge indicators, the reported R-hat is computed on the continuous Rao-Blackwellized inclusion draws, and is <code>NA</code> where those draws are exactly constant (<a href="#sec-rb-inclusion-ess">see above</a>).</p>
 </section>
 <section id="trace-plots" class="level2">
 <h2 class="anchored" data-anchor-id="trace-plots">Trace plots</h2>
@@ -753,7 +753,7 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
      4      FALSE        FALSE      1.2e-05     1.031          0.931</code></pre>
 </div>
 </div>
-<p>One chain has an energy slope that is statistically significant, so the fit is flagged. Nothing else in the check is out of range: the variance ratios sit near 1, well below the 2 that indicates a chain still settling, and the E-BFMI values are far above 0.3. The message the sampler prints tells you where to look next, and that check is the one that decides. For indicators both <a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a> and <a href="../reference/extractors.html#extract_rhat"><code>extract_rhat()</code></a> read the Rao-Blackwellized inclusion chain by default, so the indicator row below is one reading of one chain:</p>
+<p>One chain has an energy slope that is statistically significant, so the fit is flagged. Nothing else in the check is out of range: the variance ratios sit near 1, well below the 2 that indicates a chain still settling, and the E-BFMI values are far above 0.3. The message the sampler prints tells you where to look next, and that check is the one that decides. For indicators, <a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a> and <a href="../reference/extractors.html#extract_rhat"><code>extract_rhat()</code></a> both read the Rao-Blackwellized inclusion chain, so the indicator row below is two summaries of the same draws:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rh <span class="ot">=</span> <span class="fu">extract_rhat</span>(fit)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ess <span class="ot">=</span> <span class="fu">extract_ess</span>(fit)</span>
