@@ -335,9 +335,16 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
       cat("... (use `summary(fit)$indicator` to see full output)\n")
     }
     if(ind_has_na) {
-      cat("Note: NA values are suppressed in the print table; they occur for indicators\n")
-      cat("that were not updated or whose draws are constant, so ESS/Rhat are undefined.\n")
-      cat("`summary(fit)$indicator` still contains all computed values.\n")
+      cat("Note: blank mcse/n_eff/Rhat cells mark indicators whose inclusion draws never\n")
+      cat("varied: the per-iteration evidence is so one-sided that the draws round to\n")
+      cat("exactly 0 or 1, and no variation is left to estimate precision from. An\n")
+      cat("indicator that is almost as certain still shows numbers; the difference is\n")
+      cat("rounding, not evidence.\n")
+      if(isFALSE(x$arguments$main_difference_selection)) {
+        cat("Main-effect difference rows are blank when main_difference_selection = FALSE\n")
+        cat("left their indicators unsampled.\n")
+      }
+      cat("All computed values remain in `summary(fit)$indicator`.\n")
     }
     cat("\n")
   }
