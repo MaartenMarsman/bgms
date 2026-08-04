@@ -507,6 +507,12 @@ window.Quarto = {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checking Tools</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/prior-sensitivity.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">prior_sensitivity_check()</span></a>
   </div>
@@ -583,10 +589,100 @@ window.Quarto = {
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_pairwise_interactions</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a matrix with one row per post-warmup iteration and one column per edge. For <code>bgmCompare</code>, columns correspond to baseline partial association parameters.</p>
 </section>
+<section id="extract_centrality" class="level2">
+<h2 class="anchored" data-anchor-id="extract_centrality">extract_centrality</h2>
+<p>Evaluate a node centrality on every posterior draw of the network, giving the posterior distribution of each node’s centrality.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_centrality</span>(bgms_object, <span class="at">measure =</span> <span class="st">"strength"</span>, <span class="at">group =</span> <span class="dv">1</span>, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 43%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bgms_object</code></td>
+<td>A fitted <code>bgms</code> or <code>bgmCompare</code> object.</td>
+</tr>
+<tr class="even">
+<td><code>measure</code></td>
+<td>Character; the centrality to evaluate. Currently <code>"strength"</code> (default) is the only accepted value, the sum of the absolute weights of a node’s edges. Anything else is an error.</td>
+</tr>
+<tr class="odd">
+<td><code>group</code></td>
+<td>For a <code>bgmCompare</code> fit: a single group index, giving that group’s centrality, or two indices, giving the difference in centrality between them (the first minus the second). Default: <code>1</code>. Ignored for a <code>bgms</code> fit, which has one network.</td>
+</tr>
+<tr class="even">
+<td><code>...</code></td>
+<td>Passed to methods.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns a numeric matrix of class <code>"bgms_centrality"</code> with one row per posterior draw and one column per variable, carrying <code>measure</code> as an attribute.</p>
+<p>The object has <code>summary()</code> and <code>plot()</code> methods:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(object, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>), ...)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>), ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>summary()</code> returns a data frame with one row per variable, ordered by decreasing posterior mean: <code>node</code>, <code>mean</code>, <code>lower</code>, <code>upper</code>, and <code>p_most_central</code>, the posterior probability that the node has the largest centrality of all nodes. For a difference between two groups the last column is <code>p_positive</code> instead, the posterior probability that the node’s centrality is higher in the first group than in the second; which node is <em>most</em> central is not a question a difference answers. <code>plot()</code> draws each node’s posterior mean with its credible interval, nodes ordered by mean, and returns <code>x</code> invisibly.</p>
+<section id="details" class="level3">
+<h3 class="anchored" data-anchor-id="details">Details</h3>
+<p>The centrality is evaluated on the model-averaged pairwise draws, in which an edge excluded at a given iteration contributes exactly zero. Structural uncertainty therefore propagates into the centrality without any extra step: a node whose edges are themselves uncertain gets a wide centrality posterior, which is the honest summary. Conditioning on the included-only draws instead would report each node’s centrality in the models where its edges happen to be present, which is a different and generally larger quantity.</p>
+<p>Strength sums absolute edge weights, so positive and negative associations both add to a node’s total involvement rather than cancelling.</p>
+<p>For a <code>bgmCompare()</code> fit each group’s network is rebuilt on every draw as <code>baseline + (P %*% differences)</code>, with the fit’s own contrast projection <code>P</code>, rather than from posterior means. That is what carries the uncertainty through: with <code>group = c(1, 2)</code> the credible interval is the interval of the <em>difference</em> in a node’s centrality, which answers whether the groups differ in it directly, where two separately drawn intervals do not.</p>
+<p>Read a centrality difference with care, and as numbers rather than as a picture; <code>plot()</code> declines to draw one. Strength sums absolute weights, so a difference of zero can mean identical networks or compensating edge differences, and its sign says nothing about which edges moved. <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> is the per-difference evidence.</p>
+<p>A difference also has a point mass at exactly zero, from the draws in which every one of the node’s difference indicators is excluded and the two groups share the network. <code>p_positive</code> and its mirror therefore need not sum to one, and a node can have a positive posterior mean with <code>p_positive</code> well below <code>0.5</code>: the remaining mass is on no difference at all, which is the model averaging reporting itself.</p>
+</section>
+<section id="example" class="level3">
+<h3 class="anchored" data-anchor-id="example">Example</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>strength <span class="ot">=</span> <span class="fu">extract_centrality</span>(fit)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(strength)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        node      mean     lower     upper p_most_central
+2     dreams 1.2635212 1.0199299 1.4893991       0.714500
+15    concen 1.1257866 0.9262784 1.3402789       0.126500
+1  intrusion 1.1070783 0.9151662 1.3063417       0.076925
+6    avoidth 1.0195764 0.8423238 1.2492914       0.030325
+16     hyper 1.0144736 0.8154244 1.2782522       0.029650
+17   startle 1.0049360 0.7849833 1.2328566       0.014025
+12    future 0.9644721 0.7956454 1.1630849       0.003125
+7   avoidact 0.9152694 0.7640005 1.1152001       0.002200
+3      flash 0.9132097 0.6961692 1.0937499       0.000675
+4      upset 0.8840563 0.7033613 1.1255463       0.002025
+5    physior 0.7636611 0.6299643 0.9484843       0.000050
+14     anger 0.7376081 0.5385491 0.9048358       0.000000
+10   distant 0.6446055 0.4939673 0.8540985       0.000000
+11      numb 0.5830983 0.4507088 0.7677861       0.000000
+13     sleep 0.5826797 0.4826844 0.7005044       0.000000
+9    lossint 0.5693491 0.4635915 0.7102969       0.000000
+8    amnesia 0.4199255 0.3274669 0.5311237       0.000000</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(strength)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-centrality" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-centrality-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="extractors_files/figure-html/fig-centrality-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-centrality-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Posterior strength centrality for the Wenchuan fit, nodes ordered by posterior mean, with 95% credible intervals.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
 <section id="extract_indicators" class="level2">
 <h2 class="anchored" data-anchor-id="extract_indicators">extract_indicators</h2>
 <p>Retrieve posterior samples of inclusion indicators.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_indicators</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_indicators</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a matrix with one row per post-warmup iteration and one column per indicator, containing binary (0/1) samples:</p>
 <ul>
 <li><strong><code>bgms</code></strong>: One column per edge. Requires <code>edge_selection = TRUE</code>.</li>
@@ -596,18 +692,18 @@ window.Quarto = {
 <section id="extract_posterior_inclusion_probabilities" class="level2">
 <h2 class="anchored" data-anchor-id="extract_posterior_inclusion_probabilities">extract_posterior_inclusion_probabilities</h2>
 <p>Compute posterior inclusion probabilities.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_posterior_inclusion_probabilities</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="fu">c</span>(<span class="st">"rb"</span>, <span class="st">"raw"</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_posterior_inclusion_probabilities</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="fu">c</span>(<span class="st">"rb"</span>, <span class="st">"raw"</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Two estimators of the same quantity are available. The default <code>"rb"</code> (Rao-Blackwellized) averages the one-step inclusion draw <span class="math inline">\(J_t = \gamma_t + (1 - 2\gamma_t)\,\alpha_t\)</span> recorded at each birth/death proposal, where <span class="math inline">\(\gamma_t\)</span> is the indicator state before the move and <span class="math inline">\(\alpha_t\)</span> the proposal’s acceptance probability; <code>"raw"</code> averages the binary indicator draws themselves. The RB average has lower variance and, in exact arithmetic, always lies strictly inside <span class="math inline">\((0, 1)\)</span> — though for edges with overwhelming per-iteration evidence it still rounds to exactly 0 or 1 in double precision. It changes only the summary, not the sampler: it inherits the chain’s mixing and does not rescue a chain that failed to explore the model space.</p>
 <p>Returns a symmetric p x p matrix of posterior inclusion probabilities:</p>
 <ul>
 <li><strong><code>bgms</code></strong>: Off-diagonal entries are edge inclusion probabilities. Requires <code>edge_selection = TRUE</code>.</li>
 </ul>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pip <span class="ot">=</span> <span class="fu">extract_posterior_inclusion_probabilities</span>(fit)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(pip[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>pip <span class="ot">=</span> <span class="fu">extract_posterior_inclusion_probabilities</span>(fit)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(pip[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>          intrusion dreams flash upset
 intrusion      0.00   1.00  1.00  0.66
@@ -621,10 +717,10 @@ upset          0.66   0.89  0.07  0.00</code></pre>
 <section id="extract_inclusion_bf" class="level2">
 <h2 class="anchored" data-anchor-id="extract_inclusion_bf">extract_inclusion_bf</h2>
 <p>Compute inclusion Bayes factors from the Rao-Blackwellized odds accumulators recorded during sampling.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_inclusion_bf</span>(</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">log =</span> <span class="cn">FALSE</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_inclusion_bf</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">log =</span> <span class="cn">FALSE</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>log</code> selects the scale of the return. The default <code>FALSE</code> gives the inclusion Bayes factor itself; <code>TRUE</code> gives its natural logarithm.</p>
 <p>For each indicator, the sampler accumulates the birth/death acceptance probabilities on the acceptance-probability scale, so the posterior inclusion odds follow from the exact identity</p>
 <p><span class="math display">\[
@@ -635,8 +731,8 @@ upset          0.66   0.89  0.07  0.00</code></pre>
 <p>The prior inclusion odds are divided out edge by edge, so the returned value is the inclusion Bayes factor rather than the posterior odds (the two coincide only at a prior inclusion probability of <span class="math inline">\(\tfrac{1}{2}\)</span>). For <code>bgm()</code> fits the prior odds come from <a href="#extract_prior_inclusion_probabilities"><code>extract_prior_inclusion_probabilities()</code></a>; for continuous or stochastic-block models that call may run and cache a short prior-only chain. For <code>bgmCompare()</code> fits the exchangeable difference prior supplies a single prior inclusion probability; a stochastic-block difference prior has no single marginal, so the result is left as posterior odds there.</p>
 <p>Returns a symmetric p x p matrix of inclusion Bayes factors, or of their natural logarithms when <code>log = TRUE</code>. Entries are <code>NA</code> for indicators that were never updated and <code>+Inf</code> when no exclusion evidence remains. An entry with no inclusion evidence left is <code>-Inf</code> on the log scale and <code>0</code> on the Bayes factor scale. For <code>bgms</code> the diagonal is <code>NA</code>; for <code>bgmCompare</code> the diagonal holds main-effect difference Bayes factors.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">signif</span>(bf[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>bf <span class="ot">=</span> <span class="fu">extract_inclusion_bf</span>(fit)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">signif</span>(bf[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>          intrusion    dreams    flash  upset
 intrusion        NA 2.12e+119 1.82e+05 1.9800
@@ -648,7 +744,7 @@ upset      1.98e+00  7.84e+00 7.37e-02     NA</code></pre>
 <p>The <code>intrusion</code>–<code>dreams</code> edge, whose inclusion probability saturates at 1 above, here receives a Bayes factor of about <span class="math inline">\(2 \times 10^{119}\)</span>: astronomically strong evidence, but quantified rather than <code>Inf</code>.</p>
 <p>The accumulators are exact on the log scale everywhere, while the Bayes factor scale saturates at double precision: an entry whose log exceeds about 709.78 nats (a Bayes factor beyond about <span class="math inline">\(1.8 \times 10^{308}\)</span>) comes back as <code>+Inf</code> under the default even though its log-scale value is finite. Use <code>log = TRUE</code> when you need to separate such extreme evidence:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">extract_inclusion_bf</span>(fit, <span class="at">log =</span> <span class="cn">TRUE</span>)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">extract_inclusion_bf</span>(fit, <span class="at">log =</span> <span class="cn">TRUE</span>)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>          intrusion dreams flash upset
 intrusion        NA 274.76 12.11  0.68
@@ -661,12 +757,12 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <section id="extract_prior_inclusion_probabilities" class="level2">
 <h2 class="anchored" data-anchor-id="extract_prior_inclusion_probabilities">extract_prior_inclusion_probabilities</h2>
 <p>Compute prior inclusion probabilities, in the same shape and orientation as <a href="#extract_posterior_inclusion_probabilities"><code>extract_posterior_inclusion_probabilities()</code></a>, so the two can be combined element-wise into prior and posterior inclusion odds — and from there into inclusion Bayes factors.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_prior_inclusion_probabilities</span>(</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter      =</span> <span class="dv">4000</span>L,</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup    =</span> <span class="dv">1000</span>L,</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">recompute =</span> <span class="cn">FALSE</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_prior_inclusion_probabilities</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter      =</span> <span class="dv">4000</span>L,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup    =</span> <span class="dv">1000</span>L,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">recompute =</span> <span class="cn">FALSE</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgms</code> object with <code>edge_selection = TRUE</code>. Returns a symmetric matrix of prior inclusion probabilities with the variable names as row and column names and a zero diagonal.</p>
 <p>For models without a continuous block of at least two variables (ordinal MRFs, mixed models with a single continuous variable), the prior inclusion probability is simply the edge prior’s marginal: the fixed probability for <code>bernoulli_prior()</code>, <span class="math inline">\(\alpha / (\alpha + \beta)\)</span> for <code>beta_bernoulli_prior()</code>, and the mixture of the within- and between-block means for <code>sbm_prior()</code>.</p>
 <p>Under the default <code>precision_graph_prior = "hierarchical"</code> in <a href="../reference/bgm.html"><code>bgm()</code></a> the same holds for a continuous block: <span class="math inline">\(p(K \mid \Gamma)\)</span> is normalized per graph, so integrating <span class="math inline">\(K\)</span> out returns the edge prior exactly and every edge class keeps the edge-prior marginal. Nothing is read off a table or estimated by a chain, and the function returns quickly.</p>
@@ -676,7 +772,7 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <section id="extract_indicator_priors" class="level2">
 <h2 class="anchored" data-anchor-id="extract_indicator_priors">extract_indicator_priors</h2>
 <p>Retrieve the prior specification used for inclusion indicators.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_indicator_priors</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_indicator_priors</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a named list describing the prior structure, including the prior type and hyperparameters:</p>
 <ul>
 <li><strong><code>bgms</code></strong>: Requires <code>edge_selection = TRUE</code>. Returns the prior type (<code>"Bernoulli"</code>, <code>"Beta-Bernoulli"</code>, or <code>"Stochastic-Block"</code>) and associated hyperparameters.</li>
@@ -686,14 +782,14 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <section id="extract_group_params" class="level2">
 <h2 class="anchored" data-anchor-id="extract_group_params">extract_group_params</h2>
 <p>Compute group-specific parameter estimates by combining baseline parameters and group differences.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_group_params</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_group_params</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgmCompare</code> object.</p>
 <p>Returns a list with <code>main_effects_groups</code> (main effects per group) and <code>pairwise_effects_groups</code> (pairwise effects per group).</p>
 </section>
 <section id="extract_sbm" class="level2">
 <h2 class="anchored" data-anchor-id="extract_sbm">extract_sbm</h2>
 <p>Retrieve posterior summaries from a model fitted with the Stochastic Block prior.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_sbm</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_sbm</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Works on both <code>bgms</code> and <code>bgmCompare</code> fits.</p>
 <ul>
 <li>For <code>bgms</code>: requires <code>edge_selection = TRUE</code> and <code>edge_prior = sbm_prior(...)</code>.</li>
@@ -710,18 +806,18 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 <section id="extract_ess" class="level2">
 <h2 class="anchored" data-anchor-id="extract_ess">extract_ess</h2>
 <p>Retrieve effective sample size estimates for all parameters.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_ess</span>(</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="fu">c</span>(<span class="st">"rb"</span>, <span class="st">"mixt"</span>)</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_ess</span>(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimator =</span> <span class="fu">c</span>(<span class="st">"rb"</span>, <span class="st">"mixt"</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a named list with ESS values for each parameter type present in the model (e.g., <code>main</code>, <code>pairwise</code>, <code>indicator</code>). ESS values match <code>coda::effectiveSize</code>. For implementation details, see the <a href="../manual/diagnostics.html">Technical Manual</a>.</p>
 <p>Two elements are composite rather than raw-chain quantities. The <code>indicator</code> element is the <code>n_eff</code> column of <code>summary(fit)$indicator</code>: the ESS of the Rao-Blackwellized inclusion draws, and therefore the ESS of the inclusion probability the fit reports. It is read from the same continuous chain that <a href="#extract_rhat"><code>extract_rhat()</code></a> uses for indicators, and it measures precision conditional on exploration. Read it beside the directional transition counts <code>n0-&gt;1</code> and <code>n1-&gt;0</code>, which carry the exploration itself; see <a href="../guide/mcmc-diagnostics.html#sec-rb-inclusion-ess">MCMC Diagnostics</a>.</p>
 <p><code>estimator</code> has one live value, <code>"rb"</code>. The alternative, <code>estimator = "mixt"</code> — the transition-based ESS of the binary indicator chain — is deprecated as of 0.2.0.0: the simple two-state process it assumes describes many edge chains poorly, so the statistic no longer feeds any inclusion verdict. Passing it warns and still returns the statistic. <code>n_eff_mixt</code> is no longer a column of <code>summary(fit)$indicator</code>.</p>
 <p>The <code>indicator</code> element is <code>NA</code> wherever the inclusion probability is pinned at its bound and no precision is left to estimate; see <a href="#extract_rhat"><code>extract_rhat()</code></a> for the exact rule. Fits made with bgms &lt; 0.2.0.0 carry no Rao-Blackwellized draws, so an explicit <code>estimator = "rb"</code> errors there.</p>
 <p>The <code>pairwise</code> element is the composite ESS of the model-averaged edge weight, which combines inclusion and slab uncertainty.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ess <span class="ot">=</span> <span class="fu">extract_ess</span>(fit)</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">head</span>(ess<span class="sc">$</span>pairwise), <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>ess <span class="ot">=</span> <span class="fu">extract_ess</span>(fit)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">head</span>(ess<span class="sc">$</span>pairwise), <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  intrusion-dreams    intrusion-flash    intrusion-upset  intrusion-physior 
              22743              16206               1752               3481 
@@ -731,14 +827,14 @@ upset          0.68   2.06 -2.61    NA</code></pre>
 </div>
 <p>The indicator ESS beside the transition counts that carry the exploration, for a contested edge and a decisive one:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>edges <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"intrusion-upset"</span>, <span class="st">"intrusion-avoidact"</span>)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>indicator</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_eff =</span> <span class="fu">round</span>(<span class="fu">extract_ess</span>(fit)<span class="sc">$</span>indicator[edges]),</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n0-&gt;1</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n0-&gt;1"</span>],</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n1-&gt;0</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n1-&gt;0"</span>],</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>edges <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"intrusion-upset"</span>, <span class="st">"intrusion-avoidact"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>ind <span class="ot">=</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>indicator</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_eff =</span> <span class="fu">round</span>(<span class="fu">extract_ess</span>(fit)<span class="sc">$</span>indicator[edges]),</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n0-&gt;1</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n0-&gt;1"</span>],</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">n1-&gt;0</span><span class="st">`</span> <span class="ot">=</span> ind[edges, <span class="st">"n1-&gt;0"</span>],</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                   n_eff n0-&gt;1 n1-&gt;0
 intrusion-upset     1301   659   660
@@ -750,7 +846,7 @@ intrusion-avoidact 23071   913   913</code></pre>
 <section id="extract_rhat" class="level2">
 <h2 class="anchored" data-anchor-id="extract_rhat">extract_rhat</h2>
 <p>Retrieve R-hat convergence diagnostics for all parameters.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_rhat</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_rhat</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Returns a named list with R-hat values for each parameter type present in the model (e.g., <code>main</code>, <code>pairwise</code>, <code>indicator</code>). The statistic is split-R-hat <span class="citation" data-cites="VehtariEtAl_2021">(<a href="#ref-VehtariEtAl_2021" role="doc-biblioref">Vehtari et al., 2021</a>)</span>: each chain is split in half and the Gelman-Rubin formula is applied to the half-chains, so that within-chain drift is detected as well as between-chain disagreement. No degrees-of-freedom adjustment is applied. For implementation details, see <a href="../manual/diagnostics.html">diagnostics</a> in the Technical Manual.</p>
 <p>The <code>indicator</code> element is computed on the continuous Rao-Blackwellized inclusion draws. It is <code>NA</code> where those draws are exactly constant, with the inclusion probability pinned at its bound. Draws that vary too little for the autocorrelation machinery, without being exactly constant, keep a finite <code>Rhat</code> while <code>mcse</code> and <code>n_eff</code> are <code>NA</code>. Neither set is the same as the set of edges whose binary indicator never flipped.</p>
 <div class="callout callout-style-default callout-note callout-titled">
@@ -771,14 +867,14 @@ intrusion-avoidact 23071   913   913</code></pre>
 <section id="extract_precision" class="level2">
 <h2 class="anchored" data-anchor-id="extract_precision">extract_precision</h2>
 <p>Retrieve the posterior mean precision matrix.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_precision</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_precision</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgms</code> object (GGM or mixed MRF).</p>
 <p>Returns a symmetric p x p matrix (or the continuous block submatrix for mixed MRFs) containing the posterior mean precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span>.</p>
 </section>
 <section id="extract_partial_correlations" class="level2">
 <h2 class="anchored" data-anchor-id="extract_partial_correlations">extract_partial_correlations</h2>
 <p>Retrieve the posterior mean partial correlation matrix.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_partial_correlations</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_partial_correlations</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgms</code> object (GGM or mixed MRF).</p>
 <p>Returns a symmetric matrix of partial correlations, computed by standardizing the precision matrix: <span class="math inline">\(\rho_{ij} = -\Theta_{ij} / \sqrt{\Theta_{ii}
 \Theta_{jj}}\)</span>.</p>
@@ -786,7 +882,7 @@ intrusion-avoidact 23071   913   913</code></pre>
 <section id="extract_log_odds" class="level2">
 <h2 class="anchored" data-anchor-id="extract_log_odds">extract_log_odds</h2>
 <p>Retrieve the posterior mean log-odds matrix.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_log_odds</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">extract_log_odds</span>(bgms_object)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>bgms_object</code> must be a fitted <code>bgms</code> object (OMRF or mixed MRF).</p>
 <p>Returns a symmetric matrix of log adjacent-category odds ratios. For the ordinal MRF, <span class="math inline">\(\text{log-odds}_{ij} = 2 \omega_{ij}\)</span>.</p>
 </section>

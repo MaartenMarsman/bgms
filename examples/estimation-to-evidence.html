@@ -562,7 +562,7 @@ longer run.</code></pre>
 </div>
 </div>
 <p>The counts are the headline: 35 presence, 39 undecided, 62 absence. The <code>log_bf</code> column is the natural logarithm of the Bayes factor — the scale to compare evidence spanning many orders of magnitude — and the thresholds reappear on it as <span class="math inline">\(\pm\log 10 \approx \pm 2.30\)</span>. The closing note flags seven <strong>fragile</strong> verdicts: edges whose Bayes factor sits within two Monte Carlo standard errors of a threshold, so a rerun could land them in the neighboring category. Those are borderline edges, not failures, and any of them that matters to your conclusions deserves a longer run.</p>
-<p>The threshold itself is a reporting convention, not a law. Rerunning the classification with <code>verdicts(fit, evidence_threshold = 3)</code> gives 40 presence, 12 undecided, and 84 absence; at a threshold of 30 the counts become 29, 83, and 24. The counts shift with the convention, but no edge can jump between presence and absence, and stating a second threshold costs one sentence. See <code>?verdicts</code> for the full contract.</p>
+<p>The threshold itself is a reporting convention, not a law. Rerunning the classification with <code>verdicts(fit, evidence_threshold = 3)</code> gives 40 presence, 12 undecided, and 84 absence; at a threshold of 30 the counts become 29, 83, and 24. The counts shift with the convention, but no edge can jump between presence and absence, and stating a second threshold costs one sentence. See <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> for the full contract.</p>
 </section>
 <section id="the-three-panels" class="level2">
 <h2 class="anchored" data-anchor-id="the-three-panels">The three panels</h2>

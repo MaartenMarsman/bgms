@@ -422,6 +422,12 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checking Tools</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/prior-sensitivity.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">prior_sensitivity_check()</span></a>
   </div>
@@ -470,8 +476,8 @@ ul.task-list li input[type="checkbox"] {
 
 
 <p>Documentation for the <code>bgms</code> API.</p>
+<p>Complete documentation for all exported functions.</p>
 <p><code>bgm()</code> and <code>bgmCompare()</code> return S7 objects (classes <code>bgms</code> and <code>bgmCompare</code>). Standard methods like <code>print()</code>, <code>summary()</code>, and <code>coef()</code> work through S3 dispatch for compatibility with base R generics.</p>
-<p>A few 0.2.0.0 additions do not have site pages yet: <code>verdicts()</code>, <code>calibration_check()</code>, <code>plot_edge_posterior()</code>, <code>extract_centrality()</code>, and the <code>plot()</code> methods. Their R help pages are complete — start with <code>?verdicts</code> — and site pages follow in a documentation update.</p>
 <section id="core-functions" class="level2">
 <h2 class="anchored" data-anchor-id="core-functions">Core Functions</h2>
 <table class="caption-top table">
@@ -597,6 +603,14 @@ ul.task-list li input[type="checkbox"] {
 <td>Extract posterior means of model parameters</td>
 </tr>
 <tr class="even">
+<td><a href="../reference/methods.html#plot"><code>plot()</code></a></td>
+<td>Draw the fitted model: the edge evidence plot by default, or posterior centrality</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/methods.html#plot_edge_posterior"><code>plot_edge_posterior()</code></a></td>
+<td>Draw one edge’s posterior against its prior, with the inclusion evidence as a probability wheel</td>
+</tr>
+<tr class="even">
 <td><a href="../reference/methods.html#predict"><code>predict()</code></a></td>
 <td>Predict new observations from a fitted model</td>
 </tr>
@@ -606,7 +620,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td><a href="../reference/methods.html#simulate_mrf"><code>simulate_mrf()</code></a></td>
-<td>Simulate observations from a Markov Random Field</td>
+<td>Simulate observations from a Markov Random Field (<code>mrfSampler()</code> is the deprecated former name)</td>
 </tr>
 </tbody>
 </table>
@@ -622,6 +636,14 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 </thead>
 <tbody>
+<tr class="odd">
+<td><a href="../reference/checks.html#verdicts"><code>verdicts()</code></a></td>
+<td>Read each edge’s inclusion Bayes factor as a presence / undecided / absence verdict, and flag the verdicts a longer run could change.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/checks.html#calibration_check"><code>calibration_check()</code></a></td>
+<td>Reliability diagrams of the model’s conditional predictions, with the consistency band a calibrated model wanders inside.</td>
+</tr>
 <tr class="odd">
 <td><a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a></td>
 <td>Recover each edge’s inclusion Bayes factor curve across the slab scale and classify which verdicts depend on it.</td>
@@ -656,50 +678,54 @@ ul.task-list li input[type="checkbox"] {
 <td>Extract posterior samples of partial association parameters</td>
 </tr>
 <tr class="even">
+<td><a href="../reference/extractors.html#extract_centrality"><code>extract_centrality()</code></a></td>
+<td>Evaluate strength centrality on every posterior draw, giving each node’s centrality posterior; <code>summary()</code> and <code>plot()</code> read it</td>
+</tr>
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_indicators"><code>extract_indicators()</code></a></td>
 <td>Extract posterior samples of edge or difference indicators</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_posterior_inclusion_probabilities"><code>extract_posterior_inclusion_probabilities()</code></a></td>
 <td>Compute posterior inclusion probabilities, from the Rao-Blackwellized draws by default or from the raw indicator samples</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_prior_inclusion_probabilities"><code>extract_prior_inclusion_probabilities()</code></a></td>
 <td>Compute prior inclusion probabilities, matched in shape to the posterior ones for Bayes factor computation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a></td>
 <td>Compute inclusion Bayes factors from the Rao-Blackwellized odds accumulators, on the Bayes factor scale by default or on the log scale with <code>log = TRUE</code>; finite for saturated edges up to the numerical bound</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_indicator_priors"><code>extract_indicator_priors()</code></a></td>
 <td>Retrieve the indicator prior specification (prior type and hyperparameters)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_group_params"><code>extract_group_params()</code></a></td>
 <td>Extract group-specific parameters from a <code>bgmCompare</code> fit</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_sbm"><code>extract_sbm()</code></a></td>
 <td>Extract stochastic block model assignments and probabilities</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_ess"><code>extract_ess()</code></a></td>
 <td>Compute effective sample sizes for model parameters; for indicators, the Rao-Blackwellized ESS</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_rhat"><code>extract_rhat()</code></a></td>
 <td>Compute split-R-hat convergence diagnostics</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_precision"><code>extract_precision()</code></a></td>
 <td>Extract posterior mean precision matrix (GGM / continuous block)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/extractors.html#extract_partial_correlations"><code>extract_partial_correlations()</code></a></td>
 <td>Extract posterior mean partial correlation matrix</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/extractors.html#extract_log_odds"><code>extract_log_odds()</code></a></td>
 <td>Extract posterior mean log-odds matrix (OMRF / discrete block)</td>
 </tr>

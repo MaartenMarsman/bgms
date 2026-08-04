@@ -71,7 +71,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../reference/prior-sensitivity.html" rel="next">
+<link href="../reference/checks.html" rel="next">
 <link href="../reference/prior-samplers.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -487,6 +487,12 @@ window.Quarto = {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checking Tools</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/prior-sensitivity.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">prior_sensitivity_check()</span></a>
   </div>
@@ -616,17 +622,170 @@ window.Quarto = {
 <li><code>bgmCompare</code>: <code>main_effects_raw</code>, <code>pairwise_effects_raw</code>, <code>main_effects_groups</code>, <code>pairwise_effects_groups</code>, and <code>indicators</code>.</li>
 </ul>
 </section>
+<section id="plot" class="level2">
+<h2 class="anchored" data-anchor-id="plot">plot</h2>
+<p>Draw the fitted model. The default display is the network split by what the data settle about each pair.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"network"</span>, <span class="st">"centrality"</span>), <span class="at">evidence_threshold =</span> <span class="dv">10</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">layout =</span> <span class="st">"spring"</span>, ...)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"difference"</span>, <span class="st">"groups"</span>, <span class="st">"centrality"</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>     <span class="at">evidence_threshold =</span> <span class="dv">10</span>, <span class="at">group =</span> <span class="dv">1</span>, <span class="at">layout =</span> <span class="st">"spring"</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>     <span class="at">max_panels =</span> <span class="dv">3</span>L, <span class="at">page =</span> <span class="dv">1</span>L, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>x</code></td>
+<td>An object of class <code>bgms</code> or <code>bgmCompare</code>.</td>
+</tr>
+<tr class="even">
+<td><code>type</code></td>
+<td>Which display to draw. <code>bgms</code>: <code>"network"</code> (default) or <code>"centrality"</code>. <code>bgmCompare</code>: <code>"difference"</code> (default), <code>"groups"</code>, or <code>"centrality"</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>evidence_threshold</code></td>
+<td>Numeric greater than 1. The inclusion Bayes factor separating evidence of presence from undecided, as in <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a>. Default: <code>10</code>.</td>
+</tr>
+<tr class="even">
+<td><code>group</code></td>
+<td><code>bgmCompare</code> only, for <code>type = "centrality"</code>: a single group index passed to <a href="../reference/extractors.html#extract_centrality"><code>extract_centrality()</code></a>. Default: <code>1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>layout</code></td>
+<td>Layout passed to <code>qgraph::qgraph()</code>. Default: <code>"spring"</code>.</td>
+</tr>
+<tr class="even">
+<td><code>max_panels</code>, <code>page</code></td>
+<td><code>bgmCompare</code> only, for <code>type = "groups"</code>: how many group networks are drawn at once, and which page of them. Defaults <code>3</code> and <code>1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>...</code></td>
+<td>Passed to <code>qgraph::qgraph()</code>, or to <code>plot()</code> on the centrality object for <code>type = "centrality"</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns <code>x</code> invisibly; called for the side effect of drawing. Drawing the network needs the suggested package <code>qgraph</code>.</p>
+<section id="the-edge-evidence-plot" class="level3">
+<h3 class="anchored" data-anchor-id="the-edge-evidence-plot">The edge evidence plot</h3>
+<p><code>type = "network"</code> is the <strong>edge evidence plot</strong>: three panels on one shared layout holding the pairs the data support, the pairs the data rule out, and the pairs the data cannot decide. It is the canonical result display this documentation uses for every network, and <code>plot()</code> is its in-package implementation: the classification is the one <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> reports at the same <code>evidence_threshold</code>, each panel is titled with what it holds and how many pairs are in it, and the layout is computed once from every pair so a node sits in the same place in all three panels.</p>
+<p>Only the first panel is weighted. There, line width is the posterior mean pairwise association and color carries its sign, blue for positive and vermillion for negative, the Okabe-Ito pair, so the sign survives common forms of color-vision deficiency. The other two panels are drawn at uniform width, dashed for evidence of absence and dotted for undecided: for those pairs the classification is the result, and a width would suggest an effect size the data have either ruled out or not established.</p>
+<p>The figure carries no key: each panel’s title names the evidence class and its count, with the classification rule printed beneath it.</p>
+<p>For the same display built by hand with <code>qgraph</code>, and for the reasoning behind it, see the <code>plot_edge_evidence()</code> helper in <a href="../guide/getting-started.html">Getting Started</a> and <a href="../guide/edge-selection.html">Edge Selection</a>.</p>
+<p><strong>Device size.</strong> Three networks side by side need a wide device. R’s default 7 by 7 inches leaves each panel a little over two inches, and at that size the labels and titles crowd; <code>plot()</code> says so when the device is too small. Open a wider device before plotting:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dev.new</span>(<span class="at">width =</span> <span class="dv">13</span>, <span class="at">height =</span> <span class="dv">5</span>)   <span class="co"># or pdf(f, width = 13, height = 5)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Without edge selection</strong> there is no indicator and nothing to split the pairs by, so <code>plot()</code> draws one panel with every pair on it, width the posterior mean association and color its sign, titled <code>"Edge weights"</code>.</p>
+</section>
+<section id="example" class="level3">
+<h3 class="anchored" data-anchor-id="example">Example</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-edge-evidence" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-edge-evidence-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="methods_files/figure-html/fig-edge-evidence-1.png" class="img-fluid figure-img" width="1248">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-edge-evidence-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: The edge evidence plot for the Wenchuan fit: 35 pairs supported, 62 ruled out, 39 undecided at an inclusion Bayes factor of 10.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit, <span class="at">type =</span> <span class="st">"centrality"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-centrality" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-centrality-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="methods_files/figure-html/fig-centrality-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-centrality-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Posterior strength centrality for the same fit.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="bgmcompare-displays" class="level3">
+<h3 class="anchored" data-anchor-id="bgmcompare-displays">bgmCompare displays</h3>
+<p>On a <code>bgmCompare</code> fit the default <code>type = "difference"</code> is the same three-panel display read for differences: the pairs whose difference the data support, rule out, and cannot decide. Which group a positive difference favors follows the contrast coding, which <a href="../reference/extractors.html#extract_group_params"><code>extract_group_params()</code></a> reports per group.</p>
+<p>Two cases change the picture. With more than two groups a pair has <span class="math inline">\(K - 1\)</span> posterior mean differences rather than one, so no single number is “the” difference and the first panel is drawn unweighted; read the magnitudes per group with <code>type = "groups"</code> or <a href="../reference/extractors.html#extract_group_params"><code>extract_group_params()</code></a>. When <code>main_difference_selection = TRUE</code> gave main-effect differences their own indicators, their evidence is carried on the nodes: each node wears a ring filled to its difference indicator’s posterior inclusion probability and colored by the verdict. Under the default <code>main_difference_selection = FALSE</code> those indicators do not exist and no ring is drawn.</p>
+<p><code>type = "groups"</code> draws each group’s own posterior mean network on the layout the difference display uses. Those panels are estimates, not evidence, so every pair is drawn with its weight.</p>
+</section>
+</section>
+<section id="plot_edge_posterior" class="level2">
+<h2 class="anchored" data-anchor-id="plot_edge_posterior">plot_edge_posterior</h2>
+<p>Draw one edge’s weight the way JASP draws a parameter: the posterior density against the prior it was updated from, with the evidence for the edge as a filled probability wheel and the estimate printed beside it.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_edge_posterior</span>(bgms_object, variable1, variable2, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bgms_object</code></td>
+<td>A fitted <code>bgms</code> object from <a href="../reference/bgm.html"><code>bgm()</code></a>.</td>
+</tr>
+<tr class="even">
+<td><code>variable1</code>, <code>variable2</code></td>
+<td>The two variables naming the edge, as names or column positions.</td>
+</tr>
+<tr class="odd">
+<td><code>binwidth</code></td>
+<td><em>Deprecated.</em> The panel no longer expresses the weight as probability per bin, so this has nothing to set; it is warned about and ignored.</td>
+</tr>
+<tr class="even">
+<td><code>...</code></td>
+<td>Ignored.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns <code>bgms_object</code> invisibly; called for the side effect of drawing.</p>
+<p>The panel shows two curves on one density scale. The solid accented curve is the posterior of the edge weight; the dashed grey curve is the prior it was updated from, computed in closed form from the fit’s own <code>interaction_prior</code> rather than assumed, so a panel drawn from a <code>cauchy_prior(scale = 2.5)</code> fit and one drawn from the default <code>normal_prior(scale = 1)</code> do not look alike.</p>
+<p>What the curves mean follows the model the fit actually used. <strong>With edge selection</strong> the posterior of the weight is a spike-and-slab, and the panel draws the continuous part conditional on the edge being included, which is a genuine density integrating to one. The mass at zero is carried by the probability wheel, whose accented share is the posterior inclusion probability. The evidence is printed as the natural log of the inclusion Bayes factor from <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a>, which <code>bgms</code> estimates by Rao-Blackwellizing the indicator draws. It is not a ratio of densities at zero, so the panel does not draw Savage-Dickey ordinates. <strong>Without edge selection</strong> there is no point mass, the Savage-Dickey density ratio is the licensed estimator, and the panel marks both ordinates at zero with grey dots and prints their ratio on the same natural-log scale.</p>
+<p>The median and 95% credible interval printed at the top right are of the same posterior the density shows. An edge the data rule out is still drawn: when no retained draw included it there is no conditional posterior to show, so the panel draws the prior, the wheel and the evidence, and the missing accented curve is itself the statement.</p>
+<p>No verdict word is printed. The panel shows the evidence and leaves the reading to the threshold you choose; <a href="../reference/checks.html#verdicts"><code>verdicts()</code></a> is where the package states verdicts, and it names the threshold it used.</p>
+<section id="example-1" class="level3">
+<h3 class="anchored" data-anchor-id="example-1">Example</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_edge_posterior</span>(fit, <span class="st">"intrusion"</span>, <span class="st">"dreams"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-edge-posterior" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-edge-posterior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="methods_files/figure-html/fig-edge-posterior-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-edge-posterior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: The posterior of the <code>intrusion-dreams</code> edge weight against its prior, with the inclusion evidence as a probability wheel.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
 <section id="predict" class="level2">
 <h2 class="anchored" data-anchor-id="predict">predict</h2>
 <p>Compute conditional probability distributions for one or more variables given the observed values of other variables in the data.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(object, newdata, <span class="at">variables =</span> <span class="cn">NULL</span>,</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>        <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"probabilities"</span>, <span class="st">"response"</span>),</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>, <span class="st">"posterior-sample"</span>),</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="at">ndraws =</span> <span class="cn">NULL</span>, <span class="at">seed =</span> <span class="cn">NULL</span>, ...)</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(object, newdata, group, <span class="at">variables =</span> <span class="cn">NULL</span>,</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"probabilities"</span>, <span class="st">"response"</span>),</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>), ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(object, newdata, <span class="at">variables =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>        <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"probabilities"</span>, <span class="st">"response"</span>),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>, <span class="st">"posterior-sample"</span>),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>        <span class="at">ndraws =</span> <span class="cn">NULL</span>, <span class="at">seed =</span> <span class="cn">NULL</span>, ...)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(object, newdata, group, <span class="at">variables =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">type =</span> <span class="fu">c</span>(<span class="st">"probabilities"</span>, <span class="st">"response"</span>),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>), ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 43%">
@@ -680,19 +839,19 @@ window.Quarto = {
 <li>Mixed: combined discrete and continuous outputs.</li>
 </ul>
 <p>For <code>bgmCompare</code>, outputs use group-specific parameters (baseline plus group differences).</p>
-<section id="example" class="level3">
-<h3 class="anchored" data-anchor-id="example">Example</h3>
+<section id="example-2" class="level3">
+<h3 class="anchored" data-anchor-id="example-2">Example</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict probabilities for the first observation's variable 1</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># given its observed values on variables 2-17</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">newdata =</span> Wenchuan[<span class="dv">1</span>, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="at">variables =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict probabilities for the first observation's variable 1</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># given its observed values on variables 2-17</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">newdata =</span> Wenchuan[<span class="dv">1</span>, , <span class="at">drop =</span> <span class="cn">FALSE</span>], <span class="at">variables =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$intrusion
          cat_0     cat_1     cat_2      cat_3        cat_4
 [1,] 0.1047114 0.6530421 0.2099615 0.03154664 0.0007383951</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict responses (most likely category) for first 3 observations</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">newdata =</span> Wenchuan[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, ], <span class="at">variables =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict responses (most likely category) for first 3 observations</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="at">newdata =</span> Wenchuan[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, ], <span class="at">variables =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">type =</span> <span class="st">"response"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>     intrusion dreams flash
 [1,]         1      1     1
@@ -705,14 +864,14 @@ window.Quarto = {
 <section id="simulate" class="level2">
 <h2 class="anchored" data-anchor-id="simulate">simulate</h2>
 <p>Generate new observations from a fitted model.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate</span>(object, <span class="at">nsim =</span> <span class="dv">500</span>, <span class="at">seed =</span> <span class="cn">NULL</span>,</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>         <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>, <span class="st">"posterior-sample"</span>),</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">ndraws =</span> <span class="cn">NULL</span>, <span class="at">iter =</span> <span class="dv">1000</span>,</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">cores =</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>(),</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">display_progress =</span> <span class="fu">c</span>(<span class="st">"per-chain"</span>, <span class="st">"total"</span>, <span class="st">"none"</span>), ...)</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate</span>(object, <span class="at">nsim =</span> <span class="dv">500</span>, <span class="at">seed =</span> <span class="cn">NULL</span>, group,</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>), <span class="at">iter =</span> <span class="dv">1000</span>, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate</span>(object, <span class="at">nsim =</span> <span class="dv">500</span>, <span class="at">seed =</span> <span class="cn">NULL</span>,</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>         <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>, <span class="st">"posterior-sample"</span>),</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">ndraws =</span> <span class="cn">NULL</span>, <span class="at">iter =</span> <span class="dv">1000</span>,</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">cores =</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>(),</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">display_progress =</span> <span class="fu">c</span>(<span class="st">"per-chain"</span>, <span class="st">"total"</span>, <span class="st">"none"</span>), ...)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate</span>(object, <span class="at">nsim =</span> <span class="dv">500</span>, <span class="at">seed =</span> <span class="cn">NULL</span>, group,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"posterior-mean"</span>), <span class="at">iter =</span> <span class="dv">1000</span>, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 43%">
@@ -766,16 +925,16 @@ window.Quarto = {
 <li><code>bgmCompare</code>: matrix (<code>nsim x p</code>) for the selected group.</li>
 </ul>
 <p>Discrete columns are returned on the original category scale of the training data (the values supplied to <code>bgm()</code>), not the internal <code>0, 1, ..., m</code> recoding, so the output can be passed straight to <code>predict()</code>. For mixed MRF models, discrete columns contain non-negative integers and continuous columns contain real-valued observations, ordered as in the original data.</p>
-<section id="example-1" class="level3">
-<h3 class="anchored" data-anchor-id="example-1">Example</h3>
+<section id="example-3" class="level3">
+<h3 class="anchored" data-anchor-id="example-3">Example</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit a model</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit a model</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate 100 new observations from the posterior mean network</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>sim_data <span class="ot">=</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">seed =</span> <span class="dv">42</span>)</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sim_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate 100 new observations from the posterior mean network</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>sim_data <span class="ot">=</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">seed =</span> <span class="dv">42</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sim_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>     intrusion dreams flash upset physior avoidth avoidact amnesia lossint
 [1,]         3      3     4     3       5       3        3       4       2
@@ -798,17 +957,17 @@ window.Quarto = {
 <section id="simulate_mrf" class="level2">
 <h2 class="anchored" data-anchor-id="simulate_mrf">simulate_mrf</h2>
 <p>Simulate observations from a Markov Random Field using user-specified parameters (no fitted model needed).</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate_mrf</span>(</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  num_states,</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  num_variables,</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  num_categories,</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  pairwise,</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  main,</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  baseline_category,</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="dv">1000</span>,</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="cn">NULL</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate_mrf</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  num_states,</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  num_variables,</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  num_categories,</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  pairwise,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  main,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type =</span> <span class="st">"ordinal"</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  baseline_category,</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="dv">1000</span>,</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="cn">NULL</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 43%">
@@ -861,27 +1020,27 @@ window.Quarto = {
 </table>
 <p>Returns a (num_states x num_variables) matrix of simulated observations.</p>
 <p>For ordinal and Blume-Capel variables, the Gibbs sampler generates observations from full conditional distributions. For continuous variables, observations are drawn directly from <span class="math inline">\(N(\mu, \Omega^{-1})\)</span>.</p>
-<section id="example-2" class="level3">
-<h3 class="anchored" data-anchor-id="example-2">Example</h3>
+<section id="example-4" class="level3">
+<h3 class="anchored" data-anchor-id="example-4">Example</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate from a 3-variable binary MRF with specified parameters</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>pairwise <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.3</span>,</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>   <span class="fl">0.5</span>,  <span class="fl">0.0</span>,  <span class="fl">0.4</span>,</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span><span class="fl">0.3</span>,  <span class="fl">0.4</span>,  <span class="fl">0.0</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>), <span class="at">nrow =</span> <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="fl">0.0</span>, <span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>), <span class="at">nrow =</span> <span class="dv">3</span>, <span class="at">ncol =</span> <span class="dv">1</span>)</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>sim_data <span class="ot">=</span> <span class="fu">simulate_mrf</span>(</span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a> <span class="at">num_states =</span> <span class="dv">500</span>,</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a> <span class="at">num_variables =</span> <span class="dv">3</span>,</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a> <span class="at">num_categories =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a> <span class="at">pairwise =</span> pairwise,</span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a> <span class="at">main =</span> main,</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a> <span class="at">seed =</span> <span class="dv">123</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sim_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate from a 3-variable binary MRF with specified parameters</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>pairwise <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.3</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>   <span class="fl">0.5</span>,  <span class="fl">0.0</span>,  <span class="fl">0.4</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span><span class="fl">0.3</span>,  <span class="fl">0.4</span>,  <span class="fl">0.0</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>), <span class="at">nrow =</span> <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="fl">0.0</span>, <span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>), <span class="at">nrow =</span> <span class="dv">3</span>, <span class="at">ncol =</span> <span class="dv">1</span>)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>sim_data <span class="ot">=</span> <span class="fu">simulate_mrf</span>(</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a> <span class="at">num_states =</span> <span class="dv">500</span>,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a> <span class="at">num_variables =</span> <span class="dv">3</span>,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a> <span class="at">num_categories =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a> <span class="at">pairwise =</span> pairwise,</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a> <span class="at">main =</span> main,</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a> <span class="at">seed =</span> <span class="dv">123</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(sim_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>     [,1] [,2] [,3]
 [1,]    1    1    0
@@ -892,6 +1051,12 @@ window.Quarto = {
 [6,]    1    0    0</code></pre>
 </div>
 </div>
+</section>
+<section id="deprecated" class="level3">
+<h3 class="anchored" data-anchor-id="deprecated">Deprecated</h3>
+<ul>
+<li><code>mrfSampler()</code> — Renamed to <code>simulate_mrf()</code> in 0.1.6.3. It still works, with the same arguments and return value, and warns once per session.</li>
+</ul>
 </section>
 </section>
 <section id="see-also" class="level2">
@@ -1541,8 +1706,8 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../reference/prior-sensitivity.html" class="pagination-link" aria-label="prior_sensitivity_check()">
-        <span class="nav-page-text">prior_sensitivity_check()</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../reference/checks.html" class="pagination-link" aria-label="Checking Tools">
+        <span class="nav-page-text">Checking Tools</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

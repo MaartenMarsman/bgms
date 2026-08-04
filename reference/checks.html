@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Prior Constructors – bgms</title>
+<title>Checking Tools – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -71,8 +71,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../reference/sample-ggm-prior.html" rel="next">
-<link href="../reference/bgmCompare.html" rel="prev">
+<link href="../reference/prior-sensitivity.html" rel="next">
+<link href="../reference/methods.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -389,7 +389,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/priors.html">Priors</a></li><li class="breadcrumb-item"><a href="../reference/priors.html">Prior Constructors</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/checks.html">Diagnostics</a></li><li class="breadcrumb-item"><a href="../reference/checks.html">Checking Tools</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -432,16 +432,16 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">Priors</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/priors.html" class="sidebar-item-text sidebar-link active">
+  <a href="../reference/priors.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Prior Constructors</span></a>
   </div>
 </li>
@@ -478,16 +478,16 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
  <span class="menu-text">Diagnostics</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/checks.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Checking Tools</span></a>
   </div>
 </li>
@@ -521,9 +521,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/priors.html">Priors</a></li><li class="breadcrumb-item"><a href="../reference/priors.html">Prior Constructors</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/checks.html">Diagnostics</a></li><li class="breadcrumb-item"><a href="../reference/checks.html">Checking Tools</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Prior Constructors</h1>
+<h1 class="title">Checking Tools</h1>
 </div>
 
 
@@ -540,320 +540,372 @@ window.Quarto = {
 </header>
 
 
-<p><code>bgms</code> 0.2.0 replaces the loose scalar prior arguments of earlier versions with a small set of prior-object constructors. Each constructor returns an S3 object that is passed to <a href="../reference/bgm.html"><code>bgm()</code></a> or <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>. Three classes of priors are exported:</p>
+<p>Two post-fit checks on a model you have already estimated. <code>verdicts()</code> reads the edge evidence as a three-way classification and flags the verdicts a longer run could change; <code>calibration_check()</code> asks whether the model’s conditional predictions are any good.</p>
+<p>Neither refits the model. Executed examples on this page use a <a href="../reference/bgm.html"><code>bgm()</code></a> fit of the <a href="../reference/datasets.html#wenchuan">Wenchuan</a> data, run in advance:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan, <span class="at">iter =</span> <span class="fl">1e4</span>, <span class="at">warmup =</span> <span class="fl">5e3</span>, <span class="at">seed =</span> <span class="dv">123</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="verdicts" class="level2">
+<h2 class="anchored" data-anchor-id="verdicts">verdicts</h2>
+<p>Reads each edge (or difference) indicator’s inclusion Bayes factor as a three-way verdict, evidence of presence, undecided, or evidence of absence, and flags the verdicts that a rerun of the sampler could change.</p>
+<section id="usage" class="level3">
+<h3 class="anchored" data-anchor-id="usage">Usage</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(bgms_object, <span class="at">evidence_threshold =</span> <span class="dv">10</span>, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The result has a <code>print()</code> method:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(x, <span class="at">digits =</span> <span class="dv">3</span>, <span class="at">max_rows =</span> <span class="dv">10</span>L, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="arguments" class="level3">
+<h3 class="anchored" data-anchor-id="arguments">Arguments</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
-<th>Class</th>
-<th>Used for</th>
-<th>Constructors</th>
+<th>Argument</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>bgms_parameter_prior</code></td>
-<td>Real-valued model parameters (interactions, thresholds, continuous means)</td>
-<td><a href="#cauchy_prior"><code>cauchy_prior()</code></a>, <a href="#normal_prior"><code>normal_prior()</code></a>, <a href="#beta_prime_prior"><code>beta_prime_prior()</code></a></td>
+<td><code>bgms_object</code></td>
+<td>A fitted <code>bgms</code> object from <a href="../reference/bgm.html"><code>bgm()</code></a> with <code>edge_selection = TRUE</code>, or a <code>bgmCompare</code> object from <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> with <code>difference_selection = TRUE</code>. Without selection there is no indicator and no inclusion Bayes factor to read, and the call is an error.</td>
 </tr>
 <tr class="even">
-<td><code>bgms_scale_prior</code></td>
-<td>Positive scale parameters (precision-matrix diagonal)</td>
-<td><a href="#gamma_prior"><code>gamma_prior()</code></a>, <a href="#exponential_prior"><code>exponential_prior()</code></a></td>
+<td><code>evidence_threshold</code></td>
+<td>Numeric greater than 1. The inclusion Bayes factor above which an edge is called present; its reciprocal is the threshold below which an edge is called absent. Default: <code>10</code>.</td>
 </tr>
 <tr class="odd">
-<td><code>bgms_indicator_prior</code></td>
-<td>Inclusion indicators (edge selection, difference selection)</td>
-<td><a href="#bernoulli_prior"><code>bernoulli_prior()</code></a>, <a href="#beta_bernoulli_prior"><code>beta_bernoulli_prior()</code></a>, <a href="#sbm_prior"><code>sbm_prior()</code></a></td>
+<td><code>...</code></td>
+<td>Passed to methods.</td>
+</tr>
+<tr class="even">
+<td><code>x</code></td>
+<td>A <code>bgms_verdicts</code> object (<code>print()</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>digits</code></td>
+<td>Integer. Digits in the printed table. Default: <code>3</code>.</td>
+</tr>
+<tr class="even">
+<td><code>max_rows</code></td>
+<td>Integer. Maximum rows printed; the rest are counted. Default: <code>10</code>.</td>
 </tr>
 </tbody>
 </table>
-<p>The legacy scalar arguments (<code>pairwise_scale</code>, <code>main_alpha</code>, <code>main_beta</code>, <code>inclusion_probability</code>, <code>beta_bernoulli_alpha/beta</code>, <code>beta_bernoulli_alpha_between/beta_between</code>, <code>dirichlet_alpha</code>, <code>lambda</code>, <code>difference_probability</code>) still work but emit a lifecycle warning and forward to the equivalent prior object.</p>
-<section id="parameter-priors" class="level2">
-<h2 class="anchored" data-anchor-id="parameter-priors">Parameter priors</h2>
-<p>Priors on real-valued parameters. Used for <code>interaction_prior</code>, <code>threshold_prior</code>, and <code>means_prior</code> arguments of <code>bgm()</code> / <code>bgmCompare()</code>.</p>
-<section id="cauchy_prior" class="level3">
-<h3 class="anchored" data-anchor-id="cauchy_prior"><code>cauchy_prior()</code></h3>
-<p>Cauchy(0, scale) prior. Produces heavy-tailed shrinkage toward zero. It is the opt-in alternative for pairwise interactions in both <code>bgm()</code> and <code>bgmCompare()</code>, whose shared default is <a href="#normal_prior"><code>normal_prior(scale = 1)</code></a>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cauchy_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="value" class="level3">
+<h3 class="anchored" data-anchor-id="value">Value</h3>
+<p>A data frame of class <code>"bgms_verdicts"</code>, one row per indicator, in the order of the fit’s raw indicator draws. <code>print()</code> returns <code>x</code> invisibly.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>parameter</code></td>
+<td>Indicator name, as in <code>summary(fit)$indicator</code>.</td>
+</tr>
+<tr class="even">
+<td><code>pip</code></td>
+<td>Rao-Blackwellized posterior inclusion probability.</td>
+</tr>
+<tr class="odd">
+<td><code>bf</code>, <code>log_bf</code></td>
+<td>Inclusion Bayes factor and its natural logarithm, from <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a>. <code>log_bf</code> stays finite where <code>bf</code> saturates at <code>0</code> or <code>Inf</code>.</td>
+</tr>
+<tr class="even">
+<td><code>verdict</code></td>
+<td>Factor with levels <code>"presence"</code>, <code>"undecided"</code>, <code>"absence"</code>, and <code>NA</code> for indicators that were never updated (main-effect differences under <code>main_difference_selection = FALSE</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>se_two_state</code>, <code>se_rb</code></td>
+<td>Standard errors of the logit inclusion probability, from the Jeffreys-smoothed two-state model of the indicator chain and from the Rao-Blackwellized draws. <code>se_rb</code> is <code>NA</code> where the Rao-Blackwellized draws are constant to double precision.</td>
+</tr>
+<tr class="even">
+<td><code>distance_two_state</code>, <code>distance_rb</code></td>
+<td>Distance from <code>log_bf</code> to the nearer verdict boundary, in units of each standard error.</td>
+</tr>
+<tr class="odd">
+<td><code>fragile</code></td>
+<td><code>TRUE</code> when either distance is below 2.</td>
+</tr>
+</tbody>
+</table>
+<p>The evidence threshold is attached as the <code>evidence_threshold</code> attribute, and whether the fragility flag’s operating point covers this kind of indicator as <code>flag_validated</code>. A <code>bgmCompare</code> fit additionally carries <code>difference_fit</code>, and, under <code>main_difference_selection = FALSE</code>, <code>unselected_main</code>, marking the main-effect rows the print leaves out of its counts.</p>
+</section>
+<section id="details" class="level3">
+<h3 class="anchored" data-anchor-id="details">Details</h3>
+<p><strong>What “fragile” means.</strong> An edge is fragile when a verdict boundary lies within two standard errors of its estimated evidence, close enough that the reported verdict could rest on Monte Carlo noise rather than on the data. A fragile verdict is not a wrong verdict; it is a verdict the run is too short to settle, and the remedy is more sampling iterations.</p>
+<p>Two kinds of standard error enter that rule, because neither catches every error on its own. The two-state standard error models the binary indicator chain as a first-order two-state Markov chain with Jeffreys-smoothed transition rates, which keeps it defined when the indicator never flips. The Rao-Blackwellized standard error is the Monte Carlo standard error of the one-step inclusion draws, carried to the logit scale by the delta method. The flag fires when either one places a boundary within two standard errors.</p>
+<p>The operating point behind that rule comes from a calibration study that graded 37,010 edge verdicts against known truth, across ordinal, binary, and Gaussian graphical models. Every one of the 66 verdict errors in that study sat within 0.58 of a threshold on the natural log Bayes factor scale. Taken alone the two-state error caught 74% of them and the Rao-Blackwellized error 94%; flagging on either caught all 66, at the cost of also flagging 3.0% of correct verdicts. That performance carried across the three model types, so the flag applies to Gaussian graphical models as it does to ordinal and binary ones.</p>
+<p>Every fit in that study was of a single network, so the operating point covers the edge indicators of <a href="../reference/bgm.html"><code>bgm()</code></a>. On the difference indicators of <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> the flag still marks verdicts sitting near a boundary, but no study has measured what share of difference-verdict errors it catches or how many correct verdicts it flags along the way. The print method says so, and the returned object carries <code>flag_validated = FALSE</code>.</p>
+<p>The threshold is a reporting convention, not a property of the data. Moving it moves the boundaries, and with them which edges sit close enough to one to be fragile. For whether a verdict depends on the <em>prior</em> rather than on the run length, see <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a>.</p>
+</section>
+<section id="examples" class="level3">
+<h3 class="anchored" data-anchor-id="examples">Examples</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">verdicts</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Edge verdicts at an inclusion Bayes factor of 10 (and 0.1 for absence):
+presence: log BF &gt; 2.30; absence: log BF &lt; -2.30
+
+  presence 35 | undecided 39 | absence 62   (136 indicators)
+
+          parameter   pip  log_bf   verdict fragile
+   intrusion-dreams 1.000 274.759  presence   FALSE
+    intrusion-flash 1.000  12.112  presence   FALSE
+    intrusion-upset 0.664   0.681 undecided   FALSE
+  intrusion-physior 0.217  -1.284 undecided   FALSE
+  intrusion-avoidth 0.034  -3.355   absence   FALSE
+ intrusion-avoidact 0.029  -3.494   absence   FALSE
+  intrusion-amnesia 0.038  -3.243   absence   FALSE
+  intrusion-lossint 0.044  -3.077   absence   FALSE
+  intrusion-distant 0.031  -3.452   absence   FALSE
+     intrusion-numb 0.058  -2.784   absence   FALSE
+... (126 more rows)
+
+7 verdicts are Monte-Carlo fragile: a verdict boundary lies within two standard
+errors of the evidence, so the verdict could change on a rerun. Consider a
+longer run.</code></pre>
+</div>
+</div>
+<p>The counts are the headline. The <code>log_bf</code> column is the natural logarithm of the Bayes factor, and the thresholds reappear on it as <span class="math inline">\(\pm\log 10 \approx \pm 2.30\)</span>.</p>
+<p>The fragile rows, with their distance to the nearer boundary in units of each standard error:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>v <span class="ot">=</span> <span class="fu">verdicts</span>(fit)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>v[v<span class="sc">$</span>fragile, <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"pip"</span>, <span class="st">"log_bf"</span>, <span class="st">"verdict"</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>               <span class="st">"distance_two_state"</span>, <span class="st">"distance_rb"</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           parameter        pip    log_bf   verdict distance_two_state
+16 intrusion-startle 0.08836410 -2.333775   absence          0.8201162
+25       dreams-numb 0.09445232 -2.260445 undecided          1.3005676
+45     flash-startle 0.92280820  2.481128  presence          1.9028972
+48    upset-avoidact 0.08715306 -2.348902   absence          1.2239718
+79    avoidth-concen 0.08558879 -2.368726   absence          1.7876387
+80     avoidth-hyper 0.09438922 -2.261183 undecided          1.0420824
+91  avoidact-startle 0.08889276 -2.327230   absence          0.6432962
+   distance_rb
+16   0.7758760
+25   1.4541477
+45   1.7375245
+48   1.2352697
+79   1.9213931
+80   0.8580714
+91   0.5926128</code></pre>
+</div>
+</div>
+<p>A stricter reading of the evidence moves the boundaries:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">verdicts</span>(fit, <span class="at">evidence_threshold =</span> <span class="dv">30</span>)<span class="sc">$</span>verdict)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ presence undecided   absence 
+       29        83        24 </code></pre>
+</div>
+</div>
+<p>For the same table read as a worked analysis, see <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>.</p>
+</section>
+</section>
+<section id="calibration_check" class="level2">
+<h2 class="anchored" data-anchor-id="calibration_check">calibration_check</h2>
+<p>Reliability diagrams of the model’s conditional predictions, one per variable, with the consistency band a calibrated model would wander inside.</p>
+<section id="usage-1" class="level3">
+<h3 class="anchored" data-anchor-id="usage-1">Usage</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">calibration_check</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  bgms_object,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">nrep =</span> <span class="dv">200</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">grid_size =</span> <span class="dv">101</span>,</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">ndraws =</span> <span class="dv">500</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  ...</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>bgmCompare</code> method takes one further argument:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">calibration_check</span>(bgms_object, ..., <span class="at">group =</span> <span class="cn">NULL</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The result has <code>print()</code> and <code>plot()</code> methods:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(x, <span class="at">digits =</span> <span class="dv">3</span>, <span class="at">max_rows =</span> <span class="dv">10</span>L, ...)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x, <span class="at">variables =</span> <span class="cn">NULL</span>, <span class="at">max_panels =</span> <span class="dv">9</span>L, <span class="at">page =</span> <span class="dv">1</span>L, ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="arguments-1" class="level3">
+<h3 class="anchored" data-anchor-id="arguments-1">Arguments</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>bgms_object</code></td>
+<td>A fitted <code>bgms</code> object from <a href="../reference/bgm.html"><code>bgm()</code></a> or <code>bgmCompare</code> object from <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>. Edge selection is not required.</td>
+</tr>
+<tr class="even">
+<td><code>newdata</code></td>
+<td>Optional data to evaluate the predictions on, in the layout the fitting function was given. Defaults to the data the model was fitted to. For a <code>bgmCompare</code> fit the rows must be the fitted cases in the order the data were given, because each case’s group is read from the fit.</td>
+</tr>
+<tr class="odd">
+<td><code>nrep</code></td>
+<td>Number of resampled datasets behind the consistency band. Default: <code>200</code>.</td>
+</tr>
+<tr class="even">
+<td><code>probs</code></td>
+<td>Numeric of length two; the band’s quantiles. Default: <code>c(0.025, 0.975)</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>grid_size</code></td>
+<td>Number of points the curves are read off on. Default: <code>101</code>.</td>
+</tr>
+<tr class="even">
+<td><code>seed</code></td>
+<td>Optional integer seed for the band resampling. Pass one to make the check reproducible; the band is resampled, so an unseeded rerun gives slightly different numbers.</td>
+</tr>
+<tr class="odd">
+<td><code>ndraws</code></td>
+<td>Posterior draws in the predictive mixture behind a continuous variable’s panel. Ignored when every variable is discrete, and reported back as <code>NA</code> in that case. Default: <code>500</code>.</td>
+</tr>
+<tr class="even">
+<td><code>group</code></td>
+<td><code>bgmCompare</code> only. Which groups to check. Default <code>NULL</code>, meaning all of them.</td>
+</tr>
+<tr class="odd">
+<td><code>...</code></td>
+<td>Passed to methods.</td>
+</tr>
+<tr class="even">
+<td><code>x</code></td>
+<td>A <code>bgms_calibration</code> object (<code>print()</code> and <code>plot()</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>digits</code>, <code>max_rows</code></td>
+<td><code>print()</code>: digits in the table, and how many variables to name before the rest are counted. Defaults <code>3</code> and <code>10</code>.</td>
+</tr>
+<tr class="even">
+<td><code>variables</code></td>
+<td><code>plot()</code>: optional character vector selecting which variables to draw. Defaults to all, worst departure first.</td>
+</tr>
+<tr class="odd">
+<td><code>max_panels</code></td>
+<td><code>plot()</code>: how many panels are drawn at once; a fit with more variables is drawn a page at a time. Default: <code>9</code>.</td>
+</tr>
+<tr class="even">
+<td><code>page</code></td>
+<td><code>plot()</code>: which page of <code>max_panels</code> panels to draw. Default: <code>1</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="value-1" class="level3">
+<h3 class="anchored" data-anchor-id="value-1">Value</h3>
+<p>An object of class <code>"bgms_calibration"</code>, a list with:</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
+<col style="width: 52%">
+<col style="width: 47%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Argument</th>
-<th>Description</th>
+<th>Component</th>
+<th>Contents</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>scale</code></td>
-<td>Positive numeric. Scale (half-width at half-maximum) of the Cauchy distribution. Default: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_parameter_prior</code> object with <code>family = "cauchy"</code>.</p>
-</section>
-<section id="normal_prior" class="level3">
-<h3 class="anchored" data-anchor-id="normal_prior"><code>normal_prior()</code></h3>
-<p>Normal(0, scale) prior. Lighter-tailed than Cauchy, and the default for pairwise interactions in both <code>bgm()</code> and <code>bgmCompare()</code>, which also takes it as the default slab family for group differences. The lighter tails also make it the better choice for simulation studies, where a Cauchy prior can generate data with extreme parameter values.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">normal_prior</span>(<span class="at">scale =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>scale</code></td>
-<td>Positive numeric. Standard deviation of the Normal distribution. Default: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_parameter_prior</code> object with <code>family = "normal"</code>.</p>
-</section>
-<section id="beta_prime_prior" class="level3">
-<h3 class="anchored" data-anchor-id="beta_prime_prior"><code>beta_prime_prior()</code></h3>
-<p>Beta-prime prior, the default for threshold parameters. A threshold <span class="math inline">\(\mu\)</span> has this prior when its logistic transform follows a Beta distribution: <span class="math inline">\(\mu = \text{logit}(Y)\)</span> with <span class="math inline">\(Y \sim \text{Beta}(\alpha, \beta)\)</span>. The name comes from the equivalent formulation <span class="math inline">\(e^{\mu} = Y/(1-Y) \sim \text{Beta-prime}(\alpha, \beta)\)</span>. The shape parameters control where prior mass sits: <span class="math inline">\(\alpha\)</span> governs the upper tail (large thresholds) and <span class="math inline">\(\beta\)</span> the lower tail; the default <span class="math inline">\(\alpha = \beta = 0.5\)</span> gives a heavy-tailed prior symmetric around <span class="math inline">\(\mu = 0\)</span>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">beta_prime_prior</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">beta =</span> <span class="fl">0.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>alpha</code></td>
-<td>Positive numeric. First shape parameter. Default: <code>0.5</code>.</td>
+<td><code>curves</code></td>
+<td>Data frame with one row per variable and grid point: <code>variable</code>, the panel <code>kind</code> (<code>"pav"</code> or <code>"pit"</code>), <code>grid</code>, the fitted <code>curve</code>, and the band bounds <code>lower</code> and <code>upper</code>.</td>
 </tr>
 <tr class="even">
-<td><code>beta</code></td>
-<td>Positive numeric. Second shape parameter. Default: <code>0.5</code>.</td>
+<td><code>summary</code></td>
+<td>One row per variable, worst first: <code>variable</code>, <code>kind</code>, <code>mean_dev</code> and <code>max_dev</code>, the mean and maximum absolute distance of the curve from the diagonal, and <code>share_outside_band</code>, the proportion of grid points at which the curve lies outside its band.</td>
+</tr>
+<tr class="odd">
+<td><code>nrep</code>, <code>probs</code>, <code>grid</code>, <code>ndraws</code></td>
+<td>The settings the check ran under.</td>
 </tr>
 </tbody>
 </table>
-<p>Returns a <code>bgms_parameter_prior</code> object with <code>family = "beta-prime"</code>.</p>
+<p>For a <code>bgmCompare()</code> fit both tables carry an extra <code>group</code> column and the object a <code>groups</code> element. <code>print()</code> and <code>plot()</code> return <code>x</code> invisibly.</p>
 </section>
+<section id="details-1" class="level3">
+<h3 class="anchored" data-anchor-id="details-1">Details</h3>
+<p><strong>Discrete variables</strong> are checked against the categories they fall in. For every case and every category threshold the model issues a cumulative probability and the data record the outcome; isotonic regression (pool-adjacent-violators) estimates the observed frequency as a monotone function of the predicted one, and a calibrated variable tracks the diagonal. The band resamples each case’s <em>category</em> from its own predicted distribution and refits the curve. It has to be built that way: the cumulative threshold events of one case are nested, so resampling the events independently would understate the band and make ordinary sampling variation look like miscalibration. The predictions are the posterior-mean ones.</p>
+<p><strong>Continuous variables</strong> have a density rather than a distribution over categories, and are checked through the probability integral transform <span class="math inline">\(u_{ij} = F_j(y_{ij} \mid y_{i,-j})\)</span>. The panel is the empirical distribution function of the <span class="math inline">\(u\)</span>’s against the uniform diagonal. <span class="math inline">\(F_j\)</span> is the predictive mixture over <code>ndraws</code> posterior draws, so parameter uncertainty sits inside the distribution the observation is transformed by. The two panel kinds therefore differ in what they condition on: the isotonic one on posterior-mean probabilities, this one on the full predictive distribution. The band is the simultaneous envelope of the empirical distribution functions of <span class="math inline">\(n\)</span> independent uniforms, and is not resampled from the model because it does not have to be. Whatever the conditional density was, a value drawn from it transforms to an exact <span class="math inline">\(\text{Uniform}(0, 1)\)</span>, so the null is known and one band serves every continuous variable in the fit.</p>
+<p>Both panels live on the unit square with the diagonal as the calibrated reference, so a mixed fit produces one figure and one summary table, with the <code>kind</code> column recording which construction produced each row.</p>
+<p><strong>Group comparisons.</strong> On a <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> fit the check runs per group: a group’s cases are the ones its own parameters predict, so pooling them would let a variable predicted too high in one group cancel against the other, exactly as pooling variables would. Every variable is discrete there, so every panel is isotonic, and <code>ndraws</code> has no effect.</p>
+<p><strong>In-sample and out-of-sample.</strong> Evaluated on the fitted data the check is in-sample, and the band is the reference a model that is calibrated by construction produces on the same data. In-sample, each observation has also helped estimate the parameters it is judged against, which pulls the predictions slightly toward the data and makes the check conservative. Supplying held-out <code>newdata</code> removes that advantage and makes the check strictly harder to pass.</p>
+<p><strong>What a pass does not buy you.</strong> Calibrated conditional predictions do not imply that the model reproduces the joint distribution: a model can predict each variable well from the others and still understate how strongly they depend on one another. That second question is answered by a display built on <a href="../reference/methods.html#simulate"><code>simulate()</code></a>, not by this check.</p>
 </section>
-<section id="scale-priors" class="level2">
-<h2 class="anchored" data-anchor-id="scale-priors">Scale priors</h2>
-<p>Priors on positive scale parameters, currently used only for the diagonal of the precision matrix in GGM and mixed MRF models (<code>precision_scale_prior</code> argument of <code>bgm()</code>).</p>
-<p>Both constructors accept the rate in one of two frames — supply one of the two arguments, not both:</p>
-<ul>
-<li><strong><code>rate</code></strong> (raw frame): the prior applies to the precision diagonal as-is.</li>
-<li><strong><code>eta</code></strong> (standardized frame): the rate on the diagonal in the coordinate system where the pairwise (slab) prior has unit scale. <code>eta</code> fixes the scale of the diagonal <em>relative to the slab</em>, and the raw rate is derived at fit time as <code>eta / s</code>, where <code>s</code> is the scale of the <code>interaction_prior</code>. At fixed <code>eta</code>, graph and partial-correlation inference is invariant to the slab scale, so the standardized frame keeps the prior geometry fixed when the slab scale changes. It requires an interaction prior with a scale parameter (<code>normal_prior()</code> or <code>cauchy_prior()</code>).</li>
-</ul>
-<p>With neither argument supplied, the default is the standardized frame with <code>eta = 1</code>. Small <code>eta</code> places the prior mass well inside the positive-definite cone; large <code>eta</code> places mass near the cone boundary.</p>
-<section id="gamma_prior" class="level3">
-<h3 class="anchored" data-anchor-id="gamma_prior"><code>gamma_prior()</code></h3>
-<p>Gamma(shape, rate) prior. <code>gamma_prior(shape = 1)</code> is equivalent to <code>exponential_prior()</code> with the same rate argument.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gamma_prior</span>(<span class="at">shape =</span> <span class="dv">1</span>, <span class="at">rate =</span> <span class="cn">NULL</span>, <span class="at">eta =</span> <span class="cn">NULL</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>shape</code></td>
-<td>Positive numeric. Shape parameter of the Gamma distribution. Default: <code>1</code>.</td>
-</tr>
-<tr class="even">
-<td><code>rate</code></td>
-<td>Positive numeric. Rate parameter in the raw frame. Mutually exclusive with <code>eta</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>eta</code></td>
-<td>Positive numeric. Rate parameter in the standardized frame (unit slab scale). Mutually exclusive with <code>rate</code>. Default when neither is supplied: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_scale_prior</code> object with <code>family = "gamma"</code>.</p>
+<section id="examples-1" class="level3">
+<h3 class="anchored" data-anchor-id="examples-1">Examples</h3>
+<p>The check reads the existing draws and never refits, so it costs seconds rather than another fit:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>check <span class="ot">=</span> <span class="fu">calibration_check</span>(fit, <span class="at">seed =</span> <span class="dv">123</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>check</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Calibration of the conditional predictions, 95% consistency band from 200 resamples:
+
+  variable kind mean_dev max_dev share_outside_band
+   avoidth  pav    0.073   0.208              0.287
+  avoidact  pav    0.064   0.193              0.287
+    dreams  pav    0.049   0.183              0.139
+    concen  pav    0.060   0.181              0.277
+   startle  pav    0.045   0.167              0.129
+     anger  pav    0.052   0.164              0.168
+ intrusion  pav    0.056   0.159              0.109
+     flash  pav    0.046   0.146              0.089
+   lossint  pav    0.039   0.140              0.089
+      numb  pav    0.042   0.130              0.069
+... (7 more variables)
+
+A calibrated variable tracks the diagonal and stays inside its band; 
+'share_outside_band' is the proportion of the curve that does not, on a 
+0 to 1 scale (0.3 is 30% of the curve, not 0.3%).</code></pre>
+</div>
+</div>
+<p><code>share_outside_band</code> is a proportion on a 0 to 1 scale, so <code>0.3</code> means that 30% of the curve lies outside its band. Read the table as a ranking of where to look first, not as a test with a pass mark: the band is a consistency reference for a model calibrated by construction, and even a well-calibrated variable crosses it here and there.</p>
+<p><code>plot()</code> draws the reliability diagrams, worst departure first:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(check)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Showing page 1 of 2 (17 variables, worst departure first). Draw the rest with page = 2, or select panels with variables = .</code></pre>
+</div>
+<div class="cell-output-display">
+<div id="fig-calibration" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="checks_files/figure-html/fig-calibration-1.png" class="img-fluid figure-img" width="864">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Reliability diagrams for the nine worst-calibrated Wenchuan variables. The step curve is the isotonic fit of observed frequency on predicted probability, the shaded band its consistency band, and the diagonal what a calibrated variable tracks.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>One variable at a time, by name:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(check, <span class="at">variables =</span> <span class="st">"intrusion"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-calibration-one" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-calibration-one-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="checks_files/figure-html/fig-calibration-one-1.png" class="img-fluid figure-img" width="480">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-calibration-one-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: The <code>intrusion</code> panel on its own.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
-<section id="exponential_prior" class="level3">
-<h3 class="anchored" data-anchor-id="exponential_prior"><code>exponential_prior()</code></h3>
-<p>Exponential prior. Convenience constructor equivalent to <code>gamma_prior(shape = 1)</code> with the same rate argument. The default <code>precision_scale_prior</code> in <code>bgm()</code> is <code>exponential_prior(eta = 1)</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">exponential_prior</span>(<span class="at">rate =</span> <span class="cn">NULL</span>, <span class="at">eta =</span> <span class="cn">NULL</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>rate</code></td>
-<td>Positive numeric. Rate parameter in the raw frame. Mutually exclusive with <code>eta</code>.</td>
-</tr>
-<tr class="even">
-<td><code>eta</code></td>
-<td>Positive numeric. Rate parameter in the standardized frame (unit slab scale). Mutually exclusive with <code>rate</code>. Default when neither is supplied: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_scale_prior</code> object with <code>family = "exponential"</code>.</p>
-</section>
-</section>
-<section id="indicator-priors" class="level2">
-<h2 class="anchored" data-anchor-id="indicator-priors">Indicator priors</h2>
-<p>Priors on inclusion indicators. Used for the <code>edge_prior</code> argument of <code>bgm()</code> and the <code>difference_prior</code> argument of <code>bgmCompare()</code>.</p>
-<section id="bernoulli_prior" class="level3">
-<h3 class="anchored" data-anchor-id="bernoulli_prior"><code>bernoulli_prior()</code></h3>
-<p>Fixed inclusion probability for each indicator. The simplest indicator prior; the inclusion probability does not change during sampling.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bernoulli_prior</span>(<span class="at">inclusion_probability =</span> <span class="fl">0.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>inclusion_probability</code></td>
-<td>Numeric scalar in <span class="math inline">\((0, 1)\)</span>, or a symmetric <span class="math inline">\(p \times p\)</span> matrix for edge-specific probabilities. Default: <code>0.5</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_indicator_prior</code> object with <code>family = "Bernoulli"</code>.</p>
-</section>
-<section id="beta_bernoulli_prior" class="level3">
-<h3 class="anchored" data-anchor-id="beta_bernoulli_prior"><code>beta_bernoulli_prior()</code></h3>
-<p>Beta-Bernoulli prior on inclusion. The shared inclusion probability is drawn from a Beta(<span class="math inline">\(\alpha\)</span>, <span class="math inline">\(\beta\)</span>) prior and learned from the data.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">beta_bernoulli_prior</span>(<span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">beta =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>alpha</code></td>
-<td>Positive numeric. First shape parameter of the Beta distribution. Default: <code>1</code>.</td>
-</tr>
-<tr class="even">
-<td><code>beta</code></td>
-<td>Positive numeric. Second shape parameter of the Beta distribution. Default: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_indicator_prior</code> object with <code>family = "Beta-Bernoulli"</code>.</p>
-</section>
-<section id="sbm_prior" class="level3">
-<h3 class="anchored" data-anchor-id="sbm_prior"><code>sbm_prior()</code></h3>
-<p>Stochastic Block Model prior. Variables are assigned to latent clusters, with separate Beta priors on within-cluster and between-cluster inclusion probabilities. See <a href="../guide/clustering.html">Edge Clustering</a> and <a href="../manual/sbm-prior.html">SBM Prior</a> for the full formulation.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sbm_prior</span>(</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha           =</span> <span class="dv">1</span>,</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta            =</span> <span class="dv">1</span>,</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha_between   =</span> <span class="dv">1</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_between    =</span> <span class="dv">1</span>,</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">dirichlet_alpha =</span> <span class="dv">1</span>,</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda          =</span> <span class="dv">1</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 43%">
-<col style="width: 56%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Argument</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>alpha</code>, <code>beta</code></td>
-<td>Positive numeric. Shape parameters of the Beta prior for within-cluster edge inclusion. Defaults: <code>1</code>.</td>
-</tr>
-<tr class="even">
-<td><code>alpha_between</code>, <code>beta_between</code></td>
-<td>Positive numeric. Shape parameters of the Beta prior for between-cluster edge inclusion. Defaults: <code>1</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>dirichlet_alpha</code></td>
-<td>Positive numeric. Concentration parameter of the Dirichlet prior on cluster assignments. Default: <code>1</code>.</td>
-</tr>
-<tr class="even">
-<td><code>lambda</code></td>
-<td>Positive numeric. Rate parameter of the shifted-Poisson prior on the number of clusters <span class="math inline">\(B\)</span>, under which <span class="math inline">\(B - 1 \sim \text{Poisson}(\lambda)\)</span>, so that the prior expectation is <span class="math inline">\(1 + \lambda\)</span> clusters. Default: <code>1</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Returns a <code>bgms_indicator_prior</code> object with <code>family = "Stochastic-Block"</code>.</p>
-</section>
-</section>
-<section id="examples" class="level2">
-<h2 class="anchored" data-anchor-id="examples">Examples</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># bgm with explicit prior choices</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  x,</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">interaction_prior =</span> <span class="fu">cauchy_prior</span>(<span class="at">scale =</span> <span class="fl">2.5</span>),</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">threshold_prior   =</span> <span class="fu">beta_prime_prior</span>(<span class="fl">0.5</span>, <span class="fl">0.5</span>),</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">edge_prior        =</span> <span class="fu">beta_bernoulli_prior</span>(<span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Mixed MRF with normal priors on continuous means and the precision diagonal</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  x,</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type         =</span> <span class="fu">c</span>(<span class="st">"ordinal"</span>, <span class="st">"ordinal"</span>, <span class="st">"continuous"</span>, <span class="st">"continuous"</span>),</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">means_prior           =</span> <span class="fu">normal_prior</span>(<span class="at">scale =</span> <span class="fl">0.5</span>),</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">precision_scale_prior =</span> <span class="fu">exponential_prior</span>(<span class="at">rate =</span> <span class="dv">1</span>)  <span class="co"># raw frame</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co"># GGM with a wider slab; eta keeps the prior geometry fixed relative to it</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  x,</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">variable_type         =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">interaction_prior     =</span> <span class="fu">normal_prior</span>(<span class="at">scale =</span> <span class="fl">2.5</span>),</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">precision_scale_prior =</span> <span class="fu">exponential_prior</span>(<span class="at">eta =</span> <span class="dv">1</span>)  <span class="co"># standardized frame</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co"># SBM-structured edge selection</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(</span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  x,</span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">edge_prior =</span> <span class="fu">sbm_prior</span>(<span class="at">alpha =</span> <span class="dv">8</span>, <span class="at">beta =</span> <span class="dv">1</span>, <span class="at">alpha_between =</span> <span class="dv">1</span>, <span class="at">beta_between =</span> <span class="dv">8</span>)</span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Group comparison with Beta-Bernoulli difference selection</span></span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgmCompare</span>(</span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>  x, y,</span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">difference_prior =</span> <span class="fu">beta_bernoulli_prior</span>(<span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../reference/bgm.html"><code>bgm()</code></a>, <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>, <a href="../reference/sample-ggm-prior.html"><code>sample_ggm_prior()</code></a>, <a href="../reference/prior-samplers.html">Prior Samplers</a> (draw from <code>sbm_prior()</code> / edge priors before seeing data), <a href="../guide/prior-basics.html">Prior Basics</a>, <a href="../guide/edge-selection.html">Edge Selection</a>, <a href="../guide/clustering.html">Edge Clustering</a>.</p>
+<p><a href="../reference/bgm.html"><code>bgm()</code></a>, <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>, <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a>, <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a>, <a href="../reference/methods.html#plot"><code>plot()</code></a> for the network the verdicts encode, <a href="../guide/edge-selection.html">Edge Selection</a>, and <a href="../examples/estimation-to-evidence.html">From estimation to evidence</a>.</p>
 
 
 </section>
@@ -1493,13 +1545,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../reference/bgmCompare.html" class="pagination-link" aria-label="bgmCompare()">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">bgmCompare()</span>
+      <a href="../reference/methods.html" class="pagination-link" aria-label="Methods">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Methods</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../reference/sample-ggm-prior.html" class="pagination-link" aria-label="sample_ggm_prior()">
-        <span class="nav-page-text">sample_ggm_prior()</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../reference/prior-sensitivity.html" class="pagination-link" aria-label="prior_sensitivity_check()">
+        <span class="nav-page-text">prior_sensitivity_check()</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1511,7 +1563,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </div>   
     <div class="nav-footer-center">
 <p>Built with <a href="https://quarto.org">Quarto</a></p>
-<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/reference/priors.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+<div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/reference/checks.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
