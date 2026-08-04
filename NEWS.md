@@ -34,6 +34,13 @@ released from this line yet.
   difference rows separately, which is a different cause with a different
   reading.
 
+* The advice printed for a flagged trust-gauge chain leads with the decision the
+  flag poses: accept the approximation, or refit with
+  `precision_graph_prior = "joint"`, which avoids the approximation but targets a
+  different model. Raising `options(bgms.zratio_gauge_sweeps)` and refitting
+  follows it, as the measurement that says whether the flag is noise rather than
+  as the first thing to try. `vignette("diagnostics")` gives the same order.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits
