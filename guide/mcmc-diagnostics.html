@@ -579,6 +579,96 @@ window.Quarto = {
 
 <p>Before interpreting results from <a href="../reference/bgm.html"><code>bgm()</code></a> or <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a>, check that the MCMC sampler has converged and that posterior estimates are reliable. This chapter describes how to do so with the diagnostic tools in <code>bgms</code>. For background on MCMC convergence diagnostics and choosing the number of iterations, chains, and warmup length, see <span class="citation" data-cites="MargossianGelman_2024">Margossian &amp; Gelman (<a href="#ref-MargossianGelman_2024" role="doc-biblioref">2024</a>)</span>.</p>
 <p>ESS estimates match <code>coda::effectiveSize</code> <span class="citation" data-cites="PlummerEtAl_2006_coda">(<a href="#ref-PlummerEtAl_2006_coda" role="doc-biblioref">Plummer et al., 2006</a>)</span> and R-hat is the split-R-hat of <span class="citation" data-cites="VehtariEtAl_2021">Vehtari et al. (<a href="#ref-VehtariEtAl_2021" role="doc-biblioref">2021</a>)</span>: each chain is cut in half and the halves are compared as if they were separate chains. For how both are computed, see the <a href="../manual/diagnostics.html">Technical Manual</a>.</p>
+<section id="sec-symptom-index" class="level2">
+<h2 class="anchored" data-anchor-id="sec-symptom-index">Symptom index</h2>
+<p>Find your symptom, do the one thing in the middle column, then read the linked section for why it is the right thing to do.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>First thing to do</th>
+<th>Where it is explained</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Rhat</code> above 1.01</td>
+<td>Run longer: raise <code>warmup</code> first, then <code>iter</code>, and keep at least two chains.</td>
+<td><a href="#sec-rhat">R-hat</a></td>
+</tr>
+<tr class="even">
+<td><code>n_eff</code> below 100</td>
+<td>Raise <code>iter</code>; precision grows with the number of retained draws.</td>
+<td><a href="#sec-ess">Effective sample size</a></td>
+</tr>
+<tr class="odd">
+<td><code>mcse</code> large next to <code>sd</code></td>
+<td>Raise <code>iter</code>; quadrupling the effective sample size halves the MCSE.</td>
+<td><a href="#sec-mcse">Monte Carlo standard error</a></td>
+</tr>
+<tr class="even">
+<td>Blank <code>mcse</code>, <code>n_eff</code>, or <code>Rhat</code> cells in the summary</td>
+<td>Usually nothing to fix: the cells are <code>NA</code> because the inclusion draw is pinned; confirm the chain still moved in the transition counts (<code>n0-&gt;1</code>, <code>n1-&gt;0</code>).</td>
+<td><a href="../guide/mcmc-output.html#sec-pinned-indicators">Model Output</a></td>
+</tr>
+<tr class="odd">
+<td>Divergences reported</td>
+<td>Raise <code>target_accept</code> above its default of 0.80; if that does not help, refit with <code>update_method = "adaptive-metropolis"</code>.</td>
+<td><a href="#sec-divergences">Divergent transitions</a></td>
+</tr>
+<tr class="even">
+<td>The sampler hit the maximum tree depth</td>
+<td>Raise <code>nuts_max_depth</code>; occasional hits are normal.</td>
+<td><a href="#sec-tree-depth">Tree depth</a></td>
+</tr>
+<tr class="odd">
+<td>E-BFMI below 0.3</td>
+<td>Check ESS and R-hat; if they flag too, raise <code>warmup</code>.</td>
+<td><a href="#sec-ebfmi">E-BFMI</a></td>
+</tr>
+<tr class="even">
+<td>Mean acceptance well below <code>target_accept</code></td>
+<td>Raise <code>warmup</code>; the step-size tuning did not converge.</td>
+<td><a href="#sec-accept-prob">Mean acceptance probability</a></td>
+</tr>
+<tr class="odd">
+<td><code>warmup_incomplete</code> is <code>TRUE</code></td>
+<td>Raise <code>warmup</code> and refit; check R-hat and ESS before distrusting the fit.</td>
+<td><a href="#sec-warmup-check">Warmup equilibration check</a></td>
+</tr>
+<tr class="even">
+<td>The trust gauge flagged a chain</td>
+<td>Accept the approximation or refit with <code>precision_graph_prior = "joint"</code>; a larger audit (raise <code>bgms.zratio_gauge_sweeps</code>, refit) first tells you whether the flag is noise.</td>
+<td><a href="#sec-trust-gauge">Trust gauge</a></td>
+</tr>
+<tr class="odd">
+<td>Verdicts flagged <code>fragile</code></td>
+<td>Run more iterations; the verdict sits within two standard errors of a boundary.</td>
+<td><a href="../reference/checks.html#verdicts"><code>verdicts()</code></a></td>
+</tr>
+<tr class="even">
+<td>A verdict changes with the prior scale</td>
+<td>Report that edge as scale-dependent, or treat it as undecided; do not pick the scale that gives the verdict you want.</td>
+<td><a href="../examples/check-your-priors.html#sec-how-to-act">Check your priors</a></td>
+</tr>
+<tr class="odd">
+<td>Results differ between runs</td>
+<td>Set <code>seed</code>; hold <code>cores</code> and the installed binary fixed; if the runs still differ, read it as a mixing problem.</td>
+<td><a href="#sec-reproducibility">Results differ between runs</a></td>
+</tr>
+<tr class="even">
+<td>The sampler raised a warning</td>
+<td>Look the message up in the list and follow its action; the warnings name the setting to change.</td>
+<td><a href="#sec-sampler-warnings">What the sampler’s warnings mean</a></td>
+</tr>
+<tr class="odd">
+<td>Still stuck</td>
+<td>Refit with <code>update_method = "adaptive-metropolis"</code> and compare the two posteriors.</td>
+<td><a href="#sec-still-stuck">Still stuck</a></td>
+</tr>
+</tbody>
+</table>
+</section>
 <section id="sec-ess" class="level2">
 <h2 class="anchored" data-anchor-id="sec-ess">Effective sample size (ESS)</h2>
 <p>The effective sample size estimates how many independent draws the MCMC chain is equivalent to. Correlated draws reduce the effective information per sample. A larger ESS means more precise posterior estimates <span class="citation" data-cites="MargossianGelman_2024">(<a href="#ref-MargossianGelman_2024" role="doc-biblioref">Margossian &amp; Gelman, 2024</a>)</span>.</p>
@@ -628,8 +718,8 @@ window.Quarto = {
 <p>R-hat is reported in <code>summary()</code> output and through <code>extract_rhat()</code>. It is <code>NA</code> when only one chain was run, and when a parameter is constant at the same value in every chain — for example, a pairwise effect whose edge was never included in any chain, so every draw is zero. Constant chains carry no mixing information, so no value is reported rather than a misleading one. If chains are instead stuck at <em>different</em> constant values, R-hat is <code>+Inf</code>: that is a real mixing failure, and it is reported loudly rather than hidden.</p>
 <p>For edge indicators, the reported R-hat is computed on the continuous Rao-Blackwellized inclusion draws, and is <code>NA</code> where those draws are exactly constant (<a href="#sec-rb-inclusion-ess">see above</a>).</p>
 </section>
-<section id="trace-plots" class="level2">
-<h2 class="anchored" data-anchor-id="trace-plots">Trace plots</h2>
+<section id="sec-trace-plots" class="level2">
+<h2 class="anchored" data-anchor-id="sec-trace-plots">Trace plots</h2>
 <p>Visually inspecting the sampled values across iterations is a direct way to assess convergence. Chains that have converged look like random noise fluctuating around a stable mean; chains that have not converged show trends, level shifts, or poor mixing.</p>
 <p>Raw samples are accessible through <code>fit$raw_samples</code>. The examples on this page use a model fitted to the Wenchuan dataset (17 PTSD symptom items; of the 362 respondents, the 344 with complete data enter the fit under the default <code>na_action = "listwise"</code>):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bgms)</span>
@@ -666,30 +756,30 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
 </div>
 </div>
 </section>
-<section id="nuts-specific-diagnostics" class="level2">
-<h2 class="anchored" data-anchor-id="nuts-specific-diagnostics">NUTS-specific diagnostics</h2>
+<section id="sec-nuts-diagnostics" class="level2">
+<h2 class="anchored" data-anchor-id="sec-nuts-diagnostics">NUTS-specific diagnostics</h2>
 <p>When using <code>update_method = "nuts"</code> (the default), additional diagnostics are stored in <code>fit$nuts_diag</code>.</p>
-<section id="e-bfmi" class="level3">
-<h3 class="anchored" data-anchor-id="e-bfmi">E-BFMI</h3>
+<section id="sec-ebfmi" class="level3">
+<h3 class="anchored" data-anchor-id="sec-ebfmi">E-BFMI</h3>
 <p>E-BFMI (Energy Bayesian Fraction of Missing Information) measures how efficiently the sampler explores the posterior <span class="citation" data-cites="Betancourt_2016_ebfmi">(<a href="#ref-Betancourt_2016_ebfmi" role="doc-biblioref">Betancourt, 2016</a>)</span>. It compares the typical size of energy changes between successive samples to the overall spread of energies. Values close to 1 indicate efficient exploration; values below 0.3 suggest the sampler may be getting stuck <span class="citation" data-cites="Betancourt_2017_hmc">(<a href="#ref-Betancourt_2017_hmc" role="doc-biblioref">Betancourt, 2017</a>)</span>.</p>
 <p>A low E-BFMI does not necessarily mean the results are wrong, but it does warrant investigation. In models with edge selection, the most common cause is that the warmup period was too short for the discrete graph structure to equilibrate. Increasing <code>warmup</code> often resolves this.</p>
 </section>
-<section id="divergent-transitions" class="level3">
-<h3 class="anchored" data-anchor-id="divergent-transitions">Divergent transitions</h3>
+<section id="sec-divergences" class="level3">
+<h3 class="anchored" data-anchor-id="sec-divergences">Divergent transitions</h3>
 <p>Divergent transitions occur when the numerical integrator encounters regions where the posterior curvature changes too rapidly for the current step size. A small number of divergences (fewer than 0.1% of samples) is generally acceptable. Many divergences indicate that the sampler may be missing important parts of the posterior.</p>
 <p>If divergences are frequent, increase <code>target_accept</code> (which reduces the step size). If that does not help, try <code>update_method = "adaptive-metropolis"</code> and compare results.</p>
 </section>
-<section id="mean-acceptance-probability" class="level3">
-<h3 class="anchored" data-anchor-id="mean-acceptance-probability">Mean acceptance probability</h3>
+<section id="sec-accept-prob" class="level3">
+<h3 class="anchored" data-anchor-id="sec-accept-prob">Mean acceptance probability</h3>
 <p><code>fit$nuts_diag$accept_prob</code> is a chains × iterations matrix of the mean acceptance probability across every leapfrog step in each trajectory. The per-chain mean is also reported in <code>fit$nuts_diag$summary</code>. After warmup the per-chain mean should be close to <code>target_accept</code> (default 0.80); a chain whose mean acceptance is materially below the target is a signal that the automatic step-size tuning did not converge — usually because warmup was too short or the geometry has features that warrant a higher target.</p>
 </section>
-<section id="tree-depth" class="level3">
-<h3 class="anchored" data-anchor-id="tree-depth">Tree depth</h3>
+<section id="sec-tree-depth" class="level3">
+<h3 class="anchored" data-anchor-id="sec-tree-depth">Tree depth</h3>
 <p>NUTS builds trajectories by repeatedly doubling their length until a U-turn criterion is satisfied. If the trajectory frequently reaches the maximum allowed depth (<code>nuts_max_depth</code>), the sampler may benefit from longer trajectories. Hitting the maximum depth occasionally is normal; hitting it on most iterations may indicate challenging posterior geometry. Consider increasing <code>nuts_max_depth</code>.</p>
 </section>
 </section>
-<section id="warmup-equilibration-check" class="level2">
-<h2 class="anchored" data-anchor-id="warmup-equilibration-check">Warmup equilibration check</h2>
+<section id="sec-warmup-check" class="level2">
+<h2 class="anchored" data-anchor-id="sec-warmup-check">Warmup equilibration check</h2>
 <p>In models with edge selection, the discrete graph structure may take longer to reach stationarity than the continuous parameters. Even after warmup completes, the first portion of the sampling phase may still show transient behavior.</p>
 <p>The <code>fit$nuts_diag$warmup_check</code> component provides diagnostics comparing the first and second halves of the post-warmup samples:</p>
 <table class="caption-top table">
@@ -732,8 +822,8 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
 </table>
 <p>Each field is a vector with one entry per chain. With very short runs — fewer than 20 usable post-warmup iterations in a chain — there is too little energy history to split and assess, so the diagnostics for that chain are <code>NA</code> and no flag is raised. An <code>NA</code> here means “not enough draws to check”, not “no problem found”.</p>
 <p>If these diagnostics suggest the chain was still settling, increase <code>warmup</code> and refit. If diagnostics remain problematic after doubling or tripling warmup, try refitting with <code>update_method = "adaptive-metropolis"</code> and compare posterior summaries. If the two samplers produce similar results, the estimates are likely trustworthy despite the warnings; if they differ, further investigation is warranted.</p>
-<section id="the-flag-on-this-pages-own-fit" class="level3">
-<h3 class="anchored" data-anchor-id="the-flag-on-this-pages-own-fit">The flag on this page’s own fit</h3>
+<section id="sec-warmup-flag-worked" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warmup-flag-worked">The flag on this page’s own fit</h3>
 <p>The Wenchuan fit used throughout this page raises the flag, which makes it a useful worked case rather than an embarrassment. Here is what it says:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>wc <span class="ot">=</span> fit<span class="sc">$</span>nuts_diag<span class="sc">$</span>warmup_check</span>
@@ -798,6 +888,181 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
 </ul>
 <p>Small values on both channels mean the approximation did not meaningfully affect the sampled graphs. A flagged chain prints the measured error and what the audit covered, followed by advice in order: first raise <code>options(bgms.zratio_gauge_sweeps)</code> and refit, to see whether the signal is real; only after that consider <code>precision_graph_prior = "joint"</code>, which is a different model rather than a fix. The gauge never switches specification on its own. See <a href="../reference/prior-samplers.html#summarize_zratio_gauge"><code>summarize_zratio_gauge()</code></a> for the full output format and thresholds.</p>
 </section>
+<section id="sec-sampler-warnings" class="level2">
+<h2 class="anchored" data-anchor-id="sec-sampler-warnings">What the sampler’s warnings mean</h2>
+<p>The lists below cover the warnings a fit and its checks can raise in 0.2.0.0. They are ordinary R warnings, so they surface after the call returns, unlike the <code>NUTS issues:</code> block and the trust gauge report, which the sampler prints while it runs and which the sections above explain. The simulation and prediction helpers carry their own warnings, which are not part of this list.</p>
+<section id="sec-warn-warmup" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-warmup">Warmup is too short for part of the adaptation</h3>
+<p>These five fire before sampling starts, under <code>update_method = "nuts"</code> with <code>verbose = TRUE</code> (the default; <code>verbose</code> reads <code>getOption("bgms.verbose", TRUE)</code>). Each names the part of warmup adaptation that your <code>warmup</code> is too short to run. The action is the same for all five: raise <code>warmup</code>, using the threshold the message quotes as the floor and the suggestion as the target.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>When it fires</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>warmup = &lt;n&gt; is very short for edge selection. Consider &gt;= 300.</code></td>
+<td>Edge selection on, <code>warmup</code> below 50</td>
+</tr>
+<tr class="even">
+<td><code>warmup = &lt;n&gt;: proposal SD tuning skipped (needs &gt;= 200). Consider &gt;= 300.</code></td>
+<td>Edge selection on, <code>warmup</code> from 50 to 199</td>
+</tr>
+<tr class="odd">
+<td><code>warmup = &lt;n&gt;: limited proposal SD tuning. Consider &gt;= 300.</code></td>
+<td>Edge selection on, <code>warmup</code> from 200 to 299</td>
+</tr>
+<tr class="even">
+<td><code>warmup = &lt;n&gt;: no mass matrix estimation (needs &gt;= 20).</code></td>
+<td>Edge selection off, <code>warmup</code> below 20</td>
+</tr>
+<tr class="odd">
+<td><code>warmup = &lt;n&gt;: using proportional allocation (needs &gt;= 150 for fixed buffers).</code></td>
+<td>Edge selection off, <code>warmup</code> from 20 to 149</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-warn-chains" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-chains">A chain did not finish</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&lt;k&gt; of &lt;n&gt; chain(s) failed and will be dropped.</code></td>
+<td>The fit is built from the surviving chains only. R-hat needs at least two, so refit if too few are left for the diagnostics you need. If every chain fails the call stops instead, and the message carries the first chain’s error.</td>
+</tr>
+<tr class="even">
+<td><code>Stopped sampling after user interrupt, results are likely uninterpretable.</code></td>
+<td>Discard the object and refit. The chains stopped wherever the interrupt reached them, so the draws are not a posterior sample.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-warn-correction" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-correction">The normalizing-constant correction could not be built</h3>
+<p>Continuous and mixed fits that combine edge selection with a Beta-Bernoulli or Stochastic-Block edge prior run their edge-prior updates <em>with</em> a normalizing-constant correction, built at the start of the analysis from a tilted prior sweep; a fit that builds it silently is running corrected. These two warnings mark the cases where the correction cannot be built. The chains still run, but the edge-prior updates lose the correction that keeps them exact, so read the inclusion probabilities as approximate.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>The &lt;edge prior&gt; updates are run without the normalizing-constant correction: the tilted prior sampler supports only cauchy_prior() and normal_prior() interaction priors.</code></td>
+<td>Refit with <code>interaction_prior = cauchy_prior()</code> or <code>normal_prior()</code> if you want the corrected updates. Reaching this warning at all takes <code>precision_graph_prior = "joint"</code>, because the default <code>"hierarchical"</code> rejects any other slab with an error rather than a warning.</td>
+</tr>
+<tr class="even">
+<td><code>The Stochastic-Block updates are run without the normalizing-constant correction: the slope curve is not resolvable for this model cell (a single tilted pair).</code></td>
+<td>Nothing in the call to change: the correction table could not resolve its slope curve for this combination of size and prior. Read the block structure as approximate, and compare it against a Beta-Bernoulli fit of the same data before reporting it.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-warn-zratio" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-zratio">The z-ratio tables left their certified range</h3>
+<p>Both fire while the hierarchical graph prior builds its approximation, on a fit whose precision diagonal shape is not 1. They say the approximation behind every edge move may be less accurate than certified, so check <code>fit$zratio_diag</code> before reading the graph; see the <a href="#sec-trust-gauge">trust gauge</a>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Z-ratio constants at diagonal shape &lt;a&gt; lie outside the certified range [0.5, 20]; the fixed quadrature grids are not scored there and may lose accuracy.</code></td>
+<td>Bring the diagonal shape back inside 0.5 to 20 if the analysis allows it. Otherwise treat the gauge as the check that decides.</td>
+</tr>
+<tr class="even">
+<td><code>Z-ratio pair integrals retain visible mass at the grid edge (delta = &lt;d&gt;, eta = &lt;e&gt;, shape = &lt;a&gt;); the saddle tables may be truncated.</code></td>
+<td>Same reading: the quadrature grid did not capture the whole integrand at this prior setting, so let the gauge decide whether it mattered.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-warn-data" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-data">The data cannot support part of the model</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Blume-Capel variable &lt;name&gt; has &lt;k&gt; categories. This may slow computation. Empty categories are not collapsed.</code></td>
+<td>Nothing is wrong with the fit; expect it to be slower. Fires above 10 categories. Empty categories in the range still cost time, so collapse them yourself if they are an artifact of coding.</td>
+</tr>
+<tr class="even">
+<td><code>Some categories were not used by every group: ...</code></td>
+<td>A <a href="../reference/bgmCompare.html"><code>bgmCompare()</code></a> warning. The threshold differences it names rest on the prior rather than on the data. Do not read them as evidence of a group difference; the printed summary marks the rows with <code>*</code>, and <code>extract_arguments(fit)$category_support</code> holds the per-group counts. Pairwise differences are unaffected. It carries the condition class <code>bgms_group_support_warning</code>, so you can catch this one warning without muffling the rest.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sec-warn-deprecated" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-deprecated">A deprecated argument</h3>
+<p>The arguments the 0.2.0 prior objects replaced still work, and warn through <code>lifecycle</code> naming their replacement:</p>
+<pre><code>The `pairwise_scale` argument of `bgm()` is deprecated as of bgms 0.2.0.
+Please use the `interaction_prior` argument instead.</code></pre>
+<p>Nothing about the fit is wrong. Move the call to the replacement so it keeps working past the deprecation; the full mapping is on <a href="../reference/bgm.html#sec-deprecated-arguments"><code>bgm()</code></a> and <a href="../reference/bgmCompare.html#sec-deprecated-arguments"><code>bgmCompare()</code></a>.</p>
+</section>
+<section id="sec-warn-checks" class="level3">
+<h3 class="anchored" data-anchor-id="sec-warn-checks">The checks and the ecosystem</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Warning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>The usable radii of the &lt;a&gt;x and &lt;b&gt;x anchors do not overlap; the curve has a gap between them. Add an anchor in that range.</code></td>
+<td>From <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a>. Rerun with an extra anchor between the two the message names, so the curve is continuous there.</td>
+</tr>
+<tr class="even">
+<td><code>easybgm &lt;version&gt; is not compatible with S7-based bgms objects. Running in S3 compatibility mode. Please update easybgm to version 0.5.0 or later.</code></td>
+<td>Update <code>easybgm</code>. Until then the fit is returned as a plain list, so the S7 accessors this documentation uses will not all apply.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="sec-reproducibility" class="level2">
+<h2 class="anchored" data-anchor-id="sec-reproducibility">Results differ between runs</h2>
+<p>Two runs of the same call differ for one of two reasons, and the remedy differs with them.</p>
+<p>If you did not set <code>seed</code>, the runs drew different random numbers and small differences are expected. Pass a single non-negative integer to <code>seed</code> to make a run repeatable.</p>
+<p>If you did set <code>seed</code> and the runs still differ, the guarantee is narrower than it looks, and <a href="../reference/bgm.html"><code>bgm()</code></a> states its exact scope. Results are bit-reproducible for a given installed binary; they are not portable across compilers or optimization settings, so a rebuilt or reinstalled binary can produce different draws from the same seed, with the differences concentrated where the posterior is weakly identified. On Windows with <code>RcppParallel</code> 6.0.0 or later, a fixed seed reproduces a run only at the same <code>cores</code> setting: runs at different core counts are statistically equivalent, not identical.</p>
+<p>Differences that survive all of that, and that change what you would report, are a mixing problem rather than a seeding one. Two runs landing on different answers is what R-hat is built to detect across chains, so check R-hat and ESS first and treat the run-to-run gap as the same failure seen from outside.</p>
+</section>
 <section id="sec-run-length" class="level2">
 <h2 class="anchored" data-anchor-id="sec-run-length">Run-length settings</h2>
 <p>Three <a href="../reference/bgm.html"><code>bgm()</code></a> arguments control how much sampling is done:</p>
@@ -834,8 +1099,8 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
 <li><strong>R-hat above 1.01</strong> — first check the trace plots; if chains disagree, longer <code>warmup</code> (and sometimes longer <code>iter</code>) is the remedy. Keep at least two chains — with a single chain, R-hat cannot be computed.</li>
 </ul>
 </section>
-<section id="recommended-workflow" class="level2">
-<h2 class="anchored" data-anchor-id="recommended-workflow">Recommended workflow</h2>
+<section id="sec-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="sec-workflow">Recommended workflow</h2>
 <ol type="1">
 <li><strong>Inspect <code>summary()</code></strong>: check R-hat (&lt; 1.01) and ESS (≥ 100) for all parameters.</li>
 <li><strong>Check NUTS diagnostics</strong>: <code>fit$nuts_diag$summary</code> for divergences, tree depth saturation, E-BFMI, and a mean acceptance probability (<code>mean_accept_prob</code>) close to <code>target_accept</code>. The <code>fit$nuts_diag$has_issues</code> flag is <code>TRUE</code> when any of these checks raised a concern.</li>
@@ -844,6 +1109,13 @@ Figure&nbsp;1: Trace plot for the first pairwise interaction parameter across fo
 <li><strong>On a continuous or mixed fit</strong>: check <code>fit$zratio_diag</code> for flagged chains. The trust gauge fills it by default.</li>
 <li><strong>If problems are found</strong>: increase <code>warmup</code> and/or <code>iter</code>, adjust <code>target_accept</code>, or switch samplers.</li>
 </ol>
+</section>
+<section id="sec-still-stuck" class="level2">
+<h2 class="anchored" data-anchor-id="sec-still-stuck">Still stuck</h2>
+<p>If longer warmup and more iterations have not moved the diagnostics, refit with the other sampler and compare:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fit_am <span class="ot">=</span> <span class="fu">bgm</span>(data, <span class="at">update_method =</span> <span class="st">"adaptive-metropolis"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>How to read the comparison is in the <a href="#sec-warmup-check">warmup equilibration check</a>: if the two samplers produce similar posterior summaries, the estimates are likely trustworthy despite the warnings, and if they differ, the disagreement is itself the finding and nothing should be reported until it is resolved.</p>
+<p>If that leaves you stuck, ask on the <a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues">bgms issue tracker</a>. A report that can be acted on carries the <code>bgm()</code> call as you ran it, <code>fit$nuts_diag$summary</code>, and the output of <code>sessionInfo()</code>.</p>
 
 
 

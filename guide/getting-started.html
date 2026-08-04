@@ -601,7 +601,7 @@ div.csl-indent {
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan[, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>], <span class="at">seed =</span> <span class="dv">1234</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>By default, <a href="../reference/bgm.html"><code>bgm()</code></a> runs four parallel MCMC chains using the <a href="../guide/mcmc-diagnostics.html#nuts-specific-diagnostics">No-U-Turn Sampler (NUTS)</a> — the default sampling algorithm — in combination with Bayesian <a href="../guide/edge-selection.html">edge selection</a>. Here we use <code>seed = 1234</code> for reproducibility. If the sampler diagnostics indicate persistent problems, refit with <code>update_method = "adaptive-metropolis"</code>.</p>
+<p>By default, <a href="../reference/bgm.html"><code>bgm()</code></a> runs four parallel MCMC chains using the <a href="../guide/mcmc-diagnostics.html#sec-nuts-diagnostics">No-U-Turn Sampler (NUTS)</a> — the default sampling algorithm — in combination with Bayesian <a href="../guide/edge-selection.html">edge selection</a>. Here we use <code>seed = 1234</code> for reproducibility. If the sampler diagnostics indicate persistent problems, refit with <code>update_method = "adaptive-metropolis"</code>.</p>
 </section>
 <section id="posterior-summaries" class="level2">
 <h2 class="anchored" data-anchor-id="posterior-summaries">Posterior summaries</h2>
