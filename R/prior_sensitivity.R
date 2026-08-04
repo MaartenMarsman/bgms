@@ -1219,15 +1219,17 @@ spread_labels = function(y, gap) {
 #' @title Plot a Prior Sensitivity Check
 #'
 #' @description
-#' One panel, answer first: the label above the panel states how many edge
-#' verdicts depend on the slab scale. Each edge's natural log
-#' inclusion-Bayes-factor curve
+#' One panel. Each edge's natural log inclusion-Bayes-factor curve
 #' (the evidence for the edge) is drawn across the anchored scale range, with
 #' dots at the anchor scales; curve points masked for low importance ESS
 #' leave visible gaps, and an edge that saturates at some scale is capped at a
-#' large finite Bayes factor rather than running off to infinity. Edges whose
-#' verdict genuinely depends on the scale are colored and labeled by name; all
-#' other edges are the muted background. The shaded band is the undecided zone
+#' large finite Bayes factor rather than running off to infinity. The
+#' \code{max_labels} widest-swinging edges whose verdict genuinely depends on
+#' the scale are colored and labeled by name; every other edge is the muted
+#' background. The figure carries no counts of its own: the muted background
+#' holds the robust edges and any scale-dependent edge past \code{max_labels}
+#' alike, and \code{print()} is where the counts are and where the
+#' scale-dependent edges are named. The shaded band is the undecided zone
 #' between the evidence thresholds; the zones are labeled at the left edge.
 #'
 #' @details
@@ -1242,7 +1244,8 @@ spread_labels = function(y, gap) {
 #'
 #' @param x A \code{bgms_prior_sensitivity} object.
 #' @param max_labels Integer. Maximum scale-dependent edges to color and
-#'   label by name; the rest are counted in a corner note. Default: \code{10}.
+#'   label by name, taken in order of evidence swing; the rest stay in the
+#'   muted background and are named by \code{print()}. Default: \code{10}.
 #' @param ... Ignored.
 #'
 #' @return \code{x}, invisibly. Called for the side effect of drawing.
@@ -1303,8 +1306,6 @@ plot.bgms_prior_sensitivity = function(x, max_labels = 10L, ...) {
   } else {
     "Slab scale, relative to your fit"
   }
-
-  n_dep = length(movers)
 
   graphics::plot(NA, NA,
     xlim = xlim, ylim = y_axis$lim, log = "x", axes = FALSE,

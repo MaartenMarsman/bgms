@@ -51,6 +51,12 @@ released from this line yet.
   per-chain agreement is the edge-level sufficiency check. The transition ESS
   was retired in 0.2.0.0.
 
+* `plot.bgms_prior_sensitivity()`'s documentation described a panel label
+  counting the scale-dependent edges and a corner note counting the ones beyond
+  `max_labels`. Neither is drawn; both were retired in 0.2.0.0. The man page now
+  states that the muted background holds robust and unlabelled scale-dependent
+  edges alike, and that `print()` carries the counts and the names.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits
