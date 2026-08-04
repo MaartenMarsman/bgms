@@ -286,11 +286,14 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
   flagged = any(per_chain$flag) || any(per_chain$harm_flag)
 
   # Print flagged chains under a single header, matching the NUTS-issues block
-  # (cat/stdout, one bullet per chain), then one shared remediation ladder. The
+  # (cat/stdout, one bullet per chain), then one shared advice block. The
   # vignette pointer is emitted once by the output builder as a shared footer,
-  # not here. The ladder never proposes an automatic switch: the joint
-  # specification is a different model, not a more accurate version of this
-  # one, so it is the last rung and is labelled as such.
+  # not here. The advice leads with the decision the flag actually poses --
+  # accept the approximation or refit under the joint specification -- and puts
+  # the larger audit after it, as the measurement that says whether the flag is
+  # noise. It never proposes an automatic switch: the joint specification is a
+  # different model, not a more accurate version of this one, and is labelled
+  # as such.
   if(verbose && flagged && isTRUE(getOption("bgms.verbose", TRUE))) {
     audit = function(pc) {
       blocks = if(is.na(pc$block_lo)) {
@@ -325,11 +328,12 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       }
     }
     cat(
-      "  Raise options(bgms.zratio_gauge_sweeps) and refit to audit more edge\n",
-      "  moves and resolve whether the signal is real. If it persists,\n",
-      "  precision_graph_prior = \"joint\" avoids the approximation, but it\n",
+      "  The decision is whether to accept the approximation or to refit with\n",
+      "  precision_graph_prior = \"joint\". That avoids the approximation but\n",
       "  targets a different model: its graph marginal is the edge prior\n",
       "  reweighted by the per-graph normalizer, not the edge prior itself.\n",
+      "  Raising options(bgms.zratio_gauge_sweeps) and refitting audits more\n",
+      "  edge moves, which tells you first whether the flag is noise.\n",
       sep = ""
     )
   }

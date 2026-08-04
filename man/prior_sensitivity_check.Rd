@@ -159,8 +159,12 @@ the adapted step size and diagonal mass matrix, so a short warmup suffices
 and the whole check costs about one original fit. Because the warm starts sit
 near the chosen-scale posterior, cross-chain dispersion is reduced by
 construction, which weakens split-\eqn{\hat R} as a between-chain diagnostic;
-the refit gate therefore leans on per-chain verdict agreement and the
-indicator transition ESS, not on \eqn{\hat R} alone. Continuous (GGM) and
+the refit gate therefore reads the \emph{median} split-\eqn{\hat R} over the
+continuous parameters and over the Rao-Blackwellized inclusion probabilities
+together with the NUTS energy diagnostics, and reports the smallest
+Rao-Blackwellized inclusion \code{n_eff} as \code{$grid$inclusion_ess_min};
+the per-chain agreement that guards an individual verdict is the edge-level
+sufficiency check below. Continuous (GGM) and
 mixed-MRF fits refit cold (full warmup), costing about one fit per scale.
 
 \strong{The mover rule.} An edge is flagged scale-sensitive only if its

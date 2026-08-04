@@ -34,6 +34,29 @@ released from this line yet.
   difference rows separately, which is a different cause with a different
   reading.
 
+* The advice printed for a flagged trust-gauge chain leads with the decision the
+  flag poses: accept the approximation, or refit with
+  `precision_graph_prior = "joint"`, which avoids the approximation but targets a
+  different model. Raising `options(bgms.zratio_gauge_sweeps)` and refitting
+  follows it, as the measurement that says whether the flag is noise rather than
+  as the first thing to try. `vignette("diagnostics")` gives the same order.
+
+## Documentation
+
+* `prior_sensitivity_check()`'s Details said the refit gate leans on per-chain
+  verdict agreement and the indicator transition ESS. The gate reads the median
+  split-R-hat over the continuous parameters and over the Rao-Blackwellized
+  inclusion probabilities together with the NUTS energy diagnostics, and reports
+  the smallest Rao-Blackwellized inclusion `n_eff` in `$grid$inclusion_ess_min`;
+  per-chain agreement is the edge-level sufficiency check. The transition ESS
+  was retired in 0.2.0.0.
+
+* `plot.bgms_prior_sensitivity()`'s documentation described a panel label
+  counting the scale-dependent edges and a corner note counting the ones beyond
+  `max_labels`. Neither is drawn; both were retired in 0.2.0.0. The man page now
+  states that the muted background holds robust and unlabelled scale-dependent
+  edges alike, and that `print()` carries the counts and the names.
+
 # bgms 0.2.0.0
 
 This release rebuilds most of the package on top of 0.1.6.3. `bgm()` now fits

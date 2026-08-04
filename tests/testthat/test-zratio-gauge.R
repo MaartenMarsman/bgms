@@ -162,7 +162,7 @@ test_that("the harm channel computes the documented statistics", {
   expect_null(zratio_harm_inputs(list(pip), "Stochastic-Block", a = 1, b = 1))
 })
 
-test_that("a flagged chain prints the remediation ladder in order", {
+test_that("a flagged chain prints the decision before the larger audit", {
   withr::local_options(bgms.verbose = TRUE)
   gauge = list(
     flip_rate = 0.05, noise_floor = 1e-4, se_mean = 0.05, se_sd = 0.02,
@@ -174,23 +174,25 @@ test_that("a flagged chain prints the remediation ladder in order", {
   )
   txt = paste(out, collapse = " ")
 
-  # Rung 1: what was measured, on which blocks, out of how many moves.
+  # First, what was measured, on which blocks, out of how many moves.
   expect_match(txt, "5.0% of edge-toggle decisions")
   expect_match(txt, "audited 50 of 9900 non-trivial edge moves")
   expect_match(txt, "mediating blocks 4-38 variables")
-  # Rung 2: resolve the signal before changing the model.
-  expect_match(txt, "Raise options\\(bgms.zratio_gauge_sweeps\\)")
-  # Rung 3: the joint specification, named as a different inferential target.
+  # Then the decision: accept the approximation or refit under the joint
+  # specification, named as a different inferential target rather than a fix.
+  expect_match(txt, "accept the approximation or to refit with")
   expect_match(txt, "targets a different model")
   expect_match(txt, "reweighted by the per-graph normalizer")
-  # The ladder is ordered: measurement, then more sweeps, then the joint spec.
-  expect_lt(
-    regexpr("Raise options", txt, fixed = TRUE),
-    regexpr("precision_graph_prior = \"joint\"", txt, fixed = TRUE)
-  )
+  # The larger audit comes after it: it says whether the flag is noise, it is
+  # not the remedy.
+  expect_match(txt, "Raising options\\(bgms.zratio_gauge_sweeps\\)")
   expect_lt(
     regexpr("audited 50 of", txt, fixed = TRUE),
-    regexpr("Raise options", txt, fixed = TRUE)
+    regexpr("The decision is whether", txt, fixed = TRUE)
+  )
+  expect_lt(
+    regexpr("precision_graph_prior = \"joint\"", txt, fixed = TRUE),
+    regexpr("Raising options", txt, fixed = TRUE)
   )
 })
 
