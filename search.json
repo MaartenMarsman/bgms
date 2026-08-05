@@ -2063,6 +2063,18 @@
     ]
   },
   {
+    "objectID": "guide/mixed-model.html#two-regressions-one-model",
+    "href": "guide/mixed-model.html#two-regressions-one-model",
+    "title": "Mixed Markov Random Field",
+    "section": "Two regressions, one model",
+    "text": "Two regressions, one model\nWhen a dataset contains both kinds of variables, each variable keeps the regression of its own kind: an ordinal variable follows the adjacent-category regression of the Ordinal MRF, and a continuous variable follows the linear regression of the GGM. A cross edge connects an ordinal variable to a continuous one, and it enters both of their regressions. In the regression for the continuous variable, the ordinal neighbor’s answer shifts the conditional mean; in the regression for the ordinal variable, the continuous neighbor’s value shifts the adjacent-category log odds. Because both models express their edges as the same partial association \\(\\omega_{ij}\\), a cross edge requires no new kind of parameter; the same quantity connects an ordinal variable to a continuous one. Nothing else is new, and the joint form below makes this precise.",
+    "crumbs": [
+      "Get Started",
+      "Models",
+      "Mixed Markov Random Field"
+    ]
+  },
+  {
     "objectID": "guide/mixed-model.html#the-model",
     "href": "guide/mixed-model.html#the-model",
     "title": "Mixed Markov Random Field",
@@ -2271,6 +2283,18 @@
     "title": "Graphical Models",
     "section": "",
     "text": "A graphical model represents relationships among a set of variables as a graph. bgms estimates a class of undirected graphical models: pairwise Markov random fields.",
+    "crumbs": [
+      "Get Started",
+      "Background",
+      "Graphical Models"
+    ]
+  },
+  {
+    "objectID": "guide/graphical-models.html#the-central-idea",
+    "href": "guide/graphical-models.html#the-central-idea",
+    "title": "Graphical Models",
+    "section": "The central idea",
+    "text": "The central idea\nThe central idea of these models is simple: two variables are connected by an edge when they remain associated after accounting for every other variable in the analysis. Nothing is assumed about hidden continuous variables underlying discrete responses; the models work with the answers as they are. And despite the similar name, these are not Bayesian networks. Those are directed models that represent variables as parents and descendants; the graphs here are undirected, and the word Bayesian in bgms refers to the analysis, not to the model.\nEach model page that follows makes this idea concrete in the same way, as one regression per variable: given all the other variables, what does this one do? The edge weight between two variables appears in both of their regressions with the same value, and an edge is absent exactly when that weight is zero. The Ordinal MRF walks this regression for ordered categorical items, the GGM for continuous variables, and the Mixed MRF for datasets holding both.",
     "crumbs": [
       "Get Started",
       "Background",
@@ -3289,6 +3313,18 @@
     ]
   },
   {
+    "objectID": "guide/ggm.html#the-model-as-a-regression",
+    "href": "guide/ggm.html#the-model-as-a-regression",
+    "title": "Gaussian Graphical Model",
+    "section": "The model as a regression",
+    "text": "The model as a regression\nFor continuous variables, the model answers the same question as the Ordinal MRF: given all the other variables, what does this one do? Each variable is an ordinary linear regression on the rest. The threshold’s job from the ordinal model is handled before the regression starts: bgms first subtracts each variable’s mean, so that every score becomes a deviation from that variable’s own average. A variable’s overall level is thereby removed from the data and cannot masquerade as association; the model only describes how variables move together around their averages. What remains is the pull of the neighbors:\n\\[\nE\\bigl(x_i \\mid \\text{rest}\\bigr) \\;=\\; \\frac{1}{\\theta_{ii}}\\, \\underbrace{\\textstyle\\sum_{j \\neq i} 2\\,\\omega_{ij}\\, x_j}_{\\text{the pull of the neighbors}} .\n\\]\nThe pull is the same expression as in the ordinal regression: each neighboring value \\(x_j\\) enters with twice its edge weight \\(\\omega_{ij}\\), conditional on all remaining variables. Only the noise around the regression changes, Gaussian rather than categorical. The factor \\(1/\\theta_{ii}\\) is the residual variance of \\(x_i\\), the variance that remains after its neighbors have done their work, and it converts the pull into the units of \\(x_i\\).\nTogether, the variable-level regressions define one joint model, a multivariate normal distribution whose precision matrix collects all the parameters. That joint form is the model below, and it is also the model behind the familiar EBICglasso analysis: readers arriving from that workflow have been fitting it all along, and what changes here is not the model but the question asked of it.",
+    "crumbs": [
+      "Get Started",
+      "Models",
+      "Gaussian Graphical Model"
+    ]
+  },
+  {
     "objectID": "guide/ggm.html#the-model",
     "href": "guide/ggm.html#the-model",
     "title": "Gaussian Graphical Model",
@@ -3750,6 +3786,18 @@
     "title": "Ordinal Markov Random Field",
     "section": "",
     "text": "The ordinal Markov random field (MRF) is a graphical model for networks of binary and ordinal variables (Anderson & Vermunt, 2000; Suggala et al., 2017). It is the default model in bgms and forms the discrete component of the Mixed MRF. To fit an ordinal MRF, use the default variable_type = \"ordinal\".",
+    "crumbs": [
+      "Get Started",
+      "Models",
+      "Ordinal Markov Random Field"
+    ]
+  },
+  {
+    "objectID": "guide/omrf.html#the-model-as-a-regression",
+    "href": "guide/omrf.html#the-model-as-a-regression",
+    "title": "Ordinal Markov Random Field",
+    "section": "The model as a regression",
+    "text": "The model as a regression\nThe model answers one question for each item: given how a person answered all the other items, how likely is each possible answer here? Every item is regressed on the remaining items, much as an outcome is regressed on predictors in an ordinary regression model. Because the answers are ordered categories rather than continuous scores, the regression is an adjacent-category logistic regression (Agresti, 2010): it predicts the probability of each answer category instead of a conditional mean.\nThe regression uses two kinds of parameters, and each has one job. The category thresholds describe how common each answer category of an item is when every neighboring item sits at its lowest category, scored zero. Some symptoms are rare and most people answer “not at all”; the thresholds absorb these differences in prevalence so that they cannot masquerade as edges. The pairwise parameters are the edge weights. A positive weight between two items means that higher answers on one go with higher answers on the other, conditional on all remaining items. A weight of zero means that no conditional association remains, and no edge is drawn.\nWritten out, the regression for item \\(i\\) compares adjacent answer categories, such as responding in category \\(c + 1\\) rather than category \\(c\\):\n\\[\n\\log \\frac{P(x_i = c + 1 \\mid \\text{rest})}{P(x_i = c \\mid \\text{rest})}\n\\;=\\; \\underbrace{\\mu_{i, c+1} - \\mu_{i, c}}_{\\substack{\\text{baseline preference for }\\\\c+1\\text{ over }c}} \\;+\\; \\underbrace{\\textstyle\\sum_{j \\neq i} 2\\,\\omega_{ij}\\, x_j}_{\\text{the pull of the neighbors}} .\n\\]\nThe left side is the log odds of one adjacent answer over the other. The right side collects everything that shifts those odds: the threshold difference, plus each neighboring answer \\(x_j\\) weighted by twice its edge weight \\(\\omega_{ij}\\). If one neighboring response increases by one category, the adjacent-category log odds change by exactly \\(2\\,\\omega_{ij}\\). The edge weight \\(\\omega_{ij}\\) is therefore half the log odds ratio between adjacent categories of the two items, the same for every adjacent pair (Marsman et al., 2025).\nTogether, the item-level regressions define one joint model over complete response patterns, so the items are analyzed as one system, not one at a time. That joint form is the model below.",
     "crumbs": [
       "Get Started",
       "Models",

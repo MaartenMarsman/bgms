@@ -579,6 +579,15 @@ window.Quarto = {
 
 
 <p>The Gaussian graphical model (GGM) is a Markov random field for continuous variables. It is the most widely studied undirected graphical model <span class="citation" data-cites="Lauritzen1996">(<a href="#ref-Lauritzen1996" role="doc-biblioref">Lauritzen, 1996</a>)</span> and forms the continuous component of the <a href="../guide/mixed-model.html">Mixed MRF</a> in <code>bgms</code>. To fit a GGM, set <code>variable_type = "continuous"</code>.</p>
+<section id="the-model-as-a-regression" class="level2">
+<h2 class="anchored" data-anchor-id="the-model-as-a-regression">The model as a regression</h2>
+<p>For continuous variables, the model answers the same question as the <a href="../guide/omrf.html">Ordinal MRF</a>: given all the other variables, what does this one do? Each variable is an ordinary linear regression on the rest. The threshold’s job from the ordinal model is handled before the regression starts: <code>bgms</code> first subtracts each variable’s mean, so that every score becomes a deviation from that variable’s own average. A variable’s overall level is thereby removed from the data and cannot masquerade as association; the model only describes how variables move together around their averages. What remains is the pull of the neighbors:</p>
+<p><span class="math display">\[
+E\bigl(x_i \mid \text{rest}\bigr) \;=\; \frac{1}{\theta_{ii}}\, \underbrace{\textstyle\sum_{j \neq i} 2\,\omega_{ij}\, x_j}_{\text{the pull of the neighbors}} .
+\]</span></p>
+<p>The pull is the same expression as in the ordinal regression: each neighboring value <span class="math inline">\(x_j\)</span> enters with twice its edge weight <span class="math inline">\(\omega_{ij}\)</span>, conditional on all remaining variables. Only the noise around the regression changes, Gaussian rather than categorical. The factor <span class="math inline">\(1/\theta_{ii}\)</span> is the residual variance of <span class="math inline">\(x_i\)</span>, the variance that remains after its neighbors have done their work, and it converts the pull into the units of <span class="math inline">\(x_i\)</span>.</p>
+<p>Together, the variable-level regressions define one joint model, a multivariate normal distribution whose precision matrix collects all the parameters. That joint form is the model below, and it is also the model behind the familiar EBICglasso analysis: readers arriving from that workflow have been fitting it all along, and what changes here is not the model but the question asked of it.</p>
+</section>
 <section id="the-model" class="level2">
 <h2 class="anchored" data-anchor-id="the-model">The model</h2>
 <p>A GGM assumes that <span class="math inline">\(p\)</span> continuous variables follow a multivariate normal distribution:</p>

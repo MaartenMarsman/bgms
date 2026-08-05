@@ -524,6 +524,11 @@ window.Quarto = {
 
 
 <p>A graphical model represents relationships among a set of variables as a graph. <code>bgms</code> estimates a class of undirected graphical models: pairwise Markov random fields.</p>
+<section id="the-central-idea" class="level2">
+<h2 class="anchored" data-anchor-id="the-central-idea">The central idea</h2>
+<p>The central idea of these models is simple: two variables are connected by an edge when they remain associated after accounting for every other variable in the analysis. Nothing is assumed about hidden continuous variables underlying discrete responses; the models work with the answers as they are. And despite the similar name, these are not Bayesian networks. Those are directed models that represent variables as parents and descendants; the graphs here are undirected, and the word Bayesian in <code>bgms</code> refers to the analysis, not to the model.</p>
+<p>Each model page that follows makes this idea concrete in the same way, as one regression per variable: given all the other variables, what does this one do? The edge weight between two variables appears in both of their regressions with the same value, and an edge is absent exactly when that weight is zero. The <a href="../guide/omrf.html">Ordinal MRF</a> walks this regression for ordered categorical items, the <a href="../guide/ggm.html">GGM</a> for continuous variables, and the <a href="../guide/mixed-model.html">Mixed MRF</a> for datasets holding both.</p>
+</section>
 <section id="nodes-and-edges" class="level2">
 <h2 class="anchored" data-anchor-id="nodes-and-edges">Nodes and edges</h2>
 <p>In a graphical model, the <span class="math inline">\(p\)</span> variables in a dataset are represented as nodes (or vertices) of a graph. An edge between two nodes indicates a direct statistical association between the corresponding variables, after accounting for all other variables in the model.</p>
