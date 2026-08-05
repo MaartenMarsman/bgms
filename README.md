@@ -68,6 +68,16 @@ factors are not interchangeable between the two routes. The vignette
 website](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/),
 sets out that trade-off, the timings, and where the route applies.
 
+Measured against the neighboring CRAN packages on the same data and
+machine, the route's headline is time to a converged edge ranking:
+seconds for `bgms` at every tested sample size, a median 18 to 25
+times sooner than **ssgraph** at a matched prior — replicated, and
+partly because a `bgms` sweep costs 6.6 times less at 200 variables.
+**modelSelection** converges about as fast, by a design that trades
+away some recall and exact reproducibility. The full comparison, with
+every setting and seeded script, is on the
+[comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html).
+
 ## Installation
 
 Install from CRAN:
