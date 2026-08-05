@@ -53,6 +53,16 @@ released from this line yet.
   sensitivity vignette does; the hardware and thread count are stated with them.
   The README gained a short pointer to it.
 
+* The fast-GGM vignette's positioning paragraph now carries a measured
+  comparison instead of a no-claims stance: bgms, modelSelection 1.0.7 and
+  ssgraph 1.16 were run on the vignette's own data, one at a time on one
+  machine, each at its defaults and at its documentation's recommended
+  settings. The vignette reports the headline numbers; the full protocol,
+  seeded runner scripts, and tables live in the bgms-docs repository beside
+  the site's comparison page, so the comparison can be re-baked when a
+  competitor's version moves. Neither competitor enters the package's
+  dependencies. The README summarizes the result in two sentences.
+
 * `prior_sensitivity_check()`'s Details said the refit gate leans on per-chain
   verdict agreement and the indicator transition ESS. The gate reads the median
   split-R-hat over the continuous parameters and over the Rao-Blackwellized

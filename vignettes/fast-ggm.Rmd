@@ -335,13 +335,34 @@ mixtures and graphical models. **ssgraph** (version 1.16, 2025-08-29) is the
 other near neighbor, doing Bayesian structure learning for undirected graphical
 models with spike-and-slab priors on continuous, discrete and mixed data.
 
-Neither package was run against `bgms` on the same data for this vignette, so it
-makes no comparative speed claim about either. Every timing above is `bgms`
-against `bgms`. Readers whose problem is a single very large Gaussian graphical
-model and nothing else should look at all three; what `bgms` adds around this
-route is the rest of the package: ordinal, Blume-Capel and mixed models,
-group comparison, prior sensitivity, and the determinant tilt that keeps the
-prior usable as the number of variables grows.
+How do these timings compare with the neighbors? On this vignette's own
+simulation at p = 200 (n = 1000, 289 true edges, one machine, serial BLAS),
+**ssgraph** 1.16 at its defaults needs 3174 seconds against 394 for the call
+above, re-timed alongside it (the timing reported earlier in this vignette
+differs from that only by run-to-run noise), and the gap is the sampler rather
+than the threading: both packages update the full precision matrix in sweeps,
+`bgms`'s sweep costs 96 ms against ssgraph's 634, and a single-threaded `bgms`
+run still finishes 3.2 times the sampling in less than half the time.
+**modelSelection** 1.0.7 is faster than both on the clock, 4.2 seconds at its
+defaults, by a different design: each iteration updates about sqrt(p) columns
+rather than all p, it starts from a glasso solution, and its edge ranking is
+already stable at that short run. It targets a sparser prior (1/p on each
+edge), recovers somewhat fewer edges at a matched threshold (152 against 168
+for `bgms` with a comparable sparse prior, at zero and one false positives
+respectively), and cannot be seeded, so its runs are reproducible only to
+about two percent. All settings of all three packages rank the candidate edges
+nearly identically (AUC 0.975 to 0.996); they differ in what a run costs and
+in where the default priors put the cut. The full protocol, the seeded runner
+scripts, and the tables at all three sizes are in the
+[bgms-docs repository](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/tree/main/benchmarks/ggm-comparison),
+beside the site's
+[comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html).
+
+Readers whose problem is a single very large Gaussian graphical model and
+nothing else should look at all three; what `bgms` adds around this route is
+the rest of the package: ordinal, Blume-Capel and mixed models, group
+comparison, prior sensitivity, and the determinant tilt that keeps the prior
+usable as the number of variables grows.
 
 
 # Reproducing the timings
