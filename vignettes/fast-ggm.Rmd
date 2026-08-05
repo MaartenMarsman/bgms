@@ -303,8 +303,18 @@ is absent has its entry fixed at exactly zero, and an edge that is present draws
 its entry from a diffuse slab. The construction comes from the Bayesian
 variable-selection literature [@george1993jasa_variable] and was brought to
 Gaussian graphical models by @wang2015ba_scaling, whose column-wise block Gibbs
-sampler is the ancestor of the one `update_method = "gibbs"` runs. Its appeal
-was, and is, that it avoids a graph-dependent normalizing constant. The
+sampler is the ancestor of the one `update_method = "gibbs"` runs. One
+divergence from that ancestor carries the timing comparison below. Wang's
+spike is continuous — a narrow normal around zero, which is what **ssgraph**
+implements — so an absent edge still has a small non-zero entry, and a column
+update must draw all p − 1 entries from a dense conditional no matter how
+sparse the sampled graph is. `bgms` keeps the point mass: an absent edge's
+entry is exactly zero, a column update works only through the entries the
+current graph includes, and a sparser graph makes a cheaper update. Measured
+on this vignette's data, that is the difference between per-pair cost growing
+as p^1.9^ (ssgraph) and p^1.4^ (`bgms`): a point-mass sampler is paid for the
+sparsity it infers, and a continuous-spike sampler is not. The construction's
+appeal was, and is, that it avoids a graph-dependent normalizing constant. The
 G-Wishart prior is the literature's canonical case of that cost
 [@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating], but the
 cost is not particular to the G-Wishart: `bgm()`'s own hierarchical
@@ -345,7 +355,8 @@ how much wall clock passes before a sampler's edge ranking stops changing. We
 measured that on ten replicate datasets per sample size from this vignette's
 generator (p = 100; n = 1000, 500 and 200; one chain on one thread per
 package; T is the time, burn-in included, to reach AUC within 0.01 of its
-converged value). Median [min, max] over the replicates:
+converged value, the convergence-cost metric of @vogels2024jasa_bayesian).
+Median [min, max] over the replicates:
 
 | n | bgms, raw | bgms, as shipped (RB) | ssgraph, g.prior 0.5 | modelSelection |
 |---:|---|---|---|---|
@@ -358,15 +369,22 @@ comparison, and there `bgms` converges a median 18 to 25 times sooner than
 **ssgraph** 1.16, in all 30 of 30 replicates (per-replicate ranges are wide,
 [4, 73] at the hardest size, so medians with ranges are the quotable form).
 Part of the gap is per-sweep cost — a `bgms` sweep costs 96 ms against
-ssgraph's 634 at p = 200 — and the rest is how few sweeps `bgms` needs. The
-Rao-Blackwellized column is faster still, but raw is the conservative claim.
+ssgraph's 634 at p = 200, the spike divergence described above — and the rest
+is how few sweeps `bgms` needs. The Rao-Blackwellized column is faster still,
+but that estimator averages a conditional probability that is informative
+before any indicator has flipped, so it can look converged from a barely-moved
+chain: at its 8-sweep convergence point nearly half the pairs have never
+changed state. The raw column cannot converge until indicators actually move,
+which is why it is the conservative claim and the one to quote.
 The three sample sizes are three signal strengths — the generator's per-edge
 partial correlations are 0.14 by construction, so n = 1000 is an easy ranking
 problem and n = 200 a genuinely hard one — and the converged AUCs track that:
 medians 1.00, 0.98 and 0.87, identical for `bgms` and ssgraph at every n,
 with modelSelection slightly lower at the two harder sizes. Weaker signal
 costs `bgms` more sweeps, not slower sweeps: n changes how many draws the
-ranking needs, never the price of a draw.
+ranking needs, never the price of a draw. The whole comparison sits at one
+graph density (average degree 3); the point-mass advantage is
+sparsity-dependent, so denser graphs would shrink it.
 **modelSelection** 1.0.7 also converges within about a second, so its short
 default is converged rather than undersampled; it targets a sparser prior
 (1/p on each edge), recovers somewhat fewer edges at a matched threshold (152
