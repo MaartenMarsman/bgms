@@ -653,7 +653,7 @@ window.Quarto = {
 <p>Let <span class="math inline">\(B = \max(0,\, K \cdot r)\)</span> denote the per-person stabilization bound — the largest exponent the accumulation can reach, clamped at zero so the shift never amplifies a negative residual (see <a href="#the-exp_bound-709-threshold">the EXP_BOUND section</a> for how it gates the FAST path). Then:</p>
 <ol type="1">
 <li>Precompute <span class="math inline">\(e_r = \exp(r)\)</span>, <span class="math inline">\(e_B = \exp(-B)\)</span>, and <span class="math inline">\(e_\mu(c) = \exp(\mu(c))\)</span> for each category (once per variable)</li>
-<li>Accumulate the denominator with a running power <span class="math inline">\(P\)</span>:</li>
+<li>Accumulate the denominator with a running power <span class="math inline">\(P\)</span>, written here as pseudo-code with <span class="math inline">\(\leftarrow\)</span> for assignment:</li>
 </ol>
 <p><span class="math display">\[
 \begin{aligned}
@@ -664,7 +664,7 @@ D &amp;\leftarrow e_B \\
   P &amp;\leftarrow P \cdot e_r
 \end{aligned}
 \]</span></p>
-<p>Only two per-person <code>exp()</code> calls are needed (<span class="math inline">\(e_r\)</span> and <span class="math inline">\(e_B\)</span>), plus <span class="math inline">\(K\)</span> for the main effects. The running product <span class="math inline">\(P = e_r^{\,c}\)</span> replaces the <span class="math inline">\(K\)</span> per-category <code>exp()</code> calls that a naive implementation would require.</p>
+<p>Only two per-person <code>exp()</code> calls are needed (<span class="math inline">\(e_r\)</span> and <span class="math inline">\(e_B\)</span>), plus <span class="math inline">\(K\)</span> for the main effects. The running product <span class="math inline">\(P = e_r^{\,c}\)</span> replaces the <span class="math inline">\(K\)</span> per-category <code>exp()</code> calls that a naive implementation would require. Note where the stabilization lands: every accumulated term carries the same factor <span class="math inline">\(e_B\)</span>, so <span class="math inline">\(D\)</span> is the true denominator scaled by <span class="math inline">\(\exp(-B)\)</span>. The factor is common to all of that person’s terms, so it cancels in the category probabilities, and the bound is passed alongside the sum wherever the unshifted value matters.</p>
 </section>
 <section id="safe-path-detail" class="level3">
 <h3 class="anchored" data-anchor-id="safe-path-detail">SAFE path detail</h3>

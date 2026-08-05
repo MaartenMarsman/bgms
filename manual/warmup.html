@@ -777,10 +777,10 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="budget-allocation">Budget allocation</h2>
 <p>How the warmup budget is divided depends on the sampler hosting the schedule (the <code>SamplerSpec</code> fields <code>learn_sd</code> and the Gibbs <code>select_during_warmup</code> flag; see <a href="../manual/samplers.html">Sampler Hierarchy</a>):</p>
 <ul>
-<li><strong>NUTS with edge selection</strong> — split 85% (stages 1-3a) / 10% (stage 3b) / ~5% (stage 3c). If stage 3b would get fewer than 20 iterations it is skipped entirely (default proposal SDs are used).</li>
-<li><strong>Gibbs with edge selection</strong> — there is no adaptation to run, so the schedule reduces to a settle-then-select split: the first 15% of warmup runs the full model (all edges included, selection off) so the precision matrix settles, and stage 3c covers the remaining 85% with selection active. Both windows scale with the warmup budget.</li>
-<li><strong>Adaptive Metropolis with edge selection</strong> — stage 3c is empty; selection activates at the first sampling iteration.</li>
-<li><strong>No edge selection</strong> (any sampler) — the full budget goes to the core stages 1-3a.</li>
+<li><strong>NUTS with edge selection</strong> (<code>edge_selection</code> with <code>learn_sd</code>) — split 85% (stages 1-3a) / 10% (stage 3b) / ~5% (stage 3c). If stage 3b would get fewer than 20 iterations it is skipped entirely (default proposal SDs are used).</li>
+<li><strong>Gibbs with edge selection</strong> (<code>edge_selection</code> with <code>select_during_warmup</code>) — there is no adaptation to run, so the schedule reduces to a settle-then-select split: the first 15% of warmup runs the full model (all edges included, selection off) so the precision matrix settles, and stage 3c covers the remaining 85% with selection active. Both windows scale with the warmup budget.</li>
+<li><strong>Adaptive Metropolis with edge selection</strong> (<code>edge_selection</code> with both flags off) — stage 3c is empty; selection activates at the first sampling iteration.</li>
+<li><strong>No edge selection</strong> (any sampler; both flags irrelevant) — the full budget goes to the core stages 1-3a.</li>
 </ul>
 <p>A warm-started refit is the one case that legitimately runs a short warmup: it inherits an adapted step size and mass matrix, so the expensive part of stages 1-3a is already paid for. See <a href="../manual/sensitivity-refit.html#why-the-check-costs-less-than-the-fit">Sensitivity and Refits</a> for the schedule that applies and the conditions under which it does.</p>
 </section>

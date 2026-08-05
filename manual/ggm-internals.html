@@ -676,7 +676,13 @@ window.Quarto = {
 <p><span class="math display">\[
 \theta = (\psi_1,\; f_2, \psi_2,\; f_3, \psi_3,\; \ldots,\; f_p, \psi_p),
 \]</span></p>
-<p>Notation: on this page <span class="math inline">\(\theta\)</span> without subscripts is the packed sampler position (the <span class="math inline">\(q\)</span> of the <a href="../manual/nuts.html">NUTS</a> and <a href="../manual/null-space.html">Constrained Cholesky Parameterization</a> pages — here <span class="math inline">\(q\)</span> indexes Cholesky columns instead, mirroring the code); the doubly-subscripted <span class="math inline">\(\theta_{ij}\)</span> always denotes an entry of the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span>. For each column <span class="math inline">\(q\)</span>:</p>
+<p>Notation, fixed before anything else, because three symbols carry this page:</p>
+<ul>
+<li><span class="math inline">\(\theta\)</span> with no subscripts is the packed sampler position, the one vector the sampler moves through. The <a href="../manual/nuts.html">NUTS</a> and <a href="../manual/null-space.html">Constrained Cholesky Parameterization</a> pages call that same vector <span class="math inline">\(q\)</span>; this page cannot, because <span class="math inline">\(q\)</span> is needed below as the Cholesky column index, mirroring the code.</li>
+<li><span class="math inline">\(\theta_{ij}\)</span>, doubly subscripted, is always an entry of the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span>, never a position coordinate.</li>
+<li><span class="math inline">\(q\)</span> is a column index of the Cholesky factor <span class="math inline">\(\Phi\)</span>, nothing else.</li>
+</ul>
+<p>For each column <span class="math inline">\(q\)</span>:</p>
 <ul>
 <li><span class="math inline">\(\psi_q = \log(\Phi_{qq})\)</span> — the log-transformed diagonal entry, ensuring <span class="math inline">\(\Phi_{qq} &gt; 0\)</span>.</li>
 <li><span class="math inline">\(f_q \in \mathbb{R}^{d_q}\)</span> — free parameters for column <span class="math inline">\(q\)</span>’s off-diagonal entries, with <span class="math inline">\(d_q\)</span> equal to the number of included edges in column <span class="math inline">\(q\)</span>.</li>
@@ -749,6 +755,7 @@ window.Quarto = {
 <p>When the adaptive-Metropolis sampler is selected, each off-diagonal entry <span class="math inline">\(\theta_{ij}\)</span> is updated individually via Metropolis–Hastings. The algorithm exploits a structural property of the Cholesky parameterization: changing one off-diagonal entry <span class="math inline">\(\theta_{ij}\)</span> while holding the Cholesky factor consistent requires adjusting the diagonal <span class="math inline">\(\theta_{jj}\)</span> deterministically. This reduces a constrained positive-definite update to a one-dimensional proposal, and the entire update — proposal, likelihood ratio, and Cholesky maintenance — runs without permutation or refactorization of the precision matrix.</p>
 <section id="roverato-constraint-structure" class="level3">
 <h3 class="anchored" data-anchor-id="roverato-constraint-structure">Roverato constraint structure</h3>
+<p>The name is the code’s own, after <span class="citation" data-cites="Roverato_2002_hiw">Roverato (<a href="#ref-Roverato_2002_hiw" role="doc-biblioref">2002</a>)</span>, whose analysis of Cholesky parameterizations of graph-constrained precision matrices this update exploits. The structure is this:</p>
 <p>Since <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top\boldsymbol{\Phi}\)</span>, each off-diagonal precision entry (<span class="math inline">\(i &lt; j\)</span>) is</p>
 <p><span class="math display">\[
 \theta_{ij} = \sum_{l=1}^{i} \Phi_{li}\,\Phi_{lj},
@@ -787,7 +794,7 @@ M^{-1}\big)\)</span>, drawn by triangular solves against the Cholesky factor of 
 </section>
 <section id="edge-selection" class="level2">
 <h2 class="anchored" data-anchor-id="edge-selection">Edge selection</h2>
-<p>When edge selection is active, each edge <span class="math inline">\((i,j)\)</span> has a binary indicator <span class="math inline">\(\gamma_{ij}\)</span>, updated by add/delete moves <span class="citation" data-cites="GottardoRaftery_2008 VanDenBerghEtAl_2026_moms">(<a href="#ref-GottardoRaftery_2008" role="doc-biblioref">Gottardo &amp; Raftery, 2008</a>; <a href="#ref-VanDenBerghEtAl_2026_moms" role="doc-biblioref"><span class="nocase">van den Bergh et al.</span>, 2026</a>)</span> that reuse the Roverato constants and in-place machinery described above. In the proposals below, <span class="math inline">\(c_3\)</span> denotes the Roverato scaling constant (<code>constants_[3]</code>) that relates a proposal on the Cholesky scale to the resulting precision entry.</p>
+<p>When edge selection is active, each edge <span class="math inline">\((i,j)\)</span> has a binary indicator <span class="math inline">\(\gamma_{ij}\)</span>, updated by add/delete moves <span class="citation" data-cites="GottardoRaftery_2008 VanDenBerghEtAl_2026_moms">(<a href="#ref-GottardoRaftery_2008" role="doc-biblioref">Gottardo &amp; Raftery, 2008</a>; <a href="#ref-VanDenBerghEtAl_2026_moms" role="doc-biblioref"><span class="nocase">van den Bergh et al.</span>, 2026</a>)</span> that reuse the Roverato constants and in-place machinery described above. In the proposals below, <span class="math inline">\(c_3\)</span> denotes the scaling constant, precomputed and stored by the model, that relates a proposal on the Cholesky scale to the resulting precision entry.</p>
 <section id="delete-move-gamma_ij-1-to-0" class="level3">
 <h3 class="anchored" data-anchor-id="delete-move-gamma_ij-1-to-0">Delete move (<span class="math inline">\(\gamma_{ij} = 1 \to 0\)</span>)</h3>
 <p>Propose to set <span class="math inline">\(\theta_{ij} = 0\)</span> and <span class="math inline">\(\theta_{jj}\)</span> to its constrained value. The log-acceptance ratio sums:</p>
@@ -825,9 +832,9 @@ J = \gamma + (1 - 2\gamma)\,\alpha,
 </section>
 <section id="warm-starts-and-initialization" class="level2">
 <h2 class="anchored" data-anchor-id="warm-starts-and-initialization">Warm starts and initialization</h2>
-<p>With data present, the precision matrix is initialized from a regularized MLE: <span class="math inline">\(\boldsymbol{\Theta}_0 = n\,(\mathbf{S} + \delta_0
-\mathbf{I})^{-1}\)</span> with <span class="math inline">\(\delta_0 = \operatorname{tr}(\mathbf{S}) /
-(p\, n)\)</span>, shrinking toward the identity at a scale-appropriate rate. If the initial graph excludes edges, the excluded entries are zeroed and the diagonal is inflated to diagonal dominance so the start stays positive definite. If the inversion fails, the identity is kept.</p>
+<p>With data present, the precision matrix is initialized from a regularized MLE: <span class="math inline">\(\boldsymbol{\Theta}_0 = n\,(\mathbf{S} + r_0
+\mathbf{I})^{-1}\)</span> with ridge <span class="math inline">\(r_0 = \operatorname{tr}(\mathbf{S}) /
+(p\, n)\)</span>, shrinking toward the identity at a scale-appropriate rate. (The ridge is written <span class="math inline">\(r_0\)</span> here to keep it apart from the determinant tilt <span class="math inline">\(\delta\)</span>, a different quantity.) If the initial graph excludes edges, the excluded entries are zeroed and the diagonal is inflated to diagonal dominance so the start stays positive definite. If the inversion fails, the identity is kept.</p>
 </section>
 <section id="prior-only-mode" class="level2">
 <h2 class="anchored" data-anchor-id="prior-only-mode">Prior-only mode</h2>
@@ -848,6 +855,9 @@ J = \gamma + (1 - 2\gamma)\,\alpha,
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
 <p><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a>, <a href="../manual/zratio-hierarchical.html">Hierarchical Graph Prior and the Z-Ratio Engine</a>, <a href="../manual/edge-priors.html">Edge Priors</a>, <a href="../manual/parameter-priors.html">Parameter Priors</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>.</p>
+</section>
+<section id="references" class="level2">
+
 
 
 
@@ -856,6 +866,9 @@ J = \gamma + (1 - 2\gamma)\,\alpha,
 <div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
 <div id="ref-GottardoRaftery_2008" class="csl-entry" role="listitem">
 Gottardo, R., &amp; Raftery, A. E. (2008). Markov chain <span>Monte Carlo</span> with mixtures of mutually singular distributions. <em>Journal of Computational and Graphical Statistics</em>, <em>17</em>(4), 949–975. <a href="https://doi.org/10.1198/106186008X386102">https://doi.org/10.1198/106186008X386102</a>
+</div>
+<div id="ref-Roverato_2002_hiw" class="csl-entry" role="listitem">
+Roverato, A. (2002). Hyper inverse <span>Wishart</span> distribution for non-decomposable graphs and its application to <span>Bayesian</span> inference for <span>Gaussian</span> graphical models. <em>Scandinavian Journal of Statistics</em>, <em>29</em>(3), 391–411. <a href="https://doi.org/10.1111/1467-9469.00297">https://doi.org/10.1111/1467-9469.00297</a>
 </div>
 <div id="ref-VanDenBerghEtAl_2026_moms" class="csl-entry" role="listitem">
 <span class="nocase">van den Bergh, D., Clyde, M. A., Raftery, A. E., &amp; Marsman, M.</span> (2026). Reversible jump <span>MCMC</span> with no regrets: <span>B</span>ayesian variable selection using mixtures of mutually singular distributions. <em>Manuscript in Preparation</em>.

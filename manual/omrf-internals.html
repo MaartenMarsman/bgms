@@ -714,7 +714,7 @@ r_{ni} = 2\sum_{j \neq i} x_{nj}\, \omega_{ij}
 <h2 class="anchored" data-anchor-id="edge-indicator-updates">Edge indicator updates</h2>
 <p>Edge selection uses a Metropolis-Hastings sampler based on the mixtures of mutually singular (MoMS) distributions framework <span class="citation" data-cites="GottardoRaftery_2008 VanDenBerghEtAl_2026_moms">(<a href="#ref-GottardoRaftery_2008" role="doc-biblioref">Gottardo &amp; Raftery, 2008</a>; <a href="#ref-VanDenBerghEtAl_2026_moms" role="doc-biblioref"><span class="nocase">van den Bergh et al.</span>, 2026</a>)</span>. All interaction parameters live in a fixed-dimensional space; excluded edges are represented as parameters fixed at zero rather than removed from the model.</p>
 <p>When edge selection is active, the chain runner performs a full scan over all <span class="math inline">\(p(p-1)/2\)</span> edges at the start of each iteration, before the parameter update step. For each edge <span class="math inline">\((i, j)\)</span>:</p>
-<p><strong>Add move</strong> (<span class="math inline">\(\gamma_{ij} = 0 \to 1\)</span>). Propose a new interaction value <span class="math inline">\(\omega_{ij}^\star \sim \mathcal{N}(\omega_{ij},\, \sigma_{ij}^2)\)</span> and accept with probability <span class="math display">\[
+<p><strong>Add move</strong> (<span class="math inline">\(\gamma_{ij} = 0 \to 1\)</span>). Propose a new interaction value <span class="math inline">\(\omega_{ij}^\star \sim \mathcal{N}(\omega_{ij},\, \sigma_{ij}^2)\)</span>, write <span class="math inline">\(q(\cdot \mid \cdot)\)</span> for that Gaussian proposal density, and accept with probability <span class="math display">\[
 \alpha = \min\!\left\{1,\;
   \frac{p(\boldsymbol{\gamma}^\star, \boldsymbol{\omega}^\star \mid \mathbf{X})}
        {p(\boldsymbol{\gamma},\, \boldsymbol{\omega} \mid \mathbf{X})}
@@ -725,7 +725,7 @@ r_{ni} = 2\sum_{j \neq i} x_{nj}\, \omega_{ij}
 \alpha = \min\!\left\{1,\;
   \frac{p(\boldsymbol{\gamma}^\star, \boldsymbol{\omega}^\star \mid \mathbf{X})}
        {p(\boldsymbol{\gamma},\, \boldsymbol{\omega} \mid \mathbf{X})}
-  \;\frac{q(\omega_{ij} \mid \omega_{ij}^\star)}{1}
+  \;q(\omega_{ij} \mid \omega_{ij}^\star)
 \right\}
 \]</span></p>
 <p>The scan order is randomized at each iteration via <code>prepare_iteration()</code>, which calls <code>arma_randperm()</code>.</p>

@@ -705,7 +705,7 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="corrected-sweeps-on-continuous-data">Corrected sweeps on continuous data</h2>
 <p>On continuous (GGM) and mixed models under the joint graph specification, the sweeps above run in a corrected form: the determinant-tilted precision prior reweights the graph marginal, so the plain collapsed updates would target the wrong block structure (see <a href="../manual/edge-priors.html#normalizing-constant-corrections">Edge Priors — Normalizing-constant corrections</a>). The correction enters the SBM locally:</p>
 <ul>
-<li>each allocation move adds a per-edge tilt term, the slope <span class="math inline">\(f'(d)\)</span> of the correction curve evaluated at the edge’s min-endpoint expected degree density;</li>
+<li>each allocation move adds a per-edge tilt term, the slope <span class="math inline">\(f'(d)\)</span> of the correction curve evaluated at a local density <span class="math inline">\(d\)</span>: each endpoint of the edge has an expected degree density under the current block probabilities, and the smaller of the two is the one read;</li>
 <li>the new-cluster collapsed marginal integrates the corrected per-pair curve <span class="math inline">\(f(\theta)\)</span> over a quadrature grid instead of the plain Beta marginal.</li>
 </ul>
 <p>On mixed data the tilt acts on the continuous block only, so the correction terms read continuous-continuous pairs exclusively (a per-node continuous mask is attached); with fewer than two continuous variables the sweeps reduce to the plain updates. Discrete models always use the plain updates. In <code>bgmCompare()</code>, the SBM difference prior is always uncorrected — there is no precision matrix, hence no tilt.</p>
