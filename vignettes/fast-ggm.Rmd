@@ -338,25 +338,35 @@ mixtures and graphical models. **ssgraph** (version 1.16, 2025-08-29) is the
 other near neighbor, doing Bayesian structure learning for undirected graphical
 models with spike-and-slab priors on continuous, discrete and mixed data.
 
-How do these timings compare with the neighbors? On this vignette's own
-simulation at p = 200 (n = 1000, 289 true edges, one machine, serial BLAS),
-**ssgraph** 1.16 at its defaults needs 3174 seconds against 394 for the call
-above, re-timed alongside it (the timing reported earlier in this vignette
-differs from that only by run-to-run noise), and the gap is the sampler rather
-than the threading: both packages update the full precision matrix in sweeps,
-`bgms`'s sweep costs 96 ms against ssgraph's 634, and a single-threaded `bgms`
-run still finishes 3.2 times the sampling in less than half the time.
-**modelSelection** 1.0.7 is faster than both on the clock, 4.2 seconds at its
-defaults, by a different design: each iteration updates about sqrt(p) columns
-rather than all p, it starts from a glasso solution, and its edge ranking is
-already stable at that short run. It targets a sparser prior (1/p on each
-edge), recovers somewhat fewer edges at a matched threshold (152 against 168
-for `bgms` with a comparable sparse prior, at zero and one false positives
-respectively), and cannot be seeded, so its runs are reproducible only to
-about two percent. All settings of all three packages rank the candidate edges
-nearly identically (AUC 0.975 to 0.996); they differ in what a run costs and
-in where the default priors put the cut. The full protocol, the seeded runner
-scripts, and the tables at all three sizes are in the
+How does this route compare with the neighbors? Not by default timings:
+default run lengths are conventions that differ by orders of magnitude across
+packages, so comparing them compares conventions. The informative question is
+how much wall clock passes before a sampler's edge ranking stops changing. We
+measured that on ten replicate datasets per sample size from this vignette's
+generator (p = 100; n = 1000, 500 and 200; one chain on one thread per
+package; time to AUC within 0.01 of its converged value, burn-in included).
+`bgms` reaches a converged ranking in 0.5 to 7 seconds by raw inclusion
+frequencies — the like-for-like sampler comparison — where **ssgraph** 1.16 at
+a matched 0.5 edge prior needs 13 to 189 seconds: a median 18 to 25 times
+slower, in all 30 of 30 replicates. The Rao-Blackwellized probabilities `bgms`
+actually reports converge in under a second at every sample size, though the
+raw figure is the conservative claim to quote. Part of the gap is per-sweep
+cost — both packages update the full precision matrix in sweeps, and a `bgms`
+sweep costs 96 ms against ssgraph's 634 at p = 200 — and the rest is how few
+sweeps `bgms` needs. **modelSelection** 1.0.7 also converges within about a
+second, so its short default is converged rather than undersampled;
+it targets a sparser prior (1/p on each edge), recovers somewhat fewer edges
+at a matched threshold (152 against 168 for `bgms` with a comparable sparse
+prior, at zero and one false positives respectively), and cannot be seeded, so
+its runs are reproducible only to about two percent. The converged rankings
+themselves are nearly identical across all settings of all three packages
+(AUC 0.975 to 0.996 on this vignette's p = 200 data); the packages differ in
+how fast they get there and in where the default priors put the cut. As
+shipped, at p = 200, the defaults cost 394 seconds (`bgms`, four chains on
+four threads), 4.2 seconds (modelSelection) and 3174 seconds (ssgraph) —
+invoices that fold sampler speed and chain-length convention together. The
+full protocol, the seeded runner scripts, and the tables at all sizes are in
+the
 [bgms-docs repository](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/tree/main/benchmarks/ggm-comparison),
 beside the site's
 [comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html).
