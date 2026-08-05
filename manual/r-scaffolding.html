@@ -487,6 +487,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Fast Computation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Simulation and Prediction</span></a>
+  </div>
+</li>
       </ul>
   </li>
       </ul>
@@ -522,6 +528,41 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Results and Checks</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Fit Objects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checks Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
       </ul>
@@ -676,6 +717,52 @@ ul.task-list li input[type="checkbox"] {
 <li><code>$precomputed</code> — sufficient statistics and derived quantities (e.g., cross-products for GGM, pairwise stats for compare)</li>
 </ul>
 <p>The result passes through <code>new_bgm_spec()</code> (type assertions) and <code>validate_bgm_spec()</code> (cross-field invariants, such as: if <code>edge_selection = TRUE</code> then <code>edge_prior</code> must not be <code>"Not Applicable"</code>).</p>
+</section>
+<section id="the-arguments-record" class="level2">
+<h2 class="anchored" data-anchor-id="the-arguments-record">The arguments record (<code>build_arguments.R</code>)</h2>
+<p>The spec is an internal object: it carries the data matrices, the precomputed sufficient statistics, and everything else the sampler needs, and it is not what downstream code should be reading. So one step sits between the validated spec and the fit object, and it is the step that decides what the rest of the package can see.</p>
+<p><code>build_arguments(spec)</code> produces the <code>$arguments</code> list every fit carries. It is a pure function of the spec, so it belongs to this stage conceptually, but it runs later: each of the three output builders in the next section calls it while assembling the fit object. It dispatches on <code>spec$model_type</code> to one of four builders, mirroring the four spec builders above:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 21%">
+<col style="width: 52%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model type</th>
+<th>Builder</th>
+<th>What only it carries</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>"ggm"</code></td>
+<td><code>build_arguments_ggm()</code></td>
+<td><code>column_means</code> (the training means continuous data was centred on), <code>is_continuous = TRUE</code></td>
+</tr>
+<tr class="even">
+<td><code>"omrf"</code></td>
+<td><code>build_arguments_omrf()</code></td>
+<td><code>category_levels</code>, <code>blume_capel_shift</code>, <code>baseline_category</code>, <code>nuts_max_depth</code></td>
+</tr>
+<tr class="odd">
+<td><code>"mixed_mrf"</code></td>
+<td><code>build_arguments_mixed_mrf()</code></td>
+<td><code>discrete_indices</code> / <code>continuous_indices</code>, <code>num_discrete</code> / <code>num_continuous</code>, <code>is_mixed = TRUE</code></td>
+</tr>
+<tr class="even">
+<td><code>"compare"</code></td>
+<td><code>build_arguments_compare()</code></td>
+<td><code>projection</code>, <code>num_groups</code>, <code>group_labels</code>, <code>category_support</code></td>
+</tr>
+</tbody>
+</table>
+<p>Three things about the result are worth knowing, because they explain behaviour elsewhere.</p>
+<p><strong>It is the model-class oracle.</strong> Nothing downstream re-derives the model type from the data. <code>extract_arguments(fit)$is_continuous</code> and <code>$is_mixed</code> are the flags that <a href="../manual/simulation-prediction.html"><code>simulate()</code> and <code>predict()</code></a> branch on, and <code>model_type</code> is what <a href="../manual/fit-objects.html#methods"><code>print()</code></a> turns into a label.</p>
+<p><strong>It carries the recode maps.</strong> <code>category_levels</code> and <code>blume_capel_shift</code> are the only record of how the fitted data were mapped onto zero-based codes, which is what lets <code>predict()</code> accept <code>newdata</code> on the original scale and <code>simulate()</code> return data on it.</p>
+<p><strong>It is a compatibility surface, not a clean design.</strong> Several fields are duplicated or legacy: <code>no_variables</code> repeats <code>num_variables</code> under the pre-0.1.6.0 name, and <code>version</code> records the package version that produced the fit so that later readers can branch on vintage. Both are kept because reading a saved fit has to keep working.</p>
+<p>The ordinal builder also collapses <code>variable_type</code> to a single string when every variable shares one, which is why <code>extract_arguments(fit)$variable_type</code> can be length one or length <code>p</code> and callers pass it through <code>expand_variable_type()</code> before indexing it.</p>
 </section>
 <section id="sampler-dispatch-run_sampler.r" class="level2">
 <h2 class="anchored" data-anchor-id="sampler-dispatch-run_sampler.r">Sampler dispatch (<code>run_sampler.R</code>)</h2>

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Constrained Cholesky Parameterization – bgms</title>
+<title>Sensitivity and Refits – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -36,8 +36,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../manual/samplers.html" rel="next">
-<link href="../manual/nuts.html" rel="prev">
+<link href="../manual/bgmcompare-internals.html" rel="next">
+<link href="../manual/checks-internals.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -354,7 +354,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -409,13 +409,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">MCMC Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
@@ -430,7 +430,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link active">
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Constrained Cholesky Parameterization</span></a>
   </div>
 </li>
@@ -560,13 +560,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
  <span class="menu-text">Results and Checks</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
@@ -587,7 +587,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
@@ -615,9 +615,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Constrained Cholesky Parameterization</h1>
+<h1 class="title">Sensitivity and Refits</h1>
 </div>
 
 
@@ -634,71 +634,152 @@ window.Quarto = {
 </header>
 
 
-<p>When edge selection is active in a model with continuous variables, excluded edges must remain exactly zero while the precision matrix stays positive definite. <code>bgms</code> enforces both requirements through the parameterization itself: the sampler works in a set of free coordinates in which every point corresponds to a positive-definite precision matrix with exact zeros at the excluded edges. No projection, constraint solve, or correction step is needed during integration — NUTS runs as an ordinary unconstrained sampler.</p>
-<p>The implementation lives in <code>graph_constraint_structure.h</code> (the per-graph bookkeeping) and <code>ggm_gradient.cpp</code> (the forward map and gradient); the mixed MRF reuses the same engine for its continuous block.</p>
-<section id="why-constraints" class="level2">
-<h2 class="anchored" data-anchor-id="why-constraints">Why constraints?</h2>
-<p>Each pairwise parameter is either exactly zero (edge absent) or free (edge present). For models with continuous variables, the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> must in addition be positive definite. <code>bgms</code> parameterizes <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>, where <span class="math inline">\(\boldsymbol{\Phi}\)</span> is the upper Cholesky factor with positive diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>. Positive definiteness is then guaranteed by construction.</p>
-<p>The complication is sparsity. An excluded edge (<span class="math inline">\(\gamma_{iq} = 0\)</span>) requires <span class="math inline">\(\theta_{iq} = 0\)</span>, which in Cholesky entries means</p>
-<p><span class="math display">\[
-\theta_{iq} = \sum_l \Phi_{li}\,\Phi_{lq} = 0.
-\]</span></p>
-<p>Across the whole matrix this is a quadratic constraint on <span class="math inline">\(\boldsymbol{\Phi}\)</span>, because columns interact through the <span class="math inline">\(\boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span> product. The key observation is that it becomes <em>linear</em> one column at a time: with the earlier columns <span class="math inline">\(1, \ldots, q-1\)</span> held fixed, the constraints on column <span class="math inline">\(q\)</span>’s off-diagonal entries <span class="math inline">\(x_q = \Phi_{1:q-1,\,q}\)</span> form a linear system</p>
-<p><span class="math display">\[
-A_q\, x_q = 0,
-\]</span></p>
-<p>where each row of <span class="math inline">\(A_q\)</span> is (the leading part of) an earlier column <span class="math inline">\(\boldsymbol{\Phi}_{\cdot i}\)</span> for an excluded edge <span class="math inline">\((i, q)\)</span>. The set of valid <span class="math inline">\(x_q\)</span> is therefore a linear subspace — the null space of <span class="math inline">\(A_q\)</span> — and the sampler can parameterize that subspace directly.</p>
+<p><code>prior_sensitivity_check()</code> asks one question: would the edge verdicts a fit reports survive a different choice of prior scale? A verdict here is the three-way call, presence, absence, or undecided, that the <a href="../manual/checks-internals.html#the-three-way-rule">three-way rule</a> makes for each edge from its inclusion Bayes factor. Answering the question honestly means refitting the model several times at other scales, and then deciding which of those refits are trustworthy enough to use. This page documents the machinery that does both jobs: <code>R/refit_engine.R</code> produces one refit at a given scale, and <code>R/prior_sensitivity.R</code> drives the grid of scales and adjudicates the results.</p>
+<p>The refit engine is documented here once. A refit reuses the same warmup adaptation and per-chain plumbing as any other fit, and those pieces are owned by <a href="../manual/warmup.html">Warmup Schedule</a> and <a href="../manual/parallel-chains.html">Parallel Chains</a>. This page owns only what a refit does differently.</p>
+<p>The refits land at a handful of fixed scales. The estimator that fills the space between them, the anchored curve, is documented under <a href="../manual/checks-internals.html#the-anchored-curve">Checks Internals</a>. For argument lists and return formats, see <a href="../reference/prior-sensitivity.html"><code>prior_sensitivity_check()</code></a> in the Reference.</p>
+<section id="the-grid" class="level2">
+<h2 class="anchored" data-anchor-id="the-grid">The grid</h2>
+<p>The check sweeps exactly one prior scale. On a <code>bgm()</code> fit that scale is <code>pairwise_scale</code>, the scale of the slab prior on the included pairwise interactions, and the unit the check reports on is the edge indicator, the binary variable that says whether an edge is in the graph. On a <code>bgmCompare()</code> fit the swept scale is <code>difference_scale</code>, the scale of the slab prior on the group differences, and the unit is the difference indicator. That one indicator family covers the pairwise and main-effect difference families alike, because <code>bgmCompare()</code> gives them one scale. Two small constructors, <code>single_network_unit()</code> and <code>difference_unit()</code>, carry that difference between the two cases; every other stage of the check is shared.</p>
+<p>The <strong>anchors</strong> are the scales at which the model is actually refit. They are given as multipliers of the scale the fit already used, called the chosen scale below, and default to <code>c(0.4, 0.63, 1, 1.6, 2.5)</code>. The multiplier 1 is always included and is never refit, because it <em>is</em> the original fit. Every other anchor costs one refit. The anchors are spaced log-uniformly on purpose. A refit can only be reweighted usefully within a limited radius of its own scale, and log-uniform spacing makes the usable radii of adjacent anchors overlap, so the stitched curve has no gap.</p>
+<p>The <strong>display grid</strong> is denser than the anchor set: 41 log-spaced points spanning the anchors, with the anchors themselves and the chosen scale merged in. The curve is reported on this grid. Every point between anchors is reweighted rather than refit: draws from a refit at a nearby anchor are importance-weighted to stand in for a refit at that point. This is the anchored curve introduced above.</p>
+<p>One extra refit is run beyond the anchors. The <strong>replicate</strong> repeats the non-unit anchor nearest 1.6x with a different seed. Comparing the replicate with the anchor it repeats shows how much two runs differ by chance alone, and that comparison is what calibrates the run-to-run noise band described under the mover rule below. The replicate sits at a refit anchor rather than at the chosen scale for a reason: the noise it measures should be the noise of the refit settings, which are the settings every other refit on the curve uses.</p>
+<section id="which-prior-moves" class="level3">
+<h3 class="anchored" data-anchor-id="which-prior-moves">Which prior moves</h3>
+<p>Continuous and mixed models place a prior on the diagonal of the precision matrix, and that prior is tied to the slab through the <a href="../manual/parameter-priors.html#eta-frame">standardized frame</a>: writing <span class="math inline">\(s\)</span> for the slab scale and <span class="math inline">\(\eta\)</span> for the diagonal rate given in that frame, the raw diagonal rate is <span class="math inline">\(\eta / s\)</span>. The tie means a sweep of <span class="math inline">\(s\)</span> cannot hold both quantities fixed at once. It has to hold one of the two fixed, and <code>resolve_vary()</code> decides which.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>vary</code></th>
+<th>What is held fixed</th>
+<th>The question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>"slab"</code></td>
+<td>the raw diagonal rate</td>
+<td>how much do the verdicts depend on how wide an edge is allowed to be?</td>
+</tr>
+<tr class="even">
+<td><code>"slab-and-diagonal"</code></td>
+<td><span class="math inline">\(\eta\)</span>, so the raw rate follows</td>
+<td>how much do they depend on the overall prior scale, with its shape held fixed?</td>
+</tr>
+<tr class="odd">
+<td><code>"auto"</code> (default)</td>
+<td>follows the frame the fit itself used</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Under <code>"auto"</code> the mode follows the frame the fit itself used: it resolves to <code>"slab-and-diagonal"</code> when the fit gave its diagonal prior as <code>eta</code>, and to <code>"slab"</code> when the fit gave a raw <code>rate</code>.</p>
+<p>One case needs an <span class="math inline">\(\eta\)</span> the fit does not carry. Asking explicitly for <code>vary = "slab-and-diagonal"</code> on a fit specified in the raw frame requires a value to hold fixed, and that fit has none. There <code>resolve_vary()</code> uses the <span class="math inline">\(\eta\)</span> the fit’s own scale implies, <code>rate</code> times <code>pairwise_scale</code>, which defines the same one-parameter family anchored at the chosen scale. The substitution never happens under <code>"auto"</code>, because <code>"auto"</code> sends a raw-frame fit to <code>"slab"</code>, where no <span class="math inline">\(\eta\)</span> is needed.</p>
+<p>The two modes answer two different questions, and neither approximates the other. That is why the resolved mode is named in the printed report rather than left implicit. Discrete models have no precision diagonal at all, so <code>resolve_vary()</code> returns <code>"none"</code> for them.</p>
 </section>
-<section id="the-theta-vector" class="level2">
-<h2 class="anchored" data-anchor-id="the-theta-vector">The theta vector</h2>
-<p>The free coordinates are collected in a vector <span class="math inline">\(\theta\)</span> with the layout</p>
-<p><span class="math display">\[
-\theta = (\psi_1,\; [f_2, \psi_2],\; [f_3, \psi_3],\; \ldots,\; [f_p, \psi_p]),
-\]</span></p>
-<p>where <span class="math inline">\(\psi_q\)</span> is the log-diagonal of column <span class="math inline">\(q\)</span> and <span class="math inline">\(f_q\)</span> holds that column’s free off-diagonal coordinates. Column <span class="math inline">\(q\)</span> has <span class="math inline">\(m_q\)</span> excluded edges and <span class="math inline">\(d_q = (q - 1) - m_q\)</span> free coordinates, so the active dimension is</p>
-<p><span class="math display">\[
-\dim(\theta) = p + \sum_q d_q = p + |E|,
-\]</span></p>
-<p>with <span class="math inline">\(|E|\)</span> the number of included edges — compared to the full dimension <span class="math inline">\(p + p(p-1)/2\)</span> of an unconstrained upper triangle. The <code>GraphConstraintStructure</code> records, for each column, which rows are excluded and included, plus the offsets of each column’s block in the active and full vectors. It is rebuilt only when the graph changes (an edge indicator toggles); its contents do not depend on the parameter values.</p>
 </section>
-<section id="from-theta-to-the-precision-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="from-theta-to-the-precision-matrix">From theta to the precision matrix</h2>
-<p>The forward map builds <span class="math inline">\(\boldsymbol{\Phi}\)</span> column by column:</p>
+<section id="one-refit" class="level2">
+<h2 class="anchored" data-anchor-id="one-refit">One refit</h2>
+<p><code>refit_at_scale()</code> takes the original fit’s validated specification, changes five things, and reruns the sampler:</p>
 <ol type="1">
-<li>Set the diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>.</li>
-<li>Assemble <span class="math inline">\(A_q^\top\)</span> from the already-built earlier columns at the excluded rows.</li>
-<li>Compute a QR decomposition of <span class="math inline">\(A_q^\top\)</span> using Givens rotations. The last <span class="math inline">\(d_q\)</span> columns of <span class="math inline">\(Q\)</span> form an orthonormal basis <span class="math inline">\(N_q\)</span> of the null space of <span class="math inline">\(A_q\)</span>.</li>
-<li>Set the off-diagonal entries <span class="math inline">\(x_q = N_q f_q\)</span>.</li>
+<li>the swept scale field, <code>pairwise_scale</code> or <code>difference_scale</code>;</li>
+<li>the raw diagonal rate, but only under <code>"slab-and-diagonal"</code>;</li>
+<li>the update method, when <code>refit_sampler</code> asks for a different one;</li>
+<li>the warmup, iteration count, seed, and core count;</li>
+<li>the initial state, when a warm start is available.</li>
 </ol>
-<p>Two special cases avoid work: a column with no excluded edges has <span class="math inline">\(x_q = f_q\)</span> directly (<span class="math inline">\(N_q\)</span> is the identity and is never materialized), and a fully constrained column has <span class="math inline">\(x_q = 0\)</span>. Finally <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>.</p>
-<p>Because <span class="math inline">\(N_q\)</span> depends on the earlier columns of <span class="math inline">\(\boldsymbol{\Phi}\)</span>, and those depend on <span class="math inline">\(\theta\)</span>, the basis is recomputed inside every forward-map evaluation — this is cheap (Givens rotations on small per-column systems) and exact.</p>
-<section id="jacobian" class="level3">
-<h3 class="anchored" data-anchor-id="jacobian">Jacobian</h3>
-<p>Densities specified on <span class="math inline">\(\boldsymbol{\Theta}\)</span> (the slab on the off-diagonals, the scale prior on the diagonal, the determinant tilt) are evaluated through this map, so the log-posterior in <span class="math inline">\(\theta\)</span> carries the log absolute determinant of the Jacobian:</p>
+<p>It then calls <code>run_sampler()</code> and <code>build_output()</code> directly. Those are the same two functions the fitting functions call, so a refit is an ordinary fit that happens to start closer to its answer. One consequence of the direct call is worth flagging: the refit bypasses <code>validate_sampler()</code>, where the core guard normally runs, so it applies that guard itself through <code>normalize_parallel_cores()</code>.</p>
+<p>Refits are silent by default: each one’s sampler notes are captured rather than printed. There are two reasons. A reader watching the check cannot act on per-refit alarms in the middle of a run. And the convergence gate below re-tests everything those alarms gesture at, so nothing is lost by holding them back. The captured text stays available in <code>$refit_diagnostics</code>, and <code>verbose = TRUE</code> prints it live.</p>
+<section id="the-warm-start" class="level3">
+<h3 class="anchored" data-anchor-id="the-warm-start">The warm start</h3>
+<p>Warm starting means starting a refit from the original fit’s final state, so that it begins near its answer. It is implemented for ordinal fits only: <code>extract_warm_state()</code> errors on any other model type. Continuous and mixed fits therefore refit cold, at full warmup, which costs about one fit per scale.</p>
+<p>For an ordinal fit the warm state is each chain’s final row of draws. The row is laid out in the exact vectorization the C++ sampler consumes: main effects followed by the whole pairwise upper triangle, row-major. A NUTS refit additionally carries two things from the origin fit: each chain’s final step size, and its diagonal metric, the mass matrix NUTS adapted during the original warmup. Both come out of the <code>refit_step_sizes</code> and <code>refit_inv_mass</code> fields described under <a href="../manual/fit-objects.html#internal-fields">Fit Objects</a>. During the refit, <a href="../manual/warmup.html#dual-averaging">dual averaging</a> stays live for the step size while the metric is held fixed, so the short warmup does not pay to re-estimate the mass matrix. A non-NUTS refit simply ignores those fields, and that is what makes the warm state sampler-agnostic.</p>
+<p><strong>No indicator state is carried.</strong> The warm start uses the default dense graph, with every edge active. The reason is dimensional. Warm-starting a sparse indicator configuration would desynchronize the sampler’s active-parameter dimension from the full storage dimension before selection-active warmup, whereas a dense start matches the cold-start dimension exactly. Little is lost by dropping the indicator state: the short warmup re-settles the graph, and the graph shifts with the scale anyway.</p>
+</section>
+<section id="why-the-check-costs-less-than-the-fit" class="level3">
+<h3 class="anchored" data-anchor-id="why-the-check-costs-less-than-the-fit">Why the check costs less than the fit</h3>
+<p><code>refit_run_length()</code> sets each refit’s run length, and the saving is conditional. A NUTS refit that carries the origin’s metric runs the validated short schedule of 500 warmup and 1000 sampling iterations. It can afford that schedule because the expensive part of warmup, estimating the mass matrix, has already been paid for by the original fit. Every other path inherits the original fit’s own schedule and gets no speed-up.</p>
+<p>So the cost claim is specific. For an ordinal fit refit under NUTS, the whole check costs roughly one original fit. For a continuous or mixed fit, or for an ordinal fit refit under a non-NUTS sampler, the check costs roughly one fit per anchor instead. When an inherited slower sampler is projected to push the total refit time past 60 seconds, the first refit’s wall time times the number of remaining jobs, the check says so once and suggests <code>refit_sampler = "nuts"</code>.</p>
+<p>Switching samplers between the original fit and the refits might look like it biases the comparison. It does not, because every comparison the check makes runs refit against refit, under one identical pipeline. The original fit never enters a comparison; it is the analysis under check.</p>
+</section>
+</section>
+<section id="the-gate" class="level2">
+<h2 class="anchored" data-anchor-id="the-gate">The gate</h2>
+<p>Refits that did not converge must not be pooled into the curve. Each refit therefore passes a gate before its verdicts are used, and the gate has two levels: one on the whole refit, and one on the individual edge.</p>
+<section id="the-refit-level-gate" class="level3">
+<h3 class="anchored" data-anchor-id="the-refit-level-gate">The refit-level gate</h3>
+<p><code>refit_convergence_gate()</code> detects global failure, and it works on bulk quantities: summaries taken over many parameters at once rather than over any single one. A refit is usable when all four of these hold:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Criterion</th>
+<th>Threshold</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>median continuous split-R-hat, over every parameter block</td>
+<td>below 1.01</td>
+</tr>
+<tr class="even">
+<td>median R-hat of the Rao-Blackwellized inclusion draws</td>
+<td>below 1.01</td>
+</tr>
+<tr class="odd">
+<td>minimum E-BFMI across warmup halves (NUTS)</td>
+<td>above 0.3</td>
+</tr>
+<tr class="even">
+<td>maximum first-half to second-half energy variance ratio (NUTS)</td>
+<td>below 2</td>
+</tr>
+</tbody>
+</table>
+<p>The first two criteria look at R-hat. Split-R-hat is the variance-ratio convergence diagnostic computed on half-chains, documented under <a href="../manual/diagnostics.html#split-r-hat">Convergence Diagnostics</a>, and the <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">Rao-Blackwellized inclusion draws</a> are the per-iteration conditional inclusion probabilities the sampler records for each edge. The last two criteria read the NUTS energy diagnostics; E-BFMI is the energy Bayesian fraction of missing information (see <a href="../manual/nuts.html">NUTS</a>).</p>
+<p>Two of those choices are deliberate and easy to misread.</p>
+<p><strong>The median, not the maximum.</strong> The gate takes the median R-hat because the maximum continuous R-hat is routinely inflated by a few flat-likelihood directions: near-unidentified thresholds for extreme categories, and interactions of near-saturated edges. In those directions a high R-hat is an identification artifact, not a failure that corrupts any verdict. The median is robust to them. Global slow mixing lifts the median and the inclusion median together, so the gate catches it; a couple of flat directions do not move the medians, so they do not fail the gate. The maximum continuous R-hat and the smallest inclusion effective sample size are still reported, for transparency, in the <code>grid</code> table.</p>
+<p><strong>Split-R-hat is not asked to carry the tail.</strong> Split-R-hat detects failure through disagreement between chains. A warm start weakens that signal by construction: every chain starts near the chosen-scale posterior, so cross-chain dispersion is reduced before sampling even begins. The inclusion tail is therefore gated at the edge level instead, through the per-chain verdict agreement described below.</p>
+<p>The energy-slope warmup heuristic, the completeness check that surfaces as <code>warmup_incomplete</code> in <code>fit$nuts_diag</code> (see <a href="../manual/warmup.html#warning-system">Warmup Schedule</a>), is deliberately left out of the gate: it flags healthy cold fits, so gating on it would fail refits that are in fact fine. A criterion that cannot be assessed abstains rather than failing. <code>finite_reduce()</code> returns a stated value when none of its inputs is finite, so a degenerate source fit with every energy diagnostic missing leaves the two R-hat criteria to decide on their own.</p>
+<p>A failed anchor is reported once, in plain language. The message names which anchor failed, names the failing criterion through <code>gate_failure_reason()</code>, and says what the curve loses without that anchor. A failed anchor is never silently pooled. Two particular failures get special handling. If the replicate fails, the run-to-run noise band cannot be measured, so the mover rule falls back to its other two floors. If the <em>original fit</em> fails, its chosen-scale verdicts are still reported, because they are the analysis under check, but the report adds a message saying to read the whole curve with caution.</p>
+</section>
+<section id="the-edge-level-check" class="level3">
+<h3 class="anchored" data-anchor-id="the-edge-level-check">The edge-level check</h3>
+<p><code>refit_edge_stats()</code> computes each edge’s quantities from one refit. There are five: the Rao-Blackwellized inclusion probability; the log inclusion Bayes factor that probability implies through the prior odds; the within-chain Monte Carlo standard error; a between-chain half-band, taken as twice the standard error of the grand mean; and whether the chains agree on the verdict. The two uncertainty measures live on the probability scale, so both are propagated to the log Bayes factor scale by the derivative <span class="math inline">\(1/(p(1-p))\)</span>, where <span class="math inline">\(p\)</span> is the edge’s inclusion probability. The clamp sits on the denominator: <span class="math inline">\(p(1-p)\)</span> is floored at <span class="math inline">\(10^{-6}\)</span> before the reciprocal is taken, so a saturated edge cannot divide by zero.</p>
+<p>An edge at the chosen scale is marked <strong>insufficient</strong> in two situations. The first: its per-chain verdicts disagree. The second: its uncertainty band straddles a verdict boundary, a value of the log Bayes factor at which the verdict would change; the band here is taken as the wider of the between-chain half-band and twice the Monte Carlo standard error. The two subcauses are recorded separately, as <code>insufficient_disagree</code> and <code>insufficient_noisy</code>. The construction errs toward caution: disagreement between chains widens the band rather than vanishing into a pooled estimate. Edges whose per-chain inclusion probabilities are all at 0 or all at 1 are saturated, and saturated edges are exempt.</p>
+</section>
+</section>
+<section id="the-mover-rule" class="level2">
+<h2 class="anchored" data-anchor-id="the-mover-rule">The mover rule</h2>
+<p>A verdict that differs somewhere along the curve is not automatically a finding, because the difference could be nothing more than noise. It counts as a move only when the total swing in the log Bayes factor across scales exceeds</p>
 <p><span class="math display">\[
-\log \lvert \det J \rvert
-= p \log 2 + 2 \sum_q \psi_q + \sum_{i &lt; p} (p - 1 - i)\, \psi_i
-  - \sum_q \sum_j \log \lvert R_{q,jj} \rvert,
+\max\bigl(\text{tolerance},\; 2 \times \text{MCSE},\; q_{95}\bigr),
 \]</span></p>
-<p>where the <span class="math inline">\(R_{q,jj}\)</span> are the diagonal entries of the per-column QR factor <span class="math inline">\(R\)</span> — the only place the constraint geometry enters the density.</p>
+<p>The three floors inside the maximum are these. <code>tolerance</code> defaults to <span class="math inline">\(\tfrac12 \log 10 \approx 1.15\)</span>. The MCSE is a Monte Carlo standard error taken per point from the chain-level spread of the reweighted estimate; computed that way, it carries both the between-chain uncertainty and the importance-sampling uncertainty. And <span class="math inline">\(q_{95}\)</span> is the run-to-run noise band, measured as described next.</p>
+<p>The noise band comes from the replicate pair: the two fits at the replicate anchor, which differ only in their seed, so any spread between them is run-to-run noise. <code>wobble_yardstick()</code> takes the absolute difference in log Bayes factor between the replicate anchor’s two fits, edge by edge, and reports its 95th percentile over <strong>threshold-relevant</strong> edges only, meaning those with <span class="math inline">\(|\log \mathrm{BF}| \le 3 \log 10 \approx 6.91\)</span> at the chosen scale. Near-saturated edges are excluded for a reason: their log-odds derivative explodes, so their replicate spread would inflate the yardstick past any genuine scale-driven move. An edge that is threshold-relevant in one refit and saturated in the other has a censored spread rather than an infinite one, so it is left out of the percentile; the printed report counts how many edges that affects. Where no threshold-relevant edge has a measurable spread, the band is <code>NA</code> and the rule falls back to the tolerance and MCSE floors.</p>
+<p>The result lands in the <code>mover</code> column, which takes one of three values: <code>stable</code>, <code>indistinguishable-from-wobble</code>, or <code>moved-beyond-wobble</code>. The guarantee this buys is simple: a bare verdict flip inside the replicate noise is never reported as a move.</p>
+<p>Alongside the <code>mover</code> column, <code>stability_interval()</code> reports the widest contiguous range of relative scales around the chosen scale over which the verdict does not change. A masked grid point, one where no anchor cleared the importance-ESS floor and the curve therefore reports <code>NA</code>, breaks that run; the interval is never interpolated across one.</p>
 </section>
-<section id="gradient" class="level3">
-<h3 class="anchored" data-anchor-id="gradient">Gradient</h3>
-<p>The gradient of the log-posterior with respect to <span class="math inline">\(\theta\)</span> is computed by an adjoint (reverse-mode) pass: the derivative with respect to <span class="math inline">\(\boldsymbol{\Phi}\)</span> is formed first, and a reverse sweep through the stored Givens rotations propagates it back to the free coordinates <span class="math inline">\(f_q\)</span> and <span class="math inline">\(\psi_q\)</span>, including the contribution from the rotation of the null-space basis itself. The engine keeps a per-evaluation workspace so steady-state calls (fixed graph between rebuilds) allocate nothing.</p>
+<section id="the-data-preferred-scale" class="level2">
+<h2 class="anchored" data-anchor-id="the-data-preferred-scale">The data-preferred scale</h2>
+<p><code>data_preferred_scale()</code> answers a different question: what slab scale do these data themselves prefer? It costs nothing, because it reads the original fit’s draws with no refit at all. The estimate <span class="math inline">\(\hat{s}\)</span> is the root-mean-square of the included interactions. It comes with an approximate log-scale standard error of <span class="math inline">\(1/\sqrt{2m}\)</span>, where <span class="math inline">\(m\)</span> is the mean number of included edges, and a 95% interval built from those two quantities. One detail is shared with the reweighting path: for a GGM the slab sits on <span class="math inline">\(-\tfrac12 \boldsymbol{\Omega}\)</span>, with <span class="math inline">\(\boldsymbol{\Omega}\)</span> the precision matrix, so the draws carry that factor first.</p>
+<p>The estimate is defined only where the swept prior is the one on the pairwise interactions. It is therefore <code>NA</code> for a <code>bgmCompare()</code> sweep, because the difference slab has no comparable plug-in estimate. Setting <code>include_preferred_scale = TRUE</code> adds an anchor at the data-preferred scale.</p>
 </section>
-</section>
-<section id="where-it-is-used" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-is-used">Where it is used</h2>
-<ul>
-<li><strong>GGM</strong> — the entire precision matrix is parameterized this way; see <a href="../manual/ggm-internals.html">GGM Internals</a>.</li>
-<li><strong>Mixed MRF</strong> — only the continuous-continuous block <span class="math inline">\(\boldsymbol{\Theta}_{yy}\)</span> is a constrained precision matrix; the discrete and cross parameters remain plain coordinates. See <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>.</li>
-<li><strong>OMRF</strong> — not applicable: purely discrete models have unconstrained real parameters.</li>
-</ul>
-<p>From the sampler’s point of view there is nothing special about the result: <a href="../manual/nuts.html">NUTS</a> receives an ordinary differentiable target of dimension <span class="math inline">\(p + |E|\)</span>, with the standard <a href="../manual/nuts.html">leapfrog integrator</a> and no constraint handling. When an edge move changes the graph, the model rebuilds the <code>GraphConstraintStructure</code> and the active dimension changes with it; the <a href="../manual/warmup.html">warmup schedule</a> accounts for this when adapting the mass matrix.</p>
+<section id="where-exactness-lives" class="level2">
+<h2 class="anchored" data-anchor-id="where-exactness-lives">Where exactness lives</h2>
+<p>The pooled curve is an approximation, and the check is built so that nothing important rests on that approximation. Every per-anchor verdict column and every chosen-scale quantity is read straight from the fit that produced it, through that fit’s own Rao-Blackwellized statistics; reweighting plays no part in those numbers. The <code>1x</code> column is therefore exactly the original fit’s reported analysis, not a reweighted estimate of it.</p>
+<p>Between the anchors the curve can deviate from what an actual refit at that scale would report, by up to roughly 0.01 in inclusion probability at the extrapolation ends. Pooled inclusion probabilities are also capped away from 0 and 1, at the same <span class="math inline">\(10^{-6}\)</span> floor the Rao-Blackwellized machinery uses. The cap means an edge that saturates at some scale keeps a large finite Bayes factor rather than turning into an infinity. Its verdict is unchanged and still decisive, and the curve, its range, and the plot all stay finite.</p>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../manual/ggm-internals.html">GGM Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/nuts.html">NUTS</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>, <a href="../manual/model-classes.html">Model Classes</a>.</p>
+<p><a href="../manual/checks-internals.html#the-anchored-curve">Checks Internals</a>, <a href="../manual/fit-objects.html">Fit Objects</a>, <a href="../manual/warmup.html">Warmup Schedule</a>, <a href="../manual/parallel-chains.html">Parallel Chains</a>, <a href="../manual/diagnostics.html">Convergence Diagnostics</a>, <a href="../reference/prior-sensitivity.html">prior_sensitivity_check() reference</a>, <a href="../examples/check-your-priors.html">Check your priors</a>.</p>
 
 
 </section>
@@ -1338,13 +1419,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../manual/nuts.html" class="pagination-link" aria-label="NUTS Algorithm">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">NUTS Algorithm</span>
+      <a href="../manual/checks-internals.html" class="pagination-link" aria-label="Checks Internals">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Checks Internals</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../manual/samplers.html" class="pagination-link" aria-label="Sampler Hierarchy">
-        <span class="nav-page-text">Sampler Hierarchy</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../manual/bgmcompare-internals.html" class="pagination-link" aria-label="bgmCompare Internals">
+        <span class="nav-page-text">bgmCompare Internals</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1367,7 +1448,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/null-space.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/sensitivity-refit.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

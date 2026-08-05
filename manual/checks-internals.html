@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Constrained Cholesky Parameterization – bgms</title>
+<title>Checks Internals – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,7 +26,27 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
@@ -36,8 +56,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../manual/samplers.html" rel="next">
-<link href="../manual/nuts.html" rel="prev">
+<link href="../manual/sensitivity-refit.html" rel="next">
+<link href="../manual/extractors-internals.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -354,7 +374,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/checks-internals.html">Checks Internals</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -409,13 +429,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">MCMC Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
@@ -430,7 +450,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link active">
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Constrained Cholesky Parameterization</span></a>
   </div>
 </li>
@@ -560,13 +580,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
  <span class="menu-text">Results and Checks</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
@@ -581,7 +601,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Checks Internals</span></a>
   </div>
 </li>
@@ -615,9 +635,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/checks-internals.html">Checks Internals</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Constrained Cholesky Parameterization</h1>
+<h1 class="title">Checks Internals</h1>
 </div>
 
 
@@ -634,76 +654,137 @@ window.Quarto = {
 </header>
 
 
-<p>When edge selection is active in a model with continuous variables, excluded edges must remain exactly zero while the precision matrix stays positive definite. <code>bgms</code> enforces both requirements through the parameterization itself: the sampler works in a set of free coordinates in which every point corresponds to a positive-definite precision matrix with exact zeros at the excluded edges. No projection, constraint solve, or correction step is needed during integration — NUTS runs as an ordinary unconstrained sampler.</p>
-<p>The implementation lives in <code>graph_constraint_structure.h</code> (the per-graph bookkeeping) and <code>ggm_gradient.cpp</code> (the forward map and gradient); the mixed MRF reuses the same engine for its continuous block.</p>
-<section id="why-constraints" class="level2">
-<h2 class="anchored" data-anchor-id="why-constraints">Why constraints?</h2>
-<p>Each pairwise parameter is either exactly zero (edge absent) or free (edge present). For models with continuous variables, the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> must in addition be positive definite. <code>bgms</code> parameterizes <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>, where <span class="math inline">\(\boldsymbol{\Phi}\)</span> is the upper Cholesky factor with positive diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>. Positive definiteness is then guaranteed by construction.</p>
-<p>The complication is sparsity. An excluded edge (<span class="math inline">\(\gamma_{iq} = 0\)</span>) requires <span class="math inline">\(\theta_{iq} = 0\)</span>, which in Cholesky entries means</p>
+<p>Two functions turn a fit into a judgment. <code>verdicts()</code> works on the edge indicators, the binary variables that record whether each edge is in the model. It reads each indicator’s inclusion Bayes factor, translates it into one of three verdicts, and says whether a rerun of the sampler could change that verdict. <code>calibration_check()</code> asks whether the model’s conditional predictions land where they claim to. A third piece of machinery sits behind the prior sensitivity check. This is the anchored curve, which takes a handful of fits at fixed prior scales and fills in a continuous curve between them, without refitting.</p>
+<p>The three live in <code>R/verdicts.R</code>, <code>R/calibration_check.R</code>, and <code>R/anchor_curve.R</code>. For argument lists and return formats, see <a href="../reference/checks.html">Checking Tools</a> in the Reference. This page documents the estimators.</p>
+<section id="the-three-way-rule" class="level2">
+<h2 class="anchored" data-anchor-id="the-three-way-rule">The three-way rule</h2>
+<p>The decision rule itself is four lines. Write <span class="math inline">\(\ell\)</span> for an indicator’s inclusion Bayes factor on the natural log scale: the evidence for including that edge over excluding it. Write <span class="math inline">\(t\)</span> for the evidence threshold. With <span class="math inline">\(\lambda = \log t\)</span>:</p>
 <p><span class="math display">\[
-\theta_{iq} = \sum_l \Phi_{li}\,\Phi_{lq} = 0.
+\text{verdict} =
+\begin{cases}
+\text{presence} &amp; \ell \ge \lambda \\
+\text{absence} &amp; \ell \le -\lambda \\
+\text{undecided} &amp; \text{otherwise.}
+\end{cases}
 \]</span></p>
-<p>Across the whole matrix this is a quadratic constraint on <span class="math inline">\(\boldsymbol{\Phi}\)</span>, because columns interact through the <span class="math inline">\(\boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span> product. The key observation is that it becomes <em>linear</em> one column at a time: with the earlier columns <span class="math inline">\(1, \ldots, q-1\)</span> held fixed, the constraints on column <span class="math inline">\(q\)</span>’s off-diagonal entries <span class="math inline">\(x_q = \Phi_{1:q-1,\,q}\)</span> form a linear system</p>
-<p><span class="math display">\[
-A_q\, x_q = 0,
-\]</span></p>
-<p>where each row of <span class="math inline">\(A_q\)</span> is (the leading part of) an earlier column <span class="math inline">\(\boldsymbol{\Phi}_{\cdot i}\)</span> for an excluded edge <span class="math inline">\((i, q)\)</span>. The set of valid <span class="math inline">\(x_q\)</span> is therefore a linear subspace — the null space of <span class="math inline">\(A_q\)</span> — and the sampler can parameterize that subspace directly.</p>
-</section>
-<section id="the-theta-vector" class="level2">
-<h2 class="anchored" data-anchor-id="the-theta-vector">The theta vector</h2>
-<p>The free coordinates are collected in a vector <span class="math inline">\(\theta\)</span> with the layout</p>
-<p><span class="math display">\[
-\theta = (\psi_1,\; [f_2, \psi_2],\; [f_3, \psi_3],\; \ldots,\; [f_p, \psi_p]),
-\]</span></p>
-<p>where <span class="math inline">\(\psi_q\)</span> is the log-diagonal of column <span class="math inline">\(q\)</span> and <span class="math inline">\(f_q\)</span> holds that column’s free off-diagonal coordinates. Column <span class="math inline">\(q\)</span> has <span class="math inline">\(m_q\)</span> excluded edges and <span class="math inline">\(d_q = (q - 1) - m_q\)</span> free coordinates, so the active dimension is</p>
-<p><span class="math display">\[
-\dim(\theta) = p + \sum_q d_q = p + |E|,
-\]</span></p>
-<p>with <span class="math inline">\(|E|\)</span> the number of included edges — compared to the full dimension <span class="math inline">\(p + p(p-1)/2\)</span> of an unconstrained upper triangle. The <code>GraphConstraintStructure</code> records, for each column, which rows are excluded and included, plus the offsets of each column’s block in the active and full vectors. It is rebuilt only when the graph changes (an edge indicator toggles); its contents do not depend on the parameter values.</p>
-</section>
-<section id="from-theta-to-the-precision-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="from-theta-to-the-precision-matrix">From theta to the precision matrix</h2>
-<p>The forward map builds <span class="math inline">\(\boldsymbol{\Phi}\)</span> column by column:</p>
-<ol type="1">
-<li>Set the diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>.</li>
-<li>Assemble <span class="math inline">\(A_q^\top\)</span> from the already-built earlier columns at the excluded rows.</li>
-<li>Compute a QR decomposition of <span class="math inline">\(A_q^\top\)</span> using Givens rotations. The last <span class="math inline">\(d_q\)</span> columns of <span class="math inline">\(Q\)</span> form an orthonormal basis <span class="math inline">\(N_q\)</span> of the null space of <span class="math inline">\(A_q\)</span>.</li>
-<li>Set the off-diagonal entries <span class="math inline">\(x_q = N_q f_q\)</span>.</li>
-</ol>
-<p>Two special cases avoid work: a column with no excluded edges has <span class="math inline">\(x_q = f_q\)</span> directly (<span class="math inline">\(N_q\)</span> is the identity and is never materialized), and a fully constrained column has <span class="math inline">\(x_q = 0\)</span>. Finally <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>.</p>
-<p>Because <span class="math inline">\(N_q\)</span> depends on the earlier columns of <span class="math inline">\(\boldsymbol{\Phi}\)</span>, and those depend on <span class="math inline">\(\theta\)</span>, the basis is recomputed inside every forward-map evaluation — this is cheap (Givens rotations on small per-column systems) and exact.</p>
-<section id="jacobian" class="level3">
-<h3 class="anchored" data-anchor-id="jacobian">Jacobian</h3>
-<p>Densities specified on <span class="math inline">\(\boldsymbol{\Theta}\)</span> (the slab on the off-diagonals, the scale prior on the diagonal, the determinant tilt) are evaluated through this map, so the log-posterior in <span class="math inline">\(\theta\)</span> carries the log absolute determinant of the Jacobian:</p>
-<p><span class="math display">\[
-\log \lvert \det J \rvert
-= p \log 2 + 2 \sum_q \psi_q + \sum_{i &lt; p} (p - 1 - i)\, \psi_i
-  - \sum_q \sum_j \log \lvert R_{q,jj} \rvert,
-\]</span></p>
-<p>where the <span class="math inline">\(R_{q,jj}\)</span> are the diagonal entries of the per-column QR factor <span class="math inline">\(R\)</span> — the only place the constraint geometry enters the density.</p>
-</section>
-<section id="gradient" class="level3">
-<h3 class="anchored" data-anchor-id="gradient">Gradient</h3>
-<p>The gradient of the log-posterior with respect to <span class="math inline">\(\theta\)</span> is computed by an adjoint (reverse-mode) pass: the derivative with respect to <span class="math inline">\(\boldsymbol{\Phi}\)</span> is formed first, and a reverse sweep through the stored Givens rotations propagates it back to the free coordinates <span class="math inline">\(f_q\)</span> and <span class="math inline">\(\psi_q\)</span>, including the contribution from the rotation of the null-space basis itself. The engine keeps a per-evaluation workspace so steady-state calls (fixed graph between rebuilds) allocate nothing.</p>
+<p>A missing Bayes factor gives a missing verdict, not “undecided”. The distinction matters for indicators that were never updated: for those there is no Bayes factor to read, and “undecided” would wrongly present that gap as a weighed verdict. The threshold is validated to be a single finite number greater than one. That guarantees <span class="math inline">\(\lambda &gt; 0\)</span>, so the two boundaries <span class="math inline">\(\lambda\)</span> and <span class="math inline">\(-\lambda\)</span> are always on opposite sides of zero. The same rule serves <code>verdicts()</code> and the per-anchor verdicts of the sensitivity check.</p>
+<p>The Bayes factor comes from <a href="../reference/extractors.html#extract_inclusion_bf"><code>extract_inclusion_bf()</code></a>, read on the natural log scale. Working in logs is not cosmetic here. The <code>log_bf</code> value stays finite where <code>bf</code> saturates at zero or infinity, and the fragility machinery below needs a finite number, because it measures distances to the verdict boundaries.</p>
+<p><code>verdicts()</code> requires edge selection to have been on. Without selection every edge is in the model, so there is no inclusion Bayes factor to read. The function then stops with that explanation rather than returning an empty table.</p>
+<section id="reading-the-indicators-in-the-right-order" class="level3">
+<h3 class="anchored" data-anchor-id="reading-the-indicators-in-the-right-order">Reading the indicators in the right order</h3>
+<p>The verdict table has one row per indicator, in the order the raw indicator draws lay them out. That order is not the same for every model. A GGM (Gaussian graphical model) or ordinal fit lays its indicators out as the row-major upper triangle of the variable order. A mixed fit lays them out by block: discrete by discrete first, then continuous by continuous, then the cross block. That block layout is a different permutation whenever the discrete and continuous columns interleave in the original data. <code>indicator_pair_index()</code> recovers the right permutation by filling the mixed layout with draw positions and reading the positions back off. The Bayes factors and inclusion probabilities are then looked up out of their symmetric matrices at the positions the draws actually used.</p>
+<p><code>bgmCompare()</code> has its own layout again. For each variable it places that variable’s main-effect difference on the diagonal, followed by its pairwise differences. <code>compare_indicator_index()</code> builds that layout.</p>
 </section>
 </section>
-<section id="where-it-is-used" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-is-used">Where it is used</h2>
-<ul>
-<li><strong>GGM</strong> — the entire precision matrix is parameterized this way; see <a href="../manual/ggm-internals.html">GGM Internals</a>.</li>
-<li><strong>Mixed MRF</strong> — only the continuous-continuous block <span class="math inline">\(\boldsymbol{\Theta}_{yy}\)</span> is a constrained precision matrix; the discrete and cross parameters remain plain coordinates. See <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>.</li>
-<li><strong>OMRF</strong> — not applicable: purely discrete models have unconstrained real parameters.</li>
-</ul>
-<p>From the sampler’s point of view there is nothing special about the result: <a href="../manual/nuts.html">NUTS</a> receives an ordinary differentiable target of dimension <span class="math inline">\(p + |E|\)</span>, with the standard <a href="../manual/nuts.html">leapfrog integrator</a> and no constraint handling. When an edge move changes the graph, the model rebuilds the <code>GraphConstraintStructure</code> and the active dimension changes with it; the <a href="../manual/warmup.html">warmup schedule</a> accounts for this when adapting the mass matrix.</p>
+<section id="the-fragility-flag" class="level2">
+<h2 class="anchored" data-anchor-id="the-fragility-flag">The fragility flag</h2>
+<p>A verdict near a boundary can flip on a rerun purely through Monte Carlo noise. The fragility flag turns that fact into a per-edge statement, so the warning attaches to the specific edges at risk rather than living as a general caveat in the prose.</p>
+<p><strong>The operating point.</strong> In a calibration study the data-generating truth was known, so every verdict could be graded. The study covered 37,010 graded edge-fits across ordinal, binary, and Gaussian graphical models. All 66 verdict errors sat within 0.58 of a threshold on the log Bayes factor scale, and no edge further out was ever misclassified. Verdict error is therefore a boundary phenomenon, and the flag marks the boundary region: an edge is fragile when a verdict boundary lies within two standard errors of its estimated evidence.</p>
+<p><strong>Two standard errors, because neither is enough alone.</strong> The flag uses two different standard errors. Both are standard errors of the logit inclusion probability. That scale is the log inclusion Bayes factor scale shifted by the constant prior inclusion odds, so both standard errors are directly comparable with <span class="math inline">\(\ell\)</span>.</p>
+<p>The <em>two-state</em> standard error, <code>two_state_se_logit()</code>, models each binary indicator chain as a first-order two-state Markov chain: a process that sits in one of the indicator’s two states, 0 or 1, and flips between them. The routine counts transitions within each chain only, never across the join between chains. It applies Jeffreys smoothing to the transition rates:</p>
+<p><span class="math display">\[
+\hat a = \frac{n_{01} + \tfrac12}{n_0 + 1}, \qquad
+\hat b = \frac{n_{10} + \tfrac12}{n_1 + 1}.
+\]</span></p>
+<p>Here <span class="math inline">\(n_{01}\)</span> counts the transitions from state 0 to state 1, <span class="math inline">\(n_{10}\)</span> counts the transitions in the other direction, and <span class="math inline">\(n_0\)</span> and <span class="math inline">\(n_1\)</span> count the draws from which each kind of transition could start. The half counts are the smoothing, and the smoothing is what keeps the estimate defined at zero flips, where the unsmoothed rates would be <span class="math inline">\(0/0\)</span>. From <span class="math inline">\(\hat a\)</span> and <span class="math inline">\(\hat b\)</span> the routine forms the stationary probability <span class="math inline">\(p = \hat a / (\hat a + \hat b)\)</span> and the two-state effective sample size. It returns <span class="math inline">\(1/\sqrt{\text{ESS}\,p(1-p)}\)</span>. On its own this standard error caught 74% of the study’s verdict errors.</p>
+<p>The <em>Rao-Blackwellized</em> standard error, <code>rb_se_logit()</code>, starts from the Monte Carlo standard error of the one-step inclusion draws. Every model class that runs edge selection produces those draws, the ordinal, mixed, and comparison models as much as the GGM; the construction is described once, under <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">GGM Internals</a>, the page where the machinery is introduced. It moves that standard error to the logit scale by the delta method, which here means multiplying by <span class="math inline">\(1/(p(1-p))\)</span>. It is <code>NA</code> wherever the incoming Monte Carlo standard error is <code>NA</code>, and that happens where the draws are constant to double precision. On its own it caught 94%.</p>
+<p><strong>The union rule.</strong> <code>boundary_distance()</code> measures the gap from the evidence to the nearer verdict boundary, <span class="math inline">\(\min(|\ell - \lambda|, |\ell + \lambda|)\)</span>, and divides that gap by each standard error in turn. An edge is fragile when either distance falls below 2. A missing distance abstains rather than votes: it neither flags the edge itself nor prevents the other standard error from flagging it. In the study the union caught all 66 errors, at the cost of flagging 3.0% of correct verdicts. It also transfers across model types, so the same operating point serves Gaussian graphical models as it serves ordinal and binary ones.</p>
+<p>A fragile verdict is not a wrong verdict. It is a verdict the run was too short to settle, and the remedy is more iterations.</p>
+<p><strong>Where the flag is not calibrated.</strong> Every arm of the study fitted a single graphical model, not a group comparison. On <code>bgmCompare()</code> difference indicators the same arithmetic runs, and it still marks verdicts near a boundary. But no study has measured what share of difference-verdict errors it catches, or how many correct verdicts it rejects. The returned object therefore carries <code>flag_validated = FALSE</code> for those fits, and the print method says so in plain language. The print method adds a second caveat: difference verdicts are contingent on <code>difference_scale</code>, whose default calibration is under study.</p>
+<p><code>verdicts()</code> draws no random numbers. Given a fit and a threshold it is deterministic, so there is no <code>seed</code> argument: there is nothing for a seed to control.</p>
+<section id="the-reporting-cap" class="level3">
+<h3 class="anchored" data-anchor-id="the-reporting-cap">The reporting cap</h3>
+<p><code>format_log_bf()</code> caps what it prints at <span class="math inline">\(10^4\)</span>, and the cap applies to the log Bayes factor <span class="math inline">\(\ell\)</span>, not to the Bayes factor itself. Inside the cap it prints a rounded value; outside the cap it prints an inequality instead. The reason is honesty about precision. Past the cap the digits carry no information a longer run would reproduce, and a saturated Bayes factor has no value to print at all. A log Bayes factor that rounds to zero prints as <code>0</code>, never <code>-0.0</code>. The sign of a rounded-away quantity is not something the run established, so printing it would report more than is known.</p>
+</section>
+</section>
+<section id="calibration" class="level2">
+<h2 class="anchored" data-anchor-id="calibration">Calibration</h2>
+<p><code>calibration_check()</code> asks a different question: not whether an edge is there, but whether the model’s predictions are honest. The unit of the check is the conditional distribution <span class="math inline">\(P(x_{ij} \mid \text{the rest of case } i)\)</span>, the model’s prediction for variable <span class="math inline">\(j\)</span> of case <span class="math inline">\(i\)</span> given that case’s other variables. This conditional distribution is the model’s own regression unit, so the check runs one variable at a time. It does not pool across variables, because pooling would let miscalibrations in opposite directions cancel.</p>
+<section id="discrete-variables" class="level3">
+<h3 class="anchored" data-anchor-id="discrete-variables">Discrete variables</h3>
+<p>For every case and every category threshold, the model issues a cumulative probability: the predicted chance that the case falls at or below that category. The data then record whether the case actually did. Isotonic regression, run through <code>stats::isoreg()</code>, estimates the observed frequency as a monotone function of the predicted probability; this is the construction of the CORP reliability diagram <span class="citation" data-cites="DimitriadisEtAl_2021_corp">(<a href="#ref-DimitriadisEtAl_2021_corp" role="doc-biblioref">Dimitriadis et al., 2021</a>)</span>. For a calibrated variable that estimated curve tracks the diagonal, where observed frequency equals predicted probability. The final cumulative probability is 1 for every case, so it says nothing about calibration and is dropped.</p>
+<p>The predictions are the posterior-mean ones from <a href="../manual/simulation-prediction.html#predicting-conditional-distributions"><code>predict()</code></a>.</p>
+<p><strong>The consistency band.</strong> The band answers one question: how far from the diagonal does a model that is calibrated by construction wander on data this size? It is built by simulation. For each of <code>nrep</code> replicates, <code>pav_panels()</code> draws one <em>category</em> per case from that case’s own predicted distribution, using the inverse of the cumulative distribution function. It then recomputes the isotonic curve for that replicate. Pointwise quantiles across the replicates form the band.</p>
+<p>Resampling the category, rather than the threshold events, is the load-bearing choice. One case’s cumulative threshold events are nested by construction: if the case falls at or below one category, it falls at or below every later one. Resampling those events independently would ignore that nesting and produce a band that is too narrow, and a too-narrow band makes ordinary wander look like miscalibration.</p>
+</section>
+<section id="continuous-variables" class="level3">
+<h3 class="anchored" data-anchor-id="continuous-variables">Continuous variables</h3>
+<p>A continuous variable’s prediction is a density, so there is no category to have fallen in. The same question is therefore asked through the probability integral transform, following the visual predictive checking recommendations of <span class="citation" data-cites="SailynojaEtAl_2025_vpc">Säilynoja et al. (<a href="#ref-SailynojaEtAl_2025_vpc" role="doc-biblioref">2025</a>)</span>. Write <span class="math inline">\(y_{ij}\)</span> for the observed value of variable <span class="math inline">\(j\)</span> in case <span class="math inline">\(i\)</span>, <span class="math inline">\(y_{i,-j}\)</span> for that case’s other variables, and <span class="math inline">\(F_j\)</span> for the model’s conditional predictive distribution function of variable <span class="math inline">\(j\)</span>. The transformed value <span class="math inline">\(u_{ij} = F_j(y_{ij} \mid y_{i,-j})\)</span> is Uniform(0, 1) exactly when the conditional predictive distribution is right. The panel plots the empirical distribution function of the <span class="math inline">\(u\)</span> values against the uniform diagonal.</p>
+<p><code>conditional_pit()</code> builds <span class="math inline">\(F_j\)</span> as the predictive mixture over <code>ndraws</code> posterior draws,</p>
+<p><span class="math display">\[
+u_{ij} = \frac{1}{D} \sum_{d=1}^{D}
+  \Phi\!\left( \frac{y_{ij} - m_{ij}^{(d)}}{s_{ij}^{(d)}} \right),
+\]</span></p>
+<p>where <span class="math inline">\(D\)</span> is the number of draws, <span class="math inline">\(\Phi\)</span> is the standard normal distribution function, and <span class="math inline">\(m_{ij}^{(d)}\)</span> and <span class="math inline">\(s_{ij}^{(d)}\)</span> are the conditional mean and standard deviation for variable <span class="math inline">\(j\)</span> of case <span class="math inline">\(i\)</span> under posterior draw <span class="math inline">\(d\)</span>. To receive those per-draw conditional parameters, rather than their average, the function uses the internal <code>return_draws</code> path of the prediction helpers. Parameter uncertainty therefore sits inside the distribution the observation is transformed by. That placement matters. A single draw’s Gaussian would be too narrow, by exactly the amount the posterior is uncertain, and the uniform reference would then no longer be the right one.</p>
+<p><strong>Its band is not resampled from the model.</strong> Under the transform the null distribution is Uniform(0, 1) no matter what the conditional density was. <code>uniform_ecdf_band()</code> can therefore simulate the empirical distribution functions of <span class="math inline">\(n\)</span> independent uniforms, with <span class="math inline">\(n\)</span> the number of <span class="math inline">\(u\)</span> values, and take pointwise quantiles of those. The band depends on <span class="math inline">\(n\)</span> alone, and that is why one band serves every continuous variable in a fit.</p>
+<p>The two panel kinds therefore condition on different things. The isotonic panel conditions on posterior-mean probabilities; the transform panel conditions on the full predictive distribution. Both live on the unit square against the diagonal, so a mixed fit produces one figure and one summary table. A <code>kind</code> column records which construction produced each row.</p>
+</section>
+<section id="what-is-seeded" class="level3">
+<h3 class="anchored" data-anchor-id="what-is-seeded">What is seeded</h3>
+<p>Both bands consume random numbers from R’s own generator, and <code>seed</code> is the only control over them. <code>calibration_check()</code> calls <code>set.seed()</code> when <code>seed</code> is supplied, and it does nothing otherwise. The selection of posterior draws for the predictive mixture also goes through R’s generator, so one seed fixes the whole check. Leave <code>seed</code> unset and the summary numbers move a little between calls, by the width of the band’s own Monte Carlo error.</p>
+</section>
+<section id="per-group" class="level3">
+<h3 class="anchored" data-anchor-id="per-group">Per group</h3>
+<p>On a <code>bgmCompare()</code> fit the check runs per group. A group’s cases are the ones its own parameters predict. Pooling the groups would therefore let a variable that is predicted too high in one group cancel against another group, exactly as pooling variables would. Every variable in a comparison fit is discrete, so every panel is isotonic. The <code>ndraws</code> argument has no effect here, because <code>predict.bgmCompare()</code> issues posterior-mean predictions only.</p>
+<p>The row alignment is worth stating, because it is a real trap. The fit stores its cases sorted by group, so the group membership vector the check uses is in that internal, sorted order. Supplied <code>newdata</code>, by contrast, arrives in the order the data were originally given. The check permutes it by the same stable sort before use. That is why the method insists on one row per fitted case, in the original order, rather than accepting an arbitrary matrix.</p>
+</section>
+<section id="what-the-check-does-not-say" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-check-does-not-say">What the check does not say</h3>
+<p>Evaluated on the fitted data the check is in-sample. Each observation helped shape the parameters it is now judged against, so the transform is mildly under-dispersed and the check is conservative. Held-out <code>newdata</code> removes that advantage, which makes the check strictly harder to pass.</p>
+<p>More important, calibrated conditional predictions do not imply that the model reproduces the joint distribution. A model can predict each variable well from the others and still understate how strongly they depend on one another. That question needs a display built on <a href="../manual/simulation-prediction.html"><code>simulate()</code></a>.</p>
+</section>
+</section>
+<section id="the-anchored-curve" class="level2">
+<h2 class="anchored" data-anchor-id="the-anchored-curve">The anchored curve</h2>
+<p><code>R/anchor_curve.R</code> is the estimator behind the prior sensitivity check’s continuous curve. The check refits the model at a handful of fixed slab scales: fixed values for the scale of the slab prior, the prior placed on the included edge parameters. These fits are the anchors. This file fills in everything between the anchors without refitting. <a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a> documents the grid, the refits, and the gate that decides which anchors are allowed to contribute.</p>
+<section id="reweighting" class="level3">
+<h3 class="anchored" data-anchor-id="reweighting">Reweighting</h3>
+<p>Take a fit at anchor scale <span class="math inline">\(s_a\)</span> and ask what its posterior would have been at a nearby scale <span class="math inline">\(s\)</span>. The importance weight of a draw is the ratio of the two unnormalized posterior densities evaluated at that draw. In that ratio the likelihood appears as the same factor in numerator and denominator, since the data and the draw are the same, so it cancels; the spike terms, the prior factors of the excluded edges, do not depend on the slab scale and cancel the same way. And because an anchor is fitted at a fixed scale, there is no posterior over the scale itself to integrate. What is left is a per-draw ratio of slab densities. <code>anchor_log_weights()</code> forms the logarithm of that ratio over the included edges. Write <span class="math inline">\(w_t(s)\)</span> for draw <span class="math inline">\(t\)</span>’s weight at target scale <span class="math inline">\(s\)</span>, <span class="math inline">\(m_t\)</span> for the number of included edges in draw <span class="math inline">\(t\)</span>, <span class="math inline">\(\gamma_{te}\)</span> for edge <span class="math inline">\(e\)</span>’s indicator in draw <span class="math inline">\(t\)</span>, and <span class="math inline">\(\theta_{te}\)</span> for that edge’s parameter:</p>
+<p><span class="math display">\[
+\log w_t(s) = -m_t \log\frac{s}{s_a}
+  - \frac{1}{2} \left( \frac{1}{s^2} - \frac{1}{s_a^2} \right)
+    \sum_{e:\,\gamma_{te}=1} \theta_{te}^2
+\]</span></p>
+<p>for a Normal slab. A Cauchy slab keeps the same leading <span class="math inline">\(-m_t \log(s / s_a)\)</span> term and replaces the second one with the matching sum of <span class="math inline">\(\log(1 + (\theta/s)^2)\)</span> differences. Mapping a Bayes factor as a function of the prior without refitting for every candidate prior goes back at least to <span class="citation" data-cites="SinharayStern_2002_sensitivity">Sinharay &amp; Stern (<a href="#ref-SinharayStern_2002_sensitivity" role="doc-biblioref">2002</a>)</span>, who traced the point-mass-prior Bayes factor over a grid; the per-draw form used here is the posterior-density-ratio reweighting identity of <span class="citation" data-cites="BartosEtAl_2026_sensitivity"><span class="nocase">Bartoš et al.</span> (<a href="#ref-BartosEtAl_2026_sensitivity" role="doc-biblioref">2026</a>)</span>, applied locally around each anchor. The anchored construction that stitches the anchors together is specific to <code>bgms</code>.</p>
+<p><code>anchor_draws()</code> supplies <span class="math inline">\(\theta\)</span> in the frame the slab prior applies to. For a GGM fit that means each precision draw is multiplied by <span class="math inline">\(-\tfrac12\)</span> before it is used, since the slab prior sits on the partial associations rather than on the precision elements. For a <code>bgmCompare()</code> fit one indicator can gate several parameters, meaning one indicator switches several parameters on and off together. A pairwise difference indicator gates that pair’s difference in every contrast. A main-effect difference indicator gates the whole block of that variable’s threshold differences in every contrast. <code>compare_anchor_draws()</code> builds the map of which parameters each indicator owns. The weight then sums over the gated parameters, while the inclusion probability stays reported per indicator.</p>
+<p><code>anchor_reweight()</code> then does self-normalized importance sampling at each target scale: it reweights the anchor’s draws by <span class="math inline">\(w_t(s)\)</span> and normalizes the weights to sum to one. It does this both pooled across chains and per chain. Alongside each estimate it records the importance effective sample size, <span class="math inline">\((\sum w)^2 / \sum w^2\)</span>, a measure of how many draws effectively carry the weighted estimate.</p>
+</section>
+<section id="stitching" class="level3">
+<h3 class="anchored" data-anchor-id="stitching">Stitching</h3>
+<p><code>assemble_curve()</code> builds the displayed curve one grid point at a time. At each point it asks which anchors may contribute. An anchor qualifies when its importance ESS at that point clears <code>ess_floor</code> and when it passed its own convergence gate. Each qualifying anchor contributes its reweighted inclusion probability, weighted by inverse variance on that scale:</p>
+<p><span class="math display">\[
+w_a = \frac{\text{ESS}_a}{\max\!\left(p_a(1 - p_a),\, 10^{-6}\right)}.
+\]</span></p>
+<p>Here <span class="math inline">\(\text{ESS}_a\)</span> is anchor <span class="math inline">\(a\)</span>’s importance effective sample size at the grid point and <span class="math inline">\(p_a\)</span> is its reweighted inclusion probability there. The <span class="math inline">\(10^{-6}\)</span> clamp in the denominator keeps a saturated edge, one whose <span class="math inline">\(p_a\)</span> sits at exactly 0 or 1, from dividing by zero. Pooling happens on the inclusion-probability scale, and the pooled value is transformed to the log Bayes factor afterwards. This order is what removes the staircase seams and the infinities that winner-take-all anchor selection produced at hand-off points: a capped-edge anchor no longer hands off discontinuously to a finite one.</p>
+<p>Grid points where no anchor clears the floor are masked to <code>NA</code> rather than extrapolated. Each surviving point is tagged with its highest-ESS anchor for reporting. At an anchor’s own grid position, that tag is the anchor itself. The per-chain curves pool with the same weights as the pooled curve, so the downstream per-point Monte Carlo standard error and the chain-unanimity checks carry over unchanged.</p>
+<p>The pooled rows are an approximation, and they are treated as one. Exactness lives on the anchor fits’ own Rao-Blackwellized statistics. The per-anchor verdict columns and every chosen-scale quantity are read straight from each fit, so the <code>1x</code> column is exactly the original fit’s reported analysis. This is the multistate-bridge direction; fully self-consistent weights are future work.</p>
+</section>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../manual/ggm-internals.html">GGM Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/nuts.html">NUTS</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>, <a href="../manual/model-classes.html">Model Classes</a>.</p>
+<p><a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a>, <a href="../manual/extractors-internals.html">Extractor Internals</a>, <a href="../manual/simulation-prediction.html">Simulation and Prediction</a>, <a href="../manual/diagnostics.html">Convergence Diagnostics</a>, <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">GGM Internals</a>, <a href="../reference/checks.html">Checking Tools reference</a>, <a href="../guide/mcmc-diagnostics.html">MCMC Diagnostics</a>.</p>
+</section>
+<section id="references" class="level2">
+
+
 
 
 </section>
 
-</main> <!-- /main -->
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-BartosEtAl_2026_sensitivity" class="csl-entry" role="listitem">
+<span class="nocase">Bartoš, F., Wagenmakers, E.-J., Marsman, M., &amp; van den Bergh, D.</span> (2026). Efficient <span>Bayes</span> factor sensitivity analysis. <em>arXiv Preprint</em>.
+</div>
+<div id="ref-DimitriadisEtAl_2021_corp" class="csl-entry" role="listitem">
+Dimitriadis, T., Gneiting, T., &amp; Jordan, A. I. (2021). Stable reliability diagrams for probabilistic classifiers. <em>Proceedings of the National Academy of Sciences</em>, <em>118</em>(8), e2016191118. <a href="https://doi.org/10.1073/pnas.2016191118">https://doi.org/10.1073/pnas.2016191118</a>
+</div>
+<div id="ref-SailynojaEtAl_2025_vpc" class="csl-entry" role="listitem">
+Säilynoja, T., Johnson, A. R., Martin, O. A., &amp; Vehtari, A. (2025). Recommendations for visual predictive checks in <span>Bayesian</span> workflow. <em>arXiv Preprint</em>. <a href="https://doi.org/10.48550/arXiv.2503.01509">https://doi.org/10.48550/arXiv.2503.01509</a>
+</div>
+<div id="ref-SinharayStern_2002_sensitivity" class="csl-entry" role="listitem">
+Sinharay, S., &amp; Stern, H. S. (2002). On the sensitivity of <span>Bayes</span> factors to the prior distributions. <em>The American Statistician</em>, <em>56</em>(3), 196–201. <a href="https://doi.org/10.1198/000313002137">https://doi.org/10.1198/000313002137</a>
+</div>
+</div></section></div></main> <!-- /main -->
 <script type="text/javascript">
 
 // replace cmd keyboard shortcut w/ control on non-Mac platforms
@@ -1338,13 +1419,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../manual/nuts.html" class="pagination-link" aria-label="NUTS Algorithm">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">NUTS Algorithm</span>
+      <a href="../manual/extractors-internals.html" class="pagination-link" aria-label="Extractor Internals">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Extractor Internals</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../manual/samplers.html" class="pagination-link" aria-label="Sampler Hierarchy">
-        <span class="nav-page-text">Sampler Hierarchy</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../manual/sensitivity-refit.html" class="pagination-link" aria-label="Sensitivity and Refits">
+        <span class="nav-page-text">Sensitivity and Refits</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1367,7 +1448,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/null-space.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/checks-internals.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

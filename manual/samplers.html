@@ -522,6 +522,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Fast Computation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Simulation and Prediction</span></a>
+  </div>
+</li>
       </ul>
   </li>
       </ul>
@@ -557,6 +563,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Results and Checks</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Fit Objects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checks Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
       </ul>
@@ -717,6 +758,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>SamplerSpec</code> records which diagnostics the sampler produces (<code>nuts_diag</code> for NUTS, <code>am_diag</code> for adaptive Metropolis — the per-iteration mean-acceptance trace) and whether proposal-SD learning applies (<code>learn_sd</code>), which the warmup schedule consumes. The spec also determines the warmup staging host: the schedule is built with <code>select_during_warmup = (kind == Gibbs)</code>, which switches it to the Gibbs settle-then-select staging (see <a href="../manual/warmup.html">Warmup Schedule</a>).</p>
 <p>All three model types (GGM, OMRF, mixed MRF) default to NUTS. The user can select Metropolis via <code>update_method = "adaptive-metropolis"</code> for any model, and the conjugate Gibbs sweep via <code>update_method = "gibbs"</code> for all-continuous (GGM) data.</p>
+<section id="samplerconfig" class="level3">
+<h3 class="anchored" data-anchor-id="samplerconfig">SamplerConfig</h3>
+<p><code>SamplerConfig</code> (<code>mcmc/execution/sampler_config.h</code>) is the second argument to <code>create_sampler()</code> above: one plain struct carrying the run settings the chain runner and the samplers need. Each of the three <code>bgm()</code> entry points (<code>sample_ggm.cpp</code>, <code>sample_omrf.cpp</code>, <code>sample_mixed.cpp</code>) fills one from its R arguments and passes it by const reference from there on, so no sampler reads the R list and nothing downstream can disagree about a setting. <code>bgmCompare()</code> does not use it at all: it runs its own sampler in <code>models/bgmCompare/bgmCompare_sampler.cpp</code> and never constructs a <code>SamplerConfig</code>.</p>
+<p>The struct holds eleven fields in four groups: the sampler selection (<code>sampler_type</code>, the same string <code>resolve_sampler_spec()</code> consumes); the run length (<code>no_iter</code>, <code>no_warmup</code>); the gradient-sampler tuning (<code>max_tree_depth</code>, <code>initial_step_size</code>, <code>target_acceptance</code>, <code>learn_mass_matrix</code>); and the per-run switches (<code>edge_selection</code>, <code>na_impute</code>, <code>zratio_gauge_sweeps</code>, <code>seed</code>).</p>
+<p>Only <code>NUTSSampler</code> reads any of it. <code>MetropolisSampler</code> and <code>GibbsSampler</code> both take the config and discard it with <code>(void)config</code>: Metropolis gets its adaptation from the model and the schedule, and the Gibbs draw is exact, so neither has a tuning parameter to receive.</p>
+<p>Two fields are easy to misread. <code>seed</code> is the base seed, not the seed a chain uses: the runner gives chain <code>c</code> the seed <code>config.seed + c</code> (see <a href="../manual/parallel-chains.html">Parallel Chains</a>). And <code>zratio_gauge_sweeps</code> is the number of post-sampling assessment sweeps the in-chain <a href="../manual/zratio-hierarchical.html">trust gauge</a> runs, with <code>0</code> switching it off; the reference draws per pair and the per-sweep referenced-pair cap are not settings here, but fixed design parameters owned by <code>ZRatioGauge</code> itself. It is filled by the GGM and mixed entry points only, since an ordinal model has no continuous block to gauge.</p>
+<p>Every field carries a default in the struct declaration, and those declared values are not the defaults a user sees. <code>sampler_type</code> declares <code>"adaptive-metropolis"</code> while the R layer resolves NUTS for every model, and each entry point overwrites it before the struct is used. <code>initial_step_size</code> is the one field no production entry point sets, so NUTS always starts from the declared <code>0.1</code> and adapts from there; it is overridden only in the gradient test interface. Read the declared values as fallbacks, and <a href="../manual/r-scaffolding.html">R Scaffolding</a> for the defaults that actually reach a fit.</p>
+</section>
 </section>
 <section id="step-size-and-mass-matrix-adaptation" class="level2">
 <h2 class="anchored" data-anchor-id="step-size-and-mass-matrix-adaptation">Step-size and mass-matrix adaptation</h2>

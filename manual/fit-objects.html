@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Constrained Cholesky Parameterization – bgms</title>
+<title>Fit Objects – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,6 +26,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -36,8 +71,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../manual/samplers.html" rel="next">
-<link href="../manual/nuts.html" rel="prev">
+<link href="../manual/extractors-internals.html" rel="next">
+<link href="../manual/zratio-hierarchical.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -354,7 +389,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Fit Objects</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -409,13 +444,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">MCMC Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
@@ -430,7 +465,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link active">
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Constrained Cholesky Parameterization</span></a>
   </div>
 </li>
@@ -560,16 +595,16 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
  <span class="menu-text">Results and Checks</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Fit Objects</span></a>
   </div>
 </li>
@@ -615,9 +650,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Fit Objects</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Constrained Cholesky Parameterization</h1>
+<h1 class="title">Fit Objects</h1>
 </div>
 
 
@@ -634,71 +669,124 @@ window.Quarto = {
 </header>
 
 
-<p>When edge selection is active in a model with continuous variables, excluded edges must remain exactly zero while the precision matrix stays positive definite. <code>bgms</code> enforces both requirements through the parameterization itself: the sampler works in a set of free coordinates in which every point corresponds to a positive-definite precision matrix with exact zeros at the excluded edges. No projection, constraint solve, or correction step is needed during integration — NUTS runs as an ordinary unconstrained sampler.</p>
-<p>The implementation lives in <code>graph_constraint_structure.h</code> (the per-graph bookkeeping) and <code>ggm_gradient.cpp</code> (the forward map and gradient); the mixed MRF reuses the same engine for its continuous block.</p>
-<section id="why-constraints" class="level2">
-<h2 class="anchored" data-anchor-id="why-constraints">Why constraints?</h2>
-<p>Each pairwise parameter is either exactly zero (edge absent) or free (edge present). For models with continuous variables, the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> must in addition be positive definite. <code>bgms</code> parameterizes <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>, where <span class="math inline">\(\boldsymbol{\Phi}\)</span> is the upper Cholesky factor with positive diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>. Positive definiteness is then guaranteed by construction.</p>
-<p>The complication is sparsity. An excluded edge (<span class="math inline">\(\gamma_{iq} = 0\)</span>) requires <span class="math inline">\(\theta_{iq} = 0\)</span>, which in Cholesky entries means</p>
-<p><span class="math display">\[
-\theta_{iq} = \sum_l \Phi_{li}\,\Phi_{lq} = 0.
-\]</span></p>
-<p>Across the whole matrix this is a quadratic constraint on <span class="math inline">\(\boldsymbol{\Phi}\)</span>, because columns interact through the <span class="math inline">\(\boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span> product. The key observation is that it becomes <em>linear</em> one column at a time: with the earlier columns <span class="math inline">\(1, \ldots, q-1\)</span> held fixed, the constraints on column <span class="math inline">\(q\)</span>’s off-diagonal entries <span class="math inline">\(x_q = \Phi_{1:q-1,\,q}\)</span> form a linear system</p>
-<p><span class="math display">\[
-A_q\, x_q = 0,
-\]</span></p>
-<p>where each row of <span class="math inline">\(A_q\)</span> is (the leading part of) an earlier column <span class="math inline">\(\boldsymbol{\Phi}_{\cdot i}\)</span> for an excluded edge <span class="math inline">\((i, q)\)</span>. The set of valid <span class="math inline">\(x_q\)</span> is therefore a linear subspace — the null space of <span class="math inline">\(A_q\)</span> — and the sampler can parameterize that subspace directly.</p>
+<p>Everything on this site that starts with a fitted model starts with the object that <code>bgm()</code> or <code>bgmCompare()</code> returned. This page documents that object. It covers the class the object belongs to, the fields it holds, which of those fields are already filled in when the fit is built and which are computed only when you first ask for them, and the rules for reading them.</p>
+<p>Four files define it. <code>R/class_s7.R</code> declares the two S7 classes and the converters that build them. <code>R/fit_accessors.R</code> holds the internal readers the rest of the package uses. <code>R/methods_bgms.R</code> and <code>R/methods_bgmcompare.R</code> hold the user-facing methods, including the <code>$</code> and <code>[[</code> methods that keep the object usable as if it were still a list.</p>
+<p>For what to do with the object, see <a href="../guide/mcmc-output.html">Model Output</a> in the Guide and the <a href="../reference/methods.html">Methods reference</a>.</p>
+<section id="two-classes" class="level2">
+<h2 class="anchored" data-anchor-id="two-classes">Two classes</h2>
+<p><code>bgm()</code> returns an object of class <code>bgms</code>; <code>bgmCompare()</code> returns one of class <code>bgmCompare</code>. Both are classes in S7, R’s newer object system, and both are declared with <code>package = NULL</code>. That declaration means the class vector carries the bare names <code>"bgms"</code> and <code>"bgmCompare"</code>, with no package prefix, alongside <code>"S7_object"</code>. Because the bare names are present, existing S3 dispatch (R’s older method lookup by class name) on those names keeps working. Every user-facing method in the package is registered as an S3 method against those names.</p>
+<p>The two classes hold different parameter fields, because the two models parameterize differently. A <code>bgms</code> fit stores main effects and pairwise associations directly. A <code>bgmCompare</code> fit instead stores a baseline and a set of contrast parameters, and it stores them in separate fields: <code>posterior_mean_main_baseline</code>, <code>posterior_mean_pairwise_baseline</code>, <code>posterior_mean_main_differences</code>, and <code>posterior_mean_pairwise_differences</code>. You cannot look up the parameters of one particular group directly; they have to be computed from the baseline and the contrasts. That computation is what <a href="../reference/extractors.html#extract_group_params"><code>extract_group_params()</code></a> does.</p>
 </section>
-<section id="the-theta-vector" class="level2">
-<h2 class="anchored" data-anchor-id="the-theta-vector">The theta vector</h2>
-<p>The free coordinates are collected in a vector <span class="math inline">\(\theta\)</span> with the layout</p>
-<p><span class="math display">\[
-\theta = (\psi_1,\; [f_2, \psi_2],\; [f_3, \psi_3],\; \ldots,\; [f_p, \psi_p]),
-\]</span></p>
-<p>where <span class="math inline">\(\psi_q\)</span> is the log-diagonal of column <span class="math inline">\(q\)</span> and <span class="math inline">\(f_q\)</span> holds that column’s free off-diagonal coordinates. Column <span class="math inline">\(q\)</span> has <span class="math inline">\(m_q\)</span> excluded edges and <span class="math inline">\(d_q = (q - 1) - m_q\)</span> free coordinates, so the active dimension is</p>
-<p><span class="math display">\[
-\dim(\theta) = p + \sum_q d_q = p + |E|,
-\]</span></p>
-<p>with <span class="math inline">\(|E|\)</span> the number of included edges — compared to the full dimension <span class="math inline">\(p + p(p-1)/2\)</span> of an unconstrained upper triangle. The <code>GraphConstraintStructure</code> records, for each column, which rows are excluded and included, plus the offsets of each column’s block in the active and full vectors. It is rebuilt only when the graph changes (an edge indicator toggles); its contents do not depend on the parameter values.</p>
+<section id="how-the-object-is-built" class="level2">
+<h2 class="anchored" data-anchor-id="how-the-object-is-built">How the object is built</h2>
+<p>The object is assembled as an ordinary named list first and converted to an S7 object at the very end. <code>build_output()</code> dispatches on the model type to <code>build_output_bgm()</code> (which serves both the Gaussian graphical model, GGM for short, and the ordinal Markov random field, MRF), <code>build_output_mixed_mrf()</code>, or <code>build_output_compare()</code>. Each builder fills a plain list and sets its class to <code>"bgms"</code> or <code>"bgmCompare"</code>. It finishes by calling <code>s3_list_to_bgms()</code> or <code>s3_list_to_bgmCompare()</code>, which copies each element of that list into the matching S7 property.</p>
+<p>There is one escape hatch, kept for compatibility with older versions of the <code>easybgm</code> package. <code>needs_easybgm_s3_compat()</code> reports whether the <code>easybgm</code> namespace is loaded at a version below 0.5.0, warning and naming the version when it is. Each builder consults it and, when it reports <code>TRUE</code>, returns the plain list without converting it. A fit made that way is a list, not an S7 object. That is why every internal reader in the package handles both forms.</p>
+<p>The conversion also records <code>names(results)</code>, the names of the original list, into the <code>.field_names</code> property. That single line is the whole <code>names()</code> contract: what <code>names()</code> later returns on a fit is decided right there. The contract is described below.</p>
 </section>
-<section id="from-theta-to-the-precision-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="from-theta-to-the-precision-matrix">From theta to the precision matrix</h2>
-<p>The forward map builds <span class="math inline">\(\boldsymbol{\Phi}\)</span> column by column:</p>
-<ol type="1">
-<li>Set the diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>.</li>
-<li>Assemble <span class="math inline">\(A_q^\top\)</span> from the already-built earlier columns at the excluded rows.</li>
-<li>Compute a QR decomposition of <span class="math inline">\(A_q^\top\)</span> using Givens rotations. The last <span class="math inline">\(d_q\)</span> columns of <span class="math inline">\(Q\)</span> form an orthonormal basis <span class="math inline">\(N_q\)</span> of the null space of <span class="math inline">\(A_q\)</span>.</li>
-<li>Set the off-diagonal entries <span class="math inline">\(x_q = N_q f_q\)</span>.</li>
-</ol>
-<p>Two special cases avoid work: a column with no excluded edges has <span class="math inline">\(x_q = f_q\)</span> directly (<span class="math inline">\(N_q\)</span> is the identity and is never materialized), and a fully constrained column has <span class="math inline">\(x_q = 0\)</span>. Finally <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>.</p>
-<p>Because <span class="math inline">\(N_q\)</span> depends on the earlier columns of <span class="math inline">\(\boldsymbol{\Phi}\)</span>, and those depend on <span class="math inline">\(\theta\)</span>, the basis is recomputed inside every forward-map evaluation — this is cheap (Givens rotations on small per-column systems) and exact.</p>
-<section id="jacobian" class="level3">
-<h3 class="anchored" data-anchor-id="jacobian">Jacobian</h3>
-<p>Densities specified on <span class="math inline">\(\boldsymbol{\Theta}\)</span> (the slab on the off-diagonals, the scale prior on the diagonal, the determinant tilt) are evaluated through this map, so the log-posterior in <span class="math inline">\(\theta\)</span> carries the log absolute determinant of the Jacobian:</p>
-<p><span class="math display">\[
-\log \lvert \det J \rvert
-= p \log 2 + 2 \sum_q \psi_q + \sum_{i &lt; p} (p - 1 - i)\, \psi_i
-  - \sum_q \sum_j \log \lvert R_{q,jj} \rvert,
-\]</span></p>
-<p>where the <span class="math inline">\(R_{q,jj}\)</span> are the diagonal entries of the per-column QR factor <span class="math inline">\(R\)</span> — the only place the constraint geometry enters the density.</p>
+<section id="what-the-object-stores" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-object-stores">What the object stores</h2>
+<section id="always-present" class="level3">
+<h3 class="anchored" data-anchor-id="always-present">Always present</h3>
+<p><code>arguments</code> is the settings record: dimensions, priors, sampler configuration, variable metadata, the package version that produced the fit, and the recode maps. It is built by <code>build_arguments()</code> (see <a href="../manual/r-scaffolding.html#the-arguments-record">R Scaffolding</a>) and read by almost everything downstream. <code>raw_samples</code> holds the per-chain draw matrices. <code>cache</code> is an environment, discussed below.</p>
+<p><code>raw_samples</code> is assembled by <code>build_raw_samples_list()</code> and always carries <code>main</code>, <code>pairwise</code>, <code>nchains</code>, <code>niter</code>, and a <code>parameter_names</code> list. When edge selection is on, that is, when the model also samples which edges are included, it additionally carries <code>indicator</code>. It then also carries the Rao-Blackwellized inclusion draws <code>rb_inclusion</code> and the odds accumulators <code>rb_counts</code>; both are described under <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">GGM Internals</a>. Under a stochastic block prior it also carries <code>allocations</code>.</p>
 </section>
-<section id="gradient" class="level3">
-<h3 class="anchored" data-anchor-id="gradient">Gradient</h3>
-<p>The gradient of the log-posterior with respect to <span class="math inline">\(\theta\)</span> is computed by an adjoint (reverse-mode) pass: the derivative with respect to <span class="math inline">\(\boldsymbol{\Phi}\)</span> is formed first, and a reverse sweep through the stored Givens rotations propagates it back to the free coordinates <span class="math inline">\(f_q\)</span> and <span class="math inline">\(\psi_q\)</span>, including the contribution from the rotation of the null-space basis itself. The engine keeps a per-evaluation workspace so steady-state calls (fixed graph between rebuilds) allocate nothing.</p>
+<section id="posterior-means" class="level3">
+<h3 class="anchored" data-anchor-id="posterior-means">Posterior means</h3>
+<p>The <code>posterior_mean_*</code> fields are computed during construction. Computing them there is cheap, because each one is only a column mean over the pooled draws, the draws of all chains taken together. They are set once and never recomputed. Which fields exist depends on the model. A GGM fit has no main effects, so its <code>posterior_mean_main</code> is <code>NULL</code>; it does have <code>posterior_mean_residual_variance</code>. An ordinal fit is the other way around: main effects present, no residual variance. Edge selection adds <code>posterior_mean_indicator</code>. A stochastic block prior adds the co-clustering matrix, the mean and modal allocations, and the posterior distribution over the number of blocks.</p>
+</section>
+<section id="sampler-diagnostics" class="level3">
+<h3 class="anchored" data-anchor-id="sampler-diagnostics">Sampler diagnostics</h3>
+<p><code>nuts_diag</code>, <code>am_diag</code>, and <code>zratio_diag</code> are attached only when the run that produces them actually happened. Whether the first two exist depends on which sampler was chosen. <code>zratio_diag</code> exists only when the hierarchical graph prior ran with its <a href="../manual/zratio-hierarchical.html">trust gauge</a> enabled, the in-chain check on the normalizer-ratio estimator. Each field is <code>NULL</code> otherwise.</p>
+</section>
+<section id="internal-fields" class="level3">
+<h3 class="anchored" data-anchor-id="internal-fields">Internal fields</h3>
+<p>Three fields are not part of the user-facing object. They are documented here because they explain behavior elsewhere. <code>refit_step_sizes</code> and <code>refit_inv_mass</code> hold each chain’s final step size and diagonal metric from NUTS, the No-U-Turn Sampler. A refit can start from those values instead of adapting them all over again; see <a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a>. <code>.bgm_spec</code> holds the validated specification the sampler ran on. A refit needs to know exactly what was run, so this record is what makes a refit possible at all.</p>
 </section>
 </section>
-<section id="where-it-is-used" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-is-used">Where it is used</h2>
-<ul>
-<li><strong>GGM</strong> — the entire precision matrix is parameterized this way; see <a href="../manual/ggm-internals.html">GGM Internals</a>.</li>
-<li><strong>Mixed MRF</strong> — only the continuous-continuous block <span class="math inline">\(\boldsymbol{\Theta}_{yy}\)</span> is a constrained precision matrix; the discrete and cross parameters remain plain coordinates. See <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>.</li>
-<li><strong>OMRF</strong> — not applicable: purely discrete models have unconstrained real parameters.</li>
-</ul>
-<p>From the sampler’s point of view there is nothing special about the result: <a href="../manual/nuts.html">NUTS</a> receives an ordinary differentiable target of dimension <span class="math inline">\(p + |E|\)</span>, with the standard <a href="../manual/nuts.html">leapfrog integrator</a> and no constraint handling. When an edge move changes the graph, the model rebuilds the <code>GraphConstraintStructure</code> and the active dimension changes with it; the <a href="../manual/warmup.html">warmup schedule</a> accounts for this when adapting the mass matrix.</p>
+<section id="the-lazy-summary-cache" class="level2">
+<h2 class="anchored" data-anchor-id="the-lazy-summary-cache">The lazy summary cache</h2>
+<p>Effective sample size, split-R-hat, and Monte Carlo standard error (all described under <a href="../manual/diagnostics.html">Convergence Diagnostics</a>) are expensive to compute across every parameter, and many uses of a fit never need them. So they are not computed when the fit is built. Instead <code>build_output_*</code> creates <code>cache</code>, an environment that holds the normalized chains and the metadata needed to summarize them, with a flag <code>summaries_computed</code> set to <code>FALSE</code>.</p>
+<p>Every <code>posterior_summary_*</code> property is declared with an S7 getter that calls <code>ensure_summaries()</code> and then reads the answer out of the cache. <code>ensure_summaries()</code> returns immediately if <code>summaries_computed</code> is already <code>TRUE</code>, and otherwise computes every summary the model has and sets the flag. The work therefore happens exactly once, on whichever summary is asked for first:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">=</span> <span class="fu">bgm</span>(Wenchuan[<span class="dv">1</span><span class="sc">:</span><span class="dv">80</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>], <span class="at">iter =</span> <span class="dv">200</span>, <span class="at">warmup =</span> <span class="dv">200</span>, <span class="at">chains =</span> <span class="dv">2</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>f<span class="sc">@</span>cache<span class="sc">$</span>summaries_computed</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(f<span class="sc">$</span>posterior_summary_pairwise)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>f<span class="sc">@</span>cache<span class="sc">$</span>summaries_computed</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>An environment is used rather than a list on purpose. Environments have reference semantics: writing into an environment changes the one shared object, where writing into a list changes a copy. Because of this, the getter can write the computed summaries back into the object it was called on, and the caller never has to reassign anything.</p>
+<p><code>ensure_summaries()</code> also fixes the scale of what it reports: some quantities are converted before they are summarized. Knowing which scale a number is on matters for reading it correctly. See <a href="#scales">Scales</a> below.</p>
+</section>
+<section id="the-accessor-contract" class="level2">
+<h2 class="anchored" data-anchor-id="the-accessor-contract">The accessor contract</h2>
+<p>There are three ways to read a field from the object, and they do not all mean the same thing.</p>
+<p><strong><code>fit@property</code></strong> is S7 property access and reaches all 27 declared properties, including the internal ones.</p>
+<p><strong><code>fit$name</code> and <code>fit[["name"]]</code></strong> go through the <code>$.bgms</code> and <code>[[.bgms</code> methods. On an S7 object these simply forward to <code>S7::prop()</code>. On a legacy list (a fit returned through the <code>easybgm</code> escape hatch above), there are no S7 getters to trigger the lazy computation, so the methods do that work themselves: they intercept any name starting with <code>posterior_summary_</code>, run <code>ensure_summaries()</code> first, and read the cache. That branch is what lets one body of downstream code serve both object forms. Numeric indexing is refused with an explicit error rather than silently returning a property by position:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>fit[[<span class="dv">1</span>]]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error: numeric indexing is not supported for bgms objects</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong><code>names(fit)</code></strong> returns <code>.field_names</code>: the names of the list that existed at construction time, not the full property list. For a typical ordinal fit with edge selection that is 13 names, against 27 declared properties. The names that do not appear are the ones the model did not populate, plus the internal fields. This is deliberate. <code>names()</code> describes what this particular fit has, so a conditional field shows up only when it is really there.</p>
+<p>Reading a declared but unpopulated property returns <code>NULL</code> rather than an error. So when you want to know whether a fit has something, guard on the value being <code>NULL</code>, not on the name appearing in <code>names(fit)</code>.</p>
+<section id="internal-accessors" class="level3">
+<h3 class="anchored" data-anchor-id="internal-accessors">Internal accessors</h3>
+<p><code>R/fit_accessors.R</code> gives the package four readers that work on either object form: <code>get_fit_cache()</code>, <code>get_fit_spec()</code>, <code>get_raw_samples()</code>, and <code>get_posterior_mean(fit, field)</code>. The last of these composes the full field name from a suffix, so callers can ask for <code>"pairwise"</code> or <code>"pairwise_baseline"</code> in the same way. Package code uses these readers rather than <code>$</code>. The <code>$</code> and <code>[[</code> methods themselves are the one exception: they use <code>S7::prop()</code> directly, because routing them back through the helpers would recurse.</p>
+</section>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<p><code>print()</code> gives one screen of information: whether edge selection was on and under which edge prior, the model type with its dimensions, the case and variable counts, and the total post-warmup iterations across chains. It also reports the number of chains that survived. That is the number of chains kept in <code>raw_samples</code>, and it can be smaller than the number you requested.</p>
+<p><code>summary()</code> calls <code>ensure_summaries()</code> and returns a <code>summary.bgms</code> or <code>summary.bgmCompare</code> object holding the tables the model has. Each table comes with a print method that shows the first six rows and points at <code>summary(fit)$&lt;component&gt;</code> for the rest. Two of the printed notes are worth knowing about. First, blank cells in the pairwise and indicator tables are <code>NA</code> values that the print method suppresses. An <code>NA</code> occurs for an edge that was never selected, or for an edge whose draws are constant; the printed note says so, and the tables themselves keep the <code>NA</code>. Second, in the <code>bgmCompare</code> main-effect difference block, a leading <code>*</code> marks a threshold difference that rests on the prior rather than the data. That happens because some group has no observations in that category, or none in the reference category. The counts behind the mark are in <code>extract_arguments(fit)$category_support</code>.</p>
+<p><code>coef()</code> returns posterior means only, with no diagnostics. Posterior means are computed at construction, so calling <code>coef()</code> does not trigger the lazy cache. On a <code>bgmCompare</code> fit it returns both the raw baseline-plus-contrast matrices and the per-group matrices obtained by applying the projection matrix, which is the fit’s own record of how the contrasts combine into each group’s parameters.</p>
+</section>
+<section id="scales" class="level2">
+<h2 class="anchored" data-anchor-id="scales">Scales</h2>
+<p>The same quantity can appear on two scales in one object, and the object does not relabel it for you; you have to know which field sits on which scale. For a GGM fit, <code>raw_samples$pairwise</code> holds off-diagonal <strong>precision</strong> elements and <code>raw_samples$main</code> holds the precision diagonal, because the precision scale is what the sampler works in. The summarized views are converted. In the table below, <span class="math inline">\(\theta_{ij}\)</span> is an element of the precision matrix and <span class="math inline">\(\omega_{ij}\)</span> is the corresponding partial association:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>raw_samples$pairwise</code> (GGM)</td>
+<td>precision, <span class="math inline">\(\theta_{ij}\)</span></td>
+</tr>
+<tr class="even">
+<td><code>posterior_mean_pairwise</code> (GGM)</td>
+<td>partial association, <span class="math inline">\(\omega_{ij} = -\tfrac{1}{2}\theta_{ij}\)</span></td>
+</tr>
+<tr class="odd">
+<td><code>posterior_summary_pairwise</code> (GGM)</td>
+<td>partial association</td>
+</tr>
+<tr class="even">
+<td><code>raw_samples$main</code> (GGM)</td>
+<td>precision diagonal</td>
+</tr>
+<tr class="odd">
+<td><code>posterior_mean_residual_variance</code></td>
+<td>residual variance, mean of <span class="math inline">\(1/\theta_{jj}\)</span></td>
+</tr>
+<tr class="even">
+<td><code>posterior_summary_quadratic</code> (GGM)</td>
+<td>residual variance</td>
+</tr>
+<tr class="odd">
+<td><code>posterior_summary_quadratic</code> (mixed)</td>
+<td>residual variance, <span class="math inline">\(-1/(2\theta_{jj})\)</span> from the negative association diagonal</td>
+</tr>
+</tbody>
+</table>
+<p>Two details follow from that table. First, the residual variance posterior mean averages the per-draw reciprocals <span class="math inline">\(1/\theta_{jj}\)</span>; it does not invert the averaged precision. Those are different numbers: this field is the posterior mean of the residual variance itself, not a transform of the posterior mean precision. Second, the conversion of the pairwise draws happens inside <code>ensure_summaries()</code>, before the draws are summarized. The mean, the standard deviation, and the Monte Carlo standard error are therefore all on the association scale. The conversion also maps zeros to zeros, so the two-part structure of the selection posterior (exact zeros where an edge is excluded, continuous values where it is included) stays intact.</p>
+<p>An ordinal fit needs none of this: its draws are already on the association scale, so there is nothing to convert.</p>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../manual/ggm-internals.html">GGM Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/nuts.html">NUTS</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>, <a href="../manual/model-classes.html">Model Classes</a>.</p>
+<p><a href="../manual/r-scaffolding.html">R Scaffolding</a>, <a href="../manual/extractors-internals.html">Extractor Internals</a>, <a href="../manual/diagnostics.html">Convergence Diagnostics</a>, <a href="../manual/bgmcompare-internals.html">bgmCompare Internals</a>, <a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a>, <a href="../guide/mcmc-output.html">Model Output</a>, <a href="../reference/methods.html">Methods reference</a>.</p>
 
 
 </section>
@@ -1338,13 +1426,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../manual/nuts.html" class="pagination-link" aria-label="NUTS Algorithm">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">NUTS Algorithm</span>
+      <a href="../manual/zratio-hierarchical.html" class="pagination-link" aria-label="Hierarchical Graph Prior and the Z-Ratio Engine">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Hierarchical Graph Prior and the Z-Ratio Engine</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../manual/samplers.html" class="pagination-link" aria-label="Sampler Hierarchy">
-        <span class="nav-page-text">Sampler Hierarchy</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../manual/extractors-internals.html" class="pagination-link" aria-label="Extractor Internals">
+        <span class="nav-page-text">Extractor Internals</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1367,7 +1455,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/null-space.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/fit-objects.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

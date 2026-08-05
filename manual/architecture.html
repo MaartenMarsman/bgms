@@ -484,6 +484,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Fast Computation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Simulation and Prediction</span></a>
+  </div>
+</li>
       </ul>
   </li>
       </ul>
@@ -519,6 +525,41 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Results and Checks</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Fit Objects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checks Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
       </ul>
@@ -586,6 +627,9 @@ Warning
 │   │                    #   hamiltonian_utils.h/cpp (kinetic energy, step-size heuristic)
 │   ├── samplers/        # Stateful: NUTSSampler, MetropolisSampler, GibbsSampler
 │   └── execution/       # Orchestration: chain_runner, warmup_schedule, chain_result
+│                        #   + sampler_config.h (SamplerConfig: the one settings
+│                        #     struct every chain is run from),
+│                        #     step_result.h (per-iteration sampler return)
 ├── models/
 │   ├── base_model.h     # Abstract interface (30+ virtual methods)
 │   ├── ggm/             # GGMModel — NUTS, adaptive Metropolis, or conjugate Gibbs

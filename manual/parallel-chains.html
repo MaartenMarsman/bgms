@@ -548,6 +548,12 @@ window.Quarto = {
  <span class="menu-text">Fast Computation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Simulation and Prediction</span></a>
+  </div>
+</li>
       </ul>
   </li>
       </ul>
@@ -583,6 +589,41 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Results and Checks</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Fit Objects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checks Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
       </ul>
@@ -638,7 +679,7 @@ window.Quarto = {
 <li><strong>Dispatch</strong> — All chains are dispatched to threads. Each thread runs <code>run_mcmc_chain()</code> with its own model, prior, and result container.</li>
 <li><strong>Collect</strong> — Results are gathered and returned as a vector of <code>ChainResult</code> objects.</li>
 </ol>
-<p>After a chain’s main loop finishes, three post-loop steps run before the chain returns. If the Z-ratio trust gauge is enabled (<code>options(bgms.zratio_gauge_sweeps = ...)</code> under the hierarchical graph prior), the chain runs the configured number of assessment sweeps on the frozen kernel — deployed selection passes that also reference non-trivial edge moves against the exact block-local calculation; no stored samples are touched. Next the sampler’s adaptation-averaged step size and diagonal metric are retained on the <code>ChainResult</code> (<code>final_step_size</code>, <code>final_inv_mass</code>; NaN and empty for non-gradient samplers) so a refit can warm-start them. Then <code>model.collect_chain_diagnostics(chain_result)</code> copies run-level diagnostic state (Z-ratio counters, frozen constants, gauge results) into the <code>ChainResult</code>.</p>
+<p>After a chain’s main loop finishes, three post-loop steps run before the chain returns. If the Z-ratio trust gauge is enabled (<code>options(bgms.zratio_gauge_sweeps = ...)</code> under the hierarchical graph prior), the chain runs the configured number of assessment sweeps on the frozen kernel — deployed selection passes that also reference non-trivial edge moves against the exact block-local calculation; no stored samples are touched. Next the sampler’s adaptation-averaged step size and diagonal metric are retained on the <code>ChainResult</code> (<code>final_step_size</code>, <code>final_inv_mass</code>; NaN and empty for non-gradient samplers) so a refit can warm-start them (see <a href="../manual/sensitivity-refit.html#the-warm-start">Sensitivity and Refits</a>). Then <code>model.collect_chain_diagnostics(chain_result)</code> copies run-level diagnostic state (Z-ratio counters, frozen constants, gauge results) into the <code>ChainResult</code>.</p>
 </section>
 <section id="model-and-prior-cloning" class="level2">
 <h2 class="anchored" data-anchor-id="model-and-prior-cloning">Model and prior cloning</h2>

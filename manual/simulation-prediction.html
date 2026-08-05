@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Constrained Cholesky Parameterization – bgms</title>
+<title>Simulation and Prediction – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,6 +26,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -36,8 +71,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../manual/samplers.html" rel="next">
-<link href="../manual/nuts.html" rel="prev">
+<link href="../manual/parameter-priors.html" rel="next">
+<link href="../manual/variable-helpers.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -354,7 +389,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/ggm-internals.html">Model Internals</a></li><li class="breadcrumb-item"><a href="../manual/pseudolikelihood.html">Supporting Pages</a></li><li class="breadcrumb-item"><a href="../manual/simulation-prediction.html">Simulation and Prediction</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -409,13 +444,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">MCMC Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
@@ -430,7 +465,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link active">
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Constrained Cholesky Parameterization</span></a>
   </div>
 </li>
@@ -467,13 +502,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
  <span class="menu-text">Model Internals</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/ggm-internals.html" class="sidebar-item-text sidebar-link">
@@ -494,13 +529,13 @@ window.Quarto = {
 </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
  <span class="menu-text">Supporting Pages</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/pseudolikelihood.html" class="sidebar-item-text sidebar-link">
@@ -515,7 +550,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Simulation and Prediction</span></a>
   </div>
 </li>
@@ -615,9 +650,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/ggm-internals.html">Model Internals</a></li><li class="breadcrumb-item"><a href="../manual/pseudolikelihood.html">Supporting Pages</a></li><li class="breadcrumb-item"><a href="../manual/simulation-prediction.html">Simulation and Prediction</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Constrained Cholesky Parameterization</h1>
+<h1 class="title">Simulation and Prediction</h1>
 </div>
 
 
@@ -634,71 +669,220 @@ window.Quarto = {
 </header>
 
 
-<p>When edge selection is active in a model with continuous variables, excluded edges must remain exactly zero while the precision matrix stays positive definite. <code>bgms</code> enforces both requirements through the parameterization itself: the sampler works in a set of free coordinates in which every point corresponds to a positive-definite precision matrix with exact zeros at the excluded edges. No projection, constraint solve, or correction step is needed during integration — NUTS runs as an ordinary unconstrained sampler.</p>
-<p>The implementation lives in <code>graph_constraint_structure.h</code> (the per-graph bookkeeping) and <code>ggm_gradient.cpp</code> (the forward map and gradient); the mixed MRF reuses the same engine for its continuous block.</p>
-<section id="why-constraints" class="level2">
-<h2 class="anchored" data-anchor-id="why-constraints">Why constraints?</h2>
-<p>Each pairwise parameter is either exactly zero (edge absent) or free (edge present). For models with continuous variables, the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> must in addition be positive definite. <code>bgms</code> parameterizes <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>, where <span class="math inline">\(\boldsymbol{\Phi}\)</span> is the upper Cholesky factor with positive diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>. Positive definiteness is then guaranteed by construction.</p>
-<p>The complication is sparsity. An excluded edge (<span class="math inline">\(\gamma_{iq} = 0\)</span>) requires <span class="math inline">\(\theta_{iq} = 0\)</span>, which in Cholesky entries means</p>
-<p><span class="math display">\[
-\theta_{iq} = \sum_l \Phi_{li}\,\Phi_{lq} = 0.
-\]</span></p>
-<p>Across the whole matrix this is a quadratic constraint on <span class="math inline">\(\boldsymbol{\Phi}\)</span>, because columns interact through the <span class="math inline">\(\boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span> product. The key observation is that it becomes <em>linear</em> one column at a time: with the earlier columns <span class="math inline">\(1, \ldots, q-1\)</span> held fixed, the constraints on column <span class="math inline">\(q\)</span>’s off-diagonal entries <span class="math inline">\(x_q = \Phi_{1:q-1,\,q}\)</span> form a linear system</p>
-<p><span class="math display">\[
-A_q\, x_q = 0,
-\]</span></p>
-<p>where each row of <span class="math inline">\(A_q\)</span> is (the leading part of) an earlier column <span class="math inline">\(\boldsymbol{\Phi}_{\cdot i}\)</span> for an excluded edge <span class="math inline">\((i, q)\)</span>. The set of valid <span class="math inline">\(x_q\)</span> is therefore a linear subspace — the null space of <span class="math inline">\(A_q\)</span> — and the sampler can parameterize that subspace directly.</p>
+<p><code>bgms</code> can run its models forwards as well as backwards: forwards from parameters to data, and backwards from data to what the model implies about a single variable. Two operations do this. <strong>Simulation</strong> generates new observations from a set of parameters. Those parameters can be values you supply yourself, or values estimated from a fit (a fitted model object). <strong>Prediction</strong> computes the conditional distribution of one variable given observed values on all the others. That is the same conditional distribution the samplers use internally.</p>
+<p>This simulation-and-prediction layer is split across four R files and two C++ files. <code>R/simulate_mrf.R</code> holds <code>simulate_mrf()</code>, the standalone generator. <code>R/simulate_predict.R</code> holds the <code>simulate()</code> and <code>predict()</code> methods and the helpers they share. <code>R/predict_simulate_ggm.R</code> and <code>R/predict_simulate_mixed.R</code> hold the model-specific work for continuous and mixed data. On the C++ side, <code>src/mrf_simulation.cpp</code> holds every generator, together with the three parallel workers that run them across posterior draws, and <code>src/mrf_prediction.cpp</code> holds the three conditional-distribution kernels.</p>
+<p>For argument lists, defaults, and return formats, see <a href="../reference/methods.html#simulate_mrf"><code>simulate_mrf()</code></a>, <a href="../reference/methods.html#simulate"><code>simulate()</code></a>, and <a href="../reference/methods.html#predict"><code>predict()</code></a> in the Reference. This page documents what runs underneath them.</p>
+<section id="entry-points" class="level2">
+<h2 class="anchored" data-anchor-id="entry-points">Entry points</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>User call</th>
+<th>R implementation</th>
+<th>C++ entry point</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>simulate_mrf(variable_type = "continuous")</code></td>
+<td><code>simulate_mrf()</code></td>
+<td><code>sample_ggm_direct()</code></td>
+</tr>
+<tr class="even">
+<td><code>simulate_mrf()</code>, all ordinal</td>
+<td><code>simulate_mrf()</code></td>
+<td><code>sample_omrf_gibbs()</code></td>
+</tr>
+<tr class="odd">
+<td><code>simulate_mrf()</code>, any Blume-Capel</td>
+<td><code>simulate_mrf()</code></td>
+<td><code>sample_bcomrf_gibbs()</code></td>
+</tr>
+<tr class="even">
+<td><code>simulate(fit)</code>, discrete, posterior mean</td>
+<td><code>simulate.bgms()</code></td>
+<td><code>sample_omrf_gibbs()</code> or <code>sample_bcomrf_gibbs()</code></td>
+</tr>
+<tr class="odd">
+<td><code>simulate(fit)</code>, discrete, posterior sample</td>
+<td><code>simulate.bgms()</code></td>
+<td><code>run_simulation_parallel()</code></td>
+</tr>
+<tr class="even">
+<td><code>simulate(fit)</code>, continuous</td>
+<td><code>simulate_bgms_ggm()</code></td>
+<td><code>sample_ggm_direct()</code> or <code>run_ggm_simulation_parallel()</code></td>
+</tr>
+<tr class="odd">
+<td><code>simulate(fit)</code>, mixed</td>
+<td><code>simulate_bgms_mixed()</code></td>
+<td><code>sample_mixed_mrf_gibbs()</code> or <code>run_mixed_simulation_parallel()</code></td>
+</tr>
+<tr class="even">
+<td><code>predict(fit)</code>, discrete</td>
+<td><code>predict.bgms()</code></td>
+<td><code>compute_conditional_probs()</code></td>
+</tr>
+<tr class="odd">
+<td><code>predict(fit)</code>, continuous</td>
+<td><code>predict_bgms_ggm()</code></td>
+<td><code>compute_conditional_ggm()</code></td>
+</tr>
+<tr class="even">
+<td><code>predict(fit)</code>, mixed</td>
+<td><code>predict_bgms_mixed()</code></td>
+<td><code>compute_conditional_mixed()</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>simulate.bgmCompare()</code> and <code>predict.bgmCompare()</code> reach the same discrete kernels, but only after converting the fitted contrasts into the parameters of one specific group; see <a href="#group-parameters">Group parameters</a> below.</p>
 </section>
-<section id="the-theta-vector" class="level2">
-<h2 class="anchored" data-anchor-id="the-theta-vector">The theta vector</h2>
-<p>The free coordinates are collected in a vector <span class="math inline">\(\theta\)</span> with the layout</p>
+<section id="simulating-from-supplied-parameters" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-from-supplied-parameters">Simulating from supplied parameters</h2>
+<p><code>simulate_mrf()</code> takes a model rather than a fit. You describe the model directly through four ingredients: a pairwise matrix (the matrix of pairwise interaction parameters), a matrix of main effects, the number of categories per variable, and the variable types. The function validates all of these inputs, then branches on whether the variables are continuous.</p>
+<section id="the-continuous-branch-is-exact" class="level3">
+<h3 class="anchored" data-anchor-id="the-continuous-branch-is-exact">The continuous branch is exact</h3>
+<p>For <code>variable_type = "continuous"</code> the <code>pairwise</code> argument is read as the full precision matrix (the inverse of the covariance matrix), diagonal included. Any <code>NA</code> entry is treated as an excluded edge and set to zero. The matrix must be symmetric with a strictly positive diagonal. The <code>main</code> argument supplies the mean vector, and defaults to zeros if you omit it.</p>
+<p><code>sample_ggm_direct()</code> then draws from the multivariate normal in three steps. First it inverts the precision matrix to a covariance matrix <span class="math inline">\(\Sigma\)</span> with <code>arma::inv_sympd()</code>. Next it takes the lower Cholesky factor <span class="math inline">\(L\)</span> of that covariance matrix, so that <span class="math inline">\(\Sigma = L L^\top\)</span>. Finally it returns <span class="math inline">\(X = Z L^\top + \mathbf{1}\mu^\top\)</span>, where <span class="math inline">\(Z\)</span> is a matrix of independent standard normal draws, <span class="math inline">\(\mu\)</span> is the mean vector, and <span class="math inline">\(\mathbf{1}\)</span> is a column of ones that repeats the mean across rows.</p>
+<p>The result is a set of independent exact draws, not a Markov chain, so there are no iterations to run and nothing to converge. The <code>iter</code> argument is read and validated for the discrete branch only, and it has no effect here:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Omega <span class="ot">=</span> <span class="fu">diag</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">1.2</span>, <span class="fl">0.8</span>)); Omega[<span class="dv">1</span>, <span class="dv">2</span>] <span class="ot">=</span> Omega[<span class="dv">2</span>, <span class="dv">1</span>] <span class="ot">=</span> <span class="fl">0.3</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>a <span class="ot">=</span> <span class="fu">simulate_mrf</span>(<span class="dv">5</span>, <span class="dv">3</span>, <span class="at">pairwise =</span> Omega, <span class="at">variable_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                 <span class="at">iter =</span> <span class="dv">1</span>,     <span class="at">seed =</span> <span class="dv">42</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>b <span class="ot">=</span> <span class="fu">simulate_mrf</span>(<span class="dv">5</span>, <span class="dv">3</span>, <span class="at">pairwise =</span> Omega, <span class="at">variable_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>                 <span class="at">iter =</span> <span class="dv">99999</span>, <span class="at">seed =</span> <span class="dv">42</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">identical</span>(a, b)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="the-discrete-branch-is-a-gibbs-sampler" class="level3">
+<h3 class="anchored" data-anchor-id="the-discrete-branch-is-a-gibbs-sampler">The discrete branch is a Gibbs sampler</h3>
+<p>Ordinal and Blume-Capel variables have no closed-form joint sampler, so the generator runs a Gibbs chain instead: a Markov chain that repeatedly resamples each variable from its conditional distribution given the current values of the others. <code>simulate_mrf()</code> dispatches on whether any variable is Blume-Capel. When none is, it calls <code>sample_omrf_gibbs()</code>; when at least one is, it calls <code>sample_bcomrf_gibbs()</code>. Both call the same C++ core, and they differ only in how they prepare the type information. The first hard-codes every type to <code>"ordinal"</code> with a reference category of zero. The second passes the types through and forces the reference category to zero for every variable that is not Blume-Capel.</p>
+<p>The core copies the pairwise matrix and zeros its diagonal, so a nonzero diagonal in your input cannot become a self-interaction. It then gives every cell a uniform random starting category and runs <code>iter</code> sweeps. Within a sweep, each variable is updated for every observation by drawing from its full conditional, the distribution of that variable given the current values of all the others. That conditional depends on the <strong>rest score</strong>, the total pairwise input a variable receives from its neighbors in that row:</p>
 <p><span class="math display">\[
-\theta = (\psi_1,\; [f_2, \psi_2],\; [f_3, \psi_3],\; \ldots,\; [f_p, \psi_p]),
+r_{is} = \sum_{k} 2\,(x_{ik} - b_k)\,\omega_{ks}.
 \]</span></p>
-<p>where <span class="math inline">\(\psi_q\)</span> is the log-diagonal of column <span class="math inline">\(q\)</span> and <span class="math inline">\(f_q\)</span> holds that column’s free off-diagonal coordinates. Column <span class="math inline">\(q\)</span> has <span class="math inline">\(m_q\)</span> excluded edges and <span class="math inline">\(d_q = (q - 1) - m_q\)</span> free coordinates, so the active dimension is</p>
+<p>Here <span class="math inline">\(x_{ik}\)</span> is observation <span class="math inline">\(i\)</span>’s value on variable <span class="math inline">\(k\)</span>, <span class="math inline">\(b_k\)</span> is that variable’s reference category (zero unless the variable is Blume-Capel), and <span class="math inline">\(\omega_{ks}\)</span> is the partial association between variables <span class="math inline">\(k\)</span> and <span class="math inline">\(s\)</span>. From the rest score, the two variable types build unnormalized category weights in different ways. An ordinal variable pins category zero at weight one and gives category <span class="math inline">\(c \ge 1\)</span> the weight <span class="math inline">\(\exp(\mu_{sc} + c\,r_{is})\)</span>, where <span class="math inline">\(\mu_{sc}\)</span> is the main effect for category <span class="math inline">\(c\)</span> of variable <span class="math inline">\(s\)</span>. A Blume-Capel variable gives category <span class="math inline">\(c\)</span> the weight <span class="math inline">\(\exp(\alpha_s d + \beta_s d^2 + d\,r_{is})\)</span>, where <span class="math inline">\(d = c - b_s\)</span> is the category’s offset from the reference category and <span class="math inline">\(\alpha_s\)</span> and <span class="math inline">\(\beta_s\)</span> are the variable’s linear and quadratic main effects; here no category is pinned. Both types then sample a category by inverse transform on the cumulative weights.</p>
+<p>Two consequences follow from that loop structure. First, the rest score for observation <span class="math inline">\(i\)</span> reads only row <span class="math inline">\(i\)</span>. The <code>num_states</code> rows (one per requested observation) are therefore independent chains advanced in lockstep, not one chain sampled <code>num_states</code> times. Second, the returned matrix is simply the state after <code>iter</code> sweeps; there is no convergence check. That makes <code>iter</code> the only control you have over how close the output is to the target distribution.</p>
+<p>The exponentials use <code>MY_EXP</code>, the portable <code>exp()</code> documented under <a href="../manual/numerical.html">OpenLibM Integration</a>. One detail differs from the sampler’s own likelihood kernels. Those kernels subtract a per-observation maximum before exponentiating; this generator does not, and it exponentiates the category weights directly. The mixed generator described below does subtract such a maximum.</p>
+<p><code>mrfSampler()</code> is the same function under its pre-0.1.6.3 name and warns as deprecated.</p>
+</section>
+</section>
+<section id="simulating-from-a-fit" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-from-a-fit">Simulating from a fit</h2>
+<p><code>simulate.bgms()</code> reads the model class off the fit. It hands continuous and mixed data to their own implementations before the discrete path is reached. Whichever path runs, the <code>method</code> argument decides what the parameters are.</p>
+<p><strong><code>method = "posterior-mean"</code></strong> collapses the posterior to one parameter set and generates one dataset from it. Only a single simulation runs, so there is nothing to parallelize and the <code>cores</code> argument is ignored.</p>
+<p><strong><code>method = "posterior-sample"</code></strong> selects <code>ndraws</code> posterior draws at random. When <code>ndraws</code> is <code>NULL</code> it takes all of them, and the count is capped at the number of draws available. It then generates one dataset per draw. Because each dataset comes from a different draw of the parameters, parameter uncertainty carries into the simulated data. The datasets come back as a list. This path runs in parallel across draws through RcppParallel, with the thread count capped by <code>tbb::global_control</code> at the resolved <code>cores</code> value.</p>
+<section id="discrete-fits" class="level3">
+<h3 class="anchored" data-anchor-id="discrete-fits">Discrete fits</h3>
+<p>Under <code>posterior-mean</code> the method simply calls <code>simulate_mrf()</code> with the posterior mean pairwise and main-effect matrices, so everything in the section above applies unchanged.</p>
+<p>Under <code>posterior-sample</code>, <code>run_simulation_parallel()</code> takes the stacked draw matrices and rebuilds the parameters inside each worker. The pairwise vector is unpacked column by column into a symmetric matrix. The main-effect vector is unpacked using a per-variable parameter count: two parameters for a Blume-Capel variable, and <code>num_categories[v]</code> parameters for an ordinal one. Each worker then runs the same Gibbs core.</p>
+</section>
+<section id="continuous-fits" class="level3">
+<h3 class="anchored" data-anchor-id="continuous-fits">Continuous fits</h3>
+<p><code>simulate_bgms_ggm()</code> has to solve a scale problem first. <code>bgm()</code> fits continuous data after centering it on the training column means, so a simulation on the fitted scale would come back centered rather than on the original scale of the data. To undo this, the stored <code>column_means</code> are passed as the mean vector. Fits old enough to lack stored column means fall back to zeros.</p>
+<p>The two methods rebuild the precision matrix from different places, because the posterior summaries and the raw draws are not stored on the same scale. Under <code>posterior-mean</code>, <code>reconstruct_precision()</code> builds the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> from the posterior means. Off the diagonal it sets <span class="math inline">\(\boldsymbol{\Theta} = -2\boldsymbol{\Omega}\)</span>, where <span class="math inline">\(\boldsymbol{\Omega}\)</span> holds the posterior mean pairwise associations, and <code>NA</code> entries at excluded edges are mapped to zero. The diagonal is set to the reciprocal of the posterior mean residual variances. The raw draws, by contrast, are already stored on the precision scale, so <code>build_precision_from_draw()</code> and <code>run_ggm_simulation_parallel()</code> place the pairwise and main-effect values into the matrix as they stand.</p>
+<p>Either way the draw itself goes through <code>simulate_ggm()</code>, the same exact multivariate normal sampler the standalone path uses, so a continuous simulation involves no Gibbs sweeps at all.</p>
+</section>
+<section id="mixed-fits" class="level3">
+<h3 class="anchored" data-anchor-id="mixed-fits">Mixed fits</h3>
+<p><code>simulate_bgms_mixed()</code> reassembles the three interaction blocks: discrete by discrete, discrete by continuous, and continuous by continuous. It also gathers the discrete thresholds <code>mux</code> and the continuous means <code>muy</code>. It then calls <code>sample_mixed_mrf_gibbs()</code>, or, when it generates one dataset per posterior draw, <code>run_mixed_simulation_parallel()</code>.</p>
+<p>The C++ generator is a block Gibbs sampler: it updates the discrete variables one at a time, and it draws the continuous variables together as one block. Before the loop it does the shared linear algebra once. It forms the continuous-block precision matrix <span class="math inline">\(\boldsymbol{\Theta}_{yy} = -2
+\boldsymbol{\Omega}_{yy}\)</span>, where <span class="math inline">\(\boldsymbol{\Omega}_{yy}\)</span> holds the continuous-by-continuous pairwise associations. It inverts that matrix, factors the result, and precomputes the cross block times the covariance matrix, so none of that work repeats per iteration. Each sweep then updates every discrete variable from its full conditional given the other discrete variables and the current continuous values. After that, it draws the whole continuous vector at once from its conditional Gaussian, whose mean shifts with the centered discrete state. The discrete update subtracts the largest log weight before exponentiating.</p>
+<p>One structural difference from the discrete-only generator is worth spelling out. The mixed generator loops over observations on the outside, and it runs a full <code>iter</code>-sweep chain for each observation separately. It initializes the discrete variables uniformly and the continuous variables from their marginal. The discrete-only generator, by contrast, advances all observations together. The output is the same in kind, and so is the total work: every observation receives <code>iter</code> sweeps whichever loop is outermost. What differs is that each observation’s chain is initialized separately rather than advancing in lockstep with the rest.</p>
+<p><code>build_output_mixed_mrf()</code> stores the two blocks separately, so <code>split_mixed_raw_samples()</code> has to cut the flat draw matrices back apart before the parallel worker sees them. The main matrix splits as <code>[mux | muy | continuous diagonal]</code>. The pairwise matrix splits as <code>[discrete upper triangle | continuous off-diagonal | cross]</code>. The continuous diagonal and off-diagonal entries are then interleaved back into the column-major upper triangle that the C++ side expects.</p>
+</section>
+<section id="group-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="group-parameters">Group parameters</h3>
+<p><code>simulate.bgmCompare()</code> requires a <code>group</code> argument and supports <code>posterior-mean</code> only. It calls <code>extract_group_params()</code>, which applies the projection matrix to turn the baseline parameters and the contrast parameters <span class="math inline">\(\delta_{ij}^{(k)}\)</span> (the parameters that carry how the groups differ) into that group’s own parameters. The method then does the reshaping itself: it rebuilds the threshold matrix with <code>reconstruct_main()</code>, rebuilds the interaction matrix from its lower triangle, and calls <code>simulate_mrf()</code> like any discrete fit. Variable types come from the fit’s ordinal flags, so a variable is either ordinal or Blume-Capel, and <code>reconstruct_main()</code> reads the matching number of parameters per variable.</p>
+</section>
+</section>
+<section id="predicting-conditional-distributions" class="level2">
+<h2 class="anchored" data-anchor-id="predicting-conditional-distributions">Predicting conditional distributions</h2>
+<p><code>predict()</code> computes, for each requested variable and each row of <code>newdata</code>, the distribution of that variable given the row’s values on all the others. Nothing is sampled. Every kernel in <code>src/mrf_prediction.cpp</code> evaluates a closed-form conditional, so prediction is deterministic given the parameters.</p>
+<p><code>predict.bgms()</code> first validates <code>newdata</code>, which must be a matrix or data frame with exactly the fitted number of columns. It then resolves the <code>variables</code> argument from names or indices to column positions. Finally it dispatches to the continuous or mixed implementation before the discrete kernel is reached.</p>
+<p><strong>Discrete.</strong> <code>compute_conditional_probs()</code> accumulates the rest score across all variables except the target. When a neighbor is Blume-Capel, that neighbor’s contribution is centered on its reference category. The kernel then evaluates the category probabilities through <code>compute_probs_ordinal()</code> or <code>compute_probs_blume_capel()</code>. Those are the bounded, overflow-protected helpers documented under <a href="../manual/variable-helpers.html">Fast Computation</a>, and they are the same ones the likelihood code uses. The result is one <span class="math inline">\(n \times (C_s + 1)\)</span> probability matrix per predicted variable, where <span class="math inline">\(n\)</span> is the number of rows in <code>newdata</code> and <span class="math inline">\(C_s\)</span> is variable <span class="math inline">\(s\)</span>’s highest category code; the columns are labeled <code>cat_0</code> upwards.</p>
+<p><strong>Continuous.</strong> <code>compute_conditional_ggm()</code> uses the standard Gaussian conditional read straight off the precision matrix:</p>
 <p><span class="math display">\[
-\dim(\theta) = p + \sum_q d_q = p + |E|,
+X_j \mid X_{-j} \sim \mathcal{N}\!\left(
+  -\theta_{jj}^{-1} \sum_{k \ne j} \theta_{jk} x_k,\;
+  \theta_{jj}^{-1} \right).
 \]</span></p>
-<p>with <span class="math inline">\(|E|\)</span> the number of included edges — compared to the full dimension <span class="math inline">\(p + p(p-1)/2\)</span> of an unconstrained upper triangle. The <code>GraphConstraintStructure</code> records, for each column, which rows are excluded and included, plus the offsets of each column’s block in the active and full vectors. It is rebuilt only when the graph changes (an edge indicator toggles); its contents do not depend on the parameter values.</p>
-</section>
-<section id="from-theta-to-the-precision-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="from-theta-to-the-precision-matrix">From theta to the precision matrix</h2>
-<p>The forward map builds <span class="math inline">\(\boldsymbol{\Phi}\)</span> column by column:</p>
-<ol type="1">
-<li>Set the diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>.</li>
-<li>Assemble <span class="math inline">\(A_q^\top\)</span> from the already-built earlier columns at the excluded rows.</li>
-<li>Compute a QR decomposition of <span class="math inline">\(A_q^\top\)</span> using Givens rotations. The last <span class="math inline">\(d_q\)</span> columns of <span class="math inline">\(Q\)</span> form an orthonormal basis <span class="math inline">\(N_q\)</span> of the null space of <span class="math inline">\(A_q\)</span>.</li>
-<li>Set the off-diagonal entries <span class="math inline">\(x_q = N_q f_q\)</span>.</li>
-</ol>
-<p>Two special cases avoid work: a column with no excluded edges has <span class="math inline">\(x_q = f_q\)</span> directly (<span class="math inline">\(N_q\)</span> is the identity and is never materialized), and a fully constrained column has <span class="math inline">\(x_q = 0\)</span>. Finally <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>.</p>
-<p>Because <span class="math inline">\(N_q\)</span> depends on the earlier columns of <span class="math inline">\(\boldsymbol{\Phi}\)</span>, and those depend on <span class="math inline">\(\theta\)</span>, the basis is recomputed inside every forward-map evaluation — this is cheap (Givens rotations on small per-column systems) and exact.</p>
-<section id="jacobian" class="level3">
-<h3 class="anchored" data-anchor-id="jacobian">Jacobian</h3>
-<p>Densities specified on <span class="math inline">\(\boldsymbol{\Theta}\)</span> (the slab on the off-diagonals, the scale prior on the diagonal, the determinant tilt) are evaluated through this map, so the log-posterior in <span class="math inline">\(\theta\)</span> carries the log absolute determinant of the Jacobian:</p>
-<p><span class="math display">\[
-\log \lvert \det J \rvert
-= p \log 2 + 2 \sum_q \psi_q + \sum_{i &lt; p} (p - 1 - i)\, \psi_i
-  - \sum_q \sum_j \log \lvert R_{q,jj} \rvert,
-\]</span></p>
-<p>where the <span class="math inline">\(R_{q,jj}\)</span> are the diagonal entries of the per-column QR factor <span class="math inline">\(R\)</span> — the only place the constraint geometry enters the density.</p>
-</section>
-<section id="gradient" class="level3">
-<h3 class="anchored" data-anchor-id="gradient">Gradient</h3>
-<p>The gradient of the log-posterior with respect to <span class="math inline">\(\theta\)</span> is computed by an adjoint (reverse-mode) pass: the derivative with respect to <span class="math inline">\(\boldsymbol{\Phi}\)</span> is formed first, and a reverse sweep through the stored Givens rotations propagates it back to the free coordinates <span class="math inline">\(f_q\)</span> and <span class="math inline">\(\psi_q\)</span>, including the contribution from the rotation of the null-space basis itself. The engine keeps a per-evaluation workspace so steady-state calls (fixed graph between rebuilds) allocate nothing.</p>
+<p>Here <span class="math inline">\(\theta_{jk}\)</span> is the <span class="math inline">\((j, k)\)</span> entry of the precision matrix and <span class="math inline">\(x_k\)</span> is the row’s value on variable <span class="math inline">\(k\)</span>. The conditional variance <span class="math inline">\(\theta_{jj}^{-1}\)</span> contains no data, so the conditional standard deviation does not vary across rows; only the mean does. The kernel computes all rows at once by multiplying the data by column <span class="math inline">\(j\)</span> of the precision matrix and subtracting the self-contribution. <code>predict_bgms_ggm()</code> wraps this in the same centering correction the simulation path uses. <code>newdata</code> is swept by the training column means before the kernel runs, and the training mean of the predicted variable is added back to the conditional means afterwards. Output is an <span class="math inline">\(n \times 2\)</span> matrix of <code>mean</code> and <code>sd</code> per predicted variable.</p>
+<p><strong>Mixed.</strong> <code>compute_conditional_mixed()</code> runs whichever of the two kernels the predicted variable calls for. For a discrete variable, the rest score picks up a contribution from the continuous block through the cross interactions. For a continuous variable, the conditional mean picks up contributions from the other continuous variables and from the centered discrete state, and the conditional precision is read as <span class="math inline">\(-2\)</span> times the continuous block’s diagonal entry. <code>predict_bgms_mixed()</code> maps the user’s column indices onto the internal layout, in which the <span class="math inline">\(p\)</span> discrete variables occupy positions <span class="math inline">\(0 \ldots p-1\)</span> and the <span class="math inline">\(q\)</span> continuous variables occupy positions <span class="math inline">\(p \ldots p+q-1\)</span>.</p>
+<section id="averaging-over-draws" class="level3">
+<h3 class="anchored" data-anchor-id="averaging-over-draws">Averaging over draws</h3>
+<p>Under <code>method = "posterior-sample"</code>, <code>predict()</code> evaluates the kernel once per selected draw and averages the results. Unlike the simulation path, this loop runs in R, one draw at a time, with no parallel worker. <code>average_draws()</code> stacks a variable’s per-draw matrices into an array and reduces that array to a mean matrix and a standard deviation matrix. The mean becomes the returned value; the standard deviation is attached as the <code>"sd"</code> attribute.</p>
+<p>For a discrete variable that average is the posterior predictive conditional distribution: averaging the per-draw probabilities is exactly how the predictive integrates the parameters out. For a continuous variable the returned pair is not a predictive distribution. Its <code>sd</code> column is the average conditional standard deviation across draws, and averaging the two moments separately understates the predictive spread, which would also carry how much the conditional means moved between draws. That movement is what the separate <code>"sd"</code> attribute reports.</p>
+<p><code>type = "response"</code> reduces the distribution to a point. For a discrete variable that point is the most probable category, computed as <code>which.max</code> on the probability matrix minus one to match the zero-based codes. For a continuous variable it is the conditional mean.</p>
+<p><code>predict.bgmCompare()</code> supports <code>posterior-mean</code> only and requires <code>group</code>. It derives that group’s parameters exactly as the simulation method does.</p>
 </section>
 </section>
-<section id="where-it-is-used" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-is-used">Where it is used</h2>
-<ul>
-<li><strong>GGM</strong> — the entire precision matrix is parameterized this way; see <a href="../manual/ggm-internals.html">GGM Internals</a>.</li>
-<li><strong>Mixed MRF</strong> — only the continuous-continuous block <span class="math inline">\(\boldsymbol{\Theta}_{yy}\)</span> is a constrained precision matrix; the discrete and cross parameters remain plain coordinates. See <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>.</li>
-<li><strong>OMRF</strong> — not applicable: purely discrete models have unconstrained real parameters.</li>
-</ul>
-<p>From the sampler’s point of view there is nothing special about the result: <a href="../manual/nuts.html">NUTS</a> receives an ordinary differentiable target of dimension <span class="math inline">\(p + |E|\)</span>, with the standard <a href="../manual/nuts.html">leapfrog integrator</a> and no constraint handling. When an edge move changes the graph, the model rebuilds the <code>GraphConstraintStructure</code> and the active dimension changes with it; the <a href="../manual/warmup.html">warmup schedule</a> accounts for this when adapting the mass matrix.</p>
+<section id="category-codes-on-the-way-in-and-out" class="level2">
+<h2 class="anchored" data-anchor-id="category-codes-on-the-way-in-and-out">Category codes on the way in and out</h2>
+<p><code>bgm()</code> recodes discrete data to contiguous zero-based codes before fitting. Both operations therefore have to cross that boundary: prediction must translate incoming data onto the fitted codes, and simulation must translate generated data back to the original values. Two helpers do this, and they are inverses of each other.</p>
+<p><code>recode_data_for_prediction()</code> maps <code>newdata</code> from the original values onto the fitted codes using the recode map the fit stores. The map takes one of two forms. For <code>bgm()</code> fits it is an unnamed sorted vector of the original values, and the code is the position minus one. For <code>bgmCompare()</code> fits it is a named lookup whose names are the original values and whose entries are the final codes. That lookup may be many to one where categories were collapsed across groups. A value in <code>newdata</code> that was never observed in training has no code, so those cells become <code>NA</code> and the function warns. Blume-Capel variables carry an additive shift instead of a map. Continuous variables carry neither. Fits old enough to have no map fall back to subtracting the column minimum.</p>
+<p><code>recode_simulated_to_original()</code> runs the inverse over simulated data. As a result, <code>simulate()</code> returns discrete columns on the original scale, and its output can be fed straight to <code>predict()</code>. Where the map is many to one, the inverse picks the smallest original value carrying each code; <code>predict()</code> recodes that value back to the same code.</p>
+</section>
+<section id="seeding" class="level2">
+<h2 class="anchored" data-anchor-id="seeding">Seeding</h2>
+<p>Reproducibility crosses two random number generators, and it is worth being precise about which one does what.</p>
+<p><strong>The R side.</strong> <code>check_seed()</code> returns your seed as an integer when you give one, and otherwise draws a fresh seed with <code>sample.int()</code> from R’s own generator. That is why <code>set.seed()</code> before an unseeded call reproduces the result: it fixes the seed that gets drawn.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>); c1 <span class="ot">=</span> <span class="fu">simulate_mrf</span>(<span class="dv">5</span>, <span class="dv">3</span>, <span class="at">pairwise =</span> Omega, <span class="at">variable_type =</span> <span class="st">"continuous"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>); c2 <span class="ot">=</span> <span class="fu">simulate_mrf</span>(<span class="dv">5</span>, <span class="dv">3</span>, <span class="at">pairwise =</span> Omega, <span class="at">variable_type =</span> <span class="st">"continuous"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">identical</span>(c1, c2)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>R’s generator is also what picks which posterior draws are used, through <code>sample.int()</code>, in both the simulation and the prediction paths.</p>
+<p><strong>The C++ side.</strong> The resolved integer seed is passed to <code>SafeRNG</code>, the xoshiro256++ wrapper documented under <a href="../manual/parallel-chains.html">Parallel Chains</a>. Every generator in this subsystem draws from it. Once C++ has been entered, nothing draws from R’s generator.</p>
+<p><strong>Across parallel draws.</strong> The three parallel workers each build one generator per draw before the parallel region opens, seeding draw <span class="math inline">\(d\)</span> with <code>seed + d</code>. The generators are constructed up front and indexed by position, so the results do not depend on how the scheduler assigns draws to threads. The same seed and the same <code>ndraws</code> give the same list of datasets, whatever <code>cores</code> is set to.</p>
+</section>
+<section id="exact-and-monte-carlo" class="level2">
+<h2 class="anchored" data-anchor-id="exact-and-monte-carlo">Exact and Monte Carlo</h2>
+<p>The labels “exact” and “Monte Carlo” apply at two different levels, so it is worth keeping them straight.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>Draw mechanism</th>
+<th>Approximation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Continuous simulation</td>
+<td>Cholesky transform of independent normals</td>
+<td>exact draws from the fitted normal</td>
+</tr>
+<tr class="even">
+<td>Discrete simulation</td>
+<td>Gibbs, <code>iter</code> sweeps, last state kept</td>
+<td>approximate; controlled by <code>iter</code></td>
+</tr>
+<tr class="odd">
+<td>Mixed simulation</td>
+<td>Block Gibbs, <code>iter</code> sweeps per observation</td>
+<td>approximate; controlled by <code>iter</code></td>
+</tr>
+<tr class="even">
+<td>Prediction, any model</td>
+<td>closed-form conditional</td>
+<td>exact given the parameters</td>
+</tr>
+</tbody>
+</table>
+<p>The approximation column treats the parameters as given. On top of it sits a second question: are the parameters a single point, or a posterior sample? <code>method = "posterior-mean"</code> conditions on one parameter set, so it reports nothing about parameter uncertainty. <code>method = "posterior-sample"</code> is a Monte Carlo average over the posterior, and its accuracy is governed by <code>ndraws</code>. The two levels can combine: a continuous simulation under <code>posterior-sample</code> is exact at every draw and Monte Carlo across them.</p>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../manual/ggm-internals.html">GGM Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/nuts.html">NUTS</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>, <a href="../manual/model-classes.html">Model Classes</a>.</p>
+<p><a href="../manual/r-scaffolding.html">R Scaffolding</a>, <a href="../manual/fit-objects.html">Fit Objects</a>, <a href="../manual/extractors-internals.html">Extractor Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/variable-helpers.html">Fast Computation</a>, <a href="../manual/parallel-chains.html">Parallel Chains</a>, <a href="../reference/methods.html">Methods reference</a>.</p>
 
 
 </section>
@@ -1338,13 +1522,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../manual/nuts.html" class="pagination-link" aria-label="NUTS Algorithm">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">NUTS Algorithm</span>
+      <a href="../manual/variable-helpers.html" class="pagination-link" aria-label="Fast Computation">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Fast Computation</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../manual/samplers.html" class="pagination-link" aria-label="Sampler Hierarchy">
-        <span class="nav-page-text">Sampler Hierarchy</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../manual/parameter-priors.html" class="pagination-link" aria-label="Parameter Priors">
+        <span class="nav-page-text">Parameter Priors</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1367,7 +1551,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/null-space.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/simulation-prediction.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

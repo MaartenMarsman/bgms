@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Constrained Cholesky Parameterization – bgms</title>
+<title>Extractor Internals – bgms</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -36,8 +36,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../manual/samplers.html" rel="next">
-<link href="../manual/nuts.html" rel="prev">
+<link href="../manual/checks-internals.html" rel="next">
+<link href="../manual/fit-objects.html" rel="prev">
 <link href="../bgms_sticker.svg" rel="icon" type="image/svg+xml">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -354,7 +354,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/extractors-internals.html">Extractor Internals</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -409,13 +409,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">MCMC Algorithms</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/metropolis.html" class="sidebar-item-text sidebar-link">
@@ -430,7 +430,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link active">
+  <a href="../manual/null-space.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Constrained Cholesky Parameterization</span></a>
   </div>
 </li>
@@ -560,13 +560,13 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
  <span class="menu-text">Results and Checks</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
@@ -575,7 +575,7 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Extractor Internals</span></a>
   </div>
 </li>
@@ -615,9 +615,9 @@ window.Quarto = {
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/metropolis.html">MCMC Algorithms</a></li><li class="breadcrumb-item"><a href="../manual/null-space.html">Constrained Cholesky Parameterization</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../manual/fit-objects.html">Results and Checks</a></li><li class="breadcrumb-item"><a href="../manual/extractors-internals.html">Extractor Internals</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Constrained Cholesky Parameterization</h1>
+<h1 class="title">Extractor Internals</h1>
 </div>
 
 
@@ -634,71 +634,149 @@ window.Quarto = {
 </header>
 
 
-<p>When edge selection is active in a model with continuous variables, excluded edges must remain exactly zero while the precision matrix stays positive definite. <code>bgms</code> enforces both requirements through the parameterization itself: the sampler works in a set of free coordinates in which every point corresponds to a positive-definite precision matrix with exact zeros at the excluded edges. No projection, constraint solve, or correction step is needed during integration — NUTS runs as an ordinary unconstrained sampler.</p>
-<p>The implementation lives in <code>graph_constraint_structure.h</code> (the per-graph bookkeeping) and <code>ggm_gradient.cpp</code> (the forward map and gradient); the mixed MRF reuses the same engine for its continuous block.</p>
-<section id="why-constraints" class="level2">
-<h2 class="anchored" data-anchor-id="why-constraints">Why constraints?</h2>
-<p>Each pairwise parameter is either exactly zero (edge absent) or free (edge present). For models with continuous variables, the precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> must in addition be positive definite. <code>bgms</code> parameterizes <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>, where <span class="math inline">\(\boldsymbol{\Phi}\)</span> is the upper Cholesky factor with positive diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>. Positive definiteness is then guaranteed by construction.</p>
-<p>The complication is sparsity. An excluded edge (<span class="math inline">\(\gamma_{iq} = 0\)</span>) requires <span class="math inline">\(\theta_{iq} = 0\)</span>, which in Cholesky entries means</p>
-<p><span class="math display">\[
-\theta_{iq} = \sum_l \Phi_{li}\,\Phi_{lq} = 0.
-\]</span></p>
-<p>Across the whole matrix this is a quadratic constraint on <span class="math inline">\(\boldsymbol{\Phi}\)</span>, because columns interact through the <span class="math inline">\(\boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span> product. The key observation is that it becomes <em>linear</em> one column at a time: with the earlier columns <span class="math inline">\(1, \ldots, q-1\)</span> held fixed, the constraints on column <span class="math inline">\(q\)</span>’s off-diagonal entries <span class="math inline">\(x_q = \Phi_{1:q-1,\,q}\)</span> form a linear system</p>
-<p><span class="math display">\[
-A_q\, x_q = 0,
-\]</span></p>
-<p>where each row of <span class="math inline">\(A_q\)</span> is (the leading part of) an earlier column <span class="math inline">\(\boldsymbol{\Phi}_{\cdot i}\)</span> for an excluded edge <span class="math inline">\((i, q)\)</span>. The set of valid <span class="math inline">\(x_q\)</span> is therefore a linear subspace — the null space of <span class="math inline">\(A_q\)</span> — and the sampler can parameterize that subspace directly.</p>
+<p>The <code>extract_*()</code> functions sit between the raw draws a fit stores and the quantities the reference API promises. Very little of that layer is a simple lookup. The extractors reindex block-ordered draws back into variable order. They convert numbers from the scale the sampler works on to the scale the reader sees. They choose between two estimators of the same quantity. And in one case they run a whole prior-only chain, because the number they need is one the fit never sampled.</p>
+<p>Four files hold this layer. <code>R/extractor_functions.R</code> carries the bulk of it: the parameter and indicator extractors, the two inclusion estimators, and the diagnostic accessors. <code>R/extract_prior_inclusion_probabilities.R</code> supplies the prior odds that turn posterior odds into Bayes factors. <code>R/centrality.R</code> and <code>R/mcmc_summary_sbm.R</code> hold the two derived summaries that need more than a reshape of the stored draws.</p>
+<p>For signatures, arguments, and return shapes, see <a href="../reference/extractors.html">Extractor Functions</a> in the Reference. For the object being read, see <a href="../manual/fit-objects.html">Fit Objects</a>.</p>
+<section id="three-things-that-go-wrong-without-this-layer" class="level2">
+<h2 class="anchored" data-anchor-id="three-things-that-go-wrong-without-this-layer">Three things that go wrong without this layer</h2>
+<p>Every extractor that touches a symmetric matrix has to solve the same three problems, so it is worth naming them once here.</p>
+<p><strong>Order.</strong> A Gaussian graphical model (GGM) fit or an ordinal fit stores its pairwise draws as the lower triangle of the symmetric matrix, traversed in variable order. A mixed fit stores them by block instead: first the discrete-by-discrete pairs, then the continuous-by-continuous pairs, then the cross block that pairs a discrete variable with a continuous one. On top of that, the mixed layout runs over internally reordered variables. If you fill a matrix with the mixed layout as though it were the triangular one, every number lands on the wrong pair. <code>fill_mixed_symmetric()</code> is the single place where that mapping lives, so the extractors that need it call it rather than rederiving it.</p>
+<p><strong>Scale.</strong> The raw pairwise draws of a GGM fit are elements of the precision matrix, written <span class="math inline">\(\theta_{ij}\)</span> here. The reported partial association is <span class="math inline">\(\omega_{ij} = -\tfrac12 \theta_{ij}\)</span>. <code>extract_pairwise_interactions()</code> applies that factor on the way out, so anything that reads the raw draws directly must apply it itself. See <a href="../manual/fit-objects.html#scales">Fit Objects</a> for the full table of scales.</p>
+<p><strong>Vintage.</strong> Fit objects from earlier releases lack fields that current ones have. The extractors handle this explicitly rather than failing. A legacy field name falls back through the null-default operator <code>%||%</code>. A deprecated storage format warns through the <code>lifecycle</code> package. A defunct one stops with the version to refit under. The pattern worth noticing is the asymmetry: a <em>default</em> call degrades gracefully to what the old fit can supply, while an <em>explicit</em> request for a modern quantity errors. That asymmetry exists so that an estimator never switches silently behind the reader’s back; if you asked for something by name, you get either that thing or an error.</p>
 </section>
-<section id="the-theta-vector" class="level2">
-<h2 class="anchored" data-anchor-id="the-theta-vector">The theta vector</h2>
-<p>The free coordinates are collected in a vector <span class="math inline">\(\theta\)</span> with the layout</p>
+<section id="two-estimators-of-inclusion" class="level2">
+<h2 class="anchored" data-anchor-id="two-estimators-of-inclusion">Two estimators of inclusion</h2>
+<p><code>extract_posterior_inclusion_probabilities()</code> offers <code>estimator = "rb"</code> (the default) and <code>estimator = "raw"</code>. Both estimate the same quantity, the posterior inclusion probability of each edge. They are not interchangeable, because they differ in precision.</p>
+<p>The <strong>raw</strong> estimator averages the binary indicator draws, the stored 0/1 states of each edge indicator. The <strong>Rao-Blackwellized</strong> estimator instead averages the one-step draw</p>
 <p><span class="math display">\[
-\theta = (\psi_1,\; [f_2, \psi_2],\; [f_3, \psi_3],\; \ldots,\; [f_p, \psi_p]),
+J_t = \gamma_t + (1 - 2\gamma_t)\,\alpha_t,
 \]</span></p>
-<p>where <span class="math inline">\(\psi_q\)</span> is the log-diagonal of column <span class="math inline">\(q\)</span> and <span class="math inline">\(f_q\)</span> holds that column’s free off-diagonal coordinates. Column <span class="math inline">\(q\)</span> has <span class="math inline">\(m_q\)</span> excluded edges and <span class="math inline">\(d_q = (q - 1) - m_q\)</span> free coordinates, so the active dimension is</p>
+<p>with <span class="math inline">\(\gamma_t\)</span> the indicator state before the move at iteration <span class="math inline">\(t\)</span> and <span class="math inline">\(\alpha_t\)</span> the acceptance probability of the birth or death proposal at that iteration. Every model class that runs edge selection produces those draws, not only the GGM; where they come from, and why they exist at all, is documented under <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">GGM Internals</a>, the page where the machinery is introduced. This page covers what the extraction layer does with them.</p>
+<p>In exact arithmetic the average <span class="math inline">\(\bar{J}\)</span> of those draws lies strictly inside the open interval <span class="math inline">\((0, 1)\)</span>. So even an indicator whose raw average saturates at 0 or 1 receives an interior estimate. In double precision the guarantee does not quite hold: <span class="math inline">\(1 - \alpha_t\)</span> underflows once <span class="math inline">\(\alpha_t\)</span> drops below about <span class="math inline">\(10^{-16}\)</span>, so for edges with overwhelming per-iteration evidence the average of the stored draws still rounds to exactly 0 or 1.</p>
+<p>The Rao-Blackwellized estimator changes the summary, not the sampler. It inherits the chain’s mixing, so it does not rescue a chain that failed to explore the model space. What it does buy is that <span class="math inline">\(J\)</span> is continuous rather than binary. Because the draws are continuous, the ordinary machinery for continuous chains applies to them: the Monte Carlo standard error (MCSE), the effective sample size, and split-R-hat. That is why the fit summary’s inclusion table reports those three columns on the RB draws. Read them as precision <em>conditional on</em> exploration: a stuck chain can still show a well-converged <span class="math inline">\(J\)</span> chain with a high <code>n_eff</code>. The per-direction flip counts <code>n0-&gt;1</code> and <code>n1-&gt;0</code> sit beside those columns, and they record the exploration itself.</p>
+<p>A fit made before version 0.2.0.0 carries no RB draws at all. On such a fit a default call falls back to <code>"raw"</code>, while an explicit <code>estimator = "rb"</code> errors with the version to refit under.</p>
+</section>
+<section id="inclusion-bayes-factors" class="level2">
+<h2 class="anchored" data-anchor-id="inclusion-bayes-factors">Inclusion Bayes factors</h2>
+<p><code>extract_inclusion_bf()</code> does not read the RB draws described above. It reads the per-edge odds accumulators, <code>rb_counts</code>, and that difference is the point of the function.</p>
+<p><code>rb_log_odds_from_counts()</code> pools the per-chain accumulators and applies the exact identity</p>
 <p><span class="math display">\[
-\dim(\theta) = p + \sum_q d_q = p + |E|,
+\frac{\bar{J}}{1 - \bar{J}}
+  = \frac{n_{01} + n_1 - n_{10}}{n_0 - n_{01} + n_{10}},
 \]</span></p>
-<p>with <span class="math inline">\(|E|\)</span> the number of included edges — compared to the full dimension <span class="math inline">\(p + p(p-1)/2\)</span> of an unconstrained upper triangle. The <code>GraphConstraintStructure</code> records, for each column, which rows are excluded and included, plus the offsets of each column’s block in the active and full vectors. It is rebuilt only when the graph changes (an edge indicator toggles); its contents do not depend on the parameter values.</p>
+<p>where <span class="math inline">\(n_{01}\)</span> sums the acceptance probabilities of birth proposals, <span class="math inline">\(n_{10}\)</span> sums those of death proposals, and <span class="math inline">\(n_0\)</span> and <span class="math inline">\(n_1\)</span> count the proposals of each kind. The accumulators never form <span class="math inline">\(1 - \alpha\)</span> for an individual draw, so the underflow that saturates the averaged draws never happens here, and the odds stay finite down to log acceptance probabilities of about <span class="math inline">\(-745\)</span>. An edge that saturates the naive average therefore still receives a finite Bayes factor from this path.</p>
+<p>The function has three non-finite return values. They are distinct, and each one means something:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Return</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>NA</code></td>
+<td>the indicator was never proposed</td>
+</tr>
+<tr class="even">
+<td><code>+Inf</code></td>
+<td>the denominator is exactly zero, so no exclusion evidence remains</td>
+</tr>
+<tr class="odd">
+<td><code>-Inf</code> (or <code>0</code> on the Bayes factor scale)</td>
+<td>the numerator is exactly zero</td>
+</tr>
+</tbody>
+</table>
+<p>“Never proposed” is narrower than “never moved”. An edge indicator in <code>bgm()</code> that stays included for the whole run is still proposed at every iteration. The accumulators therefore see its conditional inclusion odds throughout, and the edge gets a finite, possibly very large, Bayes factor. An unselected main-effect difference in <code>bgmCompare()</code> is different: it is never proposed at all, so no Rao-Blackwellized quantity exists for it. For that entry <code>NA</code> is the honest answer rather than a lost number.</p>
+<p><code>rb_bf_scale()</code> handles the <code>log</code> argument, and the asymmetry between the two scales is real. On the log scale the accumulators are exact everywhere. On the Bayes factor scale the numbers saturate at the limit of double precision: an entry whose log exceeds about 709.78 nats comes back as <code>+Inf</code> under <code>log = FALSE</code>, even though its log-scale value is finite. A workflow that must separate one kind of extreme evidence from another therefore needs <code>log = TRUE</code>, which is why <a href="../manual/checks-internals.html"><code>verdicts()</code></a> reads it that way.</p>
+<section id="dividing-out-the-prior" class="level3">
+<h3 class="anchored" data-anchor-id="dividing-out-the-prior">Dividing out the prior</h3>
+<p>The accumulators give posterior inclusion <em>odds</em>, which is not yet a Bayes factor. A Bayes factor needs the prior odds removed, edge by edge. Posterior odds and Bayes factor coincide only when the prior inclusion probability is one half, because only then are the prior odds equal to one. <code>extract_inclusion_bf()</code> therefore calls <code>extract_prior_inclusion_probabilities()</code> and subtracts the prior log odds on the log scale.</p>
+<p>For a <code>bgmCompare()</code> fit the difference prior is exchangeable across difference indicators: every indicator carries the same prior inclusion probability. One number therefore covers the main-effect and pairwise families alike. A stochastic block difference prior is the exception. It has no single marginal inclusion probability, so for that prior the result is left as posterior odds.</p>
 </section>
-<section id="from-theta-to-the-precision-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="from-theta-to-the-precision-matrix">From theta to the precision matrix</h2>
-<p>The forward map builds <span class="math inline">\(\boldsymbol{\Phi}\)</span> column by column:</p>
-<ol type="1">
-<li>Set the diagonal <span class="math inline">\(\Phi_{qq} = e^{\psi_q}\)</span>.</li>
-<li>Assemble <span class="math inline">\(A_q^\top\)</span> from the already-built earlier columns at the excluded rows.</li>
-<li>Compute a QR decomposition of <span class="math inline">\(A_q^\top\)</span> using Givens rotations. The last <span class="math inline">\(d_q\)</span> columns of <span class="math inline">\(Q\)</span> form an orthonormal basis <span class="math inline">\(N_q\)</span> of the null space of <span class="math inline">\(A_q\)</span>.</li>
-<li>Set the off-diagonal entries <span class="math inline">\(x_q = N_q f_q\)</span>.</li>
-</ol>
-<p>Two special cases avoid work: a column with no excluded edges has <span class="math inline">\(x_q = f_q\)</span> directly (<span class="math inline">\(N_q\)</span> is the identity and is never materialized), and a fully constrained column has <span class="math inline">\(x_q = 0\)</span>. Finally <span class="math inline">\(\boldsymbol{\Theta} = \boldsymbol{\Phi}^\top \boldsymbol{\Phi}\)</span>.</p>
-<p>Because <span class="math inline">\(N_q\)</span> depends on the earlier columns of <span class="math inline">\(\boldsymbol{\Phi}\)</span>, and those depend on <span class="math inline">\(\theta\)</span>, the basis is recomputed inside every forward-map evaluation — this is cheap (Givens rotations on small per-column systems) and exact.</p>
-<section id="jacobian" class="level3">
-<h3 class="anchored" data-anchor-id="jacobian">Jacobian</h3>
-<p>Densities specified on <span class="math inline">\(\boldsymbol{\Theta}\)</span> (the slab on the off-diagonals, the scale prior on the diagonal, the determinant tilt) are evaluated through this map, so the log-posterior in <span class="math inline">\(\theta\)</span> carries the log absolute determinant of the Jacobian:</p>
+</section>
+<section id="the-prior-inclusion-probability" class="level2">
+<h2 class="anchored" data-anchor-id="the-prior-inclusion-probability">The prior inclusion probability</h2>
+<p>This is the part of the layer that does real work. The reason is that for some models the prior inclusion probability is not the number the reader typed into the edge prior; it has to be computed.</p>
+<p>The trouble arises under the <code>"joint"</code> composition on a continuous block. (The joint and hierarchical ways of composing the precision prior with the edge prior are contrasted in <a href="../manual/zratio-hierarchical.html">Hierarchical Graph Prior</a>.) Under that composition the graph marginal is reweighted by the per-graph normalizing constant <span class="math inline">\(Z(\Gamma)\)</span>, where <span class="math inline">\(\Gamma\)</span> denotes the graph. That constant is the positive-definite-cone mass of the slab under that edge pattern, further shaped by the determinant tilt (also described on that page). Because of the reweighting, a continuous-continuous edge’s prior inclusion probability is <em>not</em> the edge-prior marginal, at any value of <code>delta</code>, including zero. It is the prior edge density of the joint block.</p>
+<p>Under the default <code>"hierarchical"</code> specification the problem does not arise. There the conditional prior <span class="math inline">\(p(\boldsymbol{\Theta} \mid \Gamma)\)</span> of the continuous block’s precision matrix <span class="math inline">\(\boldsymbol{\Theta}\)</span> is normalized per graph, so integrating <span class="math inline">\(\boldsymbol{\Theta}\)</span> out returns the edge prior <span class="math inline">\(\pi(\Gamma)\)</span> exactly. Every class keeps the edge-prior marginal, and neither the table nor the chain described below is built at all.</p>
+<section id="edge-classes" class="level3">
+<h3 class="anchored" data-anchor-id="edge-classes">Edge classes</h3>
+<p>Nodes of the same variable type are a priori exchangeable: before seeing data, no node is special. Two edges whose endpoints have the same pair of types therefore share the same prior inclusion probability. Call such a set of edges an edge class. The prior inclusion probability is constant within each class, so the whole matrix reduces to a handful of values:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Classes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ordinal MRF</td>
+<td>one, fully factorized</td>
+</tr>
+<tr class="even">
+<td>GGM</td>
+<td>one, all pairs in the joint block</td>
+</tr>
+<tr class="odd">
+<td>mixed MRF</td>
+<td>three: discrete-discrete and cross pairs carry the edge-prior marginal, continuous-continuous pairs the joint-block density</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="where-each-value-comes-from" class="level3">
+<h3 class="anchored" data-anchor-id="where-each-value-comes-from">Where each value comes from</h3>
+<p>For a factorized class no reweighting applies, so the value is the edge prior’s own marginal. Under <code>bernoulli_prior(theta0)</code> that marginal is <span class="math inline">\(\theta_0\)</span>. Under <code>beta_bernoulli_prior(a, b)</code> it is <span class="math inline">\(a/(a+b)\)</span>.</p>
+<p>For a joint-block class the value is read from a table: the same cached normalizing-constant correction table that corrects the fit’s own hyperparameter updates (see <a href="../manual/edge-priors.html#normalizing-constant-corrections">Edge Priors</a>). Under a Bernoulli prior the value is the tilted prior edge density evaluated at <span class="math inline">\(\theta_0\)</span>. The table stores that density on a grid, so the value is interpolated linearly between grid points, with constant extension past the ends of the grid. Under a Beta-Bernoulli prior the value is instead a Beta<span class="math inline">\((a, b)\)</span> quadrature of that same density curve. The quadrature is normalized by the Beta mass computed on the same grid; because both use the same grid, the truncated tails cancel.</p>
+<p>A stochastic block prior is different again, because the block structure reweights the partition as well. For a fully factorized fit the exchangeable marginal is still analytic:</p>
 <p><span class="math display">\[
-\log \lvert \det J \rvert
-= p \log 2 + 2 \sum_q \psi_q + \sum_{i &lt; p} (p - 1 - i)\, \psi_i
-  - \sum_q \sum_j \log \lvert R_{q,jj} \rvert,
+s\,\mu_{\text{within}} + (1 - s)\,\mu_{\text{between}}, \qquad
+s = \sum_{k \ge 1} \frac{\lambda^{k-1} e^{-\lambda}}{(k - 1)!}
+    \,\frac{\alpha_{\mathrm{Dir}} + 1}{k\,\alpha_{\mathrm{Dir}} + 1},
 \]</span></p>
-<p>where the <span class="math inline">\(R_{q,jj}\)</span> are the diagonal entries of the per-column QR factor <span class="math inline">\(R\)</span> — the only place the constraint geometry enters the density.</p>
+<p>with <span class="math inline">\(s\)</span> the prior probability that two nodes share a block. The quantities <span class="math inline">\(\mu_{\text{within}}\)</span> and <span class="math inline">\(\mu_{\text{between}}\)</span> are the prior inclusion probabilities for a pair in the same block and a pair in different blocks, and <span class="math inline">\(\lambda\)</span> and <span class="math inline">\(\alpha_{\mathrm{Dir}}\)</span> are the shifted-Poisson rate and the Dirichlet concentration of the block prior (see <a href="../manual/sbm-prior.html">SBM Prior</a>); the subscript keeps the concentration apart from the acceptance probability <span class="math inline">\(\alpha_t\)</span> defined earlier on this page. A fit with a joint block has no such closed expression. It therefore needs a prior-only chain: a run of the sampler under the prior alone, without data. That chain runs at the fit’s own correction resolution, and its results are pooled within edge class.</p>
+<p>A prior-only chain is also the fallback for Bernoulli and Beta-Bernoulli fits whose slab family the table builder does not support, which on the release means beta-prime.</p>
 </section>
-<section id="gradient" class="level3">
-<h3 class="anchored" data-anchor-id="gradient">Gradient</h3>
-<p>The gradient of the log-posterior with respect to <span class="math inline">\(\theta\)</span> is computed by an adjoint (reverse-mode) pass: the derivative with respect to <span class="math inline">\(\boldsymbol{\Phi}\)</span> is formed first, and a reverse sweep through the stored Givens rotations propagates it back to the free coordinates <span class="math inline">\(f_q\)</span> and <span class="math inline">\(\psi_q\)</span>, including the contribution from the rotation of the null-space basis itself. The engine keeps a per-evaluation workspace so steady-state calls (fixed graph between rebuilds) allocate nothing.</p>
+<section id="caching-and-the-cost" class="level3">
+<h3 class="anchored" data-anchor-id="caching-and-the-cost">Caching, and the cost</h3>
+<p>Both expensive paths, the table build and the prior-only chain, are cached. The computed class values land in the fit’s <code>cache</code> environment under <code>prior_inclusion_class_values</code>, so a second call on the same fit is free. Passing <code>recompute = TRUE</code> forces a rerun. The correction table itself is cached on disk, so later fits in the same configuration skip the build entirely.</p>
+<p>The cost is worth stating plainly, because it surprises people. A call to <code>extract_inclusion_bf()</code> on a continuous fit under the joint composition can trigger a table build that runs for minutes. It can instead trigger a prior-only chain of 4000 iterations after 1000 warmup. Neither is silent: the table build announces itself on the verbose flag and draws the sampler’s progress bar.</p>
+<p>One shortcut exists. If you supplied heterogeneous per-edge Bernoulli probabilities, and nothing reweights the graph, the supplied matrix passes through untouched. Nothing reweights the graph when the fit has fewer than two continuous variables, or when it uses the hierarchical specification. In that situation there is no single marginal to compute, and the matrix you supplied already is the answer.</p>
 </section>
 </section>
-<section id="where-it-is-used" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-is-used">Where it is used</h2>
-<ul>
-<li><strong>GGM</strong> — the entire precision matrix is parameterized this way; see <a href="../manual/ggm-internals.html">GGM Internals</a>.</li>
-<li><strong>Mixed MRF</strong> — only the continuous-continuous block <span class="math inline">\(\boldsymbol{\Theta}_{yy}\)</span> is a constrained precision matrix; the discrete and cross parameters remain plain coordinates. See <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>.</li>
-<li><strong>OMRF</strong> — not applicable: purely discrete models have unconstrained real parameters.</li>
-</ul>
-<p>From the sampler’s point of view there is nothing special about the result: <a href="../manual/nuts.html">NUTS</a> receives an ordinary differentiable target of dimension <span class="math inline">\(p + |E|\)</span>, with the standard <a href="../manual/nuts.html">leapfrog integrator</a> and no constraint handling. When an edge move changes the graph, the model rebuilds the <code>GraphConstraintStructure</code> and the active dimension changes with it; the <a href="../manual/warmup.html">warmup schedule</a> accounts for this when adapting the mass matrix.</p>
+<section id="centrality" class="level2">
+<h2 class="anchored" data-anchor-id="centrality">Centrality</h2>
+<p><code>extract_centrality()</code> returns draws, not a point estimate. The result is a draws-by-nodes matrix that carries the whole posterior of each node’s centrality. Because the whole posterior is there, the summary and plot methods can put credible intervals on it. <code>strength_from_pairwise()</code> computes strength centrality as the row sum of the absolute edge weights incident to each node.</p>
+<p>Which edges are incident to which node is worked out from the edge <em>order</em>, not by splitting the column names. That choice is deliberate: a variable whose own name contains a hyphen would defeat any attempt to split a label like <code>"A-B"</code> back into its two endpoints.</p>
+<p>On a <code>bgmCompare()</code> fit the computation runs per draw rather than on posterior means. The pairwise draws hold the baseline block first, followed by one block per contrast. A given group’s edge weights are the baseline plus the projection-weighted contrasts (the contrast parameterization is described in <a href="../manual/bgmcompare-internals.html">bgmCompare Internals</a>). If you ask for two groups, the function returns the per-draw <em>difference</em> in their centralities. That is a posterior over the difference, rather than a difference of posterior means.</p>
+</section>
+<section id="stochastic-block-summaries" class="level2">
+<h2 class="anchored" data-anchor-id="stochastic-block-summaries">Stochastic block summaries</h2>
+<p><code>R/mcmc_summary_sbm.R</code> turns the allocation draws, each iteration’s assignment of nodes to blocks, into three things.</p>
+<p><strong>Co-clustering.</strong> For every node pair, <code>summarize_alloc_pairs()</code> builds a binary series across iterations that records whether the two nodes sit in the same block at that iteration. It then runs the standard indicator diagnostics on that series: the mixture effective sample size and transition counts from the C++ kernel, and split-R-hat over the same array (both are described in <a href="../manual/diagnostics.html">Convergence Diagnostics</a>). The mean of each pair’s series becomes that pair’s entry in the co-clustering matrix.</p>
+<p><strong>A representative partition.</strong> <code>find_representative_clustering()</code> returns two. The <em>mean</em> is Dahl’s method: it picks the draw whose membership matrix is closest, in squared distance, to the posterior similarity matrix. The <em>mode</em> is the most frequent partition among the draws. Both are computed without materializing per-iteration membership matrices, and at realistic node counts that matters. For the mean, the squared distance expands into block-by-block sums over the similarity matrix, so the membership matrices are never formed. For the mode, each allocation vector is reduced to a canonical relabeling that serves as an <span class="math inline">\(O(p)\)</span> hash key. That key is enough, because two vectors induce the same partition exactly when their first-occurrence relabelings match.</p>
+<p><strong>A posterior over the number of blocks.</strong> <code>compute_p_k_given_t()</code> implements the conditional probability of <span class="math inline">\(K\)</span> blocks given the observed partition cardinality <span class="math inline">\(t\)</span>, the number of blocks a sampled partition actually occupies. The formula comes from the mixture-of-finite-mixtures result (see <a href="../manual/sbm-prior.html">SBM Prior</a>). The prior on the number of blocks is the shifted Poisson <span class="math inline">\(K - 1 \sim \mathrm{Poisson}(\lambda)\)</span>, which matches the partition coefficients that drive the sampler. The falling and rising factorials in the formula are formed through <code>lgamma()</code> on the log scale, so a large <span class="math inline">\(K\)</span> or <span class="math inline">\(t\)</span> cannot overflow. <code>posterior_summary_SBM()</code> evaluates the conditional probability once per <em>unique</em> cardinality and averages against the observed frequencies. That is enough, because the per-iteration value depends on the cardinality alone.</p>
+</section>
+<section id="diagnostic-accessors" class="level2">
+<h2 class="anchored" data-anchor-id="diagnostic-accessors">Diagnostic accessors</h2>
+<p><code>extract_rhat()</code> and <code>extract_ess()</code> read the fit summary tables. Those tables are built on demand, so the first call triggers <a href="../manual/fit-objects.html#the-lazy-summary-cache">the lazy cache</a>.</p>
+<p><code>extract_ess()</code> has the same two-estimator structure as the inclusion extractor above, and the same fallback rule. The default <code>"rb"</code> returns the continuous effective sample size of the Rao-Blackwellized draws, read straight from the summary table. Because the value comes straight from that table, the <code>NA</code> masking applied there carries over unchanged. The deprecated <code>"mixt"</code> is the indicator chain’s transition-based effective sample size. That quantity is no longer a summary column, so it is recomputed from the raw indicator draws by <code>indicator_transition_ess()</code> for as long as the argument is accepted. A fit without RB draws falls back to <code>"mixt"</code> on a default call, and errors on an explicit <code>"rb"</code>.</p>
+<p>One detail in that lookup is load-bearing. The presence check uses <code>names()</code> rather than <code>$</code>. The reason is R’s partial matching: <code>$</code> would match <code>n_eff</code> against a legacy table’s <code>n_eff_mixt</code> column, and the function would silently return the wrong estimator.</p>
 </section>
 <section id="see-also" class="level2">
 <h2 class="anchored" data-anchor-id="see-also">See also</h2>
-<p><a href="../manual/ggm-internals.html">GGM Internals</a>, <a href="../manual/mixed-internals.html">Mixed MRF Internals</a>, <a href="../manual/nuts.html">NUTS</a>, <a href="../manual/samplers.html">Sampler Hierarchy</a>, <a href="../manual/model-classes.html">Model Classes</a>.</p>
+<p><a href="../manual/fit-objects.html">Fit Objects</a>, <a href="../manual/checks-internals.html">Checks Internals</a>, <a href="../manual/diagnostics.html">Convergence Diagnostics</a>, <a href="../manual/ggm-internals.html#rao-blackwellized-inclusion-draws">GGM Internals</a>, <a href="../manual/sbm-prior.html">SBM Prior</a>, <a href="../manual/zratio-hierarchical.html">Hierarchical Graph Prior</a>, <a href="../reference/extractors.html">Extractor Functions reference</a>.</p>
 
 
 </section>
@@ -1338,13 +1416,13 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../manual/nuts.html" class="pagination-link" aria-label="NUTS Algorithm">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">NUTS Algorithm</span>
+      <a href="../manual/fit-objects.html" class="pagination-link" aria-label="Fit Objects">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Fit Objects</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../manual/samplers.html" class="pagination-link" aria-label="Sampler Hierarchy">
-        <span class="nav-page-text">Sampler Hierarchy</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../manual/checks-internals.html" class="pagination-link" aria-label="Checks Internals">
+        <span class="nav-page-text">Checks Internals</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1367,7 +1445,7 @@ document.querySelectorAll("[data-cite-picker]").forEach(picker => {
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/null-space.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/edit/main/manual/extractors-internals.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

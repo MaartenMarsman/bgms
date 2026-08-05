@@ -483,6 +483,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Fast Computation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/simulation-prediction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Simulation and Prediction</span></a>
+  </div>
+</li>
       </ul>
   </li>
       </ul>
@@ -518,6 +524,41 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../manual/zratio-hierarchical.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hierarchical Graph Prior and the Z-Ratio Engine</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Results and Checks</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/fit-objects.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Fit Objects</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/extractors-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Extractor Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/checks-internals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Checks Internals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../manual/sensitivity-refit.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sensitivity and Refits</span></a>
   </div>
 </li>
       </ul>
@@ -604,6 +645,7 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li><a href="../manual/pseudolikelihood.html">Pseudolikelihood</a> — Pseudolikelihood objectives for OMRF, mixed MRF, and group-comparison models, including statistical properties and the marginal pseudolikelihood used for mixed models.</li>
 <li><a href="../manual/variable-helpers.html">Fast Computation</a> — Recursive accumulation of MRF category probabilities that avoids per-category <code>exp()</code> calls. The FAST path provides a major speedup; the SAFE path handles overflow-prone cases.</li>
+<li><a href="../manual/simulation-prediction.html">Simulation and Prediction</a> — Running the models forwards: the standalone and fitted-model generators per model class, the conditional-distribution kernels behind <code>predict()</code>, seeding, and which operations are exact.</li>
 </ul>
 </section>
 <section id="priors" class="level2">
@@ -614,6 +656,16 @@ ul.task-list li input[type="checkbox"] {
 <li><a href="../manual/edge-priors.html">Edge Priors</a> — Overview of the edge prior framework: Bernoulli (fixed), Beta-Bernoulli (learned), and Stochastic Block Model</li>
 <li><a href="../manual/sbm-prior.html">SBM Prior</a> — Mixture-of-finite-mixtures SBM formulation, collapsed Gibbs updates, cluster allocation sampling</li>
 <li><a href="../manual/zratio-hierarchical.html">Hierarchical Graph Prior and the Z-Ratio Engine</a> — Per-graph normalized precision prior: the per-edge normalizer ratio, its deterministic estimator, and the trust gauge</li>
+</ul>
+</section>
+<section id="results-and-checks" class="level2">
+<h2 class="anchored" data-anchor-id="results-and-checks">Results and Checks</h2>
+<p>The layer between the finished sampler run and the numbers a reader reports.</p>
+<ul>
+<li><a href="../manual/fit-objects.html">Fit Objects</a> — The S7 classes behind <code>bgm()</code> and <code>bgmCompare()</code>: what the object stores, the lazy summary cache, the accessor contract, and where the same quantity appears on two scales.</li>
+<li><a href="../manual/extractors-internals.html">Extractor Internals</a> — The layer between the raw draws and the reference API: block reindexing and scale conversion, the two inclusion estimators, the joint-prior correction path, and the derived centrality and clustering summaries.</li>
+<li><a href="../manual/checks-internals.html">Checks Internals</a> — The three-way verdict rule and its Monte Carlo fragility flag, the calibration resampling schemes for discrete and continuous variables, and the anchored reweighting curve.</li>
+<li><a href="../manual/sensitivity-refit.html">Sensitivity and Refits</a> — The prior-sensitivity anchor grid, the warm-started refit engine, the two-level convergence gate, and the noise band the mover rule reads.</li>
 </ul>
 </section>
 <section id="group-comparison" class="level2">
