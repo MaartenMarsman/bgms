@@ -42,9 +42,10 @@ for **group differences** in individual parameters.
 
 ## Large Gaussian graphical models
 
-For large networks of Gaussian variables `bgm()` has a fast route: a conjugate 
-Gibbs sampler for the Gaussian graphical model, paired with a precision-graph 
-prior that is normalized once rather than once per graph. You can run this with:
+For large networks of Gaussian variables, `bgm()` offers a faster
+specification: a conjugate Gibbs sampler for the Gaussian graphical model,
+paired with a precision-graph prior that is normalized globally rather than
+separately for each graph. Run this specification with:
 
 ``` r
 fit = bgm(y,
@@ -54,15 +55,16 @@ fit = bgm(y,
 )
 ```
 
-The joint specification is a different model, not only a faster sampler:
-its prior over graphs is the edge prior reweighted, so inclusion Bayes
-factors are not interchangeable between the two routes. The vignette
-`vignette("fast-ggm")`, also on the [package
-website](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/),
-sets out that trade-off, the timings, and where the route applies.
+The joint specification defines a different model, not merely a faster sampler. 
+Its graph prior is a reweighted version of the edge prior, so its inclusion 
+Bayes factors are not interchangeable with those from the other specification. 
+The vignette `vignette("fast-ggm")`, also available on the
+[package website](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/),
+describes this trade-off, the computational timings, and the scope of the 
+specification.
 
-A full comparison of this specification against related CRAN packages, with 
-every setting and seeded script, is on the 
+A full comparison with related CRAN packages, including every setting and seeded 
+script, is available on the 
 [comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html).
 
 ## Installation
