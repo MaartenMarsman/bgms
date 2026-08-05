@@ -42,11 +42,9 @@ for **group differences** in individual parameters.
 
 ## Large Gaussian graphical models
 
-Continuous data are where graphs get large, and large graphs are where
-runtime becomes the constraint. `bgm()` has a faster route for that
-case: a conjugate Gibbs sampler for the Gaussian graphical model,
-paired with a precision-graph prior that is normalized once rather than
-once per graph. Two arguments select it.
+For large networks of Gaussian variables `bgm()` has a fast route: a conjugate 
+Gibbs sampler for the Gaussian graphical model, paired with a precision-graph 
+prior that is normalized once rather than once per graph. You can run this with:
 
 ``` r
 fit = bgm(y,
@@ -56,11 +54,6 @@ fit = bgm(y,
 )
 ```
 
-On an Apple M5 Pro, four chains on four threads, at the package's
-default chain length: a 50-variable graph in 3.1 seconds against 31.4
-for the default route, and a 200-variable graph, 19,900 candidate
-edges, in under 7 minutes.
-
 The joint specification is a different model, not only a faster sampler:
 its prior over graphs is the edge prior reweighted, so inclusion Bayes
 factors are not interchangeable between the two routes. The vignette
@@ -68,14 +61,8 @@ factors are not interchangeable between the two routes. The vignette
 website](https://bayesian-graphical-modelling-lab.github.io/bgms/articles/),
 sets out that trade-off, the timings, and where the route applies.
 
-Measured against the neighboring CRAN packages on the same data and
-machine, the route's headline is time to a converged edge ranking:
-seconds for `bgms` at every tested sample size, a median 18 to 25
-times sooner than **ssgraph** at a matched prior — replicated, and
-partly because a `bgms` sweep costs 6.6 times less at 200 variables.
-**modelSelection** converges about as fast, by a design that trades
-away some recall and exact reproducibility. The full comparison, with
-every setting and seeded script, is on the
+A full comparison of this specification against related CRAN packages, with 
+every setting and seeded script, is on the 
 [comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html).
 
 ## Installation
