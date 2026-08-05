@@ -360,6 +360,13 @@ comparison, and there `bgms` converges a median 18 to 25 times sooner than
 Part of the gap is per-sweep cost — a `bgms` sweep costs 96 ms against
 ssgraph's 634 at p = 200 — and the rest is how few sweeps `bgms` needs. The
 Rao-Blackwellized column is faster still, but raw is the conservative claim.
+The three sample sizes are three signal strengths — the generator's per-edge
+partial correlations are 0.14 by construction, so n = 1000 is an easy ranking
+problem and n = 200 a genuinely hard one — and the converged AUCs track that:
+medians 1.00, 0.98 and 0.87, identical for `bgms` and ssgraph at every n,
+with modelSelection slightly lower at the two harder sizes. Weaker signal
+costs `bgms` more sweeps, not slower sweeps: n changes how many draws the
+ranking needs, never the price of a draw.
 **modelSelection** 1.0.7 also converges within about a second, so its short
 default is converged rather than undersampled; it targets a sparser prior
 (1/p on each edge), recovers somewhat fewer edges at a matched threshold (152
