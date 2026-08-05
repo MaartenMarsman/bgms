@@ -304,13 +304,16 @@ its entry from a diffuse slab. The construction comes from the Bayesian
 variable-selection literature [@george1993jasa_variable] and was brought to
 Gaussian graphical models by @wang2015ba_scaling, whose column-wise block Gibbs
 sampler is the ancestor of the one `update_method = "gibbs"` runs. Its appeal
-was, and is, that it avoids the graph-dependent normalizing constant that makes
-structure learning expensive under the G-Wishart prior
-[@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating]. That
-avoidance is exactly what the joint specification does and what the
-hierarchical specification declines to do, which is the choice
-`precision_graph_prior` exposes. @vogels2024jasa_bayesian survey the wider field
-and compare the available samplers empirically.
+was, and is, that it avoids a graph-dependent normalizing constant. The
+G-Wishart prior is the literature's canonical case of that cost
+[@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating], but the
+cost is not particular to the G-Wishart: `bgm()`'s own hierarchical
+specification pays a constant of the same kind, deliberately, so that the
+stated edge prior is exactly the prior over graphs. The joint specification
+takes the classical avoidance and the hierarchical specification declines it;
+that is the choice `precision_graph_prior` exposes.
+@vogels2024jasa_bayesian survey the wider field and compare the available
+samplers empirically.
 
 `bgms` adds one thing to the classical construction. Specifying the precision
 matrix entry by entry does not guarantee that the result is positive definite,
