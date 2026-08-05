@@ -18,8 +18,9 @@ knitr::opts_chunk$set(
   fig.height = 4.2
 )
 library(bgms)
-# Every number in this vignette comes from this object. It was produced by one
-# run of data-raw/make-fast-ggm.R, whose calls are the calls shown below.
+# The worked bgms results in this vignette come from this object. It was
+# produced by one run of data-raw/make-fast-ggm.R, whose calls are shown below.
+# The cross-package comparison summarized later is maintained separately.
 B = readRDS("fast-ggm.rds")
 sec = function(x) sprintf("%.1f", x)
 # knitr's inline hook renders counts of this size in scientific notation.
@@ -30,9 +31,9 @@ num = function(x) formatC(x, format = "d", big.mark = ",")
 
 Gaussian graphical models often contain hundreds of variables, and edge
 selection is computationally demanding at that size: a graph with two hundred
-variables has 19,900 candidate edges, and the sampler updates the graph and
-its precision matrix over and over. For such analyses `bgm()` provides a
-faster route, selected by two arguments:
+variables has 19,900 candidate edges, and the sampler repeatedly updates the
+graph and its precision matrix. For such analyses, `bgm()` provides a faster
+route, selected by two arguments:
 
 ```{r, eval = FALSE}
 fit = bgm(y,
@@ -50,10 +51,10 @@ puts every term in the edge move in closed form. Neither option is the default,
 and the second changes the model being fitted. That change is described first
 below; the timings follow.
 
-On an Apple M5 Pro with four chains on four threads, the two options together
-speed up a fifty-variable fit by a factor of
-`r sprintf("%.0f", B$mid$speedup)`, and they complete a two-hundred-variable
-fit (19,900 candidate edges) in about
+On an Apple M5 Pro with four chains on four threads, this combination reduces
+the runtime in the fifty-variable example by a factor of
+`r sprintf("%.0f", B$mid$speedup)` and completes the two-hundred-variable
+example, with 19,900 candidate edges, in about
 `r sprintf("%.0f", B$high$elapsed / 60)` minutes.
 
 
@@ -65,13 +66,12 @@ over graphs.
 `bgm()`'s default, `precision_graph_prior = "hierarchical"`, normalizes the
 prior over the precision matrix separately within each graph. Integrating the
 precision matrix out then returns the stated edge prior exactly: set
-`bernoulli_prior(0.5)` and every edge really does carry prior probability
-one half. The price is that each edge move has to evaluate a graph-dependent
-normalizing constant.
+`bernoulli_prior(0.5)` and every edge has prior probability one half. The price
+is that each edge move must evaluate a graph-dependent normalizing constant.
 
 The joint specification normalizes once for the whole model. That is what makes
-the edge move cheap (the constant is the same on both sides of the comparison
-and cancels), but it also means the edge prior is no longer the prior over
+the edge move cheap: the constant is the same on both sides of the comparison
+and cancels. But it also means that the edge prior is no longer the prior over
 graphs. What survives is the edge prior reweighted by each graph's normalizing
 constant, and that reweighting favors sparser graphs. On six variables, with a
 nominal inclusion probability of one half:
@@ -90,10 +90,10 @@ data.frame(
 
 The default returns the stated half. The joint specification returns
 `r round(B$prior$joint, 3)`, and the gap widens as the model grows. Nothing here
-is broken (the joint specification is a coherent model, and the sampler targets
-its posterior correctly), but it is a *different* model, so its
-inclusion Bayes factors are not interchangeable with the default's. An edge that
-is undecided on one route can be evidence of absence on the other, without
+is broken: the joint specification is a coherent model, and the sampler targets
+its posterior correctly. But it is a *different* model, so its inclusion Bayes
+factors are not interchangeable with the default's. An edge that is undecided
+under one specification can show evidence of absence under the other, without
 either fit being wrong.
 
 `bgm()` reports this when it fits:
@@ -105,17 +105,17 @@ edge prior reweighted by the per-graph normalizer, not the nominal edge prior
 
 The choice between specifications is a modelling choice, not a tuning setting.
 Use the fast route when runtime is the obstacle, and report which specification
-produced the results. An analysis that reports a stated prior inclusion
-probability needs the nominal edge prior to be the prior over graphs, which
-only the default specification provides.
+produced the results. Use the default specification when the nominal edge
+probability must equal the actual prior inclusion probability over graphs.
 
-One practical consequence. Reading the realized prior back, which
-`extract_prior_inclusion_probabilities()`, `extract_inclusion_bf()` and
-`verdicts()` all need, requires a table built by simulation for the model size
-at hand. The table is computed once and cached on disk, but it is not quick:
-at six variables it takes a few seconds, and at fifty it takes longer than the
-fit itself. Posterior inclusion probabilities, from `summary()` or
-`extract_posterior_inclusion_probabilities()`, need nothing of the kind.
+There is one practical consequence. Recovering the realized prior inclusion
+probabilities, which `extract_prior_inclusion_probabilities()`,
+`extract_inclusion_bf()` and `verdicts()` all require, depends on a table built
+by simulation for the model size at hand. The table is computed once and cached
+on disk, but it is not quick: at six variables it takes a few seconds, and at
+fifty it takes longer than the fit itself. Posterior inclusion probabilities,
+available from `summary()` or
+`extract_posterior_inclusion_probabilities()`, require no such table.
 
 
 # A mid-sized model, both ways
@@ -163,7 +163,7 @@ The two edge sets agree on `r B$mid$agreement` of the `r B$mid$pairs` pairs.
 That agreement is an observation about this data set, not a guarantee: the
 sparser realized prior of the joint specification pulls verdicts toward
 absence, and how far depends on how informative the data are. On data with
-weaker signal the two specifications will diverge sooner. The message of the
+weaker signal, the two specifications will diverge sooner. The message of the
 table is the seconds column: the recovery is the same, the runtime is not.
 
 
@@ -196,8 +196,9 @@ data.frame(
 
 The fit takes `r sec(B$high$elapsed)` seconds (about
 `r sprintf("%.0f", B$high$elapsed / 60)` minutes) for four chains on four
-threads at the package's default run length, deciding `r num(B$high$pairs)`
-edges. It found `r B$high$detected` of the `r B$high$edges` true edges and
+threads at the package's default run length, estimating inclusion probabilities
+for all `r num(B$high$pairs)` candidate edges. It found
+`r B$high$detected` of the `r B$high$edges` true edges and
 `r B$high$false_positive` pairs that are not edges, which on the
 `r num(B$high$pairs - B$high$edges)` non-edges is a false-positive rate of
 `r sprintf("%.1f%%", 100 * B$high$false_positive / (B$high$pairs - B$high$edges))`.
@@ -212,9 +213,9 @@ head(summary(fit)$indicator)
 round(B$high$head, 3)
 ```
 
-The remaining question, across all `r num(B$high$pairs)` pairs, is how decided
-the posterior is. The middle of the range holds `r B$high$profile$pairs[3]`
-pairs
+The remaining question is how much posterior uncertainty remains across the
+`r num(B$high$pairs)` candidate edges. The middle of the range contains
+`r B$high$profile$pairs[3]` pairs
 (`r sprintf("%.1f%%", 100 * B$high$profile$pairs[3] / B$high$pairs)` of the
 candidates), so the pairs that need a closer look form a short list:
 
@@ -290,7 +291,7 @@ on each other: the Gibbs sampler runs under the default hierarchical
 specification, and the joint specification runs under `"nuts"`.
 
 One combination is fast to sample but slow to set up. Under the joint
-specification a learned inclusion probability (`beta_bernoulli_prior()` or
+specification, a learned inclusion probability (`beta_bernoulli_prior()` or
 `sbm_prior()`) needs the same simulated correction table described above,
 because the constant that cancels for a fixed inclusion probability stops
 cancelling once that probability is itself being updated. The table is built at
@@ -306,20 +307,23 @@ is absent has its entry fixed at exactly zero, and an edge that is present draws
 its entry from a diffuse slab. The construction comes from the Bayesian
 variable-selection literature [@george1993jasa_variable] and was brought to
 Gaussian graphical models by @wang2015ba_scaling, whose column-wise block Gibbs
-sampler is the ancestor of the one `update_method = "gibbs"` runs. One
-divergence from that ancestor matters for runtime: Wang's spike is continuous,
-a narrow normal around zero, so every column update redraws all of the
-column's entries. `bgms` uses a point mass, so a column update only works
-through the entries the current graph includes, and a sparser graph makes a
-cheaper update. The appeal of the construction is that it avoids a
-graph-dependent normalizing constant. The
-G-Wishart prior is the literature's canonical case of that cost
-[@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating], but the
-cost is not particular to the G-Wishart: `bgm()`'s own hierarchical
-specification pays a constant of the same kind, deliberately, so that the
-stated edge prior is exactly the prior over graphs. The joint specification
-takes the classical avoidance and the hierarchical specification declines it;
-that is the choice `precision_graph_prior` exposes.
+sampler is the ancestor of the one `update_method = "gibbs"` runs.
+
+One difference from that sampler matters for runtime. Wang's spike is
+continuous, a narrow normal around zero, so every column update redraws all of
+the column's entries. `bgms` uses a point mass, so a column update works only
+through the entries included in the current graph, and a sparser graph makes a
+cheaper update.
+
+The classical construction also avoids a graph-dependent normalizing constant.
+The G-Wishart prior is the canonical example of the computational cost imposed
+by such a constant
+[@atay-kayis2005biometrika_monte; @mohammadi2023jasa_accelerating], but the cost
+is not particular to the G-Wishart. `bgm()`'s hierarchical specification
+retains a constant of the same kind so that the stated edge prior is exactly the
+prior over graphs. The joint specification avoids that constant; the
+hierarchical specification retains it to preserve the graph prior. This is the
+choice exposed by `precision_graph_prior`.
 @vogels2024jasa_bayesian survey the wider field and compare the available
 samplers empirically.
 
@@ -330,40 +334,43 @@ that truncation distorts it more and more as the number of variables grows
 [@jewson2024biometrics_graphical]. `bgm()` counters this by tilting the prior by
 a power `delta` of the determinant, which pushes mass away from the boundary of
 the cone; `delta` defaults to half the logarithm of the number of variables, so
-larger models are tilted harder. This is why the numbers above hold up at two
-hundred variables rather than collapsing onto the empty graph.
+larger models are tilted harder. The tilt helps keep the prior usable at two
+hundred variables rather than allowing the fit to collapse toward the empty
+graph.
 
-Scaling this prior is an active problem and `bgms` is not alone on it.
-@sulem2025arxiv_bayesian give the closest treatment:
+Scaling this prior is an active problem, and `bgms` is not alone in addressing
+it. @sulem2025arxiv_bayesian give the closest treatment:
 Metropolis-Hastings within block Gibbs on the same spike-and-slab Gaussian
 graphical model, with mixing bounds that are dimension-free under suitable
 conditions and a global proposal that adds or removes several edges in one
 move. They report carrying exact Bayesian inference from roughly one hundred
-variables to roughly one thousand. Their work is implemented in the CRAN package
-**modelSelection** (version 1.0.7, 2026-05-16), which covers Bayesian model
-selection and averaging for regression, generalized linear and additive models,
-mixtures and graphical models. **ssgraph** (version 1.16, 2025-08-29) is the
-other near neighbor, doing Bayesian structure learning for undirected graphical
-models with spike-and-slab priors on continuous, discrete and mixed data.
+variables to roughly one thousand. Their work is implemented in the CRAN
+package **modelSelection** (version 1.0.7, 2026-05-16), which covers Bayesian
+model selection and averaging for regression, generalized linear and additive
+models, mixtures and graphical models. **ssgraph** (version 1.16, 2025-08-29)
+is the other near neighbor, doing Bayesian structure learning for undirected
+graphical models with spike-and-slab priors on continuous, discrete and mixed
+data.
 
-How does the fast route compare with these two packages? A measured
-comparison is maintained on the package website's
+How does the fast route compare with these two packages? A measured comparison
+is maintained on the package website's
 [comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html),
-with the full protocol, the seeded scripts, and the complete tables
+with the full protocol, seeded scripts, and complete tables
 [in its repository](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/tree/main/benchmarks/ggm-comparison).
-It lives there rather than here because its results depend on the competitor
-versions of the day, which change on a faster clock than package releases. In
-summary: because default run lengths differ by orders of magnitude across the
-packages, the comparison measures the time to a converged edge ranking, the
-convergence-cost metric of @vogels2024jasa_bayesian. On replicate datasets
-from this vignette's generator, `bgms` reaches its converged ranking in
-seconds at every tested sample size, a median 18 to 25 times sooner than
-ssgraph under a matched edge prior. modelSelection converges within about a
-second, so its short default run is converged rather than undersampled; it
-targets a sparser prior, recovers somewhat fewer edges at a matched threshold,
-and cannot be seeded. The three packages arrive at nearly identical edge
-rankings; they differ in how quickly they get there and in where their
-default priors place the selection cut.
+It lives there rather than here because its results depend on the current
+versions of the other packages, which change more quickly than `bgms` releases.
+
+Because default run lengths differ by orders of magnitude, the comparison
+measures the time required to reach a converged edge ranking, using the
+convergence-cost metric of @vogels2024jasa_bayesian. On replicate datasets from
+this vignette's generator, `bgms` reaches its converged ranking in seconds at
+every tested sample size, a median 18 to 25 times sooner than ssgraph under a
+matched edge prior. modelSelection converges within about a second, so its short
+default run is converged rather than undersampled; it targets a sparser prior,
+recovers somewhat fewer edges at a matched threshold, and cannot be seeded. The
+three packages achieve similar converged ranking accuracy. They differ in how
+quickly they reach it and in where their default prior distributions place the
+selection threshold.
 
 Readers whose problem is a single very large Gaussian graphical model and
 nothing else should look at all three; what `bgms` adds around this route is
@@ -374,9 +381,12 @@ usable as the number of variables grows.
 
 # Reproducing the timings
 
-Every number above was produced by `data-raw/make-fast-ggm.R`, which is in the
-package repository and shows the generator, the seeds and the calls. Each fit
-ran on its own, four chains on four threads.
+Every timing in the worked `bgms` examples above was produced by
+`data-raw/make-fast-ggm.R`, which is in the package repository and shows the
+generator, seeds, and calls. Each of those fits ran on its own, with four chains
+on four threads. The cross-package comparison uses a separate one-chain,
+one-thread protocol whose scripts and complete results are linked in the
+comparison section above.
 
 ```{r, echo = FALSE}
 data.frame(
@@ -388,7 +398,7 @@ data.frame(
 )
 ```
 
-The timings are specific to this machine and its thread counts; the ratios
+The timings are specific to this machine and these thread counts; the ratios
 should transfer better than the absolute numbers.
 
 
