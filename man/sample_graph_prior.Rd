@@ -78,8 +78,16 @@ probabilities.}
 \item{\code{allocations}}{Only with an unconditioned
 \code{sbm_prior()}: integer matrix (\code{n_samples x p}) of sampled
 block allocations.}
-\item{\code{spec}, \code{edge_prior}, \code{p}}{The specification,
-edge-prior family, and node count of the draw.}
+\item{\code{edge_prior}}{The edge-prior family the draw actually ran.
+This is \code{"Bernoulli"} whenever \code{theta} or
+(\code{allocations}, \code{block_probs}) was supplied, because
+conditioning fixes the hyperparameters and leaves independent pair
+flips, whichever family was requested.}
+\item{\code{requested_edge_prior}}{The family of the \code{edge_prior}
+argument. Equal to \code{edge_prior} unless a conditioning argument
+was supplied.}
+\item{\code{spec}, \code{p}}{The specification and node count of the
+draw.}
 }
 }
 \description{
@@ -109,6 +117,10 @@ instead of sampling them: \code{theta} fixes the inclusion probability of
 a Bernoulli or Beta-Bernoulli prior, and \code{allocations} plus
 \code{block_probs} fix the block structure of a Stochastic-Block prior
 (reducing it to independent pair flips at the given block probabilities).
+Either way the graph law that is sampled is a Bernoulli prior at the fixed
+pair probabilities, under both specifications, so the returned
+\code{edge_prior} reports \code{"Bernoulli"} and the requested family is
+returned separately in \code{requested_edge_prior}.
 
 Under \code{spec = "joint"} the tilted graph law depends on the precision
 prior through its normalizer, so \code{interaction_prior},
