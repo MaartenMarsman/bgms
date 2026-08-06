@@ -123,7 +123,7 @@ test_that("GGM + impute works", {
   x = matrix(rnorm(12), nrow = 4, ncol = 3)
   colnames(x) = paste0("V", 1:3)
   x[1, 2] = NA
-  result = validate_missing_data(x, na_action = "impute", is_continuous = TRUE)
+  result = validate_missing_data(x, na_action = "impute")
   expect_true(result$na_impute)
   expect_equal(nrow(result$missing_index), 1L)
 })
@@ -133,7 +133,7 @@ test_that("GGM + impute: entire-column-missing gives clear error", {
   colnames(x) = paste0("V", 1:3)
   x[, 2] = NA
   expect_error(
-    validate_missing_data(x, na_action = "impute", is_continuous = TRUE),
+    validate_missing_data(x, na_action = "impute"),
     "no observed values"
   )
 })
@@ -143,7 +143,7 @@ test_that("GGM + listwise works", {
   x[1, 2] = NA
   old_opts = options(bgms.verbose = FALSE)
   on.exit(options(old_opts))
-  result = validate_missing_data(x, na_action = "listwise", is_continuous = TRUE)
+  result = validate_missing_data(x, na_action = "listwise")
   expect_equal(nrow(result$x), 3)
   expect_false(result$na_impute)
 })

@@ -277,7 +277,7 @@ test_that("validate_missing_data + reformat_ordinal_data pipeline works end-to-e
   variable_bool = c(TRUE, TRUE)
   bc = c(0, 0)
 
-  md = validate_missing_data(x, na_action = "listwise", is_continuous = FALSE)
+  md = validate_missing_data(x, na_action = "listwise")
   result = reformat_ordinal_data(md$x,
     is_ordinal = variable_bool,
     baseline_category = bc

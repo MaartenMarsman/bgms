@@ -63,10 +63,7 @@ build_spec_ggm = function(x, data_columnnames, num_variables,
                           zratio_active = FALSE,
                           edge_prior_flat) {
   # Missing data
-  md = validate_missing_data(
-    x = x, na_action = na_action,
-    is_continuous = TRUE
-  )
+  md = validate_missing_data(x = x, na_action = na_action)
   x = md$x
 
   # Center continuous data (GGM likelihood assumes zero mean). The column
@@ -139,10 +136,7 @@ build_spec_omrf = function(x, data_columnnames, num_variables,
   )
 
   # Missing data + ordinal recoding
-  md = validate_missing_data(
-    x = x, na_action = na_action,
-    is_continuous = FALSE
-  )
+  md = validate_missing_data(x = x, na_action = na_action)
   x_clean = md$x
   ord = reformat_ordinal_data(
     x = x_clean, is_ordinal = is_ordinal,
@@ -497,10 +491,9 @@ build_spec_compare = function(x, y, group_indicator,
 
   # --- Missing data (compare path) --------------------------------------------
   md = validate_missing_data(
-    x             = x,
-    na_action     = na_action,
-    is_continuous = FALSE,
-    group         = group
+    x         = x,
+    na_action = na_action,
+    group     = group
   )
   x = md$x
   na_impute = md$na_impute
