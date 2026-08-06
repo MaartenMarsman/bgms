@@ -479,6 +479,44 @@ test_that("the harm pool can be wider than the audited block", {
   )
 })
 
+test_that("a short pool_pip list falls back instead of erroring", {
+  # pip is guarded by length(...) >= c_idx because a chain may be missing from
+  # the list; pool_pip is assembled by a different caller and gets the same
+  # treatment. Chain 1 has no gauge block, so c_idx is 2, and an unguarded
+  # pool_pip[[2]] on a one-entry list is a subscript-out-of-bounds error that
+  # takes down the whole diagnostic.
+  g = list(
+    flip_rate = 0, noise_floor = 0, se_mean = 0.2, se_sd = 0.1,
+    se_mcse = 1e-6, n_ref = 1L, n_ent = 1L, n_capped = 0L,
+    pair_i = 0L, pair_j = 1L, pair_se = 0.2, pair_mcse = 1e-6
+  )
+  chains = list(list(), list(zratio = list(gauge = g)))
+  a = 9
+  b = 1
+  th = 0.9
+  audited = rep(th, 10L)
+
+  short = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE,
+    harm_inputs = list(
+      pip = list(numeric(10), audited), a = a, b = b,
+      pool_pip = list(rep(th, 45L)) # only chain 1's pool
+    )
+  )
+  # Falling back to the audited block is exactly what an absent pool means.
+  absent = summarize_zratio_gauge(
+    chains,
+    verbose = FALSE,
+    harm_inputs = list(
+      pip = list(numeric(10), audited), a = a, b = b, pool_pip = NULL
+    )
+  )
+  expect_equal(nrow(short$per_chain), 1L)
+  expect_equal(short$per_chain$chain, 2L)
+  expect_equal(short$per_chain, absent$per_chain)
+})
+
 test_that("the prior sampler resolves gauge sweeps from the option (F-103)", {
   skip_on_cran()
   # sample_ggm_prior() hardwired 2 sweeps while the deployed path resolved
