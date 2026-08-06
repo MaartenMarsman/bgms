@@ -495,31 +495,40 @@ zratio_constants = function(delta, eta, alpha = 1, slab = "normal") {
     )
   }
   pair = zratio_pair_integrals(delta, sigma, beta, slab, alpha)
-  if(abs(alpha - 1) > 1e-12) {
-    if(alpha < .zratio_constants_shape_lo ||
-      alpha > .zratio_constants_shape_hi) {
-      warning(
-        "Z-ratio constants at diagonal shape ", format(alpha),
-        " lie outside the certified range [",
-        format(.zratio_constants_shape_lo), ", ",
-        format(.zratio_constants_shape_hi),
-        "]; the fixed quadrature grids are not scored there and may lose ",
-        "accuracy.",
-        call. = FALSE
-      )
-    }
-    tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
-    tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
-    if(!is.finite(tail_g) || !is.finite(tail_i) ||
-      tail_g > 1e-6 || tail_i > 1e-6) {
-      warning(
-        "Z-ratio pair integrals retain visible mass at the grid edge ",
-        "(delta = ", format(delta), ", eta = ", format(eta),
-        ", shape = ", format(alpha), "); ",
-        "the saddle tables may be truncated.",
-        call. = FALSE
-      )
-    }
+  # The certified-range warning is shape-specific: the grids were scored at
+  # alpha = 1 by construction, so only a non-exponential diagonal can leave the
+  # certified band.
+  if(abs(alpha - 1) > 1e-12 &&
+    (alpha < .zratio_constants_shape_lo ||
+      alpha > .zratio_constants_shape_hi)) {
+    warning(
+      "Z-ratio constants at diagonal shape ", format(alpha),
+      " lie outside the certified range [",
+      format(.zratio_constants_shape_lo), ", ",
+      format(.zratio_constants_shape_hi),
+      "]; the fixed quadrature grids are not scored there and may lose ",
+      "accuracy.",
+      call. = FALSE
+    )
+  }
+  # The truncation check is not shape-specific and runs for every cell. It is
+  # the only detector that the fixed c-grid (cmax in zratio_pair_integrals) is
+  # wide enough for this (delta, eta, alpha): the pair tables clamp to their
+  # edge value when read past it, so retained edge mass means the saddle
+  # tables integrate a plateau instead of a decaying tail. Small eta widens
+  # the diagonal, and it does so at the default alpha = 1 as much as anywhere
+  # -- gating this on alpha != 1 left the default path unwatched.
+  tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
+  tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
+  if(!is.finite(tail_g) || !is.finite(tail_i) ||
+    tail_g > 1e-6 || tail_i > 1e-6) {
+    warning(
+      "Z-ratio pair integrals retain visible mass at the grid edge ",
+      "(delta = ", format(delta), ", eta = ", format(eta),
+      ", shape = ", format(alpha), "); ",
+      "the saddle tables may be truncated.",
+      call. = FALSE
+    )
   }
   grid = zratio_saddle_grid(pair)
   w12 = zratio_node_channel(delta, sigma, beta, slab, alpha)
