@@ -178,21 +178,13 @@ test_that("mixed NUTS runs with imputation and edge selection", {
 # reaching three or more occupied blocks, which a value truncated to 0 forbids)
 # needs data simulated with a clear three-block structure and a long enough run
 # to be stable, which belongs in the SBC / block-recovery suite rather than a
-# fast unit test.
+# fast unit test. No assertion is made here; the pointer is the record.
 # ---------------------------------------------------------------------------
-
-test_that("fractional Dirichlet parameter can open new blocks", {
-  skip("needs simulated three-block data + long run; covered by block-recovery suite")
-})
 
 # ---------------------------------------------------------------------------
 # step-size search sign
 #
 # The fix only affects warmup cost, not the target distribution, so a fast pass
 # / fail assertion is not available; warmup efficiency is measured by the
-# benchmark suite.
+# benchmark suite. No assertion is made here; the pointer is the record.
 # ---------------------------------------------------------------------------
-
-test_that("step-size search does not collapse the step size", {
-  skip("warmup-efficiency only; no effect on the posterior to assert on")
-})
