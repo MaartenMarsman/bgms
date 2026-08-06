@@ -694,9 +694,10 @@ predict.bgms = function(object,
     # Add names
     names(probs) = data_columnnames[predict_vars]
     for(v in seq_along(probs)) {
-      var_idx = predict_vars[v]
-      n_cats = num_categories[var_idx] + 1
-      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
+      colnames(probs[[v]]) = probability_column_labels(original_category_values(
+        predict_vars[v], num_categories[predict_vars[v]],
+        arguments$category_levels, arguments$blume_capel_shift
+      ))
     }
   } else {
     # Use posterior samples
@@ -753,25 +754,32 @@ predict.bgms = function(object,
       probs[[v]] = avg$mean
       probs_sd[[v]] = avg$sd
 
-      var_idx = predict_vars[v]
-      n_cats = num_categories[var_idx] + 1
-      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
-      colnames(probs_sd[[v]]) = paste0("cat_", 0:(n_cats - 1))
+      labels = probability_column_labels(original_category_values(
+        predict_vars[v], num_categories[predict_vars[v]],
+        arguments$category_levels, arguments$blume_capel_shift
+      ))
+      colnames(probs[[v]]) = labels
+      colnames(probs_sd[[v]]) = labels
     }
 
     attr(probs, "sd") = probs_sd
   }
 
+  # Blank the rows the kernel could not condition on, before anything is read
+  # off them.
+  mask = na_conditioning_mask(is.na(newdata_recoded), predict_vars)
+  probs_sd = attr(probs, "sd")
+  probs = apply_na_conditioning_mask(probs, mask)
+  if(!is.null(probs_sd)) {
+    attr(probs, "sd") = apply_na_conditioning_mask(probs_sd, mask)
+  }
+  warn_na_conditioning(mask)
+
   if(type == "response") {
-    # Return predicted categories (mode)
-    pred_matrix = sapply(probs, function(p) {
-      apply(p, 1, which.max) - 1L # Convert to 0-based category
-    })
-    if(is.vector(pred_matrix)) {
-      pred_matrix = matrix(pred_matrix, ncol = 1)
-    }
-    colnames(pred_matrix) = data_columnnames[predict_vars]
-    return(pred_matrix)
+    return(format_discrete_response(
+      probs, predict_vars, data_columnnames, num_categories,
+      arguments$category_levels, arguments$blume_capel_shift
+    ))
   }
 
   return(probs)
@@ -984,22 +992,24 @@ predict.bgmCompare = function(object,
     # Add names
     names(probs) = data_columnnames[predict_vars]
     for(v in seq_along(probs)) {
-      var_idx = predict_vars[v]
-      n_cats = num_categories[var_idx] + 1
-      colnames(probs[[v]]) = paste0("cat_", 0:(n_cats - 1))
+      colnames(probs[[v]]) = probability_column_labels(original_category_values(
+        predict_vars[v], num_categories[predict_vars[v]],
+        arguments$category_levels, arguments$blume_capel_shift
+      ))
     }
   }
 
+  # Blank the rows the kernel could not condition on, before anything is read
+  # off them.
+  mask = na_conditioning_mask(is.na(newdata_recoded), predict_vars)
+  probs = apply_na_conditioning_mask(probs, mask)
+  warn_na_conditioning(mask)
+
   if(type == "response") {
-    # Return predicted categories (mode)
-    pred_matrix = sapply(probs, function(p) {
-      apply(p, 1, which.max) - 1L # Convert to 0-based category
-    })
-    if(is.vector(pred_matrix)) {
-      pred_matrix = matrix(pred_matrix, ncol = 1)
-    }
-    colnames(pred_matrix) = data_columnnames[predict_vars]
-    return(pred_matrix)
+    return(format_discrete_response(
+      probs, predict_vars, data_columnnames, num_categories,
+      arguments$category_levels, arguments$blume_capel_shift
+    ))
   }
 
   return(probs)
@@ -1073,7 +1083,7 @@ recode_data_for_prediction = function(x, is_ordinal,
       if(any(observed & is.na(recoded))) {
         warning(
           "newdata for variable ", v, " contains category values not ",
-          "observed in the training data; predictions for those cells are NA.",
+          "observed in the training data; those cells are treated as missing.",
           call. = FALSE
         )
       }
@@ -1089,6 +1099,171 @@ recode_data_for_prediction = function(x, is_ordinal,
   }
 
   return(x)
+}
+
+
+# ------------------------------------------------------------------------------
+# original_category_values()
+# ------------------------------------------------------------------------------
+# The original category values behind the internal codes 0..num_categories of
+# one variable, in code order: the per-variable inverse of
+# recode_data_for_prediction(). simulate() returns data on this scale
+# (recode_simulated_to_original()), so predict() has to report responses and
+# label probability columns on it too, or the round trip the two promise each
+# other does not close for 1-based, non-contiguous or Blume-Capel variables.
+#
+# @param v                  Variable index.
+# @param num_categories     Number of categories on top of the baseline, for v.
+# @param category_levels    The fit's recode map (list, one entry per variable).
+# @param blume_capel_shift  The fit's Blume-Capel shifts (NA elsewhere).
+#
+# Returns: numeric vector of length num_categories + 1.
+# ------------------------------------------------------------------------------
+original_category_values = function(v, num_categories,
+                                    category_levels = NULL,
+                                    blume_capel_shift = NULL) {
+  codes = seq.int(0L, num_categories)
+
+  if(!is.null(blume_capel_shift) && !is.na(blume_capel_shift[v])) {
+    return(codes + blume_capel_shift[v])
+  }
+
+  levels_v = if(!is.null(category_levels)) category_levels[[v]] else NULL
+  if(is.null(levels_v)) {
+    return(as.numeric(codes))
+  }
+
+  if(!is.null(names(levels_v))) {
+    # Named lookup (bgmCompare), possibly many-to-one: invert to the smallest
+    # original value carrying each code, as recode_simulated_to_original() does,
+    # so the value reported recodes back to the code it came from.
+    inverse = tapply(
+      as.numeric(names(levels_v)), as.integer(unname(levels_v)), min
+    )
+    return(unname(inverse[as.character(codes)]))
+  }
+
+  as.numeric(levels_v[codes + 1L])
+}
+
+
+# ------------------------------------------------------------------------------
+# probability_column_labels()
+# ------------------------------------------------------------------------------
+# Column labels for a discrete variable's probability matrix, naming the
+# ORIGINAL category values rather than the internal codes.
+# ------------------------------------------------------------------------------
+probability_column_labels = function(values) {
+  paste0("cat_", values)
+}
+
+
+# ------------------------------------------------------------------------------
+# na_conditioning_mask()
+# ------------------------------------------------------------------------------
+# Which rows leave a target variable's conditional distribution undefined,
+# because some OTHER variable it conditions on is missing.
+#
+# The C++ kernels take the recoded observation matrix at face value: an NA cell
+# reaches them as R's NA_integer_ sentinel and enters the rest score of every
+# other variable in that row as a huge negative number, which comes back as a
+# confident one-hot distribution rather than as missingness. Both origins of the
+# NA -- a plain NA in newdata and a category value never seen in training -- are
+# caught here, so the masking is done once in R after the kernel returns.
+#
+# @param is_missing    n x p logical matrix, TRUE where the conditioning value
+#   is missing (in the kernel's own column order).
+# @param target_cols   Column of `is_missing` each prediction targets.
+#
+# Returns: list of logical vectors, one per target, TRUE for rows to blank.
+# ------------------------------------------------------------------------------
+na_conditioning_mask = function(is_missing, target_cols) {
+  total = rowSums(is_missing)
+  lapply(target_cols, function(v) total - is_missing[, v] > 0)
+}
+
+
+# ------------------------------------------------------------------------------
+# apply_na_conditioning_mask()
+# ------------------------------------------------------------------------------
+# Blank the masked rows of each prediction matrix and say how many rows of
+# newdata lost a prediction. Warning is the caller's, once per call.
+# ------------------------------------------------------------------------------
+apply_na_conditioning_mask = function(predictions, mask) {
+  for(k in seq_along(predictions)) {
+    rows = mask[[k]]
+    if(any(rows)) {
+      predictions[[k]][rows, ] = NA_real_
+    }
+  }
+  predictions
+}
+
+
+warn_na_conditioning = function(mask) {
+  affected = sum(Reduce(`|`, mask))
+  if(affected > 0) {
+    warning(
+      "newdata has ", affected, " row(s) in which a conditioning variable is ",
+      "missing or carries a category value not observed in the training data. ",
+      "The conditional distribution of the other variables is undefined in ",
+      "those rows, so their predictions are NA.",
+      call. = FALSE
+    )
+  }
+  invisible(affected)
+}
+
+
+# ------------------------------------------------------------------------------
+# row_modes()
+# ------------------------------------------------------------------------------
+# Index of the largest entry in each row (ties to the first), NA for rows that
+# carry any NA -- where which.max() would return integer(0) and collapse the
+# result to a list.
+# ------------------------------------------------------------------------------
+row_modes = function(probabilities) {
+  out = rep(NA_integer_, nrow(probabilities))
+  usable = !rowSums(is.na(probabilities)) > 0
+  if(any(usable)) {
+    out[usable] = max.col(
+      probabilities[usable, , drop = FALSE],
+      ties.method = "first"
+    )
+  }
+  out
+}
+
+
+# ------------------------------------------------------------------------------
+# format_discrete_response()
+# ------------------------------------------------------------------------------
+# Point predictions for discrete variables: the mode of each conditional
+# distribution, reported on the ORIGINAL category scale.
+#
+# The n x L result is preallocated rather than built with sapply(), which
+# collapses to a vector when n is 1 and then mis-shapes into an n x 1 matrix
+# that the column names no longer fit.
+# ------------------------------------------------------------------------------
+format_discrete_response = function(probabilities, predict_vars,
+                                    data_columnnames, num_categories,
+                                    category_levels = NULL,
+                                    blume_capel_shift = NULL) {
+  out = matrix(
+    NA_real_,
+    nrow = nrow(probabilities[[1]]), ncol = length(predict_vars)
+  )
+  colnames(out) = data_columnnames[predict_vars]
+
+  for(v in seq_along(predict_vars)) {
+    var_idx = predict_vars[v]
+    values = original_category_values(
+      var_idx, num_categories[var_idx], category_levels, blume_capel_shift
+    )
+    out[, v] = values[row_modes(probabilities[[v]])]
+  }
+
+  out
 }
 
 

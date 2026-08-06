@@ -264,12 +264,17 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
   }
 
   if(type == "response") {
-    # Return conditional means
-    pred_matrix = sapply(result, function(m) m[, "mean"])
-    if(is.vector(pred_matrix)) {
-      pred_matrix = matrix(pred_matrix, ncol = 1)
-    }
+    # Return conditional means. Preallocated rather than sapply()'d: with one
+    # row of newdata sapply() collapses to a vector, and the n x 1 matrix it
+    # was then reshaped into no longer takes one name per predicted variable.
+    pred_matrix = matrix(
+      NA_real_,
+      nrow = nrow(newdata_centered), ncol = length(predict_vars)
+    )
     colnames(pred_matrix) = data_columnnames[predict_vars]
+    for(v in seq_along(predict_vars)) {
+      pred_matrix[, v] = result[[v]][, "mean"]
+    }
     return(pred_matrix)
   }
 
