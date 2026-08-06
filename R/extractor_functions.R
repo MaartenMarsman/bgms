@@ -1029,7 +1029,6 @@ extract_main_effects.bgmCompare = function(bgms_object) {
   if(!is.null(raw$main)) {
     main_samples = do.call(rbind, raw$main)
 
-    num_vars = bgms_object$arguments$num_variables
     num_main = length(raw$parameter_names$main_baseline)
 
     main_samples = main_samples[, 1:num_main]
