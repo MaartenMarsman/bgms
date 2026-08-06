@@ -389,11 +389,15 @@ comparison section above.
 
 ```{r, echo = FALSE}
 data.frame(
-  field = c("CPU", "cores available", "threads used", "chains",
-            "operating system", "R", "bgms", "run"),
-  value = c(B$machine$cpu, B$machine$cores_total, B$machine$threads,
-            B$machine$chains, B$machine$os, B$machine$r_version,
-            B$machine$bgms_version, B$machine$date)
+  field = c(
+    "CPU", "cores available", "threads used", "chains",
+    "operating system", "R", "bgms", "run"
+  ),
+  value = c(
+    B$machine$cpu, B$machine$cores_total, B$machine$threads,
+    B$machine$chains, B$machine$os, B$machine$r_version,
+    B$machine$bgms_version, B$machine$date
+  )
 )
 ```
 
