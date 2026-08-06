@@ -36,19 +36,6 @@ public:
   bool      has_cache = false;
 
   /**
-   * Construct from separate log_post and grad functions.
-   * Calls them independently (backward-compatible).
-   */
-  Memoizer(
-    const std::function<double(const arma::vec&)>& lp,
-    const std::function<arma::vec(const arma::vec&)>& gr
-  ) : joint_fn([lp, gr](const arma::vec& theta) -> std::pair<double, arma::vec> {
-        arma::vec g = gr(theta);
-        double v = lp(theta);
-        return {v, std::move(g)};
-      }) {}
-
-  /**
    * Construct from a joint function that computes both at once.
    */
   explicit Memoizer(JointFn jf) : joint_fn(std::move(jf)) {}
@@ -105,13 +92,12 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 /**
  * LeapfrogJointResult - Return type for the joint leapfrog step.
  *
- * Contains the final position, momentum, log-posterior, and gradient.
+ * Contains the final position, momentum, and log-posterior.
  */
 struct LeapfrogJointResult {
   arma::vec theta;      ///< Final position
   arma::vec r;          ///< Final momentum
   double log_post;      ///< Log-posterior at final position
-  arma::vec grad;       ///< Gradient at final position
 };
 
 
@@ -120,24 +106,22 @@ struct LeapfrogJointResult {
  * Used by the step-size heuristic in hamiltonian_utils.cpp.
  *
  * Evaluates the joint function at the new position for both log_post and
- * gradient. Accepts an optional pre-computed initial gradient to avoid
- * recomputation; `grad` is only called when none is supplied.
+ * gradient. The gradient at the initial position is supplied by the caller,
+ * which already holds it from its own joint evaluation.
  *
  * @param theta          Initial position
  * @param r              Initial momentum
  * @param eps            Step size
- * @param grad           Gradient-only function (used when init_grad is null)
  * @param joint          Joint function returning (log_post, grad) pair
  * @param inv_mass_diag  Diagonal inverse mass matrix
- * @param init_grad      Optional pre-computed gradient at theta (nullptr to compute)
- * @return LeapfrogJointResult with final position, momentum, log_post, and gradient
+ * @param init_grad      Pre-computed gradient at theta
+ * @return LeapfrogJointResult with final position, momentum, and log_post
  */
 LeapfrogJointResult leapfrog(
     const arma::vec& theta,
     const arma::vec& r,
     double eps,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
-    const arma::vec* init_grad = nullptr
+    const arma::vec& init_grad
 );

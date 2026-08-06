@@ -72,16 +72,13 @@ public:
             SafeRNG& rng = model.get_rng();
 
             arma::vec theta = model.get_vectorized_parameters();
-            auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-                return model.logp_and_gradient(params).second;
-            };
             auto joint_fn = [&model](const arma::vec& params)
                 -> std::pair<double, arma::vec> {
                 return model.logp_and_gradient(params);
             };
             arma::vec active_inv_mass = model.get_active_inv_mass();
             double new_eps = heuristic_initial_step_size(
-                theta, grad_fn, joint_fn, active_inv_mass, rng,
+                theta, joint_fn, active_inv_mass, rng,
                 target_acceptance_, nuts_adapt_->current_step_size());
             nuts_adapt_->reinit_stepsize(new_eps);
         }
@@ -146,9 +143,6 @@ private:
         model.set_inv_mass(init_inv_mass);
 
         arma::vec theta = model.get_vectorized_parameters();
-        auto grad_fn = [&model](const arma::vec& params) -> arma::vec {
-            return model.logp_and_gradient(params).second;
-        };
         auto joint_fn = [&model](const arma::vec& params)
             -> std::pair<double, arma::vec> {
             return model.logp_and_gradient(params);
@@ -158,7 +152,7 @@ private:
         double init_eps = std::isfinite(warm_step_size_)
             ? warm_step_size_
             : heuristic_initial_step_size(
-                  theta, grad_fn, joint_fn, rng, target_acceptance_);
+                  theta, joint_fn, rng, target_acceptance_);
 
         step_size_ = init_eps;
 

@@ -31,19 +31,15 @@ LeapfrogJointResult leapfrog(
     const arma::vec& theta_init,
     const arma::vec& r_init,
     double eps,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
-    const arma::vec* init_grad
+    const arma::vec& init_grad
 ) {
   arma::vec r = r_init;
   arma::vec theta = theta_init;
 
-  // Use provided initial gradient or compute it
-  arma::vec grad_theta = init_grad ? *init_grad : grad(theta_init);
-
   // Half-step momentum
-  r += 0.5 * eps * grad_theta;
+  r += 0.5 * eps * init_grad;
 
   // Full step position
   theta += eps * (inv_mass_diag % r);
@@ -54,5 +50,5 @@ LeapfrogJointResult leapfrog(
   // Final half-step momentum
   r += 0.5 * eps * grad_final;
 
-  return {theta, r, log_post_final, grad_final};
+  return {theta, r, log_post_final};
 }
