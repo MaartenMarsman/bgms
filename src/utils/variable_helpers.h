@@ -141,20 +141,9 @@ arma::mat compute_probs_blume_capel(
 /**
  * Joint computation of log-normalizer and probabilities for ordinal variables.
  *
- * Avoids redundant computation by computing both in a single pass.
- */
-LogZAndProbs compute_logZ_and_probs_ordinal(
-    const arma::vec& main_param,
-    const arma::vec& residual_score,
-    const arma::vec& bound,
-    int num_cats
-);
-
-/**
- * Fill-in-place variant of compute_logZ_and_probs_ordinal.
- *
- * Writes into caller-provided `out` and reuses caller-provided `scratch`,
- * eliminating per-call heap allocations after the first warm-up call.
+ * Computes both in a single pass, writing into caller-provided `out` and
+ * reusing caller-provided `scratch`, which eliminates per-call heap
+ * allocations after the first warm-up call.
  */
 void compute_logZ_and_probs_ordinal_into(
     const arma::vec& main_param,
@@ -168,21 +157,8 @@ void compute_logZ_and_probs_ordinal_into(
 /**
  * Joint computation of log-normalizer and probabilities for Blume-Capel variables.
  *
- * Avoids redundant computation by computing both in a single pass.
- */
-LogZAndProbs compute_logZ_and_probs_blume_capel(
-    const arma::vec& residual,
-    const double lin_eff,
-    const double quad_eff,
-    const int ref,
-    const int num_cats,
-    arma::vec& b
-);
-
-/**
- * Fill-in-place variant of compute_logZ_and_probs_blume_capel.
- *
- * Writes into caller-provided `out` and reuses caller-provided `scratch`.
+ * Computes both in a single pass, writing into caller-provided `out` and
+ * reusing caller-provided `scratch`.
  */
 void compute_logZ_and_probs_blume_capel_into(
     const arma::vec& residual,

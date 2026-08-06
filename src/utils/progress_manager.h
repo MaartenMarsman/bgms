@@ -96,7 +96,6 @@ private:
     // A no-op when called off the construction thread.
     void poll();
 
-    void checkConsoleWidthChange();
     size_t getConsoleWidth() const;
     std::string formatProgressBar(size_t chainId, size_t current, size_t total, double fraction, bool isTotal = false) const;
     std::string formatTimeInfo(double elapsed, double eta) const;
@@ -143,12 +142,10 @@ private:
     size_t lastPrintedChars = 0;    // Characters printed in last update (RStudio)
     size_t consoleWidth = 80;       // Current console width
     size_t lineWidth = 80;          // Target line width for content
-    int prevConsoleWidth = -1;      // Previous console width for change detection
 
     // Environment and state flags
     bool isRStudio = false;              ///< Whether running in RStudio console
     std::atomic<bool> needsToExit{false}; ///< User interrupt flag (set on the main thread, read by all chains)
-    bool widthChanged = false;           ///< Console width changed flag
 
     // Visual configuration
     size_t barWidth = 40;              // Progress bar width in characters
