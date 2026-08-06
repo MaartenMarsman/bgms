@@ -327,10 +327,11 @@ test_that("predict.bgms errors when newdata is missing", {
 
 test_that("predict.bgms errors on invalid variable names", {
   fit = get_bgms_fit()
-  args = extract_arguments(fit)
 
-  data("Wenchuan", package = "bgms")
-  newdata = Wenchuan[1:5, 1:args$num_variables]
+  # newdata has to be the fit's own variables: predict() now rejects a named
+  # newdata whose columns are not the model's, so borrowing another data set of
+  # the same width would stop on that instead of on the variable name.
+  newdata = get_prediction_data_binary(5)
 
   expect_error(
     predict(fit, newdata = newdata, variables = "NonexistentVar"),
@@ -340,10 +341,8 @@ test_that("predict.bgms errors on invalid variable names", {
 
 test_that("predict.bgms errors on out-of-range variable indices", {
   fit = get_bgms_fit()
-  args = extract_arguments(fit)
 
-  data("Wenchuan", package = "bgms")
-  newdata = Wenchuan[1:5, 1:args$num_variables]
+  newdata = get_prediction_data_binary(5)
 
   expect_error(
     predict(fit, newdata = newdata, variables = 999),
@@ -423,6 +422,8 @@ test_that("predict.bgmCompare errors on invalid variable names", {
   args = extract_arguments(fit)
 
   newdata = matrix(0L, nrow = 5, ncol = args$num_variables)
+  # Named, so predict() does not also warn that it is matching by position.
+  colnames(newdata) = args$data_columnnames
 
   expect_error(
     predict(fit, newdata = newdata, group = 1, variables = "NonexistentVar"),

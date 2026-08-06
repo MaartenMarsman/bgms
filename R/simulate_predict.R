@@ -130,9 +130,21 @@ simulate.bgms = function(object,
   method = match.arg(method)
   progress_type = progress_type_from_display_progress(display_progress)
 
-  # Validate cores
-  check_positive_integer(cores, "cores")
+  # Validate cores. parallel::detectCores() -- the default -- is documented to
+  # return NA when it cannot tell, and check_positive_integer() turns that NA
+  # into "missing value where TRUE/FALSE needed" before
+  # normalize_parallel_cores() gets the chance to fall back to 1. The check runs
+  # on everything the user can actually supply; only that one NA is left to the
+  # normalizer.
+  if(!(length(cores) == 1L && is.na(cores))) {
+    check_positive_integer(cores, "cores")
+  }
   cores = normalize_parallel_cores(cores)
+
+  # nsim and iter reach four different simulation paths (OMRF mean, OMRF
+  # sample, GGM, mixed); validating them here covers all of them at once.
+  check_positive_integer(nsim, "nsim")
+  check_positive_integer(iter, "iter")
 
   # Setting the seed
   seed = check_seed(seed)
@@ -600,6 +612,8 @@ predict.bgms = function(object,
     ))
   }
 
+  check_newdata_columns(newdata, data_columnnames)
+
   # Handle variable_type
   variable_type = expand_variable_type(variable_type, num_variables)
 
@@ -923,6 +937,8 @@ predict.bgmCompare = function(object,
     ))
   }
 
+  check_newdata_columns(newdata, data_columnnames)
+
   # Determine variable_type from is_ordinal
   variable_type = ifelse(is_ordinal, "ordinal", "blume-capel")
 
@@ -1089,16 +1105,79 @@ recode_data_for_prediction = function(x, is_ordinal,
       }
       x[, v] = recoded
     } else {
-      # Legacy fallback (fit has no recode map): shift to 0-based by the
-      # per-column minimum.
-      x[, v] = as.integer(x[, v])
-      if(min(x[, v], na.rm = TRUE) > 0) {
-        x[, v] = x[, v] - min(x[, v], na.rm = TRUE)
-      }
+      # No recode map for an ordinal variable. Every fit bgm() and bgmCompare()
+      # produce carries one, so this is only reachable for an object built by a
+      # bgms old enough to predate it. The shift-by-the-column-minimum fallback
+      # that used to stand here read the offset off newdata rather than off the
+      # training data, which is the wrong number whenever newdata does not
+      # happen to span the training range, and silently so.
+      stop(
+        "The fitted object carries no category recode map for variable ", v,
+        ", so 'newdata' cannot be put on the scale the model was fitted on. ",
+        "It predates the recode map; refit with the current bgms.",
+        call. = FALSE
+      )
     }
   }
 
   return(x)
+}
+
+
+# ------------------------------------------------------------------------------
+# check_newdata_columns()
+# ------------------------------------------------------------------------------
+# newdata is matched to the fit by position, and a column count is not enough to
+# establish that the match is the intended one: a data frame whose columns were
+# reordered, or one built from a different subset of the same width, passes the
+# count check and then predicts every variable from the wrong neighbours,
+# silently. Named newdata therefore has to agree with the fit exactly. Unnamed
+# newdata is still accepted -- it carries nothing to check -- but says so.
+#
+# @param newdata           The (already coerced) newdata matrix.
+# @param data_columnnames  The fit's variable names.
+# ------------------------------------------------------------------------------
+check_newdata_columns = function(newdata, data_columnnames) {
+  if(is.null(data_columnnames)) {
+    return(invisible(NULL))
+  }
+
+  observed = colnames(newdata)
+  if(is.null(observed)) {
+    warning(
+      "'newdata' has no column names, so its columns are matched to the ",
+      "fitted model by position: ",
+      paste(data_columnnames, collapse = ", "), ".",
+      call. = FALSE
+    )
+    return(invisible(NULL))
+  }
+
+  if(identical(observed, data_columnnames)) {
+    return(invisible(NULL))
+  }
+
+  if(setequal(observed, data_columnnames)) {
+    stop(
+      "'newdata' holds the fitted model's variables in a different order. ",
+      "Columns are matched by position, so reorder 'newdata' to: ",
+      paste(data_columnnames, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+
+  absent = setdiff(data_columnnames, observed)
+  unexpected = setdiff(observed, data_columnnames)
+  stop(
+    "'newdata' column names do not match the fitted model.",
+    if(length(absent) > 0) {
+      paste0(" Missing: ", paste(absent, collapse = ", "), ".")
+    },
+    if(length(unexpected) > 0) {
+      paste0(" Not in the model: ", paste(unexpected, collapse = ", "), ".")
+    },
+    call. = FALSE
+  )
 }
 
 
