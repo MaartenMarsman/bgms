@@ -758,7 +758,7 @@ test_that("sparse category codings recode to the fitted categories", {
     dimnames = list(NULL, colnames(x_sparse))
   )
   recoded = bgms:::recode_data_for_prediction(
-    newdata, args$num_categories, rep(TRUE, p),
+    newdata, rep(TRUE, p),
     category_levels = args$category_levels,
     blume_capel_shift = args$blume_capel_shift
   )
@@ -780,7 +780,7 @@ test_that("sparse category codings recode to the fitted categories", {
   sim = simulate(fit_sparse, nsim = 50, method = "posterior-mean", seed = 12)
   expect_true(all(sim %in% sparse))
   sim_recoded = bgms:::recode_data_for_prediction(
-    sim, args$num_categories, rep(TRUE, p),
+    sim, rep(TRUE, p),
     category_levels = args$category_levels,
     blume_capel_shift = args$blume_capel_shift
   )

@@ -84,7 +84,7 @@ test_that("Blume-Capel recode round-trips through the stored shift", {
 
   internal = recode_data_for_prediction(
     x,
-    num_categories = 3L, is_ordinal = FALSE,
+    is_ordinal = FALSE,
     category_levels = NULL, blume_capel_shift = shift
   )
   expect_equal(as.numeric(internal), c(0, 1, 2, 3))

@@ -497,7 +497,7 @@ validate_bernoulli_inclusion = function(probability,
   }
 
   tri = lower.tri(theta, diag = include_diagonal)
-  if(anyNA(theta[tri]) || any(is.null(theta[tri]))) {
+  if(anyNA(theta[tri])) {
     if(nzchar(context)) {
       stop(paste0(
         "One or more inclusion probabilities", context, " are not specified."

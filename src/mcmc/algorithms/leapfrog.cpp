@@ -33,7 +33,6 @@ LeapfrogJointResult leapfrog(
     double eps,
     const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
-    int num_leapfrogs,
     const arma::vec& inv_mass_diag,
     const arma::vec* init_grad
 ) {
@@ -43,39 +42,17 @@ LeapfrogJointResult leapfrog(
   // Use provided initial gradient or compute it
   arma::vec grad_theta = init_grad ? *init_grad : grad(theta_init);
 
-  // All steps except the last one
-  for (int step = 0; step < num_leapfrogs - 1; step++) {
-    // Half-step momentum
-    r += 0.5 * eps * grad_theta;
+  // Half-step momentum
+  r += 0.5 * eps * grad_theta;
 
-    // Full step position
-    theta += eps * (inv_mass_diag % r);
+  // Full step position
+  theta += eps * (inv_mass_diag % r);
 
-    // Update gradient (intermediate position - only need grad)
-    grad_theta = grad(theta);
+  // Use joint at final position
+  auto [log_post_final, grad_final] = joint(theta);
 
-    // Final half-step momentum
-    r += 0.5 * eps * grad_theta;
-  }
+  // Final half-step momentum
+  r += 0.5 * eps * grad_final;
 
-  // Final step: use joint to get both log_post and gradient
-  if (num_leapfrogs >= 1) {
-    // Half-step momentum
-    r += 0.5 * eps * grad_theta;
-
-    // Full step position
-    theta += eps * (inv_mass_diag % r);
-
-    // Use joint at final position
-    auto [log_post_final, grad_final] = joint(theta);
-
-    // Final half-step momentum
-    r += 0.5 * eps * grad_final;
-
-    return {theta, r, log_post_final, grad_final};
-  }
-
-  // Edge case: num_leapfrogs == 0 (shouldn't happen in practice)
-  auto [log_post, grad_vec] = joint(theta);
-  return {theta, r, log_post, grad_vec};
+  return {theta, r, log_post_final, grad_final};
 }
