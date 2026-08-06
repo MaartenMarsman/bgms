@@ -27,6 +27,12 @@ mixed MRF models this is the precision matrix of the continuous
 
 For mixed MRF models the precision matrix is reconstructed from the
 internal association-scale parameterization.
+
+The diagonal is the posterior mean of the precision diagonal itself, not the
+reciprocal of the posterior mean residual variance. The latter summarises a
+variance, and its reciprocal is a harmonic mean of the diagonal draws that
+does not pair with the arithmetic-mean off-diagonals. The matrix returned
+here is the one \code{predict()} and \code{simulate()} use for the same fit.
 }
 \examples{
 \donttest{
