@@ -1,13 +1,29 @@
 #!/bin/sh
 
+# Fail on the first failing command. Without it every Rscript call below could
+# fail -- R_HOME unset leaves "/bin/Rscript", which is not a command -- and the
+# script still exited 0, handing make an empty sources.mk and an unsubstituted
+# Makevars. The build then failed somewhere in the compile with a message about
+# neither.
+set -e
+
+RSCRIPT="${R_HOME}/bin/Rscript"
+
 # RcppParallel flags
-RCPP_PARALLEL_CPPFLAGS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::CxxFlags())"`
-RCPP_PARALLEL_LIBS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::LdFlags())"`
+RCPP_PARALLEL_CPPFLAGS=`"${RSCRIPT}" -e "cat(RcppParallel::CxxFlags())"`
+RCPP_PARALLEL_LIBS=`"${RSCRIPT}" -e "cat(RcppParallel::LdFlags())"`
 
 # Generate sources.mk using R (the script writes src/sources.mk itself)
-"${R_HOME}/bin/Rscript" inst/generate_makevars_sources.R
+"${RSCRIPT}" inst/generate_makevars_sources.R
 
 # Substitute into Makevars
 sed -e "s|@RCPP_PARALLEL_CPPFLAGS@|${RCPP_PARALLEL_CPPFLAGS}|" \
     -e "s|@RCPP_PARALLEL_LIBS@|${RCPP_PARALLEL_LIBS}|" \
 src/Makevars.in > src/Makevars
+
+# The object list is what make needs and what a silent failure above would have
+# left empty, so check it rather than trusting the exit status alone.
+if [ ! -s src/sources.mk ]; then
+  echo "configure: src/sources.mk was not generated; cannot build bgms." >&2
+  exit 1
+fi

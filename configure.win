@@ -1,13 +1,25 @@
 #!/bin/sh
 
+# Fail on the first failing command; see the note in ./configure.
+set -e
+
+RSCRIPT="${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe"
+
 # RcppParallel flags
-RCPP_PARALLEL_CPPFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "cat(RcppParallel::CxxFlags())"`
-RCPP_PARALLEL_LIBS=`"${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "cat(RcppParallel::LdFlags())"`
+RCPP_PARALLEL_CPPFLAGS=`"${RSCRIPT}" -e "cat(RcppParallel::CxxFlags())"`
+RCPP_PARALLEL_LIBS=`"${RSCRIPT}" -e "cat(RcppParallel::LdFlags())"`
 
 # Generate sources.mk using R (the script writes src/sources.mk itself)
-"${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" inst/generate_makevars_sources.R
+"${RSCRIPT}" inst/generate_makevars_sources.R
 
 # Substitute into Makevars.win
 sed -e "s|@RCPP_PARALLEL_CPPFLAGS@|${RCPP_PARALLEL_CPPFLAGS}|" \
     -e "s|@RCPP_PARALLEL_LIBS@|${RCPP_PARALLEL_LIBS}|" \
     src/Makevars.in > src/Makevars.win
+
+# The object list is what make needs and what a silent failure above would have
+# left empty, so check it rather than trusting the exit status alone.
+if [ ! -s src/sources.mk ]; then
+  echo "configure.win: src/sources.mk was not generated; cannot build bgms." >&2
+  exit 1
+fi
