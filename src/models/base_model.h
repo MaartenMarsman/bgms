@@ -6,7 +6,6 @@
 #include <limits>
 
 // Forward declarations
-struct StepResult;
 struct SafeRNG;
 struct WarmupSchedule;
 class ChainResult;

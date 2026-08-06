@@ -68,13 +68,14 @@ double ZRatioEngine::saddle_ratio(double s1, double s2) const {
 ZRatioBlock ZRatioEngine::extract_block(const arma::imat& G, int i,
                                         int j) const {
     ZRatioBlock bl;
-    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/true, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/true,
+                   /*need_maxbd=*/true, bl);
     return bl;
 }
 
 void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
                                   bool need_adjacency, bool need_counts,
-                                  ZRatioBlock& bl) const {
+                                  bool need_maxbd, ZRatioBlock& bl) const {
     bl = ZRatioBlock();
     const int q = static_cast<int>(G.n_rows);
 
@@ -139,9 +140,11 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
     bl.valid = true;
 
     bl.ncn = static_cast<int>(cn.size());
-    // Scalar count descriptors (cne, bre, maxbd) drive the additive
-    // saddle only; the surface deploy reads the adjacency instead, so skip
-    // these O(m^2) passes when the caller does not need the counts.
+    // Scalar count descriptors (cne, bre) drive the additive saddle only; the
+    // surface deploy reads the adjacency instead, so skip these O(m^2) passes
+    // when the caller does not need the counts. maxbd is not read by the
+    // saddle at all -- only the test interface reports it -- so it sits behind
+    // its own flag and stays off the sampling hot path.
     if (need_counts) {
         for (size_t a = 0; a < cn.size(); a++) {
             for (size_t b = a + 1; b < cn.size(); b++) {
@@ -153,6 +156,8 @@ void ZRatioEngine::extract_block_(const arma::imat& G, int i, int j,
                 if (G(rv[a], rv[b]) == 1) bl.bre++;
             }
         }
+    }
+    if (need_maxbd) {
         for (int a : si_o) {
             int d = 0;
             for (int b : sj_o) {
@@ -545,7 +550,8 @@ bool ZRatioEngine::gold_moments(const arma::imat& G, int i, int j,
                                 double& s1_out, double& s2_out,
                                 double& logr_out) {
     ZRatioBlock bl;
-    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false,
+                   /*need_maxbd=*/false, bl);
     if (!bl.valid) {
         s1_out = 0.0;
         s2_out = 0.0;
@@ -624,7 +630,8 @@ bool ZRatioEngine::surface_moments(const arma::imat& G, int i, int j,
                                    std::vector<SurfaceComp>& comps) {
     comps.clear();
     ZRatioBlock bl;
-    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false, bl);
+    extract_block_(G, i, j, /*need_adjacency=*/true, /*need_counts=*/false,
+                   /*need_maxbd=*/false, bl);
     if (!bl.valid) {
         s1_out = 0.0;
         s2_out = 0.0;
@@ -667,7 +674,7 @@ double ZRatioEngine::log_zratio(const arma::imat& G, int i, int j) {
     // saddle needs only the scalar counts.
     ZRatioBlock bl;
     extract_block_(G, i, j, /*need_adjacency=*/false,
-                   /*need_counts=*/!surface_active, bl);
+                   /*need_counts=*/!surface_active, /*need_maxbd=*/false, bl);
     if (!bl.valid) {
         n_add_++;
         return MY_LOG(psi0_);

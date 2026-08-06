@@ -357,7 +357,6 @@ private:
     size_t num_pairwise_xx_;            ///< p(p-1)/2
     size_t num_pairwise_yy_;            ///< q(q-1)/2
     size_t num_cross_;                  ///< p * q
-    size_t num_cholesky_ = 0;           ///< q(q+1)/2 — number of Cholesky entries
 
     // =========================================================================
     // Data
@@ -526,8 +525,6 @@ private:
     size_t chol_block_offset_ = 0;
     /// Whether constraint structure needs rebuilding.
     bool constraint_dirty_ = true;
-    /// Whether initial graph is sparse (constraints without edge selection).
-    bool has_sparse_graph_ = false;
 
     // =========================================================================
     // RNG and edge-update order
@@ -617,9 +614,6 @@ private:
     // =========================================================================
     // Likelihood functions (implemented in mixed_mrf_likelihoods.cpp)
     // =========================================================================
-
-    /** Marginal OMRF pseudolikelihood for discrete variable s, using marginal_interactions_. */
-    double log_marginal_omrf(int s) const;
 
     /** Marginal OMRF pseudolikelihood for variable s given its precomputed rest score. */
     double log_marginal_omrf_given_rest(int s, const arma::vec& rest, double precision_ss) const;

@@ -204,12 +204,6 @@ void OMRFModel::update_residual_matrix() {
 }
 
 
-void OMRFModel::update_residual_columns(int var1, int var2, double delta) {
-    residual_matrix_.col(var1) += 2.0 * delta * observations_double_.col(var2);
-    residual_matrix_.col(var2) += 2.0 * delta * observations_double_.col(var1);
-}
-
-
 void OMRFModel::set_pairwise_effects(const arma::mat& pairwise_effects) {
     pairwise_effects_ = pairwise_effects;
     update_residual_matrix();
@@ -496,91 +490,6 @@ arma::vec OMRFModel::get_active_inv_mass() const {
     }
 
     return active_inv_mass;
-}
-
-
-void OMRFModel::vectorize_parameters_into(arma::vec& param_vec) const {
-    // Count active parameters
-    int num_active = 0;
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                num_active++;
-            }
-        }
-    }
-
-    // Resize if needed (should rarely happen after first call)
-    size_t needed_size = num_main_ + num_active;
-    if (param_vec.n_elem != needed_size) {
-        param_vec.set_size(needed_size);
-    }
-
-    int offset = 0;
-
-    // Main effects
-    for (size_t v = 0; v < p_; ++v) {
-        if (is_ordinal_variable_(v)) {
-            int num_cats = num_categories_(v);
-            for (int c = 0; c < num_cats; ++c) {
-                param_vec(offset++) = main_effects_(v, c);
-            }
-        } else {
-            param_vec(offset++) = main_effects_(v, 0);  // linear
-            param_vec(offset++) = main_effects_(v, 1);  // quadratic
-        }
-    }
-
-    // Active pairwise effects
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                param_vec(offset++) = pairwise_effects_(v1, v2);
-            }
-        }
-    }
-}
-
-
-void OMRFModel::get_active_inv_mass_into(arma::vec& active_inv_mass) const {
-    if (!edge_selection_active_) {
-        // No edge selection - just use full inv_mass
-        if (active_inv_mass.n_elem != inv_mass_.n_elem) {
-            active_inv_mass.set_size(inv_mass_.n_elem);
-        }
-        active_inv_mass = inv_mass_;
-        return;
-    }
-
-    // Count active parameters
-    int num_active = 0;
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                num_active++;
-            }
-        }
-    }
-
-    size_t needed_size = num_main_ + num_active;
-    if (active_inv_mass.n_elem != needed_size) {
-        active_inv_mass.set_size(needed_size);
-    }
-
-    active_inv_mass.head(num_main_) = inv_mass_.head(num_main_);
-
-    int offset_full = num_main_;
-    int offset_active = num_main_;
-
-    for (size_t v1 = 0; v1 < p_ - 1; ++v1) {
-        for (size_t v2 = v1 + 1; v2 < p_; ++v2) {
-            if (edge_indicators_(v1, v2) == 1) {
-                active_inv_mass(offset_active) = inv_mass_(offset_full);
-                offset_active++;
-            }
-            offset_full++;
-        }
-    }
 }
 
 
