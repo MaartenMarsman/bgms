@@ -616,3 +616,90 @@ test_that("a fit without the stored labels degrades to bare group numbers", {
   expect_null(compare_group_labels(list(group_labels = "only-one"), 2L))
   expect_null(compare_group_labels(list(group_labels = c("a", NA))))
 })
+
+# ------------------------------------------------------------------------------
+# Difference summary layout
+# ------------------------------------------------------------------------------
+
+test_that("difference summary rows are contrast-major in both selection branches", {
+  skip_on_cran()
+
+  # Three groups, so contrast-major and variable-major orders differ. With two
+  # groups they coincide, which is why this went unnoticed.
+  set.seed(41)
+  n_groups = 3
+  p = 3
+  x = matrix(sample(0:1, n_groups * 40 * p, replace = TRUE), ncol = p)
+  colnames(x) = paste0("V", seq_len(p))
+  group_indicator = rep(seq_len(n_groups), each = 40)
+
+  fit_of = function(difference_selection) {
+    without_support_warning(bgmCompare(
+      x = x, group_indicator = group_indicator,
+      difference_selection = difference_selection,
+      iter = 50, warmup = 100, chains = 2, cores = 2, seed = 41,
+      display_progress = "none"
+    ))
+  }
+  sel = fit_of(TRUE)
+  nosel = fit_of(FALSE)
+
+  # The selection branch used to emit rows variable-major while labelling them
+  # contrast-major, so the two branches disagreed on row order and the
+  # selection branch no longer lined up positionally with names_all or with
+  # posterior_mean_*_differences.
+  names_all = get_fit_cache(sel)$names_all
+
+  for(field in c("main_differences", "pairwise_differences")) {
+    key = if(field == "main_differences") "main_diff" else "pairwise_diff"
+    sel_tbl = sel[[paste0("posterior_summary_", field)]]
+    nosel_tbl = nosel[[paste0("posterior_summary_", field)]]
+
+    expect_equal(sel_tbl$parameter, names_all[[key]], info = field)
+    expect_equal(nosel_tbl$parameter, names_all[[key]], info = field)
+    expect_equal(rownames(sel_tbl), names_all[[key]], info = field)
+    expect_equal(rownames(nosel_tbl), names_all[[key]], info = field)
+  }
+
+  # Each row's statistics belong to the parameter its label names: the summary
+  # means must reproduce posterior_mean_*_differences read in the same order.
+  pw_means = unlist(lapply(
+    sel$posterior_mean_pairwise_differences,
+    function(m) m[lower.tri(m)]
+  ))
+  expect_equal(
+    unname(pw_means),
+    sel$posterior_summary_pairwise_differences$mean,
+    tolerance = 1e-10
+  )
+
+  main_means = unlist(lapply(
+    sel$posterior_mean_main_differences,
+    function(m) as.vector(t(m))
+  ))
+  expect_equal(
+    unname(main_means),
+    sel$posterior_summary_main_differences$mean,
+    tolerance = 1e-10
+  )
+})
+
+
+test_that("compare summary tables carry their parameter names as row names", {
+  skip_on_cran()
+  fit = get_bgmcompare_fit()
+  names_all = get_fit_cache(fit)$names_all
+
+  # Stored straight from summarize_fit_compare(), these tables kept their labels
+  # in a `parameter` column with default "1", "2", "3" row names -- which is
+  # what extract_rhat() and extract_ess() then handed back as names.
+  expect_equal(rownames(fit$posterior_summary_main_baseline), names_all$main_baseline)
+  expect_equal(rownames(fit$posterior_summary_pairwise_baseline), names_all$pairwise_baseline)
+  expect_equal(rownames(fit$posterior_summary_main_differences), names_all$main_diff)
+  expect_equal(rownames(fit$posterior_summary_pairwise_differences), names_all$pairwise_diff)
+  expect_equal(rownames(fit$posterior_summary_indicator), names_all$indicators)
+
+  # The `parameter` column stays: print.summary.bgmCompare() reads it by name
+  # and rounds df[, -1] positionally.
+  expect_true("parameter" %in% names(fit$posterior_summary_main_differences))
+})

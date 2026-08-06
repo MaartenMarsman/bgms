@@ -196,7 +196,15 @@ test_that("verdicts() errors without selection and covers bgmCompare", {
   )
   v = verdicts(fit)
   expect_s3_class(v, "bgms_verdicts")
-  expect_equal(v$parameter, get_raw_samples(fit)$parameter_names$indicator)
+  # The compare producer calls this element `indicators`. verdicts.bgmCompare
+  # used to reach it as `$indicator`, which only resolved through `$` partial
+  # matching -- correct today, NULL the day a sibling name shares the prefix.
+  # The labels are unchanged by spelling it exactly.
+  names_compare = get_raw_samples(fit)$parameter_names
+  expect_true("indicators" %in% names(names_compare))
+  expect_false("indicator" %in% names(names_compare))
+  expect_equal(v$parameter, names_compare[["indicators"]])
+  expect_equal(v$parameter, names_compare$indicator) # the pre-fix partial match
   expect_equal(nrow(v), 10L)
 
   # The pairwise differences were selected and carry verdicts; the main-effect

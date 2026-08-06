@@ -396,7 +396,11 @@ verdicts.bgmCompare = function(bgms_object, evidence_threshold = 10, ...) {
   idx = compare_indicator_index(nrow(bf))
 
   out = build_verdicts(
-    parameter = raw$parameter_names$indicator,
+    # The compare producer names this element `indicators`
+    # (generate_param_names_bgmCompare); spell it exactly rather than leaning on
+    # `$` partial matching, which would break the day a sibling name shares the
+    # prefix.
+    parameter = raw$parameter_names$indicators,
     log_bf = bf[idx],
     pip = extract_posterior_inclusion_probabilities(bgms_object)[idx],
     mcse = summary_indicator[["mcse"]],
