@@ -697,10 +697,14 @@ test_that("mixed predict recodes discrete newdata to the original scale", {
   probs_shift = predict(fit_shift, newdata = x_shift[1:20, ], type = "probabilities")
   probs_base = predict(fit_base, newdata = x_base[1:20, ], type = "probabilities")
   for(nm in names(probs_shift)) {
-    expect_equal(probs_shift[[nm]], probs_base[[nm]],
+    # Values, not labels: the labels name the ORIGINAL categories, so the two
+    # relabelings are supposed to differ there and only there.
+    expect_equal(unname(probs_shift[[nm]]), unname(probs_base[[nm]]),
       info = sprintf("relabel invariance %s", nm)
     )
   }
+  expect_equal(colnames(probs_shift$d), paste0("cat_", 1:3))
+  expect_equal(colnames(probs_base$d), paste0("cat_", 0:2))
 
   # simulate() returns the original discrete scale and the round trip is clean.
   sim = simulate(fit_shift, nsim = 40, method = "posterior-mean", seed = 5)
@@ -771,9 +775,13 @@ test_that("sparse category codings recode to the fitted categories", {
   probs_sparse = predict(fit_sparse, newdata = x_sparse[1:20, ], type = "probabilities")
   probs_dense = predict(fit_dense, newdata = x_dense[1:20, ], type = "probabilities")
   for(nm in names(probs_sparse)) {
-    expect_equal(probs_sparse[[nm]], probs_dense[[nm]],
+    # Values, not labels: the labels name the ORIGINAL categories, so the
+    # sparse fit's read cat_1/2/4/5 against the dense fit's cat_0..3.
+    expect_equal(unname(probs_sparse[[nm]]), unname(probs_dense[[nm]]),
       info = sprintf("sparse/dense relabel invariance %s", nm)
     )
+    expect_equal(colnames(probs_sparse[[nm]]), paste0("cat_", sparse))
+    expect_equal(colnames(probs_dense[[nm]]), paste0("cat_", 0:3))
   }
 
   # --- simulate() -> predict() round trip stays on the sparse original scale ---
