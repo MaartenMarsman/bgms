@@ -118,19 +118,3 @@ bool cholesky_downdate(arma::mat& R, arma::vec& u, double eps) {
     // is always 0.
     return R.memptr()[1] != -2.0;
 }
-
-// for testing
-// [[Rcpp::export]]
-arma::mat chol_update_arma(arma::mat& R, arma::vec& u, bool downdate = false, double eps = 1e-12) {
-    if (R.n_rows != R.n_cols)
-        Rcpp::stop("R must be square");
-    if (u.n_elem != R.n_cols)
-        Rcpp::stop("length(u) must match dimension of R");
-
-    if (downdate)
-        cholesky_downdate(R, u, eps);
-    else
-        cholesky_update(R, u, eps);
-
-    return R;
-}
