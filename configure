@@ -4,8 +4,8 @@
 RCPP_PARALLEL_CPPFLAGS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::CxxFlags())"`
 RCPP_PARALLEL_LIBS=`"${R_HOME}/bin/Rscript" -e "cat(RcppParallel::LdFlags())"`
 
-# Generate sources.mk using R
-"${R_HOME}/bin/Rscript" inst/generate_makevars_sources.R > src/sources.mk
+# Generate sources.mk using R (the script writes src/sources.mk itself)
+"${R_HOME}/bin/Rscript" inst/generate_makevars_sources.R
 
 # Substitute into Makevars
 sed -e "s|@RCPP_PARALLEL_CPPFLAGS@|${RCPP_PARALLEL_CPPFLAGS}|" \
