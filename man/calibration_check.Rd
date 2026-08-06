@@ -79,8 +79,9 @@ distribution function of the \eqn{u}'s against the uniform diagonal.
 parameter uncertainty sits inside the distribution the observation is
 transformed by; the two panel kinds therefore differ in what they condition
 on, the isotonic one on posterior-mean probabilities and this one on the full
-predictive distribution. The band is the simultaneous envelope of the
-empirical distribution functions of \eqn{n} independent uniforms. It is not
+predictive distribution. The band is pointwise: at each grid point it spans
+the central 95\% of the simulated uniform ECDFs, so a calibrated variable may
+still exit the band at a few isolated points. It is not
 resampled from the model, because it does not have to be: whatever the
 conditional density was, a value drawn from it transforms to an exact
 \eqn{\textrm{Uniform}(0, 1)}, so the null is known and one band serves every

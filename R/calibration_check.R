@@ -89,14 +89,23 @@ fitted_observed_data = function(bgms_object) {
 # 1-based index of each observed value among a discrete variable's categories,
 # i.e. the column of the predicted-probability matrix the case fell in.
 #
+# A value the fit has no category for has nothing to calibrate against, and
+# neither branch says so on its own: the recode-map lookup returns NA, which
+# reaches isoreg() as a missing outcome, and the Blume-Capel branch returns an
+# index outside the category range, which the threshold comparison silently
+# reads as "below all" or "above all". Both are checked here instead.
+#
 # @param values      Observed values on the original scale.
 # @param levels_v    The variable's recode map, or NULL for Blume-Capel.
 # @param shift_v     The variable's additive shift, or NA for regular ordinal.
 # @param variable    Variable name, for the error message.
+# @param num_categories  The variable's category count, or NULL to check only
+#                    that every value was located at all.
 #
 # Returns: integer vector of category indices.
 # ------------------------------------------------------------------
-discrete_category_index = function(values, levels_v, shift_v, variable) {
+discrete_category_index = function(values, levels_v, shift_v, variable,
+                                   num_categories = NULL) {
   index = if(!is.null(levels_v)) {
     if(!is.null(names(levels_v))) {
       # bgmCompare stores a named lookup from the original value to the final
@@ -115,6 +124,31 @@ discrete_category_index = function(values, levels_v, shift_v, variable) {
       "The fit carries neither a recode map nor a category shift for ",
       "variable '", variable, "', so its observed categories cannot be ",
       "located. Re-fit with the current bgms version."
+    )
+  }
+  outside = if(is.null(num_categories)) {
+    is.na(index)
+  } else {
+    is.na(index) | index < 1L | index > as.integer(num_categories)
+  }
+  if(any(outside)) {
+    offending = sort(unique(values[outside]))
+    shown = utils::head(offending, 5L)
+    more = if(length(offending) > length(shown)) {
+      sprintf(" (and %d more)", length(offending) - length(shown))
+    } else {
+      ""
+    }
+    stop(
+      "Variable '", variable, "' carries value", if(length(offending) == 1L) {
+        " "
+      } else {
+        "s "
+      },
+      paste(format(shown, trim = TRUE), collapse = ", "), more,
+      " that the fit has no category for, so there is nothing to calibrate ",
+      "them against. Supply 'newdata' on the categories the model was fitted ",
+      "to."
     )
   }
   index
@@ -310,7 +344,8 @@ pav_panels = function(predicted, observed, levels_list, shifts, grid, nrep, prob
     p = as.vector(cumulative[, -num_categories, drop = FALSE])
 
     observed_index = discrete_category_index(
-      observed[, v], levels_list[[v]], shifts[[v]], v
+      observed[, v], levels_list[[v]], shifts[[v]], v,
+      num_categories = num_categories
     )
     y = as.integer(outer(observed_index, seq_len(num_thresholds), "<="))
     observed_curve = pav_curve(p, y, grid)
@@ -415,8 +450,9 @@ calibration_result = function(panels, nrep, probs, grid, ndraws) {
 #' parameter uncertainty sits inside the distribution the observation is
 #' transformed by; the two panel kinds therefore differ in what they condition
 #' on, the isotonic one on posterior-mean probabilities and this one on the full
-#' predictive distribution. The band is the simultaneous envelope of the
-#' empirical distribution functions of \eqn{n} independent uniforms. It is not
+#' predictive distribution. The band is pointwise: at each grid point it spans
+#' the central 95% of the simulated uniform ECDFs, so a calibrated variable may
+#' still exit the band at a few isolated points. It is not
 #' resampled from the model, because it does not have to be: whatever the
 #' conditional density was, a value drawn from it transforms to an exact
 #' \eqn{\textrm{Uniform}(0, 1)}, so the null is known and one band serves every

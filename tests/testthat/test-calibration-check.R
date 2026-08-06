@@ -380,3 +380,91 @@ test_that("calibration_check covers a Blume-Capel compare fit", {
   expect_equal(nrow(check$summary), 4L * 2L)
   expect_true(all(is.finite(check$summary$max_dev)))
 })
+
+
+test_that("an observed value the fit has no category for is named, not absorbed", {
+  # Both lookup branches used to fail quietly: the recode map returns NA, which
+  # reaches isoreg() as a missing outcome, and the Blume-Capel shift returns an
+  # index outside the category range, which the threshold comparison reads as
+  # "below all" or "above all".
+
+  # Recode-map branch (regular ordinal, and the compare fit's named lookup).
+  expect_error(
+    discrete_category_index(c(1, 2, 9), c(1, 2, 3), NA_real_, "worry"),
+    "'worry'"
+  )
+  expect_error(
+    discrete_category_index(c(1, 2, 9), c(1, 2, 3), NA_real_, "worry"),
+    "no category for"
+  )
+  expect_error(
+    discrete_category_index(c(1, 3, 4), c("1" = 0L, "3" = 1L), NA_real_, "v"),
+    "no category for"
+  )
+  # In support, nothing changes.
+  expect_equal(
+    discrete_category_index(c(1, 2, 3), c(1, 2, 3), NA_real_, "v", 3L),
+    c(1L, 2L, 3L)
+  )
+
+  # Blume-Capel branch: the index is the shifted score, and only the category
+  # count can say it left the range.
+  expect_equal(
+    discrete_category_index(c(1, 2, 5), NULL, 1, "v", 5L),
+    c(1L, 2L, 5L)
+  )
+  expect_error(
+    discrete_category_index(c(1, 2, 9), NULL, 1, "bc_var", 5L),
+    "'bc_var'"
+  )
+  expect_error(
+    discrete_category_index(c(0, 2), NULL, 1, "bc_var", 5L),
+    "no category for"
+  )
+  # The offending value itself is named, not just the variable.
+  expect_error(
+    discrete_category_index(c(1, 2, 9), NULL, 1, "bc_var", 5L),
+    "9"
+  )
+})
+
+
+test_that("calibration_check rejects out-of-support newdata in both branches", {
+  skip_on_cran()
+  x = Wenchuan[stats::complete.cases(Wenchuan[, 1:4]), 1:4]
+
+  ordinal_fit = bgm(x,
+    chains = 1, iter = 200, warmup = 200, seed = 5,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  bad = as.matrix(x)
+  bad[1, 1] = max(x[, 1]) + 3
+  # predict() already warns that the cell is unobserved; the check must go
+  # further and refuse, rather than push NA into isoreg().
+  expect_error(
+    suppressWarnings(
+      calibration_check(ordinal_fit, newdata = bad, nrep = 5, seed = 1)
+    ),
+    "no category for"
+  )
+  expect_s3_class(
+    calibration_check(ordinal_fit, newdata = as.matrix(x), nrep = 5, seed = 1),
+    "bgms_calibration"
+  )
+
+  bc_fit = bgm(x,
+    variable_type = "blume-capel", baseline_category = 1,
+    chains = 1, iter = 200, warmup = 200, seed = 5,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  )
+  expect_error(
+    suppressWarnings(
+      calibration_check(bc_fit, newdata = bad, nrep = 5, seed = 1)
+    ),
+    "no category for"
+  )
+  expect_s3_class(
+    calibration_check(bc_fit, newdata = as.matrix(x), nrep = 5, seed = 1),
+    "bgms_calibration"
+  )
+})
