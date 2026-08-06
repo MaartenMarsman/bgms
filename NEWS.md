@@ -3,6 +3,124 @@
 Development version, opened after 0.2.0.0 went to CRAN on 2026-08-03. Nothing
 released from this line yet.
 
+## Breaking changes
+
+* bgms requires R (>= 4.2). The package builds with C++20, which is reliably
+  available on Windows from Rtools42, and its dependencies already required
+  more than the declared 3.5; the DESCRIPTION floor now states what an
+  installation actually needs.
+
+* The `summary()` tables of a `bgmCompare` fit follow the same rownames
+  contract as `bgm()` tables, so `extract_rhat()` and `extract_ess()` return
+  named vectors; difference rows come contrast-major (all rows of one contrast
+  together) in both selection branches; and the slab block no longer carries
+  an `Rhat` column, which was structurally `NA` there. Code that indexed these
+  tables by position may need adjusting.
+
+## Bug fixes
+
+* `predict()` returned ordinal responses as the internal 0-based codes rather
+  than the categories of the data. `type = "response"` now maps predictions
+  back through the fit's recode map (including the Blume-Capel reference
+  shift), and probability columns are labelled with the original categories.
+
+* Predictions for rows of `newdata` carrying `NA` or an unseen category in a
+  conditioning variable were computed from corrupt internal codes. Those
+  entries now come back `NA`, with one warning naming the variables involved;
+  rows without such values are unchanged.
+
+* `predict()` errored on single-row `newdata` with `type = "response"` (a
+  dimnames mismatch specific to the one-row case).
+
+* `simulate()`'s ordinal full conditional subtracts the running maximum before
+  exponentiating, so extreme parameter draws no longer overflow, and an
+  interrupted parallel simulation errors instead of returning empty matrices.
+
+* `extract_centrality()` on mixed discrete-continuous fits summed the wrong
+  columns: pairwise draws are stored block-ordered (discrete, cross,
+  continuous pairs) and the strength sums indexed them as if they were
+  variable-ordered. Mixed-fit centrality values change; discrete-only and GGM
+  fits were indexed correctly.
+
+* The posterior-mean precision matrix is the same matrix on every surface that
+  reports one. `predict()`, `simulate()`, and `extract_precision()` build its
+  diagonal as the posterior mean of the precision-diagonal draws, `E[K_jj]`.
+  It was the reciprocal of the posterior-mean residual variance — a harmonic
+  mean of the same draws, which pairs an understated diagonal with
+  arithmetic-mean off-diagonals and need not stay positive definite. Diagonal
+  entries grow slightly; `extract_partial_correlations()` changes accordingly.
+
+* `prior_sensitivity_check()`'s importance weights carried only part of the
+  prior ratio, biasing the reweighted points between anchors (anchor points
+  are direct refits and were exact throughout). Two corrections: when the vary
+  mode also moves the precision-diagonal rate — the default
+  "slab-and-diagonal" resolution for GGM and mixed fits — the weights now
+  include the diagonal-prior ratio; and for mixed fits the diagonal statistic
+  in that ratio is read on the scale the sampler stores it (it entered with
+  the wrong sign and half the magnitude). Validated against direct refits at a
+  doubled scale: the largest inclusion-probability error fell from 0.050 to
+  0.015 in the GGM check and from 0.051 to 0.006 in the mixed check, with most
+  edges inside twice the refit's own Monte Carlo error. The importance ESS is
+  computed from the corrected weights, so between-anchor points that
+  previously looked well-supported can now honestly report a small ESS and be
+  masked by `ess_floor`.
+
+* A saturated anchor — a reweighted inclusion probability at exactly 0 or 1 —
+  no longer takes over the pooled sensitivity curve: the inverse-variance
+  pooling weight uses an add-half smoothed probability. Pooled values in
+  non-saturated configurations move by less than one percent.
+
+* The stability interval starts from the chosen-scale verdict — the one the
+  table and `print()` report — rather than the pooled-curve verdict; the two
+  can disagree in borderline cases.
+
+* `prior_sensitivity_check()` input handling: single-indicator fits no longer
+  lose a dimension and error; slab families other than normal and Cauchy stop
+  with a clear message before any refit; a missing or non-positive chosen
+  scale is caught up front; and when a failed convergence gate is overridden
+  so the 1x anchor still contributes, `$grid` records the true gate result
+  together with a `forced` flag.
+
+* `calibration_check()` rejects `newdata` values outside the fit's support,
+  naming the variable and the offending values; both branches previously
+  failed silently (`NA` through the isotonic fit in the ordinal branch, silent
+  clamping in the Blume-Capel branch).
+
+* The Z-ratio truncation check runs on every table build; it was gated
+  together with the `alpha != 1` shape warning, so the default-shape cells it
+  was built for went unchecked. The shape warning keeps its gate.
+
+* Deployed correction-table slopes for the hierarchical and SBM graph priors
+  are computed after aggregating tied grid points: isotonic regression
+  produces runs of equal fitted density, and taking the slope over the tied
+  values biased it — a quarter of a nat on the measured cell.
+
+* Correction-table cache keys include the base seed, so a table computed under
+  one seed is not reused under another; a failed cache write warns and
+  continues instead of erroring the fit; and table builds size their core
+  count independently of the chain sampler's configuration and announce it.
+
+* Every chain the package launches resolves its acceptance target from one
+  helper: 0.44 for adaptive-Metropolis, 0.80 for NUTS, none for exact Gibbs.
+  The prior-only reference chains in `sample_ggm_prior()` and behind
+  `extract_prior_inclusion_probabilities()` previously fell back to the
+  compiled default of 0.80 — the NUTS target — and tuned their Metropolis
+  proposals differently from the fitted chains they mirror.
+
+* NUTS diagnostics tolerate non-finite energy values: E-BFMI is computed over
+  the finite draws and the warmup-incomplete flag no longer compares against
+  `NA`.
+
+* Adaptive-Metropolis diagnostics labelled the between-model move rate as the
+  acceptance rate. The acceptance probability the sampler records is now the
+  acceptance column; the move rate keeps its own column under its own name.
+
+* Named `newdata` columns that do not match the fit's variables stop with an
+  error (unnamed input keeps a warning); the legacy category-recode fallback
+  errors instead of silently shifting categories; `nsim` and `iter` are
+  validated at entry; and `sample_graph_prior()`'s joint-specification
+  metadata reports the effective Bernoulli prior used for conditioning.
+
 ## Diagnostics
 
 * `fit$nuts_diag$warmup_check` reports two new per-chain fields. `energy_tau` is
@@ -83,6 +201,24 @@ released from this line yet.
   `max_labels`. Neither is drawn; both were retired in 0.2.0.0. The man page now
   states that the muted background holds robust and unlabelled scale-dependent
   edges alike, and that `print()` carries the counts and the names.
+
+* The ADHD dataset's DOI link renders correctly (the identifier was
+  double-prefixed) and the licence links are wrapped as URLs.
+
+* `calibration_check()`'s manual page describes the 95% PIT band as pointwise;
+  it said simultaneous, which the construction is not.
+
+## Other changes
+
+* The configure scripts stop at the first broken step: an unavailable `Rscript`
+  or an empty generated source list ends the build with a one-line message,
+  where they previously exited successfully and left `make` to fail later with
+  an unrelated error. `src/sources.mk` has a single writer.
+
+* Unreachable code was removed across `src/` and `R/`: a drifting ~190-line
+  duplicate of the bgmCompare gradient, three orphaned OMRF methods, unused
+  sampler plumbing, and small R-side leftovers. Sampler output is bit-identical
+  before and after the removals.
 
 # bgms 0.2.0.0
 
