@@ -498,10 +498,12 @@ average_draws = function(per_draw_list, v) {
 #' predicted variable. Each element is a matrix with \code{n} rows and
 #' \code{num_categories + 1} columns containing
 #' \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
-#' for each observation and category.
+#' for each observation and category. Columns are labelled with the original
+#' category values of the training data.
 #'
 #' For \code{type = "response"}: A matrix with \code{n} rows and
-#' \code{length(variables)} columns containing predicted categories.
+#' \code{length(variables)} columns containing predicted categories, on the
+#' original category scale that \code{\link{simulate.bgms}} returns.
 #'
 #' When \code{method = "posterior-sample"}, probabilities are averaged over
 #' posterior draws, and an attribute \code{"sd"} is included containing the
@@ -540,6 +542,18 @@ average_draws = function(per_draw_list, v) {
 #' \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
 #' and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
 #' is the precision matrix.
+#'
+#' \code{newdata} is matched to the fitted model by position. When it carries
+#' column names they must be the model's variables in the model's order, or
+#' \code{predict()} stops; when it carries none it is read positionally, with a
+#' warning saying so.
+#'
+#' A discrete cell of \code{newdata} that is \code{NA}, or that holds a category
+#' value never observed in the training data, leaves the conditional
+#' distribution of every other variable in that row undefined. Those
+#' predictions are returned as \code{NA}, with one warning giving the number of
+#' rows affected; the variable whose own value is missing is unaffected, since
+#' its conditional distribution does not use it.
 #'
 #' @seealso \code{\link{simulate.bgms}} for generating new data from the model.
 #' @family prediction
@@ -841,16 +855,21 @@ predict.bgms = function(object,
 #' element per predicted variable. Each element is a matrix with
 #' \code{n} rows and \code{num_categories + 1} columns containing
 #' \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
-#' for each observation and category.
+#' for each observation and category. Columns are labelled with the original
+#' category values of the training data.
 #'
 #' For \code{type = "response"}: A matrix with \code{n} rows and
-#' \code{length(variables)} columns containing predicted categories.
+#' \code{length(variables)} columns containing predicted categories, on the
+#' original category scale that \code{\link{simulate.bgmCompare}} returns.
 #'
 #' @details
 #' Group-specific parameters are obtained by applying the projection matrix
 #' to convert baseline parameters and differences into group-level estimates.
 #' The function then computes the conditional distribution of target variables
 #' given the observed values of all other variables.
+#'
+#' The \code{newdata} column-name and missing-value rules of
+#' \code{\link{predict.bgms}} apply here unchanged.
 #'
 #' @seealso \code{\link{predict.bgms}} for predicting
 #'   from single-group models,
