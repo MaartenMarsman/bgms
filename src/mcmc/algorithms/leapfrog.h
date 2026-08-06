@@ -103,7 +103,7 @@ std::pair<arma::vec, arma::vec> leapfrog_memo(
 );
 
 /**
- * LeapfrogJointResult - Return type for multi-step leapfrog integration.
+ * LeapfrogJointResult - Return type for the joint leapfrog step.
  *
  * Contains the final position, momentum, log-posterior, and gradient.
  */
@@ -116,19 +116,18 @@ struct LeapfrogJointResult {
 
 
 /**
- * Multi-step leapfrog integration using a joint log_post+gradient function.
- * Used by HMC.
+ * Single leapfrog step using a joint log_post+gradient function.
+ * Used by the step-size heuristic in hamiltonian_utils.cpp.
  *
- * Uses grad-only at intermediate steps; joint function at the final
- * position for both log_post and gradient. Accepts optional pre-computed
- * initial gradient to avoid recomputation.
+ * Evaluates the joint function at the new position for both log_post and
+ * gradient. Accepts an optional pre-computed initial gradient to avoid
+ * recomputation; `grad` is only called when none is supplied.
  *
  * @param theta          Initial position
  * @param r              Initial momentum
  * @param eps            Step size
- * @param grad           Gradient-only function (for intermediate steps)
+ * @param grad           Gradient-only function (used when init_grad is null)
  * @param joint          Joint function returning (log_post, grad) pair
- * @param num_leapfrogs  Number of leapfrog steps
  * @param inv_mass_diag  Diagonal inverse mass matrix
  * @param init_grad      Optional pre-computed gradient at theta (nullptr to compute)
  * @return LeapfrogJointResult with final position, momentum, log_post, and gradient
@@ -139,7 +138,6 @@ LeapfrogJointResult leapfrog(
     double eps,
     const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
-    int num_leapfrogs,
     const arma::vec& inv_mass_diag,
     const arma::vec* init_grad = nullptr
 );
