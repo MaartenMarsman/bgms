@@ -12,7 +12,7 @@ test_that("map recodes non-contiguous training categories correctly", {
   # Training values {1,3,5} -> categories {0,1,2}. Legacy subtract-min gives
   # {0,2,4} (wrong); the map gives {0,1,2}.
   levels = list(c(1, 3, 5))
-  out = recode(matrix(c(1, 3, 5), ncol = 1), 2, TRUE, category_levels = levels)
+  out = recode(matrix(c(1, 3, 5), ncol = 1), TRUE, category_levels = levels)
   expect_equal(out[, 1], c(0, 1, 2))
 })
 
@@ -20,14 +20,14 @@ test_that("map is absolute, not relative to newdata's range", {
   # Training {1,2,3} -> {0,1,2}; value 2 is category 1 regardless of whether
   # the lowest category appears in newdata.
   levels = list(c(1, 2, 3))
-  out = recode(matrix(c(2, 3), ncol = 1), 2, TRUE, category_levels = levels)
+  out = recode(matrix(c(2, 3), ncol = 1), TRUE, category_levels = levels)
   expect_equal(out[, 1], c(1, 2))
 })
 
 test_that("values not observed in training give NA with a warning", {
   levels = list(c(1, 2, 3))
   expect_warning(
-    out <- recode(matrix(c(1, 9), ncol = 1), 2, TRUE, category_levels = levels),
+    out <- recode(matrix(c(1, 9), ncol = 1), TRUE, category_levels = levels),
     "not\\s+observed in the training data"
   )
   expect_true(is.na(out[2, 1]))
@@ -37,19 +37,19 @@ test_that("values not observed in training give NA with a warning", {
 test_that("Blume-Capel columns (NULL level entry) fall back to subtract-min", {
   # category_levels present but NULL for this variable -> legacy behaviour.
   levels = list(NULL)
-  out = recode(matrix(c(2, 3, 4), ncol = 1), 2, TRUE, category_levels = levels)
+  out = recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = levels)
   expect_equal(out[, 1], c(0, 1, 2))
 })
 
 test_that("no map at all (old fit) preserves legacy subtract-min behaviour", {
-  out = recode(matrix(c(2, 3, 4), ncol = 1), 2, TRUE, category_levels = NULL)
+  out = recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = NULL)
   expect_equal(out[, 1], c(0, 1, 2))
 })
 
 test_that("continuous/non-ordinal columns are left unchanged", {
   levels = list(NULL, c(0, 1, 2))
   x = matrix(c(1.5, 2.5, 3.5, 0, 1, 2), ncol = 2)
-  out = recode(x, c(NA, 2), c(FALSE, TRUE), category_levels = levels)
+  out = recode(x, c(FALSE, TRUE), category_levels = levels)
   expect_equal(out[, 1], c(1.5, 2.5, 3.5))
   expect_equal(out[, 2], c(0, 1, 2))
 })
@@ -63,7 +63,7 @@ test_that("continuous/non-ordinal columns are left unchanged", {
 test_that("named lookup maps original values to final categories (bijective)", {
   lk = c(0L, 1L, 2L)
   names(lk) = c("1", "3", "5")
-  out = recode(matrix(c(1, 3, 5), ncol = 1), 2, TRUE, category_levels = list(lk))
+  out = recode(matrix(c(1, 3, 5), ncol = 1), TRUE, category_levels = list(lk))
   expect_equal(out[, 1], c(0, 1, 2))
 })
 
@@ -71,7 +71,7 @@ test_that("named lookup handles many-to-one (merged categories)", {
   # original 1 and 3 both map to category 0 (merged); 5 -> 1.
   lk = c(0L, 0L, 1L)
   names(lk) = c("1", "3", "5")
-  out = recode(matrix(c(1, 3, 5, 1, 5), ncol = 1), 1, TRUE, category_levels = list(lk))
+  out = recode(matrix(c(1, 3, 5, 1, 5), ncol = 1), TRUE, category_levels = list(lk))
   expect_equal(out[, 1], c(0, 0, 1, 0, 1))
 })
 
@@ -79,7 +79,7 @@ test_that("named lookup warns + NA on values absent from the lookup", {
   lk = c(0L, 1L)
   names(lk) = c("1", "2")
   expect_warning(
-    out <- recode(matrix(c(1, 9), ncol = 1), 1, TRUE, category_levels = list(lk)),
+    out <- recode(matrix(c(1, 9), ncol = 1), TRUE, category_levels = list(lk)),
     "not\\s+observed in the training data"
   )
   expect_true(is.na(out[2, 1]))

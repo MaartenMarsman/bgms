@@ -671,7 +671,7 @@ predict.bgms = function(object,
   # Recode data to 0-based integers (matching what bgm() did to the training
   # data) using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
-    newdata, num_categories, is_ordinal,
+    newdata, is_ordinal,
     category_levels = arguments$category_levels,
     blume_capel_shift = arguments$blume_capel_shift
   )
@@ -947,7 +947,7 @@ predict.bgmCompare = function(object,
 
   # Recode data to 0-based integers using the stored recode map when available.
   newdata_recoded = recode_data_for_prediction(
-    newdata, num_categories, is_ordinal,
+    newdata, is_ordinal,
     category_levels = arguments$category_levels,
     blume_capel_shift = arguments$blume_capel_shift
   )
@@ -1043,7 +1043,7 @@ reconstruct_main = function(main_vec, num_variables,
 #   - a named vector lookup (bgmCompare): names are original values, values are
 #     the final (collapsed) categories, which may be many-to-one.
 # Fits without a map (older fits) fall back to the legacy subtract-minimum shift.
-recode_data_for_prediction = function(x, num_categories, is_ordinal,
+recode_data_for_prediction = function(x, is_ordinal,
                                       category_levels = NULL,
                                       blume_capel_shift = NULL) {
   x = as.matrix(x)
