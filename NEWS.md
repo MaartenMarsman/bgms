@@ -183,9 +183,8 @@ released from this line yet.
   ssgraph 1.16 were run on the vignette's own data, one at a time on one
   machine, each at its defaults and at its documentation's recommended
   settings. The vignette reports the headline numbers; the full protocol,
-  seeded runner scripts, and tables live in the bgms-docs repository beside
-  the site's comparison page, so the comparison can be re-baked when a
-  competitor's version moves. Neither competitor enters the package's
+  seeded runner scripts, and tables live with the site's comparison page, so
+  the comparison can be re-baked when a competitor's version moves. Neither competitor enters the package's
   dependencies. The README summarizes the result in two sentences.
 
 * `prior_sensitivity_check()`'s Details said the refit gate leans on per-chain

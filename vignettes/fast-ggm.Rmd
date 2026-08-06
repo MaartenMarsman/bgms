@@ -355,8 +355,7 @@ data.
 How does the fast route compare with these two packages? A measured comparison
 is maintained on the package website's
 [comparison page](https://bayesian-graphical-modelling-lab.github.io/bgms/guide/fast-ggm.html),
-with the full protocol, seeded scripts, and complete tables
-[in its repository](https://github.com/Bayesian-Graphical-Modelling-Lab/bgms-docs/tree/main/benchmarks/ggm-comparison).
+together with the full protocol, seeded scripts, and complete tables.
 It lives there rather than here because its results depend on the current
 versions of the other packages, which change more quickly than `bgms` releases.
 
