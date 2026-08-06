@@ -39,7 +39,49 @@ anchor_draws = function(fit) {
   family = spec$prior$interaction_prior_type %||% "normal"
   list(
     theta = theta, gamma = gamma, indicator = gamma,
-    family = tolower(family)
+    family = tolower(family),
+    diagonal = anchor_diagonal(spec, raw)
+  )
+}
+
+
+# ------------------------------------------------------------------
+# anchor_diagonal
+# ------------------------------------------------------------------
+# The Gamma prior on the precision diagonal, in the frame the weight ratio
+# needs it, or NULL for a model that has no such diagonal.
+#
+# refit_at_scale() rewrites the raw diagonal rate whenever the resolved vary
+# mode moves it (rate = eta / s; see vary_diagonal_rate()), so a fit reweighted
+# under that mode differs from its target in the diagonal prior as well as in
+# the slab, and the weight has to carry both ratios. The sufficient statistic
+# the rate multiplies is the sum of the values the prior is evaluated at, and
+# the sampler evaluates it at K_jj / 2 (ggm_model.cpp:320, mixed_mrf_
+# gradient.cpp:559), not at K_jj; the raw main draws store K_jj itself, the
+# same columns the per-draw predict path reconstructs the precision matrix
+# from (build_precision_from_draw()).
+#
+# @param spec  The fit's spec.
+# @param raw   Its raw samples.
+#
+# Returns: list(sum = per-chain vectors of sum_j K_jj / 2, n = number of
+#   diagonal elements, shape = the Gamma shape alpha), or NULL.
+# ------------------------------------------------------------------
+anchor_diagonal = function(spec, raw) {
+  cols = if(identical(spec$model_type, "ggm")) {
+    seq_len(ncol(raw$main[[1]]))
+  } else if(identical(spec$model_type, "mixed_mrf")) {
+    which(endsWith(raw$parameter_names[["main"]], "(precision diag)"))
+  } else {
+    integer(0)
+  }
+  if(length(cols) == 0L) {
+    return(NULL)
+  }
+  list(
+    sum = lapply(raw$main, function(m) 0.5 * rowSums(m[, cols, drop = FALSE])),
+    n = length(cols),
+    shape = spec$prior$scale_shape %||% 1
   )
 }
 
@@ -65,15 +107,20 @@ anchor_draws = function(fit) {
 compare_anchor_draws = function(fit, spec, raw) {
   arguments = extract_arguments(fit)
   names_all = raw$parameter_names
-  num_variables = as.integer(arguments$num_variables %||% arguments$no_variables)
+  num_variables = as.integer(
+    arguments[["num_variables"]] %||% arguments[["no_variables"]]
+  )
 
   num_pairs = length(names_all$pairwise_baseline)
   num_contrasts = length(names_all$pairwise_diff) / num_pairs
   num_main_baseline = length(names_all$main_baseline)
 
   # Main parameters per variable: one per threshold for an ordinal variable,
-  # a linear and a quadratic term for a Blume-Capel one.
-  block = ifelse(arguments$is_ordinal, as.integer(arguments$num_categories), 2L)
+  # a linear and a quadratic term for a Blume-Capel one. The field is named
+  # per model type -- is_ordinal_variable on a compare fit, is_ordinal on the
+  # single-network ones -- and is read exactly, not by partial match.
+  is_ordinal = arguments[["is_ordinal_variable"]] %||% arguments[["is_ordinal"]]
+  block = ifelse(is_ordinal, as.integer(arguments[["num_categories"]]), 2L)
 
   # Indicators run over the upper triangle with the diagonal: (v, v) is that
   # variable's main-effect difference, (i, j) the pair's.
@@ -115,15 +162,44 @@ compare_anchor_draws = function(fit, spec, raw) {
 # scale, for one chain. Only included edges contribute; the weight is
 # the slab-density ratio summed over them.
 #
+# Under vary = "slab-and-diagonal" the refits also move the Gamma prior on the
+# precision diagonal, rate = eta / s, so the target differs from the anchor
+# there too and the weight carries that ratio as well. For Gamma(alpha,
+# eta / s) on each of the n diagonal values x_j = K_jj / 2, the per-draw term is
+#
+#   n * alpha * log((eta / s) / (eta / s_a)) - (eta / s - eta / s_a) * S_t
+#     = -n * alpha * log(s / s_a) - eta * (1 / s - 1 / s_a) * S_t,
+#
+# with S_t = sum_j K_jj / 2 at draw t. The leading term is the same for every
+# draw and so cancels in the self-normalized average; the S_t term is what
+# actually reweights. Omitting it left the curve reweighting only the slab
+# while the refits it is compared against had moved both priors.
+#
 # @param theta    iter x edges matrix, slab frame.
 # @param gamma    iter x edges indicator matrix.
 # @param family   "normal" or "cauchy".
 # @param s_a      Anchor slab scale.
 # @param s_grid   Target slab scales.
+# @param diagonal The anchor's anchor_diagonal() record, or NULL; `sum` is
+#                 this chain's per-draw S_t.
+# @param eta      Standardized diagonal rate held fixed by the sweep, or NULL
+#                 when the sweep leaves the diagonal prior alone.
 #
 # Returns: iter x length(s_grid) matrix of log weights.
 # ------------------------------------------------------------------
-anchor_log_weights = function(theta, gamma, family, s_a, s_grid) {
+anchor_log_weights = function(theta, gamma, family, s_a, s_grid,
+                              diagonal = NULL, eta = NULL) {
+  # The reweighting identity is written per slab family; a scale-free family
+  # (beta-prime) has no s to sweep and any other one has a different density
+  # ratio. Silently applying the Cauchy formula would return a curve, so the
+  # fence stops instead of guessing.
+  if(!family %in% c("normal", "cauchy")) {
+    stop(
+      "The anchored sensitivity curve supports a normal or Cauchy slab on ",
+      "the swept parameters; this fit uses a '", family, "' slab, for which ",
+      "there is no slab scale to reweight across."
+    )
+  }
   incl = gamma == 1
   m_t = rowSums(incl)
   if(identical(family, "normal")) {
@@ -139,6 +215,16 @@ anchor_log_weights = function(theta, gamma, family, s_a, s_grid) {
     }, numeric(length(m_t)))
   }
   if(is.null(dim(lw))) lw = matrix(lw, nrow = 1L)
+  # Only when the sweep actually moved the diagonal prior.
+  if(!is.null(eta) && !is.null(diagonal)) {
+    s_t = diagonal$sum
+    dlw = vapply(s_grid, function(s) {
+      -diagonal$n * diagonal$shape * log(s / s_a) -
+        eta * (1 / s - 1 / s_a) * s_t
+    }, numeric(length(s_t)))
+    if(is.null(dim(dlw))) dlw = matrix(dlw, nrow = 1L)
+    lw = lw + dlw
+  }
   lw
 }
 
@@ -152,14 +238,22 @@ anchor_log_weights = function(theta, gamma, family, s_a, s_grid) {
 # @param draws    Output of anchor_draws() for the anchor fit.
 # @param s_a      Anchor slab scale.
 # @param s_grid   Target slab scales (length P).
+# @param eta      Standardized diagonal rate the sweep holds fixed, or NULL
+#                 when the sweep leaves the precision diagonal alone. The
+#                 reported importance ESS follows from the same weights.
 #
 # Returns: list(pip = P x E pooled, ess = length-P pooled importance ESS,
 #   chain_pip = list of P x E per chain, chain_ess = C x P).
 # ------------------------------------------------------------------
-anchor_reweight = function(draws, s_a, s_grid) {
+anchor_reweight = function(draws, s_a, s_grid, eta = NULL) {
   n_chain = length(draws$theta)
+  diag = draws$diagonal
   lw = lapply(seq_len(n_chain), function(c) {
-    anchor_log_weights(draws$theta[[c]], draws$gamma[[c]], draws$family, s_a, s_grid)
+    anchor_log_weights(
+      draws$theta[[c]], draws$gamma[[c]], draws$family, s_a, s_grid,
+      diagonal = if(is.null(diag)) NULL else list(sum = diag$sum[[c]], n = diag$n, shape = diag$shape),
+      eta = eta
+    )
   })
   # The weight sums over gated parameters; the inclusion probability is
   # reported on the indicators, which are the same thing for bgm() and a
@@ -239,9 +333,18 @@ assemble_curve = function(reweights, usable, ess_floor, anchor_index = NULL) {
     cnum = replicate(n_chain, numeric(n_edge), simplify = FALSE)
     for(a in contrib) {
       pa = reweights[[a]]$pip[p, ]
-      # Inverse-variance weight on the PIP scale (var ~ p(1-p)/ESS), clamped
-      # so a saturated edge does not divide by zero.
-      wa = ess_mat[p, a] / pmax(pa * (1 - pa), 1e-6)
+      ea = ess_mat[p, a]
+      # Inverse-variance weight on the PIP scale (var ~ p(1-p)/ESS). The
+      # plug-in variance is computed on a smoothed proportion -- the Bayes
+      # estimator under a Jeffreys-like half-count, (ess * pa + 0.5)/(ess + 1)
+      # -- so an anchor whose reweighted PIP saturates to 0 or 1 gets the
+      # variance its own ESS supports rather than a near-zero one; on the raw
+      # plug-in a distant, low-ESS, saturated anchor outweighed every other
+      # anchor at the same grid point. The estimate being pooled is still the
+      # unsmoothed pa; only its weight is smoothed, and the 1e-6 floor stays
+      # as a backstop.
+      pa_s = (ea * pa + 0.5) / (ea + 1)
+      wa = ea / pmax(pa_s * (1 - pa_s), 1e-6)
       wsum = wsum + wa
       pnum = pnum + wa * pa
       for(cc in seq_len(n_chain)) {
