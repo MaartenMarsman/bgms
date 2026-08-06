@@ -7,20 +7,38 @@
 #   GGM Prediction Helpers
 # ==============================================================================
 
-# Reconstruct the full precision matrix from association-scale values and
-# residual variances.
+# Reconstruct the full precision matrix from association-scale values and the
+# precision diagonal.
 #
 # @param associations p x p symmetric matrix of pairwise
 #   associations (zero diagonal).
-# @param residual_variance Named numeric vector of residual variances.
+# @param precision_diagonal Numeric vector of diagonal precision elements.
 #
 # @return p x p precision matrix.
-reconstruct_precision = function(associations, residual_variance) {
+reconstruct_precision = function(associations, precision_diagonal) {
   omega = -2 * associations
   # Excluded edges (NA) have zero precision
   omega[is.na(omega)] = 0
-  diag(omega) = 1 / residual_variance
+  diag(omega) = precision_diagonal
   return(omega)
+}
+
+
+# The posterior mean precision diagonal, E[K_jj], read off the raw diagonal
+# draws the sampler stores (the same values build_precision_from_draw() puts on
+# the diagonal per draw).
+#
+# posterior_mean_residual_variance is E[1 / K_jj] -- the right summary of a
+# residual variance, and deliberately not 1 / E[K_jj] -- but its reciprocal is
+# a harmonic mean of the diagonal, and pairing that with off-diagonals that are
+# arithmetic means E[K_ij] gives a matrix that is no posterior mean of anything
+# and need not stay positive definite. The mean of the draws is.
+#
+# @param object Fitted bgms object (GGM).
+#
+# @return Numeric vector of length p.
+posterior_mean_precision_diagonal = function(object) {
+  colMeans(do.call(rbind, get_raw_samples(object)$main))
 }
 
 
@@ -74,7 +92,7 @@ simulate_bgms_ggm = function(object, nsim, seed, method, ndraws,
     # Reconstruct precision matrix from off-diagonal + separate diagonal
     precision = reconstruct_precision(
       get_posterior_mean(object, "pairwise"),
-      get_posterior_mean(object, "residual_variance")
+      posterior_mean_precision_diagonal(object)
     )
 
     # Call simulate_mrf with variable_type = "continuous"
@@ -160,7 +178,7 @@ predict_bgms_ggm = function(object, newdata, predict_vars, data_columnnames,
     # Reconstruct precision matrix from posterior means
     omega = reconstruct_precision(
       get_posterior_mean(object, "pairwise"),
-      get_posterior_mean(object, "residual_variance")
+      posterior_mean_precision_diagonal(object)
     )
 
     result = compute_conditional_ggm(

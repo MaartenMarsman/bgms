@@ -321,10 +321,13 @@ build_mixed_params_mean = function(object, arguments) {
       pairwise_cont[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
   }
-  # Convert residual variance back to association-scale diagonal
-  rv = get_posterior_mean(object, "residual_variance")
+  # Association-scale diagonal, from the draws that carry it. Going through
+  # posterior_mean_residual_variance instead would put a harmonic mean of the
+  # diagonal next to arithmetic-mean off-diagonals; see
+  # posterior_mean_precision_diagonal() in predict_simulate_ggm.R.
+  diag_draws = mixed_cont_diagonal_draws(object, arguments)
   for(j in seq_len(q)) {
-    pairwise_cont[j, j] = -1 / (2 * rv[j])
+    pairwise_cont[j, j] = mean(diag_draws[, j])
   }
 
   pm_main = get_posterior_mean(object, "main")
@@ -334,6 +337,29 @@ build_mixed_params_mean = function(object, arguments) {
   muy = as.numeric(pm_main$continuous[, "mean"])
 
   list(pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont, mux = mux, muy = muy)
+}
+
+
+# ------------------------------------------------------------------
+# mixed_cont_diagonal_draws
+# ------------------------------------------------------------------
+# The raw continuous-diagonal draws of a mixed fit, on the association scale
+# the sampler stores them on (entry -K_jj/2). They sit at the tail of the main
+# draws, after the discrete thresholds and the continuous means -- the same
+# layout split_mixed_raw_samples() reads.
+#
+# @param object     Fitted bgms object (mixed MRF).
+# @param arguments  Output of extract_arguments().
+#
+# Returns: draws x q matrix.
+# ------------------------------------------------------------------
+mixed_cont_diagonal_draws = function(object, arguments) {
+  q = arguments$num_continuous
+  num_mux = sum(ifelse(
+    arguments$is_ordinal, arguments$num_categories, 2L
+  ))
+  main_all = do.call(rbind, get_raw_samples(object)$main)
+  main_all[, num_mux + q + seq_len(q), drop = FALSE]
 }
 
 
