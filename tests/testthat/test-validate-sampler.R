@@ -84,6 +84,28 @@ test_that("gibbs is rejected for non-continuous data", {
 # 3. target_accept  — defaults and clamping
 # ==============================================================================
 
+test_that("resolve_target_acceptance is the single source of the defaults", {
+  expect_identical(resolve_target_acceptance("adaptive-metropolis"), 0.44)
+  expect_identical(resolve_target_acceptance("nuts"), 0.80)
+  # Exact draw: no acceptance target, recorded honestly rather than as 0.44.
+  expect_identical(resolve_target_acceptance("gibbs"), NA_real_)
+  expect_error(resolve_target_acceptance("no-such-method"), "Unknown update_method")
+})
+
+test_that("validate_sampler defaults come from resolve_target_acceptance", {
+  # The other two callers -- sample_ggm_prior() and prior_only_chain_pips() --
+  # are checked against the same helper in their own test files. A target that
+  # drifts between the deployed fit and the reference chains would make those
+  # chains references for a differently tuned sampler.
+  for(method in c("adaptive-metropolis", "nuts", "gibbs")) {
+    expect_identical(
+      vs(update_method = method, target_accept = NULL, is_continuous = TRUE)$target_accept,
+      resolve_target_acceptance(method),
+      info = method
+    )
+  }
+})
+
 test_that("NULL target_accept → 0.44 for adaptive-metropolis", {
   res = vs(update_method = "adaptive-metropolis", target_accept = NULL)
   expect_equal(res$target_accept, 0.44)

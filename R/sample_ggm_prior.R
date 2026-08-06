@@ -382,16 +382,11 @@ sample_ggm_prior = function(
     no_chains = 1L,
     edge_selection = TRUE,
     sampler_type = update_method,
-    # Same target bgm() resolves for this update method (validate_sampler()):
-    # 0.44 is the componentwise RW MH optimum the adaptive-metropolis chain
-    # tunes its between-model proposal SDs to, and gibbs tunes nothing. The
-    # C++ default is 0.80, the NUTS target, so leaving this out gave the
+    # Same target bgm() resolves for this update method (validate_sampler()).
+    # The C++ default is 0.80, the NUTS target, so leaving this out gave the
     # prior chain a different proposal tuning than the deployed path this
     # function is the SBC reference for.
-    target_acceptance = switch(update_method,
-      "adaptive-metropolis" = 0.44,
-      "gibbs"               = NA_real_
-    ),
+    target_acceptance = resolve_target_acceptance(update_method),
     seed = as.integer(seed),
     no_threads = 1L,
     progress_type = if(verbose) 2L else 0L,

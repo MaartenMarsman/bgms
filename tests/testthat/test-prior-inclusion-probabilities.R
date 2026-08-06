@@ -60,6 +60,65 @@ small_fit = function(x, variable_type, edge_prior, ...) {
 
 
 # --------------------------------------------------------------------------- #
+# The prior-only chain tunes the way the method it names does
+# --------------------------------------------------------------------------- #
+#
+# The chain describes the prior the fit targeted, so it has to carry the same
+# acceptance target the fit resolved for its update method. The C++ default is
+# 0.80 (the NUTS target), so omitting the argument silently retuned an
+# adaptive-metropolis chain. resolve_target_acceptance() is the single source
+# shared with validate_sampler() and sample_ggm_prior().
+
+test_that("the GGM prior-only chain carries its method's acceptance target", {
+  skip_on_cran()
+
+  fit = small_fit(prior_pip_ggm_data(), "continuous", bernoulli_prior(0.5))
+
+  captured = NULL
+  local_mocked_bindings(
+    sample_ggm = function(...) {
+      captured <<- list(...)
+      stop("captured-call")
+    },
+    .package = "bgms"
+  )
+  expect_error(
+    prior_only_chain_pips(get_fit_spec(fit), iter = 10L, warmup = 10L),
+    "captured-call"
+  )
+  expect_identical(
+    captured$target_acceptance,
+    resolve_target_acceptance(captured$sampler_type)
+  )
+})
+
+test_that("the mixed prior-only chain carries its method's acceptance target", {
+  skip_on_cran()
+
+  d = prior_pip_mixed_data()
+  fit = small_fit(d$x, d$variable_type, bernoulli_prior(0.5))
+
+  captured = NULL
+  local_mocked_bindings(
+    sample_mixed_mrf = function(...) {
+      captured <<- list(...)
+      stop("captured-call")
+    },
+    .package = "bgms"
+  )
+  expect_error(
+    prior_only_chain_pips(get_fit_spec(fit), iter = 10L, warmup = 10L),
+    "captured-call"
+  )
+  expect_identical(captured$sampler_type, "adaptive-metropolis")
+  expect_identical(
+    captured$target_acceptance,
+    resolve_target_acceptance("adaptive-metropolis")
+  )
+})
+
+
+# --------------------------------------------------------------------------- #
 # Analytic pieces
 # --------------------------------------------------------------------------- #
 
@@ -193,7 +252,14 @@ test_that("mixed beta-bernoulli prior PIPs split by edge class", {
   expect_length(unique(cc), 1L)
   expect_true(cc[1L] < 0.5)
 
-  chain = prior_only_chain_pips(get_fit_spec(fit), iter = 8000, warmup = 1000)
+  # A single prior-only chain is a noisy estimator here: the Beta-Bernoulli
+  # inclusion parameter mixes slowly, and across seeds the class proportions
+  # have SD ~= 0.03 even at 40000 iterations. This gate is a fixed-seed spot
+  # check, not a tolerance derived from an MCSE. The chain was previously run
+  # for 8000 iterations, which left it ~0.036 short of the table value once it
+  # was retuned to its method's acceptance target (0.44, not the C++ default
+  # 0.80); from 20000 on the deviations settle below 0.02 at this seed.
+  chain = prior_only_chain_pips(get_fit_spec(fit), iter = 40000, warmup = 4000)
   expect_lt(abs(cc[1L] - chain[["cc"]]), 0.03)
   expect_lt(abs(chain[["dd"]] - 0.5), 0.05)
   expect_lt(abs(chain[["cross"]] - 0.5), 0.05)
