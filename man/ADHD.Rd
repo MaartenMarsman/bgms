@@ -41,8 +41,8 @@ remaining seated is expected (HI)}
 }
 \source{
 \insertCite{Silk_2019_ADHD;textual}{bgms}.
-Data retrieved from \doi{doi:10.1371/journal.pone.0211053.s004}.
-Licensed under the CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/
+Data retrieved from \doi{10.1371/journal.pone.0211053.s004}.
+Licensed under the CC-BY 4.0: \url{https://creativecommons.org/licenses/by/4.0/}
 }
 \usage{
 data("ADHD")

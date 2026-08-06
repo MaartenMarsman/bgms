@@ -25,7 +25,7 @@ I feel half-dead and dull.}
 \source{
 \insertCite{Martarelli_2023_Boredom;textual}{bgms}.
 Data retrieved from \url{https://osf.io/qhux8}.
-Licensed under the CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/
+Licensed under the CC-BY 4.0: \url{https://creativecommons.org/licenses/by/4.0/}
 }
 \usage{
 data("Boredom")
