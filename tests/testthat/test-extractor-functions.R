@@ -1198,16 +1198,53 @@ test_that("extract_arguments works with all legacy versions", {
 # ------------------------------------------------------------------
 # Helper: build a minimal synthetic bgms object
 # ------------------------------------------------------------------
+#
+# `precision_diagonal_draws` is a draws x q matrix of K_jj values. It is laid
+# out in raw_samples$main exactly as the sampler stores it -- precision scale
+# for a GGM, association scale (-K_jj / 2) at the tail of the main block for a
+# mixed fit -- so extract_precision() and the predict()/simulate() helpers read
+# it through their normal paths. It defaults to the single draw 1 / rv, which
+# makes E[K_jj] and 1 / E[1 / K_jj] coincide; pass several draws to tell them
+# apart.
 make_synthetic_bgms = function(associations, residual_variance = NULL,
                                is_continuous = FALSE, is_mixed = FALSE,
                                discrete_indices = NULL,
                                continuous_indices = NULL,
                                data_columnnames_discrete = NULL,
-                               data_columnnames_continuous = NULL) {
+                               data_columnnames_continuous = NULL,
+                               precision_diagonal_draws = NULL,
+                               is_ordinal = NULL,
+                               num_categories = NULL) {
   p = nrow(associations)
+  raw_samples = NULL
+
+  if(is.null(precision_diagonal_draws) && !is.null(residual_variance)) {
+    precision_diagonal_draws = matrix(1 / residual_variance, nrow = 1)
+  }
+  if(is_mixed) {
+    if(is.null(is_ordinal)) is_ordinal = rep(TRUE, length(discrete_indices))
+    if(is.null(num_categories)) num_categories = rep(2L, length(discrete_indices))
+  }
+
+  if(!is.null(precision_diagonal_draws)) {
+    draws = as.matrix(precision_diagonal_draws)
+    if(is_mixed) {
+      q = ncol(draws)
+      num_mux = sum(ifelse(is_ordinal, num_categories, 2L))
+      main = cbind(
+        matrix(0, nrow = nrow(draws), ncol = num_mux + q), # thresholds, means
+        -draws / 2 # continuous diagonal, association scale
+      )
+    } else {
+      main = draws # GGM: main block is the precision diagonal
+    }
+    raw_samples = list(main = list(main)) # one chain
+  }
+
   obj = list(
     posterior_mean_pairwise = associations,
     posterior_mean_residual_variance = residual_variance,
+    raw_samples = raw_samples,
     arguments = list(
       num_variables = p,
       num_cases = 100,
@@ -1217,7 +1254,11 @@ make_synthetic_bgms = function(associations, residual_variance = NULL,
       discrete_indices = discrete_indices,
       continuous_indices = continuous_indices,
       data_columnnames_discrete = data_columnnames_discrete,
-      data_columnnames_continuous = data_columnnames_continuous
+      data_columnnames_continuous = data_columnnames_continuous,
+      num_discrete = length(discrete_indices),
+      num_continuous = length(continuous_indices),
+      is_ordinal = is_ordinal,
+      num_categories = num_categories
     )
   )
   class(obj) = "bgms"
@@ -1295,10 +1336,16 @@ test_that("extract_precision reconstructs precision = -2 * association for GGM",
     nrow = 3,
     dimnames = list(paste0("Y", 1:3), paste0("Y", 1:3))
   )
-  rv = c(0.5, 0.8, 0.6) # residual variance = 1/precision_ii
+  # Two draws of the precision diagonal, spread far enough apart that the
+  # arithmetic mean E[K_jj] and the harmonic mean 1 / E[1 / K_jj] differ.
+  diag_draws = rbind(c(1.0, 1.0, 1.0), c(3.0, 5.0, 9.0))
+  rv = colMeans(1 / diag_draws) # residual variance = E[1 / precision_ii]
   names(rv) = paste0("Y", 1:3)
 
-  fit = make_synthetic_bgms(associations, residual_variance = rv, is_continuous = TRUE)
+  fit = make_synthetic_bgms(associations,
+    residual_variance = rv, is_continuous = TRUE,
+    precision_diagonal_draws = diag_draws
+  )
   Theta = extract_precision(fit)
 
   # Off-diagonal: Theta_ij = -2 * A_ij (precision = -2 * association)
@@ -1306,8 +1353,9 @@ test_that("extract_precision reconstructs precision = -2 * association for GGM",
   expect_equal(Theta[1, 3], -2 * associations[1, 3])
   expect_equal(Theta[2, 3], -2 * associations[2, 3])
 
-  # Diagonal: precision_ii = 1/rv_i
-  expect_equal(unname(diag(Theta)), unname(1 / rv))
+  # Diagonal: E[K_jj], the mean of the raw diagonal draws -- not 1 / E[1 / K_jj]
+  expect_equal(unname(diag(Theta)), unname(colMeans(diag_draws)))
+  expect_false(isTRUE(all.equal(unname(diag(Theta)), unname(1 / rv))))
 
   # Symmetric
   expect_equal(Theta, t(Theta))
@@ -1331,7 +1379,8 @@ test_that("extract_precision extracts continuous block for mixed MRF", {
   associations[2, 4] = -0.25
   associations[4, 2] = -0.25 # pairwise_cont between c1, c2
 
-  rv = c(0.5, 0.4)
+  diag_draws = rbind(c(2.0, 2.5), c(6.0, 8.0))
+  rv = colMeans(1 / diag_draws)
   names(rv) = c("c1", "c2")
 
   fit = make_synthetic_bgms(associations,
@@ -1340,7 +1389,10 @@ test_that("extract_precision extracts continuous block for mixed MRF", {
     discrete_indices = c(1, 3),
     continuous_indices = c(2, 4),
     data_columnnames_discrete = c("d1", "d2"),
-    data_columnnames_continuous = c("c1", "c2")
+    data_columnnames_continuous = c("c1", "c2"),
+    precision_diagonal_draws = diag_draws,
+    is_ordinal = c(TRUE, TRUE),
+    num_categories = c(3L, 3L)
   )
 
   Theta = extract_precision(fit)
@@ -1352,9 +1404,9 @@ test_that("extract_precision extracts continuous block for mixed MRF", {
   expect_equal(Theta["c1", "c2"], -2 * (-0.25))
   expect_equal(Theta["c2", "c1"], -2 * (-0.25))
 
-  # Diagonal: 1/rv
-  expect_equal(Theta["c1", "c1"], 1 / 0.5)
-  expect_equal(Theta["c2", "c2"], 1 / 0.4)
+  # Diagonal: E[K_jj] from the raw draws, not 1 / E[1 / K_jj]
+  expect_equal(unname(diag(Theta)), colMeans(diag_draws))
+  expect_false(isTRUE(all.equal(unname(diag(Theta)), unname(1 / rv))))
 })
 
 
@@ -1532,11 +1584,17 @@ test_that("GGM: residual variance is positive", {
   expect_true(all(rv > 0))
 })
 
-test_that("GGM: precision diagonal = 1/residual_variance", {
+test_that("GGM: precision diagonal is E[K_jj], not 1/E[1/K_jj]", {
   fit = get_bgms_fit_ggm()
   Theta = extract_precision(fit)
   rv = fit$posterior_mean_residual_variance
-  expect_equal(unname(diag(Theta)), unname(1 / rv))
+
+  expect_equal(
+    unname(diag(Theta)),
+    unname(bgms:::posterior_mean_precision_diagonal(fit))
+  )
+  # 1 / rv is the harmonic mean of the same draws, so it never exceeds E[K_jj]
+  expect_true(all(unname(1 / rv) <= unname(diag(Theta))))
 })
 
 test_that("GGM: precision is symmetric", {
@@ -1578,11 +1636,15 @@ test_that("Mixed MRF: residual variance is positive", {
   expect_true(all(rv > 0))
 })
 
-test_that("Mixed MRF: precision diagonal = 1/residual_variance", {
+test_that("Mixed MRF: precision diagonal is E[K_jj], not 1/E[1/K_jj]", {
   fit = get_bgms_fit_mixed_mrf()
+  args = extract_arguments(fit)
   Theta = extract_precision(fit)
   rv = fit$posterior_mean_residual_variance
-  expect_equal(unname(diag(Theta)), unname(1 / rv))
+
+  diag_draws = bgms:::mixed_cont_diagonal_draws(fit, args)
+  expect_equal(unname(diag(Theta)), -2 * apply(diag_draws, 2, mean))
+  expect_true(all(unname(1 / rv) <= unname(diag(Theta))))
 })
 
 test_that("Mixed MRF: discrete block log_odds = 2 * associations", {
@@ -1602,9 +1664,9 @@ test_that("Mixed MRF: continuous precision = -2 * associations", {
   associations = fit$posterior_mean_pairwise
   cont_idx = args$continuous_indices
   Theta = extract_precision(fit)
-  rv = fit$posterior_mean_residual_variance
+  diag_draws = bgms:::mixed_cont_diagonal_draws(fit, args)
   expected_offdiag = -2 * associations[cont_idx, cont_idx]
-  diag(expected_offdiag) = unname(1 / rv)
+  diag(expected_offdiag) = -2 * apply(diag_draws, 2, mean)
   dimnames(expected_offdiag) = dimnames(Theta)
   expect_equal(Theta, expected_offdiag)
 })
