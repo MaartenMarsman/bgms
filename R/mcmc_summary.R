@@ -45,19 +45,19 @@ ensure_summaries = function(fit) {
       param_names_indicators = names_all$indicators
     )
 
-    cache$posterior_summary_main_baseline = summary_list$main_baseline
-    cache$posterior_summary_pairwise_baseline = summary_list$pairwise_baseline
-    cache$posterior_summary_main_differences = summary_list$main_differences
-    cache$posterior_summary_pairwise_differences = summary_list$pairwise_differences
+    cache$posterior_summary_main_baseline = name_summary_rows(summary_list$main_baseline)
+    cache$posterior_summary_pairwise_baseline = name_summary_rows(summary_list$pairwise_baseline)
+    cache$posterior_summary_main_differences = name_summary_rows(summary_list$main_differences)
+    cache$posterior_summary_pairwise_differences = name_summary_rows(summary_list$pairwise_differences)
     if(!is.null(raw[[1]][["rb_inclusion_samples"]])) {
       # Report the Rao-Blackwellized inclusion probability with continuous
       # ESS/Rhat (the default estimator for the printed summary).
-      cache$posterior_summary_indicator = summarize_rb_inclusion(
+      cache$posterior_summary_indicator = name_summary_rows(summarize_rb_inclusion(
         raw, names_all$indicators,
         keep_parameter_col = TRUE
-      )
+      ))
     } else {
-      cache$posterior_summary_indicator = summary_list$indicators
+      cache$posterior_summary_indicator = name_summary_rows(summary_list$indicators)
     }
   } else {
     if(isTRUE(is_continuous)) {
@@ -132,6 +132,39 @@ ensure_summaries = function(fit) {
 }
 
 
+# ------------------------------------------------------------------
+# name_summary_rows
+# ------------------------------------------------------------------
+# Give a compare summary table the row-naming half of the bgm summary
+# contract: rownames carrying the parameter labels.
+#
+# The bgm tables reach the cache as `summary_list$main[, -1]` with
+# `rownames() = names_main`, so extract_rhat() / extract_ess() can read
+# labels off `rownames()`. The compare tables were stored straight from
+# summarize_fit_compare(), which leaves the labels in a `parameter`
+# column and the rownames at the default "1", "2", "3" -- which is what
+# the compare extractors then returned as the names of their Rhat and
+# ESS vectors.
+#
+# The `parameter` column is kept rather than dropped, unlike on the bgm
+# side: print.summary.bgmCompare() reads it by name for the prior-only
+# marking and rounds `df[, -1]` positionally, and test-regressions.R
+# asserts on it.
+#
+# @param tbl  A summary data frame, or NULL.
+#
+# Returns: `tbl` with rownames taken from its `parameter` column;
+#   unchanged if it is NULL or carries no such column.
+# ------------------------------------------------------------------
+name_summary_rows = function(tbl) {
+  if(is.null(tbl) || is.null(tbl[["parameter"]])) {
+    return(tbl)
+  }
+  rownames(tbl) = tbl[["parameter"]]
+  tbl
+}
+
+
 # Combine MCMC chains into a 3D array [niter x nchains x nparam]
 combine_chains = function(fit, component) {
   nchains = length(fit)
@@ -169,14 +202,16 @@ split_chains = function(array3d) {
   out
 }
 
-# Compute ESS and Rhat for a single [niter x nchains] draws matrix.
-# Used only by summarize_slab() where the draws are variable-length.
-compute_rhat_ess = function(draws) {
+# Compute ESS for the included-only slab draws, which arrive as one
+# variable-length pooled vector (summarize_slab(),
+# summarize_mixture_effect()). The vector is treated as a single chain, so
+# there is no split-Rhat to compute alongside it: .compute_rhat_cpp() returns
+# NA for nchains = 1 by contract. This used to return that structural NA as
+# `rhat`; nothing ever read it.
+compute_slab_ess = function(draws) {
   if(!is.matrix(draws)) draws = matrix(draws, ncol = 1)
   arr = array(draws, dim = c(nrow(draws), ncol(draws), 1L))
-  ess = .compute_ess_cpp(arr)[1]
-  rhat = .compute_rhat_cpp(arr)[1]
-  list(ess = ess, rhat = rhat)
+  .compute_ess_cpp(arr)[1]
 }
 
 # Basic summarizer for continuous parameters
@@ -291,13 +326,19 @@ summarize_rb_inclusion = function(raw, param_names, keep_parameter_col = FALSE) 
   }
 }
 
-# Summarize slab values where indicators are 1
+# Summarize slab values where indicators are 1.
+#
+# No Rhat column: the included-only draws of one parameter are pooled into a
+# single vector, so any split-Rhat over them is the NA that
+# .compute_rhat_cpp() returns for a one-chain input. The column was
+# structurally NA in every row and read by nobody -- summarize_pair(), the only
+# consumer, takes `mean` and `mcse`.
 summarize_slab = function(fit, component = c("pairwise_samples"), param_names = NULL, array3d = NULL, array3d_ind = NULL) {
   component = match.arg(component) # Add options later
   if(is.null(array3d)) array3d = combine_chains(fit, component)
   nparam = dim(array3d)[3]
-  result = matrix(NA, nparam, 5)
-  colnames(result) = c("mean", "mcse", "sd", "n_eff", "Rhat")
+  result = matrix(NA, nparam, 4)
+  colnames(result) = c("mean", "mcse", "sd", "n_eff")
 
   for(j in seq_len(nparam)) {
     draws = array3d[, , j]
@@ -315,9 +356,9 @@ summarize_slab = function(fit, component = c("pairwise_samples"), param_names = 
     }
     if(n_total > 10) {
       sdev = sd(vec)
-      est = compute_rhat_ess(vec) ## draws
-      mcse = sdev / sqrt(est$ess)
-      result[j, c("sd", "mcse", "n_eff", "Rhat")] = c(sdev, mcse, est$ess, est$rhat)
+      ess = compute_slab_ess(vec) ## draws
+      mcse = sdev / sqrt(ess)
+      result[j, c("sd", "mcse", "n_eff")] = c(sdev, mcse, ess)
     }
   }
 
@@ -527,8 +568,8 @@ summarize_mixture_effect = function(draws_pw, draws_id, name, draws_rb = NULL) {
   vec = vec[vec != 0]
   if(length(vec) > 10) {
     eap_slab = mean(vec)
-    est_slab = compute_rhat_ess(vec) # treat as single chain
-    mcse_slab = sqrt(var(vec)) / sqrt(est_slab$ess)
+    ess_slab = compute_slab_ess(vec) # treat as single chain
+    mcse_slab = sqrt(var(vec)) / sqrt(ess_slab)
   } else {
     eap_slab = NA_real_
     mcse_slab = NA_real_
@@ -608,8 +649,15 @@ summarize_main_diff_compare = function(
   num_main = main_effect_indices[V, 2] + 1L # total rows in main-effects matrix
   indicator_index_main = function(i, V) indicator_row_starts(V)[i]
 
-  results = list()
-  counter = 0L
+  # Rows are filled at their contrast-major position, not in loop order. The
+  # loop visits variables outermost, but the difference parameters are laid out
+  # contrast-major everywhere else -- in param_names, in names_all$main_diff, and
+  # in posterior_mean_main_differences -- and the no-selection branch of
+  # summarize_fit_compare() emits them that way too. Appending in loop order
+  # would give this branch a different row order from that one while the row
+  # labels stayed contrast-major, so positional alignment with the rest of the
+  # output would hold in one branch and not the other.
+  results = vector("list", num_main * (num_groups - 1L))
 
   for(v in seq_len(V)) {
     id_idx = indicator_index_main(v, V) # (v,v) position in flattened indicators
@@ -623,19 +671,19 @@ summarize_main_diff_compare = function(
     for(row in start:stop) {
       category = row - start + 1L
       for(h in 1L:(num_groups - 1L)) {
-        counter = counter + 1L
+        out_index = (h - 1L) * num_main + row # contrast-major output position
         col_index = h * num_main + row # group-major blocks of length num_main
         draws_pw = main_effect_samples[, , col_index]
 
         pname = if(!is.null(param_names)) {
           # param_names is laid out contrast-major (all rows of contrast 1,
           # then contrast 2, ...).
-          param_names[(h - 1L) * num_main + row]
+          param_names[out_index]
         } else {
           paste0("var", v, " (diff", h, "; ", category, ")")
         }
 
-        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
+        results[[out_index]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
       }
     }
   }
@@ -665,8 +713,9 @@ summarize_pairwise_diff_compare = function(
   num_pair = max(pairwise_effect_indices, na.rm = TRUE) + 1L # total rows in pairwise-effects matrix
   indicator_index_pair = function(i, j, V) indicator_row_starts(V)[i] + (j - i) # (i,j), i<j
 
-  results = list()
-  counter = 0L
+  # Filled at the contrast-major output position rather than in loop order; see
+  # summarize_main_diff_compare() for why.
+  results = vector("list", num_pair * (num_groups - 1L))
 
   for(i in 1L:(V - 1L)) {
     for(j in (i + 1L):V) {
@@ -676,19 +725,19 @@ summarize_pairwise_diff_compare = function(
 
       row = pairwise_effect_indices[i, j] + 1L # 1-based row into pairwise-effects matrix
       for(h in 1L:(num_groups - 1L)) {
-        counter = counter + 1L
+        out_index = (h - 1L) * num_pair + row # contrast-major output position
         col_index = h * num_pair + row # group-major blocks of length num_pair
         draws_pw = pairwise_effect_samples[, , col_index]
 
         pname = if(!is.null(param_names)) {
           # param_names is laid out contrast-major (all edges of contrast 1,
           # then contrast 2, ...).
-          param_names[(h - 1L) * num_pair + row]
+          param_names[out_index]
         } else {
           paste0("V", i, "-", j, " (diff", h, ")")
         }
 
-        results[[counter]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
+        results[[out_index]] = summarize_mixture_effect(draws_pw, draws_id, pname, draws_rb = draws_rb)
       }
     }
   }
