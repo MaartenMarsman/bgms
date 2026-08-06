@@ -30,8 +30,6 @@ struct SamplerConfig {
 
     /// Maximum NUTS tree depth.
     int max_tree_depth = 10;
-    /// Initial step size for gradient-based samplers.
-    double initial_step_size = 0.1;
     /// Target acceptance rate for dual-averaging adaptation.
     double target_acceptance = 0.8;
 

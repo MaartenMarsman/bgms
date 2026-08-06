@@ -10,7 +10,7 @@ sample_ggm_prior(
   n_warmup = 2000,
   interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
-  step_size = 0.1,
+  step_size = lifecycle::deprecated(),
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
@@ -46,10 +46,9 @@ rate is derived as \code{eta / s} for interaction-prior scale
 default \code{normal_prior(scale = 1)} interaction prior this
 resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.}
 
-\item{step_size}{Positive numeric. Initial NUTS step size used to seed
-dual-averaging adaptation. Default \code{0.1}. Used only for
-\code{spec = "conditional"} (NUTS path); ignored for the
-\code{"joint"} MH path.}
+\item{step_size}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Deprecated and ignored.
+The NUTS warmup determines its own initial step size; earlier versions
+accepted this argument but never used it.}
 
 \item{max_depth}{Integer. Maximum NUTS tree depth. Default \code{10}.
 Used only for \code{spec = "conditional"}.}

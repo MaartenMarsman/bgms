@@ -35,8 +35,7 @@
 class NUTSSampler : public SamplerBase {
 public:
     explicit NUTSSampler(const SamplerConfig& config, WarmupSchedule& schedule)
-        : step_size_(config.initial_step_size),
-          target_acceptance_(config.target_acceptance),
+        : target_acceptance_(config.target_acceptance),
           schedule_(schedule),
           max_tree_depth_(config.max_tree_depth),
           learn_mass_matrix_(config.learn_mass_matrix),
@@ -177,7 +176,10 @@ private:
     }
 
     // --- Configuration / state ---
-    double step_size_;
+    // Placeholder only: do_initialize() sets the live value from the warm start
+    // or the step-size heuristic before the first step(), and every subsequent
+    // step() reads it back from the adaptation controller.
+    double step_size_ = 0.1;
     double warm_step_size_ = std::numeric_limits<double>::quiet_NaN();
     arma::vec warm_inv_mass_;  // empty = cold metric; else the carried diagonal
     double target_acceptance_;

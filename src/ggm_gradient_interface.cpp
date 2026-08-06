@@ -109,7 +109,6 @@ Rcpp::List sample_ggm_prior(
     const std::string& scale_prior_type = "gamma",
     double gamma_shape = 1.0,
     double gamma_rate = 1.0,
-    double step_size = 0.1,
     int max_depth = 10,
     int seed = 1,
     bool verbose = true,
@@ -150,7 +149,6 @@ Rcpp::List sample_ggm_prior(
     config.seed = seed;
     config.target_acceptance = 0.8;
     config.max_tree_depth = max_depth;
-    config.initial_step_size = step_size;
     config.na_impute = false;
 
     // Edge prior is required by the API but is never consulted because
@@ -219,7 +217,6 @@ Rcpp::List sample_ggm_prior(
         Rcpp::Named("K_diag") = K_diag_samples,
         Rcpp::Named("offdiag_names") = offdiag_names,
         Rcpp::Named("diag_names") = diag_names,
-        Rcpp::Named("step_size") = config.initial_step_size,
         Rcpp::Named("edge_indicators") = Rcpp::wrap(edge_indicators)
     );
 }

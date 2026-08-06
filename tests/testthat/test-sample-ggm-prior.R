@@ -21,7 +21,7 @@ test_that("sample_ggm_prior returns the documented list shape", {
     draws,
     c(
       "K_offdiag", "K_diag", "offdiag_names", "diag_names",
-      "step_size", "edge_indicators"
+      "edge_indicators"
     )
   )
 
@@ -148,16 +148,41 @@ test_that("invalid scalar arguments error early with informative messages", {
   expect_error(short_run(p = 3.5, n_samples = 10L), "'p' must be an integer")
   expect_error(short_run(p = 3L, n_samples = 0L), "'n_samples' must be >= 1")
   expect_error(
-    short_run(p = 3L, n_samples = 10L, step_size = -0.1),
-    "'step_size' must be positive"
-  )
-  expect_error(
     short_run(p = 3L, n_samples = 10L, max_depth = 0L),
     "'max_depth' must be >= 1"
   )
   expect_error(
     sample_ggm_prior(p = 3L, n_samples = 10L, n_warmup = 10L, verbose = NA),
     "'verbose' must be TRUE or FALSE"
+  )
+})
+
+
+# ---- Deprecated step_size ----------------------------------------------------
+
+test_that("step_size warns as deprecated and the draw still runs", {
+  draws = expect_warning(
+    sample_ggm_prior(
+      p = 2L, n_samples = 1L, n_warmup = 1L,
+      step_size = 0.1, seed = 1L, verbose = FALSE
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+
+  # The returned list no longer carries a step_size the run did not use.
+  expect_named(
+    draws,
+    c("K_offdiag", "K_diag", "offdiag_names", "diag_names", "edge_indicators")
+  )
+  expect_equal(dim(draws$K_offdiag), c(1L, 1L))
+  expect_equal(dim(draws$K_diag), c(1L, 2L))
+  expect_true(all(is.finite(draws$K_offdiag)))
+  expect_true(all(draws$K_diag > 0))
+})
+
+test_that("omitting step_size raises no deprecation warning", {
+  expect_no_warning(
+    short_run(p = 2L, n_samples = 1L, n_warmup = 1L)
   )
 })
 

@@ -67,10 +67,9 @@
 #'   \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
 #'   default \code{normal_prior(scale = 1)} interaction prior this
 #'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.
-#' @param step_size Positive numeric. Initial NUTS step size used to seed
-#'   dual-averaging adaptation. Default \code{0.1}. Used only for
-#'   \code{spec = "conditional"} (NUTS path); ignored for the
-#'   \code{"joint"} MH path.
+#' @param step_size `r lifecycle::badge("deprecated")` Deprecated and ignored.
+#'   The NUTS warmup determines its own initial step size; earlier versions
+#'   accepted this argument but never used it.
 #' @param max_depth Integer. Maximum NUTS tree depth. Default \code{10}.
 #'   Used only for \code{spec = "conditional"}.
 #' @param seed Integer. RNG seed for the chain. Default \code{1L}.
@@ -196,7 +195,7 @@ sample_ggm_prior = function(
   n_warmup = 2e3,
   interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
-  step_size = 0.1,
+  step_size = lifecycle::deprecated(),
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
@@ -211,6 +210,15 @@ sample_ggm_prior = function(
 ) {
   spec = match.arg(spec)
   update_method = match.arg(update_method)
+  if(lifecycle::is_present(step_size)) {
+    lifecycle::deprecate_warn(
+      "0.2.1", "sample_ggm_prior(step_size = )",
+      details = paste0(
+        "The NUTS warmup determines its own initial step size; the supplied ",
+        "value was never used."
+      )
+    )
+  }
   ep = if(is.null(edge_prior)) {
     NULL
   } else {
@@ -235,7 +243,6 @@ sample_ggm_prior = function(
   validate_integer(n_samples, "n_samples", min_value = 1L)
   validate_integer(n_warmup, "n_warmup", min_value = 0L)
   validate_integer(max_depth, "max_depth", min_value = 1L)
-  validate_finite_scalar(step_size, "step_size", positive = TRUE)
   validate_integer(seed, "seed", min_value = 0L)
   if(is.null(delta)) {
     delta = 0.5 * log(p)
@@ -277,7 +284,6 @@ sample_ggm_prior = function(
       scale_prior_type         = sp$scale_prior_type,
       gamma_shape              = sp$scale_shape,
       gamma_rate               = sp$scale_rate,
-      step_size                = step_size,
       max_depth                = as.integer(max_depth),
       seed                     = as.integer(seed),
       verbose                  = verbose,
@@ -543,16 +549,6 @@ validate_integer = function(x, name, min_value = 1L) {
     stop(sprintf("'%s' must be >= %d.", name, as.integer(min_value)))
   }
   invisible(as.integer(x))
-}
-
-validate_finite_scalar = function(x, name, positive = FALSE) {
-  if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
-    stop(sprintf("'%s' must be a single finite numeric.", name))
-  }
-  if(positive && x <= 0) {
-    stop(sprintf("'%s' must be positive.", name))
-  }
-  invisible(x)
 }
 
 validate_ggm_prior_edge_indicators = function(edge_indicators, p) {
