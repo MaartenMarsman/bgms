@@ -9,8 +9,6 @@
 
 # docs
 ^docs$
-^Readme\.Rmd$
-^vignettes/introduction_cache$
 
 # GitHub / CI
 ^\.github$
@@ -28,6 +26,7 @@
 # R CMD build artifacts
 ^doc$
 ^Meta$
+^\.\.Rcheck$
 
 # Development helpers
 ^dev$
@@ -44,6 +43,7 @@
 # ---- Legacy test fixtures and the bitwise compliance tier ----
 # ---- GitHub CI only, not shipped to CRAN ----
 ^tests/testthat/fixtures$
+^tests/testthat/_problems$
 ^tests/compliance$
 ^tests/fixtures$
 
