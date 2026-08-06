@@ -156,3 +156,85 @@ test_that("a centrality difference is summarized but not drawn", {
   on.exit(grDevices::dev.off(), add = TRUE)
   expect_invisible(plot(fit, type = "centrality", group = 2))
 })
+
+
+# ==============================================================================
+# Edge order. A mixed fit stores its pairwise draws by block --
+# discrete-discrete, then continuous-continuous, then cross -- which is not the
+# row-major upper triangle whenever the discrete and continuous columns
+# interleave. Summing the columns under the assumed order gives each node some
+# other node's edges, and the edge COUNT matches either way, so nothing shorter
+# than checking the incidence catches it.
+# ==============================================================================
+
+test_that("mixed-MRF strength sums each node's own edges", {
+  skip_on_cran()
+  fit = get_bgms_fit_mixed_mrf()
+  nodes = extract_arguments(fit)$data_columnnames
+  samples = extract_pairwise_interactions(fit)
+  strength = extract_centrality(fit)
+
+  expect_equal(colnames(strength), nodes)
+
+  # The stored column names carry the incidence; hand-sum from them.
+  pairs = do.call(rbind, strsplit(colnames(samples), "-", fixed = TRUE))
+  for(node in nodes) {
+    incident = pairs[, 1] == node | pairs[, 2] == node
+    expect_equal(
+      unname(strength[, node]),
+      unname(rowSums(abs(samples[, incident, drop = FALSE]))),
+      tolerance = 1e-12
+    )
+  }
+
+  # This fixture interleaves its discrete and continuous columns, so the block
+  # order really does differ from the row-major upper triangle here and the
+  # check above is not vacuous.
+  assumed = which(
+    upper.tri(matrix(0, length(nodes), length(nodes))),
+    arr.ind = TRUE
+  )
+  assumed = assumed[order(assumed[, "row"], assumed[, "col"]), , drop = FALSE]
+  expect_false(identical(
+    unname(bgms:::indicator_pair_index(fit, length(nodes))),
+    unname(assumed)
+  ))
+})
+
+test_that("ordinal, Blume-Capel and GGM centrality are bit-identical to before", {
+  skip_on_cran()
+  # Their draws ARE laid out as the row-major upper triangle, so reading the
+  # order off the fit has to reproduce the previous output exactly.
+  row_major_strength = function(samples, num_variables) {
+    pairs = which(
+      upper.tri(matrix(0, num_variables, num_variables)),
+      arr.ind = TRUE
+    )
+    pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
+    absolute = abs(samples)
+    vapply(
+      seq_len(num_variables),
+      function(v) {
+        rowSums(absolute[, pairs[, 1] == v | pairs[, 2] == v, drop = FALSE])
+      },
+      numeric(nrow(samples))
+    )
+  }
+
+  fits = list(
+    ordinal = get_bgms_fit_ordinal(),
+    blume_capel = get_bgms_fit_blumecapel(),
+    ggm = get_bgms_fit_ggm()
+  )
+  for(label in names(fits)) {
+    fit = fits[[label]]
+    nodes = extract_arguments(fit)$data_columnnames
+    expect_identical(
+      as.numeric(extract_centrality(fit)),
+      as.numeric(row_major_strength(
+        extract_pairwise_interactions(fit), length(nodes)
+      )),
+      info = label
+    )
+  }
+})
