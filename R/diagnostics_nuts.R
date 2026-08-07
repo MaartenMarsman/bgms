@@ -121,12 +121,25 @@ check_warmup_complete = function(energy_mat) {
     time_idx = seq_len(n_chain)
     trend_lm = stats::lm(energy ~ time_idx)
     slope = stats::coef(trend_lm)[2]
-    slope_se = summary(trend_lm)$coefficients[2, 2]
-    # A degenerate half (constant energy) leaves slope_se at 0, so the
-    # t-statistic is NaN and the comparison NA. Report the criterion as not
-    # triggered rather than NA: the returned contract is logical, and na_result
-    # already uses FALSE for a chain that could not be assessed.
-    slope_significant = isTRUE(abs(slope / slope_se) > 2.58)
+    # A constant trace carries no trend to test. The fit is exact, so the
+    # slope and its standard error are both rounding noise around zero and
+    # their ratio is noise over noise -- it lands wherever the platform's
+    # arithmetic puts it, on either side of the threshold. The criterion
+    # abstains, the same way the undefined per-half criteria below do, and the
+    # slope is reported as the zero it is. summary.lm() is not consulted: it
+    # reports the exactness as a warning on its way to the same numbers.
+    if(stats::var(energy) == 0) {
+      slope[] = 0
+      slope_se = 0
+      slope_significant = FALSE
+    } else {
+      slope_se = summary(trend_lm)$coefficients[2, 2]
+      # A degenerate half (constant energy) leaves slope_se at 0, so the
+      # t-statistic is NaN and the comparison NA. Report the criterion as not
+      # triggered rather than NA: the returned contract is logical, and
+      # na_result already uses FALSE for a chain that could not be assessed.
+      slope_significant = isTRUE(abs(slope / slope_se) > 2.58)
+    }
 
     # Reported alongside the flag, not part of it: the same statistic with its
     # standard error corrected for autocorrelation. tau comes from the second

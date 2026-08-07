@@ -120,7 +120,14 @@ test_that("a constant half leaves the flag logical rather than NA", {
   # flag derived from them is forced to TRUE/FALSE.
   expect_true(is.nan(out$ebfmi_first_half[1]))
 
-  # And a fully constant trace, where all three criteria are undefined.
-  flat = check_warmup_complete(matrix(rep(2, 2 * 200), nrow = 2))
+  # And a fully constant trace, where all three criteria are undefined. The
+  # trend criterion abstains on its own rather than dividing one rounding
+  # error by another, so the trace passes quietly and the slope reads as the
+  # zero it is.
+  flat = expect_no_warning(
+    check_warmup_complete(matrix(rep(2, 2 * 200), nrow = 2))
+  )
   expect_equal(flat$warmup_incomplete, c(FALSE, FALSE))
+  expect_equal(unname(flat$energy_slope), c(0, 0))
+  expect_equal(flat$slope_significant, c(FALSE, FALSE))
 })
