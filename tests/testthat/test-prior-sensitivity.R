@@ -760,8 +760,16 @@ test_that("prior_sensitivity_check runs end to end on a single-indicator fit", {
   expect_equal(dim(ps$verdict), c(length(ps$multipliers), 1L))
   expect_equal(dim(ps$anchor_verdict), c(length(ps$anchors), 1L))
   expect_true(all(paste0("verdict_x", ps$anchors) %in% names(ps$edges)))
-  # The gate record and the forced column travel with the grid.
+  # The gate record and the forced column travel with the grid. Whether this
+  # fit's own draws clear the gate is a property of the sampler on the machine
+  # running the test, not of the reshape under test, so what is asserted here
+  # is the structure of the record rather than its verdict: only the original
+  # fit can ever be forced, and a forced row carries the gate's own rejection
+  # rather than the override. The override's behavior is pinned exactly, on a
+  # synthetic grid, in "a forced 1x anchor keeps the gate's own record in the
+  # grid".
   expect_true("forced" %in% names(ps$grid))
-  expect_false(any(ps$grid$forced))
+  expect_false(any(ps$grid$forced & !ps$grid$original_fit))
+  expect_true(all(!ps$grid$usable[ps$grid$forced]))
   expect_output(print(ps), "are the edge verdicts robust")
 })
