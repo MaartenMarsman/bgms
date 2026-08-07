@@ -66,6 +66,45 @@ test_that("the shape warning stays gated on a non-exponential diagonal", {
   expect_false(any(grepl("certified range", msgs, fixed = TRUE)))
 })
 
+test_that("the Cauchy slab's own tail does not read as a truncated grid", {
+  skip_on_cran()
+  clear_zratio_constants_cache()
+
+  # The Cauchy G-channel never decays to zero at the grid edge: the slab's
+  # polynomial tail leaves a floor that widening the grid does not move. It is
+  # the default slab, so a tolerance below that floor turns the guard into a
+  # standing warning on ordinary fits. Both cells here are ones a default fit
+  # reaches.
+  for(d in c(0.6931472, 0.804719)) {
+    clear_zratio_constants_cache()
+    pair = bgms:::zratio_pair_integrals(d, 1, 1, "cauchy", 1)
+    tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
+    # Above what the normal slab is held to, and below the Cauchy tolerance.
+    expect_gt(tail_g, bgms:::.zratio_truncation_tol_g[["normal"]])
+    expect_lt(tail_g, bgms:::.zratio_truncation_tol_g[["cauchy"]])
+    expect_no_warning(
+      bgms:::zratio_constants(delta = d, eta = 1, alpha = 1, slab = "cauchy")
+    )
+  }
+})
+
+test_that("a genuinely narrow grid still warns under the Cauchy slab", {
+  skip_on_cran()
+  clear_zratio_constants_cache()
+
+  # Width is detected through I_spike, which does not see the slab, so the
+  # raised G tolerance costs the Cauchy cell no detection: the same eta that
+  # truncates the normal grid truncates this one.
+  pair = bgms:::zratio_pair_integrals(1, 1, 0.05, "cauchy", 1)
+  tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
+  expect_gt(tail_i, bgms:::.zratio_truncation_tol_spike)
+
+  expect_warning(
+    bgms:::zratio_constants(delta = 1, eta = 0.05, alpha = 1, slab = "cauchy"),
+    "retain visible mass at the grid edge"
+  )
+})
+
 test_that("a shape outside the certified range still warns about the shape", {
   skip_on_cran()
   clear_zratio_constants_cache()

@@ -454,6 +454,27 @@ zratio_eta = function(pairwise_scale, scale_rate, scale_eta = NA_real_) {
 .zratio_constants_shape_lo = 0.5
 .zratio_constants_shape_hi = 20
 
+# Retained-edge-mass tolerances for the truncation guard below, one per
+# channel. Each is a ratio of a pair integral at the end of the fixed c-grid to
+# its value at the start, so it measures how much mass the grid fails to cover.
+#
+# I_spike carries no slab dependence -- the spike channel never sees the slab
+# -- and its decay tracks the grid width directly: 3.0e-01 at eta = 0.05,
+# 2.4e-02 at eta = 0.1, 1.2e-06 at eta = 0.25, below 1e-14 past eta = 0.5, the
+# same figures under either family. One tolerance serves it.
+#
+# G does depend on the slab. Under the normal slab it decays as sharply
+# (1e-34 at eta = 1), so the same tolerance fits. Under the Cauchy slab it does
+# not decay to zero at all: the slab's own polynomial tail leaves a floor no
+# grid width removes, and the ratio flattens between 5.7e-04 and 3.1e-03 across
+# the whole certified band (eta >= 0.25, delta 0.1 to 3). That floor sits above
+# a 1e-06 tolerance everywhere, which would make the guard fire on every cold
+# Cauchy cell -- the default slab, so nearly every fit -- while saying nothing
+# about grid width. The Cauchy tolerance clears the floor; width is still
+# detected there, by I_spike, which is the channel that carries the signal.
+.zratio_truncation_tol_spike = 1e-6
+.zratio_truncation_tol_g = c(normal = 1e-6, cauchy = 1e-2)
+
 # Session cache for zratio_constants: the constant set is deterministic per
 # (delta, eta, alpha, slab) cell, and one fit resolves the same cell more
 # than once (sampler dispatch and diagnostics assembly).
@@ -517,11 +538,14 @@ zratio_constants = function(delta, eta, alpha = 1, slab = "normal") {
   # edge value when read past it, so retained edge mass means the saddle
   # tables integrate a plateau instead of a decaying tail. Small eta widens
   # the diagonal, and it does so at the default alpha = 1 as much as anywhere
-  # -- gating this on alpha != 1 left the default path unwatched.
+  # -- gating this on alpha != 1 left the default path unwatched. The two
+  # channels are scored against their own tolerances, which differ because
+  # only G sees the slab; see .zratio_truncation_tol_g above.
   tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
   tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
+  tol_g = .zratio_truncation_tol_g[[slab]]
   if(!is.finite(tail_g) || !is.finite(tail_i) ||
-    tail_g > 1e-6 || tail_i > 1e-6) {
+    tail_g > tol_g || tail_i > .zratio_truncation_tol_spike) {
     warning(
       "Z-ratio pair integrals retain visible mass at the grid edge ",
       "(delta = ", format(delta), ", eta = ", format(eta),
