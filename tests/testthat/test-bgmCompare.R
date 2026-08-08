@@ -17,6 +17,17 @@
 # This file focuses on tests that require special setup or unique assertions.
 # ==============================================================================
 
+# Tiers. Structure, ordering, labels, scale and the selection branches stay
+# local. Reading back a planted difference at its planted size is parameter
+# recovery, so it runs nightly.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the compare recovery certification"
+  )
+}
+
 # ------------------------------------------------------------------------------
 # Reproducibility Tests (using fixtures to save one model fit)
 # ------------------------------------------------------------------------------
@@ -246,6 +257,7 @@ test_that("bgmCompare handles more than 2 groups", {
 # ==============================================================================
 
 test_that("bgmCompare output has correct parameter ordering", {
+  # Ordering is structural: the chain only has to produce the vectors.
   skip_on_cran()
 
   data("Wenchuan", package = "bgms")
@@ -255,7 +267,7 @@ test_that("bgmCompare output has correct parameter ordering", {
   fit = bgmCompare(
     x = x, group_indicator = group_ind,
     difference_selection = TRUE,
-    iter = 1000, warmup = 500, chains = 1,
+    iter = 60, warmup = 60, chains = 1,
     seed = 42,
     display_progress = "none"
   )
@@ -421,6 +433,7 @@ test_that("bgmCompare pairwise effects are on the association scale", {
 })
 
 test_that("bgmCompare recovers a planted group difference at its planted size", {
+  skip_unless_slow()
   skip_on_cran()
   # The guard above fits two groups drawn from the SAME omega, so every
   # difference in it is zero and a difference parameterization off by a factor

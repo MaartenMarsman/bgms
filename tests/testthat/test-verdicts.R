@@ -181,9 +181,10 @@ test_that("verdicts() moves the boundaries with evidence_threshold", {
 })
 
 test_that("verdicts() errors without selection and covers bgmCompare", {
+  # The no-selection guard reads the spec, before any draw.
   skip_on_cran()
   no_selection = bgm(Wenchuan[, 1:4],
-    chains = 2, iter = 200, warmup = 200, cores = 2, seed = 2,
+    chains = 1, iter = 20, warmup = 20, seed = 2,
     edge_selection = FALSE, display_progress = "none", verbose = FALSE
   )
   expect_error(verdicts(no_selection), "edge selection")

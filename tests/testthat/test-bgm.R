@@ -18,6 +18,17 @@
 # This file focuses on tests that require special setup or unique assertions.
 # ==============================================================================
 
+# Tiers. The product surface stays local. The estimate-simulate-re-estimate
+# cycle is parameter recovery -- it proves the settled numerics still recover
+# what they planted -- so it runs nightly.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the parameter-recovery cycle"
+  )
+}
+
 test_that("bgm is reproducible", {
   # Use cached fixture as fit1, run one fresh fit as fit2 with same params
   fit1 = get_bgms_fit_ordinal()
@@ -235,6 +246,7 @@ test_that("bgm GGM output has correct parameter ordering", {
 })
 
 test_that("bgm OMRF output has correct parameter ordering", {
+  # Ordering is structural: the chain only has to produce the vectors.
   skip_on_cran()
 
   data("Wenchuan", package = "bgms")
@@ -242,7 +254,7 @@ test_that("bgm OMRF output has correct parameter ordering", {
 
   fit = bgm(
     x,
-    iter = 400, warmup = 300, chains = 1,
+    iter = 60, warmup = 60, chains = 1,
     edge_selection = TRUE, seed = 42,
     display_progress = "none"
   )
@@ -1139,6 +1151,7 @@ test_that("bgm GGM implied regression matches OLS for large n", {
 # Posterior mean parameters from the re-fit should correlate with the original.
 
 test_that("estimate-simulate-re-estimate cycle recovers parameters (OMRF)", {
+  skip_unless_slow()
   skip_on_cran()
 
   data("Wenchuan", package = "bgms")

@@ -357,10 +357,11 @@ test_that("extract_inclusion_bf pins the bgmCompare interleaved flattening", {
 })
 
 test_that("estimator = 'rb' errors without edge selection", {
+  # The guard reads edge_selection off the spec, before any draw.
   data("Wenchuan", package = "bgms")
   fit = bgm(
     Wenchuan[, 1:5],
-    iter = 200, warmup = 150, chains = 1, seed = 7,
+    iter = 20, warmup = 20, chains = 1, seed = 7,
     edge_selection = FALSE, display_progress = "none"
   )
   expect_error(

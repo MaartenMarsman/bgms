@@ -361,6 +361,7 @@ test_that("compare_anchor_draws aligns every gated difference with its indicator
 
 
 test_that("the compare noise yardstick runs per indicator, not per gated parameter", {
+  skip_unless_slow()
   skip_on_cran()
   data("Wenchuan", package = "bgms")
   fit = bgmCompare(
@@ -533,9 +534,10 @@ test_that("the difference-scale reweighting reproduces a refit at that scale", {
 
 
 test_that("a warm-start list with the wrong length errors", {
+  # The guard reads the list's length, not the states it carries.
   data("Wenchuan", package = "bgms")
   fit = bgm(Wenchuan[, 1:5],
-    chains = 2, iter = 150, warmup = 200, seed = 3,
+    chains = 2, iter = 40, warmup = 40, seed = 3,
     display_progress = "none"
   )
   ws = extract_warm_state(fit)
