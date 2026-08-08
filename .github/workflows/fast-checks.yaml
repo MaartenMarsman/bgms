@@ -10,8 +10,19 @@
 #       Every push to develop and every pull request. No gate, so the run is
 #       exactly what a maintainer sees locally: contracts, validation, wiring,
 #       the product surface, and the tight numerical unit guards that catch a
-#       shifted constant in one run. Budget ~90 s of tests (~4-6 min a job with
-#       dependency restore and compilation).
+#       shifted constant in one run. Budget: <= 15 min of tests in THIS job,
+#       which keeps the whole job near half its 30-minute timeout.
+#
+#       Read the budget off this job's own test phase. The tiering audit's
+#       "~90 s" is a different measurement -- an OPTIMIZED build on a developer
+#       machine -- and nothing this job prints can be compared against it.
+#       devtools::test() compiles a debug build (pkgbuild::compiler_flags(debug
+#       = TRUE) gives "-UNDEBUG -Wall -pedantic -g -O0"), and this job keeps it
+#       that way on purpose (see the extra-packages note below). Measured on
+#       identical content that build costs 2.38x, and this 2-core runner a
+#       further ~2.31x over one developer machine. So quote CI minutes here, or
+#       say which build a local number came from; a bare seconds figure is not
+#       comparable across the two and let this tier drift unnoticed once.
 #
 #   T1  nightly     .github/workflows/nightly-validation.yaml. Daily 03:00 UTC
 #       on develop, BGMS_RUN_SLOW_TESTS=true, <= 60 min, timeout 90.
