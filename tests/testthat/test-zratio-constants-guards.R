@@ -75,17 +75,24 @@ test_that("the Cauchy slab's own tail does not read as a truncated grid", {
   # the default slab, so a tolerance below that floor turns the guard into a
   # standing warning on ordinary fits. Both cells here are ones a default fit
   # reaches.
+  # The floor is what the guard reads, and reading it costs the pair
+  # integrals rather than a whole constant set, so both cells are pinned here.
   for(d in c(0.6931472, 0.804719)) {
-    clear_zratio_constants_cache()
     pair = bgms:::zratio_pair_integrals(d, 1, 1, "cauchy", 1)
     tail_g = pair$gv[length(pair$gv)] / pair$gv[1]
     # Above what the normal slab is held to, and below the Cauchy tolerance.
     expect_gt(tail_g, bgms:::.zratio_truncation_tol_g[["normal"]])
     expect_lt(tail_g, bgms:::.zratio_truncation_tol_g[["cauchy"]])
-    expect_no_warning(
-      bgms:::zratio_constants(delta = d, eta = 1, alpha = 1, slab = "cauchy")
-    )
   }
+
+  # One cell carries the end-to-end statement, which has to build the whole
+  # constant set: silence is only observable once the call returns.
+  clear_zratio_constants_cache()
+  expect_no_warning(
+    bgms:::zratio_constants(
+      delta = 0.6931472, eta = 1, alpha = 1, slab = "cauchy"
+    )
+  )
 })
 
 test_that("a genuinely narrow grid still warns under the Cauchy slab", {
@@ -99,10 +106,15 @@ test_that("a genuinely narrow grid still warns under the Cauchy slab", {
   tail_i = pair$ispike(max(pair$cg)) / pair$ispike(0)
   expect_gt(tail_i, bgms:::.zratio_truncation_tol_spike)
 
-  expect_warning(
+  # The guard runs ahead of the Monte Carlo channels, and a Cauchy cell spends
+  # nearly all of its time in those. tryCatch unwinds at the warning, so what
+  # this costs is the pair integrals rather than the whole constant set.
+  w = tryCatch(
     bgms:::zratio_constants(delta = 1, eta = 0.05, alpha = 1, slab = "cauchy"),
-    "retain visible mass at the grid edge"
+    warning = function(w) w
   )
+  expect_s3_class(w, "condition")
+  expect_match(conditionMessage(w), "retain visible mass at the grid edge")
 })
 
 test_that("a shape outside the certified range still warns about the shape", {
