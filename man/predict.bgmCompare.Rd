@@ -51,10 +51,12 @@ For \code{type = "probabilities"}: A named list with one
 element per predicted variable. Each element is a matrix with
 \code{n} rows and \code{num_categories + 1} columns containing
 \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
-for each observation and category.
+for each observation and category. Columns are labelled with the original
+category values of the training data.
 
 For \code{type = "response"}: A matrix with \code{n} rows and
-\code{length(variables)} columns containing predicted categories.
+\code{length(variables)} columns containing predicted categories, on the
+original category scale that \code{\link{simulate.bgmCompare}} returns.
 }
 \description{
 Computes conditional probability distributions for one or more variables
@@ -66,6 +68,9 @@ Group-specific parameters are obtained by applying the projection matrix
 to convert baseline parameters and differences into group-level estimates.
 The function then computes the conditional distribution of target variables
 given the observed values of all other variables.
+
+The \code{newdata} column-name and missing-value rules of
+\code{\link{predict.bgms}} apply here unchanged.
 }
 \examples{
 \donttest{

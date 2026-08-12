@@ -636,8 +636,15 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
 
   pred = predict(fit, newdata = newdata)
 
-  # Reconstruct the posterior mean precision matrix (precision = -2 * association)
-  omega_hat = extract_precision(fit)
+  # Reconstruct the posterior mean precision matrix the way predict() does:
+  # off-diagonals -2 * association, diagonal the mean of the raw diagonal draws.
+  # Not extract_precision(), which still takes 1 / posterior_mean_residual_
+  # variance for the diagonal -- a harmonic mean of the same draws, and so a
+  # different matrix.
+  omega_hat = bgms:::reconstruct_precision(
+    get_posterior_mean(fit, "pairwise"),
+    bgms:::posterior_mean_precision_diagonal(fit)
+  )
   p = args$num_variables
 
   # Center newdata on the training means (predict does the same internally)

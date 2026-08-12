@@ -194,6 +194,16 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
     }
   }
 
+  # Rows the kernel cannot condition on. A missing discrete value reaches
+  # compute_conditional_mixed() as the NA_integer_ sentinel and corrupts the
+  # rest score of every other variable in that row, discrete and continuous
+  # alike; the continuous block needs no such entry, since a missing continuous
+  # value propagates as NaN on its own.
+  na_mask = na_conditioning_mask(
+    cbind(is.na(x_data), matrix(FALSE, nrow = nrow(x_data), ncol = q)),
+    internal_predict_vars + 1L
+  )
+
   compute_one_draw = function(pairwise_disc, pairwise_cross, pairwise_cont, mux, muy) {
     compute_conditional_mixed(
       x_observations = x_data,
@@ -218,7 +228,8 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
 
     probs = format_mixed_predictions(
       raw_result, predict_vars, internal_predict_vars,
-      p, num_categories, data_columnnames
+      p, num_categories, data_columnnames,
+      category_levels, blume_capel_shift
     )
   } else {
     sample_info = split_mixed_raw_samples(object, arguments)
@@ -239,11 +250,15 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
     }
 
     if(isTRUE(return_draws)) {
-      return(lapply(all_results, format_mixed_predictions,
+      per_draw = lapply(all_results, format_mixed_predictions,
         predict_vars = predict_vars,
         internal_predict_vars = internal_predict_vars, p = p,
-        num_categories = num_categories, data_columnnames = data_columnnames
-      ))
+        num_categories = num_categories, data_columnnames = data_columnnames,
+        category_levels = category_levels,
+        blume_capel_shift = blume_capel_shift
+      )
+      warn_na_conditioning(na_mask)
+      return(lapply(per_draw, apply_na_conditioning_mask, mask = na_mask))
     }
 
     # Average predictions across draws
@@ -261,16 +276,25 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
 
     probs = format_mixed_predictions(
       probs, predict_vars, internal_predict_vars,
-      p, num_categories, data_columnnames
+      p, num_categories, data_columnnames,
+      category_levels, blume_capel_shift
     )
     names(probs_sd) = names(probs)
     attr(probs, "sd") = probs_sd
   }
 
+  probs_sd = attr(probs, "sd")
+  probs = apply_na_conditioning_mask(probs, na_mask)
+  if(!is.null(probs_sd)) {
+    attr(probs, "sd") = apply_na_conditioning_mask(probs_sd, na_mask)
+  }
+  warn_na_conditioning(na_mask)
+
   if(type == "response") {
     return(format_mixed_response(
       probs, predict_vars, internal_predict_vars,
-      p, data_columnnames
+      p, data_columnnames, num_categories,
+      category_levels, blume_capel_shift
     ))
   }
 
@@ -321,10 +345,13 @@ build_mixed_params_mean = function(object, arguments) {
       pairwise_cont[i, j] = pmat[cont_idx[i], cont_idx[j]]
     }
   }
-  # Convert residual variance back to association-scale diagonal
-  rv = get_posterior_mean(object, "residual_variance")
+  # Association-scale diagonal, from the draws that carry it. Going through
+  # posterior_mean_residual_variance instead would put a harmonic mean of the
+  # diagonal next to arithmetic-mean off-diagonals; see
+  # posterior_mean_precision_diagonal() in predict_simulate_ggm.R.
+  diag_draws = mixed_cont_diagonal_draws(object, arguments)
   for(j in seq_len(q)) {
-    pairwise_cont[j, j] = -1 / (2 * rv[j])
+    pairwise_cont[j, j] = mean(diag_draws[, j])
   }
 
   pm_main = get_posterior_mean(object, "main")
@@ -334,6 +361,29 @@ build_mixed_params_mean = function(object, arguments) {
   muy = as.numeric(pm_main$continuous[, "mean"])
 
   list(pairwise_disc = pairwise_disc, pairwise_cross = pairwise_cross, pairwise_cont = pairwise_cont, mux = mux, muy = muy)
+}
+
+
+# ------------------------------------------------------------------
+# mixed_cont_diagonal_draws
+# ------------------------------------------------------------------
+# The raw continuous-diagonal draws of a mixed fit, on the association scale
+# the sampler stores them on (entry -K_jj/2). They sit at the tail of the main
+# draws, after the discrete thresholds and the continuous means -- the same
+# layout split_mixed_raw_samples() reads.
+#
+# @param object     Fitted bgms object (mixed MRF).
+# @param arguments  Output of extract_arguments().
+#
+# Returns: draws x q matrix.
+# ------------------------------------------------------------------
+mixed_cont_diagonal_draws = function(object, arguments) {
+  q = arguments$num_continuous
+  num_mux = sum(ifelse(
+    arguments$is_ordinal, arguments$num_categories, 2L
+  ))
+  main_all = do.call(rbind, get_raw_samples(object)$main)
+  main_all[, num_mux + q + seq_len(q), drop = FALSE]
 }
 
 
@@ -539,7 +589,9 @@ combine_mixed_result = function(result, disc_idx, cont_idx, colnames) {
 # ------------------------------------------------------------------
 format_mixed_predictions = function(raw_result, predict_vars,
                                     internal_predict_vars, p,
-                                    num_categories, data_columnnames) {
+                                    num_categories, data_columnnames,
+                                    category_levels = NULL,
+                                    blume_capel_shift = NULL) {
   probs = raw_result
   names(probs) = data_columnnames[predict_vars]
 
@@ -547,8 +599,9 @@ format_mixed_predictions = function(raw_result, predict_vars,
     int_idx = internal_predict_vars[k]
     if(int_idx < p) {
       s = int_idx + 1L
-      n_cats = num_categories[s] + 1
-      colnames(probs[[k]]) = paste0("cat_", 0:(n_cats - 1))
+      colnames(probs[[k]]) = probability_column_labels(original_category_values(
+        s, num_categories[s], category_levels, blume_capel_shift
+      ))
     } else {
       colnames(probs[[k]]) = c("mean", "sd")
     }
@@ -573,7 +626,9 @@ format_mixed_predictions = function(raw_result, predict_vars,
 # ------------------------------------------------------------------
 format_mixed_response = function(probs, predict_vars,
                                  internal_predict_vars, p,
-                                 data_columnnames) {
+                                 data_columnnames, num_categories,
+                                 category_levels = NULL,
+                                 blume_capel_shift = NULL) {
   n = nrow(probs[[1]])
   out = matrix(NA_real_, nrow = n, ncol = length(predict_vars))
   colnames(out) = data_columnnames[predict_vars]
@@ -581,7 +636,11 @@ format_mixed_response = function(probs, predict_vars,
   for(k in seq_along(predict_vars)) {
     int_idx = internal_predict_vars[k]
     if(int_idx < p) {
-      out[, k] = apply(probs[[k]], 1, which.max) - 1L
+      s = int_idx + 1L
+      values = original_category_values(
+        s, num_categories[s], category_levels, blume_capel_shift
+      )
+      out[, k] = values[row_modes(probs[[k]])]
     } else {
       out[, k] = probs[[k]][, 1]
     }
