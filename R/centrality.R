@@ -326,19 +326,15 @@ plot.bgms_centrality = function(x, probs = c(0.025, 0.975), ...) {
   style = bgms_panel_par(mar = c(4.6, left, 4.0, 2.2))
   on.exit(graphics::par(style$old_par), add = TRUE)
 
-  difference = is_centrality_difference(x)
-  x_axis = bgms_axis_range(c(summ$lower, summ$upper, if(difference) 0))
+  # Difference objects are rejected above, so the scale is always a plain
+  # centrality scale: no zero anchoring and no zero reference line.
+  x_axis = bgms_axis_range(c(summ$lower, summ$upper))
 
   graphics::plot(NA, NA,
     xlim = x_axis$lim, ylim = c(0.5, n + 0.5),
     axes = FALSE, xlab = "", ylab = "", main = ""
   )
   bgms_axis(1, x_axis$at, style = style)
-  # Zero is where the groups agree, so an interval covering it is the picture
-  # of a node whose centrality the data do not separate.
-  if(difference) {
-    graphics::abline(v = 0, col = style$muted, lty = 2, lwd = style$lwd_axis)
-  }
   graphics::axis(2,
     at = seq_len(n), labels = summ$node, las = 1, tick = FALSE,
     line = -0.5, cex.axis = style$cex_axis, col.axis = style$ink

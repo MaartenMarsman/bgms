@@ -407,10 +407,7 @@ test_that("full pipeline retains categories one group never observes", {
   variable_bool = c(TRUE, TRUE)
   bc = c(0, 0)
 
-  md = validate_missing_data(x,
-    na_action = "listwise", is_continuous = FALSE,
-    group = group
-  )
+  md = validate_missing_data(x, na_action = "listwise", group = group)
   ord = reformat_ordinal_data(md$x,
     is_ordinal = variable_bool,
     baseline_category = bc
@@ -443,10 +440,7 @@ test_that("full pipeline preserves BC variables", {
   variable_bool = c(FALSE, TRUE)
   bc = c(1, 0)
 
-  md = validate_missing_data(x,
-    na_action = "listwise", is_continuous = FALSE,
-    group = group
-  )
+  md = validate_missing_data(x, na_action = "listwise", group = group)
   ord = reformat_ordinal_data(md$x,
     is_ordinal = variable_bool,
     baseline_category = bc

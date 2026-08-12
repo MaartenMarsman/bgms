@@ -178,22 +178,6 @@ inline void update_sumG(double &sumG,
   }
 }
 
-// ----------------------------------------------------------------------------|
-// Sample the cluster assignment in sample_block_allocations_mfm_sbm()
-// ----------------------------------------------------------------------------|
-arma::uword sample_cluster(arma::vec cluster_prob,
-                           SafeRNG& rng) {
-  arma::vec cum_prob = arma::cumsum(cluster_prob);
-  double u = runif(rng) * arma::max(cum_prob);
-
-  for (arma::uword i = 0; i < cum_prob.n_elem; i++) {
-    if (u <= cum_prob(i)) {
-      return i;
-    }
-  }
-  return cum_prob.n_elem - 1;
-}
-
 // Defined below; the uncorrected sweep samples from max-shifted log-weights.
 static arma::uword sample_cluster_log(const arma::vec& log_weights,
                                       SafeRNG& rng);
@@ -358,7 +342,6 @@ arma::mat block_probs_mfm_sbm(arma::uvec cluster_assign,
   arma::uword no_clusters = cluster_size.n_elem;
 
   arma::mat block_probs(no_clusters, no_clusters);
-  arma::mat theta(no_variables, no_variables);
 
   double sumG;
   double size;

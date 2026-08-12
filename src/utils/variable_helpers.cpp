@@ -422,24 +422,6 @@ void compute_logZ_and_probs_ordinal_into(
 
 
 // =============================================================================
-// compute_logZ_and_probs_ordinal  (back-compat wrapper)
-// =============================================================================
-LogZAndProbs compute_logZ_and_probs_ordinal(
-    const arma::vec& main_param,
-    const arma::vec& residual_score,
-    const arma::vec& bound,
-    int num_cats
-) {
-  LogZAndProbs out;
-  LogZScratch scratch;
-  compute_logZ_and_probs_ordinal_into(
-    main_param, residual_score, bound, num_cats, out, scratch
-  );
-  return out;
-}
-
-
-// =============================================================================
 // compute_logZ_and_probs_blume_capel_into  (fill-in-place; no per-call allocs)
 // =============================================================================
 // Mirrors the FP sequence of the original return-by-value implementation
@@ -545,24 +527,4 @@ void compute_logZ_and_probs_blume_capel_into(
     else        do_safe_block(i, j - 1);
     i = j;
   }
-}
-
-
-// =============================================================================
-// compute_logZ_and_probs_blume_capel  (back-compat wrapper)
-// =============================================================================
-LogZAndProbs compute_logZ_and_probs_blume_capel(
-    const arma::vec& residual,
-    const double lin_eff,
-    const double quad_eff,
-    const int ref,
-    const int num_cats,
-    arma::vec& b
-) {
-  LogZAndProbs out;
-  LogZScratch scratch;
-  compute_logZ_and_probs_blume_capel_into(
-    residual, lin_eff, quad_eff, ref, num_cats, b, out, scratch
-  );
-  return out;
 }

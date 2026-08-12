@@ -50,7 +50,7 @@ double heuristic_initial_step_size(
 
   // One leapfrog step using leapfrog
   LeapfrogJointResult result = leapfrog(
-    theta, r, eps, grad, joint, 1, inv_mass_diag, &grad0
+    theta, r, eps, grad, joint, inv_mass_diag, &grad0
   );
 
   double kin1 = kinetic_energy(result.r, inv_mass_diag);
@@ -69,7 +69,7 @@ double heuristic_initial_step_size(
     H0 = logp0 - kin0;
 
     // One leapfrog step from original position with new momentum
-    result = leapfrog(theta, r, eps, grad, joint, 1, inv_mass_diag, &grad0);
+    result = leapfrog(theta, r, eps, grad, joint, inv_mass_diag, &grad0);
 
     // Evaluate Hamiltonian
     kin1 = kinetic_energy(result.r, inv_mass_diag);
