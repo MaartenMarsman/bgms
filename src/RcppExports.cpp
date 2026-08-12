@@ -219,8 +219,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sample_ggm_prior
-Rcpp::List sample_ggm_prior(int p, int n_samples, int n_warmup, double pairwise_scale, const std::string& interaction_prior_type, const std::string& scale_prior_type, double gamma_shape, double gamma_rate, double step_size, int max_depth, int seed, bool verbose, Rcpp::Nullable<Rcpp::IntegerMatrix> edge_indicators_nullable, double delta);
-RcppExport SEXP _bgms_sample_ggm_prior(SEXP pSEXP, SEXP n_samplesSEXP, SEXP n_warmupSEXP, SEXP pairwise_scaleSEXP, SEXP interaction_prior_typeSEXP, SEXP scale_prior_typeSEXP, SEXP gamma_shapeSEXP, SEXP gamma_rateSEXP, SEXP step_sizeSEXP, SEXP max_depthSEXP, SEXP seedSEXP, SEXP verboseSEXP, SEXP edge_indicators_nullableSEXP, SEXP deltaSEXP) {
+Rcpp::List sample_ggm_prior(int p, int n_samples, int n_warmup, double pairwise_scale, const std::string& interaction_prior_type, const std::string& scale_prior_type, double gamma_shape, double gamma_rate, int max_depth, int seed, bool verbose, Rcpp::Nullable<Rcpp::IntegerMatrix> edge_indicators_nullable, double delta);
+RcppExport SEXP _bgms_sample_ggm_prior(SEXP pSEXP, SEXP n_samplesSEXP, SEXP n_warmupSEXP, SEXP pairwise_scaleSEXP, SEXP interaction_prior_typeSEXP, SEXP scale_prior_typeSEXP, SEXP gamma_shapeSEXP, SEXP gamma_rateSEXP, SEXP max_depthSEXP, SEXP seedSEXP, SEXP verboseSEXP, SEXP edge_indicators_nullableSEXP, SEXP deltaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -232,13 +232,12 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const std::string& >::type scale_prior_type(scale_prior_typeSEXP);
     Rcpp::traits::input_parameter< double >::type gamma_shape(gamma_shapeSEXP);
     Rcpp::traits::input_parameter< double >::type gamma_rate(gamma_rateSEXP);
-    Rcpp::traits::input_parameter< double >::type step_size(step_sizeSEXP);
     Rcpp::traits::input_parameter< int >::type max_depth(max_depthSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerMatrix> >::type edge_indicators_nullable(edge_indicators_nullableSEXP);
     Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_ggm_prior(p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, step_size, max_depth, seed, verbose, edge_indicators_nullable, delta));
+    rcpp_result_gen = Rcpp::wrap(sample_ggm_prior(p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, max_depth, seed, verbose, edge_indicators_nullable, delta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -999,7 +998,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bgms_ggm_test_gibbs_sweep", (DL_FUNC) &_bgms_ggm_test_gibbs_sweep, 8},
     {"_bgms_ggm_test_logp_and_gradient", (DL_FUNC) &_bgms_ggm_test_logp_and_gradient, 5},
     {"_bgms_ggm_test_forward_map", (DL_FUNC) &_bgms_ggm_test_forward_map, 2},
-    {"_bgms_sample_ggm_prior", (DL_FUNC) &_bgms_sample_ggm_prior, 14},
+    {"_bgms_sample_ggm_prior", (DL_FUNC) &_bgms_sample_ggm_prior, 13},
     {"_bgms_compute_ess_cpp", (DL_FUNC) &_bgms_compute_ess_cpp, 1},
     {"_bgms_compute_rhat_cpp", (DL_FUNC) &_bgms_compute_rhat_cpp, 1},
     {"_bgms_compute_indicator_ess_cpp", (DL_FUNC) &_bgms_compute_indicator_ess_cpp, 1},

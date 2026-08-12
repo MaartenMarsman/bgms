@@ -41,6 +41,13 @@ released from this line yet.
   follows it, as the measurement that says whether the flag is noise rather than
   as the first thing to try. `vignette("diagnostics")` gives the same order.
 
+## Deprecations
+
+* The `step_size` argument of `sample_ggm_prior()` is deprecated and ignored.
+  The NUTS warmup has always replaced it with its own heuristic value, and the
+  returned `step_size` field reported a number the run did not use; the field
+  has been removed.
+
 ## Documentation
 
 * New vignette, `vignette("fast-ggm")`, on the Gaussian graphical model route

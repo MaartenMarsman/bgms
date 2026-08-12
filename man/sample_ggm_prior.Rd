@@ -10,7 +10,7 @@ sample_ggm_prior(
   n_warmup = 2000,
   interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
-  step_size = 0.1,
+  step_size = lifecycle::deprecated(),
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
@@ -46,10 +46,9 @@ rate is derived as \code{eta / s} for interaction-prior scale
 default \code{normal_prior(scale = 1)} interaction prior this
 resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.}
 
-\item{step_size}{Positive numeric. Initial NUTS step size used to seed
-dual-averaging adaptation. Default \code{0.1}. Used only for
-\code{spec = "conditional"} (NUTS path); ignored for the
-\code{"joint"} MH path.}
+\item{step_size}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Deprecated and ignored.
+The NUTS warmup determines its own initial step size; earlier versions
+accepted this argument but never used it.}
 
 \item{max_depth}{Integer. Maximum NUTS tree depth. Default \code{10}.
 Used only for \code{spec = "conditional"}.}
@@ -80,9 +79,13 @@ override.}
 \code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
 normalized specification via the Z-ratio approximation).}
 
-\item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the
-Bernoulli edge prior used when \code{spec = "joint"}. Default
-\code{0.5}. Ignored when \code{spec = "conditional"}.}
+\item{edge_inclusion_prob}{Probability in \eqn{(0, 1)} for the Bernoulli
+edge prior the chain falls back to when \code{edge_prior} is
+\code{NULL}. Default \code{0.5}. Read only when \code{spec = "joint"}
+or \code{"hierarchical"} \emph{and} \code{edge_prior = NULL}: it is
+ignored for \code{spec = "conditional"} (the graph is fixed) and
+whenever an \code{edge_prior} object is supplied, including
+\code{bernoulli_prior()}, which carries its own probability.}
 
 \item{update_method}{One of \code{"adaptive-metropolis"} (default) or
 \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
@@ -95,13 +98,18 @@ or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
 prior with probability \code{edge_inclusion_prob}. Only for
 \code{spec = "joint"}.}
 
-\item{apply_correction}{Logical. For the hierarchical edge priors
-(\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
-normalizing-constant correction to the hyperparameter updates (default
-\code{TRUE}; the correction table is built from the tilted prior
-sampler and cached across calls). With \code{FALSE} the plain conjugate
-updates are used, whose hyperparameter marginals do not match the
-hyperpriors under the determinant tilt.}
+\item{apply_correction}{Logical. Apply the normalizing-constant correction
+to the hyperparameter updates (default \code{TRUE}; the correction table
+is built from the tilted prior sampler and cached across calls). With
+\code{FALSE} the plain conjugate updates are used, whose hyperparameter
+marginals do not match the hyperpriors under the determinant tilt. Read
+only when \code{spec = "joint"} \emph{and} the edge prior is a
+hierarchical one (\code{beta_bernoulli_prior()}, \code{sbm_prior()});
+it is ignored for \code{spec = "conditional"} (the graph is fixed), for
+\code{spec = "hierarchical"} (the per-edge Z-ratio carries the
+normalizer instead, and the hyperparameter updates stay clean
+conjugate), and for a Bernoulli edge prior (no hyperparameters to
+correct).}
 
 \item{zratio_diagnostics}{Logical (default \code{TRUE}). Only for
 \code{spec = "hierarchical"}: run the trust gauge

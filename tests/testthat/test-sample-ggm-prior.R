@@ -21,7 +21,7 @@ test_that("sample_ggm_prior returns the documented list shape", {
     draws,
     c(
       "K_offdiag", "K_diag", "offdiag_names", "diag_names",
-      "step_size", "edge_indicators"
+      "edge_indicators"
     )
   )
 
@@ -148,16 +148,42 @@ test_that("invalid scalar arguments error early with informative messages", {
   expect_error(short_run(p = 3.5, n_samples = 10L), "'p' must be an integer")
   expect_error(short_run(p = 3L, n_samples = 0L), "'n_samples' must be >= 1")
   expect_error(
-    short_run(p = 3L, n_samples = 10L, step_size = -0.1),
-    "'step_size' must be positive"
-  )
-  expect_error(
     short_run(p = 3L, n_samples = 10L, max_depth = 0L),
     "'max_depth' must be >= 1"
   )
   expect_error(
     sample_ggm_prior(p = 3L, n_samples = 10L, n_warmup = 10L, verbose = NA),
     "'verbose' must be TRUE or FALSE"
+  )
+})
+
+
+# ---- Deprecated step_size ----------------------------------------------------
+
+test_that("step_size warns as deprecated and the draw still runs", {
+  deprecated_run = function() {
+    sample_ggm_prior(
+      p = 2L, n_samples = 1L, n_warmup = 1L,
+      step_size = 0.1, seed = 1L, verbose = FALSE
+    )
+  }
+  expect_warning(deprecated_run(), class = "lifecycle_warning_deprecated")
+  draws = suppressWarnings(deprecated_run())
+
+  # The returned list no longer carries a step_size the run did not use.
+  expect_named(
+    draws,
+    c("K_offdiag", "K_diag", "offdiag_names", "diag_names", "edge_indicators")
+  )
+  expect_equal(dim(draws$K_offdiag), c(1L, 1L))
+  expect_equal(dim(draws$K_diag), c(1L, 2L))
+  expect_true(all(is.finite(draws$K_offdiag)))
+  expect_true(all(draws$K_diag > 0))
+})
+
+test_that("omitting step_size raises no deprecation warning", {
+  expect_no_warning(
+    short_run(p = 2L, n_samples = 1L, n_warmup = 1L)
   )
 })
 
@@ -323,6 +349,45 @@ test_that("joint-spec gibbs matches adaptive-metropolis at a gamma-shape diagona
     suppressWarnings(ks.test(dg$K_diag[thin, j], da$K_diag[thin, j])$p.value)
   }, 0.0)
   expect_gt(min(ks_p), 0.005)
+})
+
+
+# ---- Acceptance target forwarded to the joint-spec chain ---------------------
+
+# Capture the sample_ggm() call the joint/hierarchical branch constructs and
+# abort before any sampling: only the argument list is under test.
+capture_sample_ggm_args = function(...) {
+  captured = NULL
+  local_mocked_bindings(
+    sample_ggm = function(...) {
+      captured <<- list(...)
+      stop("captured-call")
+    },
+    .package = "bgms"
+  )
+  expect_error(
+    sample_ggm_prior(
+      p = 3L, n_samples = 1L, n_warmup = 1L, verbose = FALSE, ...
+    ),
+    "captured-call"
+  )
+  captured
+}
+
+test_that("the joint-spec chain carries bgm()'s adaptive-metropolis target", {
+  # bgm() resolves target_accept = 0.44 for adaptive-metropolis
+  # (validate_sampler()); the C++ default is 0.80, the NUTS target.
+  args = capture_sample_ggm_args(
+    spec = "joint", update_method = "adaptive-metropolis"
+  )
+  expect_identical(args$target_acceptance, 0.44)
+})
+
+test_that("the gibbs joint-spec chain sets no acceptance target", {
+  # bgm() records NA_real_ for gibbs: the conjugate row and edge updates are
+  # exact and tune nothing.
+  args = capture_sample_ggm_args(spec = "joint", update_method = "gibbs")
+  expect_identical(args$target_acceptance, NA_real_)
 })
 
 

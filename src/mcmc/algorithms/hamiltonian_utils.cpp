@@ -14,7 +14,6 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag) {
 
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     SafeRNG& rng,
     double target_acceptance,
@@ -23,14 +22,13 @@ double heuristic_initial_step_size(
 ) {
   arma::vec inv_mass_diag = arma::ones<arma::vec>(theta.n_elem);
   return heuristic_initial_step_size(
-    theta, grad, joint, inv_mass_diag, rng, target_acceptance, init_step, max_attempts
+    theta, joint, inv_mass_diag, rng, target_acceptance, init_step, max_attempts
   );
 }
 
 
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
@@ -50,7 +48,7 @@ double heuristic_initial_step_size(
 
   // One leapfrog step using leapfrog
   LeapfrogJointResult result = leapfrog(
-    theta, r, eps, grad, joint, inv_mass_diag, &grad0
+    theta, r, eps, joint, inv_mass_diag, grad0
   );
 
   double kin1 = kinetic_energy(result.r, inv_mass_diag);
@@ -69,7 +67,7 @@ double heuristic_initial_step_size(
     H0 = logp0 - kin0;
 
     // One leapfrog step from original position with new momentum
-    result = leapfrog(theta, r, eps, grad, joint, inv_mass_diag, &grad0);
+    result = leapfrog(theta, r, eps, joint, inv_mass_diag, grad0);
 
     // Evaluate Hamiltonian
     kin1 = kinetic_energy(result.r, inv_mass_diag);
