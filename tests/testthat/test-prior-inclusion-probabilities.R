@@ -11,6 +11,19 @@
 # routes against each other.
 # --------------------------------------------------------------------------- #
 
+# Tiers. The acceptance-target wiring, the analytic pieces, the extractor
+# contracts and the hierarchical pass-through stay local. The cells that
+# check one route against another (table vs prior-only chain, the mixed
+# per-class split, the hierarchical edge-prior identity) are settled-numerics
+# agreement, so they are T1.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the prior-PIP route agreement cells"
+  )
+}
+
 prior_pip_ggm_data = function() {
   set.seed(7)
   x = matrix(rnorm(80 * 3), 80, 3)
@@ -165,6 +178,7 @@ test_that("the Beta quadrature reduces to the Beta mean without reweighting", {
 # --------------------------------------------------------------------------- #
 
 test_that("GGM beta-bernoulli prior PIPs match the prior-only chain", {
+  skip_unless_slow()
   skip_on_cran()
 
   fit = small_fit(prior_pip_ggm_data(), "continuous",
@@ -234,6 +248,7 @@ test_that("GGM SBM prior PIPs come from a cached deterministic chain", {
 # --------------------------------------------------------------------------- #
 
 test_that("mixed beta-bernoulli prior PIPs split by edge class", {
+  skip_unless_slow()
   skip_on_cran()
 
   d = prior_pip_mixed_data()
@@ -338,6 +353,7 @@ test_that("posterior extractor maps mixed indicators through block order", {
 # --------------------------------------------------------------------------- #
 
 test_that("a hierarchical fit's prior inclusion probability is the edge prior", {
+  skip_unless_slow()
   skip_on_cran()
 
   x = prior_pip_hier_data()

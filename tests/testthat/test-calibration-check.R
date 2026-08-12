@@ -1,3 +1,16 @@
+# Tiers. The contract cells -- what fitted_observed_data() returns, the band
+# geometry, the panel kinds, the paging and the newdata guards -- stay local.
+# The family-breadth cells (Blume-Capel, non-contiguous scores, per-group and
+# Blume-Capel compare fits) show the check also covers those families, which
+# is calibration breadth rather than wiring, so they are T1.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the calibration breadth cells"
+  )
+}
+
 test_that("fitted_observed_data returns the fitted data on the input scale", {
   skip_on_cran()
   fit = get_bgms_fit_wenchuan5()
@@ -180,6 +193,7 @@ test_that("plot.bgms_calibration draws small multiples and checks variables", {
 })
 
 test_that("calibration_check handles Blume-Capel and mixed Blume-Capel fits", {
+  skip_unless_slow()
   skip_on_cran()
   x = Wenchuan[stats::complete.cases(Wenchuan[, 1:5]), 1:5]
 
@@ -224,6 +238,7 @@ test_that("calibration_check handles Blume-Capel and mixed Blume-Capel fits", {
 })
 
 test_that("calibration_check reads non-contiguous ordinal category scores", {
+  skip_unless_slow()
   skip_on_cran()
   x = Wenchuan[stats::complete.cases(Wenchuan[, 1:5]), 1:5] * 2L + 1L
 
@@ -323,6 +338,7 @@ test_that("fitted_observed_data puts a compare fit's Blume-Capel baseline back",
 })
 
 test_that("calibration_check runs per group on a compare fit", {
+  skip_unless_slow()
   fit = get_bgmcompare_fit_wenchuan5()
   check = calibration_check(fit, nrep = 20, seed = 2)
 
@@ -374,6 +390,7 @@ test_that("a compare check accepts the fitted rows as newdata, in input order", 
 })
 
 test_that("calibration_check covers a Blume-Capel compare fit", {
+  skip_unless_slow()
   fit = get_bgmcompare_fit_blumecapel()
   check = calibration_check(fit, nrep = 15, seed = 5)
   expect_s3_class(check, "bgms_calibration")
