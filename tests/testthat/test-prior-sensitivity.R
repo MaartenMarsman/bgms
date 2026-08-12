@@ -566,3 +566,210 @@ test_that("the refit gate abstains on an all-NA warmup check without warning", {
   # abstains whichever way it is unusable.
   expect_equal(finite_reduce(c(-Inf, Inf), min, Inf), Inf)
 })
+
+
+# ------------------------------------------------------------------------------
+# Coherence between the reported verdict and the stability interval
+# ------------------------------------------------------------------------------
+
+# A minimal bgms_prior_sensitivity object, enough for print(). Only the fields
+# print() reads are filled; the curve machinery is not re-run.
+fake_sensitivity = function(chosen_verdict, curve_verdict, multipliers,
+                            chosen_idx, anchors) {
+  n_anchor = length(anchors)
+  stab = stability_interval(
+    curve_verdict, multipliers, chosen_idx,
+    target = chosen_verdict
+  )
+  edges = data.frame(
+    edge = "A-B",
+    prior_inclusion_probability = 0.5,
+    chosen_scale_pip = 0.6,
+    chosen_scale_log_bf = 0.4,
+    chosen_scale_mcse = 0.01,
+    chosen_scale_verdict = chosen_verdict,
+    stability_lower = stab[1],
+    stability_upper = stab[2],
+    mover = "stable",
+    insufficient = FALSE,
+    insufficient_noisy = FALSE,
+    insufficient_disagree = FALSE,
+    saturated = FALSE,
+    stringsAsFactors = FALSE
+  )
+  structure(
+    list(
+      edges = edges,
+      grid = data.frame(
+        multiplier = anchors, replicate = rep(FALSE, n_anchor),
+        original_fit = multipliers[chosen_idx] == anchors,
+        usable = rep(TRUE, n_anchor), forced = rep(FALSE, n_anchor)
+      ),
+      anchors = anchors,
+      multipliers = multipliers,
+      chosen_scale = 1,
+      chosen_index = chosen_idx,
+      anchor_verdict = matrix(chosen_verdict, n_anchor, 1L),
+      curve = list(ess_floor = 400),
+      wobble = list(q95 = 0.3, anchor = anchors[n_anchor], censored = 0L),
+      preferred_scale = list(s_hat = NA_real_),
+      unit = list(
+        noun = "edge", nouns = "edges",
+        headline = "are the edge verdicts robust to the slab scale?"
+      ),
+      vary = list(mode = "none"),
+      evidence_threshold = 10,
+      tolerance = 0.5 * log(10),
+      refit_sampler = "nuts",
+      warm = TRUE,
+      runtime_seconds = 3
+    ),
+    class = "bgms_prior_sensitivity"
+  )
+}
+
+
+test_that("the stability interval is anchored on the verdict the table reports", {
+  # COHERENCE GATE. The table's chosen_scale_verdict is the original fit's own
+  # Rao-Blackwellized verdict; the pooled curve is a different estimator of the
+  # same quantity and can disagree at 1x on a borderline edge. Taking the
+  # interval's target from the curve made the bounds describe a verdict the
+  # table never showed.
+  multipliers = c(0.5, 0.7, 1, 1.4, 2)
+  chosen_idx = 3L
+
+  # Agreement: unchanged behavior, the whole grid.
+  agree = rep("presence", 5L)
+  expect_equal(
+    stability_interval(agree, multipliers, chosen_idx, target = "presence"),
+    c(0.5, 2)
+  )
+  expect_equal(
+    stability_interval(agree, multipliers, chosen_idx),
+    stability_interval(agree, multipliers, chosen_idx, target = "presence")
+  )
+
+  # Disagreement at 1x: the reported verdict holds nowhere around the chosen
+  # scale, so the bounds are missing rather than describing the curve's own
+  # verdict across the full range.
+  disagree = rep("undecided", 5L)
+  expect_equal(
+    stability_interval(disagree, multipliers, chosen_idx, target = "presence"),
+    c(NA_real_, NA_real_)
+  )
+  # What the old, curve-anchored call would have reported.
+  expect_equal(
+    stability_interval(disagree, multipliers, chosen_idx),
+    c(0.5, 2)
+  )
+
+  # Partial agreement still walks out from the chosen scale only.
+  mixed = c("undecided", "presence", "presence", "presence", "absence")
+  expect_equal(
+    stability_interval(mixed, multipliers, chosen_idx, target = "presence"),
+    c(0.7, 1.4)
+  )
+
+  # print() describes the same verdict the table does: with the two estimators
+  # disagreeing, the edge is an exception, not a verdict that "holds".
+  ps = fake_sensitivity("presence", disagree, multipliers, chosen_idx,
+    anchors = c(0.5, 1, 2)
+  )
+  expect_true(is.na(ps$edges$stability_lower))
+  expect_true(is.na(ps$edges$stability_upper))
+  expect_equal(ps$edges$chosen_scale_verdict, "presence")
+  out = paste(utils::capture.output(print(ps)), collapse = "\n")
+  expect_match(out, "0 of 1 verdicts hold across the whole")
+  expect_false(grepl("All 1 verdicts hold", out, fixed = TRUE))
+
+  # And with the two agreeing it is still reported as holding throughout.
+  ok = fake_sensitivity("presence", agree, multipliers, chosen_idx,
+    anchors = c(0.5, 1, 2)
+  )
+  expect_equal(unname(unlist(ok$edges[c("stability_lower", "stability_upper")])), c(0.5, 2))
+  expect_match(
+    paste(utils::capture.output(print(ok)), collapse = "\n"),
+    "All 1 verdicts hold"
+  )
+})
+
+
+test_that("a forced 1x anchor keeps the gate's own record in the grid", {
+  # The curve still uses the original fit when it fails its gate (it is the
+  # analysis under check), but $grid$usable must stay the gate's verdict and
+  # $grid$forced must say the curve overrode it. print() then names it as kept,
+  # not as excluded.
+  ps = fake_sensitivity("presence", rep("presence", 5L), c(0.5, 0.7, 1, 1.4, 2),
+    3L,
+    anchors = c(0.5, 1, 2)
+  )
+  ps$grid$usable[2] = FALSE
+  ps$grid$forced[2] = TRUE
+  out = paste(utils::capture.output(print(ps)), collapse = "\n")
+  expect_match(out, "did not pass its convergence check")
+  expect_match(out, "still reported")
+  expect_false(grepl("excluded from the verdicts", out, fixed = TRUE))
+
+  # A genuinely excluded refit still reads as excluded.
+  ps2 = ps
+  ps2$grid$forced[2] = FALSE
+  out2 = paste(utils::capture.output(print(ps2)), collapse = "\n")
+  expect_match(out2, "did not converge and is excluded from the verdicts")
+})
+
+
+test_that("a fit whose swept prior carries no scale errors before any refit", {
+  # A beta-prime slab is scale-free, so bgm() records pairwise_scale = NA and
+  # the whole multiplier grid is NA. The old code ran every refit first and
+  # failed afterwards.
+  data("Wenchuan", package = "bgms")
+  fit = suppressWarnings(bgm(Wenchuan[, 1:4],
+    interaction_prior = beta_prime_prior(),
+    iter = 200, warmup = 200, chains = 1, seed = 11,
+    update_method = "adaptive-metropolis", display_progress = "none"
+  ))
+  expect_true(is.na(get_fit_spec(fit)$prior$pairwise_scale))
+  t0 = Sys.time()
+  expect_error(
+    prior_sensitivity_check(fit),
+    "no usable pairwise_scale"
+  )
+  # Fast means fast: no refit had time to run.
+  expect_lt(as.numeric(Sys.time() - t0, units = "secs"), 5)
+})
+
+
+test_that("prior_sensitivity_check runs end to end on a single-indicator fit", {
+  skip_on_cran()
+  # A two-variable network has one edge, and apply()/vapply() over a one-column
+  # matrix collapse to a vector; the curve and the verdict columns lost their
+  # grid-by-edge shape.
+  data("Wenchuan", package = "bgms")
+  fit = bgm(Wenchuan[, 1:2],
+    chains = 2, iter = 300, warmup = 300, seed = 31,
+    display_progress = "none"
+  )
+  ps = suppressWarnings(suppressMessages(prior_sensitivity_check(fit,
+    anchors = c(0.5, 1, 2), iter = 300, warmup = 300, ess_floor = 50,
+    seed = 31
+  )))
+  expect_s3_class(ps, "bgms_prior_sensitivity")
+  expect_equal(nrow(ps$edges), 1L)
+  expect_equal(dim(ps$log_bf), c(length(ps$multipliers), 1L))
+  expect_equal(dim(ps$log_bf_mcse), c(length(ps$multipliers), 1L))
+  expect_equal(dim(ps$verdict), c(length(ps$multipliers), 1L))
+  expect_equal(dim(ps$anchor_verdict), c(length(ps$anchors), 1L))
+  expect_true(all(paste0("verdict_x", ps$anchors) %in% names(ps$edges)))
+  # The gate record and the forced column travel with the grid. Whether this
+  # fit's own draws clear the gate is a property of the sampler on the machine
+  # running the test, not of the reshape under test, so what is asserted here
+  # is the structure of the record rather than its verdict: only the original
+  # fit can ever be forced, and a forced row carries the gate's own rejection
+  # rather than the override. The override's behavior is pinned exactly, on a
+  # synthetic grid, in "a forced 1x anchor keeps the gate's own record in the
+  # grid".
+  expect_true("forced" %in% names(ps$grid))
+  expect_false(any(ps$grid$forced & !ps$grid$original_fit))
+  expect_true(all(!ps$grid$usable[ps$grid$forced]))
+  expect_output(print(ps), "are the edge verdicts robust")
+})
