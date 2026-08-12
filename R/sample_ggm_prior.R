@@ -67,10 +67,9 @@
 #'   \code{s}). Default: \code{exponential_prior(eta = 1)}; with the
 #'   default \code{normal_prior(scale = 1)} interaction prior this
 #'   resolves to \eqn{K_{ii}/2 \sim \textrm{Exponential}(1)}.
-#' @param step_size Positive numeric. Initial NUTS step size used to seed
-#'   dual-averaging adaptation. Default \code{0.1}. Used only for
-#'   \code{spec = "conditional"} (NUTS path); ignored for the
-#'   \code{"joint"} MH path.
+#' @param step_size `r lifecycle::badge("deprecated")` Deprecated and ignored.
+#'   The NUTS warmup determines its own initial step size; earlier versions
+#'   accepted this argument but never used it.
 #' @param max_depth Integer. Maximum NUTS tree depth. Default \code{10}.
 #'   Used only for \code{spec = "conditional"}.
 #' @param seed Integer. RNG seed for the chain. Default \code{1L}.
@@ -85,9 +84,13 @@
 #'   \eqn{(K, \Gamma)} jointly from the un-normalised joint prior), or
 #'   \code{"hierarchical"} (sample \eqn{(K, \Gamma)} from the per-graph
 #'   normalized specification via the Z-ratio approximation).
-#' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the
-#'   Bernoulli edge prior used when \code{spec = "joint"}. Default
-#'   \code{0.5}. Ignored when \code{spec = "conditional"}.
+#' @param edge_inclusion_prob Probability in \eqn{(0, 1)} for the Bernoulli
+#'   edge prior the chain falls back to when \code{edge_prior} is
+#'   \code{NULL}. Default \code{0.5}. Read only when \code{spec = "joint"}
+#'   or \code{"hierarchical"} \emph{and} \code{edge_prior = NULL}: it is
+#'   ignored for \code{spec = "conditional"} (the graph is fixed) and
+#'   whenever an \code{edge_prior} object is supplied, including
+#'   \code{bernoulli_prior()}, which carries its own probability.
 #' @param update_method One of \code{"adaptive-metropolis"} (default) or
 #'   \code{"gibbs"}. Sampler driving the \code{spec = "joint"} chain; the
 #'   Gibbs chain uses the conjugate row and edge updates and needs no
@@ -97,13 +100,18 @@
 #'   or \code{\link{sbm_prior}()}, or \code{NULL} (default) for a Bernoulli
 #'   prior with probability \code{edge_inclusion_prob}. Only for
 #'   \code{spec = "joint"}.
-#' @param apply_correction Logical. For the hierarchical edge priors
-#'   (\code{beta_bernoulli_prior()}, \code{sbm_prior()}), apply the
-#'   normalizing-constant correction to the hyperparameter updates (default
-#'   \code{TRUE}; the correction table is built from the tilted prior
-#'   sampler and cached across calls). With \code{FALSE} the plain conjugate
-#'   updates are used, whose hyperparameter marginals do not match the
-#'   hyperpriors under the determinant tilt.
+#' @param apply_correction Logical. Apply the normalizing-constant correction
+#'   to the hyperparameter updates (default \code{TRUE}; the correction table
+#'   is built from the tilted prior sampler and cached across calls). With
+#'   \code{FALSE} the plain conjugate updates are used, whose hyperparameter
+#'   marginals do not match the hyperpriors under the determinant tilt. Read
+#'   only when \code{spec = "joint"} \emph{and} the edge prior is a
+#'   hierarchical one (\code{beta_bernoulli_prior()}, \code{sbm_prior()});
+#'   it is ignored for \code{spec = "conditional"} (the graph is fixed), for
+#'   \code{spec = "hierarchical"} (the per-edge Z-ratio carries the
+#'   normalizer instead, and the hyperparameter updates stay clean
+#'   conjugate), and for a Bernoulli edge prior (no hyperparameters to
+#'   correct).
 #' @param zratio_diagnostics Logical (default \code{TRUE}). Only for
 #'   \code{spec = "hierarchical"}: run the trust gauge
 #'   (\code{\link{summarize_zratio_gauge}}) on the returned chain and attach
@@ -196,7 +204,7 @@ sample_ggm_prior = function(
   n_warmup = 2e3,
   interaction_prior = normal_prior(scale = 1),
   precision_scale_prior = exponential_prior(eta = 1),
-  step_size = 0.1,
+  step_size = lifecycle::deprecated(),
   max_depth = 10L,
   seed = 1L,
   verbose = TRUE,
@@ -211,6 +219,15 @@ sample_ggm_prior = function(
 ) {
   spec = match.arg(spec)
   update_method = match.arg(update_method)
+  if(lifecycle::is_present(step_size)) {
+    lifecycle::deprecate_warn(
+      "0.2.1", "sample_ggm_prior(step_size = )",
+      details = paste0(
+        "The NUTS warmup determines its own initial step size; the supplied ",
+        "value was never used."
+      )
+    )
+  }
   ep = if(is.null(edge_prior)) {
     NULL
   } else {
@@ -235,7 +252,6 @@ sample_ggm_prior = function(
   validate_integer(n_samples, "n_samples", min_value = 1L)
   validate_integer(n_warmup, "n_warmup", min_value = 0L)
   validate_integer(max_depth, "max_depth", min_value = 1L)
-  validate_finite_scalar(step_size, "step_size", positive = TRUE)
   validate_integer(seed, "seed", min_value = 0L)
   if(is.null(delta)) {
     delta = 0.5 * log(p)
@@ -277,7 +293,6 @@ sample_ggm_prior = function(
       scale_prior_type         = sp$scale_prior_type,
       gamma_shape              = sp$scale_shape,
       gamma_rate               = sp$scale_rate,
-      step_size                = step_size,
       max_depth                = as.integer(max_depth),
       seed                     = as.integer(seed),
       verbose                  = verbose,
@@ -367,6 +382,16 @@ sample_ggm_prior = function(
     no_chains = 1L,
     edge_selection = TRUE,
     sampler_type = update_method,
+    # Same target bgm() resolves for this update method (validate_sampler()):
+    # 0.44 is the componentwise RW MH optimum the adaptive-metropolis chain
+    # tunes its between-model proposal SDs to, and gibbs tunes nothing. The
+    # C++ default is 0.80, the NUTS target, so leaving this out gave the
+    # prior chain a different proposal tuning than the deployed path this
+    # function is the SBC reference for.
+    target_acceptance = switch(update_method,
+      "adaptive-metropolis" = 0.44,
+      "gibbs"               = NA_real_
+    ),
     seed = as.integer(seed),
     no_threads = 1L,
     progress_type = if(verbose) 2L else 0L,
@@ -543,16 +568,6 @@ validate_integer = function(x, name, min_value = 1L) {
     stop(sprintf("'%s' must be >= %d.", name, as.integer(min_value)))
   }
   invisible(as.integer(x))
-}
-
-validate_finite_scalar = function(x, name, positive = FALSE) {
-  if(!is.numeric(x) || length(x) != 1L || is.na(x) || !is.finite(x)) {
-    stop(sprintf("'%s' must be a single finite numeric.", name))
-  }
-  if(positive && x <= 0) {
-    stop(sprintf("'%s' must be positive.", name))
-  }
-  invisible(x)
 }
 
 validate_ggm_prior_edge_indicators = function(edge_indicators, p) {

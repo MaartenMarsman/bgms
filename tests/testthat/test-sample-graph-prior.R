@@ -79,6 +79,48 @@ test_that("conditioning on (allocations, block_probs) fixes the SBM law", {
   expect_null(g$allocations)
 })
 
+test_that("conditioning reports the family run, not the family requested", {
+  # Conditioning collapses either spec to independent pair flips at the fixed
+  # probabilities, so the draw is a Bernoulli one whichever family was asked
+  # for; the request is carried separately.
+  g = sample_graph_prior(
+    p = 5, n_samples = 10,
+    edge_prior = beta_bernoulli_prior(1, 1), theta = 0.8, seed = 3
+  )
+  expect_identical(g$edge_prior, "Bernoulli")
+  expect_identical(g$requested_edge_prior, "Beta-Bernoulli")
+
+  z = c(1L, 1L, 2L, 2L, 2L)
+  bp = matrix(c(0.9, 0.05, 0.05, 0.9), 2, 2)
+  g = sample_graph_prior(
+    p = 5, n_samples = 10,
+    edge_prior = sbm_prior(), allocations = z, block_probs = bp, seed = 9
+  )
+  expect_identical(g$edge_prior, "Bernoulli")
+  expect_identical(g$requested_edge_prior, "Stochastic-Block")
+
+  # Unconditioned, the two agree.
+  g = sample_graph_prior(
+    p = 5, n_samples = 10,
+    edge_prior = beta_bernoulli_prior(1, 1), seed = 3
+  )
+  expect_identical(g$edge_prior, "Beta-Bernoulli")
+  expect_identical(g$requested_edge_prior, "Beta-Bernoulli")
+})
+
+test_that("the joint spec reports the family it ran under conditioning", {
+  skip_on_cran()
+  g = sample_graph_prior(
+    p = 4, n_samples = 20, n_warmup = 20,
+    edge_prior = beta_bernoulli_prior(1, 1), theta = 0.8,
+    spec = "joint", seed = 3, verbose = FALSE
+  )
+  expect_identical(g$edge_prior, "Bernoulli")
+  expect_identical(g$requested_edge_prior, "Beta-Bernoulli")
+  # The hyperparameter is fixed, so no theta draws come back with it.
+  expect_null(g$theta)
+})
+
 test_that("conditioning arguments are validated", {
   expect_error(
     sample_graph_prior(

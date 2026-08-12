@@ -607,11 +607,9 @@ void update_pairwise_effects_metropolis_bgmcompare (
 //
 // Workflow:
 //  1. Vectorize current parameters into a single state vector.
-//  2. Define closures for log-posterior evaluation and gradient computation:
-//     - `joint`: unpacks parameters and evaluates the log pseudoposterior
-//       together with its gradient.
-//     - `grad`: gradient-only view of `joint`, for the heuristic's signature.
-//  3. Pass these to `heuristic_initial_step_size`, which runs the heuristic
+//  2. Define `joint`, a closure that unpacks parameters and evaluates the log
+//     pseudoposterior together with its gradient.
+//  3. Pass it to `heuristic_initial_step_size`, which runs the heuristic
 //     tuning loop.
 //
 // Inputs:
@@ -710,14 +708,7 @@ double find_initial_stepsize_bgmcompare(
     );
   };
 
-  // Gradient-only view of `joint`, required by the heuristic_initial_step_size
-  // signature. Its single leapfrog step is called with a pre-computed initial
-  // gradient, so this is never actually evaluated.
-  auto grad = [&](const arma::vec& theta_vec) -> arma::vec {
-    return joint(theta_vec).second;
-  };
-
-  return heuristic_initial_step_size(theta, grad, joint, rng, target_acceptance);
+  return heuristic_initial_step_size(theta, joint, rng, target_acceptance);
 }
 
 
@@ -835,13 +826,6 @@ StepResult update_nuts_bgmcompare(
     );
   };
 
-  // Gradient-only view of `joint`, required by the heuristic_initial_step_size
-  // signature. Its single leapfrog step is called with a pre-computed initial
-  // gradient, so this is never actually evaluated.
-  auto grad = [&](const arma::vec& theta_vec) -> arma::vec {
-    return joint(theta_vec).second;
-  };
-
   //adapt
   arma::vec active_inv_mass = inv_mass_active(
     nuts_adapt.inv_mass_diag(), inclusion_indicator, num_groups, num_categories,
@@ -873,7 +857,7 @@ StepResult update_nuts_bgmcompare(
     );
     double current_eps = nuts_adapt.current_step_size();
     double new_eps = heuristic_initial_step_size(
-      current_state, grad, joint, new_inv_mass, rng,
+      current_state, joint, new_inv_mass, rng,
       nuts_adapt.target_acceptance(),
       current_eps   // init_step: use current step size as starting point
     );

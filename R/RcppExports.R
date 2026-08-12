@@ -45,8 +45,8 @@ ggm_test_forward_map <- function(theta, edge_indicators) {
     .Call(`_bgms_ggm_test_forward_map`, theta, edge_indicators)
 }
 
-sample_ggm_prior_cpp <- function(p, n_samples, n_warmup = 1000L, pairwise_scale = 2.5, interaction_prior_type = "cauchy", scale_prior_type = "gamma", gamma_shape = 1.0, gamma_rate = 1.0, step_size = 0.1, max_depth = 10L, seed = 1L, verbose = TRUE, edge_indicators_nullable = NULL, delta = 0.0) {
-    .Call(`_bgms_sample_ggm_prior`, p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, step_size, max_depth, seed, verbose, edge_indicators_nullable, delta)
+sample_ggm_prior_cpp <- function(p, n_samples, n_warmup = 1000L, pairwise_scale = 2.5, interaction_prior_type = "cauchy", scale_prior_type = "gamma", gamma_shape = 1.0, gamma_rate = 1.0, max_depth = 10L, seed = 1L, verbose = TRUE, edge_indicators_nullable = NULL, delta = 0.0) {
+    .Call(`_bgms_sample_ggm_prior`, p, n_samples, n_warmup, pairwise_scale, interaction_prior_type, scale_prior_type, gamma_shape, gamma_rate, max_depth, seed, verbose, edge_indicators_nullable, delta)
 }
 
 .compute_ess_cpp <- function(array3d) {

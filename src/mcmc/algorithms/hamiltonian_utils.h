@@ -28,7 +28,6 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag);
  * mass-matrix overload with inv_mass_diag = ones.
  *
  * @param theta             Initial parameter vector
- * @param grad              Gradient function
  * @param joint             Joint log-posterior + gradient function
  * @param rng               Random number generator
  * @param target_acceptance Target acceptance probability
@@ -38,7 +37,6 @@ double kinetic_energy(const arma::vec& r, const arma::vec& inv_mass_diag);
  */
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     SafeRNG& rng,
     double target_acceptance = 0.8,
@@ -54,7 +52,6 @@ double heuristic_initial_step_size(
  * N(0, M) and evaluates kinetic energy with the supplied diagonal M^{-1}.
  *
  * @param theta             Initial parameter vector
- * @param grad              Gradient function
  * @param joint             Joint log-posterior + gradient function
  * @param inv_mass_diag     Diagonal of the inverse mass matrix
  * @param rng               Random number generator
@@ -65,7 +62,6 @@ double heuristic_initial_step_size(
  */
 double heuristic_initial_step_size(
     const arma::vec& theta,
-    const std::function<arma::vec(const arma::vec&)>& grad,
     const std::function<std::pair<double, arma::vec>(const arma::vec&)>& joint,
     const arma::vec& inv_mass_diag,
     SafeRNG& rng,
