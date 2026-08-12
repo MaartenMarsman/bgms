@@ -84,11 +84,13 @@ arma::vec gradient_observed_active(
 );
 
 /**
- * Compute the full gradient of the log-pseudoposterior.
+ * Compute the log-pseudoposterior and its gradient in a single pass.
  *
- * Combines observed sufficient statistics (grad_obs), expected sufficient
- * statistics (computed on-the-fly via softmax probabilities), and prior
- * gradient terms (logistic-Beta for baselines, Cauchy for differences).
+ * Shares intermediate computations (group-specific effects, residual
+ * matrices, probability vectors) to avoid redundant work during NUTS. The
+ * gradient combines observed sufficient statistics (grad_obs), expected
+ * sufficient statistics (computed on-the-fly via softmax probabilities), and
+ * prior gradient terms (logistic-Beta for baselines, Cauchy for differences).
  *
  * @param main_effects             Current main-effect matrix
  * @param pairwise_effects         Current pairwise-effect matrix
@@ -111,40 +113,7 @@ arma::vec gradient_observed_active(
  * @param interaction_prior        Prior on baseline pairwise effects
  * @param difference_prior         Prior on group-difference parameters
  * @param threshold_prior          Prior on baseline main effects
- * @return Full gradient vector
- */
-arma::vec gradient(
-    const arma::mat& main_effects,
-    const arma::mat& pairwise_effects,
-    const arma::imat& main_effect_indices,
-    const arma::imat& pairwise_effect_indices,
-    const arma::mat& projection,
-    const arma::mat& observations_double,
-    const arma::imat& group_indices,
-    const arma::ivec& num_categories,
-    const std::vector<arma::imat>& counts_per_category_group,
-    const std::vector<arma::imat>& blume_capel_stats_group,
-    const std::vector<arma::mat>&  pairwise_stats_group,
-    const int num_groups,
-    const arma::imat& inclusion_indicator,
-    const arma::uvec& is_ordinal_variable,
-    const arma::ivec& baseline_category,
-    const arma::imat& main_index,
-    const arma::imat& pair_index,
-    const arma::vec& grad_obs,
-    const BaseParameterPrior& interaction_prior,
-    const BaseParameterPrior& difference_prior,
-    const BaseParameterPrior& threshold_prior
-);
-
-/**
- * Compute the log-pseudoposterior and its gradient in a single pass.
- *
- * Shares intermediate computations (group-specific effects, residual
- * matrices, probability vectors) to avoid redundant work during NUTS.
- *
  * @return Pair of (log-pseudoposterior value, gradient vector)
- * @see gradient() for parameter descriptions
  */
 std::pair<double, arma::vec> logp_and_gradient(
     const arma::mat& main_effects,
@@ -187,7 +156,7 @@ std::pair<double, arma::vec> logp_and_gradient(
  *                         the variable (length G); skips their computation
  * @param normalizers_out  Optional output for the computed per-group
  *                         log-normalizer sums (length G)
- * @see gradient() for remaining parameter descriptions
+ * @see logp_and_gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_main_component(
     const arma::mat& main_effects,
@@ -227,7 +196,7 @@ double log_pseudoposterior_main_component(
  *                           the endpoint variables (G x 2); skips their computation
  * @param normalizers_out    Optional output for the computed per-group
  *                           log-normalizer sums (G x 2)
- * @see gradient() for remaining parameter descriptions
+ * @see logp_and_gradient() for remaining parameter descriptions
  */
 double log_pseudoposterior_pair_component(
     const arma::mat& main_effects,
@@ -266,7 +235,7 @@ double log_pseudoposterior_pair_component(
  * @param proposed_main_effects  Proposed main-effect matrix
  * @param residual_groups        Per-group rest-score matrices (n_g x V)
  * @param variable               Variable whose main effect is being toggled
- * @see gradient() for remaining parameter descriptions
+ * @see logp_and_gradient() for remaining parameter descriptions
  */
 double log_pseudolikelihood_ratio_main(
     const arma::mat& current_main_effects,
@@ -299,7 +268,7 @@ double log_pseudolikelihood_ratio_main(
  * @param residual_groups            Per-group rest-score matrices (n_g x V)
  * @param var1                       First variable index
  * @param var2                       Second variable index
- * @see gradient() for remaining parameter descriptions
+ * @see logp_and_gradient() for remaining parameter descriptions
  */
 double log_pseudolikelihood_ratio_pairwise(
     const arma::mat& main_effects,

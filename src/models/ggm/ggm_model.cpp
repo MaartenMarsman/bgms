@@ -223,16 +223,6 @@ double GGMModel::constrained_diagonal(const double x) const {
     }
 }
 
-double GGMModel::log_density_impl(const arma::mat& omega, const arma::mat& phi) const {
-
-    double logdet_omega = cholesky_helpers::get_log_det(phi);
-    double trace_prod = arma::accu(omega % suf_stat_);
-
-    double log_likelihood = n_ * (p_ * MY_LOG(2 * arma::datum::pi) / 2 + logdet_omega / 2) - trace_prod / 2;
-
-    return log_likelihood;
-}
-
 double GGMModel::log_det_ratio_edge(size_t i, size_t j) const {
     // Rank-2 matrix-determinant lemma: log|K_prop| - log|K_curr| where K_prop
     // differs from K_curr at entries (i,j), (j,i), and (j,j). GGM stores K

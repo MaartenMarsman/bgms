@@ -26,7 +26,9 @@ struct ZRatioBlock {
     int ncn = 0;          ///< common-neighbour nodes
     int cne = 0;          ///< edges among the common neighbours
     int bre = 0;          ///< bridge edges between the exclusive sides
-    int maxbd = 0;        ///< maximum bridge degree over both sides
+    int maxbd = 0;        ///< maximum bridge degree over both sides; filled
+                          ///< only when extract_block_ is asked for it (the
+                          ///< test interface), never on a sampling route
     arma::imat a_blk;     ///< block adjacency (m x m)
     arma::uvec si;        ///< block rows adjacent to endpoint i
     arma::uvec sj;        ///< block rows adjacent to endpoint j
@@ -349,14 +351,17 @@ public:
 private:
     /**
      * Shared worker behind extract_block. need_counts fills the scalar
-     * descriptors (cne, bre, maxbd, dens) for the additive saddle;
-     * need_adjacency fills the block adjacency and side-membership vectors for
-     * the surface deploy and the oracle. The two are independent: the surface
-     * hot path takes adjacency without the counts, the additive path the
-     * reverse. valid, m, and ncn are always set.
+     * descriptors (cne, bre, dens) for the additive saddle; need_adjacency
+     * fills the block adjacency and side-membership vectors for the surface
+     * deploy and the oracle. The three flags are independent: the surface hot
+     * path takes adjacency without the counts, the additive path the reverse,
+     * and need_maxbd fills bl.maxbd, which no sampling route reads (only
+     * extract_block, for the test interface, asks for it). valid, m, and ncn
+     * are always set.
      */
     void extract_block_(const arma::imat& G, int i, int j, bool need_adjacency,
-                        bool need_counts, ZRatioBlock& bl) const;
+                        bool need_counts, bool need_maxbd,
+                        ZRatioBlock& bl) const;
     /**
      * One row-wise sweep of the block sampler. When sigma_out is non-null
      * it receives the end-of-sweep block covariance k_blk^{-1} (the
