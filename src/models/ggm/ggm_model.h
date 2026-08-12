@@ -105,7 +105,6 @@ public:
         covariance_matrix_(arma::eye<arma::mat>(p_, p_)),
         omega_(arma::ones<arma::mat>(p_, p_)),
         edge_indicators_(initial_edge_indicators),
-        vectorized_parameters_(dim_),
         vectorized_indicator_parameters_(edge_selection_ ? dim_ : 0),
         rb_alpha_(edge_selection_ ? dim_ : 0, arma::fill::zeros),
         rb_pregamma_(edge_selection_ ? dim_ : 0),
@@ -113,9 +112,6 @@ public:
         num_pairwise_(p_ * (p_ - 1) / 2),
         precision_proposal_(arma::mat(p_, p_, arma::fill::none))
     {
-        int num_edges = arma::accu(edge_indicators_) / 2;
-        int max_edges = static_cast<int>(p_ * (p_ - 1) / 2);
-        has_sparse_graph_ = !edge_selection_ && (num_edges < max_edges);
         edge_pairs_.set_size(num_pairwise_, 2);
         size_t flat = 0;
         for (size_t i = 0; i + 1 < p_; ++i) {
@@ -141,7 +137,6 @@ public:
           suf_stat_(other.suf_stat_),
           inclusion_probability_(other.inclusion_probability_),
           edge_selection_(other.edge_selection_),
-          has_sparse_graph_(other.has_sparse_graph_),
           interaction_prior_(other.interaction_prior_->clone()),
           diagonal_prior_(other.diagonal_prior_->clone()),
           precision_matrix_(other.precision_matrix_),
@@ -151,7 +146,6 @@ public:
           log_det_precision_(other.log_det_precision_),
           omega_(other.omega_),
           edge_indicators_(other.edge_indicators_),
-          vectorized_parameters_(other.vectorized_parameters_),
           vectorized_indicator_parameters_(other.vectorized_indicator_parameters_),
           rb_alpha_(other.rb_alpha_),
           rb_pregamma_(other.rb_pregamma_),
@@ -238,14 +232,6 @@ public:
     }
 
     /**
-     * Enable or disable edge-selection proposals.
-     * @param active  true to enable edge add-delete moves
-     */
-    void set_edge_selection_active(bool active) override {
-        edge_selection_active_ = active;
-    }
-
-    /**
      * Set the Robbins-Monro target acceptance rate used by the
      * adaptive-Metropolis updates of this GGM. Honoured by all
      * Metropolis sweeps (off-diagonal and diagonal).
@@ -318,14 +304,6 @@ public:
      * @param parameters  Active theta vector (dimension = p + |E|)
      */
     void set_vectorized_parameters(const arma::vec& parameters) override;
-
-    /**
-     * Compute the Gaussian log-likelihood for a given precision matrix.
-     * @param omega  Precision matrix
-     */
-    double log_likelihood(const arma::mat& omega) const { return log_density_impl(omega,  arma::chol(omega)); };
-    /** Compute the Gaussian log-likelihood at the current precision matrix. */
-    double log_likelihood()                       const { return log_density_impl(precision_matrix_, cholesky_of_precision_); }
 
     /**
      * Perform one full Metropolis sweep.
@@ -522,12 +500,6 @@ private:
     arma::mat inclusion_probability_;
     /// Whether the model was constructed with edge selection.
     bool edge_selection_;
-    /// Whether edge add-delete proposals are currently active.
-    bool edge_selection_active_ = false;
-    /// Whether the initial graph excludes any edges; used by
-    /// initialize_precision_from_mle to zero the excluded entries and restore
-    /// positive-definiteness.
-    bool has_sparse_graph_ = false;
     /// Use the full-conditional edge birth/death proposal (Gibbs sampler) in
     /// place of the random-walk Roverato proposal. Set by the GibbsSampler.
     bool use_conjugate_edge_proposal_ = false;
@@ -547,8 +519,6 @@ private:
     arma::mat omega_;
     /// Current edge-indicator matrix (p x p, symmetric, 0/1).
     arma::imat edge_indicators_;
-    /// Pre-allocated storage returned by get_vectorized_parameters().
-    arma::vec vectorized_parameters_;
     /// Pre-allocated storage returned by get_vectorized_indicator_parameters().
     arma::ivec vectorized_indicator_parameters_;
     /// Per-edge acceptance probability (raw alpha) and pre-move indicator
@@ -797,14 +767,6 @@ private:
      * @return   Constrained diagonal value omega_jj
      */
     double constrained_diagonal(const double x) const;
-
-    /**
-     * Full Gaussian log-likelihood: n/2 * (p*log(2*pi) + log|Omega|) - tr(Omega S)/2.
-     *
-     * @param omega  Precision matrix
-     * @param phi    Upper-triangular Cholesky factor of omega
-     */
-    double log_density_impl(const arma::mat& omega, const arma::mat& phi) const;
 
     /**
      * Log-likelihood ratio for a proposed off-diagonal element change,

@@ -391,11 +391,6 @@ private:
     void update_residual_matrix();
 
     /**
-     * Incrementally update two residual columns after a single pairwise effect change
-     */
-    void update_residual_columns(int var1, int var2, double delta);
-
-    /**
      * Invalidate gradient cache (call after parameter changes)
      */
     void invalidate_gradient_cache() { gradient_cache_valid_ = false; }
@@ -442,11 +437,6 @@ private:
     arma::vec vectorize_parameters() const;
 
     /**
-     * Flatten parameters into pre-allocated vector (avoids allocation)
-     */
-    void vectorize_parameters_into(arma::vec& param_vec) const;
-
-    /**
      * Unflatten vector to parameter matrices
      */
     void unvectorize_parameters(const arma::vec& param_vec);
@@ -466,11 +456,6 @@ private:
      * Extract active inverse mass (only for included edges)
      */
     arma::vec get_active_inv_mass() const override;
-
-    /**
-     * Extract active inverse mass into pre-allocated vector (avoids allocation)
-     */
-    void get_active_inv_mass_into(arma::vec& active_inv_mass) const;
 
     // -------------------------------------------------------------------------
     // Metropolis updates

@@ -47,7 +47,6 @@
 //  - observations: Data matrix [persons × variables]; updated in place.
 //  - num_groups: Number of groups.
 //  - group_membership: Group assignment for each person.
-//  - group_indices: Row ranges [start,end] for each group.
 //  - counts_per_category: Group-level sufficient statistics for ordinal variables.
 //  - blume_capel_stats: Group-level sufficient statistics for Blume–Capel variables.
 //  - pairwise_stats: Group-level sufficient statistics for pairwise interactions.
@@ -73,7 +72,6 @@ void impute_missing_bgmcompare(
     arma::imat& observations,
     const int num_groups,
     const arma::ivec& group_membership,
-    const arma::imat& group_indices,
     std::vector<arma::imat>& counts_per_category,
     std::vector<arma::imat>& blume_capel_stats,
     std::vector<arma::mat>& pairwise_stats,
@@ -610,9 +608,9 @@ void update_pairwise_effects_metropolis_bgmcompare (
 // Workflow:
 //  1. Vectorize current parameters into a single state vector.
 //  2. Define closures for log-posterior evaluation and gradient computation:
-//     - `log_post`: unpacks parameters and evaluates the log pseudoposterior.
-//     - `grad`: unpacks parameters and evaluates the gradient of the
-//       pseudoposterior.
+//     - `joint`: unpacks parameters and evaluates the log pseudoposterior
+//       together with its gradient.
+//     - `grad`: gradient-only view of `joint`, for the heuristic's signature.
 //  3. Pass these to `heuristic_initial_step_size`, which runs the heuristic
 //     tuning loop.
 //
@@ -694,25 +692,6 @@ double find_initial_stepsize_bgmcompare(
     main_index, pair_index
   );
 
-  auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgmcompare(
-      theta_vec, current_main, current_pair, inclusion_indicator,
-      main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
-      is_ordinal_variable
-    );
-
-    return gradient(
-      current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, obs_double, group_indices, num_categories,
-      counts_per_category, blume_capel_stats,
-      pairwise_stats, num_groups, inclusion_indicator,
-      is_ordinal_variable, baseline_category,
-      main_index, pair_index,
-      grad_obs_act,
-      interaction_prior, difference_prior, threshold_prior
-    );
-  };
-
   auto joint = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgmcompare(
       theta_vec, current_main, current_pair, inclusion_indicator,
@@ -729,6 +708,13 @@ double find_initial_stepsize_bgmcompare(
       main_index, pair_index, grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
+  };
+
+  // Gradient-only view of `joint`, required by the heuristic_initial_step_size
+  // signature. Its single leapfrog step is called with a pre-computed initial
+  // gradient, so this is never actually evaluated.
+  auto grad = [&](const arma::vec& theta_vec) -> arma::vec {
+    return joint(theta_vec).second;
   };
 
   return heuristic_initial_step_size(theta, grad, joint, rng, target_acceptance);
@@ -765,7 +751,6 @@ double find_initial_stepsize_bgmcompare(
 //  - nuts_max_depth: Maximum tree depth for NUTS doubling procedure.
 //  - iteration: Current sampler iteration (for adaptation scheduling).
 //  - nuts_adapt: Adaptation controller for step size and mass matrix.
-//  - learn_mass_matrix: Whether to adapt the mass matrix (unused inside NUTS but relevant to controller).
 //  - selection: If true, restrict mass matrix to active parameters only.
 //  - rng: Random number generator.
 //
@@ -800,7 +785,6 @@ StepResult update_nuts_bgmcompare(
     const int nuts_max_depth,
     const int iteration,
     NUTSAdaptationController& nuts_adapt,
-    const bool learn_mass_matrix,
     const bool selection,
     SafeRNG& rng,
     const BaseParameterPrior& interaction_prior,
@@ -833,25 +817,6 @@ StepResult update_nuts_bgmcompare(
     main_index, pair_index
   );
 
-  auto grad = [&](const arma::vec& theta_vec) {
-    unvectorize_model_parameters_bgmcompare(
-      theta_vec, current_main, current_pair, inclusion_indicator,
-      main_effect_indices, pairwise_effect_indices, num_groups, num_categories,
-      is_ordinal_variable
-    );
-
-    return gradient(
-      current_main, current_pair, main_effect_indices, pairwise_effect_indices,
-      projection, obs_double, group_indices, num_categories,
-      counts_per_category, blume_capel_stats,
-      pairwise_stats, num_groups, inclusion_indicator,
-      is_ordinal_variable, baseline_category,
-      main_index, pair_index,
-      grad_obs_act,
-      interaction_prior, difference_prior, threshold_prior
-    );
-  };
-
   auto joint = [&](const arma::vec& theta_vec) {
     unvectorize_model_parameters_bgmcompare(
       theta_vec, current_main, current_pair, inclusion_indicator,
@@ -868,6 +833,13 @@ StepResult update_nuts_bgmcompare(
       main_index, pair_index, grad_obs_act,
       interaction_prior, difference_prior, threshold_prior
     );
+  };
+
+  // Gradient-only view of `joint`, required by the heuristic_initial_step_size
+  // signature. Its single leapfrog step is called with a pre-computed initial
+  // gradient, so this is never actually evaluated.
+  auto grad = [&](const arma::vec& theta_vec) -> arma::vec {
+    return joint(theta_vec).second;
   };
 
   //adapt
@@ -1391,7 +1363,6 @@ void update_indicator_differences_metropolis_bgmcompare (
 //  - nuts_max_depth: Maximum tree depth for NUTS.
 //  - nuts_adapt: Adaptation controller for NUTS.
 //  - metropolis_adapt_main, metropolis_adapt_pair: Adaptation controllers for RWM updates.
-//  - learn_mass_matrix: Whether to adapt the mass matrix in NUTS.
 //  - schedule: Warmup schedule, controls adaptation and selection phases.
 //  - treedepth_samples, divergent_samples, energy_samples: Buffers for NUTS diagnostics.
 //  - projection: Group projection matrix.
@@ -1429,7 +1400,6 @@ void gibbs_update_step_bgmcompare (
     NUTSAdaptationController& nuts_adapt,
     MetropolisAdaptationController& metropolis_adapt_main,
     MetropolisAdaptationController& metropolis_adapt_pair,
-    const bool learn_mass_matrix,
     WarmupSchedule const& schedule,
     arma::ivec& treedepth_samples,
     arma::ivec& divergent_samples,
@@ -1509,7 +1479,7 @@ void gibbs_update_step_bgmcompare (
       counts_per_category,
       blume_capel_stats, pairwise_stats, is_ordinal_variable,
       baseline_category,
-      nuts_max_depth, iteration, nuts_adapt, learn_mass_matrix,
+      nuts_max_depth, iteration, nuts_adapt,
       schedule.selection_enabled(iteration), rng,
       interaction_prior, difference_prior, threshold_prior
     );
@@ -1706,7 +1676,6 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
   arma::vec accept_prob_samples(iter, arma::fill::zeros);
 
   // Edge update shuffling setup
-  arma::uvec v = arma::regspace<arma::uvec>(0, num_pair - 1);
   arma::uvec order(num_pair);
   arma::imat index(num_pair, 3);
 
@@ -1778,7 +1747,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
       impute_missing_bgmcompare (
           main_effects, pairwise_effects, main_effect_indices,
           pairwise_effect_indices, inclusion_indicator, projection,
-          observations, num_groups, group_membership, group_indices,
+          observations, num_groups, group_membership,
           counts_per_category, blume_capel_stats, pairwise_stats,
           num_categories, missing_data_indices, is_ordinal_variable,
           baseline_category, rng
@@ -1800,7 +1769,7 @@ bgmCompareOutput run_gibbs_sampler_bgmCompare(
         blume_capel_stats, inclusion_indicator,
         pairwise_effects, main_effects, is_ordinal_variable, baseline_category,
         iteration, pairwise_effect_indices, pairwise_stats, nuts_max_depth,
-        nuts_adapt, metropolis_adapt_main, metropolis_adapt_pair, learn_mass_matrix,
+        nuts_adapt, metropolis_adapt_main, metropolis_adapt_pair,
         warmup_schedule, treedepth_samples, divergent_samples, energy_samples,
         accept_prob_samples, main_effect_indices, projection, num_groups, group_indices,
         rng, inclusion_probability,

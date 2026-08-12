@@ -24,19 +24,9 @@
 //   rest_s = 2 Σ_{j≠s} M_{sj} x_j + 2 (A_xy μ_y)_s.
 // =============================================================================
 
-double MixedMRFModel::log_marginal_omrf(int s) const {
-    // Rest score: 2 · M · x minus self-interaction, plus cross-bias.
-    // Factor 2 from x'Mx derivative.
-    double precision_ss = marginal_interactions_(s, s);
-    arma::vec rest = 2.0 * (discrete_observations_dbl_ * marginal_interactions_.col(s)
-                          - discrete_observations_dbl_.col(s) * precision_ss)
-                   + 2.0 * arma::dot(pairwise_effects_cross_.row(s), main_effects_continuous_);
-    return log_marginal_omrf_given_rest(s, rest, precision_ss);
-}
-
 double MixedMRFModel::log_marginal_omrf_from(int s, const arma::mat& matvec,
                                              double precision_ss, double bias_s) const {
-    // Same rest score as log_marginal_omrf, with the O(np) matrix-vector
+    // Rest score per the section derivation above, with the O(np) matrix-vector
     // product replaced by a cached X · M column.
     arma::vec rest = 2.0 * (matvec.col(s) - discrete_observations_dbl_.col(s) * precision_ss)
                    + bias_s;

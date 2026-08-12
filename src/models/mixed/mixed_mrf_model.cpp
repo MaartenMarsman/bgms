@@ -56,7 +56,6 @@ MixedMRFModel::MixedMRFModel(
     num_pairwise_xx_ = (p_ * (p_ - 1)) / 2;
     num_pairwise_yy_ = (q_ * (q_ - 1)) / 2;
     num_cross_ = p_ * q_;
-    num_cholesky_ = (q_ * (q_ + 1)) / 2;
 
     max_cats_ = num_categories_.max();
 
@@ -145,16 +144,6 @@ MixedMRFModel::MixedMRFModel(
     };
     edge_pairs_xx_ = build_edge_pairs(p_, num_pairwise_xx_);
     edge_pairs_yy_ = build_edge_pairs(q_, num_pairwise_yy_);
-
-    // Detect sparse initial graph (constraints without edge selection)
-    if(!edge_selection_) {
-        size_t max_edges = num_pairwise_xx_ + num_pairwise_yy_ + num_cross_;
-        size_t num_edges = 0;
-        for(size_t i = 0; i < p_ + q_; ++i)
-            for(size_t j = i + 1; j < p_ + q_; ++j)
-                if(edge_indicators_(i, j) == 1) num_edges++;
-        has_sparse_graph_ = (num_edges < max_edges);
-    }
 }
 
 
@@ -173,7 +162,6 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       num_pairwise_xx_(other.num_pairwise_xx_),
       num_pairwise_yy_(other.num_pairwise_yy_),
       num_cross_(other.num_cross_),
-      num_cholesky_(other.num_cholesky_),
       discrete_observations_(other.discrete_observations_),
       discrete_observations_dbl_(other.discrete_observations_dbl_),
       continuous_observations_(other.continuous_observations_),
@@ -226,7 +214,6 @@ MixedMRFModel::MixedMRFModel(const MixedMRFModel& other)
       chol_constraint_structure_(other.chol_constraint_structure_),
       chol_block_offset_(other.chol_block_offset_),
       constraint_dirty_(other.constraint_dirty_),
-      has_sparse_graph_(other.has_sparse_graph_),
       rng_(other.rng_),
       edge_order_xx_(other.edge_order_xx_),
       edge_order_yy_(other.edge_order_yy_),
