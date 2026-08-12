@@ -1605,3 +1605,37 @@ test_that("p(K | t) matches the shifted-Poisson MFM generative prior", {
     expect_lt(0.5 * sum(abs(empirical - analytic)), 0.02)
   }
 })
+
+
+# ------------------------------------------------------------------------------
+# Deprecated Extractor Shims
+# ------------------------------------------------------------------------------
+# extract_edge_indicators() and extract_pairwise_thresholds() are 0.1.4.2
+# forwards kept for callers written against the old names. Two things have to
+# hold: the deprecation warning fires, and what comes back is what the
+# replacement returns -- a shim that warns but forwards to the wrong function
+# is worse than no shim. lifecycle_verbosity = "warning" defeats the
+# once-per-session throttle, which would otherwise make the second block to
+# run see no warning at all.
+
+test_that("extract_edge_indicators warns and forwards to extract_indicators", {
+  fit = get_bgms_fit()
+
+  withr::local_options(lifecycle_verbosity = "warning")
+  expect_warning(
+    result <- extract_edge_indicators(fit),
+    regexp = "deprecated"
+  )
+  expect_identical(result, extract_indicators(fit))
+})
+
+test_that("extract_pairwise_thresholds warns and forwards to extract_main_effects", {
+  fit = get_bgms_fit()
+
+  withr::local_options(lifecycle_verbosity = "warning")
+  expect_warning(
+    result <- extract_pairwise_thresholds(fit),
+    regexp = "deprecated"
+  )
+  expect_identical(result, extract_main_effects(fit))
+})

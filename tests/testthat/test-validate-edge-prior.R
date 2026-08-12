@@ -1,5 +1,5 @@
 # ==============================================================================
-# Unit tests for validate_edge_prior() and validate_bernoulli_prior()
+# Unit tests for validate_edge_prior()
 # Phase A.3 of the R scaffolding refactor.
 # ==============================================================================
 

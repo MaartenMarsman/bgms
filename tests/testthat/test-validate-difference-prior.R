@@ -1,6 +1,5 @@
 # ==============================================================================
-# Unit tests for validate_difference_prior() and
-# validate_bernoulli_difference_prior()
+# Unit tests for validate_difference_prior()
 # Phase A.4 of the R scaffolding refactor.
 # ==============================================================================
 

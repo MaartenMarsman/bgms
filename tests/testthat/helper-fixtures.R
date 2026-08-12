@@ -5,11 +5,12 @@
 # helper-*.R are sourced alphabetically before test files).
 #
 # Contents:
-#   1. Pre-fitted model fixtures (loaded from inst/extdata)
-#   2. Test data generators
-#   3. Matrix validation helpers
-#   4. Contract testing utilities
+#   1. Session-cached model fixtures
+#   2. Prediction data helpers
+#   3. Test data generators
+#   4. Matrix validation helpers
 #   5. MCMC test helpers
+#   6. Consolidated fixture spec lists
 #
 # ==============================================================================
 # TESTING PHILOSOPHY (see test-tolerance.R for the foundational approach)
@@ -932,7 +933,7 @@ generate_grouped_test_data = function(n_per_group = 20, p = 4, n_groups = 2,
 
 
 # ------------------------------------------------------------------------------
-# 3. Matrix Validation Helpers
+# 4. Matrix Validation Helpers
 # ------------------------------------------------------------------------------
 
 #' Check if matrix is symmetric within tolerance
@@ -993,68 +994,6 @@ check_extractor_matrix_consistency = function(extracted_means, matrix_val) {
 
 
 # ------------------------------------------------------------------------------
-# 4. Contract Testing Utilities
-# ------------------------------------------------------------------------------
-# These helpers verify that extractor functions return objects with expected
-# structure, enabling contract testing for downstream packages like easybgm.
-
-#' Verify extractor output structure
-#' @param obj Output from an extractor function
-#' @param type Expected type: "matrix", "data.frame", "list", "numeric", etc.
-#' @param expected_dim Expected dimensions (for matrix/data.frame)
-#' @param expected_names Expected column/row names or list names
-expect_extractor_structure = function(obj, type, expected_dim = NULL,
-                                      expected_names = NULL) {
-  # Type check
-  expect_true(
-    inherits(obj, type),
-    info = sprintf(
-      "Expected class %s, got %s",
-      type, paste(class(obj), collapse = ", ")
-    )
-  )
-
-  # Dimension check
-  if(!is.null(expected_dim)) {
-    if(is.matrix(obj) || is.data.frame(obj)) {
-      expect_equal(dim(obj), expected_dim,
-        info = sprintf(
-          "Expected dim %s, got %s",
-          paste(expected_dim, collapse = "x"),
-          paste(dim(obj), collapse = "x")
-        )
-      )
-    }
-  }
-
-  # Names check
-  if(!is.null(expected_names)) {
-    if(is.matrix(obj)) {
-      expect_true(
-        all(expected_names %in% colnames(obj)) ||
-          all(expected_names %in% rownames(obj)),
-        info = "Expected names not found in matrix row/colnames"
-      )
-    } else if(is.list(obj)) {
-      expect_true(
-        all(expected_names %in% names(obj)),
-        info = sprintf(
-          "Expected list names %s, got %s",
-          paste(expected_names, collapse = ", "),
-          paste(names(obj), collapse = ", ")
-        )
-      )
-    }
-  }
-}
-
-#' Check that function errors with expected message pattern
-expect_error_pattern = function(expr, pattern) {
-  expect_error(expr, regexp = pattern)
-}
-
-
-# ------------------------------------------------------------------------------
 # 5. MCMC Test Helpers
 # ------------------------------------------------------------------------------
 
@@ -1070,16 +1009,6 @@ quick_mcmc_args = function() {
     iter = 100,
     warmup = 100,
     chains = 1,
-    display_progress = "none"
-  )
-}
-
-#' Moderate MCMC settings for more thorough testing
-moderate_mcmc_args = function() {
-  list(
-    iter = 500,
-    warmup = 500,
-    chains = 2,
     display_progress = "none"
   )
 }
