@@ -182,6 +182,76 @@ test_that("the build fences shapes outside the validated range", {
   }
 })
 
+test_that("the build announcement follows the caller, not just the option", {
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE,
+    bgms.verbose = TRUE
+  )
+  zc = bgms:::zratio_constants(0.5 * log(6), 2)
+
+  # Told to be quiet, the build is quiet -- even with the advisory option on.
+  # zratio_attach_surface passes the fit's own flag through, so a fit run with
+  # verbose = FALSE no longer announces a build it was told not to mention.
+  expect_no_message(
+    bgms:::zratio_build_surfaces(zc, max_size = 6L, cores = 1L, verbose = FALSE)
+  )
+  expect_message(
+    bgms:::zratio_build_surfaces(zc, max_size = 6L, cores = 1L, verbose = TRUE),
+    "Building normalizing-constant corrections"
+  )
+
+  # A caller that says nothing keeps the old behaviour: the option decides.
+  expect_message(
+    bgms:::zratio_build_surfaces(zc, max_size = 6L, cores = 1L),
+    "Building normalizing-constant corrections"
+  )
+  withr::local_options(bgms.verbose = FALSE)
+  expect_no_message(
+    bgms:::zratio_build_surfaces(zc, max_size = 6L, cores = 1L)
+  )
+})
+
+test_that("a dead anchor worker degrades to no surface, not an error", {
+  skip_on_cran()
+  skip_on_os("windows")
+  # mclapply hands back a try-error object for a worker that died. Those used to
+  # reach rbind, which coerced the whole family to a character matrix and blew
+  # up inside the surface fit -- mid-build, on a path whose documented failure
+  # mode is a NULL return and the additive fallback.
+  withr::local_options(
+    bgms.zratio_surface_cache = FALSE,
+    bgms.correction_table_cache = FALSE,
+    bgms.verbose = FALSE
+  )
+  zc = bgms:::zratio_constants(0.5 * log(6), 2)
+
+  local_mocked_bindings(
+    zratio_anchor_cn = function(...) stop("worker died"),
+    .package = "bgms"
+  )
+  # cores > 1 so mclapply forks and converts the error into a try-error rather
+  # than propagating it; at mc.cores = 1 mclapply degenerates to lapply.
+  surf = NULL
+  warned = character(0)
+  expect_no_error(
+    withCallingHandlers(
+      surf <- bgms:::zratio_build_surfaces(
+        zc,
+        max_size = 8L, cores = 2L, verbose = FALSE
+      ),
+      warning = function(w) {
+        warned <<- c(warned, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+  )
+  expect_null(surf)
+  # The degradation is not silent: mclapply still reports the dead calls, so
+  # filtering the try-errors out hides nothing the user needs.
+  expect_true(any(grepl("resulted in an error", warned, fixed = TRUE)))
+})
+
 test_that("an analysis too small to anchor either family builds no surface", {
   # A bipartite bridge needs 2 + 2 nodes, so the bipartite anchor grid starts at
   # size 4 and filters to nothing at a cap of 3 or less. Assigning the family
