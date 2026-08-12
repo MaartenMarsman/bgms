@@ -380,6 +380,18 @@ prior_sensitivity_engine = function(bgms_object,
 
   spec = get_fit_spec(bgms_object)
   chosen_scale = unit$chosen_scale
+  # The whole grid is multipliers of this scale, so a fit whose swept prior has
+  # no scale (a beta-prime slab carries none) has nothing to sweep. Caught here,
+  # before any refit runs, rather than in the weight formula after them.
+  if(!is.numeric(chosen_scale) || length(chosen_scale) != 1L ||
+    !is.finite(chosen_scale) || chosen_scale <= 0) {
+    stop(
+      "The fit carries no usable ", unit$scale_field, " (got ",
+      format(chosen_scale), "), so there is no scale for the check to sweep. ",
+      "This is what a scale-free slab such as beta_prime_prior() leaves ",
+      "behind; refit with cauchy_prior() or normal_prior() to trace the scale."
+    )
+  }
   lthr = log(evidence_threshold)
   if(is.null(cores)) cores = spec$sampler$chains
 
@@ -532,7 +544,12 @@ prior_sensitivity_engine = function(bgms_object,
 
   gates = lapply(anchor_fits, refit_convergence_gate)
   rep_gate = refit_convergence_gate(rep_fit)
-  usable = vapply(gates, `[[`, logical(1), "usable")
+  # `gate_usable` is the gate's own verdict and is what $grid reports; `usable`
+  # is the effective flag the curve runs on, which the 1x anchor is forced into
+  # below. Keeping them apart stops the force from erasing the gate record.
+  gate_usable = vapply(gates, `[[`, logical(1), "usable")
+  usable = gate_usable
+  forced = rep(FALSE, n_anchor)
 
   # Adjudicate the captured refit chatter: the gate is the arbiter. A failed
   # anchor is reported once, in plain voice (which anchor, which criterion,
@@ -560,6 +577,7 @@ prior_sensitivity_engine = function(bgms_object,
       "read the whole curve with caution."
     )
     usable[s0_idx] = TRUE
+    forced[s0_idx] = TRUE
   }
 
   # Each anchor fit's own RB statistics carry the exact per-anchor verdicts.
@@ -573,9 +591,15 @@ prior_sensitivity_engine = function(bgms_object,
   n_edges = length(edge_names)
   prior_odds = s0$prior_odds
   # Exact per-anchor verdicts (n_anchor x n_edge); a gate-failed anchor is NA.
-  anchor_verdict = t(vapply(seq_len(n_anchor), function(a) {
+  anchor_verdict = vapply(seq_len(n_anchor), function(a) {
     if(usable[a]) anchor_stats[[a]]$verdict else rep(NA_character_, n_edges)
-  }, character(n_edges)))
+  }, character(n_edges))
+  # Same single-indicator collapse as lbf_of(): vapply drops to a vector when
+  # there is one edge, and the transpose would then read anchors as edges.
+  if(is.null(dim(anchor_verdict))) {
+    anchor_verdict = matrix(anchor_verdict, nrow = 1L)
+  }
+  anchor_verdict = t(anchor_verdict)
 
   # --- Display grid and the stitched curve ------------------------------------
   grid_mult = exp(seq(log(min(anchors)), log(max(anchors)), length.out = 41L))
@@ -585,8 +609,13 @@ prior_sensitivity_engine = function(bgms_object,
   s_grid = grid_mult * chosen_scale
 
   draws = lapply(anchor_fits, anchor_draws)
+  # The refits move the precision-diagonal rate with the slab under
+  # "slab-and-diagonal" (vary_diagonal_rate()), so the weights must carry that
+  # prior ratio too; under any other mode the diagonal prior is the same at
+  # every scale and the term is absent.
+  weight_eta = if(identical(vary$mode, "slab-and-diagonal")) vary$eta else NULL
   reweights = lapply(seq_len(n_anchor), function(a) {
-    anchor_reweight(draws[[a]], anchors[a] * chosen_scale, s_grid)
+    anchor_reweight(draws[[a]], anchors[a] * chosen_scale, s_grid, eta = weight_eta)
   })
   curve = assemble_curve(reweights, usable, ess_floor, anchor_index)
 
@@ -612,10 +641,15 @@ prior_sensitivity_engine = function(bgms_object,
   # rather than an infinity: the verdict is unchanged (still decisive), and the
   # curve, its range, and the plot stay finite.
   lbf_of = function(pip_mat) {
-    t(apply(pip_mat, 1, function(p) {
+    out = apply(pip_mat, 1, function(p) {
       pc = pmin(pmax(p, 1e-6), 1 - 1e-6)
       log((pc / (1 - pc)) / prior_odds)
-    }))
+    })
+    # A single-indicator fit (a two-variable network) makes apply() return a
+    # vector, one entry per grid point; restore the grid-by-indicator shape the
+    # transpose below expects.
+    if(is.null(dim(out))) out = matrix(out, nrow = 1L)
+    t(out)
   }
   lbf_mat = lbf_of(curve$pip)
   chain_lbf = simplify2array(lapply(curve$chain_pip, lbf_of)) # P x E x C
@@ -703,7 +737,12 @@ prior_sensitivity_engine = function(bgms_object,
     } else {
       "indistinguishable-from-wobble"
     }
-    si = stability_interval(verdict_mat[, e], grid_mult, chosen_idx)
+    # Anchored on the verdict the edges table reports (the original fit's own
+    # RB verdict), not on the pooled curve's value at the chosen scale.
+    si = stability_interval(
+      verdict_mat[, e], grid_mult, chosen_idx,
+      target = s0$verdict[e]
+    )
     stability_lower[e] = si[1]
     stability_upper[e] = si[2]
   }
@@ -755,7 +794,11 @@ prior_sensitivity_engine = function(bgms_object,
     scale = c(anchors, anchors[rep_anchor]) * chosen_scale,
     replicate = c(rep(FALSE, n_anchor), TRUE),
     original_fit = c(seq_len(n_anchor) == s0_idx, FALSE),
-    usable = c(usable, rep_gate$usable),
+    # The gate's own result, never the forced one; `forced` records where the
+    # curve used an anchor the gate rejected (only ever the 1x original fit,
+    # which is the analysis under check and is reported regardless).
+    usable = c(gate_usable, rep_gate$usable),
+    forced = c(forced, FALSE),
     rhat_continuous = vapply(all_gates, `[[`, numeric(1), "rhat_cont"),
     rhat_continuous_max = vapply(all_gates, `[[`, numeric(1), "rhat_cont_max"),
     ess_continuous = vapply(all_gates, `[[`, numeric(1), "ess_cont"),
@@ -873,15 +916,29 @@ wobble_yardstick = function(lbf_s0, lbf_rep) {
 # which the verdict is unchanged, using only reliable (non-NA) grid
 # points. NA verdicts break the run.
 #
+# The verdict held on to is `target`, which the caller sets to the
+# chosen-scale verdict the edges table and print() report -- the original
+# fit's own Rao-Blackwellized verdict, not the pooled curve's value at the
+# 1x grid point. The two are different estimators of the same quantity and
+# can disagree on a borderline edge; anchoring on the pooled one made the
+# interval describe a verdict the table never showed. When they do disagree
+# there is no range around the chosen scale over which the reported verdict
+# holds, and the bounds are missing rather than the degenerate 1x-to-1x pair.
+#
 # @param verdict     Per-grid-point verdict (may contain NA).
 # @param relative    Relative scale at each grid point.
 # @param chosen_idx  Grid index of the chosen scale.
+# @param target      The verdict to hold on to; defaults to the curve's own
+#                    value at the chosen scale.
 #
 # Returns: c(lower, upper) relative scale, or c(NA, NA).
 # ------------------------------------------------------------------
-stability_interval = function(verdict, relative, chosen_idx) {
-  target = verdict[chosen_idx]
+stability_interval = function(verdict, relative, chosen_idx, target = NULL) {
+  if(is.null(target)) target = verdict[chosen_idx]
   if(is.na(target)) {
+    return(c(NA_real_, NA_real_))
+  }
+  if(is.na(verdict[chosen_idx]) || verdict[chosen_idx] != target) {
     return(c(NA_real_, NA_real_))
   }
   n = length(verdict)
@@ -1105,8 +1162,20 @@ print.bgms_prior_sensitivity = function(x, max_rows = 10L, ...) {
   }
   cat("\n")
 
-  # Refits that failed their convergence check.
-  bad = x$grid[!x$grid$usable & !x$grid$replicate, ]
+  # Refits that failed their convergence check. A gate-failed anchor the curve
+  # kept anyway (only ever the original fit, which is the analysis under check)
+  # is named separately: it was not excluded, so the exclusion sentence would
+  # misreport it.
+  gr_forced = x$grid$forced %||% rep(FALSE, nrow(x$grid))
+  bad = x$grid[!x$grid$usable & !x$grid$replicate & !gr_forced, ]
+  kept = x$grid[!x$grid$usable & !x$grid$replicate & gr_forced, ]
+  if(nrow(kept) > 0) {
+    wrap(sprintf(
+      "The %s fit (the original fit) did not pass its convergence check; its verdicts are still reported, because it is the analysis under check.",
+      paste(sprintf("%.2gx", kept$multiplier), collapse = ", ")
+    ))
+    cat("\n")
+  }
   if(nrow(bad) > 0) {
     bl = sprintf("%.2gx", bad$multiplier)
     bl = if(length(bl) > 1L) {
