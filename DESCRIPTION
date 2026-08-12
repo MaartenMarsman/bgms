@@ -24,7 +24,7 @@ Description: Bayesian estimation and edge selection for graphical models of
     posterior inclusion probabilities for each edge. Supports multi-group
     comparison via 'bgmCompare()', simulation, prediction, and missing data
     imputation.
-Copyright: Includes datasets 'ADHD' and 'Boredom', which are licensed under CC-BY 4. See individual data documentation for license and citation.
+Copyright: Includes datasets 'ADHD' and 'Boredom', which are licensed under CC BY 4.0. See individual data documentation for license and citation.
 License: GPL (>= 2)
 URL: https://bayesian-graphical-modelling-lab.github.io/bgms/, https://github.com/Bayesian-Graphical-Modelling-Lab/bgms
 BugReports: https://github.com/Bayesian-Graphical-Modelling-Lab/bgms/issues
@@ -39,6 +39,7 @@ Imports:
     grDevices,
     parallel,
     stats,
+    tools,
     utils
 RdMacros: Rdpack
 LinkingTo: 
@@ -48,8 +49,8 @@ LinkingTo:
     dqrng, 
     BH
 Roxygen: list(markdown = TRUE)
-Depends: 
-    R (>= 3.5)
+Depends:
+    R (>= 4.2)
 LazyData: true
 Encoding: UTF-8
 Suggests: 
