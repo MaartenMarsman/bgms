@@ -208,7 +208,13 @@ summarize_zratio_gauge = function(chains, threshold = 0.01, verbose = TRUE,
       # from all three edge classes; the pool is then supplied separately and
       # the gain is read off it, so the feedback is not understated by the size
       # of the audited block.
+      # Same length guard the pip list gets above: pool_pip is assembled per
+      # chain by a different caller, so a shorter list is a missing entry for
+      # this chain, not an error to raise -- [[c_idx]] past the end would stop
+      # the whole diagnostic. Fall back to the audited block, which is what an
+      # absent pool already means.
       pool = if(is.null(harm_inputs$pool_pip) ||
+        length(harm_inputs$pool_pip) < c_idx ||
         is.null(harm_inputs$pool_pip[[c_idx]])) {
         pip
       } else {

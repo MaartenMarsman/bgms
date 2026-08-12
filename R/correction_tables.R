@@ -18,8 +18,7 @@
 # so the per-pair curve f(theta) = log C(theta) / E is the cumulative
 # trapezoid of the per-pair score, up to an additive constant that cancels in
 # every ratio. The implied per-edge slope at local density d is
-# f'(d) = log[(d / (1 - d)) * (1 - theta) / theta], and the per-edge read-off
-# table is fed(theta, d) = log(1 - theta + theta * exp(f'(d))).
+# f'(d) = log[(d / (1 - d)) * (1 - theta) / theta].
 #
 # The sweep runs bgms's own tilted prior sampler (sample_ggm_prior,
 # spec = "joint"), so the tables are consistent with the deployed model by
@@ -69,18 +68,17 @@ ggm_correction_theta_grid = function(n_grid = 120L, lower = 0.002,
 #    increasing in theta), then clamp away from {0, 1} for the logs
 #  - per-pair score -> trapezoid -> f(theta) (per-pair log C)
 #  - implied per-edge slope fprime vs local density
-#  - fed(theta, d) read-off grid
 #
 # The integrated f/logC curve uses the full theta grid (the score has
 # no boundary singularity in the estimate). The slope curve is
 # fprime = logit(d) - logit(theta), so near the boundaries the logit
 # amplifies Monte-Carlo noise in d and the resolution floor 0.5/E can
-# exceed the true density; fprime and the fed table are therefore
-# built only from grid points with theta <= fprime_theta_cap whose
-# density is resolvable (inside (0.5/E, 1 - 0.5/E)), and extended as
-# constants beyond the covered density range. With a single pair the
-# resolvable window is empty, so the slope pieces are returned as
-# NULL; the logC curve does not depend on them.
+# exceed the true density; fprime is therefore built only from grid
+# points with theta <= fprime_theta_cap whose density is resolvable
+# (inside (0.5/E, 1 - 0.5/E)), and extended as constants beyond the
+# covered density range. With a single pair the resolvable window is
+# empty, so the slope pieces are returned as NULL; the logC curve does
+# not depend on them.
 #
 # Returns the table as a list; logC is the whole-graph curve
 # num_pairs * f used by the beta-binomial draw. fprime is tabulated
@@ -102,26 +100,28 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
     edens > 0.5 / num_pairs & edens < 1 - 0.5 / num_pairs
   fprime_density = NULL
   fprime = NULL
-  fed_theta = NULL
-  fed_density = NULL
-  fed = NULL
   if(any(keep)) {
-    fprime_density = edens[keep]
-    fprime = log(
-      (fprime_density / (1 - fprime_density)) * (1 - theta[keep]) / theta[keep]
+    dens_keep = edens[keep]
+    fprime_keep = log(
+      (dens_keep / (1 - dens_keep)) * (1 - theta[keep]) / theta[keep]
     )
-    stopifnot(all(is.finite(fprime)))
+    stopifnot(all(is.finite(fprime_keep)))
 
-    fed_theta = seq(0.005, 0.995, length.out = 120L)
-    fed_density = seq(min(fprime_density), max(fprime_density),
-      length.out = 60L
-    )
-    fprime_at = function(d) {
-      stats::approx(fprime_density, fprime, d, rule = 2, ties = mean)$y
-    }
-    fed = outer(fed_theta, fed_density, function(tt, dd) {
-      log(1 - tt + tt * exp(fprime_at(dd)))
-    })
+    # The isotonic repair pools each crash dip into a run of grid points that
+    # share one fitted density, while theta keeps rising across the run, so
+    # fprime = logit(d) - logit(theta) falls along it. Those duplicate
+    # abscissae are not a curve: the C++ reader (SBMCorrection::fprime_at,
+    # src/priors/edge_prior_correction.h) brackets by binary search and lands
+    # on the LAST point of a tied run, i.e. the run's lowest slope, so every
+    # repaired region deploys a slope biased low. Aggregate to unique
+    # densities -- mean slope per tied run -- so what is handed to C++ is
+    # strictly increasing in density and the repaired region reads its run
+    # mean. The aggregation is exact-value: isoreg emits bit-identical fitted
+    # values within a pooled run, and distinct densities are never merged.
+    grp = match(dens_keep, unique(dens_keep))
+    fprime_density = unique(dens_keep)
+    fprime = as.numeric(tapply(fprime_keep, grp, mean))
+    stopifnot(all(diff(fprime_density) > 0))
   }
 
   list(
@@ -134,9 +134,6 @@ correction_table_from_edens = function(theta, edens_raw, num_pairs,
     fprime_density = fprime_density,
     fprime = fprime,
     fprime_theta_cap = fprime_theta_cap,
-    fed_theta = fed_theta,
-    fed_density = fed_density,
-    fed = fed,
     num_pairs = num_pairs
   )
 }
@@ -448,6 +445,23 @@ correction_scale_prior = function(prior) {
 
 
 # ------------------------------------------------------------------
+# warn_sbm_slope_unresolvable (internal)
+# ------------------------------------------------------------------
+# The single wording for "this cell has no slope curve", raised both
+# by the pre-sweep short-circuit and by the post-build check so the
+# two cannot drift apart.
+# ------------------------------------------------------------------
+warn_sbm_slope_unresolvable = function() {
+  warning(
+    "The Stochastic-Block updates are run without the ",
+    "normalizing-constant correction: the slope curve is not resolvable ",
+    "for this model cell (a single tilted pair).",
+    call. = FALSE
+  )
+}
+
+
+# ------------------------------------------------------------------
 # ggm_edge_prior_correction (internal)
 # ------------------------------------------------------------------
 # Resolve whether a fit needs the normalizing-constant correction and
@@ -488,6 +502,18 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
     return(NULL)
   }
 
+  # With exactly two continuous variables the tilted subgraph has one pair, so
+  # the resolvable density window (0.5/E, 1 - 0.5/E) is empty and the slope
+  # curve comes back NULL for certain -- see correction_table_from_edens. That
+  # is knowable before the sweep, and the sweep costs minutes, so the
+  # Stochastic-Block cell short-circuits here with the same warning it would
+  # have earned afterwards. The post-build check below stays: it is the general
+  # unresolvable case, of which this is only the one instance we can foresee.
+  if(identical(prior$edge_prior, "Stochastic-Block") && num_continuous < 3L) {
+    warn_sbm_slope_unresolvable()
+    return(NULL)
+  }
+
   interaction_prior = correction_interaction_prior(prior)
   precision_scale_prior = correction_scale_prior(prior)
 
@@ -497,23 +523,23 @@ ggm_edge_prior_correction = function(prior, sampler, num_variables,
   show_progress = is.null(sampler$progress_type) ||
     !identical(as.integer(sampler$progress_type), 0L)
 
+  # The table build gets its own width and its own announcement rather than the
+  # chain's. It runs before the chains launch, so the machine is idle and
+  # sampler$cores is not the relevant budget -- on the prior_only_chain_pips
+  # path that number is 1, which ran a minutes-long sweep on a single core and
+  # said nothing about it. Same policy as prior_pip_table().
   table = ggm_correction_table(
     p = num_continuous, delta = prior$delta,
     interaction_prior = interaction_prior,
     precision_scale_prior = precision_scale_prior,
     update_method = "gibbs",
-    cores = sampler$cores,
-    verbose = isTRUE(sampler$verbose),
+    cores = normalize_parallel_cores(parallel::detectCores()),
+    verbose = isTRUE(getOption("bgms.verbose", TRUE)),
     show_progress = show_progress
   )
   if(identical(prior$edge_prior, "Stochastic-Block") &&
     is.null(table$fprime)) {
-    warning(
-      "The Stochastic-Block updates are run without the ",
-      "normalizing-constant correction: the slope curve is not resolvable ",
-      "for this model cell (a single tilted pair).",
-      call. = FALSE
-    )
+    warn_sbm_slope_unresolvable()
     return(NULL)
   }
   is_continuous = NULL
@@ -553,18 +579,31 @@ correction_cache_dir = function() {
 # earlier version's table out of the shared cache directory. Files
 # under an older key are simply never read again.
 #
+# base_seed is part of the key because it seeds every chain in the
+# sweep: two base_seeds give two different Monte-Carlo tables for the
+# same cell, and serving one for the other is the same mistake the
+# version scoping prevents across releases.
+#
+# The prefix is v2: v1 tables carry per-theta fprime abscissae with
+# duplicates on repaired regions and an unused fed grid, neither of
+# which this reader's contract admits, so they are never served again.
+#
 # @param cell           Cell identity from ggm_correction_cell().
 # @param n_grid,n_samples,n_warmup,n_seeds,update_method  Builder settings.
+# @param base_seed      Seed offset for the sweep chains.
 #
 # Returns: the file name, including the .rds extension.
 # ------------------------------------------------------------------
 ggm_correction_table_key = function(cell, n_grid, n_samples, n_warmup,
-                                    n_seeds, update_method) {
+                                    n_seeds, update_method, base_seed) {
   sprintf(
-    "ggm_ctable_v1_%s_q%d_delta%.8g_eta%.8g_%s_shape%.8g_g%d_ns%d_nw%d_sd%d_%s.rds",
+    paste0(
+      "ggm_ctable_v2_%s_q%d_delta%.8g_eta%.8g_%s_shape%.8g",
+      "_g%d_ns%d_nw%d_sd%d_bs%d_%s.rds"
+    ),
     as.character(utils::packageVersion("bgms")),
     cell$q, cell$delta, cell$eta, cell$slab_family, cell$scale_shape,
-    n_grid, n_samples, n_warmup, n_seeds, update_method
+    n_grid, n_samples, n_warmup, n_seeds, base_seed, update_method
   )
 }
 
@@ -598,7 +637,7 @@ ggm_correction_table = function(
       p, delta, interaction_prior, precision_scale_prior
     )
     key = ggm_correction_table_key(
-      cell, n_grid, n_samples, n_warmup, n_seeds, update_method
+      cell, n_grid, n_samples, n_warmup, n_seeds, update_method, base_seed
     )
     cache_dir = correction_cache_dir()
     cache_file = file.path(cache_dir, key)
@@ -626,8 +665,33 @@ ggm_correction_table = function(
   )
 
   if(use_cache) {
-    dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
-    saveRDS(table, cache_file)
+    # The read is already tolerant of an unusable cache; the write must be too.
+    # An unwritable cache directory (read-only home, full disk, a sandbox) is a
+    # caching failure, not a build failure, and the sweep that just finished
+    # cost minutes -- aborting here would throw it away. Mirrors the surface
+    # cache write in R/zratio_surfaces.R, but warns rather than staying silent:
+    # a table that never lands means every later fit of this cell pays the
+    # sweep again, which the user should be told about once.
+    # Both conditions, not just errors: saveRDS on an unopenable path warns
+    # ("cannot open compressed file") on its way to failing, and a bare warning
+    # escaping this block would report the connection failure in place of what
+    # it means for the caller.
+    report_failure = function(cond) {
+      warning(
+        "The correction table was built but could not be cached to ",
+        cache_file, " (", conditionMessage(cond),
+        "); later fits of this model cell will rebuild it.",
+        call. = FALSE
+      )
+    }
+    tryCatch(
+      {
+        dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
+        saveRDS(table, cache_file)
+      },
+      error = report_failure,
+      warning = report_failure
+    )
   }
   table
 }
