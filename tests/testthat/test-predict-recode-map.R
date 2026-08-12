@@ -34,16 +34,21 @@ test_that("values not observed in training give NA with a warning", {
   expect_equal(out[1, 1], 0)
 })
 
-test_that("Blume-Capel columns (NULL level entry) fall back to subtract-min", {
-  # category_levels present but NULL for this variable -> legacy behaviour.
+test_that("an ordinal column with a NULL level entry is an error, not a guess", {
+  # The old fallback shifted by the newdata column minimum, which is the
+  # training offset only by coincidence. Every current fit carries a map.
   levels = list(NULL)
-  out = recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = levels)
-  expect_equal(out[, 1], c(0, 1, 2))
+  expect_error(
+    recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = levels),
+    "predates the recode map"
+  )
 })
 
-test_that("no map at all (old fit) preserves legacy subtract-min behaviour", {
-  out = recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = NULL)
-  expect_equal(out[, 1], c(0, 1, 2))
+test_that("no map at all (old fit) is an error naming the refit", {
+  expect_error(
+    recode(matrix(c(2, 3, 4), ncol = 1), TRUE, category_levels = NULL),
+    "predates the recode map"
+  )
 })
 
 test_that("continuous/non-ordinal columns are left unchanged", {

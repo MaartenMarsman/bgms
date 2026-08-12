@@ -54,6 +54,11 @@ arma::imat simulate_mrf(
   arma::imat observations(num_states, num_variables);
   int max_num_categories = arma::max(num_categories);
   arma::vec probabilities(max_num_categories + 1);
+  // Category exponents of the full conditional, held so the largest can be
+  // subtracted before exponentiating (as compute_probs_ordinal() and
+  // compute_probs_blume_capel() already do on the prediction side). Without it
+  // a large rest score overflows exp() to Inf and the draw degenerates.
+  arma::vec exponents(max_num_categories + 1);
   double exponent = 0.0;
   double rest_score = 0.0;
   double cumsum = 0.0;
@@ -97,8 +102,12 @@ arma::imat simulate_mrf(
           rest_score += 2.0 * (obs - ref) * pairwise_safe(vertex, variable);
         }
 
+        // Both branches collect the category exponents first, subtract their
+        // maximum, and only then exponentiate: the cumulative weights are
+        // sampled from up to a common factor, so the shift leaves the
+        // distribution untouched while keeping every term in range.
+        double max_exponent = 0.0;
         if(variable_type[variable] == "blume-capel") {
-          cumsum = 0.0;
           int ref = baseline_category[variable];
           for(int category = 0; category <= num_categories[variable]; category++) {
             const int s = category - ref;
@@ -108,18 +117,28 @@ arma::imat simulate_mrf(
             exponent += main(variable, 1) * s * s;
             // Pairwise effects
             exponent += rest_score * s;
-            cumsum += MY_EXP(exponent);
+            exponents[category] = exponent;
+            if(category == 0 || exponent > max_exponent) max_exponent = exponent;
+          }
+          cumsum = 0.0;
+          for(int category = 0; category <= num_categories[variable]; category++) {
+            cumsum += MY_EXP(exponents[category] - max_exponent);
             probabilities[category] = cumsum;
           }
         } else {
-          // Ordinal: baseline category 0 has probability 1 (unnormalized)
-          cumsum = 1.0;
-          probabilities[0] = cumsum;
+          // Ordinal: baseline category 0 carries exponent 0
+          exponents[0] = 0.0;
+          max_exponent = 0.0;
           for(int category = 0; category < num_categories[variable]; category++) {
             exponent = main(variable, category);
             exponent += (category + 1) * rest_score;
-            cumsum += MY_EXP(exponent);
-            probabilities[category + 1] = cumsum;
+            exponents[category + 1] = exponent;
+            if(exponent > max_exponent) max_exponent = exponent;
+          }
+          cumsum = 0.0;
+          for(int category = 0; category <= num_categories[variable]; category++) {
+            cumsum += MY_EXP(exponents[category] - max_exponent);
+            probabilities[category] = cumsum;
           }
         }
 
@@ -507,6 +526,14 @@ Rcpp::List run_simulation_parallel(
   }
   pm.finish();
 
+  // Every worker returns as soon as the interrupt flag is set, so the draws it
+  // had not reached hold default-constructed matrices. Those are not a shorter
+  // simulation, they are empty ones, so the interrupt is raised rather than
+  // handed back as data.
+  if (pm.shouldExit()) {
+    Rcpp::stop("Simulation interrupted by user.");
+  }
+
   // Convert results to R list
   Rcpp::List output(ndraws);
   for (int i = 0; i < ndraws; i++) {
@@ -663,6 +690,12 @@ Rcpp::List run_ggm_simulation_parallel(
     parallelFor(0, ndraws, worker);
   }
   pm.finish();
+
+  // See the OMRF runner: an interrupted worker leaves its remaining draws
+  // empty, which must not reach the caller as a result.
+  if (pm.shouldExit()) {
+    Rcpp::stop("Simulation interrupted by user.");
+  }
 
   Rcpp::List output(ndraws);
   for (int i = 0; i < ndraws; i++) {
@@ -1131,6 +1164,12 @@ Rcpp::List run_mixed_simulation_parallel(
     parallelFor(0, ndraws, worker);
   }
   pm.finish();
+
+  // See the OMRF runner: an interrupted worker leaves its remaining draws
+  // empty, which must not reach the caller as a result.
+  if (pm.shouldExit()) {
+    Rcpp::stop("Simulation interrupted by user.");
+  }
 
   Rcpp::List output(ndraws);
   for (int i = 0; i < ndraws; i++) {

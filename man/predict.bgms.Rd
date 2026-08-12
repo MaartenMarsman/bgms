@@ -60,10 +60,12 @@ For \code{type = "probabilities"}: A named list with one element per
 predicted variable. Each element is a matrix with \code{n} rows and
 \code{num_categories + 1} columns containing
 \eqn{P(X_j = c | X_{-j})}{P(X_j = c | X_-j)}
-for each observation and category.
+for each observation and category. Columns are labelled with the original
+category values of the training data.
 
 For \code{type = "response"}: A matrix with \code{n} rows and
-\code{length(variables)} columns containing predicted categories.
+\code{length(variables)} columns containing predicted categories, on the
+original category scale that \code{\link{simulate.bgms}} returns.
 
 When \code{method = "posterior-sample"}, probabilities are averaged over
 posterior draws, and an attribute \code{"sd"} is included containing the
@@ -107,6 +109,18 @@ For GGM (continuous) models, the conditional distribution of
 \omega_{jk} x_k}{-omega_jj^{-1} sum_{k != j} omega_jk x_k}
 and variance \eqn{\omega_{jj}^{-1}}{omega_jj^{-1}}, where \eqn{\Omega}{Omega}
 is the precision matrix.
+
+\code{newdata} is matched to the fitted model by position. When it carries
+column names they must be the model's variables in the model's order, or
+\code{predict()} stops; when it carries none it is read positionally, with a
+warning saying so.
+
+A discrete cell of \code{newdata} that is \code{NA}, or that holds a category
+value never observed in the training data, leaves the conditional
+distribution of every other variable in that row undefined. Those
+predictions are returned as \code{NA}, with one warning giving the number of
+rows affected; the variable whose own value is missing is unaffected, since
+its conditional distribution does not use it.
 }
 \examples{
 \donttest{

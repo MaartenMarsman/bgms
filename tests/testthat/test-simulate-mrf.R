@@ -460,3 +460,74 @@ test_that("simulate_mrf rejects mixed continuous and ordinal", {
     "all variables must be of type"
   )
 })
+
+
+# ------------------------------------------------------------------------------
+# Numerical stability of the full conditional
+# ------------------------------------------------------------------------------
+# The full conditional subtracts the largest category exponent before
+# exponentiating. Without that, a large rest score sends exp() to Inf, the
+# cumulative weights become Inf or NaN, and the category search degenerates.
+
+test_that("large parameters do not overflow the full conditional", {
+  num_categories = c(2L, 2L, 3L)
+  pairwise = matrix(0, 3, 3)
+  pairwise[lower.tri(pairwise)] = c(80, -60, 50)
+  pairwise = pairwise + t(pairwise)
+  main = matrix(NA_real_, 3, max(num_categories))
+  main[1, 1:2] = c(60, -40)
+  main[2, 1:2] = c(-100, 80)
+  main[3, 1:3] = c(20, 40, -80)
+
+  result = simulate_mrf(
+    num_states = 40, num_variables = 3, num_categories = num_categories,
+    pairwise = pairwise, main = main,
+    variable_type = rep("ordinal", 3), baseline_category = rep(0L, 3),
+    iter = 50, seed = 3
+  )
+
+  expect_true(all(is.finite(result)))
+  expect_true(all(result >= 0))
+  expect_true(all(result <= rep(num_categories, each = nrow(result))))
+})
+
+test_that("the stabilized ordinal conditional samples the intended law", {
+  skip_on_cran()
+  # Three variables small enough to enumerate the joint exactly, so the
+  # simulated marginals have something other than themselves to agree with.
+  num_categories = c(2L, 2L, 3L)
+  pairwise = matrix(0, 3, 3)
+  pairwise[lower.tri(pairwise)] = c(0.4, -0.3, 0.25)
+  pairwise = pairwise + t(pairwise)
+  main = matrix(NA_real_, 3, max(num_categories))
+  main[1, 1:2] = c(0.3, -0.2)
+  main[2, 1:2] = c(-0.5, 0.4)
+  main[3, 1:3] = c(0.1, 0.2, -0.4)
+
+  simulated = simulate_mrf(
+    num_states = 50000, num_variables = 3, num_categories = num_categories,
+    pairwise = pairwise, main = main,
+    variable_type = rep("ordinal", 3), baseline_category = rep(0L, 3),
+    iter = 100, seed = 99
+  )
+
+  grid = as.matrix(expand.grid(lapply(num_categories, function(k) 0:k)))
+  log_weight = apply(grid, 1, function(z) {
+    total = 0
+    for(v in seq_len(3)) if(z[v] > 0) total = total + main[v, z[v]]
+    for(i in 1:2) {
+      for(j in (i + 1):3) total = total + 2 * z[i] * z[j] * pairwise[i, j]
+    }
+    total
+  })
+  weight = exp(log_weight - max(log_weight))
+  weight = weight / sum(weight)
+
+  for(v in seq_len(3)) {
+    exact = as.numeric(tapply(weight, grid[, v], sum))
+    empirical = as.numeric(
+      table(factor(simulated[, v], levels = 0:num_categories[v]))
+    ) / nrow(simulated)
+    expect_lt(max(abs(empirical - exact)), 0.01)
+  }
+})

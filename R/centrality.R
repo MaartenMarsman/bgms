@@ -82,18 +82,22 @@ extract_centrality = function(bgms_object, measure = "strength", group = 1, ...)
 # Strength centrality of every node, on each row of a draws x pairs matrix of
 # edge weights.
 #
-# The incidence comes from the edge order rather than from the column names: a
-# variable name containing a hyphen would defeat splitting "A-B" back into its
-# nodes.
+# The incidence comes from the caller's edge index rather than from the column
+# names: a variable name containing a hyphen would defeat splitting "A-B" back
+# into its nodes. It cannot be assumed either -- a mixed fit lays its pairwise
+# draws out by block (discrete-discrete, continuous-continuous, cross), which is
+# not the row-major upper triangle whenever the discrete and continuous columns
+# interleave, and summing the wrong columns gives each node another node's
+# edges. indicator_pair_index() (R/verdicts.R) reads the layout off the fit.
 #
 # @param samples        draws x pairs matrix of edge weights.
+# @param pairs          pairs x 2 matrix of (row, column) node positions, in
+#   the column order of `samples`.
 # @param num_variables  Number of nodes.
 #
 # Returns: a draws x nodes matrix.
 # ------------------------------------------------------------------
-strength_from_pairwise = function(samples, num_variables) {
-  pairs = which(upper.tri(matrix(0, num_variables, num_variables)), arr.ind = TRUE)
-  pairs = pairs[order(pairs[, "row"], pairs[, "col"]), , drop = FALSE]
+strength_from_pairwise = function(samples, pairs, num_variables) {
   stopifnot(nrow(pairs) == ncol(samples))
 
   absolute = abs(samples)
@@ -114,9 +118,10 @@ extract_centrality.bgms = function(bgms_object, measure = "strength", group = 1,
 
   samples = extract_pairwise_interactions(bgms_object)
   nodes = extract_arguments(bgms_object)$data_columnnames
+  pairs = indicator_pair_index(bgms_object, length(nodes))
 
   structure(
-    strength_from_pairwise(samples, length(nodes)),
+    strength_from_pairwise(samples, pairs, length(nodes)),
     dimnames = list(NULL, nodes),
     class = c("bgms_centrality", "matrix", "array"),
     measure = measure
@@ -168,13 +173,15 @@ extract_centrality.bgmCompare = function(bgms_object, measure = "strength",
     out
   }
 
+  pairs = indicator_pair_index(bgms_object, num_variables)
   labels = compare_group_labels(arguments, num_groups)
   if(length(group) == 1L) {
-    centrality = strength_from_pairwise(weights_of(group), num_variables)
+    centrality = strength_from_pairwise(weights_of(group), pairs, num_variables)
     label = sprintf("%s %s centrality", group_tag(labels, group), measure)
   } else {
-    centrality = strength_from_pairwise(weights_of(group[1]), num_variables) -
-      strength_from_pairwise(weights_of(group[2]), num_variables)
+    centrality =
+      strength_from_pairwise(weights_of(group[1]), pairs, num_variables) -
+      strength_from_pairwise(weights_of(group[2]), pairs, num_variables)
     label = sprintf(
       "difference in %s centrality (%s - %s)",
       measure, group_tag(labels, group[1]), group_tag(labels, group[2])
