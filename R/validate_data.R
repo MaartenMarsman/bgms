@@ -67,9 +67,6 @@ center_continuous_data = function(x) {
 #
 # @param x  Numeric matrix: the data.
 # @param na_action  Character: "listwise" or "impute".
-# @param is_continuous  Logical: TRUE for GGM (continuous) models.
-#   Imputation is supported for all model types, including GGM. This
-#   argument is currently unused by the function body.
 # @param group  Optional integer vector: group indicators for bgmCompare.
 #   If provided, listwise deletion also filters the group vector.
 #   NULL for bgm() calls.
@@ -85,7 +82,6 @@ center_continuous_data = function(x) {
 # ------------------------------------------------------------------------------
 validate_missing_data = function(x,
                                  na_action,
-                                 is_continuous = FALSE,
                                  group = NULL) {
   if(na_action == "listwise") {
     return(handle_listwise(x, group))

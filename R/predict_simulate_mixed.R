@@ -169,7 +169,7 @@ predict_bgms_mixed = function(object, newdata, predict_vars, arguments,
   # path; unobserved categories warn and yield NA predictions.
   x_data = as.matrix(newdata[, disc_idx, drop = FALSE])
   x_data = recode_data_for_prediction(
-    x_data, num_categories, is_ordinal, category_levels, blume_capel_shift
+    x_data, is_ordinal, category_levels, blume_capel_shift
   )
   storage.mode(x_data) = "integer"
   y_data = as.matrix(newdata[, cont_idx, drop = FALSE])

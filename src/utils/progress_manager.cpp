@@ -141,28 +141,6 @@ bool ProgressManager::shouldExit() const {
   return needsToExit.load(std::memory_order_relaxed);
 }
 
-void ProgressManager::checkConsoleWidthChange() {
-  if (!isRStudio) return;
-
-  size_t currentWidth = getConsoleWidth();
-
-  if (prevConsoleWidth == -1) {
-    // First time, just store the current width
-    prevConsoleWidth = consoleWidth;
-    widthChanged = false;
-    return;
-  }
-
-  if (currentWidth != consoleWidth && currentWidth > 0) {
-    // Width has changed
-    prevConsoleWidth = consoleWidth;
-    consoleWidth = currentWidth;
-    widthChanged = true;
-  } else {
-    widthChanged = false;
-  }
-}
-
 size_t ProgressManager::getConsoleWidth() const {
   Rcpp::Environment base("package:base");
   Rcpp::Function getOption = base["getOption"];
