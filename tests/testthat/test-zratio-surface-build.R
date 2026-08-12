@@ -85,6 +85,7 @@ test_that("the built surface tracks the gold oracle far tighter than additive", 
 })
 
 test_that("the deployed route serves the surface at a non-unit shape", {
+  skip_unless_certification()
   skip_on_cran()
   # Deployment probe. Every accuracy figure in the validation program was
   # scored on `logR`, the surface path; a fit takes `log_zratio`, the hot path.

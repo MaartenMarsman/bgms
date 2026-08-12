@@ -7,7 +7,14 @@
 #   T0  every run (local devtools::test(), and every push/PR)
 #       Contracts, validation, wiring, the product surface, and the tight
 #       numerical unit guards that catch a shifted constant in one run.
-#       No gate. Budget ~90 s.
+#       No gate. Budget: <= 15 min of tests in the fast-checks job.
+#
+#       State which build any local number came from. devtools::test()
+#       compiles a debug build (-O0), the tiering audit measured an optimized
+#       one, and the two differ by 2.38x on identical content -- so the
+#       audit's "~90 s" cannot be compared with a devtools::test() wall time
+#       or with what CI prints. The fast-checks job is the reference
+#       instrument; see .github/workflows/fast-checks.yaml.
 #
 #       CRAN runs a SUBSET of T0: the heavy internal numerical guard files
 #       are excluded there via skip_heavy_guard_on_cran() below (maintainer

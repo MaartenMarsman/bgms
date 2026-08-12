@@ -12,6 +12,17 @@
 #   6. Field type and value invariants
 # ==============================================================================
 
+# Tiers. The argument-completeness and recode contracts stay local. Matching
+# simulated against predicted margins is a Monte-Carlo agreement statistic,
+# so it runs nightly.
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the simulate-vs-predict margin agreement"
+  )
+}
+
 
 # ------------------------------------------------------------------------------
 # Fixture Specifications <U+2014> defined in helper-fixtures.R
@@ -812,6 +823,7 @@ test_that("sparse category codings recode to the fitted categories", {
 # ==============================================================================
 
 test_that("simulated margins match predicted margins for the same group", {
+  skip_unless_slow()
   skip_on_cran()
   # Groups that differ a lot, so a group mix-up is not a rounding question.
   p = 4

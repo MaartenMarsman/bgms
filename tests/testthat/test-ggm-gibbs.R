@@ -12,7 +12,22 @@
 #      samplers target the same K | graph posterior, so their posterior means
 #      must agree within MCMC error. This catches a wrong target that a
 #      "runs without error" check would miss.
+#
+# Tiers. The closed-form anchors are unit guards against a shifted constant and
+# stay local, as does one agreement cell -- Normal, alpha = 1, delta = 0, the
+# smoke proving gibbs is wired into bgm() at all. The remaining agreement cells
+# sweep the prior conditions (xi shift, gamma shape, Cauchy slab, eta frame),
+# which is settled-numerics calibration, so they are T1. The edge-selection
+# cells compare two samplers' inclusion probabilities across a condition grid,
+# which the tier contract places in T2.
 # --------------------------------------------------------------------------- #
+
+skip_unless_slow = function() {
+  skip_if_not(
+    identical(Sys.getenv("BGMS_RUN_SLOW_TESTS"), "true"),
+    message = "Set BGMS_RUN_SLOW_TESTS=true to run the gibbs-vs-AM condition sweep"
+  )
+}
 
 
 # ---- Closed-form anchors ---------------------------------------------------- #
@@ -137,6 +152,7 @@ test_that("gibbs routes through bgm() and agrees with AM (Normal, alpha=1, delta
 
 
 test_that("gibbs agrees with AM at delta = 0.5 (xi shape shift)", {
+  skip_unless_slow()
   skip_on_cran()
   skip_if_not_installed("MASS")
   Y = ggm_agreement_data()
@@ -151,6 +167,7 @@ test_that("gibbs agrees with AM at delta = 0.5 (xi shape shift)", {
 
 
 test_that("gibbs agrees with AM at alpha = 2 (independent-MH on the diagonal)", {
+  skip_unless_slow()
   skip_on_cran()
   skip_if_not_installed("MASS")
   Y = ggm_agreement_data()
@@ -165,6 +182,7 @@ test_that("gibbs agrees with AM at alpha = 2 (independent-MH on the diagonal)", 
 
 
 test_that("gibbs agrees with AM under a Cauchy slab (scale mixture of normals)", {
+  skip_unless_slow()
   skip_on_cran()
   skip_if_not_installed("MASS")
   Y = ggm_agreement_data()
@@ -180,6 +198,7 @@ test_that("gibbs agrees with AM under a Cauchy slab (scale mixture of normals)",
 
 
 test_that("gibbs agrees with AM under a non-unit Cauchy slab in the eta frame", {
+  skip_unless_slow()
   skip_on_cran()
   skip_if_not_installed("MASS")
   Y = ggm_agreement_data()
@@ -215,6 +234,7 @@ ggm_pips = function(Y, update_method, iter, warmup, shape = 1,
 }
 
 test_that("gibbs edge selection recovers the same inclusion probabilities as NUTS", {
+  skip_unless_certification()
   skip_on_cran()
   skip_if_not_installed("MASS")
   set.seed(11)
@@ -236,6 +256,7 @@ test_that("gibbs edge selection recovers the same inclusion probabilities as NUT
 })
 
 test_that("gibbs edge selection agrees with NUTS at Gamma shape = 2", {
+  skip_unless_certification()
   skip_on_cran()
   skip_if_not_installed("MASS")
   set.seed(11)
@@ -256,6 +277,7 @@ test_that("gibbs edge selection agrees with NUTS at Gamma shape = 2", {
 })
 
 test_that("gibbs edge selection agrees with NUTS under a Cauchy slab", {
+  skip_unless_certification()
   skip_on_cran()
   skip_if_not_installed("MASS")
   set.seed(11)
