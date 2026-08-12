@@ -139,15 +139,11 @@ compare_prior_only_main_diff = function(arguments, num_rows) {
   by_row = unname(unlist(by_row))
 
   num_contrasts = num_groups - 1L
-  flags = if(isTRUE(arguments$difference_selection)) {
-    # selection path (summarize_main_diff_compare): variable-major, with the
-    # contrasts of one row adjacent
-    rep(by_row, each = num_contrasts)
-  } else {
-    # no selection (summarize_manual_compare on the difference columns):
-    # contrast-major, the whole main-effects matrix once per contrast
-    rep(by_row, times = num_contrasts)
-  }
+  # Both summarizers now lay the difference rows out contrast-major: the whole
+  # main-effects matrix once per contrast. summarize_main_diff_compare() used to
+  # emit them variable-major while labelling them contrast-major, so this
+  # branched on difference_selection to follow it.
+  flags = rep(by_row, times = num_contrasts)
 
   if(length(flags) != num_rows) {
     return(NULL)
@@ -308,7 +304,10 @@ print.summary.bgmCompare = function(x, digits = 3, ...) {
     if(ncol(df2) > 1) {
       df2[, -1] = lapply(df2[, -1, drop = FALSE], round, digits = digits)
     }
-    print(head(df2, 6))
+    # The labels live in the `parameter` column and, since the summary tables
+    # gained the bgm row-name contract, in the row names as well. Suppress the
+    # row names so the label prints once, as the blocks below already do.
+    print(head(df2, 6), row.names = FALSE)
   }
 
   if(!is.null(x$main)) {

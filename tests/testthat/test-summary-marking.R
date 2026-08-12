@@ -155,12 +155,12 @@ test_that("a fit whose groups share their support prints unmarked", {
 
 
 test_that("the mark follows the row layout of both difference summaries", {
-  # The two summarizers lay the difference rows out differently: with selection
-  # the contrasts of one threshold are adjacent (variable-major), without it
-  # the whole main-effects matrix repeats once per contrast (contrast-major).
-  # Two groups cannot tell the two orderings apart -- there is only one
-  # contrast -- so this uses three, and checks the mark against the labels the
-  # marking code itself never looks at.
+  # Both summarizers lay the difference rows out contrast-major: the whole
+  # main-effects matrix repeats once per contrast. The selection path used to
+  # emit them variable-major instead, and the marking followed that; it now
+  # follows the one shared layout. Two groups cannot tell the two orderings
+  # apart -- there is only one contrast -- so this uses three, and checks the
+  # mark against the labels the marking code itself never looks at.
   set.seed(219)
   n = 70
   draw = function(lo, hi) {

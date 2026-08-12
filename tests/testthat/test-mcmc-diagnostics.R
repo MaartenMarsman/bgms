@@ -647,3 +647,149 @@ test_that("the transition scan restarts at every chain boundary", {
   expect_equal(alt_res[1, "n10"], 3, ignore_attr = TRUE) # 1 per chain, 3 chains
   expect_equal(unname(alt_res[1, "n00"] + alt_res[1, "n11"]), 0)
 })
+
+
+# ---- E-BFMI on partly non-finite energy traces ------------------------------ #
+
+test_that("E-BFMI is computed from the finite energy draws and NA is reported", {
+  mk_chain = function(energy) {
+    n = length(energy)
+    list(
+      treedepth__ = rep(2, n),
+      divergent__ = rep(0, n),
+      energy__ = energy,
+      accept_prob__ = rep(0.9, n)
+    )
+  }
+  set.seed(31)
+  clean = as.numeric(arima.sim(list(ar = 0.5), n = 200))
+
+  # One draw of chain 2 is non-finite. check_warmup_complete() already assessed
+  # the finite draws only; compute_ebfmi() saw the raw trace, so the whole chain
+  # came out NA -- which then made min_ebfmi NA for the run and dropped the
+  # chain out of `which(ebfmi < 0.2)`, because NA < 0.2 is NA.
+  holed = clean
+  holed[100] = NA_real_
+  res = bgms:::summarize_nuts_diagnostics(
+    list(mk_chain(clean), mk_chain(holed)),
+    nuts_max_depth = 10, verbose = FALSE
+  )
+  expect_false(anyNA(res$ebfmi))
+  expect_true(is.finite(res$summary$min_ebfmi))
+  # The single hole barely moves the statistic.
+  expect_equal(res$ebfmi[[2]], res$ebfmi[[1]], tolerance = 0.05)
+
+  # A chain with no usable energy has no E-BFMI. It must not erase the
+  # minimum for the chains that do, and it must be named in the issues.
+  res2 = bgms:::summarize_nuts_diagnostics(
+    list(mk_chain(clean), mk_chain(rep(NA_real_, 200))),
+    nuts_max_depth = 10, verbose = FALSE
+  )
+  expect_true(is.na(res2$ebfmi[[2]]))
+  expect_equal(res2$summary$min_ebfmi, res2$ebfmi[[1]], ignore_attr = TRUE)
+  expect_true(res2$has_issues)
+
+  withr::local_options(bgms.verbose = TRUE)
+  msg = capture.output(bgms:::summarize_nuts_diagnostics(
+    list(mk_chain(clean), mk_chain(rep(NA_real_, 200))),
+    nuts_max_depth = 10, verbose = TRUE
+  ))
+  expect_true(any(grepl("not computable in chain 2", msg, fixed = TRUE)))
+})
+
+
+# ---- Slab summary carries no structurally-NA Rhat --------------------------- #
+
+test_that("summarize_slab reports no Rhat column", {
+  # The included-only draws of one parameter are pooled into a single vector,
+  # so .compute_rhat_cpp() returns NA for every row by contract. The column was
+  # NA in every fit and read by nobody.
+  set.seed(32)
+  niter = 200
+  nchains = 2
+  nparam = 3
+  pw = array(rnorm(niter * nchains * nparam), dim = c(niter, nchains, nparam))
+  ind = array(rbinom(niter * nchains * nparam, 1, 0.7), dim = c(niter, nchains, nparam))
+  pw[ind == 0] = 0
+
+  slab = bgms:::summarize_slab(NULL, array3d = pw, array3d_ind = ind)
+  expect_equal(colnames(slab), c("parameter", "mean", "mcse", "sd", "n_eff"))
+  expect_false("Rhat" %in% colnames(slab))
+  expect_true(all(is.finite(slab$n_eff)))
+
+  # summarize_pair(), the only consumer, reads mean and mcse and still produces
+  # its own Rhat from the full effect chain.
+  pair = bgms:::summarize_pair(
+    list(list(pairwise_samples = matrix(0, niter, nparam))),
+    summ_slab = slab, array3d_id = ind, array3d_pw = pw
+  )
+  expect_true("Rhat" %in% colnames(pair))
+  expect_true(all(is.finite(pair$Rhat)))
+})
+
+
+# ---- Adaptive-Metropolis acceptance vs move rate ---------------------------- #
+
+test_that("am_diag separates the tuner acceptance probability from the move rate", {
+  mk_chain = function(seed) {
+    set.seed(seed)
+    niter = 50
+    list(
+      main_samples = matrix(rnorm(niter * 2), niter, 2),
+      # An excluded pairwise effect is pinned at 0 and never moves, so its move
+      # rate is 0 no matter how the sampler is tuned.
+      pairwise_samples = cbind(rnorm(niter), rep(0, niter)),
+      am_accept_prob__ = rep(0.44, niter)
+    )
+  }
+  res = bgms:::summarize_am_diagnostics(
+    list(mk_chain(1), mk_chain(2)),
+    names_main = c("m1", "m2"),
+    names_pairwise = c("p1", "p2")
+  )
+
+  # The acceptance rate is the sampler's own per-sweep trace, comparable with
+  # target_accept; the move rate keeps its own name and its per-parameter shape.
+  expect_equal(dim(res$accept_prob), c(2L, 50L))
+  expect_equal(rownames(res$accept_prob), c("chain 1", "chain 2"))
+  expect_equal(res$summary$mean_accept_prob, 0.44)
+
+  expect_equal(dim(res$move_rate), c(4L, 2L))
+  expect_equal(rownames(res$move_rate), c("m1", "m2", "p1", "p2"))
+  # The pinned parameter is the point: its move rate is 0 while the sampler was
+  # accepting at the target rate the whole time, so the old reading of the move
+  # rate as "the acceptance rate" understated it without bound.
+  expect_equal(unname(res$move_rate["p2", ]), c(0, 0))
+  expect_equal(res$summary$mean_move_rate, mean(res$move_rate))
+  expect_false(isTRUE(all.equal(
+    res$summary$mean_move_rate, res$summary$mean_accept_prob
+  )))
+
+  # A fit without the trace reports no acceptance rate rather than the move
+  # rate under its name.
+  bare = lapply(list(mk_chain(1), mk_chain(2)), function(chain) {
+    chain$am_accept_prob__ = NULL
+    chain
+  })
+  res_bare = bgms:::summarize_am_diagnostics(
+    bare,
+    names_main = c("m1", "m2"), names_pairwise = c("p1", "p2")
+  )
+  expect_null(res_bare$accept_prob)
+  expect_true(is.na(res_bare$summary$mean_accept_prob))
+  expect_equal(res_bare$move_rate, res$move_rate)
+})
+
+
+test_that("a real adaptive-metropolis fit carries both am_diag quantities", {
+  skip_on_cran()
+  fit = get_bgms_fit_adaptive_metropolis()
+
+  expect_true(is.matrix(fit$am_diag$accept_prob))
+  expect_equal(nrow(fit$am_diag$accept_prob), 2L)
+  expect_true(all(fit$am_diag$accept_prob >= 0 & fit$am_diag$accept_prob <= 1))
+  expect_true(is.matrix(fit$am_diag$move_rate))
+  expect_equal(ncol(fit$am_diag$move_rate), 2L)
+  expect_true(is.finite(fit$am_diag$summary$mean_accept_prob))
+  expect_true(is.finite(fit$am_diag$summary$mean_move_rate))
+})

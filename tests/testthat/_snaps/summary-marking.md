@@ -9,19 +9,19 @@
       
       Category thresholds:
       parameter mean mcse sd n_eff Rhat
-      1 A (1)
-      2 A (2)
-      3 A (3)
-      4 B (1)
-      5 B (2)
-      6 C (1)
+      A (1)
+      A (2)
+      A (3)
+      B (1)
+      B (2)
+      C (1)
       ... (use `summary(fit)$main` to see full output)
       
       Pairwise interactions:
       parameter mean mcse sd n_eff Rhat
-      1 A-B
-      2 A-C
-      3 B-C
+      A-B
+      A-C
+      B-C
       
       Inclusion probabilities:
       parameter mean mcse sd n_eff Rhat n0->1 n1->0

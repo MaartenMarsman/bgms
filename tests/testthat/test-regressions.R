@@ -53,12 +53,15 @@ test_that("pairwise difference summaries carry the right labels for 3 groups", {
 
   actual = fit$posterior_summary_pairwise_differences$parameter
 
-  # The rows run edge by edge (in i<j order), each edge repeated once per
-  # group difference. The labels must line up with that order.
+  # The rows run contrast by contrast: all edges (in i<j order) of difference 1,
+  # then all edges of difference 2. That is the layout of names_all, of
+  # posterior_mean_pairwise_differences, and of the no-selection branch. This
+  # test previously asserted the selection branch's edge-major emission order,
+  # which pinned the misalignment rather than the labelling.
   expected = character()
-  for(i in seq_len(p - 1L)) {
-    for(j in (i + 1L):p) {
-      for(h in seq_len(n_groups - 1L)) {
+  for(h in seq_len(n_groups - 1L)) {
+    for(i in seq_len(p - 1L)) {
+      for(j in (i + 1L):p) {
         expected = c(expected, sprintf("V%d-V%d (diff%d)", i, j, h))
       }
     }
