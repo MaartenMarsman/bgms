@@ -21,6 +21,39 @@
 # check, and never exceed the machine. The sweep builders add a no-forking rule
 # on Windows on top of it (normalize_builder_cores()); the sampler's chain
 # workers are threads and need no such rule.
+# ------------------------------------------------------------------
+# resolve_target_acceptance (internal)
+# ------------------------------------------------------------------
+# The default acceptance target for an update method, in one place.
+#
+# Every chain the package launches -- the deployed fit, the SBC reference
+# chain in sample_ggm_prior(), the prior-only chain in
+# prior_only_chain_pips() -- must tune to the same target for a given update
+# method, or the reference chains stop being references for the path they
+# describe. The C++ default is 0.80 (the NUTS target), so a caller that omits
+# target_acceptance silently gives an adaptive-metropolis chain the wrong
+# proposal tuning; routing every caller through this helper is what keeps a
+# fourth caller from repeating that.
+#
+# @param update_method "adaptive-metropolis", "nuts", or "gibbs".
+#
+# Returns: numeric scalar.
+# ------------------------------------------------------------------
+resolve_target_acceptance = function(update_method) {
+  switch(update_method,
+    # The componentwise random-walk MH optimum the AM chain tunes its
+    # between-model proposal SDs to.
+    "adaptive-metropolis" = 0.44,
+    "nuts"                = 0.80,
+    # Exact draw: no acceptance target. NA_real_ records that honestly (not a
+    # fake 0.44); it stays numeric length-1 for the downstream contract and is
+    # unused by the Gibbs path (the C++ side ignores target_accept for gibbs).
+    "gibbs"               = NA_real_,
+    stop("Unknown update_method: ", update_method)
+  )
+}
+
+
 check_limit_cores = function() {
   check_limit = Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
   nzchar(check_limit) && !identical(tolower(check_limit), "false")
@@ -154,14 +187,7 @@ validate_sampler = function(update_method,
     target_accept = min(target_accept, 1 - sqrt(.Machine$double.eps))
     target_accept = max(target_accept, 0 + sqrt(.Machine$double.eps))
   } else {
-    target_accept = switch(update_method,
-      "adaptive-metropolis" = 0.44,
-      "nuts"                = 0.80,
-      # Exact draw: no acceptance target. NA_real_ records that honestly (not a
-      # fake 0.44); it stays numeric length-1 for the downstream contract and is
-      # unused by the Gibbs path (the C++ side ignores target_accept for gibbs).
-      "gibbs"               = NA_real_
-    )
+    target_accept = resolve_target_acceptance(update_method)
   }
 
   # --- iter / warmup ----------------------------------------------------------

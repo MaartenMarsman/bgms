@@ -376,11 +376,16 @@ capture_sample_ggm_args = function(...) {
 
 test_that("the joint-spec chain carries bgm()'s adaptive-metropolis target", {
   # bgm() resolves target_accept = 0.44 for adaptive-metropolis
-  # (validate_sampler()); the C++ default is 0.80, the NUTS target.
+  # (validate_sampler()); the C++ default is 0.80, the NUTS target. Both come
+  # from resolve_target_acceptance(), so this path cannot drift from the fit.
   args = capture_sample_ggm_args(
     spec = "joint", update_method = "adaptive-metropolis"
   )
   expect_identical(args$target_acceptance, 0.44)
+  expect_identical(
+    args$target_acceptance,
+    resolve_target_acceptance("adaptive-metropolis")
+  )
 })
 
 test_that("the gibbs joint-spec chain sets no acceptance target", {
@@ -388,6 +393,7 @@ test_that("the gibbs joint-spec chain sets no acceptance target", {
   # exact and tune nothing.
   args = capture_sample_ggm_args(spec = "joint", update_method = "gibbs")
   expect_identical(args$target_acceptance, NA_real_)
+  expect_identical(args$target_acceptance, resolve_target_acceptance("gibbs"))
 })
 
 

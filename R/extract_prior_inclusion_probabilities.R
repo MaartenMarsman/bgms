@@ -177,6 +177,7 @@ prior_only_chain_pips = function(spec, iter, warmup) {
     )
     conjugate_slab = p$interaction_prior_type %in% c("cauchy", "normal") &&
       p$scale_prior_type %in% c("gamma", "exponential")
+    chain_update_method = if(conjugate_slab) "gibbs" else "adaptive-metropolis"
     results = sample_ggm(
       inputFromR = list(
         n = 0L,
@@ -195,7 +196,10 @@ prior_only_chain_pips = function(spec, iter, warmup) {
       no_warmup = as.integer(warmup),
       no_chains = 1L,
       edge_selection = TRUE,
-      sampler_type = if(conjugate_slab) "gibbs" else "adaptive-metropolis",
+      sampler_type = chain_update_method,
+      # The C++ default is 0.80, the NUTS target; this chain has to tune the
+      # way the method it names does, as the fit did.
+      target_acceptance = resolve_target_acceptance(chain_update_method),
       seed = as.integer(s$seed + 1L),
       no_threads = 1L,
       progress_type = 0L,
@@ -276,6 +280,7 @@ prior_only_chain_pips = function(spec, iter, warmup) {
     dirichlet_alpha = p$dirichlet_alpha,
     lambda = p$lambda,
     sampler_type = "adaptive-metropolis",
+    target_acceptance = resolve_target_acceptance("adaptive-metropolis"),
     delta = p$delta,
     edge_prior_correction = correction
   )

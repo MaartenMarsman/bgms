@@ -1707,6 +1707,12 @@ extract_ess.bgmCompare = function(bgms_object, estimator = c("rb", "mixt")) {
 #' For mixed MRF models the precision matrix is reconstructed from the
 #' internal association-scale parameterization.
 #'
+#' The diagonal is the posterior mean of the precision diagonal itself, not the
+#' reciprocal of the posterior mean residual variance. The latter summarises a
+#' variance, and its reciprocal is a harmonic mean of the diagonal draws that
+#' does not pair with the arithmetic-mean off-diagonals. The matrix returned
+#' here is the one `predict()` and `simulate()` use for the same fit.
+#'
 #' @param bgms_object A fitted model object of class `bgms` (from [bgm()]).
 #'
 #' @return A named numeric matrix containing the posterior mean precision
@@ -1745,23 +1751,41 @@ extract_precision.bgms = function(bgms_object) {
     return(invisible(NULL))
   }
 
-  rv = get_posterior_mean(bgms_object, "residual_variance")
   associations = get_posterior_mean(bgms_object, "pairwise")
 
+  # The diagonal is E[K_jj], the mean of the raw diagonal draws, matching what
+  # predict()/simulate() reconstruct for the same fit.
+  #
+  # posterior_mean_residual_variance is E[1 / K_jj] -- the right summary of a
+  # residual variance, and deliberately not 1 / E[K_jj] -- but its reciprocal is
+  # a harmonic mean of the diagonal, and pairing that with off-diagonals that are
+  # arithmetic means E[K_ij] gives a matrix that is no posterior mean of anything
+  # and need not stay positive definite. The mean of the draws is.
+
   if(isTRUE(arguments$is_mixed)) {
-    # Mixed MRF: extract the q x q continuous block, convert to precision
+    # Mixed MRF: extract the q x q continuous block, convert to precision. The
+    # sampler stores the continuous block on the association scale (-K_ij / 2),
+    # diagonal included, so -2 * E[draw] is E[K_jj] there.
     cont_idx = arguments$continuous_indices
     cont_names = arguments$data_columnnames_continuous
     cont_block = associations[cont_idx, cont_idx]
-    precision = -2 * cont_block
-    diag(precision) = 1 / rv
+    # Column means taken one at a time, as build_mixed_params_mean() takes them,
+    # so the two surfaces return the same matrix down to the last bit.
+    diag_draws = mixed_cont_diagonal_draws(bgms_object, arguments)
+    precision = reconstruct_precision(
+      cont_block,
+      -2 * apply(diag_draws, 2, mean)
+    )
     dimnames(precision) = list(cont_names, cont_names)
     return(precision)
   }
 
-  # GGM: associations are stored at half precision scale; convert to precision
-  precision = -2 * associations
-  diag(precision) = 1 / rv
+  # GGM: associations are stored at half precision scale; convert to precision.
+  # The raw diagonal draws are already on the precision scale.
+  precision = reconstruct_precision(
+    associations,
+    posterior_mean_precision_diagonal(bgms_object)
+  )
   return(precision)
 }
 

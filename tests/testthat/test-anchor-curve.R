@@ -199,9 +199,14 @@ test_that("anchor_diagonal reads the precision diagonal a model actually has", {
   expect_equal(d$sum[[1]], 0.5 * rowSums(main[[1]]))
   expect_equal(d$sum[[2]], 0.5 * rowSums(main[[2]]))
 
-  # Mixed MRF: only the columns that are precision diagonals.
+  # Mixed MRF: only the columns that are precision diagonals, and those columns
+  # are on the scale the sampler stores the whole continuous block on,
+  # -K_jj / 2 (mixed_mrf_model.cpp:534) -- not K_jj as in the GGM. So the
+  # statistic K_jj / 2 is minus the stored value, and the draws are negative.
+  kjj = matrix(seq(1, 10, length.out = 10), 5, 2)
+  stored = -kjj / 2
   raw_mixed = list(
-    main = list(matrix(1:20, 5, 4)),
+    main = list(cbind(matrix(0, 5, 2), stored)),
     parameter_names = list(main = c(
       "a (1)", "b (mean)", "b (precision diag)", "c (precision diag)"
     ))
@@ -209,13 +214,66 @@ test_that("anchor_diagonal reads the precision diagonal a model actually has", {
   spec_mixed = list(model_type = "mixed_mrf", prior = list(scale_shape = 1))
   dm = anchor_diagonal(spec_mixed, raw_mixed)
   expect_equal(dm$n, 2L)
-  expect_equal(dm$sum[[1]], 0.5 * rowSums(matrix(1:20, 5, 4)[, 3:4]))
+  expect_equal(dm$sum[[1]], rowSums(kjj) / 2)
+  expect_true(all(dm$sum[[1]] > 0))
 
   # A discrete model has no precision diagonal at all.
   expect_null(anchor_diagonal(
     list(model_type = "omrf", prior = list()),
     list(main = list(matrix(0, 5, 3)), parameter_names = list(main = letters[1:3]))
   ))
+})
+
+
+test_that("the anchor draws of a real fit are in the frames the priors use", {
+  # Both scales are read off the sampler's storage convention rather than
+  # assumed, so pin them to something the fit reports independently: the
+  # residual variance is 1 / K_jj averaged per draw, and the posterior mean
+  # pairwise matrix is the association scale the slab is evaluated on.
+  for(spec in list(
+    list(label = "ggm", fit = get_bgms_fit_ggm()),
+    list(label = "mixed", fit = get_bgms_fit_mixed_mrf())
+  )) {
+    fit = spec$fit
+    ctx = spec$label
+    draws = anchor_draws(fit)
+
+    # Diagonal statistic: sum_j K_jj / 2, positive, and reproducing the
+    # posterior mean residual variance as the mean of 1 / K_jj.
+    kjj_half = unlist(draws$diagonal$sum)
+    expect_true(all(kjj_half > 0), info = ctx)
+
+    raw = get_raw_samples(fit)
+    cols = if(identical(ctx, "ggm")) {
+      seq_len(ncol(raw$main[[1]]))
+    } else {
+      which(endsWith(raw$parameter_names[["main"]], "(precision diag)"))
+    }
+    scale = if(identical(ctx, "ggm")) 1 else -2
+    kjj = do.call(rbind, lapply(raw$main, function(m) {
+      scale * m[, cols, drop = FALSE]
+    }))
+    expect_equal(
+      colMeans(1 / kjj),
+      unname(get_posterior_mean(fit, "residual_variance")),
+      info = ctx
+    )
+    expect_equal(
+      kjj_half, unname(rowSums(kjj) / 2),
+      info = ctx
+    )
+
+    # Slab frame: the association scale the posterior mean pairwise matrix is
+    # reported on. The GGM stores raw precision and needs the -0.5 factor; the
+    # mixed sampler already stores every block in its slab's own frame.
+    theta_means = colMeans(do.call(rbind, draws$theta))
+    pm = get_posterior_mean(fit, "pairwise")
+    expect_equal(
+      sort(round(theta_means, 10)),
+      sort(round(pm[upper.tri(pm)], 10)),
+      info = ctx
+    )
+  }
 })
 
 
