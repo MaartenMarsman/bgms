@@ -638,13 +638,14 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
 
   # Reconstruct the posterior mean precision matrix the way predict() does:
   # off-diagonals -2 * association, diagonal the mean of the raw diagonal draws.
-  # Not extract_precision(), which still takes 1 / posterior_mean_residual_
-  # variance for the diagonal -- a harmonic mean of the same draws, and so a
-  # different matrix.
   omega_hat = bgms:::reconstruct_precision(
     get_posterior_mean(fit, "pairwise"),
     bgms:::posterior_mean_precision_diagonal(fit)
   )
+
+  # extract_precision() reports the same matrix -- one posterior mean precision
+  # matrix per fit across the package surfaces.
+  expect_identical(unname(extract_precision(fit)), unname(omega_hat))
   p = args$num_variables
 
   # Center newdata on the training means (predict does the same internally)
@@ -664,6 +665,20 @@ test_that("predict.bgms GGM conditional mean matches analytic formula", {
     expect_equal(pred[[j]][, "mean"], expected_means, tolerance = 1e-10)
     expect_equal(unname(pred[[j]][1, "sd"]), expected_sd, tolerance = 1e-10)
   }
+})
+
+test_that("extract_precision matches the mixed predict/simulate Omega", {
+  # Same cross-surface check for the continuous block of a mixed fit: the
+  # predict()/simulate() parameter build carries it on the association scale,
+  # so -2 * pairwise_cont is the precision matrix extract_precision() reports.
+  fit = get_bgms_fit_mixed_mrf_no_es()
+  args = extract_arguments(fit)
+
+  params = bgms:::build_mixed_params_mean(fit, args)
+  expect_identical(
+    unname(extract_precision(fit)),
+    unname(-2 * params$pairwise_cont)
+  )
 })
 
 

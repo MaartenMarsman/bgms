@@ -33,6 +33,13 @@ anchor_draws = function(fit) {
   if(identical(spec$model_type, "compare")) {
     return(compare_anchor_draws(fit, spec, raw))
   }
+  # The GGM stores raw precision entries K_ij and the slab is evaluated at
+  # -K_ij / 2, so those draws need the factor. The mixed sampler already stores
+  # every pairwise block in the frame its slab is evaluated in: the discrete
+  # and cross blocks directly (mixed_mrf_gradient.cpp:503, 521), and the
+  # continuous block as pairwise_effects_continuous_ = -Omega / 2
+  # (mixed_mrf_model.cpp:534), which is the kyy_val the slab sees at
+  # mixed_mrf_gradient.cpp:574. Hence 1, not -0.5, for all three.
   slab_factor = if(identical(spec$model_type, "ggm")) -0.5 else 1
   theta = lapply(raw$pairwise, function(m) slab_factor * m)
   gamma = raw$indicator
@@ -57,9 +64,22 @@ anchor_draws = function(fit) {
 # the slab, and the weight has to carry both ratios. The sufficient statistic
 # the rate multiplies is the sum of the values the prior is evaluated at, and
 # the sampler evaluates it at K_jj / 2 (ggm_model.cpp:320, mixed_mrf_
-# gradient.cpp:559), not at K_jj; the raw main draws store K_jj itself, the
-# same columns the per-draw predict path reconstructs the precision matrix
-# from (build_precision_from_draw()).
+# gradient.cpp:559), not at K_jj.
+#
+# The two model types store that diagonal on different scales, so the draws
+# reach K_jj / 2 by different factors:
+#
+#   ggm        raw main draws are K_jj itself, the same columns the per-draw
+#              predict path reconstructs the precision matrix from
+#              (build_precision_from_draw()), so K_jj / 2 = 0.5 * draw.
+#   mixed_mrf  the "(precision diag)" columns are the diagonal of
+#              pairwise_effects_continuous_, which the sampler stores as
+#              -Omega / 2 for the whole continuous block, diagonal included
+#              (mixed_mrf_model.cpp:534; the same convention makes
+#              build_output_mixed_mrf() read the residual variance back as
+#              -1 / (2 * draw)). So K_jj / 2 = -draw, and taking 0.5 * draw
+#              here gave the weight a diagonal statistic of the wrong sign
+#              and half the size.
 #
 # @param spec  The fit's spec.
 # @param raw   Its raw samples.
@@ -68,7 +88,8 @@ anchor_draws = function(fit) {
 #   diagonal elements, shape = the Gamma shape alpha), or NULL.
 # ------------------------------------------------------------------
 anchor_diagonal = function(spec, raw) {
-  cols = if(identical(spec$model_type, "ggm")) {
+  is_ggm = identical(spec$model_type, "ggm")
+  cols = if(is_ggm) {
     seq_len(ncol(raw$main[[1]]))
   } else if(identical(spec$model_type, "mixed_mrf")) {
     which(endsWith(raw$parameter_names[["main"]], "(precision diag)"))
@@ -78,8 +99,11 @@ anchor_diagonal = function(spec, raw) {
   if(length(cols) == 0L) {
     return(NULL)
   }
+  to_half_precision = if(is_ggm) 0.5 else -1
   list(
-    sum = lapply(raw$main, function(m) 0.5 * rowSums(m[, cols, drop = FALSE])),
+    sum = lapply(raw$main, function(m) {
+      to_half_precision * rowSums(m[, cols, drop = FALSE])
+    }),
     n = length(cols),
     shape = spec$prior$scale_shape %||% 1
   )
