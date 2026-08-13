@@ -24,8 +24,6 @@ if(!exists("bgm_spec", mode = "function")) {
     "unpack_threshold_prior",
     "run_mixed_simulation_parallel",
     "sample_mixed_mrf_gibbs",
-    "validate_bernoulli_difference_prior",
-    "validate_bernoulli_prior",
     "validate_difference_prior",
     "validate_edge_prior",
     "validate_missing_data",

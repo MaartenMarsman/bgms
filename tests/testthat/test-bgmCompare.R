@@ -142,6 +142,10 @@ test_that("bgmCompare without selection produces valid estimates", {
   # Should have posterior means
   expect_true(!is.null(fit$posterior_mean_pairwise_baseline))
   expect_true(!is.null(fit$posterior_mean_main_baseline))
+
+  # Without difference selection there are no block allocations to summarise;
+  # extract_sbm() stops on the selection guard before it reaches the prior one.
+  expect_error(extract_sbm(fit), regexp = "difference_selection = TRUE")
 })
 
 test_that("bgmCompare with selection produces valid indicators", {
@@ -309,6 +313,25 @@ test_that("bgmCompare accepts sbm_prior() and surfaces allocations", {
     dim(fit$raw_samples$allocations[[1]]),
     c(nrow(fit$raw_samples$indicator[[1]]), ncol(x))
   )
+
+  # The exported extractor is the supported route to all of the above; assert
+  # it hands back the same four summaries the fields carry.
+  sbm = extract_sbm(fit)
+  expect_named(
+    sbm,
+    c(
+      "posterior_num_blocks", "posterior_mean_allocations",
+      "posterior_mode_allocations", "posterior_mean_coclustering_matrix"
+    )
+  )
+  expect_identical(sbm$posterior_num_blocks, fit$posterior_num_blocks)
+  expect_identical(sbm$posterior_mean_allocations, fit$posterior_mean_allocations)
+  expect_identical(sbm$posterior_mode_allocations, fit$posterior_mode_allocations)
+  expect_identical(
+    sbm$posterior_mean_coclustering_matrix,
+    fit$posterior_mean_coclustering_matrix
+  )
+  expect_equal(dim(sbm$posterior_mean_coclustering_matrix), c(ncol(x), ncol(x)))
 })
 
 test_that("bgmCompare without sbm_prior() does not produce allocation fields", {
@@ -328,6 +351,9 @@ test_that("bgmCompare without sbm_prior() does not produce allocation fields", {
   expect_null(fit$posterior_mode_allocations)
   expect_null(fit$posterior_mean_coclustering_matrix)
   expect_null(fit$raw_samples$allocations)
+
+  # extract_sbm() names the prior it needs rather than returning four NULLs.
+  expect_error(extract_sbm(fit), regexp = "Stochastic-Block")
 })
 
 # ------------------------------------------------------------------------------
@@ -354,7 +380,7 @@ test_that("bgmCompare pairwise effects are on the association scale", {
 
   fit = bgmCompare(
     rbind(draw(11), draw(12)),
-    group = rep(1:2, each = 400),
+    group_indicator = rep(1:2, each = 400),
     iter = 600, warmup = 300, chains = 1, seed = 1234,
     difference_selection = FALSE, display_progress = "none"
   )
@@ -427,7 +453,7 @@ test_that("bgmCompare recovers a planted group difference at its planted size", 
 
   fit = bgmCompare(
     rbind(draw(omega_1, 101), draw(omega_2, 201)),
-    group = rep(1:2, each = 1200),
+    group_indicator = rep(1:2, each = 1200),
     iter = 400, warmup = 250, chains = 1, seed = 1,
     difference_selection = FALSE, display_progress = "none"
   )
